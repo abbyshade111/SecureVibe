@@ -10,7 +10,9 @@
 //! the lockfile does not have at all disagrees too. What cannot be compared (a pre-release, a git
 //! URL, a range written in a form not read here) is listed as not compared, never as agreeing.
 //!
-//! Two manifests are read: `requirements.txt` and `package.json`. The rest are not compared yet.
+//! Seven manifests are read: `requirements.txt`, `pyproject.toml` (its own list and Poetry's),
+//! `package.json`, `Cargo.toml`, `composer.json`, `Gemfile`, and `go.mod`, each with the range rules
+//! its package manager documents. Gradle's files are not compared yet.
 
 /// What the manifest asks for, in a form a version can be held to.
 #[derive(Debug, Clone)]
@@ -18,7 +20,10 @@ enum Spec {
     /// Python's comma-joined clauses, all of which must hold.
     Python(Vec<(PyOp, String)>),
     /// npm's `||`-joined sets of comparators; a version must meet every comparator of one set.
+    /// Cargo's and Composer's requirements are read into the same form.
     Npm(Vec<Comparators>),
+    /// One version, written out: Go's `require` names exactly the version it builds with.
+    Exact(String),
     /// Written in a form not read here.
     Unread,
 }
@@ -55,8 +60,8 @@ struct Wanted {
     /// The package as the manifest writes it, for a person to find it there.
     asked: String,
     spec: Spec,
-    /// Python only: the line has an environment marker, so the package may rightly be missing
-    /// from a lock made for another platform or Python.
+    /// The package may rightly be missing from the lockfile: a line with a platform condition, an
+    /// optional dependency, an extra, or a group. Missing, it is not compared; present, it still is.
     conditional: bool,
 }
 
@@ -84,17 +89,23 @@ pub fn compare(
     manifest: &str,
     locked: &[(String, String)],
 ) -> Option<Comparison> {
-    let (wanted, key): (Vec<Wanted>, fn(&str) -> String) = match manifest_name {
-        "requirements.txt" => (python_wants(manifest), python_name),
-        "package.json" => (npm_wants(manifest)?, str::to_owned),
+    type Read = (Vec<Wanted>, fn(&str) -> String, fn(&str) -> String);
+    let (wanted, key, version_of): Read = match manifest_name {
+        "requirements.txt" => (python_wants(manifest), python_name, str::to_owned),
+        "pyproject.toml" => (pyproject_wants(manifest)?, python_name, str::to_owned),
+        "package.json" => (npm_wants(manifest)?, str::to_owned, str::to_owned),
+        "Cargo.toml" => (cargo_wants(manifest)?, cargo_name, str::to_owned),
+        "composer.json" => (composer_wants(manifest)?, str::to_lowercase, str::to_owned),
+        "Gemfile" => (gem_wants(manifest), str::to_owned, gem_version),
+        "go.mod" => (go_wants(manifest), str::to_owned, str::to_owned),
         _ => return None,
     };
     let mut out = Comparison::default();
     for want in wanted {
-        let versions: Vec<&str> = locked
+        let versions: Vec<String> = locked
             .iter()
             .filter(|(name, _)| key(name) == want.key)
-            .map(|(_, version)| version.as_str())
+            .map(|(_, version)| version_of(version))
             .collect();
         if versions.is_empty() {
             if want.conditional {
@@ -115,7 +126,7 @@ pub fn compare(
             out.not_compared.push(want.asked);
             continue;
         }
-        let mut locked: Vec<String> = versions.iter().map(|v| (*v).to_owned()).collect();
+        let mut locked = versions;
         locked.sort();
         locked.dedup();
         out.differs.push(Differs {
@@ -130,6 +141,7 @@ pub fn compare(
 fn allows(spec: &Spec, version: &str) -> Option<bool> {
     match spec {
         Spec::Unread => None,
+        Spec::Exact(wanted) => Some(wanted == version),
         Spec::Python(clauses) => {
             let mut all = Some(true);
             for (op, wanted) in clauses {
@@ -476,6 +488,534 @@ fn npm_comparator(word: &str) -> Option<Comparators> {
     })
 }
 
+// ---------------------------------------------------------------------------------------------
+// `pyproject.toml`: the project's own list (PEP 621), its extras and groups, and Poetry's tables.
+
+fn pyproject_wants(text: &str) -> Option<Vec<Wanted>> {
+    let doc: toml::Table = toml::from_str(text).ok()?;
+    let mut out = Vec::new();
+    let lines = |value: Option<&toml::Value>| -> String {
+        value
+            .and_then(toml::Value::as_array)
+            .map(|list| {
+                list.iter()
+                    .filter_map(toml::Value::as_str)
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .unwrap_or_default()
+    };
+    let project = doc.get("project");
+    out.extend(python_wants(&lines(
+        project.and_then(|p| p.get("dependencies")),
+    )));
+    // Extras and groups are installed only when asked for, so each may be missing from a lock.
+    let mut optional = Vec::new();
+    if let Some(extras) = project
+        .and_then(|p| p.get("optional-dependencies"))
+        .and_then(toml::Value::as_table)
+    {
+        optional.extend(extras.values().map(|v| lines(Some(v))));
+    }
+    if let Some(groups) = doc.get("dependency-groups").and_then(toml::Value::as_table) {
+        optional.extend(groups.values().map(|v| lines(Some(v))));
+    }
+    for list in optional {
+        out.extend(python_wants(&list).into_iter().map(|mut w| {
+            w.conditional = true;
+            w
+        }));
+    }
+    // Poetry's own tables.
+    let poetry = doc.get("tool").and_then(|t| t.get("poetry"));
+    let mut tables: Vec<(&toml::Table, bool)> = Vec::new();
+    if let Some(t) = poetry
+        .and_then(|p| p.get("dependencies"))
+        .and_then(toml::Value::as_table)
+    {
+        tables.push((t, false));
+    }
+    if let Some(t) = poetry
+        .and_then(|p| p.get("dev-dependencies"))
+        .and_then(toml::Value::as_table)
+    {
+        tables.push((t, true));
+    }
+    if let Some(groups) = poetry
+        .and_then(|p| p.get("group"))
+        .and_then(toml::Value::as_table)
+    {
+        for group in groups.values() {
+            if let Some(t) = group.get("dependencies").and_then(toml::Value::as_table) {
+                tables.push((t, true));
+            }
+        }
+    }
+    for (table, in_group) in tables {
+        for (name, value) in table {
+            // The Python the project runs on, not a package.
+            if name == "python" {
+                continue;
+            }
+            let (constraint, conditional) = match value {
+                toml::Value::String(c) => (Some(c.as_str()), false),
+                toml::Value::Table(t) => {
+                    let elsewhere = ["git", "path", "url"].iter().any(|k| t.contains_key(*k));
+                    let conditional =
+                        ["optional", "markers", "python", "platform"]
+                            .iter()
+                            .any(|k| {
+                                t.contains_key(*k)
+                                    && t.get(*k) != Some(&toml::Value::Boolean(false))
+                            });
+                    (
+                        if elsewhere {
+                            None
+                        } else {
+                            t.get("version").and_then(toml::Value::as_str)
+                        },
+                        conditional,
+                    )
+                }
+                // A list of constraints, one per platform or Python: not read.
+                _ => (None, true),
+            };
+            out.push(Wanted {
+                key: python_name(name),
+                asked: format!("{name} {}", constraint.unwrap_or("(not a version)")),
+                spec: constraint
+                    .and_then(poetry_spec)
+                    .map_or(Spec::Unread, Spec::Python),
+                conditional: conditional || in_group,
+            });
+        }
+    }
+    Some(out)
+}
+
+/// Poetry's constraint (`^1.2`, `~1.2.3`, `1.2.*`, `1.2.3`, or PEP 440 clauses), as PEP 440 clauses.
+fn poetry_spec(text: &str) -> Option<Vec<(PyOp, String)>> {
+    let text = text.trim();
+    if text.contains('|') {
+        return None;
+    }
+    let mut clauses = Vec::new();
+    for word in text.split(',').map(str::trim) {
+        if word.is_empty() || word == "*" {
+            continue;
+        }
+        let bounded = |rest: &str, bump: fn(&[u64]) -> usize| -> Option<Vec<(PyOp, String)>> {
+            let parts = python_release(rest)?;
+            Some(vec![
+                (PyOp::AtLeast, rest.trim().to_owned()),
+                (PyOp::Below, release_text(&bumped(&parts, bump(&parts)))),
+            ])
+        };
+        if let Some(rest) = word.strip_prefix('^') {
+            clauses.extend(bounded(rest, caret_place)?);
+        } else if let Some(rest) = word.strip_prefix('~').filter(|r| !r.starts_with('=')) {
+            clauses.extend(bounded(rest, |p| 1.min(p.len() - 1))?);
+        } else if word.starts_with(|c: char| c.is_ascii_digit()) {
+            // `1.2.3` is exactly that version, and `1.2.*` its prefix.
+            clauses.push((PyOp::Equal, word.to_owned()));
+        } else {
+            clauses.extend(python_spec(word)?);
+        }
+    }
+    Some(clauses)
+}
+
+/// Where `^` raises a version for its upper bound: the first part that is not zero, or the last.
+fn caret_place(parts: &[u64]) -> usize {
+    parts
+        .iter()
+        .position(|&p| p != 0)
+        .unwrap_or(parts.len() - 1)
+}
+
+/// The version with the part at `at` raised by one and everything after it dropped.
+fn bumped(parts: &[u64], at: usize) -> Vec<u64> {
+    let mut out = parts[..=at].to_vec();
+    out[at] += 1;
+    out
+}
+
+fn release_text(parts: &[u64]) -> String {
+    parts
+        .iter()
+        .map(u64::to_string)
+        .collect::<Vec<_>>()
+        .join(".")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Cargo: `Cargo.toml`, whose bare requirement `1.2` means `^1.2`.
+
+/// Cargo's index treats `-` and `_` in a crate's name alike.
+fn cargo_name(name: &str) -> String {
+    name.replace('_', "-")
+}
+
+fn cargo_wants(text: &str) -> Option<Vec<Wanted>> {
+    let doc: toml::Table = toml::from_str(text).ok()?;
+    let mut tables: Vec<(&toml::Table, bool)> = Vec::new();
+    for kind in ["dependencies", "dev-dependencies", "build-dependencies"] {
+        if let Some(t) = doc.get(kind).and_then(toml::Value::as_table) {
+            tables.push((t, false));
+        }
+        // A workspace's shared requirements, which its members name with `workspace = true`.
+        if let Some(t) = doc
+            .get("workspace")
+            .and_then(|w| w.get(kind))
+            .and_then(toml::Value::as_table)
+        {
+            tables.push((t, false));
+        }
+    }
+    // Dependencies for one platform only may rightly be missing from a lock made elsewhere.
+    if let Some(targets) = doc.get("target").and_then(toml::Value::as_table) {
+        for target in targets.values() {
+            for kind in ["dependencies", "dev-dependencies", "build-dependencies"] {
+                if let Some(t) = target.get(kind).and_then(toml::Value::as_table) {
+                    tables.push((t, true));
+                }
+            }
+        }
+    }
+    let mut out = Vec::new();
+    for (table, for_a_platform) in tables {
+        for (key, value) in table {
+            let (requirement, package, optional) = match value {
+                toml::Value::String(r) => (Some(r.as_str()), key.as_str(), false),
+                toml::Value::Table(t) => {
+                    // `workspace = true` takes its requirement from the workspace, which is compared
+                    // where it is written; `path` and `git` are not from the registry.
+                    if ["workspace", "path", "git"]
+                        .iter()
+                        .any(|k| t.contains_key(*k))
+                    {
+                        continue;
+                    }
+                    (
+                        t.get("version").and_then(toml::Value::as_str),
+                        t.get("package")
+                            .and_then(toml::Value::as_str)
+                            .unwrap_or(key),
+                        t.get("optional") == Some(&toml::Value::Boolean(true)),
+                    )
+                }
+                _ => (None, key.as_str(), false),
+            };
+            out.push(Wanted {
+                key: cargo_name(package),
+                asked: format!("{package} {}", requirement.unwrap_or("(not a version)")),
+                spec: requirement
+                    .and_then(cargo_spec)
+                    .map_or(Spec::Unread, |set| Spec::Npm(vec![set])),
+                conditional: for_a_platform || optional,
+            });
+        }
+    }
+    Some(out)
+}
+
+/// Cargo's comma-joined comparators, all of which must hold.
+fn cargo_spec(text: &str) -> Option<Comparators> {
+    let mut set = Vec::new();
+    for word in text.split(',').map(str::trim) {
+        let word = word
+            .replace(">= ", ">=")
+            .replace("<= ", "<=")
+            .replace("> ", ">")
+            .replace("< ", "<")
+            .replace("= ", "=");
+        // A bare requirement is a caret requirement in Cargo, not an exact one as in npm.
+        let word = if word.starts_with(|c: char| c.is_ascii_digit()) && !word.contains('*') {
+            format!("^{word}")
+        } else {
+            word
+        };
+        set.extend(npm_comparator(&word)?);
+    }
+    Some(set)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Composer: `composer.json`, whose `~1.2` means `>=1.2 <2.0`, not npm's `<1.3`.
+
+fn composer_wants(text: &str) -> Option<Vec<Wanted>> {
+    let json: serde_json::Value = serde_json::from_str(text).ok()?;
+    let mut out = Vec::new();
+    for field in ["require", "require-dev"] {
+        let Some(map) = json.get(field).and_then(|d| d.as_object()) else {
+            continue;
+        };
+        for (name, constraint) in map {
+            // PHP itself, its extensions, and Composer's own interfaces are not packages.
+            if !name.contains('/') {
+                continue;
+            }
+            let constraint = constraint.as_str().unwrap_or_default();
+            out.push(Wanted {
+                key: name.to_lowercase(),
+                asked: format!("{name} {constraint}"),
+                spec: composer_spec(constraint).map_or(Spec::Unread, Spec::Npm),
+                conditional: false,
+            });
+        }
+    }
+    Some(out)
+}
+
+fn composer_spec(text: &str) -> Option<Vec<Comparators>> {
+    // Stability flags (`@beta`), branches (`dev-main`), and aliases (`1.0 as 2.0`) name no plain
+    // range; each has a word no version reader below takes, so the whole constraint is not read.
+    let mut sets = Vec::new();
+    for set in text.trim().replace("||", "|").split('|').map(str::trim) {
+        if set.contains(" - ") {
+            sets.extend(npm_spec(set)?);
+            continue;
+        }
+        let joined = set
+            .replace(',', " ")
+            .replace(">= ", ">=")
+            .replace("<= ", "<=")
+            .replace("> ", ">")
+            .replace("< ", "<")
+            .replace("!= ", "!=")
+            .replace("= ", "=");
+        let mut comparators = Vec::new();
+        for word in joined.split_whitespace() {
+            if word.starts_with("!=") {
+                return None;
+            }
+            if let Some(rest) = word.strip_prefix('~') {
+                let parts = npm_partial(rest)?;
+                if parts.is_empty() {
+                    return None;
+                }
+                let upper = npm_next(&parts[..(parts.len() - 1).max(1)]);
+                comparators.push((NpmOp::AtLeast, npm_floor(&parts)));
+                comparators.push((NpmOp::Below, upper));
+            } else if word.starts_with(|c: char| c.is_ascii_digit() || c == 'v')
+                && !word.contains(['*', 'x', 'X'])
+            {
+                // An exact version: `1.2` is `1.2.0`, not every `1.2.x`.
+                comparators.push((NpmOp::Equal, npm_floor(&npm_partial(word)?)));
+            } else {
+                comparators.extend(npm_comparator(word)?);
+            }
+        }
+        sets.push(comparators);
+    }
+    Some(sets)
+}
+
+// ---------------------------------------------------------------------------------------------
+// Bundler: the `gem` lines of a `Gemfile`, whose `~> 1.2` means `>= 1.2, < 2`.
+
+fn gem_wants(text: &str) -> Vec<Wanted> {
+    let mut out = Vec::new();
+    // Blocks for a platform or an `install_if` hold gems another computer may rightly not install.
+    let mut blocks: Vec<bool> = Vec::new();
+    for line in text.lines() {
+        let line = line.split(" #").next().unwrap_or(line).trim();
+        if line.starts_with('#') || line.is_empty() {
+            continue;
+        }
+        if line.ends_with(" do") || line.contains(" do |") {
+            // `platform` and `platforms` both.
+            blocks.push(line.starts_with("platform") || line.starts_with("install_if"));
+            continue;
+        }
+        if line == "end" {
+            blocks.pop();
+            continue;
+        }
+        let Some(rest) = line
+            .strip_prefix("gem ")
+            .or_else(|| line.strip_prefix("gem("))
+        else {
+            continue;
+        };
+        let quoted = quoted_strings(rest);
+        let Some((name, after_name)) = quoted.first() else {
+            continue;
+        };
+        // The version constraints are the quoted strings straight after the name, before any option.
+        let mut constraints = Vec::new();
+        let mut at = *after_name;
+        for (text, end) in quoted.iter().skip(1) {
+            let between = rest[at..].split(text.as_str()).next().unwrap_or("");
+            if between.contains(':') || between.contains("=>") {
+                break;
+            }
+            constraints.push(text.clone());
+            at = *end;
+        }
+        let options = &rest[at..];
+        let elsewhere = [
+            "git:",
+            "github:",
+            "path:",
+            "gist:",
+            "bitbucket:",
+            ":git",
+            ":github",
+            ":path",
+        ]
+        .iter()
+        .any(|o| options.contains(o));
+        let conditional = blocks.iter().any(|b| *b)
+            || [
+                "platforms:",
+                "platform:",
+                "install_if:",
+                ":platforms",
+                ":platform",
+            ]
+            .iter()
+            .any(|o| options.contains(o));
+        let spec = if elsewhere {
+            Spec::Unread
+        } else {
+            constraints
+                .iter()
+                .map(|c| gem_clauses(c))
+                .collect::<Option<Vec<_>>>()
+                .map_or(Spec::Unread, |c| Spec::Python(c.concat()))
+        };
+        out.push(Wanted {
+            key: name.clone(),
+            asked: if constraints.is_empty() {
+                name.clone()
+            } else {
+                format!("{name} {}", constraints.join(", "))
+            },
+            spec,
+            conditional,
+        });
+    }
+    out
+}
+
+/// The strings in single or double quotes in `text`, each with the position just after it.
+fn quoted_strings(text: &str) -> Vec<(String, usize)> {
+    let mut out = Vec::new();
+    let mut chars = text.char_indices();
+    while let Some((_, c)) = chars.next() {
+        if c != '"' && c != '\'' {
+            continue;
+        }
+        let mut inner = String::new();
+        for (j, d) in chars.by_ref() {
+            if d == c {
+                out.push((inner, j + 1));
+                break;
+            }
+            inner.push(d);
+        }
+    }
+    out
+}
+
+/// One RubyGems requirement, `~> 7.1`, `>= 2.0`, or a bare version, as PEP 440 clauses: RubyGems
+/// compares plain release numbers the same way, `1.2` and `1.2.0` alike.
+fn gem_clauses(text: &str) -> Option<Vec<(PyOp, String)>> {
+    let text = text.trim();
+    let (op, version) = ["~>", ">=", "<=", "!=", ">", "<", "="]
+        .iter()
+        .find_map(|op| text.strip_prefix(op).map(|v| (*op, v.trim())))
+        .unwrap_or(("=", text));
+    let parts = python_release(version)?;
+    Some(match op {
+        "~>" => {
+            let at = parts.len().saturating_sub(2);
+            vec![
+                (PyOp::AtLeast, version.to_owned()),
+                (PyOp::Below, release_text(&bumped(&parts, at))),
+            ]
+        }
+        ">=" => vec![(PyOp::AtLeast, version.to_owned())],
+        "<=" => vec![(PyOp::AtMost, version.to_owned())],
+        "!=" => vec![(PyOp::NotEqual, version.to_owned())],
+        ">" => vec![(PyOp::Above, version.to_owned())],
+        "<" => vec![(PyOp::Below, version.to_owned())],
+        _ => vec![(PyOp::Equal, version.to_owned())],
+    })
+}
+
+/// A gem's version as `Gemfile.lock` writes it, without the platform some gems carry
+/// (`1.16.0-x86_64-linux`).
+fn gem_version(version: &str) -> String {
+    match version.split_once('-') {
+        Some((release, platform)) if platform.starts_with(|c: char| c.is_ascii_alphabetic()) => {
+            release.to_owned()
+        }
+        _ => version.to_owned(),
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Go: `go.mod`, whose `require` names the exact version the module builds with.
+
+fn go_wants(text: &str) -> Vec<Wanted> {
+    let mut replaced = std::collections::BTreeSet::new();
+    let mut required: Vec<(String, String)> = Vec::new();
+    let mut block: Option<&str> = None;
+    for line in text.lines() {
+        let line = line.split("//").next().unwrap_or("").trim();
+        if line.is_empty() {
+            continue;
+        }
+        if line == ")" {
+            block = None;
+            continue;
+        }
+        let (directive, rest) = match block {
+            Some(d) => (d, line),
+            None => match line.split_once(char::is_whitespace) {
+                Some((d, r)) => (d, r.trim()),
+                None => continue,
+            },
+        };
+        if rest == "(" {
+            block = Some(match directive {
+                "require" => "require",
+                "replace" => "replace",
+                _ => "other",
+            });
+            continue;
+        }
+        let words: Vec<&str> = rest.split_whitespace().collect();
+        match directive {
+            "require" if words.len() >= 2 => {
+                required.push((words[0].to_owned(), words[1].to_owned()));
+            }
+            "replace" if !words.is_empty() => {
+                replaced.insert(words[0].to_owned());
+            }
+            _ => {}
+        }
+    }
+    required
+        .into_iter()
+        .map(|(module, version)| Wanted {
+            asked: format!("{module} {version}"),
+            // A module replaced by another, or by a folder, is not what `go.sum` lists under its name.
+            spec: if replaced.contains(&module) {
+                Spec::Unread
+            } else {
+                Spec::Exact(version)
+            },
+            key: module,
+            // `go.sum` may hold only the hash of a module's `go.mod`, which the bill of materials does
+            // not list, for a module nothing imports; missing, it is not compared.
+            conditional: true,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -640,7 +1180,7 @@ mod tests {
         assert!(found.differs.is_empty(), "{found:?}");
         assert_eq!(found.not_compared.len(), 6, "{found:?}");
         // A manifest of another kind is not compared at all, rather than found to agree.
-        assert_eq!(compare("Cargo.toml", "[dependencies]\n", &[]), None);
+        assert_eq!(compare("build.gradle", "dependencies {}\n", &[]), None);
         assert_eq!(compare("package.json", "{not json", &[]), None);
     }
 
@@ -750,5 +1290,334 @@ mod tests {
         ] {
             assert_eq!(npm(range, version), expected, "{range:?} against {version}");
         }
+    }
+
+    /// The packages that differ, as the manifest writes them, and those not compared.
+    fn found(manifest: &str, text: &str, lock: &[(&str, &str)]) -> (Vec<String>, Vec<String>) {
+        let c = compare(manifest, text, &locked(lock)).unwrap();
+        (
+            c.differs.into_iter().map(|d| d.asked).collect(),
+            c.not_compared,
+        )
+    }
+
+    #[test]
+    fn pyproject_lists_and_poetry_tables_are_compared() {
+        let manifest = r#"
+[project]
+name = "app"
+dependencies = ["flask>=3,<4", "PyJWT==2.13.0", "gunicorn"]
+[project.optional-dependencies]
+docs = ["sphinx>=7"]
+[dependency-groups]
+dev = ["pytest==8.0.0"]
+"#;
+        let (differs, not_compared) = found(
+            "pyproject.toml",
+            manifest,
+            &[
+                ("flask", "3.0.3"),
+                ("pyjwt", "2.8.0"),
+                ("gunicorn", "22.0.0"),
+                ("pytest", "7.4.0"),
+            ],
+        );
+        // An extra that is not installed may be missing; a group that is, at the wrong version, is not.
+        assert_eq!(differs, vec!["PyJWT==2.13.0", "pytest==8.0.0"]);
+        assert_eq!(not_compared, vec!["sphinx>=7"]);
+
+        let poetry = r#"
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^4.2"
+requests = { version = "~2.31", extras = ["socks"] }
+mylib = { git = "https://example.invalid/mylib.git" }
+vendored = { path = "../vendored", version = "9.9" }
+win = { version = "1.0", markers = "sys_platform == 'win32'" }
+[tool.poetry.group.dev.dependencies]
+black = "24.1.0"
+"#;
+        let (differs, not_compared) = found(
+            "pyproject.toml",
+            poetry,
+            &[
+                ("Django", "5.0.1"),
+                ("requests", "2.31.9"),
+                ("mylib", "0.1.0"),
+                ("vendored", "0.1.0"),
+                ("black", "24.1.0"),
+            ],
+        );
+        assert_eq!(differs, vec!["django ^4.2"]);
+        // A folder's version is the folder's, whatever the table says.
+        assert_eq!(
+            not_compared,
+            vec![
+                "mylib (not a version)",
+                "vendored (not a version)",
+                "win 1.0"
+            ]
+        );
+        assert_eq!(compare("pyproject.toml", "not = [toml", &[]), None);
+    }
+
+    #[test]
+    fn poetry_constraints_are_read_as_poetry_documents_them() {
+        let poetry =
+            |c: &str, v: &str| allows(&poetry_spec(c).map_or(Spec::Unread, Spec::Python), v);
+        for (constraint, version, expected) in [
+            ("^1.2.3", "1.9.0", Some(true)),
+            ("^1.2.3", "2.0.0", Some(false)),
+            ("^0.2.3", "0.3.0", Some(false)),
+            ("^0.0.3", "0.0.4", Some(false)),
+            ("^0", "0.9", Some(true)),
+            ("^0", "1.0", Some(false)),
+            ("~1.2.3", "1.2.9", Some(true)),
+            ("~1.2.3", "1.3.0", Some(false)),
+            ("~1.2", "1.3.0", Some(false)),
+            ("~1", "1.9", Some(true)),
+            ("~1", "2.0", Some(false)),
+            ("~=1.2", "1.9", Some(true)),
+            ("1.2.3", "1.2.3", Some(true)),
+            ("1.2.3", "1.2.4", Some(false)),
+            ("1.2.*", "1.2.9", Some(true)),
+            ("1.2.*", "1.3.0", Some(false)),
+            ("*", "9.9", Some(true)),
+            (">=1.2,<2", "1.5", Some(true)),
+            (">=1.2,<2", "2.0", Some(false)),
+            ("^1.2 || ^2.0", "2.1", None),
+            ("^1.0", "1.1.0rc1", None),
+        ] {
+            assert_eq!(
+                poetry(constraint, version),
+                expected,
+                "{constraint} against {version}"
+            );
+        }
+    }
+
+    #[test]
+    fn cargo_requirements_are_read_as_cargo_documents_them() {
+        let manifest = r#"
+[package]
+name = "app"
+[dependencies]
+serde = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+rand = "0.7"
+local = { path = "../local" }
+shared.workspace = true
+renamed = { package = "real_name", version = "2" }
+extra = { version = "3", optional = true }
+[dev-dependencies]
+proptest = "=1.4.0"
+[target.'cfg(windows)'.dependencies]
+winapi = "0.3"
+"#;
+        let (differs, not_compared) = found(
+            "Cargo.toml",
+            manifest,
+            &[
+                ("serde", "1.0.228"),
+                ("tokio", "1.47.1"),
+                ("rand", "0.8.5"),
+                ("real-name", "2.1.0"),
+                ("proptest", "1.5.0"),
+                ("local", "0.1.0"),
+            ],
+        );
+        // `0.7` is `^0.7`, which 0.8 does not meet; `=1.4.0` is exact.
+        assert_eq!(differs, vec!["rand 0.7", "proptest =1.4.0"]);
+        // An optional crate and one for another platform may be missing; a path and the workspace's
+        // own requirement are not compared here at all.
+        assert_eq!(not_compared, vec!["extra 3", "winapi 0.3"]);
+
+        let workspace = "[workspace]\nmembers = [\"a\"]\n[workspace.dependencies]\nserde = \"2\"\n";
+        let (differs, _) = found("Cargo.toml", workspace, &[("serde", "1.0.228")]);
+        assert_eq!(differs, vec!["serde 2"]);
+
+        let cargo = |c: &str, v: &str| {
+            allows(
+                &cargo_spec(c).map_or(Spec::Unread, |s| Spec::Npm(vec![s])),
+                v,
+            )
+        };
+        for (requirement, version, expected) in [
+            ("1.2.3", "1.9.0", Some(true)),
+            ("1.2.3", "2.0.0", Some(false)),
+            ("0.2", "0.2.9", Some(true)),
+            ("0.2", "0.3.0", Some(false)),
+            ("0.0.3", "0.0.4", Some(false)),
+            ("=1.2.3", "1.2.4", Some(false)),
+            ("~1.2", "1.2.9", Some(true)),
+            ("~1.2", "1.3.0", Some(false)),
+            ("1.*", "1.9.0", Some(true)),
+            ("1.*", "2.0.0", Some(false)),
+            ("*", "9.0.0", Some(true)),
+            (">=1.2, <1.5", "1.4.9", Some(true)),
+            (">= 1.2, < 1.5", "1.5.0", Some(false)),
+            ("1.2.3", "1.3.0-alpha.1", None),
+        ] {
+            assert_eq!(
+                cargo(requirement, version),
+                expected,
+                "{requirement} against {version}"
+            );
+        }
+    }
+
+    #[test]
+    fn composer_constraints_are_read_as_composer_documents_them() {
+        let manifest = r#"{"require": {"php": ">=8.1", "ext-json": "*", "monolog/monolog": "^3.0",
+            "symfony/console": "~6.4", "Guzzlehttp/Guzzle": "7.8.1", "laravel/framework": "dev-master"},
+            "require-dev": {"phpunit/phpunit": "^10.5"}}"#;
+        let (differs, not_compared) = found(
+            "composer.json",
+            manifest,
+            &[
+                ("monolog/monolog", "3.5.0"),
+                ("symfony/console", "v7.0.1"),
+                ("guzzlehttp/guzzle", "7.8.1"),
+                ("laravel/framework", "dev-master"),
+            ],
+        );
+        // PHP and its extensions are not packages; `~6.4` stops below 7.0.
+        assert_eq!(
+            differs,
+            vec!["symfony/console ~6.4", "phpunit/phpunit ^10.5"]
+        );
+        assert_eq!(not_compared, vec!["laravel/framework dev-master"]);
+
+        let composer =
+            |c: &str, v: &str| allows(&composer_spec(c).map_or(Spec::Unread, Spec::Npm), v);
+        for (constraint, version, expected) in [
+            ("~1.2", "1.9.0", Some(true)),
+            ("~1.2", "2.0.0", Some(false)),
+            ("~1.2.3", "1.2.9", Some(true)),
+            ("~1.2.3", "1.3.0", Some(false)),
+            ("~1", "1.9.0", Some(true)),
+            ("~1", "2.0.0", Some(false)),
+            ("^1.2", "1.9.0", Some(true)),
+            ("^0.3", "0.4.0", Some(false)),
+            ("1.2", "1.2.0", Some(true)),
+            ("1.2", "1.2.1", Some(false)),
+            ("1.2.*", "1.2.7", Some(true)),
+            (">=1.0 <2.0", "1.5.0", Some(true)),
+            (">=1.0,<2.0", "2.0.0", Some(false)),
+            ("^1.0 || ^2.0", "2.3.0", Some(true)),
+            ("^1.0 | ^2.0", "3.0.0", Some(false)),
+            ("1.0 - 2.0", "2.0.0", Some(true)),
+            ("^1.0", "v1.4.0", Some(true)),
+            ("^1.0@beta", "1.0.0", None),
+            ("1.0.0@dev", "1.0.0", None),
+            ("dev-main#abc123", "1.0.0", None),
+            ("1.0 as 2.0", "2.0.0", None),
+            ("!=1.2.0", "1.3.0", None),
+        ] {
+            assert_eq!(
+                composer(constraint, version),
+                expected,
+                "{constraint} against {version}"
+            );
+        }
+    }
+
+    #[test]
+    fn gemfile_lines_are_read_as_bundler_reads_them() {
+        let manifest = r#"
+source "https://rubygems.org"
+gem "rails", "~> 7.1.0"
+gem 'pg', '>= 1.1', '< 2.0'
+gem "puma", ">= 5.0", require: false
+gem "nokogiri", "1.16.0"
+gem "devise" # no version
+gem "mylib", git: "https://example.invalid/mylib.git"
+gem "tzinfo-data", platforms: %i[ windows jruby ]
+group :development, :test do
+  gem "rspec-rails", "~> 6"
+end
+platforms :jruby do
+  gem "jdbc", "~> 1.0"
+end
+install_if -> { RUBY_PLATFORM =~ /darwin/ } do
+  gem "terminal-notifier", "~> 2.0"
+end
+"#;
+        let (differs, not_compared) = found(
+            "Gemfile",
+            manifest,
+            &[
+                ("rails", "7.2.0"),
+                ("pg", "1.5.4"),
+                ("puma", "6.4.2"),
+                ("nokogiri", "1.16.0-x86_64-linux"),
+                ("devise", "4.9.3"),
+                ("mylib", "0.1.0"),
+                ("rspec-rails", "7.0.0"),
+            ],
+        );
+        assert_eq!(differs, vec!["rails ~> 7.1.0", "rspec-rails ~> 6"]);
+        assert_eq!(
+            not_compared,
+            vec![
+                "mylib",
+                "tzinfo-data",
+                "jdbc ~> 1.0",
+                "terminal-notifier ~> 2.0"
+            ]
+        );
+
+        let gem = |c: &str, v: &str| {
+            allows(
+                &gem_clauses(c).map_or(Spec::Unread, Spec::Python),
+                &gem_version(v),
+            )
+        };
+        for (requirement, version, expected) in [
+            ("~> 7.1", "7.9", Some(true)),
+            ("~> 7.1", "8.0", Some(false)),
+            ("~> 7.1.0", "7.1.5", Some(true)),
+            ("~> 7.1.0", "7.2.0", Some(false)),
+            ("~> 6", "6.9", Some(true)),
+            ("~> 6", "7.0", Some(false)),
+            ("1.2", "1.2.0", Some(true)),
+            ("= 1.2.0", "1.2.1", Some(false)),
+            ("!= 1.2.0", "1.2.1", Some(true)),
+            ("> 1.2", "1.2.0", Some(false)),
+            ("1.16.0", "1.16.0-arm64-darwin", Some(true)),
+            ("~> 1.0", "1.1.0.rc1", None),
+        ] {
+            assert_eq!(
+                gem(requirement, version),
+                expected,
+                "{requirement} against {version}"
+            );
+        }
+    }
+
+    #[test]
+    fn go_requires_are_held_to_go_sum_exactly() {
+        let manifest = "module example.com/app\n\ngo 1.22\n\nrequire github.com/gin-gonic/gin v1.10.0\n\
+            require (\n\tgolang.org/x/crypto v0.25.0 // indirect\n\tgithub.com/old/thing v1.0.0\n\
+            \texample.com/forked v1.2.0\n\texample.com/unused v0.1.0 // indirect\n\
+            \t// example.com/dropped v3.0.0\n)\n\
+            replace example.com/forked => ../forked\n";
+        let (differs, not_compared) = found(
+            "go.mod",
+            manifest,
+            &[
+                ("github.com/gin-gonic/gin", "v1.10.0"),
+                ("golang.org/x/crypto", "v0.24.0"),
+                ("golang.org/x/crypto", "v0.25.0"),
+                ("github.com/old/thing", "v0.9.0"),
+                ("example.com/forked", "v1.1.0"),
+            ],
+        );
+        assert_eq!(differs, vec!["github.com/old/thing v1.0.0"]);
+        // Replaced, and a module go.sum may hold only the go.mod hash of.
+        assert_eq!(
+            not_compared,
+            vec!["example.com/forked v1.2.0", "example.com/unused v0.1.0"]
+        );
     }
 }
