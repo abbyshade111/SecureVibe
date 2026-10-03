@@ -294,7 +294,7 @@ does not reach.
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-15 of these 33 can only ever be marked *needs attention*: a check can
+14 of these 33 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -312,7 +312,7 @@ need `--tools`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
 - C7.3.3: found failing by sv's `probe.ai-output-fetched`.
 - C7.3.4: settled by `probe.ai-hidden-content-passed`.
-- C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
+- C9.1.2: settled by `probe.ai-agent-unbounded`; and found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
 - C9.3.7: found failing by sv's `probe.ai-output-fetched`.

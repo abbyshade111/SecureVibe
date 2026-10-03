@@ -211,6 +211,18 @@ const FAILURE_HANDLED: Rule = Rule {
           broken.",
 };
 
+const AGENT_UNBOUNDED: Rule = Rule {
+    rule_id: "probe.ai-agent-unbounded",
+    requirement_ids: &["C9.1.2"],
+    cwe: &["CWE-770"],
+    impact: "A model that keeps asking for tools is run for as long as it asks, so one message can \
+             cost as much as the model cares to spend, and a model talked into a loop runs the \
+             app's tools without end.",
+    fix: "Give each message a budget the app enforces itself: a most number of tool rounds (a \
+          handful is usually enough), a most number of tokens, or both, and stop with a plain \
+          answer when it is spent.",
+};
+
 const SESSION_LOG: Rule = Rule {
     rule_id: "probe.ai-call-log-session",
     requirement_ids: &["C12.1.1"],
@@ -307,6 +319,9 @@ struct Seen {
     /// How many times the app asked for a reply the test model failed on purpose: client libraries
     /// retry an outage, so more than one is the library at work, not a fault.
     failures: u64,
+    /// For an MCPLOOP message, how many tool results the app sent back before it stopped asking the
+    /// model: `LOOP_CAP` when only the test model's own stop ended it.
+    rounds: u64,
 }
 
 fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
@@ -371,8 +386,16 @@ fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
             .get("failures")
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(0),
+        rounds: value
+            .get("rounds")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0),
     })
 }
+
+/// How many tool rounds the test model's MCPLOOP asks for before it stops by itself; the same number
+/// as `LOOP_CAP` in `assets/model-provider.mjs`.
+const LOOP_CAP: u64 = 40;
 
 /// The text as a browser or a JSON reader would get it: JSON's `\u` escapes read, surrogate pairs
 /// included (Python writes a character outside the first plane as two), and HTML's numeric and
@@ -1066,6 +1089,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
                     ));
                 }
             }
+            agent_limit(http, &mut probe, &mut out);
         }
     } else {
         say(
@@ -1401,6 +1425,67 @@ fn record_tool_questions<F>(
 
 /// C2.1.4, C7.3.4, C7.3.1, and C2.2.2: four more questions, each asked with a control from the
 /// questions before it.
+/// C9.1.2: the test model asks for the MCP tool again after every result, up to `LOOP_CAP` rounds.
+///
+/// Asked only once the tool has been shown to work, so that rounds stopping is the app's doing and
+/// not a tool that never answered. Credited when the app stopped asking the model before the test
+/// model would have, with an answer; a finding when only the test model's own stop ended it. An
+/// app that answered with an error is neither: a crash part-way is not a budget.
+fn agent_limit<F>(http: &mut dyn Http, probe: &mut F, out: &mut Outcome)
+where
+    F: FnMut(&mut dyn Http, u32, &str) -> (String, Option<ProbeResponse>, Seen),
+{
+    let (_, answer, seen) = probe(http, 33, "MCPLOOP");
+    out.steps.push(format!(
+        "had the test model ask for the MCP tool again after every result ({}): the app sent back \
+         {} result{} before it stopped",
+        status(&answer),
+        seen.rounds,
+        if seen.rounds == 1 { "" } else { "s" }
+    ));
+    let answered = answer
+        .as_ref()
+        .is_some_and(|r| (200..300).contains(&r.status));
+    if seen.rounds >= LOOP_CAP {
+        out.findings.push(finding(
+            &AGENT_UNBOUNDED,
+            "The AI feature lets the model call tools without a limit",
+            Severity::Medium,
+            format!(
+                "The test model asked for the MCP tool again after every result, and the app ran \
+                 it {LOOP_CAP} times for one message; the test model stopped then, and the app had \
+                 not."
+            ),
+        ));
+    } else if seen.rounds == 0 || !answered {
+        out.not_assessed.push((
+            "C9.1.2".to_owned(),
+            format!(
+                "Whether the AI feature limits how many tools one message may run: the test model \
+                 asked for the tool again after every result, and the app {} ({}).",
+                if seen.rounds == 0 {
+                    "sent back no result at all"
+                } else {
+                    "answered with an error before the test model stopped"
+                },
+                status(&answer)
+            ),
+        ));
+    } else {
+        out.verified.push(crate::Verified::new(
+            AGENT_UNBOUNDED.rule_id,
+            AGENT_UNBOUNDED.requirement_ids,
+            format!(
+                "a model that asked for a tool again after every result, stopped by the app after \
+                 {} round{} where the test model would have gone on to {LOOP_CAP}; a limit on tool \
+                 rounds, not shown for tokens or spending",
+                seen.rounds,
+                if seen.rounds == 1 { "" } else { "s" }
+            ),
+        ));
+    }
+}
+
 /// V16.5.1 and V16.5.2: the AI service fails on one message, and then a plain message follows.
 ///
 /// The failure has to reach the test model, or it was not a failure of the service. What the app
@@ -2304,6 +2389,8 @@ mod tests {
         raw_response: bool,
         /// When the model service fails, it passes the service's error on to the person.
         passes_model_error: bool,
+        /// It runs the model's tool calls for as long as the model asks.
+        unbounded_tool_loop: bool,
         /// After the model service fails once, every message is answered 500.
         down_after_model_error: bool,
         /// It asks for its model by a name that moves (`gpt-4o-latest`).
@@ -2356,6 +2443,8 @@ mod tests {
         broken: bool,
         /// How many messages the model failed on.
         failures: u64,
+        /// For each MCPLOOP tag, how many tool rounds the app ran.
+        rounds: BTreeMap<String, u64>,
         flaws: Flaws,
         seen: BTreeMap<String, (bool, String, bool, bool)>,
         signed_in: bool,
@@ -2543,6 +2632,18 @@ mod tests {
                 };
                 self.mcp.insert(tag.into(), (requested, requested, result));
                 return format!("{marker} Here it is.");
+            }
+            if kind == "MCPLOOP" {
+                // The app's own limit is five rounds; with the flaw it has none, and the test
+                // model's cap ends it.
+                let rounds = if self.flaws.unbounded_tool_loop {
+                    LOOP_CAP
+                } else {
+                    5
+                };
+                self.rounds.insert(tag.into(), rounds);
+                self.mcp.insert(tag.into(), (true, true, String::new()));
+                return format!("{marker} I will stop here.");
             }
             if kind.starts_with("MCP") {
                 let f = self.flaws;
@@ -2902,6 +3003,7 @@ mod tests {
                             "kinds": self.kinds.get(tag).cloned().unwrap_or_default(),
                             "reply_screened": self.screened.contains(tag),
                             "failures": if self.kinds.get(tag).and_then(|k| k.last()).is_some_and(|k| k == "FAIL") { self.failures } else { 0 },
+                            "rounds": self.rounds.get(tag).copied().unwrap_or(0),
                         })
                         .to_string()
                     }
@@ -4857,6 +4959,36 @@ mod tests {
             ..Default::default()
         };
         run(&mut app, &mcp_section(), &context(None, &NO_POLICY)).0
+    }
+
+    #[test]
+    fn an_agent_with_a_limit_is_credited_and_one_without_is_found() {
+        let careful = ask_mcp(Flaws::default());
+        assert!(!found(&careful).contains(&AGENT_UNBOUNDED.rule_id));
+        let credit = careful
+            .verified
+            .iter()
+            .find(|v| v.check_id == AGENT_UNBOUNDED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", careful.steps));
+        assert!(credit.scope.contains("after 5 rounds"), "{}", credit.scope);
+
+        let unbounded = ask_mcp(Flaws {
+            unbounded_tool_loop: true,
+            ..Default::default()
+        });
+        assert!(
+            found(&unbounded).contains(&AGENT_UNBOUNDED.rule_id),
+            "{:?}",
+            unbounded.steps
+        );
+        assert!(!credited(&unbounded).contains(&AGENT_UNBOUNDED.rule_id));
+        // Not asked at all where the tool never worked: no rounds to count.
+        let no_tool = ask_mcp(Flaws {
+            no_mcp_tools: true,
+            ..Default::default()
+        });
+        assert!(!found(&no_tool).contains(&AGENT_UNBOUNDED.rule_id));
+        assert!(!credited(&no_tool).contains(&AGENT_UNBOUNDED.rule_id));
     }
 
     fn mcp_why(o: &Outcome) -> Vec<&str> {
