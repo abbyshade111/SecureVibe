@@ -237,6 +237,8 @@ another session is not a claim.
   4. **Progress notifications during a long check**, so the tool does not look stuck.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-mcp-progress`.
+     **Done the same day** (DESIGN, "Saying how a check is going"): a client that gives a progress token hears each of
+     a check's seven stages as it starts, and nothing after the answer. Eight guards broken in turn, each caught.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-mcp-resources`.
