@@ -21,6 +21,10 @@ use std::time::Duration;
 const READY_TIMEOUT_SECONDS: u64 = 60;
 /// The image the probes run from. Tiny, and already needed for the health check.
 const PROBE_IMAGE: &str = "busybox:1.36";
+
+/// The one place a container that talks to the app may write: in memory, where nothing written can
+/// be run, and only big enough for the request it is about to send.
+const PROBE_TMPFS: &str = "/tmp:rw,noexec,nosuid,size=16m";
 /// The mail server the app is given when the probes need to read its email: Mailpit, which keeps
 /// every message it is sent and answers questions about them over HTTP. Pinned to a minor release,
 /// as the probe image is, so a run does not change under the owner because a new one came out.
@@ -1113,8 +1117,9 @@ impl DockerBackend {
 
     /// Starts the container every request to the app is sent from, on the app's fenced network.
     ///
-    /// It has nothing to write and nothing to be allowed, so it is given neither: a read-only file
-    /// system, no capabilities, and no way to gain privileges. It runs `sleep` and nothing else until
+    /// It has nothing to be allowed and one thing to write, so it is given a read-only file system
+    /// with one small folder in memory for the request it is about to send (`PROBE_TMPFS`), no
+    /// capabilities, and no way to gain privileges. It runs `sleep` and nothing else until
     /// a request is `exec`ed into it. `--rm` and the time limit mean a run that dies without its
     /// teardown still leaves nothing behind for long.
     fn start_sidecar(&self, network: &str, name: &str, plan: &RunPlan) -> bool {
@@ -1129,6 +1134,8 @@ impl DockerBackend {
                 "--network",
                 network,
                 "--read-only",
+                "--tmpfs",
+                PROBE_TMPFS,
                 "--cap-drop",
                 "ALL",
                 "--security-opt",
@@ -1256,26 +1263,43 @@ impl DockerBackend {
     /// Runs a command where requests to the app are made from: in the sidecar, or in a throw-away
     /// container on the same internal network when there is no sidecar.
     fn inside_fence(&self, via: &Via, command: &[&str]) -> Result<(i32, String), String> {
+        self.inside_fence_with_input(via, command, &[])
+    }
+
+    /// `inside_fence`, with `input` given to the command as what it reads. How a request reaches
+    /// the container: an argument cannot carry one, since Linux refuses any single argument over
+    /// 128 KiB, which an upload passes easily.
+    fn inside_fence_with_input(
+        &self,
+        via: &Via,
+        command: &[&str],
+        input: &[u8],
+    ) -> Result<(i32, String), String> {
         let mut args = self.fence_args(via);
         args.extend_from_slice(command);
-        self.docker(&args)
+        let mut c = Command::new(&self.binary);
+        c.args(crate::cleanup::labeled(&args, &self.owner));
+        crate::output_with_input(&mut c, input)
     }
 
     /// How a container that talks to the app is started, either way. Separate so the two paths can
     /// be compared without starting anything.
     fn fence_args<'a>(&self, via: &Via<'a>) -> Vec<&'a str> {
         match via {
-            Via::Sidecar(name) => vec!["exec", name],
+            Via::Sidecar(name) => vec!["exec", "-i", name],
             // The same hardening as the sidecar. It had none of it: the flags were added where the
             // fast path was written and not where the fallback already lived, so a run that could
             // not start a sidecar quietly made every request from a container with its capabilities
             // and a writable file system — while the comment said the fallback was only slower.
             Via::FreshContainer(network) => vec![
                 "run",
+                "-i",
                 "--rm",
                 "--network",
                 network,
                 "--read-only",
+                "--tmpfs",
+                PROBE_TMPFS,
                 "--cap-drop",
                 "ALL",
                 "--security-opt",
@@ -1544,14 +1568,18 @@ fn base64(input: &[u8]) -> String {
 /// connected socket to a small script that writes the request and then reads until the server
 /// closes, so the sending side stays open. `timeout` stands in for `nc -w`, which no longer
 /// applies once the script has the socket, so a server that never closes cannot stall the run.
-fn exchange_script(host: &str, port: u16, raw: &str) -> String {
+fn exchange_script(host: &str, port: u16) -> String {
+    // The request arrives as what the container reads, is written to a file in its memory, and is
+    // read from there by the script `nc -e` runs. It once went in as an argument, as base64, and
+    // every request over about 96 KB failed: Linux refuses a single argument over 128 KiB, and the
+    // failure read as the app not answering. `nc -e` closes every file but the socket before it
+    // starts the script, so the file is how the request gets there.
     format!(
-        "timeout 15 nc -w 5 {host} {port} -e sh -c 'echo {} | base64 -d; cat 1>&2' 2>&1",
-        base64(raw.as_bytes())
+        "f=$(mktemp) && cat > \"$f\" && timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $f; cat 1>&2\" 2>&1; rm -f \"$f\""
     )
 }
 
-fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<String> {
+fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<Vec<u8>> {
     let unsafe_text = |s: &str| s.contains(['\r', '\n', ' ', '\t']);
     if unsafe_text(&request.method) || unsafe_text(&request.path) || unsafe_text(host) {
         return None;
@@ -1586,10 +1614,12 @@ fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option
     }
     // A body is framed by its length, so nothing in it can be read as a second request: the server
     // stops at the byte count, whatever the body contains.
+    let mut raw = raw.into_bytes();
     if let Some(body) = &request.body {
-        raw.push_str(&format!("Content-Length: {}\r\n\r\n{body}", body.len()));
+        raw.extend_from_slice(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes());
+        raw.extend_from_slice(body);
     } else {
-        raw.push_str("\r\n");
+        raw.extend_from_slice(b"\r\n");
     }
     Some(raw)
 }
@@ -1608,8 +1638,10 @@ impl DockerBackend {
             body: None,
         };
         let raw = request_bytes(&request, host)?;
-        let script = exchange_script(host, port, &raw);
-        let (_, out) = self.inside_fence(via, &["sh", "-c", &script]).ok()?;
+        let script = exchange_script(host, port);
+        let (_, out) = self
+            .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
+            .ok()?;
         let (head, body) = out.split_once("\r\n\r\n")?;
         head.split_whitespace()
             .nth(1)
@@ -1704,8 +1736,10 @@ impl DockerBackend {
         request: &sv_check::probes::ProbeRequest,
     ) -> Option<sv_check::probes::ProbeResponse> {
         let raw = request_bytes(request, app)?;
-        let script = exchange_script(app, port, &raw);
-        let (code, out) = self.inside_fence(via, &["sh", "-c", &script]).ok()?;
+        let script = exchange_script(app, port);
+        let (code, out) = self
+            .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
+            .ok()?;
         if code != 0 && out.trim().is_empty() {
             return None;
         }
@@ -2238,12 +2272,26 @@ http.createServer((q, s) => {
         );
         r.body = Some("user=a&password=b\r\n\r\nGET /admin HTTP/1.0".into());
         let raw = request_bytes(&r, "app").expect("a body does not stop the request");
+        let raw = String::from_utf8(raw).unwrap();
         let (head, body) = raw.split_once("\r\n\r\n").unwrap();
         assert!(
             head.contains(&format!("Content-Length: {}", body.len())),
             "{head}"
         );
-        assert_eq!(body, r.body.as_deref().unwrap());
+        assert_eq!(body, r.body_text());
+    }
+
+    #[test]
+    fn a_body_that_is_not_text_goes_out_byte_for_byte() {
+        // An archive is bytes of every value, most of them not text. Each must arrive as it was.
+        let mut r = req("POST", "/upload", &[]);
+        let bytes: Vec<u8> = (0..=255u8).cycle().take(1000).collect();
+        r.body = Some(bytes.clone());
+        let raw = request_bytes(&r, "app").unwrap();
+        let at = raw.windows(4).position(|w| w == b"\r\n\r\n").unwrap() + 4;
+        assert_eq!(&raw[at..], &bytes[..]);
+        let head = String::from_utf8(raw[..at].to_vec()).unwrap();
+        assert!(head.contains("Content-Length: 1000\r\n"), "{head}");
     }
 
     #[test]
@@ -2253,13 +2301,15 @@ http.createServer((q, s) => {
             "app",
         )
         .expect("a Host header is allowed");
+        let raw = String::from_utf8(raw).unwrap();
         let hosts: Vec<&str> = raw
             .lines()
             .filter(|l| l.to_ascii_lowercase().starts_with("host:"))
             .collect();
         assert_eq!(hosts, ["Host: sv-rebind.invalid"], "{raw}");
         // The control: without one, the app's own name is sent.
-        let raw = request_bytes(&req("POST", "/mcp", &[]), "app").unwrap();
+        let raw =
+            String::from_utf8(request_bytes(&req("POST", "/mcp", &[]), "app").unwrap()).unwrap();
         assert!(raw.contains("\r\nHost: app\r\n"), "{raw}");
     }
 
@@ -2271,7 +2321,7 @@ http.createServer((q, s) => {
         )
         .expect("nothing wrong with this one");
         assert_eq!(
-            raw,
+            String::from_utf8(raw).unwrap(),
             "GET /healthz HTTP/1.0\r\nHost: app\r\nConnection: close\r\nOrigin: https://x.invalid\r\n\r\n"
         );
     }
@@ -2325,18 +2375,24 @@ http.createServer((q, s) => {
     }
 
     #[test]
-    fn a_refused_request_never_reaches_the_encoder() {
-        // What the refusal is for: whatever is encoded is what the sidecar's shell will run. This
-        // asserts the dangerous text is absent from the thing that gets sent, not merely that some
-        // Option was None.
+    fn no_part_of_a_request_is_ever_in_the_shell_command() {
+        // The request is what the container reads, never part of what its shell runs: the command
+        // is built from the app's name and port alone, so nothing a request carries (a quote, a
+        // `;`, a file name somebody chose) can become a command. And a request that would split
+        // into two is refused before it is anything.
         let bad = req("GET", "/a\r\nX-Injected: 1", &[]);
         assert!(request_bytes(&bad, "app").is_none());
-        let good = req("GET", "/healthz", &[]);
-        let encoded = base64(request_bytes(&good, "app").unwrap().as_bytes());
-        assert!(!encoded.is_empty());
+        let script = exchange_script("app", 8080);
+        assert_eq!(
+            script,
+            "f=$(mktemp) && cat > \"$f\" && timeout 15 nc -w 5 app 8080 -e sh -c \"cat $f; cat 1>&2\" 2>&1; rm -f \"$f\""
+        );
+        let mut hostile = req("POST", "/upload", &[]);
+        hostile.body = Some(b"name='quoted';$(echo x)`echo y`".to_vec());
+        let raw = request_bytes(&hostile, "app").unwrap();
         assert!(
-            !encoded.contains(['\'', ';', '|', '`', '$', ' ']),
-            "{encoded}"
+            raw.ends_with(b"`echo y`"),
+            "the body is sent, as it is, as input"
         );
     }
 

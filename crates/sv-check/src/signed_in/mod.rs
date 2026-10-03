@@ -406,7 +406,7 @@ fn request(id: &str, t: &RequestTemplate, v: &Values, session: &Session) -> Prob
         method: t.method.to_uppercase(),
         path: fill(&t.path, v),
         headers,
-        body,
+        body: body.map(String::into_bytes),
     }
 }
 

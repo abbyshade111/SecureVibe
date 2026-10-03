@@ -141,7 +141,10 @@ another session is not a claim.
       while the owner has not said whether the app unpacks. (4) Each archive unpacks to just over the stated limit and
       to about 1 GB at most, and is sent after every other upload check, so an app that does unpack it and falls over
       takes no other check with it. Sending it needs the probes' request bodies to carry bytes rather than text.
-      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch `claude/archive-bombs`.
+      **Claimed on 3 October 2026 by session securevibe-e10 and released the same day, not built**; the owner's
+      decisions above stand, and the item is open for whoever takes it up. Done in that branch first, and merged: the
+      probes' request bodies are bytes, and each request reaches the probe container as input rather than as an
+      argument (DESIGN, "Requests reach the app as input"), so an archive can now be sent as it is.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.

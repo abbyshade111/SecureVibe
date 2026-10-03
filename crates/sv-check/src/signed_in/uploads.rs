@@ -76,7 +76,7 @@ fn send_upload(
             "Content-Type".into(),
             format!("multipart/form-data; boundary={BOUNDARY}"),
         )],
-        body: Some(body),
+        body: Some(body.into_bytes()),
     };
     for (name, value) in session.headers() {
         request.headers.push((name, value));

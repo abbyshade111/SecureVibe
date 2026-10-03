@@ -86,7 +86,7 @@ fn request(
         method: method.to_owned(),
         path: path.to_owned(),
         headers,
-        body,
+        body: body.map(String::into_bytes),
     }
 }
 
@@ -399,7 +399,7 @@ mod tests {
                 return reply(200, Vec::new(), String::new());
             }
             let body: serde_json::Value =
-                serde_json::from_str(r.body.as_deref().unwrap_or("{}")).unwrap();
+                serde_json::from_slice(r.body.as_deref().unwrap_or(b"{}")).unwrap();
             let Some(id) = body.get("id").cloned() else {
                 return reply(202, Vec::new(), String::new());
             };

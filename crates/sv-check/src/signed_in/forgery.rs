@@ -235,7 +235,7 @@ pub(super) fn simple_request_check(
         (
             "text/plain",
             "text/plain;charset=UTF-8".to_owned(),
-            base.body.clone().unwrap_or_default(),
+            base.body_text().into_owned(),
         ),
         (
             "a form",
@@ -263,7 +263,7 @@ pub(super) fn simple_request_check(
             ("Origin".to_owned(), STRANGER.to_owned()),
             ("Referer".to_owned(), format!("{STRANGER}/")),
         ]);
-        simple.body = Some(body);
+        simple.body = Some(body.into_bytes());
         let response = http.send(&simple);
         match response.as_ref().map(|r| r.status) {
             Some(200..=299) => taken.push(name),
@@ -459,7 +459,7 @@ mod tests {
                 ));
             }
             let null = r.headers.iter().any(|(k, v)| k == "Origin" && v == "null");
-            let token = r.body.as_deref().unwrap_or("").contains("csrf_token=t0k");
+            let token = r.body_text().contains("csrf_token=t0k");
             let taken = self.take_any && token && (self.take_null || !null);
             Some(respond(if taken { 303 } else { 403 }, vec![]))
         }
@@ -504,11 +504,7 @@ mod tests {
         );
         assert!(!nulled.headers.iter().any(|(k, _)| k == "Referer"));
         assert!(
-            nulled
-                .body
-                .as_deref()
-                .unwrap_or("")
-                .contains("csrf_token=t0k"),
+            nulled.body_text().contains("csrf_token=t0k"),
             "{:?}",
             nulled.body
         );

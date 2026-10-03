@@ -29,8 +29,17 @@ pub struct ProbeRequest {
     /// Extra request headers, as name and value.
     pub headers: Vec<(String, String)>,
     /// A body, sent with its `Content-Length`. Only the signed-in probes send one: signing in, and
-    /// creating the thing another user must not be able to read.
-    pub body: Option<String>,
+    /// creating the thing another user must not be able to read. Bytes rather than text, so a file
+    /// that is not text (an archive) can be uploaded as it is.
+    pub body: Option<Vec<u8>>,
+}
+
+impl ProbeRequest {
+    /// The body read as text, for the checks and the test apps that read a form or JSON. Bytes that
+    /// are not text come back replaced, so this is never used to send anything.
+    pub fn body_text(&self) -> std::borrow::Cow<'_, str> {
+        String::from_utf8_lossy(self.body.as_deref().unwrap_or_default())
+    }
 }
 
 /// What came back.
@@ -581,7 +590,7 @@ fn graphql_request(id: &str, path: &str, query: &str) -> ProbeRequest {
         method: "POST".into(),
         path: path.to_owned(),
         headers: vec![("Content-Type".into(), "application/json".into())],
-        body: Some(serde_json::json!({ "query": query }).to_string()),
+        body: Some(serde_json::json!({ "query": query }).to_string().into()),
     }
 }
 
@@ -2791,7 +2800,7 @@ mod tests {
         assert!(only_ws.iter().all(|r| r.id.starts_with("ws-")));
         let gql_reqs = api_requests(Some("/graphql"), None);
         let aliases = gql_reqs.iter().find(|r| r.id == "graphql-aliases").unwrap();
-        assert!(aliases.body.as_deref().unwrap().contains("a999:__typename"));
+        assert!(aliases.body_text().contains("a999:__typename"));
         // And every id the evaluation reads is one a request really carries.
         let all = api_requests(Some("/graphql"), Some("/ws"));
         for id in [
