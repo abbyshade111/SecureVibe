@@ -38,6 +38,14 @@ another session is not a claim.
      refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
      out by visiting an address leaving the session alive while the sign-out form ends it (V3.5.3); and the server
      refusing a value its own form forbids (V2.2.2). Each would credit only what it saw, as the others do.
+     **Withdrawn on 3 October 2026 by session securevibe-e9, which proposed it:** read against `docs/DESIGN.md`
+     before any code was kept, each of the six is finding-only on purpose, for a reason written there. A clean reset
+     leaves V6.4.3's own demand, that a reset not get round two-factor sign-in, untried, as it does code expiry
+     ("a clean reset credits nothing and says so"); activation leaves V6.4.1's expiry and initial passwords untried;
+     V4.4.3 asks that a socket's own tokens meet every session requirement; one address refusing a GET says nothing
+     of the others (V3.5.3); and the V2.2.2 check is only ever a finding by design. A test
+     (`a_reset_that_works_once_is_followed_through_and_faults_nothing`) holds the reset's no-credit decision, and it
+     went red when the credit was tried.
   3. **The stranger checks credit headers from one answer.** Security headers, cookies, and content types are
      credited from the answer on the health path, which is often a small JSON status reply rather than a page
      anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
@@ -46,8 +54,8 @@ another session is not a claim.
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
      a refusal is real credit. Common in apps an AI coding tool writes; no proposal was on file.
-     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in
-     branch `claude/securevibe-e9-app-jwt`.
+     **Claimed on 3 October 2026 by session securevibe-e9 and released the same day, not built.** The work stopped
+     at the design stage; nothing was written. The item is open again, and the owner decides whether it is taken up.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
