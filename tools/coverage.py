@@ -158,6 +158,7 @@ RUST_CHECKS = {
     "probe.sign-out-on-get": ("signed-in", ["V3.5.3"]),
     "probe.password-change": ("signed-in", ["V6.2.2"]),
     "probe.password-change-without-current": ("signed-in", ["V6.2.3"]),
+    "probe.open-redirect": ("signed-in", ["V3.7.2"]),
     "probe.password-change-ends-sessions": ("signed-in", ["V7.4.3"]),
     "probe.password-change-notified": ("signed-in", ["V6.3.7"]),
     "probe.identity-header-trusted": ("signed-in", ["V4.1.3"]),
@@ -217,6 +218,7 @@ RUST_FINDINGS_ONLY = {
     # Found on 3 October 2026 to be counted as crediting when no code path gives them credit: each
     # only ever raises a finding. Several have a control that could let them credit (see the backlog).
     "probe.directory-listing",
+    "probe.open-redirect",
     "probe.docs-or-monitoring-exposed",
     "probe.jsonp-enabled",
     "probe.unused-method-accepted",
