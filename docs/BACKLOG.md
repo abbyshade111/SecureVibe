@@ -95,10 +95,17 @@ another session is not a claim.
      client can rely on it. None is declared now.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-output-schema`.
+     **Done the same day** (DESIGN, "The shape of each tool's result, declared"): seven tools declare their result's
+     shape, closed to fields it does not name, and a test holds every tool's real result to it. Seven ways broken,
+     each caught.
   4. **Progress notifications during a long check**, so the tool does not look stuck.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
   6. **The newest protocol version.** The newest the server speaks is 2025-06-18; whether a later one has been
      published, and what it changes, needs checking before it is added.
+     **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-protocol-version`. Two later versions are published, 2025-11-25 and 2026-07-28
+     (their schemas in the specification's repository); what each changes for a stdio server that offers only tools
+     is the work.
 
 - **`ast.download-piped-to-shell` flags a download read as data.** **Claimed on 28 September 2026 by session
   cato-examined**, at the owner's asking. Found by cato-pipeline: `curl … | python3 -c '<fixed program>'` is

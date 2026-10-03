@@ -688,7 +688,175 @@ fn tool_error(message: &str) -> Value {
     json!({ "content": [{ "type": "text", "text": message }], "isError": true })
 }
 
+/// The tools, each with the shape of its structured result where it has one.
 fn tools() -> Value {
+    let mut list = tool_list();
+    for tool in list.as_array_mut().into_iter().flatten() {
+        let name = tool["name"].as_str().unwrap_or_default().to_owned();
+        if let Some(schema) = output_schema(&name) {
+            tool["outputSchema"] = schema;
+        }
+    }
+    list
+}
+
+/// The shape of each tool's `structuredContent`, so a client can rely on it (2025-06-18 protocol).
+///
+/// Every field is named, the ones always present are required, and no other field is allowed: a
+/// field added to a result without being added here fails `every_structured_result_has_the_shape_its_tool_declares`,
+/// so the declaration cannot fall behind what is sent. A tool that answers only in text declares none.
+fn output_schema(tool: &str) -> Option<Value> {
+    let string = json!({ "type": "string" });
+    let count = json!({ "type": "integer", "minimum": 0 });
+    let strings = json!({ "type": "array", "items": string });
+    let object = |properties: Value, required: &[&str]| json!({ "type": "object", "properties": properties, "required": required, "additionalProperties": false });
+    let finding = object(
+        json!({
+            "rule_id": string, "title": string,
+            "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+            "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+            "location": object(json!({ "file": string, "line": count }), &["file", "line"]),
+            "secret": {
+                "type": ["object", "null"],
+                "properties": { "redacted": string, "length": count },
+                "required": ["redacted", "length"],
+                "additionalProperties": false
+            },
+            "requirement_ids": strings, "cwe": strings,
+            "description": string, "impact": string, "fix": string,
+            "also_reported_by": strings, "fingerprint": string, "marked_test_code": { "type": "boolean" },
+        }),
+        &[
+            "rule_id",
+            "title",
+            "severity",
+            "confidence",
+            "location",
+            "secret",
+            "requirement_ids",
+            "cwe",
+            "description",
+            "impact",
+            "fix",
+        ],
+    );
+    let counts = [
+        "applicable",
+        "needs_attention",
+        "checked",
+        "documented",
+        "attested",
+        "stated",
+        "by_hand",
+        "not_verified",
+        "not_applicable",
+        "not_assessed",
+        "out_of_level",
+        "ai_process",
+    ];
+    let schema = match tool {
+        "securevibe_check" => object(
+            json!({
+                "app": string,
+                "targetLevel": count,
+                "counts": object(
+                    Value::Object(counts.iter().map(|c| ((*c).to_owned(), count.clone())).collect()),
+                    &counts,
+                ),
+                "notExamined": { "type": "array", "items": object(json!({ "what": string, "why": string }), &["what", "why"]) },
+                "findings": { "type": "array", "items": finding },
+                "needsAttention": strings,
+                "claims": { "type": "array", "items": object(
+                    json!({
+                        "name": string,
+                        "claimed": { "type": ["boolean", "null"] },
+                        "found_in_code": { "type": ["boolean", "null"] },
+                        "state": string,
+                        "note": string,
+                    }),
+                    &["name", "claimed", "found_in_code", "state", "note"],
+                ) },
+                "undecided": { "type": "array", "items": object(
+                    json!({ "id": string, "description": string, "chapter": string, "blocked_on": strings }),
+                    &["id", "description", "chapter", "blocked_on"],
+                ) },
+            }),
+            &[
+                "app",
+                "targetLevel",
+                "counts",
+                "notExamined",
+                "findings",
+                "needsAttention",
+                "claims",
+                "undecided",
+            ],
+        ),
+        "securevibe_questions" => object(
+            json!({ "questions": { "type": "array", "items": object(
+                json!({
+                    "id": string, "title": string, "how": string,
+                    "where_to_look": { "type": ["string", "null"] },
+                    "route": { "type": "string", "enum": ["write-it-down", "answer-in-the-manifest", "go-and-look"] },
+                    "where_means": { "type": ["string", "null"] },
+                }),
+                &["id", "title", "how", "where_to_look", "route", "where_means"],
+            ) } }),
+            &["questions"],
+        ),
+        "securevibe_guidance" => object(
+            json!({
+                "rules": { "type": "array", "items": object(
+                    json!({ "id": string, "topic": string, "rule": string, "cites": strings }),
+                    &["id", "topic", "rule", "cites"],
+                ) },
+                "leftOut": count,
+                "filteredBySecurevibeToml": { "type": "boolean" },
+                "attribution": object(
+                    json!({ "title": string, "authors": string, "url": string, "license": string, "licenseUrl": string, "changes": string }),
+                    &["title", "authors", "url", "license", "licenseUrl", "changes"],
+                ),
+            }),
+            &[
+                "rules",
+                "leftOut",
+                "filteredBySecurevibeToml",
+                "attribution",
+            ],
+        ),
+        "securevibe_notes_file" => object(
+            json!({ "file": string, "asked": count, "alreadyAnswered": count }),
+            &["file", "asked", "alreadyAnswered"],
+        ),
+        "securevibe_write_report" => object(json!({ "files": strings }), &["files"]),
+        "securevibe_bundle" => object(
+            json!({
+                "zip": string, "files": count, "appFiles": count,
+                "leftOut": { "type": "array", "items": object(json!({ "path": string, "reason": string }), &["path", "reason"]) },
+            }),
+            &["zip", "files", "appFiles", "leftOut"],
+        ),
+        "securevibe_explain" => object(
+            json!({
+                "id": string, "chapter": string, "level": count,
+                "levelBasis": { "type": ["string", "null"] },
+                "description": string, "counterparts": strings,
+            }),
+            &[
+                "id",
+                "chapter",
+                "level",
+                "levelBasis",
+                "description",
+                "counterparts",
+            ],
+        ),
+        _ => return None,
+    };
+    Some(schema)
+}
+
+fn tool_list() -> Value {
     let path = json!({
         "type": "string",
         "description": "The app's folder, relative to the folder this server was started for. Defaults to that folder."
@@ -1779,6 +1947,227 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
         assert_eq!(result["isError"], true, "{}", text(&result));
         assert_eq!(after, "not the app's", "the link was written through");
+    }
+
+    /// Whether `value` has the shape `schema` describes, for the parts of JSON Schema the tools'
+    /// declarations use: `type` (one or several), `enum`, `minimum`, `properties`, `required`,
+    /// `additionalProperties: false`, and `items`. Says where it does not.
+    fn conforms(value: &Value, schema: &Value, at: &str) -> Result<(), String> {
+        let kind = |v: &Value| match v {
+            Value::Null => "null",
+            Value::Bool(_) => "boolean",
+            Value::Number(n) if n.is_u64() || n.is_i64() => "integer",
+            Value::Number(_) => "number",
+            Value::String(_) => "string",
+            Value::Array(_) => "array",
+            Value::Object(_) => "object",
+        };
+        let types: Vec<&str> = match &schema["type"] {
+            Value::String(t) => vec![t.as_str()],
+            Value::Array(ts) => ts.iter().filter_map(Value::as_str).collect(),
+            _ => return Err(format!("{at}: the schema names no type")),
+        };
+        if !types.contains(&kind(value)) {
+            return Err(format!(
+                "{at}: is {}, the schema says {types:?}",
+                kind(value)
+            ));
+        }
+        if let Some(allowed) = schema["enum"].as_array()
+            && !allowed.contains(value)
+        {
+            return Err(format!("{at}: {value} is not one of {allowed:?}"));
+        }
+        if let (Some(min), Some(n)) = (schema["minimum"].as_i64(), value.as_i64())
+            && n < min
+        {
+            return Err(format!("{at}: {n} is below {min}"));
+        }
+        if let Value::Object(fields) = value {
+            for name in schema["required"].as_array().into_iter().flatten() {
+                let name = name.as_str().unwrap();
+                if !fields.contains_key(name) {
+                    return Err(format!("{at}: {name} is missing"));
+                }
+            }
+            for (name, field) in fields {
+                match schema["properties"].get(name) {
+                    Some(inner) => conforms(field, inner, &format!("{at}.{name}"))?,
+                    None if schema["additionalProperties"] == false => {
+                        return Err(format!("{at}: {name} is not in the schema"));
+                    }
+                    None => {}
+                }
+            }
+        }
+        if let (Value::Array(items), Some(inner)) = (value, schema.get("items")) {
+            for (n, item) in items.iter().enumerate() {
+                conforms(item, inner, &format!("{at}[{n}]"))?;
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn every_structured_result_has_the_shape_its_tool_declares() {
+        // An app with something in every part a schema describes: findings, one of them a key so the
+        // secret's own shape is checked, claims, a file the bundle leaves out, questions, and rules.
+        let root = scratch_app("output-schema", "flask-booking");
+        let key = ["sk", "ant", "api03", "Zp8Kd3Wq1Ls6Vn0Rt4Yb9Xm2Qc"].join("-");
+        std::fs::write(
+            root.join("app/settings.py"),
+            format!("API_KEY = \"{key}\"\n"),
+        )
+        .unwrap();
+        std::fs::write(root.join("app/.env"), "SECRET_KEY=only-here\n").unwrap();
+        let server = Server::new(&root).unwrap();
+        let declared: Vec<Value> = tools().as_array().unwrap().clone();
+        let calls = [
+            ("securevibe_check", json!({ "path": "app" })),
+            ("securevibe_questions", json!({ "path": "app" })),
+            ("securevibe_guidance", json!({ "path": "app" })),
+            ("securevibe_notes_file", json!({ "path": "app" })),
+            ("securevibe_write_report", json!({ "path": "app" })),
+            ("securevibe_bundle", json!({ "path": "app" })),
+            ("securevibe_explain", json!({ "id": "V1.2.4" })),
+            ("securevibe_spec", json!({})),
+        ];
+        let mut results = Vec::new();
+        for (name, args) in &calls {
+            results.push((*name, call(&server, name, args.clone())));
+        }
+        // The bundle is written beside the app, inside the root, so this removes it too.
+        std::fs::remove_dir_all(&root).ok();
+        // Every tool is called above, so none is left unchecked.
+        assert_eq!(
+            declared.len(),
+            calls.len(),
+            "a tool is not called by this test"
+        );
+        for (name, result) in &results {
+            let tool = declared.iter().find(|t| t["name"] == *name).unwrap();
+            assert_eq!(result["isError"], false, "{name}: {}", text(result));
+            match (&tool["outputSchema"], result.get("structuredContent")) {
+                (Value::Null, None) => {}
+                (Value::Null, Some(_)) => {
+                    panic!("{name} sends a structured result and declares no shape")
+                }
+                (_, None) => panic!("{name} declares a shape and sends no structured result"),
+                (schema, Some(content)) => {
+                    if let Err(why) = conforms(content, schema, name) {
+                        panic!("{why}\n{content:#}");
+                    }
+                }
+            }
+        }
+        // The setup reached what it was there for, so the schema's every part was really checked.
+        let content =
+            |name: &str| &results.iter().find(|(n, _)| *n == name).unwrap().1["structuredContent"];
+        let findings = content("securevibe_check")["findings"].as_array().unwrap();
+        assert!(
+            findings.iter().any(|f| f["secret"].is_object()),
+            "no finding with a secret"
+        );
+        assert!(
+            findings.iter().any(|f| f["secret"].is_null()),
+            "no finding without one"
+        );
+        for (name, list) in [
+            ("securevibe_check", "notExamined"),
+            ("securevibe_check", "claims"),
+            ("securevibe_questions", "questions"),
+            ("securevibe_guidance", "rules"),
+            ("securevibe_bundle", "leftOut"),
+        ] {
+            assert!(
+                !content(name)[list].as_array().unwrap().is_empty(),
+                "{name}: {list} is empty"
+            );
+        }
+    }
+
+    #[test]
+    fn each_declared_list_of_values_is_every_value_the_code_has() {
+        // The test app shows some severities and routes, not all. These `match`es name every variant
+        // with no catch-all, so one added to the code stops this compiling until it is added here,
+        // and the comparison below then asks for it in the schema too.
+        use sv_check::human::Route;
+        use sv_check::{Confidence, Severity};
+        let severity = |s: Severity| match s {
+            Severity::Critical
+            | Severity::High
+            | Severity::Medium
+            | Severity::Low
+            | Severity::Info => s,
+        };
+        let confidence = |c: Confidence| match c {
+            Confidence::High | Confidence::Medium | Confidence::Low => c,
+        };
+        let route = |r: Route| match r {
+            Route::WriteItDown | Route::AnswerInTheManifest | Route::GoAndLook => r,
+        };
+        let all = |values: Vec<Value>| json!(values);
+        let check = output_schema("securevibe_check").unwrap();
+        let finding = &check["properties"]["findings"]["items"]["properties"];
+        assert_eq!(
+            finding["severity"]["enum"],
+            all([
+                Severity::Critical,
+                Severity::High,
+                Severity::Medium,
+                Severity::Low,
+                Severity::Info
+            ]
+            .map(|s| serde_json::to_value(severity(s)).unwrap())
+            .to_vec())
+        );
+        assert_eq!(
+            finding["confidence"]["enum"],
+            all([Confidence::High, Confidence::Medium, Confidence::Low]
+                .map(|c| serde_json::to_value(confidence(c)).unwrap())
+                .to_vec())
+        );
+        let questions = output_schema("securevibe_questions").unwrap();
+        assert_eq!(
+            questions["properties"]["questions"]["items"]["properties"]["route"]["enum"],
+            all([
+                Route::WriteItDown,
+                Route::AnswerInTheManifest,
+                Route::GoAndLook
+            ]
+            .map(|r| serde_json::to_value(route(r)).unwrap())
+            .to_vec())
+        );
+    }
+
+    #[test]
+    fn the_shape_check_itself_refuses_what_it_should() {
+        // The validator is a few lines written here, so it is held to account too.
+        let schema = output_schema("securevibe_notes_file").unwrap();
+        let good = json!({ "file": "x", "asked": 1, "alreadyAnswered": 0 });
+        assert!(conforms(&good, &schema, "t").is_ok());
+        for bad in [
+            json!({ "file": "x", "asked": 1 }),
+            json!({ "file": "x", "asked": 1, "alreadyAnswered": 0, "extra": 1 }),
+            json!({ "file": 1, "asked": 1, "alreadyAnswered": 0 }),
+            json!({ "file": "x", "asked": -1, "alreadyAnswered": 0 }),
+            json!({ "file": "x", "asked": 1.5, "alreadyAnswered": 0 }),
+            json!(["x"]),
+        ] {
+            assert!(conforms(&bad, &schema, "t").is_err(), "{bad} passed");
+        }
+        let finding =
+            &output_schema("securevibe_check").unwrap()["properties"]["findings"]["items"];
+        assert!(conforms(&json!("x"), &finding["properties"]["severity"], "t").is_err());
+        assert!(conforms(&json!("high"), &finding["properties"]["severity"], "t").is_ok());
+        assert!(
+            conforms(
+                &json!([1]),
+                &json!({ "type": "array", "items": { "type": "string" } }),
+                "t"
+            )
+            .is_err()
+        );
     }
 
     /// A server for the protocol tests: a fresh empty folder, so no request can start a long check.
