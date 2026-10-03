@@ -1640,9 +1640,54 @@ fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse
         id: id.to_owned(),
         status,
         headers,
-        // Enough to recognize a stack trace, not enough to copy a page out of somebody's app.
-        body: body.chars().take(4000).collect(),
+        body: kept_body(body),
     })
+}
+
+/// How much of a body is kept: enough to recognize a stack trace, not enough to copy a page out of
+/// somebody's app.
+const KEPT_CHARS: usize = 4000;
+/// How much is kept on each side of the reflection probes' value, when it comes back further down.
+const AROUND_ECHO: usize = 200;
+/// How many times it is kept further down.
+const MOST_ECHOES: usize = 5;
+
+/// The start of a body, and, when the reflection probes' value comes back past it, the text around
+/// each time it does. A page often repeats a search term well down, past its head and navigation,
+/// and the value is one only `sv` sends, so nothing else's answer keeps more than it did.
+fn kept_body(body: &str) -> String {
+    let mut kept: String = body.chars().take(KEPT_CHARS).collect();
+    let from = kept.len();
+    let mark = sv_check::probes::REFLECTION_MARK;
+    // Searched from a little before the cut, so a value that starts inside the kept part and runs
+    // past it is kept whole.
+    let mut search = from.saturating_sub(mark.len() + AROUND_ECHO);
+    while !body.is_char_boundary(search) {
+        search += 1;
+    }
+    let mut after = from;
+    for (at, _) in body[search..].match_indices(mark).take(MOST_ECHOES) {
+        let at = search + at;
+        if at + mark.len() + AROUND_ECHO <= from {
+            continue;
+        }
+        let mut start = if at < after {
+            at
+        } else {
+            at.saturating_sub(AROUND_ECHO).max(after)
+        };
+        while !body.is_char_boundary(start) {
+            start += 1;
+        }
+        let mut end = (at + mark.len() + AROUND_ECHO).min(body.len());
+        while !body.is_char_boundary(end) {
+            end -= 1;
+        }
+        kept.push_str("\n[…]\n");
+        kept.push_str(&body[start..end]);
+        after = end;
+    }
+    kept
 }
 
 impl DockerBackend {
@@ -1671,6 +1716,82 @@ impl DockerBackend {
 #[cfg(test)]
 mod probe_tests {
     use super::*;
+
+    #[test]
+    fn a_body_is_kept_to_its_start_and_the_value_when_it_comes_back_further_down() {
+        let mark = sv_check::probes::REFLECTION_MARK;
+        let short = "<p>hello</p>";
+        assert_eq!(kept_body(short), short);
+        // A long page with nothing of the probes' in it: its start, and nothing more.
+        let long = "a".repeat(10_000);
+        assert_eq!(kept_body(&long), "a".repeat(KEPT_CHARS));
+        // The value far down the page comes back with the text around it, and only that.
+        let far = format!(
+            "{}<p>You searched for {mark}<\"'end</p>{}",
+            "a".repeat(9_000),
+            "b".repeat(9_000)
+        );
+        let kept = kept_body(&far);
+        assert!(kept.starts_with(&"a".repeat(KEPT_CHARS)));
+        assert!(
+            kept.contains(&format!("{mark}<\"'end")),
+            "the value and what follows it"
+        );
+        assert!(
+            kept.chars().count() < KEPT_CHARS + 2 * AROUND_ECHO + mark.len() + 10,
+            "{}",
+            kept.len()
+        );
+        // Asked once and repeated six times: five places kept.
+        let many = format!(
+            "{}{}",
+            "a".repeat(5_000),
+            format!("{mark}<x {}", "c".repeat(500)).repeat(6)
+        );
+        assert_eq!(kept_body(&many).matches(mark).count(), MOST_ECHOES);
+    }
+
+    #[test]
+    fn an_echo_far_down_a_real_answer_reaches_the_judgment() {
+        // From the bytes the app sends to the finding: an error page that repeats the path it was
+        // asked for, after 6,000 characters of its own, the value cut short at the `<`.
+        let mark = sv_check::probes::REFLECTION_MARK;
+        let raw = format!(
+            "HTTP/1.0 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html>{}<p>No page at /x-{mark}<\"'</p></html>",
+            "<p>filler</p>".repeat(460)
+        );
+        let answer = parse_response("reflect-missing", &raw).expect("an answer");
+        assert!(
+            raw.find(mark).unwrap() > KEPT_CHARS,
+            "the setup: past the cut"
+        );
+        let findings = sv_check::probes::evaluate(&[answer]);
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.rule_id == "probe.reflected-unencoded"),
+            "{:?}",
+            findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn a_value_across_the_cut_is_kept_whole_and_no_character_is_split() {
+        let mark = sv_check::probes::REFLECTION_MARK;
+        // Starts ten characters before the cut, ends after it.
+        let body = format!(
+            "{}{mark}<\"'tail{}",
+            "a".repeat(KEPT_CHARS - 10),
+            "z".repeat(1_000)
+        );
+        assert!(kept_body(&body).contains(&format!("{mark}<\"'tail")));
+        // Two- and three-byte characters on every side of every boundary.
+        let body = format!("{}{mark}<{}", "é".repeat(KEPT_CHARS + 77), "日".repeat(300));
+        let kept = kept_body(&body);
+        assert!(kept.contains(&format!("{mark}<")));
+        let body = format!("{}{mark}{}", "日".repeat(KEPT_CHARS - 3), "é".repeat(300));
+        assert!(kept_body(&body).contains(mark));
+    }
 
     /// The flags a container making requests to the app must carry, whichever path started it.
     const HARDENING: [&str; 4] = ["--read-only", "--cap-drop", "ALL", "no-new-privileges"];

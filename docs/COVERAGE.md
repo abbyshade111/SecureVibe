@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 3 |
+| L1 | 70 | 56 | 10 | 1 | 6 | 31 | 21 | 3 |
 | L2 | 183 | 82 | 8 | 0 | 16 | 42 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 36 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 34 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -104,10 +104,12 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (97)
+### Settled by asking the running app (99)
 
 | Requirement | Level | Checks |
 |---|---|---|
+| V1.2.1 | L1 | The running app: `probe.reflected-unencoded`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.reflected-unencoded`) |
+| V1.2.3 | L1 | The running app: `probe.reflected-json-unescaped`; Outside tools: `brakeman` (sv only ever as a finding: `probe.reflected-json-unescaped`) |
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
@@ -212,13 +214,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (36)
+### Settled only by an outside tool (34)
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.1 | L1 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.2.2 | L1 | Outside tools: `codeql-javascript` (codeql-javascript only ever as a finding: `js/incomplete-url-scheme-check`) |
-| V1.2.3 | L1 | Outside tools: `brakeman` |
 | V1.2.6 | L2 | Outside tools: `semgrep`, `codeql-python` |
 | V1.2.7 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.2.9 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
