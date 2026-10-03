@@ -194,7 +194,9 @@ another session is not a claim.
   disagree", its last part): all five are held to their lockfiles, each with its own package manager's range rules.
   Gradle's files are not compared yet. Thirty guards broken in turn, each caught.
   **Gradle's `build.gradle` and `build.gradle.kts` claimed the same day by session securevibe-e2**, at the owner's
-  asking to continue with the backlog, in branch `claude/securevibe-e2-gradle-lock`. On
+  asking to continue with the backlog, in branch `claude/securevibe-e2-gradle-lock`. **Done the same day** (DESIGN,
+  "When a manifest and its lockfile disagree", "Gradle, added last"): a plain version is the least Gradle uses, so
+  only an older locked version disagrees. Thirteen guards broken in turn, each caught. On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
   `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
   (`crates/sv-check/src/sbom.rs`). So for ten days the two described different apps: GitHub saw PyJWT
