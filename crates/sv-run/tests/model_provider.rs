@@ -169,6 +169,37 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     chat(port, "SV-PROBE-LONG-0c0d xxxx");
     assert_eq!(seen(port, "0c0d")["kinds"], serde_json::json!(["LONG"]));
 
+    // C5.2.2 and C5.2.4: RECALL records the private markers wherever the app put them (here, in
+    // its instructions, as a search result often is), repeats them, and records none when none came.
+    let body = serde_json::json!({
+        "model": "gpt-test",
+        "messages": [
+            {"role": "system", "content": "Notes found: SV-PRIVATE-77aa quillwort1 and SV-PRIVATE-88bb"},
+            {"role": "user", "content": "What do my notes say about quillwort1? SV-PROBE-RECALL-2a2b"},
+        ],
+    });
+    let recall: serde_json::Value = serde_json::from_str(&call(
+        port,
+        "POST",
+        "/v1/chat/completions",
+        &body.to_string(),
+    ))
+    .unwrap();
+    let said = recall["choices"][0]["message"]["content"].as_str().unwrap();
+    assert!(
+        said.contains("SV-PRIVATE-77aa") && said.contains("SV-PRIVATE-88bb"),
+        "{said}"
+    );
+    assert_eq!(
+        seen(port, "2a2b")["private_seen"],
+        serde_json::json!(["SV-PRIVATE-77aa", "SV-PRIVATE-88bb"])
+    );
+    chat(
+        port,
+        "What do my notes say about quillwort2? SV-PROBE-RECALL-3a3b",
+    );
+    assert_eq!(seen(port, "3a3b")["private_seen"], serde_json::json!([]));
+
     // C7.3.1: the moderation endpoint flags a HARM reply, records that it was asked, and flags
     // nothing else: a plain reply, or the HARM message's own words.
     chat(port, "A story SV-PROBE-HARM-1e1f");

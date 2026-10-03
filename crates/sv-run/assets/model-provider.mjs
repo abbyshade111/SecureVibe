@@ -30,6 +30,10 @@
 //   MCPLOOP asks for `sv_lookup` again after every result, up to LOOP_CAP rounds, and only then
 //           answers; `rounds` in what was seen is how many results the app sent back before it
 //           stopped asking, so an app with no limit of its own reads as LOOP_CAP
+//   RECALL  records every `SV-PRIVATE-<hex>` marker anywhere in the request (instructions, messages,
+//           tool results, any field), as `private_seen`, and repeats them in the reply: what the app's
+//           search handed the model for this person's question, and whether the app lets it through
+//           to them
 //   MCPPLAIN, MCPBAD, MCPINJECT
 //           asks for the MCP tool `sv_lookup`, when the app offered it, with the tag as its
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
@@ -169,6 +173,11 @@ function reply(api, body, usage) {
     if (!tool) return `${marker} I have no tool to look that up with.`;
     record.tool_requested = true;
     return { tool, args: { q: tag } };
+  }
+  if (kind === 'RECALL') {
+    const found = [...new Set([...JSON.stringify(body).matchAll(/SV-PRIVATE-[0-9a-f]+/g)].map((m) => m[0]))];
+    record.private_seen = found;
+    return found.length ? `${marker} Your notes mention ${found.join(' ')}.` : `${marker} I found nothing.`;
   }
   if (kind === 'FAIL') {
     record.failures = (before.failures || 0) + 1;

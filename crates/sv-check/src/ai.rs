@@ -270,6 +270,30 @@ const RECORD_TOOL: Rule = Rule {
           model's instructions asking it to respect permissions are not a check.",
 };
 
+const RETRIEVAL_UNSCOPED: Rule = Rule {
+    rule_id: "probe.ai-retrieval-ignores-user",
+    requirement_ids: &["C5.2.2", "C8.1.3"],
+    cwe: &["CWE-639", "CWE-862"],
+    impact: "The AI feature searches everybody's notes, not just the asker's, so anyone who can chat \
+             with it can have it read them another person's private writing, by asking about what \
+             it says.",
+    fix: "Filter the search itself by the signed-in person, from the session, before anything is \
+          handed to the model: a `where`/`filter` on the owner (or tenant) in the vector or text \
+          search, never a request in the model's instructions to ignore other people's notes.",
+};
+
+const REPLY_UNFILTERED: Rule = Rule {
+    rule_id: "probe.ai-reply-carries-others-data",
+    requirement_ids: &["C5.2.4"],
+    cwe: &["CWE-200"],
+    impact: "Another person's private text went into the model's answer and on to the person who \
+             asked: nothing between the model and the screen holds back what this person may not \
+             see.",
+    fix: "Fix the search first (it should never hand the model another person's notes). As a second \
+          line, check what the model wrote against what this person may see before sending it on, \
+          and hold back anything that is not theirs.",
+};
+
 /// The most messages the rate check sends in its burst.
 const MOST_MESSAGES: u32 = 30;
 
@@ -322,6 +346,8 @@ struct Seen {
     /// For an MCPLOOP message, how many tool results the app sent back before it stopped asking the
     /// model: `LOOP_CAP` when only the test model's own stop ended it.
     rounds: u64,
+    /// For a RECALL message, every `SV-PRIVATE-` marker anywhere in what the app sent the model.
+    private_seen: Vec<String>,
 }
 
 fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
@@ -390,6 +416,15 @@ fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
             .get("rounds")
             .and_then(serde_json::Value::as_u64)
             .unwrap_or(0),
+        private_seen: value
+            .get("private_seen")
+            .and_then(serde_json::Value::as_array)
+            .map(|a| {
+                a.iter()
+                    .filter_map(|t| t.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default(),
     })
 }
 
@@ -629,6 +664,8 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
     // C9.5.3's records, made now while the session is free: one as the first user, whose record the
     // second will ask the app's tool for, and one as the second, the control.
     let records = prepare_records(http, section, ctx, &mut session, &mut out);
+    // C5.2.2's notes, the same way: one private note as the first user, one as the second.
+    let notes = prepare_notes(http, section, ctx, &mut session, &mut out);
 
     let mut ask = |http: &mut dyn Http, n: u32, kind: &str, words: &str| {
         let tag = tag(n);
@@ -1227,7 +1264,191 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
     more_questions(http, section, &mut ask, shows_replies, &mut out);
     failure_questions(http, &mut ask, shows_replies, &mut out);
     record_tool_questions(http, section, &mut ask, records, &mut out);
+    retrieval_questions(http, &mut ask, notes, &mut out);
     (out, markers)
+}
+
+/// The two notes C5.2.2 asks about: each test user's, as the private marker it holds and the word
+/// it is about. The word is what a question names; the marker is never in a question, so it can
+/// only reach the model through the app's own search.
+struct Notes {
+    others: (String, String),
+    own: (String, String),
+}
+
+/// The requirements the private-note questions speak to, for a reason that stops all of them.
+const RETRIEVAL: &str = "C5.2.2, C8.1.3, C5.2.4";
+
+fn prepare_notes(
+    http: &mut dyn Http,
+    section: &AiSection,
+    ctx: &Context,
+    session: &mut Session,
+    out: &mut Outcome,
+) -> Result<Notes, String> {
+    if !section.reads_owned {
+        return Err(
+            "Whether the AI feature's search keeps each person to their own notes: if it reads the \
+             people's own records to answer, say `reads-owned = true` under [stack.run.ai] in \
+             securevibe.toml, and the second test user asks about a private note the first saved."
+                .to_owned(),
+        );
+    }
+    let (Some((users, _)), Some(owner), true) = (ctx.signed_in, ctx.owner, section.signed_in)
+    else {
+        return Err(
+            "Whether the AI feature's search keeps each person to their own notes: that needs \
+             `signed-in = true` under [stack.run.ai] and two test users under [stack.run.users]."
+                .to_owned(),
+        );
+    };
+    if users.owned.is_none() {
+        return Err(
+            "Whether the AI feature's search keeps each person to their own notes: \
+             [stack.run.users] names no `owned` record for the test users to save."
+                .to_owned(),
+        );
+    }
+    let Some(mut first) = sign_in(http, users, "a-ai-notes", owner, &mut out.steps) else {
+        return Err(
+            "Whether the AI feature's search keeps each person to their own notes: signing in as \
+             the first test user got no answer."
+                .to_owned(),
+        );
+    };
+    let note = |n: u32| {
+        (
+            format!("SV-PRIVATE-{}", tag(n)),
+            format!("quillwort{}", tag(n + 1)),
+        )
+    };
+    let (others, own) = (note(30), note(32));
+    let (made, _) = create_owned(
+        http,
+        users,
+        &mut first.session,
+        &format!("{} {}", others.0, others.1),
+    );
+    let (made_own, _) = create_owned(http, users, session, &format!("{} {}", own.0, own.1));
+    out.steps.push(format!(
+        "saved a private note as the first test user ({}) and one as the second ({}), for the AI \
+         feature to be asked about",
+        status(&made),
+        status(&made_own)
+    ));
+    if made.as_ref().is_none_or(|r| r.status >= 400)
+        || made_own.as_ref().is_none_or(|r| r.status >= 400)
+    {
+        return Err(
+            "Whether the AI feature's search keeps each person to their own notes: the app did not \
+             save the test users' notes, so there was nothing for it to find."
+                .to_owned(),
+        );
+    }
+    Ok(Notes { others, own })
+}
+
+/// C5.2.2, C8.1.3, and C5.2.4: the second user asks about their own note (the control), then about
+/// the first user's, naming only the word each is about.
+///
+/// Only ever a finding. One note each and one question is not every way the app searches, so the
+/// first user's note staying out of the second user's question is said and not credited.
+fn retrieval_questions<F>(
+    http: &mut dyn Http,
+    ask: &mut F,
+    notes: Result<Notes, String>,
+    out: &mut Outcome,
+) where
+    F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
+{
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push((RETRIEVAL.to_owned(), why));
+    let notes = match notes {
+        Ok(notes) => notes,
+        Err(why) => {
+            say(why, out);
+            return;
+        }
+    };
+    let question = |about: &str| format!("What do my notes say about {about}?");
+    let (own_tag, own_answer) = ask(http, 34, "RECALL", &question(&notes.own.1));
+    let own_seen = seen(http, &own_tag).unwrap_or_default();
+    let own_found = own_seen.private_seen.contains(&notes.own.0);
+    out.steps.push(format!(
+        "asked the AI feature, as the second test user, about their own note ({}): {}",
+        status(&own_answer),
+        if !own_seen.received {
+            "the message did not reach the model"
+        } else if own_found {
+            "the note reached the model"
+        } else {
+            "the note did not reach the model"
+        }
+    ));
+    if !own_found {
+        say(
+            "Whether the AI feature's search keeps each person to their own notes: asked by the \
+             second test user about their own note, the app did not hand that note to the model, so \
+             it may not search notes this way at all, and the first user's note staying out would \
+             show nothing."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let (others_tag, others_answer) = ask(http, 35, "RECALL", &question(&notes.others.1));
+    let others_seen = seen(http, &others_tag).unwrap_or_default();
+    let leaked = others_seen.private_seen.contains(&notes.others.0);
+    let shown = others_answer
+        .as_ref()
+        .is_some_and(|r| decoded(&r.body).contains(&notes.others.0));
+    out.steps.push(format!(
+        "asked the AI feature, as the second test user, about the first user's note ({}): {}",
+        status(&others_answer),
+        match (leaked, shown) {
+            (true, true) => "the note reached the model, and the answer",
+            (true, false) => "the note reached the model, and not the answer",
+            (false, _) => "the note did not reach the model",
+        }
+    ));
+    if !leaked {
+        say(
+            "The AI feature's search did not hand the first test user's private note to the model \
+             for the second user's question about it, where it handed the second user their own. \
+             One note each and one question is not every way the app searches, so this is said \
+             and not credited."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    out.findings.push(finding(
+        &RETRIEVAL_UNSCOPED,
+        "The AI feature searches other people's notes",
+        Severity::High,
+        "Chatting as the second test user, a question naming only what the first test user's \
+         private note was about brought that note to the model: the app's search did not keep the \
+         second user to their own."
+            .to_owned(),
+    ));
+    if shown {
+        out.findings.push(finding(
+            &REPLY_UNFILTERED,
+            "The AI feature's answer carries another person's private note",
+            Severity::High,
+            "The first test user's private note, handed to the model for the second user's \
+             question, came back in the answer the second user was shown."
+                .to_owned(),
+        ));
+    } else {
+        out.not_assessed.push((
+            "C5.2.4".to_owned(),
+            "The first test user's private note reached the model for the second user's question, \
+             and did not come back in the answer the second user was shown: something after the \
+             model held it back, or the answer does not show replies. That is one answer, and the \
+             search is already a finding, so it is said and not credited."
+                .to_owned(),
+        ));
+    }
 }
 
 /// The two records C9.5.3 asks about: the first user's, and the second user's own, each with its
@@ -2401,6 +2622,13 @@ mod tests {
         tool_ignores_owner: bool,
         /// It offers the model no record tool.
         no_record_tool: bool,
+        /// It searches the notes for a message's words and hands what it finds to the model with
+        /// the message: the caller's own notes only, unless `retrieval_ignores_user`.
+        reads_notes: bool,
+        /// Its search hands the model anybody's note that matches (C5.2.2).
+        retrieval_ignores_user: bool,
+        /// It holds back, from the answer, any private marker that is not the caller's own (C5.2.4).
+        reply_filters_others: bool,
         /// Its record tool finds nothing for anybody, the caller's own records included.
         record_tool_broken: bool,
     }
@@ -2445,6 +2673,8 @@ mod tests {
         failures: u64,
         /// For each MCPLOOP tag, how many tool rounds the app ran.
         rounds: BTreeMap<String, u64>,
+        /// For each RECALL tag, every private marker the model was handed.
+        private_seen: BTreeMap<String, Vec<String>>,
         flaws: Flaws,
         seen: BTreeMap<String, (bool, String, bool, bool)>,
         signed_in: bool,
@@ -2603,6 +2833,16 @@ mod tests {
                 _ => {}
             }
             let marker = format!("SV-REPLY-{tag}");
+            if kind == "RECALL" {
+                // As the test model does: every private marker in what it was handed, repeated.
+                let found: Vec<String> = private_markers(message);
+                self.private_seen.insert(tag.to_owned(), found.clone());
+                return if found.is_empty() {
+                    format!("{marker} I found nothing.")
+                } else {
+                    format!("{marker} Your notes mention {}.", found.join(" "))
+                };
+            }
             if kind == "FETCH" {
                 // The app's record tool, as the fake app runs it for the model: by id, and only the
                 // caller's own records unless the flaw says otherwise.
@@ -2766,7 +3006,39 @@ mod tests {
             } else {
                 message.to_owned()
             };
+            // The app's own search, as the fake runs it: notes holding a word of the message.
+            let cut = if self.flaws.reads_notes {
+                let words: Vec<&str> = cut
+                    .split(|c: char| !c.is_ascii_alphanumeric())
+                    .filter(|w| w.len() > 8)
+                    .collect();
+                let found: Vec<String> = self
+                    .notes
+                    .iter()
+                    .filter(|(_, owner, _)| {
+                        self.flaws.retrieval_ignores_user || *owner == self.caller
+                    })
+                    .filter(|(_, _, text)| words.iter().any(|w| text.contains(w)))
+                    .map(|(_, _, text)| text.clone())
+                    .collect();
+                if found.is_empty() {
+                    cut
+                } else {
+                    format!("{cut}\n\nThe person's notes:\n{}", found.join("\n"))
+                }
+            } else {
+                cut
+            };
             let mut reply = self.model_reply(&cut);
+            if self.flaws.reply_filters_others {
+                for (_, owner, text) in &self.notes {
+                    if *owner != self.caller {
+                        for theirs in private_markers(text) {
+                            reply = reply.replace(&theirs, "[withheld]");
+                        }
+                    }
+                }
+            }
             // A message the test model fails on: the service's error, handled or not.
             let failing = self.last_tag.clone();
             if self
@@ -3001,6 +3273,7 @@ mod tests {
                             "reply_screened": self.screened.contains(tag),
                             "failures": if self.kinds.get(tag).and_then(|k| k.last()).is_some_and(|k| k == "FAIL") { self.failures } else { 0 },
                             "rounds": self.rounds.get(tag).copied().unwrap_or(0),
+                            "private_seen": self.private_seen.get(tag).cloned().unwrap_or_default(),
                         })
                         .to_string()
                     }
@@ -3040,7 +3313,25 @@ mod tests {
             kill_switch: None,
             mcp_url_env: None,
             record_tool: None,
+            reads_owned: false,
         }
+    }
+
+    /// Every `SV-PRIVATE-` marker in a text, as the test model finds them.
+    fn private_markers(text: &str) -> Vec<String> {
+        let mut found: Vec<String> = text
+            .match_indices("SV-PRIVATE-")
+            .map(|(at, prefix)| {
+                let hex: String = text[at + prefix.len()..]
+                    .chars()
+                    .take_while(char::is_ascii_hexdigit)
+                    .collect();
+                format!("{prefix}{hex}")
+            })
+            .filter(|m| m.len() > "SV-PRIVATE-".len())
+            .collect();
+        found.dedup();
+        found
     }
 
     fn ask(flaws: Flaws) -> Outcome {
@@ -3378,8 +3669,15 @@ mod tests {
     }
 
     fn record_run(flaws: Flaws, tool: bool) -> Outcome {
+        signed_run(flaws, tool, false)
+    }
+
+    /// A run as the second of two signed-in test users, with the record tool (C9.5.3) and the
+    /// private notes (C5.2.2) asked about when told to.
+    fn signed_run(flaws: Flaws, tool: bool, reads_owned: bool) -> Outcome {
         let mut s = section();
         s.signed_in = true;
+        s.reads_owned = reads_owned;
         if tool {
             s.record_tool = Some(sv_manifest::RecordTool {
                 name: "get_note".into(),
@@ -3471,6 +3769,136 @@ mod tests {
             .find(|f| f.rule_id == RECORD_TOOL.rule_id)
             .unwrap();
         assert_eq!(f.requirement_ids, ["C9.5.3"]);
+    }
+
+    fn notes_run(flaws: Flaws) -> Outcome {
+        signed_run(
+            Flaws {
+                reads_notes: true,
+                ..flaws
+            },
+            false,
+            true,
+        )
+    }
+
+    fn retrieval_said(o: &Outcome) -> Vec<&String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids == RETRIEVAL || ids == "C5.2.4")
+            .map(|(_, why)| why)
+            .collect()
+    }
+
+    #[test]
+    fn a_search_that_hands_one_user_another_users_note_is_found() {
+        let o = notes_run(Flaws {
+            retrieval_ignores_user: true,
+            ..Default::default()
+        });
+        let f: Vec<&crate::Finding> = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == RETRIEVAL_UNSCOPED.rule_id)
+            .collect();
+        assert_eq!(f.len(), 1, "{:?} {:?}", o.steps, o.not_assessed);
+        assert_eq!(f[0].requirement_ids, ["C5.2.2", "C8.1.3"]);
+        // Nothing stood between the model and the screen, so the answer carried it too.
+        assert!(
+            found(&o).contains(&REPLY_UNFILTERED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            !credited(&o)
+                .iter()
+                .any(|r| r.contains("retrieval") || r.contains("others-data"))
+        );
+    }
+
+    #[test]
+    fn an_answer_held_back_after_a_leaky_search_is_the_search_found_and_the_answer_said() {
+        let o = notes_run(Flaws {
+            retrieval_ignores_user: true,
+            reply_filters_others: true,
+            ..Default::default()
+        });
+        assert!(
+            found(&o).contains(&RETRIEVAL_UNSCOPED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            !found(&o).contains(&REPLY_UNFILTERED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "C5.2.4" && why.contains("held it back")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_search_that_keeps_each_user_to_their_own_notes_is_said_and_not_credited() {
+        let o = notes_run(Flaws::default());
+        assert!(
+            !found(&o).contains(&RETRIEVAL_UNSCOPED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(!found(&o).contains(&REPLY_UNFILTERED.rule_id));
+        assert!(!credited(&o).contains(&RETRIEVAL_UNSCOPED.rule_id));
+        // The control held: the second user's own note did reach the model.
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("own note") && s.contains("the note reached the model")),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            retrieval_said(&o)
+                .iter()
+                .any(|why| why.contains("said and not credited")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_ai_that_does_not_read_notes_or_was_not_said_to_settles_nothing() {
+        // Said to read them, and it does not: the control fails, and nothing is concluded.
+        let o = signed_run(Flaws::default(), false, true);
+        assert!(!found(&o).contains(&RETRIEVAL_UNSCOPED.rule_id));
+        assert!(
+            retrieval_said(&o)
+                .iter()
+                .any(|why| why.contains("may not search notes")),
+            "{:?}",
+            o.not_assessed
+        );
+        // Not said to: nothing is asked, and the owner is told what to say.
+        let o = signed_run(
+            Flaws {
+                reads_notes: true,
+                retrieval_ignores_user: true,
+                ..Default::default()
+            },
+            false,
+            false,
+        );
+        assert!(!found(&o).contains(&RETRIEVAL_UNSCOPED.rule_id));
+        assert!(
+            retrieval_said(&o)
+                .iter()
+                .any(|why| why.contains("reads-owned = true")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]

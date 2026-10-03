@@ -253,6 +253,12 @@ pub struct AiSection {
     /// (C9.5.3). Needs `signed-in` and an `owned` record under [stack.run.users].
     #[serde(default)]
     pub record_tool: Option<RecordTool>,
+    /// Whether the AI feature reads the people's own `owned` records when it answers: searches their
+    /// notes or documents for what a question is about. When it does, the first test user saves one
+    /// with a private marker, and the second asks about it (C5.2.2, C8.1.3, C5.2.4). Needs
+    /// `signed-in` and an `owned` record under [stack.run.users].
+    #[serde(default)]
+    pub reads_owned: bool,
 }
 
 /// The tool the model calls to read a record, and the arguments it takes.

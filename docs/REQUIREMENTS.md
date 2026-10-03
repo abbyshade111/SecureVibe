@@ -626,7 +626,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 30 can be checked, 0 where a check helps but a person decides, and 161 with no check.
+191 requirements: 33 can be checked, 0 where a check helps but a person decides, and 158 with no check.
 
 ### Level 1 (51 requirements, 17 can be checked)
 
@@ -736,7 +736,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 11 can be checked)
+### Level 2 (95 requirements, 14 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -785,9 +785,9 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C5.2.1** Verify that every AI resource (datasets, endpoints, vector collections, embedding indices, compute instances) enforces access controls with explicit allow-lists and default-deny policies. | No check | – |
-| **C5.2.2** Verify that retrieval pipelines (e.g., RAG queries, embedding lookups) enforce the end-user's authorization context at each retrieval and assembly stage, rather than relying solely on the service account's permissions. | No check | – |
+| **C5.2.2** Verify that retrieval pipelines (e.g., RAG queries, embedding lookups) enforce the end-user's authorization context at each retrieval and assembly stage, rather than relying solely on the service account's permissions. | Can be checked | Signed in: `probe.ai-retrieval-ignores-user`, if it fails: The AI feature searches everybody's notes, not just the asker's, so anyone who can chat with it can have it read them another person's private writing, by asking about what it says. (found failing only) |
 | **C5.2.3** Verify that sensitive data is retrieved via retrieval pipelines (e.g., RAG queries, embedding lookups) to prevent permanent storage in models. | No check | – |
-| **C5.2.4** Verify that post-inference filtering mechanisms prevent responses from including data that the requester is not authorized to receive. | No check | – |
+| **C5.2.4** Verify that post-inference filtering mechanisms prevent responses from including data that the requester is not authorized to receive. | Can be checked | Signed in: `probe.ai-reply-carries-others-data`, if it fails: Another person's private text went into the model's answer and on to the person who asked: nothing between the model and the screen holds back what this person may not see. (found failing only) |
 | **C5.2.5** Verify that the policy decision point for agent authorization is isolated from the agent's execution environment. | No check | – |
 | **C5.3.1** Verify that shared model serving infrastructure prevents one tenant's fine-tuning, inference, or embedding operations from influencing or observing another tenant's operations. | No check | – |
 
@@ -815,7 +815,7 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C8.1.2** Verify that document metadata tags are immutable after the initial write. | No check | – |
-| **C8.1.3** Verify that retrieval operations enforce scope constraints. | No check | – |
+| **C8.1.3** Verify that retrieval operations enforce scope constraints. | Can be checked | Signed in: `probe.ai-retrieval-ignores-user`, if it fails: The AI feature searches everybody's notes, not just the asker's, so anyone who can chat with it can have it read them another person's private writing, by asking about what it says. (found failing only) |
 | **C8.2.2** Verify that vectors that fall outside normal clustering patterns are flagged and quarantined before entering production indices. | No check | – |
 | **C8.2.3** Verify that agent outputs and tool outputs are not automatically written to trusted agent memory without explicit source validation. | No check | – |
 | **C8.3.1** Verify that expired vectors are excluded from retrieval results. | No check | – |
