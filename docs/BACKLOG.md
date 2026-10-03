@@ -76,9 +76,18 @@ another session is not a claim.
      a foreign address; a `Location` header pointing there is the finding.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-agent-limit`.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
+      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+      `claude/securevibe-e9-ai-failure`.
+      **Done the same day** (DESIGN, "When the AI service fails"). The test model's `FAIL` answers 500 in the
+      service's own error shape, carrying `SVERR` and the tag; `probe.ai-service-error-shown` (V16.5.1, only ever
+      a finding) and `probe.ai-service-failure-handled` (V16.5.2, credited when the app fails cleanly and keeps
+      answering). Three guards broken in turn, each caught. Not done: a service that answers slowly or not at all,
+      and a malformed structured answer (C7.1.1).
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
@@ -94,6 +103,10 @@ another session is not a claim.
       file named to land outside the upload folder, then asked for where it would have landed.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
       **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
+      **Done on 3 October 2026** (DESIGN, "Old TLS versions on the live site"): one handshake offering only TLS 1.0
+      and 1.1, within the cap of four; accepted is a finding, refused is said and not credited, since V12.1.1 also asks
+      that the newest version be preferred and curl reports no version that can be relied on. Nine guards broken in
+      turn, each caught: seven by the one test written for each, two by two tests or more.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/old-tls-versions`. It may not raise the limit: a run of `sv probe` makes at most three requests since
       the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
@@ -224,6 +237,8 @@ another session is not a claim.
      shape, closed to fields it does not name, and a test holds every tool's real result to it. Seven ways broken,
      each caught.
   4. **Progress notifications during a long check**, so the tool does not look stuck.
+     **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-mcp-progress`.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-mcp-resources`.
@@ -1570,7 +1585,7 @@ another session is not a claim.
      leave fenced containers running. It could be a line in ADR-019 or ADR-020 rather than a record of its own.
   7. **The container image is published from CI and runs as user 10001** (#333). Lower than the rest.
 
-- **The app's own container is not run read-only.** Found on 30 September 2026 by the first weekly review of the
+- ~~**The app's own container is not run read-only.**~~ Found on 30 September 2026 by the first weekly review of the
   decision records (ADR-019, "Later, 30 September 2026"). The app's folder is mounted read-only and every helper
   container runs `--read-only`, but the app's container does not, so the app can write anywhere in its own file
   system outside `/app`; and the in-memory report folder has no size limit. Running the app `--read-only` with an
@@ -1578,7 +1593,9 @@ another session is not a claim.
   for the report folder is simpler. **The owner's decision, 3 October 2026: yes**, read-only with an in-memory
   `/tmp`, no capabilities and no new privileges, and a size for the report folder, tested against the example
   apps first. **Claimed on 3 October 2026 by session practical-banach-b1faa1** (the session that was
-  keen-meninsky-691a27).
+  keen-meninsky-691a27). **Done the same day:** read-only, no capabilities, no new privileges, an in-memory
+  `/tmp` of 256 MB and a report folder of 16 MB, measured on every example app and on an app that starts only
+  when contained. See ADR-019, "Later, 3 October 2026".
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on

@@ -155,7 +155,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **V12.1.1** Verify that only the latest recommended versions of the TLS protocol are enabled, such as TLS 1.2 and TLS 1.3. The latest version of the TLS protocol must be the preferred option. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: an outdated TLS or SSL protocol version enabled<br>Outside tools: codeql-python, 1 rule, its rules look for: an outdated TLS or SSL protocol version enabled |
+| **V12.1.1** Verify that only the latest recommended versions of the TLS protocol are enabled, such as TLS 1.2 and TLS 1.3. The latest version of the TLS protocol must be the preferred option. | Can be checked | Outside tools: semgrep, 1 rule, its rules look for: an outdated TLS or SSL protocol version enabled<br>Outside tools: codeql-python, 1 rule, its rules look for: an outdated TLS or SSL protocol version enabled<br>Your own live site: `probe.old-tls-accepted`, looks for: The site still accepts TLS 1.0 or 1.1 (found failing only) |
 | **V12.2.1** Verify that TLS is used for all connectivity between a client and external facing, HTTP-based services, and does not fall back to insecure or unencrypted communications. | Can be checked | Your own live site: `probe.plain-http-served`, looks for: The site is served over plain HTTP |
 | **V12.2.2** Verify that external facing services use publicly trusted TLS certificates. | A check helps; a person decides | Your own live site: `probe.certificate-not-trusted`, looks for: The certificate is not one browsers trust |
 
