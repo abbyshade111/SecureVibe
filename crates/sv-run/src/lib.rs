@@ -83,8 +83,14 @@ impl CannotRun {
                 detail,
             } => format!(
                 "The app started but never answered on its health path within {waited_seconds}s. \
-                 {detail} This is reported as not assessed rather than as a failure: an app that \
-                 will not start under `sv` has not been shown to be insecure."
+                 {detail}{} This is reported as not assessed rather than as a failure: an app that \
+                 will not start under `sv` has not been shown to be insecure.",
+                if detail.contains("Read-only file system") {
+                    " The app tried to write outside the places it may: while `sv` runs it, its \
+                     file system is read-only apart from /tmp, so keep its data under /tmp."
+                } else {
+                    ""
+                }
             ),
             CannotRun::AppFolderUnseen { folder } => format!(
                 "The app's folder, {folder}, has files on this computer, and inside the container \
@@ -359,7 +365,9 @@ impl Fence {
             Fence::DockerInternalNetwork => {
                 "The app ran on a container network created with `--internal`: it could not reach \
                  the internet, could not resolve any name, and nothing was published to this \
-                 computer. The checks reached it from a second container on the same network."
+                 computer. Its file system was read-only apart from an in-memory `/tmp`, and it \
+                 ran with no special privileges. The checks reached it from a second container on \
+                 the same network."
             }
             Fence::None => {
                 "No network fence was applied. The app could reach the internet while it ran."
@@ -558,6 +566,24 @@ pub fn minutes(limit: Duration) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_app_that_writes_outside_tmp_is_told_where_it_may_write() {
+        let refused = CannotRun::NeverReady {
+            waited_seconds: 60,
+            detail: "Its last output was: OSError: [Errno 30] Read-only file system: '/data'"
+                .to_owned(),
+        }
+        .explain();
+        assert!(refused.contains("keep its data under /tmp"), "{refused}");
+        // Any other reason a start fails says nothing about the file system.
+        let other = CannotRun::NeverReady {
+            waited_seconds: 60,
+            detail: "Its last output was: ModuleNotFoundError: No module named 'flask'".to_owned(),
+        }
+        .explain();
+        assert!(!other.contains("/tmp"), "{other}");
+    }
 
     fn sh(script: &str) -> Command {
         let mut c = Command::new("sh");
