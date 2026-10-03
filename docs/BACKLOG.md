@@ -119,7 +119,9 @@ another session is not a claim.
       the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
       code before anything else.
 
-- **Say when a manifest and its lockfile disagree.** Found on 3 October 2026; **not claimed.** On
+- **Say when a manifest and its lockfile disagree.** Found on 3 October 2026. **Claimed the same day by session
+  securevibe-e2**, at the owner's asking to continue with the backlog, in branch
+  `claude/securevibe-e2-manifest-lock`. On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
   `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
   (`crates/sv-check/src/sbom.rs`). So for ten days the two described different apps: GitHub saw PyJWT
