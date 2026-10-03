@@ -115,6 +115,8 @@ another session is not a claim.
   12. **The app's own MCP server, hardened (C10.2.1, C10.4.3, level 1; C10.4.4, C10.4.5).** No token, a junk token,
       an undeclared parameter, the wrong type, and an oversized payload, each against the ordinary call as the
       control. Proposed in `docs/PARTIAL-CHECKS.md` for C10.2.1 and C10.4.3.
+      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking to continue with the backlog,
+      in branch `claude/app-mcp-hardened`.
   13. **Limits and double-booking on the owner's own actions (V2.4.1, V2.3.4).** A burst, and parallel requests, at
       an action `securevibe.toml` names; more successes than its stated limit is the finding. Proposed in
       `docs/PARTIAL-CHECKS.md`.
