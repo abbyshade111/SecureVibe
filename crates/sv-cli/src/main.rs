@@ -3742,10 +3742,18 @@ fn adapters_examined(
                     .find(|(id, _)| id == &adapter.id)
                     .map(|(_, why)| why.clone())
             };
-            if let Some(why) = reason(&run.partly) {
-                sv_report::Examined::partly(rules, why)
+            let looked = if let Some(why) = reason(&run.partly) {
+                Some(sv_report::Examined::partly(rules.clone(), why))
             } else if run.ran.contains(&adapter.id) {
-                sv_report::Examined::ran(rules)
+                Some(sv_report::Examined::ran(rules.clone()))
+            } else {
+                None
+            };
+            if let Some(looked) = looked {
+                match reason(&run.stood_in) {
+                    Some(why) => looked.stood_in_by(why),
+                    None => looked,
+                }
             } else if let Some(why) = reason(&run.not_run) {
                 sv_report::Examined::not_run(rules, why)
             } else if !languages.iter().any(|l| adapter.reads(l)) {
@@ -3898,6 +3906,40 @@ mod tests {
             adapters.all().len(),
             "one entry per tool `sv` knows"
         );
+    }
+
+    #[test]
+    fn an_entry_names_the_stand_in_that_did_the_looking() {
+        let adapters = sv_check::adapters::Adapters::load(&adapters_path()).unwrap();
+        let said = "Opengrep ran in place of Semgrep, which is not installed on this computer.";
+        let entry = |run: &sv_check::adapters::AdapterRun| {
+            adapters_examined(&adapters, &["python".to_owned()], run)
+                .into_iter()
+                .find(|e| e.rules == "semgrep.")
+                .unwrap()
+        };
+        let mut run = sv_check::adapters::AdapterRun {
+            ran: vec!["semgrep".into(), "bandit".into()],
+            stood_in: vec![("semgrep".into(), said.into())],
+            ..Default::default()
+        };
+        let ran = entry(&run);
+        assert_eq!(ran.state, sv_report::ExaminedState::Ran);
+        assert_eq!(ran.stand_in.as_deref(), Some(said));
+        // Said on the one tool it is about, and nowhere else.
+        let bandit = adapters_examined(&adapters, &["python".to_owned()], &run)
+            .into_iter()
+            .find(|e| e.rules == "bandit.")
+            .unwrap();
+        assert_eq!(bandit.stand_in, None);
+        // A run that read only part of the app says which program read that part.
+        run.ran.clear();
+        run.partly = vec![("semgrep".into(), "told to skip tests/".into())];
+        let partly = entry(&run);
+        assert_eq!(partly.state, sv_report::ExaminedState::Partly);
+        assert_eq!(partly.stand_in.as_deref(), Some(said));
+        let json = serde_json::to_value(&partly).unwrap();
+        assert_eq!(json["stand_in"], said, "{json}");
     }
 
     fn untaught() -> Vec<sv_check::ast::Untaught> {

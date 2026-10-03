@@ -81,6 +81,36 @@ pub struct Adapter {
     /// can only ever find something and on code that calls no model they find nothing.
     #[serde(default)]
     pub conditional_args: Vec<ConditionalArgs>,
+    /// Set for every command this adapter starts. Semgrep's is `SEMGREP_ENABLE_VERSION_CHECK=0`,
+    /// which stops it asking semgrep.dev whether a newer semgrep is out.
+    #[serde(default)]
+    pub env: BTreeMap<String, String>,
+    /// Another program run in this one's place when this one is not installed.
+    #[serde(default)]
+    pub stand_in: Option<StandIn>,
+}
+
+/// A program that reads the same rules and writes the same report as an adapter's own, run when
+/// the adapter's own program is not installed: Opengrep for semgrep (DESIGN, "Opengrep in
+/// semgrep's place"). Only when it is missing, never when it is here and will not start: that is
+/// something for the owner to fix, and working around it quietly would hide it.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct StandIn {
+    pub name: String,
+    /// Replaces the adapter's command for asking its version and for running it.
+    pub command: String,
+    /// Arguments the stand-in refuses, left out when it runs. Opengrep stops at `--metrics=off` as
+    /// an option it does not know; it has no usage reporting to turn off.
+    #[serde(default)]
+    pub leave_out: Vec<String>,
+}
+
+/// Which program ran when it was a stand-in, and the sentence the report says it in.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoodIn {
+    pub name: String,
+    pub why: String,
 }
 
 /// Arguments for `run` that apply unless `condition` is known not to hold for the app.
@@ -105,6 +135,27 @@ impl Adapter {
         let at = args.iter().position(|a| a == "--").unwrap_or(args.len());
         args.splice(at..at, extra);
         args
+    }
+
+    /// This adapter with its stand-in's name and command, and without the arguments it refuses.
+    pub fn standing_in(&self) -> Option<Adapter> {
+        let other = self.stand_in.as_ref()?;
+        let keep = |args: &[String]| -> Vec<String> {
+            args.iter()
+                .filter(|a| !other.leave_out.contains(a))
+                .cloned()
+                .collect()
+        };
+        let mut adapter = self.clone();
+        adapter.name = other.name.clone();
+        adapter.version.command = other.command.clone();
+        adapter.run.command = other.command.clone();
+        adapter.run.args = keep(&self.run.args);
+        for c in &mut adapter.conditional_args {
+            c.args = keep(&c.args);
+        }
+        adapter.stand_in = None;
+        Some(adapter)
     }
 }
 
@@ -175,6 +226,7 @@ impl Adapters {
             for command in [&adapter.version.command, &adapter.run.command]
                 .into_iter()
                 .chain(adapter.prepare.as_ref().map(|p| &p.command))
+                .chain(adapter.stand_in.as_ref().map(|s| &s.command))
             {
                 if command.is_empty()
                     || command.contains(['/', '\\', ';', '|', '&', '$', '`', '\n', '\r', ' '])
@@ -240,6 +292,39 @@ impl Adapters {
                         c.condition
                     );
                 }
+            }
+            if let Some(other) = &adapter.stand_in {
+                // A stand-in replaces one command; a tool run in two steps has two.
+                if adapter.prepare.is_some() {
+                    anyhow::bail!(
+                        "adapter `{}` has a stand-in and a step before it runs",
+                        adapter.id
+                    );
+                }
+                // An argument to leave out that is not there is one the stand-in will be handed
+                // after the adapter's arguments are edited, and it will refuse it.
+                let all: Vec<&String> = adapter
+                    .run
+                    .args
+                    .iter()
+                    .chain(adapter.conditional_args.iter().flat_map(|c| &c.args))
+                    .collect();
+                if let Some(missing) = other.leave_out.iter().find(|a| !all.contains(a)) {
+                    anyhow::bail!(
+                        "adapter `{}` leaves {missing:?} out for its stand-in and does not pass it",
+                        adapter.id
+                    );
+                }
+            }
+            if let Some(name) = adapter
+                .env
+                .keys()
+                .find(|k| k.is_empty() || k.contains(['=', '\0']))
+            {
+                anyhow::bail!(
+                    "adapter `{}` sets an environment variable with no usable name: {name:?}",
+                    adapter.id
+                );
             }
             // The file names are relative to the app, so the tool has to be started inside it.
             if adapter.run.args.iter().any(|a| a == "{files}")
@@ -315,6 +400,8 @@ pub enum Outcome {
         /// Every way the tool was told to look away from part of the app, in plain words. Empty
         /// is the only state in which finding nothing is evidence of anything.
         looked_away: Vec<String>,
+        /// The program that ran, when it was the adapter's stand-in rather than its own.
+        stood_in: Option<StoodIn>,
     },
     /// It did not run, and this is why, in words somebody can act on.
     NotRun { why: String },
@@ -332,6 +419,8 @@ pub struct AdapterRun {
     /// Adapters that ran but were told not to look at part of the app, and what they skipped. One
     /// that also found nothing is in `not_run` as well, as the report has always said it.
     pub partly: Vec<(String, String)>,
+    /// Adapters whose stand-in ran in place of their own program, and the sentence saying so.
+    pub stood_in: Vec<(String, String)>,
 }
 
 /// Whether the tool is here, and whether it works.
@@ -354,6 +443,7 @@ pub enum Presence {
 pub fn presence(adapter: &Adapter) -> Presence {
     let output = Command::new(&adapter.version.command)
         .args(&adapter.version.args)
+        .envs(&adapter.env)
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped())
         .output();
@@ -430,15 +520,47 @@ pub fn run_one_in(
 ) -> Outcome {
     let app_dir = listing.root.as_path();
     let subject = adapter.subject();
+    let own = presence(adapter);
+    // Asked only when the adapter's own program is missing, so a stand-in never runs beside it.
+    let other = match own {
+        Presence::Missing => adapter.standing_in().map(|other| (presence(&other), other)),
+        _ => None,
+    };
+    let (adapter, own, stood_in) = match &other {
+        Some((Presence::Ready, other)) => (
+            other,
+            Presence::Ready,
+            Some(StoodIn {
+                name: other.name.clone(),
+                why: format!(
+                    "{} ran in place of {}, which is not installed on this computer.",
+                    other.name, adapter.name
+                ),
+            }),
+        ),
+        _ => (adapter, own, None),
+    };
     let run_args = adapter.run_args(not_holding);
-    match presence(adapter) {
+    match own {
         Presence::Ready => {}
         Presence::Missing => {
+            let also = match &other {
+                Some((Presence::Missing, other)) => format!(
+                    " {}, which can run in its place, is not installed either.",
+                    other.name
+                ),
+                Some((Presence::Broken { detail }, other)) => format!(
+                    " {}, which can run in its place, is installed and would not start. It said: \
+                     {detail}",
+                    other.name
+                ),
+                _ => String::new(),
+            };
             return Outcome::NotRun {
                 why: format!(
                     "{} is not installed on this computer, so nothing here has checked the \
                      {subject} in this app the way it would have. Install it with `{}` and run \
-                     this again.",
+                     this again.{also}",
                     adapter.name, adapter.install
                 ),
             };
@@ -499,6 +621,7 @@ pub fn run_one_in(
     if let Some(prepare) = &adapter.prepare {
         let mut command = Command::new(&prepare.command);
         command.args(prepare.args.iter().map(|a| fill(a)));
+        command.envs(&adapter.env);
         if adapter.working_directory.is_some() {
             command.current_dir(app_dir);
         }
@@ -521,6 +644,7 @@ pub fn run_one_in(
         }
     }
     let mut command = Command::new(&adapter.run.command);
+    command.envs(&adapter.env);
     for arg in &run_args {
         if arg == "{files}" {
             // `./` as well as the `--` before it in the data: a file called `-x.py` is a file.
@@ -571,6 +695,7 @@ pub fn run_one_in(
                 }
                 reasons
             },
+            stood_in,
         },
         Err(e) => Outcome::NotRun {
             why: format!("{}'s report could not be read: {e}", adapter.name),
@@ -615,7 +740,16 @@ pub fn run_all_in(
                 findings,
                 loaded,
                 looked_away,
+                stood_in,
             } => {
+                // The program that ran, in what the report says about it.
+                let name = match &stood_in {
+                    Some(other) => format!("{} (in place of {})", other.name, adapter.name),
+                    None => adapter.name.clone(),
+                };
+                if let Some(other) = stood_in {
+                    run.stood_in.push((adapter.id.clone(), other.why));
+                }
                 if looked_away.is_empty() {
                     run.ran.push(adapter.id.clone());
                 } else {
@@ -623,7 +757,7 @@ pub fn run_all_in(
                         adapter.id.clone(),
                         format!(
                             "{} was told not to look at part of this app: {}.",
-                            adapter.name,
+                            name,
                             looked_away.join("; ")
                         ),
                     ));
@@ -634,7 +768,7 @@ pub fn run_all_in(
                         format!(
                             "{} ran and found nothing, but it was told not to look at part of \
                              this app, so finding nothing is not counted as a clean result: {}.",
-                            adapter.name,
+                            name,
                             looked_away.join("; ")
                         ),
                     ));
@@ -645,11 +779,7 @@ pub fn run_all_in(
                         run.verified.push(Verified::new(
                             &format!("adapter.{}", adapter.id),
                             &ids,
-                            format!(
-                                "{} over the {} in this app",
-                                adapter.name,
-                                adapter.subject()
-                            ),
+                            format!("{name} over the {} in this app", adapter.subject()),
                         ));
                     }
                 }

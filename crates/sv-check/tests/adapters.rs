@@ -990,3 +990,89 @@ fn only_a_known_no_leaves_the_ai_pack_out() {
         BTreeSet::from(["ai".to_owned()])
     );
 }
+
+#[test]
+fn semgrep_s_stand_in_and_switches_are_what_was_measured() {
+    // `--metrics=off` and the version check are what stopped semgrep's extra connection on
+    // 3 October 2026; Opengrep is what produced the same report on 29 September.
+    let adapters = adapters();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
+    assert!(semgrep.run.args.iter().any(|a| a == "--metrics=off"));
+    assert_eq!(
+        semgrep
+            .env
+            .get("SEMGREP_ENABLE_VERSION_CHECK")
+            .map(String::as_str),
+        Some("0")
+    );
+    let other = semgrep.standing_in().expect("semgrep has a stand-in");
+    assert_eq!(
+        (other.name.as_str(), other.run.command.as_str()),
+        ("Opengrep", "opengrep")
+    );
+    assert_eq!(other.version.command, "opengrep");
+    assert!(!other.run.args.iter().any(|a| a == "--metrics=off"));
+    assert_eq!(other.run.args.len(), semgrep.run.args.len() - 1);
+    assert_eq!(
+        other.rules.len(),
+        semgrep.rules.len(),
+        "the same rules, read the same way"
+    );
+    assert!(
+        other.standing_in().is_none(),
+        "a stand-in has no stand-in of its own"
+    );
+    // No other tool has one: each of theirs is the only program that reads its report.
+    assert!(
+        adapters
+            .all()
+            .iter()
+            .all(|a| a.id == "semgrep" || a.stand_in.is_none())
+    );
+}
+
+#[test]
+fn a_stand_in_that_would_be_handed_what_it_refuses_is_refused() {
+    let dir = scratch("stand-in-shape");
+    let file = std::fs::read_to_string(data()).unwrap();
+    let leave_out = "\"leave_out\": [\n          \"--metrics=off\"\n        ]";
+    let command = "\"command\": \"opengrep\",";
+    let env = "\"SEMGREP_ENABLE_VERSION_CHECK\": \"0\"";
+    for needle in [leave_out, command, env] {
+        assert_eq!(
+            file.matches(needle).count(),
+            1,
+            "semgrep's entry has changed shape: {needle}"
+        );
+    }
+    for (what, doctored, said) in [
+        (
+            "leaving out an argument semgrep is not given",
+            file.replace(leave_out, "\"leave_out\": [\"--metrics=on\"]"),
+            "does not pass it",
+        ),
+        (
+            "a stand-in named by a path",
+            file.replace(command, "\"command\": \"/tmp/opengrep\","),
+            "not a plain program name",
+        ),
+        (
+            "an environment variable with `=` in its name",
+            file.replace(env, "\"SEMGREP=X\": \"0\""),
+            "no usable name",
+        ),
+    ] {
+        assert_ne!(doctored, file, "{what}: the doctoring matched nothing");
+        let path = dir.join("adapters.json");
+        std::fs::write(&path, doctored).unwrap();
+        let refused = Adapters::load(&path);
+        assert!(
+            refused
+                .as_ref()
+                .is_err_and(|e| e.to_string().contains(said)),
+            "{what}: {:?}",
+            refused.map(|_| ())
+        );
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
