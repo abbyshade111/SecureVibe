@@ -576,6 +576,17 @@ pub(super) const OPEN_REDIRECT: Rule = Rule {
           page. Most frameworks have a helper for this, such as Django's `url_has_allowed_host_and_scheme`.",
 };
 
+pub(super) const CREATE_UNLIMITED: Rule = Rule {
+    rule_id: "probe.create-rate-unlimited",
+    requirement_ids: &["V2.4.1"],
+    cwe: &["CWE-770"],
+    impact: "One person, or a script, can create records as fast as it can send them: the app fills \
+             with junk, its storage and any per-record costs run up, and others are slowed down.",
+    fix: "Limit how many records each signed-in user can create in a minute, at the number \
+          securevibe.toml states, and answer the rest with 429 Too Many Requests. Most frameworks \
+          have a package for it.",
+};
+
 pub(super) const DONE_TWICE: Rule = Rule {
     rule_id: "probe.action-done-twice",
     requirement_ids: &["V2.3.4"],

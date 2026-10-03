@@ -57,6 +57,7 @@ use sv_manifest::{RequestTemplate, UploadSection, UsersSection};
 
 mod activation;
 mod admin;
+mod burst;
 mod codes;
 mod flows;
 mod forgery;
@@ -71,6 +72,7 @@ mod totp;
 mod uploads;
 use activation::*;
 use admin::*;
+use burst::*;
 use codes::*;
 use flows::*;
 use forgery::*;
@@ -772,6 +774,7 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     ),
     (CHANGE_ENDS_SESSIONS.rule_id, &["bystander-after"]),
     (DONE_TWICE.rule_id, &["once"]),
+    (CREATE_UNLIMITED.rule_id, &["burst-"]),
     (
         EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id,
         &[
@@ -959,8 +962,8 @@ pub fn ask_anonymously(
 /// credit a refusal nobody made (V8.2.1, and wherever else a refusal is read), or report one (a
 /// sign-out that seemed to end a session). So a limited answer is waited out, as long as the app
 /// asks and at most a minute, and the request sent once more. Not for a request whose id says it is
-/// a guess: the guessing checks send wrong passwords and codes on purpose to see the limiter answer,
-/// and a wait would both change what they measure and send one guess more than they count.
+/// a guess, or part of a burst (`burst-`): those checks send requests on purpose to see the limiter
+/// answer, and a wait would both change what they measure and send one more than they count.
 struct Patient<'a> {
     inner: &'a mut dyn Http,
     /// Requests the limiter was still answering after the wait, as "id (status)".
@@ -992,7 +995,7 @@ impl Patient<'_> {
     /// The app's answer, with a rate limiter's waited out once.
     fn answer(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
         let first = self.inner.send(request);
-        if request.id.contains("guess") {
+        if request.id.contains("guess") || request.id.starts_with("burst-") {
             return first;
         }
         let Some(wait) = first.as_ref().and_then(rate_limited) else {
@@ -1316,6 +1319,10 @@ fn run_checks(
     role_field_check(http, users, accounts, confirm.as_deref(), &mut out);
     // 9e. The action that should go through once, sent many times at the same instant by A.
     once_check(http, users, &accounts.a, &mut out);
+    // 9f. A burst of creations by B, held to the stated limit. Before the password changes, which can
+    //     change B's password too (a reset); it sets out to be refused, so it waits the minute out
+    //     afterwards before anything else is asked.
+    burst_check(http, users, &accounts.b, policy, &mut out);
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -2641,6 +2648,7 @@ mod crash_tests {
                     failed_sign_ins: Some(3),
                     within_minutes: Some(15),
                     failed_codes: Some(3),
+                    requests_per_minute: Some(5),
                     ..Default::default()
                 },
                 ..Scenario::new(
