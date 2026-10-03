@@ -686,6 +686,7 @@ pub(super) fn private_page_checks(
     let mut shared = Vec::new();
     let mut with_link = Vec::new();
     let mut without_link = Vec::new();
+    let mut without_headers = Vec::new();
 
     for path in &users.private {
         let Some(response) = http.send(&get("private-page-headers", path, &signed_in.session))
@@ -696,6 +697,13 @@ pub(super) fn private_page_checks(
             continue;
         }
         opened.push(path.clone());
+        let missing = crate::probes::missing_headers(&response);
+        if !missing.is_empty() {
+            without_headers.push(format!(
+                "{path} came back without {}",
+                missing.join("; without ")
+            ));
+        }
 
         // `no-store` is the only value that means "do not keep a copy". `no-cache` permits the copy
         // and asks for it to be revalidated, and `private` only says not to keep it in a shared
@@ -761,6 +769,35 @@ pub(super) fn private_page_checks(
             format!(
                 "Opened by a signed-in user, {} came back without `Cache-Control: no-store`.",
                 stored.join(", ")
+            ),
+        ));
+    }
+
+    // ---- V3.4.3 to V3.4.6: the headers a browser relies on, on every private page that opened
+    out.steps.push(format!(
+        "{} of {} private page{} sent the headers a browser relies on",
+        opened.len() - without_headers.len(),
+        opened.len(),
+        if opened.len() == 1 { "" } else { "s" }
+    ));
+    if without_headers.is_empty() {
+        out.verified.push(crate::Verified::new(
+            PRIVATE_PAGE_HEADERS.rule_id,
+            PRIVATE_PAGE_HEADERS.requirement_ids,
+            format!(
+                "{} private page{}, each sending the four headers to a signed-in user",
+                opened.len(),
+                if opened.len() == 1 { "" } else { "s" }
+            ),
+        ));
+    } else {
+        out.findings.push(finding(
+            &PRIVATE_PAGE_HEADERS,
+            "A private page is missing headers a browser relies on",
+            Severity::Medium,
+            format!(
+                "Opened by a signed-in user, {}.",
+                without_headers.join("; ")
             ),
         ));
     }
@@ -1332,6 +1369,43 @@ mod tests {
             rule_ids(&o)
         );
         assert!(!verified_ids(&o).contains(&PRIVATE_PAGE_SHARED_CACHE.rule_id));
+    }
+
+    #[test]
+    fn private_pages_without_the_browser_headers_are_found_and_with_them_credited() {
+        let bare = run_against(
+            Flaws {
+                private_page_no_headers: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let found = bare
+            .findings
+            .iter()
+            .find(|f| f.rule_id == PRIVATE_PAGE_HEADERS.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", rule_ids(&bare)));
+        assert!(
+            found
+                .description
+                .contains("/account came back without Content-Security-Policy"),
+            "{}",
+            found.description
+        );
+        assert!(!verified_ids(&bare).contains(&PRIVATE_PAGE_HEADERS.rule_id));
+
+        // The control: the same app with the headers, where the page really opened.
+        let correct = run_against(Flaws::default(), &users());
+        assert!(!rule_ids(&correct).contains(&PRIVATE_PAGE_HEADERS.rule_id));
+        assert!(verified_ids(&correct).contains(&PRIVATE_PAGE_HEADERS.rule_id));
+        assert!(
+            correct
+                .steps
+                .iter()
+                .any(|s| s == "1 of 1 private page sent the headers a browser relies on"),
+            "{:?}",
+            correct.steps
+        );
     }
 
     /// A signed-in run against a fake app whose private pages send exactly `cache_control`.
