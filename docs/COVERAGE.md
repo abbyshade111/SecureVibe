@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 6 | 32 | 21 | 3 |
-| L2 | 183 | 83 | 8 | 0 | 16 | 43 | 28 | 1 |
+| L2 | 183 | 83 | 8 | 0 | 16 | 44 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 34 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -87,7 +87,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
-| V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
+| V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Signed in: `probe.upload-path-traversal`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V9.2.3 | L2 | Reads the code: `ast.token-audience-not-checked` (sv only ever as a finding: `ast.token-audience-not-checked`) |
@@ -104,7 +104,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (101)
+### Settled by asking the running app (102)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -127,6 +127,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.5.2 | L1 | Signed in: `probe.preflight-skipped` |
 | V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` (sv only ever as a finding: `probe.sign-out-on-get`) |
 | V3.5.6 | L3 | The running app: `probe.jsonp-enabled` (sv only ever as a finding: `probe.jsonp-enabled`) |
+| V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
 | V4.1.3 | L2 | Signed in: `probe.identity-header-trusted` (sv only ever as a finding: `probe.identity-header-trusted`) |
 | V4.1.4 | L3 | The running app: `probe.unused-method-accepted` (sv only ever as a finding: `probe.unused-method-accepted`) |

@@ -81,6 +81,11 @@ another session is not a claim.
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
      in branch `claude/securevibe-e9-open-redirect`.
+     **Done on 3 October 2026** (DESIGN, "Open redirects in the sign-in flow"), as a finding only:
+     `probe.open-redirect` gives an address on `sv-redirect.invalid`, full and beginning with `//`, in `next` and
+     eight other return parameters, to the sign-in, the sign-in page opened signed in, and the sign-out. Three guards
+     broken in turn, each caught. Not done: redirects outside the sign-in flow, which the app's own addresses would
+     have to name, and a run against a real app.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch

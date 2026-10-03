@@ -563,6 +563,19 @@ pub(super) const CHANGE_PASSWORD: Rule = Rule {
           signs in afterwards.",
 };
 
+/// Only ever a finding: a sample of places and parameter names, never every redirect the app makes.
+pub(super) const OPEN_REDIRECT: Rule = Rule {
+    rule_id: "probe.open-redirect",
+    requirement_ids: &["V3.7.2"],
+    cwe: &["CWE-601"],
+    impact: "A link to the app's own sign-in page can send whoever follows it on to any site, which can \
+             look like the app and ask for the password again. People trust the link because it \
+             begins with the app's own address.",
+    fix: "Only follow a return address that is a path on the app itself: it begins with a single `/`, \
+          not `//` or `/\\`, and has no scheme or host. Otherwise go to a fixed page such as the home \
+          page. Most frameworks have a helper for this, such as Django's `url_has_allowed_host_and_scheme`.",
+};
+
 pub(super) const CHANGE_WITHOUT_CURRENT: Rule = Rule {
     rule_id: "probe.password-change-without-current",
     requirement_ids: &["V6.2.3"],

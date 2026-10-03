@@ -61,6 +61,7 @@ mod codes;
 mod flows;
 mod forgery;
 mod passwords;
+mod redirects;
 mod reset;
 mod rules;
 mod sessions;
@@ -73,6 +74,7 @@ use codes::*;
 use flows::*;
 use forgery::*;
 use passwords::*;
+use redirects::*;
 use reset::*;
 use rules::*;
 pub(crate) use rules::{Rule, finding};
@@ -1252,6 +1254,9 @@ fn run_checks(
     // 9b. A private WebSocket, with a sign-in of its own that it signs out at the end: after
     //     everything that needed A's first session.
     websocket_session_checks(http, users, &accounts.a, &mut out);
+    // 9b'. Where the sign-in and sign-out send the browser when given an address outside the app:
+    //     sessions of their own, and nothing changed.
+    open_redirect_check(http, users, &accounts.a, &mut out);
 
     // 9c. Admin actions, sent by A and then by the admin. Late, because an action changes what the
     //     app holds and the checks above have had what they needed; before the password changes

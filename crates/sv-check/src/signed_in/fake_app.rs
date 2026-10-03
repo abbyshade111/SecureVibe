@@ -200,6 +200,10 @@ pub(super) struct Flaws {
     pub(super) change_keeps_old: bool,
     /// A password change answers as if it worked and changes nothing.
     pub(super) change_does_nothing: bool,
+    /// Sign-in and sign-out follow `next` wherever it points.
+    pub(super) redirect_anywhere: bool,
+    /// Sign-in and sign-out follow `next` when it begins with `/`, which `//elsewhere` does.
+    pub(super) redirect_checks_slash_only: bool,
     /// An email change does not check the password.
     pub(super) email_change_without_password: bool,
     /// An email change answers as if it worked and changes nothing.
@@ -606,6 +610,33 @@ impl Http for FakeApp {
     }
 
     fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+        let answer = self.answer(r)?;
+        Some(self.follow_next(r, answer))
+    }
+}
+
+impl FakeApp {
+    /// Sign-in and sign-out send the browser on to `next` when they redirect, as most apps do,
+    /// but only to one of the app's own pages unless a flaw says otherwise.
+    fn follow_next(&self, r: &ProbeRequest, mut answer: ProbeResponse) -> ProbeResponse {
+        let Some((path, query)) = r.path.split_once('?') else {
+            return answer;
+        };
+        let Some(next) = pairs(query).get("next").cloned() else {
+            return answer;
+        };
+        let own_page = next.starts_with('/') && !next.starts_with("//") && !next.starts_with("/\\");
+        let follows = self.flaws.redirect_anywhere
+            || (self.flaws.redirect_checks_slash_only && next.starts_with('/'))
+            || own_page;
+        if ["/login", "/logout"].contains(&path) && (300..400).contains(&answer.status) && follows {
+            answer.headers.retain(|(k, _)| k != "location");
+            answer.headers.push(("location".into(), next));
+        }
+        answer
+    }
+
+    fn answer(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
         // Time passing as requests are answered, when a test asks for it.
         self.clock += self.seconds_per_request;
         self.clock_log.push((r.id.clone(), self.clock));
@@ -699,6 +730,9 @@ impl Http for FakeApp {
             });
         }
         Some(match (r.method.as_str(), path.as_str()) {
+            ("GET", "/login") if user.is_some() && query.contains_key("next") => {
+                Self::respond(303, vec![("Location", "/account".into())], "")
+            }
             ("GET", "/login") => {
                 let id = self.new_id();
                 self.sessions.insert(id.clone(), String::new());
