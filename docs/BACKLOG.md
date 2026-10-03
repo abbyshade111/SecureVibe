@@ -122,6 +122,15 @@ another session is not a claim.
       **Compressed bombs (V5.2.3) not done, and open:** the probes' bodies are text, and a compressed file that expands
       far is binary throughout; V5.2.3's limits on uncompressed size and file count also have no place in
       `securevibe.toml` yet. Either needs deciding before it is built.
+      **The owner's decision, 3 October 2026, on V5.2.3:** build the check, and test all of it. (1) It is built rather
+      than left to the owner. (2) The owner states the limits in `securevibe.toml`, beside `max-bytes` on the `upload`
+      entry: the most an archive may unpack to and the most files it may hold (`max-unpacked-bytes`, `max-files`), and
+      `sv` sends an archive just over each; `sv` sets no limits of its own. (3) The owner also says whether the app
+      unpacks archives: accepted by an app that unpacks them is a finding; accepted by one that does not is nothing to
+      judge; refused is credited, held back when the upload crashed rather than being refused; and nothing is sent
+      while the owner has not said whether the app unpacks. (4) Each archive unpacks to just over the stated limit and
+      to about 1 GB at most, and is sent after every other upload check, so an app that does unpack it and falls over
+      takes no other check with it. Sending it needs the probes' request bodies to carry bytes rather than text.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
