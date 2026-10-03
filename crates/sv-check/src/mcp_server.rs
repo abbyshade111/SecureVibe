@@ -1485,21 +1485,33 @@ mod tests {
 
     #[test]
     fn a_server_meant_for_anyone_is_not_asked_for_a_token() {
-        let mut server = FakeMcp::default();
+        // Said to be public, even with a token named beside it, and answering anyone: not asked,
+        // not found, and the reason given is the owner's word.
+        let mut server = FakeMcp {
+            flaws: Flaws {
+                token_unchecked: true,
+                ..Default::default()
+            },
+            token: Some("t".into()),
+            ..Default::default()
+        };
         let o = run(
             &mut server,
             &McpServerSection {
                 path: "/mcp".into(),
                 public: true,
+                token_env: Some("MCP_TOKEN".into()),
                 ..Default::default()
             },
-            None,
+            Some("t"),
         );
-        assert!(!found(&o).contains(&TOKEN_UNCHECKED.rule_id));
+        assert!(!found(&o).contains(&TOKEN_UNCHECKED.rule_id), "{:?}", o.steps);
         assert!(
             why(&o, "C10.2.1")
                 .iter()
-                .any(|w| w.contains("meant to answer anyone"))
+                .any(|w| w.contains("securevibe.toml says it is meant to answer anyone")),
+            "{:?}",
+            o.not_assessed
         );
         assert!(!server.sent.iter().any(|r| r.id.starts_with("mcp-no-token")));
     }
