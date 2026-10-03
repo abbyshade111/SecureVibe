@@ -100,6 +100,19 @@ pub(super) const OTHER_USERS_DATA: Rule = Rule {
 };
 
 /// A private page that tells shared caches they may keep it (V14.2.2).
+pub(super) const PRIVATE_PAGE_HEADERS: Rule = Rule {
+    rule_id: "probe.private-page-headers",
+    // The same four headers `probe.security-headers` asks of the pages a stranger sees, asked of the
+    // pages a signed-in person sees, which are the ones that show somebody's own data.
+    requirement_ids: &["V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6"],
+    cwe: &["CWE-693", "CWE-1021"],
+    impact: "These are the instructions a browser follows to protect the person using the app, and \
+             a private page is where a page somebody else wrote could do the most: read what the \
+             person sees and act as them.",
+    fix: "Set them once, in whatever sits in front of every response, signed in or not, rather \
+          than per route.",
+};
+
 pub(super) const PRIVATE_PAGE_SHARED_CACHE: Rule = Rule {
     rule_id: "probe.private-page-shared-cache",
     // V14.2.2 asks that sensitive data is kept out of server-side caches such as load balancers.
