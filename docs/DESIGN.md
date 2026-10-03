@@ -5925,86 +5925,8 @@ caught: any version served, results not marked complete, results not signed, a p
 anyone, and wrong arguments answered as a protocol error.
 
 **Not done here.** The client's capabilities, which 2026-07-28 makes required on every request, are not demanded:
-this server needs none of them, so a request without them is still answered. Progress notifications, and the tasks
-extension, are not offered.
-
-## Semgrep without usage reporting, and Opengrep in its place (3 October 2026)
-
-Semgrep is the one outside tool that connects to the internet: it downloads its rules from semgrep.dev each time it
-runs. Measured on 3 October 2026, it also made a second connection on every run, to an Amazon server in Oregon. Three
-runs each settled what it was. With `--metrics=off` the second connection was gone every time; with only
-`SEMGREP_ENABLE_VERSION_CHECK=0` it was still there every time, and only the "a new version is available" notice went.
-So it is semgrep's usage reporting, and the version check asks semgrep.dev, where the rules come from. Every one of
-the twelve runs loaded the same 1,074 rules and found the same thing. The adapter now passes `--metrics=off` and sets
-the version check off (`env` in its entry in `data/adapters.json`), so semgrep connects only to fetch its rules.
-Connections were sampled about fifty times a second, which can miss a very short one.
-
-When semgrep is not installed, Opengrep runs in its place (`stand_in`). It is the open-source fork of semgrep's
-engine, and on 29 September 2026 it loaded the same rules, found the same things, and gave `sv` an identical report
-(BACKLOG, "Evaluate Opengrep against semgrep"). The owner chose on 3 October to keep semgrep first and accept Opengrep
-when semgrep is absent.
-
-- **Only when semgrep is missing.** A semgrep that is installed and will not start is reported as that, with its own
-  words, and Opengrep is not asked. A broken install is the owner's to fix, and running something else would hide it.
-- **Its arguments are semgrep's, less what it refuses.** Opengrep stops at `--metrics=off` as an option it does not
-  know (it has no usage reporting), so the entry names that argument in `leave_out`. The loader refuses a `leave_out`
-  naming an argument semgrep is not given, since that would mean the stand-in is handed something no one checked it
-  accepts.
-- **The report says so.** The `examined` entry for `semgrep.` carries `stand_in`, a sentence naming Opengrep. A clean
-  run is credited as "Opengrep (in place of Semgrep) over the code in this app", and a run that skipped part of the app
-  says Opengrep skipped it. When neither is installed, the reason given names both.
-- **The rules and the license are unchanged.** Opengrep runs the same registry packs from semgrep.dev, under the same
-  Semgrep Rules License, so nothing about the owner's decision on that license changes.
-
-`crates/sv-check/tests/stand_in.rs` plays both programs with two small scripts that write down how they were
-started. It checks five cases: semgrep present, semgrep missing, neither present, Opengrep broken, and semgrep broken.
-
-## The headers a browser relies on, on more than the health path (3 October 2026)
-
-`probe.security-headers` and `probe.cookie-attributes` used to judge one answer: the one on the health path, which
-is often a small JSON status reply nobody sees. They now also ask for the root page, `/`, when the health path is
-something else, and judge it whenever it answers with a page of its own (a root that answers 404, as an app that
-is only an API does, is not judged). A finding names the page that fell short, and the credit is given only
-when every page judged passes, naming them, so a health path with every header no longer speaks for a root page
-without them. The content-type and opener-policy checks read the root page too.
-
-The pages a signed-in person sees are the ones that show their own data, so `probe.private-page-headers` asks
-the same four headers of every private page `[stack.run.users]` lists that opened for the test user, beside the
-caching and sign-out checks that already read those answers. It cites the same requirements as
-`probe.security-headers` under its own name: a private page missing a header is a finding even when the public
-pages pass, and a finding outranks any credit for the same requirement, so one cannot hide the other.
-
-## Old TLS versions on the live site (3 October 2026)
-
-`sv probe` now makes one handshake offering only TLS 1.0 and 1.1 (V12.1.1, level 1). Both versions were retired in
-2021. One handshake asks about both: a site that completes it accepts at least one of them.
-
-- **Still at most four requests.** It is asked only when the certificate passed, the same run in which the stapling
-  question (V12.1.4) may be asked and the unverified retry is not. A run is then HTTPS, the stapling question when
-  the certificate names an OCSP responder, this handshake, and plain HTTP: four, the cap `CLAUDE.md` states, with no
-  slack left. The backlog item said this would need the cap raised; it did not.
-- **Only a certificate this machine trusts.** With verification on, a certificate problem fails the handshake too,
-  and must never read as the site refusing old TLS.
-- **Only the site's own words count as a refusal.** Measured on 3 October 2026 with three builds of curl. A server
-  that will not speak TLS 1.0 or 1.1 sends the `protocol version` alert, which curl prints as `alert protocol
-  version` through LibreSSL and OpenSSL alike (github.com, www.digicert.com), and LibreSSL prints `wrong ssl version`
-  when a server answers with a version it was not offered. Everything else is not an answer: OpenSSL 3 at its
-  default security level will not offer the old versions at all and fails on its own side (`legacy sigalg
-  disallowed`, `no protocols available`), and a server reset the connection in one case. A check that read those as
-  refusals would credit every site probed from a modern Linux machine.
-- **OpenSSL is told to offer them.** When `curl --version` names OpenSSL, the handshake adds `--ciphers
-  DEFAULT@SECLEVEL=0`, with which curl 8.12.1 on OpenSSL 3.0.17, and Debian trixie's curl in a container, completed
-  handshakes with badssl.com's TLS 1.0 and 1.1 servers. macOS's curl, on LibreSSL 3.3.6, offers them as it is and
-  refuses that cipher list. Asking `curl --version` opens no connection.
-- **Only ever a finding.** V12.1.1 asks two things: that only recent versions are enabled, and that the newest is
-  the one preferred. curl reports no negotiated version a program can rely on: `%{json}` has none, and its verbose
-  output differs by library (OpenSSL's printed `TLSv1.3` for a server that speaks only TLS 1.2). So a refusal is
-  said in the report, with the site's words, and V12.1.1 is not credited. `tools/coverage.py` lists the rule in
-  `RUST_FINDINGS_ONLY`.
-
-Tried on 3 October 2026 with the built `sv probe`: github.com and www.digicert.com refused, through both curls.
-badssl.com's TLS 1.0 server was found through LibreSSL's curl. Through OpenSSL's curl its ordinary HTTPS request
-could not connect at all, so everything about it, V12.1.1 included, was reported as not assessed.
+this server needs none of them, so a request without them is still answered. The tasks extension is not offered.
+Progress notifications were not offered then either; they are now (see "Saying how a check is going").
 
 ## The written reports, offered as resources (3 October 2026)
 
@@ -6122,3 +6044,97 @@ sent without one, a token of the wrong kind taken, the number not rising, the st
 after time ran out, a stage not named, and stages named out of order.
 
 **Not done here.** Progress is not sent for anything but a check. The server does not say how far into a stage it is.
+
+## Semgrep without usage reporting, and Opengrep in its place (3 October 2026)
+
+Semgrep is the one outside tool that connects to the internet: it downloads its rules from semgrep.dev each time it
+runs. Measured on 3 October 2026, it also made a second connection on every run, to an Amazon server in Oregon. Three
+runs each settled what it was. With `--metrics=off` the second connection was gone every time; with only
+`SEMGREP_ENABLE_VERSION_CHECK=0` it was still there every time, and only the "a new version is available" notice went.
+So it is semgrep's usage reporting, and the version check asks semgrep.dev, where the rules come from. Every one of
+the twelve runs loaded the same 1,074 rules and found the same thing. The adapter now passes `--metrics=off` and sets
+the version check off (`env` in its entry in `data/adapters.json`), so semgrep connects only to fetch its rules.
+Connections were sampled about fifty times a second, which can miss a very short one.
+
+When semgrep is not installed, Opengrep runs in its place (`stand_in`). It is the open-source fork of semgrep's
+engine, and on 29 September 2026 it loaded the same rules, found the same things, and gave `sv` an identical report
+(BACKLOG, "Evaluate Opengrep against semgrep"). The owner chose on 3 October to keep semgrep first and accept Opengrep
+when semgrep is absent.
+
+- **Only when semgrep is missing.** A semgrep that is installed and will not start is reported as that, with its own
+  words, and Opengrep is not asked. A broken install is the owner's to fix, and running something else would hide it.
+- **Its arguments are semgrep's, less what it refuses.** Opengrep stops at `--metrics=off` as an option it does not
+  know (it has no usage reporting), so the entry names that argument in `leave_out`. The loader refuses a `leave_out`
+  naming an argument semgrep is not given, since that would mean the stand-in is handed something no one checked it
+  accepts.
+- **The report says so.** The `examined` entry for `semgrep.` carries `stand_in`, a sentence naming Opengrep. A clean
+  run is credited as "Opengrep (in place of Semgrep) over the code in this app", and a run that skipped part of the app
+  says Opengrep skipped it. When neither is installed, the reason given names both.
+- **The rules and the license are unchanged.** Opengrep runs the same registry packs from semgrep.dev, under the same
+  Semgrep Rules License, so nothing about the owner's decision on that license changes.
+
+`crates/sv-check/tests/stand_in.rs` plays both programs with two small scripts that write down how they were
+started. It checks five cases: semgrep present, semgrep missing, neither present, Opengrep broken, and semgrep broken.
+
+## The headers a browser relies on, on more than the health path (3 October 2026)
+
+`probe.security-headers` and `probe.cookie-attributes` used to judge one answer: the one on the health path, which
+is often a small JSON status reply nobody sees. They now also ask for the root page, `/`, when the health path is
+something else, and judge it whenever it answers with a page of its own (a root that answers 404, as an app that
+is only an API does, is not judged). A finding names the page that fell short, and the credit is given only
+when every page judged passes, naming them, so a health path with every header no longer speaks for a root page
+without them. The content-type and opener-policy checks read the root page too.
+
+The pages a signed-in person sees are the ones that show their own data, so `probe.private-page-headers` asks
+the same four headers of every private page `[stack.run.users]` lists that opened for the test user, beside the
+caching and sign-out checks that already read those answers. It cites the same requirements as
+`probe.security-headers` under its own name: a private page missing a header is a finding even when the public
+pages pass, and a finding outranks any credit for the same requirement, so one cannot hide the other.
+
+## Old TLS versions on the live site (3 October 2026)
+
+`sv probe` now makes one handshake offering only TLS 1.0 and 1.1 (V12.1.1, level 1). Both versions were retired in
+2021. One handshake asks about both: a site that completes it accepts at least one of them.
+
+- **Still at most four requests.** It is asked only when the certificate passed, the same run in which the stapling
+  question (V12.1.4) may be asked and the unverified retry is not. A run is then HTTPS, the stapling question when
+  the certificate names an OCSP responder, this handshake, and plain HTTP: four, the cap `CLAUDE.md` states, with no
+  slack left. The backlog item said this would need the cap raised; it did not.
+- **Only a certificate this machine trusts.** With verification on, a certificate problem fails the handshake too,
+  and must never read as the site refusing old TLS.
+- **Only the site's own words count as a refusal.** Measured on 3 October 2026 with three builds of curl. A server
+  that will not speak TLS 1.0 or 1.1 sends the `protocol version` alert, which curl prints as `alert protocol
+  version` through LibreSSL and OpenSSL alike (github.com, www.digicert.com), and LibreSSL prints `wrong ssl version`
+  when a server answers with a version it was not offered. Everything else is not an answer: OpenSSL 3 at its
+  default security level will not offer the old versions at all and fails on its own side (`legacy sigalg
+  disallowed`, `no protocols available`), and a server reset the connection in one case. A check that read those as
+  refusals would credit every site probed from a modern Linux machine.
+- **OpenSSL is told to offer them.** When `curl --version` names OpenSSL, the handshake adds `--ciphers
+  DEFAULT@SECLEVEL=0`, with which curl 8.12.1 on OpenSSL 3.0.17, and Debian trixie's curl in a container, completed
+  handshakes with badssl.com's TLS 1.0 and 1.1 servers. macOS's curl, on LibreSSL 3.3.6, offers them as it is and
+  refuses that cipher list. Asking `curl --version` opens no connection.
+- **Only ever a finding.** V12.1.1 asks two things: that only recent versions are enabled, and that the newest is
+  the one preferred. curl reports no negotiated version a program can rely on: `%{json}` has none, and its verbose
+  output differs by library (OpenSSL's printed `TLSv1.3` for a server that speaks only TLS 1.2). So a refusal is
+  said in the report, with the site's words, and V12.1.1 is not credited. `tools/coverage.py` lists the rule in
+  `RUST_FINDINGS_ONLY`.
+
+Tried on 3 October 2026 with the built `sv probe`: github.com and www.digicert.com refused, through both curls.
+badssl.com's TLS 1.0 server was found through LibreSSL's curl. Through OpenSSL's curl its ordinary HTTPS request
+could not connect at all, so everything about it, V12.1.1 included, was reported as not assessed.
+
+## When the AI service fails (3 October 2026)
+
+V16.5.2 asks that the app keeps working safely when something it depends on fails, and an app with an AI feature
+depends on the AI service on every message. The test model now has a `FAIL` kind: it answers 500 with an error in
+the service's own shape (OpenAI's `error` object, or Anthropic's `type: error`), whose message carries `SVERR` and
+the tag, as a real outage would. Client libraries retry an outage, so the test model counts the attempts, and more
+than one is the library at work.
+
+The AI check sends one message the test model fails on, then a plain one. The failure has to reach the test model,
+or it was not the service failing, and nothing is judged. `probe.ai-service-error-shown` (V16.5.1, only ever a
+finding) is the app's answer carrying the service's error or a trace. `probe.ai-service-failure-handled` (V16.5.2)
+is a finding when the plain message after it is not answered, and credited when the failing message was answered
+without the error and the plain one after it was answered with its reply. A 429 on the plain message is a limiter
+and says nothing, so it is not assessed. Not done: a service that answers slowly or not at all, which would hold
+the run for as long as the app waits, and a malformed structured answer (C7.1.1).
