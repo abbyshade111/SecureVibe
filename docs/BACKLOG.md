@@ -50,6 +50,8 @@ another session is not a claim.
      credited from the answer on the health path, which is often a small JSON status reply rather than a page
      anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
      when all pass, naming them.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-headers-every-page`.
   4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
