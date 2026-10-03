@@ -229,6 +229,7 @@ pub(super) fn upload_checks(
     //    be answered by a refusal, so each is sent whether or not the app serves uploads back.
     svg_check(http, upload, session, token.as_deref(), out);
     scan_check(http, upload, session, token.as_deref(), out);
+    traversal_check(http, upload, session, token.as_deref(), out);
 
     // 5. V5.3.1 and V3.2.1: what the app does with an upload when it is fetched back.
     let Some(serves_at) = &upload.serves_at else {
@@ -243,6 +244,125 @@ pub(super) fn upload_checks(
     };
     served_upload_checks(http, upload, serves_at, session, token.as_deref(), out);
     download_name_checks(http, upload, serves_at, session, token.as_deref(), out);
+}
+
+/// The address one folder above where uploads are served, for a name: `/files/{name}` gives `/{name}`,
+/// `/static/uploads/{name}` gives `/static/{name}`. `None` when there is no folder above to ask
+/// for, or the name goes in a query rather than the path.
+fn served_one_folder_up(serves_at: &str, name: &str) -> Option<String> {
+    let (before, after) = serves_at.split_once("{name}")?;
+    if before.contains('?') || !before.ends_with('/') {
+        return None;
+    }
+    let folder = before.trim_end_matches('/');
+    let parent = &folder[..folder.rfind('/')?];
+    Some(format!("{parent}/{name}{after}"))
+}
+
+/// V5.3.2: a file whose name starts with `../`, and where it ends up.
+///
+/// The name and the contents carry a value made for this run, so a file left by an earlier run
+/// cannot answer for this one. Refused, where an ordinary file was accepted, is credited: the app
+/// would not use that name. Found one folder above where uploads are served is the finding: the
+/// `../` was used to build the path. Found where uploads are served under the name without its
+/// `../` is credited: the name was reduced to its last part. Found in neither is not assessed,
+/// which is what an app that stores uploads under names of its own looks like, the safest
+/// arrangement of all, and one nothing here can see.
+fn traversal_check(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    session: &Session,
+    token: Option<&str>,
+    out: &mut Outcome,
+) {
+    let nonce = format!(
+        "{:x}{:x}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos())
+    );
+    let base = format!("sv-probe-escaped-{nonce}.gif");
+    let marker = format!("sv-probe-traversal-{nonce}");
+    let file = Upload {
+        id: "upload-traversal",
+        name: &format!("../{base}"),
+        contents: format!("{GIF_MAGIC}{marker}"),
+    };
+    let stored = send_upload(http, upload, &file, session, token);
+    if refused(&stored) {
+        out.steps
+            .push("sent a file named `../…` to land outside the upload folder: refused".to_owned());
+        out.verified.push(crate::Verified::new(
+            UPLOAD_PATH_TRAVERSAL.rule_id,
+            UPLOAD_PATH_TRAVERSAL.requirement_ids,
+            format!(
+                "a file named `../{base}`, refused at {} where an ordinary GIF was accepted",
+                upload.path
+            ),
+        ));
+        return;
+    }
+    let Some(serves_at) = &upload.serves_at else {
+        out.not_assessed.push((
+            "V5.3.2".to_owned(),
+            "A file named to land outside the upload folder was accepted, and the `upload` entry \
+             has no `serves-at`, so nothing here could look for where it was saved."
+                .to_owned(),
+        ));
+        return;
+    };
+    let holds = |answer: &Option<ProbeResponse>| {
+        answer
+            .as_ref()
+            .is_some_and(|r| r.status < 400 && r.body.contains(&marker))
+    };
+    if let Some(above) = served_one_folder_up(serves_at, &base) {
+        let escaped = http.send(&get("upload-traversal-above", &above, session));
+        if holds(&escaped) {
+            out.steps.push(format!(
+                "sent a file named `../{base}`: it was saved outside the upload folder, at {above}"
+            ));
+            out.findings.push(finding(
+                &UPLOAD_PATH_TRAVERSAL,
+                "An uploaded file's name decides where it is saved",
+                Severity::High,
+                format!(
+                    "A file named `../{base}` uploaded to {} came back from {above}, one folder \
+                     above where uploads are served, so the `../` in its name was used to build \
+                     the path it was saved at.",
+                    upload.path
+                ),
+            ));
+            return;
+        }
+    }
+    let inside = serves_at.replace("{name}", &base);
+    let kept = http.send(&get("upload-traversal-inside", &inside, session));
+    if holds(&kept) {
+        out.steps.push(format!(
+            "sent a file named `../{base}`: saved in the upload folder as `{base}`"
+        ));
+        out.verified.push(crate::Verified::new(
+            UPLOAD_PATH_TRAVERSAL.rule_id,
+            UPLOAD_PATH_TRAVERSAL.requirement_ids,
+            format!(
+                "a file named `../{base}`, uploaded to {} and found at {inside}, with the `../` \
+                 taken off its name",
+                upload.path
+            ),
+        ));
+        return;
+    }
+    out.not_assessed.push((
+        "V5.3.2".to_owned(),
+        format!(
+            "A file named `../{base}` was accepted, and found neither at {inside} nor one folder \
+             above it, so where it was saved is not known. An app that saves uploads under names \
+             of its own looks like this, which is the safest arrangement, and nothing here can see \
+             it."
+        ),
+    ));
 }
 
 /// The EICAR antivirus test file: 68 harmless characters every antivirus scanner is built to
@@ -1653,6 +1773,152 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    fn traversal_verdict(flaws: Flaws, serves_at: Option<&str>) -> Outcome {
+        upload_run_keeping_app(flaws, &with_upload(serves_at, None)).0
+    }
+
+    fn v532(o: &Outcome) -> Vec<&String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids == "V5.3.2")
+            .map(|(_, why)| why)
+            .collect()
+    }
+
+    #[test]
+    fn a_name_that_climbs_out_of_the_upload_folder_is_found() {
+        let o = traversal_verdict(
+            Flaws {
+                upload_path_traversal: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == UPLOAD_PATH_TRAVERSAL.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert_eq!(found.requirement_ids, ["V5.3.2"]);
+        assert_eq!(found.severity, Severity::High);
+        assert!(
+            found.description.contains("one folder"),
+            "{}",
+            found.description
+        );
+        assert!(!verified_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+    }
+
+    #[test]
+    fn a_name_cut_to_its_last_part_or_refused_is_credited() {
+        // Cut to its last part, the default, as `secure_filename` does.
+        let o = traversal_verdict(Flaws::default(), Some("/files/{name}"));
+        assert!(!rule_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == UPLOAD_PATH_TRAVERSAL.rule_id)
+            .unwrap_or_else(|| panic!("{:?} {:?}", o.steps, v532(&o)));
+        assert!(
+            credit.scope.contains("taken off its name"),
+            "{}",
+            credit.scope
+        );
+
+        // Refused, with or without a `serves-at`: a refusal needs nothing fetched back.
+        for serves_at in [Some("/files/{name}"), None] {
+            let o = traversal_verdict(
+                Flaws {
+                    refuses_path_names: true,
+                    ..Default::default()
+                },
+                serves_at,
+            );
+            let credit = o
+                .verified
+                .iter()
+                .find(|v| v.check_id == UPLOAD_PATH_TRAVERSAL.rule_id)
+                .unwrap_or_else(|| panic!("{:?}", o.steps));
+            assert!(credit.scope.contains("refused"), "{}", credit.scope);
+        }
+    }
+
+    #[test]
+    fn a_name_saved_where_nothing_can_see_it_settles_nothing() {
+        // Saved under a name of the app's own: the safest arrangement, and invisible.
+        let o = traversal_verdict(
+            Flaws {
+                renames_path_names: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(!rule_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+        assert!(!verified_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+        assert!(
+            v532(&o).iter().any(|why| why.contains("names of its own")),
+            "{:?}",
+            o.not_assessed
+        );
+        // Accepted, and no `serves-at` to look with: even the flaw is not seen, and not passed.
+        let o = traversal_verdict(
+            Flaws {
+                upload_path_traversal: true,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(!rule_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+        assert!(!verified_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+        assert!(v532(&o).iter().any(|why| why.contains("no `serves-at`")));
+        // An upload that does not work at all: nothing about names is said.
+        let o = traversal_verdict(
+            Flaws {
+                upload_broken: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(!verified_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
+    }
+
+    #[test]
+    fn one_folder_up_is_worked_out_from_where_uploads_are_served() {
+        assert_eq!(
+            served_one_folder_up("/files/{name}", "x.gif").as_deref(),
+            Some("/x.gif")
+        );
+        assert_eq!(
+            served_one_folder_up("/static/uploads/{name}", "x.gif").as_deref(),
+            Some("/static/x.gif")
+        );
+        assert_eq!(
+            served_one_folder_up("/u/{name}?download=1", "x.gif").as_deref(),
+            Some("/x.gif?download=1")
+        );
+        // At the top already, in a query, or in the middle of a segment: no folder above to ask.
+        assert_eq!(served_one_folder_up("/{name}", "x.gif"), None);
+        assert_eq!(served_one_folder_up("/download?name={name}", "x.gif"), None);
+        assert_eq!(served_one_folder_up("/files/f-{name}", "x.gif"), None);
+        assert_eq!(served_one_folder_up("/files/", "x.gif"), None);
+    }
+
+    #[test]
+    fn each_run_names_its_file_afresh() {
+        // A file an earlier run left behind must not answer for this one.
+        let names = |o: &Outcome| -> Vec<String> {
+            o.steps
+                .iter()
+                .filter_map(|s| s.split("`../").nth(1))
+                .map(|rest| rest.split('`').next().unwrap_or_default().to_owned())
+                .collect()
+        };
+        let first = names(&traversal_verdict(Flaws::default(), Some("/files/{name}")));
+        let second = names(&traversal_verdict(Flaws::default(), Some("/files/{name}")));
+        assert_eq!(first.len(), 1, "the setup: the step names the file");
+        assert_ne!(first, second);
     }
 
     fn scan_verdict(flaws: Flaws, serves_at: Option<&str>) -> (Outcome, FakeApp) {

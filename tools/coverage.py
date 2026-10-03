@@ -162,6 +162,7 @@ RUST_CHECKS = {
     "probe.password-change-notified": ("signed-in", ["V6.3.7"]),
     "probe.identity-header-trusted": ("signed-in", ["V4.1.3"]),
     "probe.uploaded-svg-keeps-script": ("signed-in", ["V1.3.4"]),
+    "probe.upload-path-traversal": ("signed-in", ["V5.3.2"]),
     "probe.upload-not-scanned": ("signed-in", ["V5.4.3"]),
     "probe.token-in-browser-storage": ("signed-in", ["V10.1.1"]),
     "probe.password-in-browser-storage": ("signed-in", ["V14.3.3"]),
