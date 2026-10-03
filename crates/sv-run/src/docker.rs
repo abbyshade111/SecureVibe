@@ -676,6 +676,15 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
         self.backend.probe(self.via, self.app, self.port, request)
     }
 
+    fn send_at_once(
+        &mut self,
+        request: &sv_check::probes::ProbeRequest,
+        times: usize,
+    ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
+        self.backend
+            .probe_at_once(self.via, self.app, self.port, request, times)
+    }
+
     fn provider(
         &mut self,
         request: &sv_check::probes::ProbeRequest,
@@ -1598,6 +1607,44 @@ fn exchange_script(host: &str, port: u16) -> String {
     )
 }
 
+/// What starts each copy's answer in the output of `at_once_script`. Printed on a line of its own
+/// before each, so an answer that never came still has its place.
+const AT_ONCE_MARK: &str = "@@sv-at-once-";
+
+/// `exchange_script`, for one request sent `times` times at once: every connection is started in
+/// the background before any is waited for, so they reach the app together rather than one after
+/// another, each answer kept in its own file and printed in order after all have finished.
+fn at_once_script(host: &str, port: u16, times: usize) -> String {
+    let numbers: Vec<String> = (1..=times).map(|i| i.to_string()).collect();
+    let numbers = numbers.join(" ");
+    format!(
+        "d=$(mktemp -d) && cat > \"$d/r\" && \
+         for i in {numbers}; do timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
+         wait; for i in {numbers}; do printf '\\n{AT_ONCE_MARK}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
+    )
+}
+
+/// The answers in the output of `at_once_script`, in order: `None` for a copy that got none.
+fn parse_at_once(
+    id: &str,
+    out: &str,
+    times: usize,
+) -> Vec<Option<sv_check::probes::ProbeResponse>> {
+    (1..=times)
+        .map(|i| {
+            let start = format!("\n{AT_ONCE_MARK}{i}@@\n");
+            let next = format!("\n{AT_ONCE_MARK}{}@@\n", i + 1);
+            let from = out.find(&start)? + start.len();
+            let to = out[from..].find(&next).map_or(out.len(), |n| from + n);
+            let raw = &out[from..to];
+            if raw.trim().is_empty() {
+                return None;
+            }
+            parse_response(id, raw)
+        })
+        .collect()
+}
+
 fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<Vec<u8>> {
     let unsafe_text = |s: &str| s.contains(['\r', '\n', ' ', '\t']);
     if unsafe_text(&request.method) || unsafe_text(&request.path) || unsafe_text(host) {
@@ -1763,6 +1810,27 @@ impl DockerBackend {
             return None;
         }
         parse_response(&request.id, &out)
+    }
+
+    /// `probe`, for one request sent `times` times at once. `None` when the request cannot be
+    /// sent at all or the container that sends it did not run.
+    fn probe_at_once(
+        &self,
+        via: &Via,
+        app: &str,
+        port: u16,
+        request: &sv_check::probes::ProbeRequest,
+        times: usize,
+    ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
+        let raw = request_bytes(request, app)?;
+        let script = at_once_script(app, port, times);
+        let (_, out) = self
+            .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
+            .ok()?;
+        if !out.contains(AT_ONCE_MARK) {
+            return None;
+        }
+        Some(parse_at_once(&request.id, &out, times))
     }
 }
 
@@ -2461,5 +2529,63 @@ http.createServer((q, s) => {
         assert!(parse_response("r", "").is_none());
         assert!(parse_response("r", "connection refused").is_none());
         assert!(parse_response("r", "HTTP/1.1 notanumber OK\r\n\r\n").is_none());
+    }
+}
+
+#[cfg(test)]
+mod at_once_tests {
+    use super::*;
+
+    #[test]
+    fn every_copy_is_started_before_any_is_waited_for() {
+        let script = at_once_script("app", 8080, 12);
+        let (start, rest) = script
+            .split_once("; wait;")
+            .expect("one wait, after the starts");
+        // Each connection is started in the background within the loop that comes before the
+        // wait: one after another would show no race.
+        assert!(
+            start.contains("for i in 1 2 3 4 5 6 7 8 9 10 11 12; do"),
+            "{start}"
+        );
+        assert!(
+            start.contains("-e sh -c") && start.ends_with("2>&1 & done"),
+            "{start}"
+        );
+        assert!(
+            rest.contains(AT_ONCE_MARK) && rest.contains("rm -rf"),
+            "{rest}"
+        );
+    }
+
+    #[test]
+    fn each_answer_is_read_back_in_its_place() {
+        let answer = |status: u16, body: &str| {
+            format!(
+                "HTTP/1.0 {status} X\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        // Twelve copies: the second got no answer, and the first and tenth must not be mixed up.
+        let mut out = String::from("noise before the first mark");
+        for i in 1..=12 {
+            out.push_str(&format!("\n{AT_ONCE_MARK}{i}@@\n"));
+            match i {
+                2 => {}
+                1 => out.push_str(&answer(200, "Booked")),
+                _ => out.push_str(&answer(409, &format!("Sold out {i}"))),
+            }
+        }
+        let answers = parse_at_once("once", &out, 12);
+        assert_eq!(answers.len(), 12);
+        assert!(answers[1].is_none(), "{:?}", answers[1]);
+        let first = answers[0].as_ref().expect("an answer");
+        assert_eq!((first.status, first.body.as_str()), (200, "Booked"));
+        let tenth = answers[9].as_ref().expect("an answer");
+        assert_eq!((tenth.status, tenth.body.as_str()), (409, "Sold out 10"));
+        assert_eq!(
+            answers[11].as_ref().map(|r| r.body.as_str()),
+            Some("Sold out 12")
+        );
     }
 }

@@ -6427,6 +6427,48 @@ Tried on 3 October 2026 with `sv report --run`, through the real test model in D
   and nothing was found.
 - The copy that searches everybody's: both findings.
 
+## An action sent many times at the same instant (3 October 2026)
+
+V2.3.4 asks that an action which should happen once cannot happen twice when two requests arrive together: the last
+seat booked twice, or a one-time code redeemed twice. The usual cause is a gap between reading ("is one left?") and
+writing ("taken"), which requests one after another never hit. So this is the first check that sends requests at
+the same instant.
+
+- **The owner names the action.** A new optional `once` entry under `[stack.run.users]` gives the request and its
+  `completed` text, in the page or the address it sends the browser on to, as `flow` does. The app has to start the
+  run with exactly one of the thing to take, set up by `seed`, and nothing else in the run takes it.
+- **What is sent.** A signs in, reads the page's token once, and the same request goes out 20 times together, each
+  over its own connection.
+- **What is read.**
+  - Two or more answers carrying `completed` is `probe.action-done-twice` (CWE-362, high).
+  - Exactly one, with every other copy answered and refused, is credited for V2.3.4, scoped as "one race, tried once".
+  - None going through leaves it not assessed, since a refusal then shows nothing.
+  - One going through beside a copy that crashed or got no answer is not assessed. That is held twice: in the check
+    itself, and through `RESTS_ON_A_REFUSAL`, which `Patient` feeds.
+  - One going through beside copies a rate limit turned away (429) is not assessed either. Those copies never reached
+    the action, so the race was not run between them, and a limit is not a lock.
+- **Sending at once.** `Http` gained `send_at_once`. Its default says the runner cannot, which leaves V2.3.4 not
+  assessed, rather than sending the copies one after another and crediting a race that never ran. The Docker runner
+  does it with one script inside the fence: every `nc` is started in the background before any is waited for, each
+  answer goes to its own file, and all are printed in order, behind a mark of their own.
+
+**How the sending was tried.** This environment had no Docker daemon, so the script `sv` builds was run on its own:
+- with a stand-in for busybox's `nc -e`, against a local server holding a 200 ms gap between reading and writing;
+- all 20 copies arrived within 51 ms of each other, and all 20 booked the one seat;
+- the same script against the same server with a lock booked one and refused 19;
+- the runner's own parser read both sets of answers back correctly.
+
+The busybox image itself has not run it yet.
+
+**Break tests.** The scripted app gained `POST /book` with one seat, and three flaws: booking that races, booking that
+never works, and a rate limit on copies after the first. Each guard was broken in turn:
+- two going through not treated as a finding;
+- the rate limit ignored;
+- the count cut to one.
+
+Each was caught by a test. The crash guard was caught only with both of its holds removed, as expected for a guard
+held twice.
+
 ## The app's own MCP server: its token, and arguments it should refuse (3 October 2026)
 
 Three new settings under `[stack.run.mcp-server]`:

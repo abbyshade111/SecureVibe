@@ -60,6 +60,7 @@ mod admin;
 mod codes;
 mod flows;
 mod forgery;
+mod once;
 mod passwords;
 mod redirects;
 mod reset;
@@ -73,6 +74,7 @@ use admin::*;
 use codes::*;
 use flows::*;
 use forgery::*;
+use once::*;
 use passwords::*;
 use redirects::*;
 use reset::*;
@@ -86,6 +88,18 @@ use uploads::*;
 /// Something that can put a request to the running app and bring back its answer.
 pub trait Http {
     fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse>;
+
+    /// Sends the same request `times` times at once, each over its own connection, all started
+    /// together rather than one after another, and gives back each answer in the order started.
+    /// `None` when this way of reaching the app cannot send at the same instant: requests sent one
+    /// after another cannot show a race, so a check that needs one is then not assessed.
+    fn send_at_once(
+        &mut self,
+        _request: &ProbeRequest,
+        _times: usize,
+    ) -> Option<Vec<Option<ProbeResponse>>> {
+        None
+    }
 
     /// The emails the app has sent to this address during the run, oldest first, as text: `None`
     /// when the run has no mail sink to read them from. Waits a little for there to be at least
@@ -455,17 +469,16 @@ fn send_template(
     send_template_as(http, id, t, values, session, pages, |_| {})
 }
 
-/// `send_template`, with the request changed by `adjust` after the token is in it and before it
-/// goes: for a header a particular browser would send.
-fn send_template_as(
+/// A template's request, ready to send: its values filled in, and the page's anti-forgery token
+/// fetched first when it asks for one.
+fn prepared(
     http: &mut dyn Http,
     id: &str,
     t: &RequestTemplate,
     values: &Values,
     session: &mut Session,
     pages: &[String],
-    adjust: impl FnOnce(&mut ProbeRequest),
-) -> (Option<ProbeResponse>, Vec<Cookie>) {
+) -> ProbeRequest {
     let mut v = values.clone();
     if uses_csrf(t) && v.csrf.is_none() {
         let own = fill(&t.path, &v);
@@ -480,7 +493,21 @@ fn send_template_as(
             }
         }
     }
-    let mut sent = request(id, t, &v, session);
+    request(id, t, &v, session)
+}
+
+/// `send_template`, with the request changed by `adjust` after the token is in it and before it
+/// goes: for a header a particular browser would send.
+fn send_template_as(
+    http: &mut dyn Http,
+    id: &str,
+    t: &RequestTemplate,
+    values: &Values,
+    session: &mut Session,
+    pages: &[String],
+    adjust: impl FnOnce(&mut ProbeRequest),
+) -> (Option<ProbeResponse>, Vec<Cookie>) {
+    let mut sent = prepared(http, id, t, values, session, pages);
     adjust(&mut sent);
     let response = http.send(&sent);
     let cookies = response.as_ref().map(set_cookies).unwrap_or_default();
@@ -744,6 +771,7 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
         ],
     ),
     (CHANGE_ENDS_SESSIONS.rule_id, &["bystander-after"]),
+    (DONE_TWICE.rule_id, &["once"]),
     (
         EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id,
         &[
@@ -1006,6 +1034,26 @@ impl Http for Patient<'_> {
         answer
     }
 
+    fn send_at_once(
+        &mut self,
+        request: &ProbeRequest,
+        times: usize,
+    ) -> Option<Vec<Option<ProbeResponse>>> {
+        // Not waited out: a limiter's answer to a copy sent together is part of what was asked.
+        let answers = self.inner.send_at_once(request, times)?;
+        for answer in &answers {
+            let crashed = match answer {
+                None => Some("no answer".to_owned()),
+                Some(r) if r.status >= 500 => Some(r.status.to_string()),
+                Some(_) => None,
+            };
+            if let Some(status) = crashed {
+                self.crashed.push((request.id.clone(), status));
+            }
+        }
+        Some(answers)
+    }
+
     fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
         self.inner.mail(to, at_least)
     }
@@ -1266,6 +1314,8 @@ fn run_checks(
     // 9d. A role written into the sign-up form, with two accounts made for it. Before the password
     //     changes for the same reason as the admin actions.
     role_field_check(http, users, accounts, confirm.as_deref(), &mut out);
+    // 9e. The action that should go through once, sent many times at the same instant by A.
+    once_check(http, users, &accounts.a, &mut out);
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -2387,6 +2437,24 @@ mod crash_tests {
             }
             self.app.send(r)
         }
+        fn send_at_once(
+            &mut self,
+            r: &ProbeRequest,
+            times: usize,
+        ) -> Option<Vec<Option<ProbeResponse>>> {
+            self.sent.insert(r.id.clone());
+            let mut answers = self.app.send_at_once(r, times)?;
+            // One copy of the same instant crashes, as one of a burst can.
+            if self.crash.as_deref() == Some(r.id.as_str()) {
+                answers[0] = (!self.silent).then(|| ProbeResponse {
+                    id: r.id.clone(),
+                    status: 500,
+                    headers: Vec::new(),
+                    body: "Internal Server Error".into(),
+                });
+            }
+            Some(answers)
+        }
         fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
             self.app.mail(to, at_least)
         }
@@ -2585,6 +2653,7 @@ mod crash_tests {
                         case_folded: true,
                         change_without_current: true,
                         email_change_without_password: true,
+                        booking_races: true,
                         code_guessing_unlimited: true,
                         signup_trusts_role: true,
                         ..Default::default()
