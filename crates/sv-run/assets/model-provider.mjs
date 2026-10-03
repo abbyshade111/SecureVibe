@@ -24,6 +24,12 @@
 //   FETCH   asks for the app's own tool named in the message's `SV-CALL-<hex>` (a JSON object of
 //           `tool` and `args`, hex-encoded), when the app offered it, and records what the app then
 //           sends back as the tool's result
+//   FAIL    no reply: the service fails, answering 500 with an error in its own shape whose message
+//           carries `SVERR<tag>`, as a real outage would; `failures` in what was seen counts the
+//           attempts, since client libraries retry
+//   MCPLOOP asks for `sv_lookup` again after every result, up to LOOP_CAP rounds, and only then
+//           answers; `rounds` in what was seen is how many results the app sent back before it
+//           stopped asking, so an app with no limit of its own reads as LOOP_CAP
 //   MCPPLAIN, MCPBAD, MCPINJECT
 //           asks for the MCP tool `sv_lookup`, when the app offered it, with the tag as its
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
@@ -43,6 +49,8 @@ import http from 'node:http';
 const HOST = process.env.HOST || 'localhost';
 const PORT = Number(process.env.PORT || 9100);
 const MODEL = 'sv-test-model';
+// How many tool rounds MCPLOOP keeps asking for before it stops by itself.
+const LOOP_CAP = 40;
 const seen = new Map(); // tag -> { kind, system, bounded, fetched, api, model, input_tokens, output_tokens }
 const between = (low, high) => low + Math.floor(Math.random() * (high - low));
 
@@ -142,6 +150,15 @@ function reply(api, body, usage) {
     record.tool_requested = true;
     return { tool, args: wanted.args || {} };
   }
+  if (kind === 'MCPLOOP') {
+    record.tools_offered = tools;
+    record.rounds = results.length;
+    const tool = tools.find((name) => name.includes('sv_lookup'));
+    if (!tool) return `${marker} I have no tool to look that up with.`;
+    record.tool_requested = true;
+    if (results.length >= LOOP_CAP) return `${marker} I will stop here.`;
+    return { tool, args: { q: `${tag}-${results.length}` } };
+  }
   if (kind.startsWith('MCP')) {
     record.tools_offered = tools;
     if (results.length) {
@@ -152,6 +169,10 @@ function reply(api, body, usage) {
     if (!tool) return `${marker} I have no tool to look that up with.`;
     record.tool_requested = true;
     return { tool, args: { q: tag } };
+  }
+  if (kind === 'FAIL') {
+    record.failures = (before.failures || 0) + 1;
+    return { fail: tag };
   }
   switch (kind) {
     case 'LEAK':
@@ -194,12 +215,22 @@ function tagOf(api, body) {
   return all.length ? all[all.length - 1][2] : '';
 }
 
+// An outage, in the error shape each service really sends, so the app's own library reads it as one.
+function failure(api, res, tag) {
+  const message = `The test model failed on purpose (SVERR${tag}).`;
+  if (api === 'messages') {
+    return json(res, 500, { type: 'error', error: { type: 'api_error', message } });
+  }
+  return json(res, 500, { error: { message, type: 'server_error', param: null, code: 'sv_failure' } });
+}
+
 function answer(api, body, res) {
   // Counts no real call of this size would report, different every time: 4000 to 8999 in, 1000
   // to 3999 out.
   const input = between(4000, 9000);
   const output = between(1000, 4000);
   const said = reply(api, body, { input, output });
+  if (said && typeof said === 'object' && said.fail) return failure(api, res, said.fail);
   const model = typeof body.model === 'string' ? body.model : MODEL;
   if (typeof said !== 'string') return toolCall(api, body, res, said, model, input, output);
   const raw = `SVRAW${tagOf(api, body)}`;

@@ -6006,6 +6006,36 @@ Tried on 3 October 2026 with the built `sv probe`: github.com and www.digicert.c
 badssl.com's TLS 1.0 server was found through LibreSSL's curl. Through OpenSSL's curl its ordinary HTTPS request
 could not connect at all, so everything about it, V12.1.1 included, was reported as not assessed.
 
+## When the AI service fails (3 October 2026)
+
+V16.5.2 asks that the app keeps working safely when something it depends on fails, and an app with an AI feature
+depends on the AI service on every message. The test model now has a `FAIL` kind: it answers 500 with an error in
+the service's own shape (OpenAI's `error` object, or Anthropic's `type: error`), whose message carries `SVERR` and
+the tag, as a real outage would. Client libraries retry an outage, so the test model counts the attempts, and more
+than one is the library at work.
+
+The AI check sends one message the test model fails on, then a plain one. The failure has to reach the test model,
+or it was not the service failing, and nothing is judged. `probe.ai-service-error-shown` (V16.5.1, only ever a
+finding) is the app's answer carrying the service's error or a trace. `probe.ai-service-failure-handled` (V16.5.2)
+is a finding when the plain message after it is not answered, and credited when the failing message was answered
+without the error and the plain one after it was answered with its reply. A 429 on the plain message is a limiter
+and says nothing, so it is not assessed. Not done: a service that answers slowly or not at all, which would hold
+the run for as long as the app waits, and a malformed structured answer (C7.1.1).
+
+## An AI agent with no limit on its tool calls (3 October 2026)
+
+C9.1.2 asks that each run of an agent has a budget the app enforces: how deep it may go, how many tokens it may
+use, how much it may spend. The test model's `MCPLOOP` kind asks for the test MCP server's `sv_lookup` again after
+every result, and stops by itself only at 40 rounds (`LOOP_CAP`, the same number in `model-provider.mjs` and
+`ai.rs`), so no run can loop for ever. It reports how many results the app sent back before it stopped asking.
+
+The AI check asks it only after the ordinary MCP question showed the tool working, so a round count that stops
+early is the app's doing and not a tool that never answered. `probe.ai-agent-unbounded` is a finding when only the
+test model's own stop ended the loop, and credited when the app stopped sooner and answered; the credit says it is
+a limit on tool rounds, not one shown for tokens or spending. An app that answered with an error part-way is not
+assessed: a crash is not a budget. Not done: the same question for an app's own tools named in `record-tool`,
+which may not be read-only in every app, and C9.1.1's per-tool quotas and timeouts.
+
 ## Text reflected into a page without encoding (3 October 2026)
 
 The stranger probes now send one value, `svEcho4b7e<"'e7b4ohcEvs`, in three addresses: the health path and the root

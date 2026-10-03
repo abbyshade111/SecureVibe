@@ -31,10 +31,10 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 158 (46%) | 9 | 178 |
+| OWASP ASVS 5.0 | 345 | 159 (46%) | 9 | 177 |
 | OWASP AISVS 1.0 | 191 | 30 (16%) | 0 | 161 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
-| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 7 | 29 |
+| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 9 | 27 |
 
 ## ASVS 5.0 by level
 
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 6 | 31 | 21 | 3 |
-| L2 | 183 | 81 | 8 | 0 | 15 | 42 | 28 | 1 |
+| L2 | 183 | 82 | 8 | 0 | 16 | 42 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 34 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -73,7 +73,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V13 Configuration | 21 | 8 | 1 | 12 |
 | V14 Data Protection | 13 | 4 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 11 | 0 | 10 |
-| V16 Security Logging and Error Handling | 17 | 9 | 0 | 8 |
+| V16 Security Logging and Error Handling | 17 | 10 | 0 | 7 |
 | V17 WebRTC | 12 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -104,7 +104,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (98)
+### Settled by asking the running app (99)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -204,7 +204,8 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.4 | L2 | Signed in: `probe.log-common-format` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
-| V16.5.1 | L2 | The running app: `probe.error-detail-leak` |
+| V16.5.1 | L2 | The running app: `probe.error-detail-leak`, `probe.ai-service-error-shown` (sv only ever as a finding: `probe.ai-service-error-shown`) |
+| V16.5.2 | L2 | The running app: `probe.ai-service-failure-handled` |
 | V16.5.4 | L3 | The running app: `probe.app-stopped-during-questions` (sv only ever as a finding: `probe.app-stopped-during-questions`) |
 
 ### Settled by known-vulnerability data (1)
@@ -293,7 +294,7 @@ does not reach.
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-15 of these 33 can only ever be marked *needs attention*: a check can
+14 of these 33 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -311,7 +312,7 @@ need `--tools`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
 - C7.3.3: found failing by sv's `probe.ai-output-fetched`.
 - C7.3.4: settled by `probe.ai-hidden-content-passed`.
-- C9.1.2: found failing by semgrep's `agent-unbounded-loop`.
+- C9.1.2: settled by `probe.ai-agent-unbounded`; and found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.
 - C9.3.7: found failing by sv's `probe.ai-output-fetched`.
@@ -340,14 +341,16 @@ control as supporting evidence.
 
 | Domain | Controls | Critical | With an ASVS counterpart | With supporting evidence |
 |---|---|---|---|---|
-| A Architecture & Service Design | 8 | 1 | 1 | 0 |
+| A Architecture & Service Design | 8 | 1 | 1 | 1 |
 | B Data Management & Protection | 6 | 1 | 4 | 1 |
-| C Reliability & Resilience | 8 | 1 | 5 | 1 |
+| C Reliability & Resilience | 8 | 1 | 5 | 2 |
 | D Access Control & Secure Communication | 7 | 2 | 5 | 4 |
 | E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 1 |
 
+- SBD-AS-07: through V16.5.2
 - SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
+- SBD-RR-02: through V16.5.2
 - SBD-AC-01: through V12.3.1, V12.3.3
 - SBD-AC-03: through V8.2.1
 - SBD-AC-04: through V8.3.1

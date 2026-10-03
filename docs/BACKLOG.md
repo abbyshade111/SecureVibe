@@ -83,11 +83,21 @@ another session is not a claim.
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
      `claude/securevibe-e9-agent-limit`.
+     **Done the same day** (DESIGN, "An AI agent with no limit on its tool calls"). The test model's `MCPLOOP` asks
+     for the test MCP tool again after every result, up to 40 rounds; `probe.ai-agent-unbounded` is a finding when
+     only that cap ended it, and credited when the app stopped sooner with an answer, as a limit on tool rounds.
+     Two guards broken in turn, each caught. Not done: the app's own tools named in `record-tool`, which may not
+     be read-only, and C9.1.1's per-tool quotas and timeouts.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
       `claude/securevibe-e9-ai-failure`.
+      **Done the same day** (DESIGN, "When the AI service fails"). The test model's `FAIL` answers 500 in the
+      service's own error shape, carrying `SVERR` and the tag; `probe.ai-service-error-shown` (V16.5.1, only ever
+      a finding) and `probe.ai-service-failure-handled` (V16.5.2, credited when the app fails cleanly and keeps
+      answering). Three guards broken in turn, each caught. Not done: a service that answers slowly or not at all,
+      and a malformed structured answer (C7.1.1).
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.

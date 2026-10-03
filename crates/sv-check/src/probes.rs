@@ -1013,6 +1013,15 @@ const ERROR_DETAIL_LEAK: Rule = Rule {
           page with the detail kept in the log.",
 };
 
+/// The trace markers a body carries, for the checks elsewhere that read an error answer.
+pub(crate) fn trace_markers_in(body: &str) -> Vec<&'static str> {
+    TRACE_MARKERS
+        .iter()
+        .copied()
+        .filter(|marker| body.contains(marker))
+        .collect()
+}
+
 /// What the app says when asked for something that is not there.
 fn error_page_leak(response: &ProbeResponse) -> Option<Finding> {
     let found: Vec<&str> = TRACE_MARKERS
