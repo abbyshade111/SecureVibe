@@ -104,6 +104,10 @@ RUST_CHECKS = {
     "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
     "probe.ai-reply-carries-others-data": ("signed-in", ["C5.2.4"]),
     "probe.mcp-server-origin-unchecked": ("running", ["C10.3.3"]),
+    "probe.mcp-server-token-unchecked": ("running", ["C10.2.1"]),
+    "probe.mcp-server-takes-unknown-or-oversized-arguments": ("running", ["C10.4.3"]),
+    "probe.mcp-server-takes-wrong-types": ("running", ["C10.4.4"]),
+    "probe.mcp-server-no-size-limit": ("running", ["C10.4.5"]),
     "probe.mcp-session-survives-end": ("running", ["C10.2.6"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
@@ -260,6 +264,8 @@ RUST_FINDINGS_ONLY = {
     # One note each and one question is not every way an app searches.
     "probe.ai-retrieval-ignores-user",
     "probe.ai-reply-carries-others-data",
+    # The requirement names no size, and this is one size.
+    "probe.mcp-server-no-size-limit",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
     "probe.retired-grants-offered",
