@@ -1364,3 +1364,142 @@ mod presence_tests {
         );
     }
 }
+
+#[cfg(all(test, unix))]
+mod stand_in_tests {
+    //! The stand-in, with each program a script named by its full path, so nothing here depends on
+    //! `PATH` (`tests/stand_in.rs` runs the real semgrep entry through it instead). The stand-in
+    //! refuses `--refused`, and answers or writes a report only when the adapter's environment
+    //! reached it.
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    const OTHER: &str = r#"#!/bin/sh
+if [ "$1" = --version ]; then
+  [ "$SV_TEST_SWITCH" = off ] && exit 0
+  echo "the switch did not reach the version question" >&2; exit 1
+fi
+for a in "$@"; do [ "$a" = --refused ] && { echo "unknown option --refused" >&2; exit 2; }; done
+[ "$SV_TEST_SWITCH" = off ] || exit 3
+printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"id":"%s"}]}},"results":[]}]}' "$RULE" > "$1"
+"#;
+
+    fn script(dir: &Path, name: &str, text: &str) -> String {
+        let path = dir.join(name);
+        std::fs::write(&path, text).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path.display().to_string()
+    }
+
+    /// An adapter named Primary whose program is `primary`, with Other standing in, and one of
+    /// semgrep's real mapped Python rules so a clean run has something to credit.
+    fn adapter(dir: &Path, primary: &str) -> (Adapter, String) {
+        let file: serde_json::Value = serde_json::from_str(
+            &std::fs::read_to_string(
+                Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let semgrep = file["adapters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|a| a["id"] == "semgrep")
+            .unwrap();
+        let (rule, mapped) = semgrep["rules"]
+            .as_object()
+            .unwrap()
+            .iter()
+            .find(|(_, r)| {
+                r["languages"]
+                    .as_array()
+                    .is_some_and(|l| l.contains(&"python".into()))
+                    && r["requirements"].as_array().is_some_and(|q| !q.is_empty())
+            })
+            .unwrap();
+        let other = script(dir, "other", &OTHER.replace("$RULE", rule));
+        let adapter = serde_json::from_value(serde_json::json!({
+            "id": "primary",
+            "name": "Primary",
+            "language": "python",
+            "version": { "command": primary, "args": ["--version"] },
+            "run": { "command": primary, "args": ["--refused", "{output}"] },
+            "install": "get primary",
+            "env": { "SV_TEST_SWITCH": "off" },
+            "stand_in": { "name": "Other", "command": other, "leave_out": ["--refused"] },
+            "rules": { rule: mapped },
+        }))
+        .unwrap();
+        (adapter, rule.clone())
+    }
+
+    fn run(dir: &Path, adapter: Adapter) -> AdapterRun {
+        let app = dir.join("app");
+        std::fs::create_dir_all(&app).unwrap();
+        std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
+        run_all(
+            &Adapters {
+                adapters: vec![adapter],
+            },
+            &app,
+            &["python".to_owned()],
+            &BTreeSet::new(),
+            dir,
+        )
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("sv-stand-in-unit-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn the_stand_in_runs_in_a_missing_program_s_place_and_is_named() {
+        let dir = scratch("missing");
+        let (adapter, rule) = adapter(&dir, &dir.join("not-here").display().to_string());
+        let outcome = run(&dir, adapter);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(outcome.ran, ["primary"], "{:?}", outcome.not_run);
+        assert_eq!(
+            outcome.stood_in,
+            [(
+                "primary".to_owned(),
+                "Other ran in place of Primary, which is not installed on this computer."
+                    .to_owned()
+            )]
+        );
+        assert_eq!(outcome.verified.len(), 1, "{rule} credited by a clean run");
+        let credit = format!("{:?}", outcome.verified[0]);
+        assert!(
+            credit.contains("Other (in place of Primary) over the python in this app"),
+            "{credit}"
+        );
+    }
+
+    #[test]
+    fn a_broken_program_is_reported_and_its_stand_in_left_alone() {
+        let dir = scratch("broken");
+        let broken = script(
+            &dir,
+            "broken",
+            "#!/bin/sh\necho 'cannot find its libraries' >&2\nexit 1\n",
+        );
+        let (adapter, _) = adapter(&dir, &broken);
+        let outcome = run(&dir, adapter);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            outcome.ran.is_empty() && outcome.stood_in.is_empty(),
+            "{outcome:?}"
+        );
+        let why = &outcome.not_run[0].1;
+        assert!(
+            why.starts_with("Primary is installed and would not start"),
+            "{why}"
+        );
+        assert!(why.contains("cannot find its libraries"), "{why}");
+    }
+}
