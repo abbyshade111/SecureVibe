@@ -10,9 +10,9 @@
 //! the lockfile does not have at all disagrees too. What cannot be compared (a pre-release, a git
 //! URL, a range written in a form not read here) is listed as not compared, never as agreeing.
 //!
-//! Seven manifests are read: `requirements.txt`, `pyproject.toml` (its own list and Poetry's),
-//! `package.json`, `Cargo.toml`, `composer.json`, `Gemfile`, and `go.mod`, each with the range rules
-//! its package manager documents. Gradle's files are not compared yet.
+//! Nine manifests are read: `requirements.txt`, `pyproject.toml` (its own list and Poetry's),
+//! `package.json`, `Cargo.toml`, `composer.json`, `Gemfile`, `go.mod`, and Gradle's `build.gradle`
+//! and `build.gradle.kts`, each with the range rules its package manager documents.
 
 /// What the manifest asks for, in a form a version can be held to.
 #[derive(Debug, Clone)]
@@ -24,6 +24,9 @@ enum Spec {
     Npm(Vec<Comparators>),
     /// One version, written out: Go's `require` names exactly the version it builds with.
     Exact(String),
+    /// Gradle's: clauses on the release number, for a version whose words after it (`-jre`,
+    /// `.Final`) are these. A version with other words cannot be put in order against them.
+    Qualified(String, Vec<(PyOp, String)>),
     /// Written in a form not read here.
     Unread,
 }
@@ -98,6 +101,9 @@ pub fn compare(
         "composer.json" => (composer_wants(manifest)?, str::to_lowercase, str::to_owned),
         "Gemfile" => (gem_wants(manifest), str::to_owned, gem_version),
         "go.mod" => (go_wants(manifest), str::to_owned, str::to_owned),
+        "build.gradle" | "build.gradle.kts" => {
+            (gradle_wants(manifest), str::to_owned, str::to_owned)
+        }
         _ => return None,
     };
     let mut out = Comparison::default();
@@ -142,6 +148,13 @@ fn allows(spec: &Spec, version: &str) -> Option<bool> {
     match spec {
         Spec::Unread => None,
         Spec::Exact(wanted) => Some(wanted == version),
+        Spec::Qualified(qualifier, clauses) => {
+            let (release, words) = gradle_split(version);
+            if &words != qualifier {
+                return None;
+            }
+            allows(&Spec::Python(clauses.clone()), &release)
+        }
         Spec::Python(clauses) => {
             let mut all = Some(true);
             for (op, wanted) in clauses {
@@ -1016,6 +1029,122 @@ fn go_wants(text: &str) -> Vec<Wanted> {
         .collect()
 }
 
+// ---------------------------------------------------------------------------------------------
+// Gradle: `build.gradle` and `build.gradle.kts`, whose plain version is the least Gradle will use.
+
+/// The coordinates a build file asks for, in either notation, with their version as written.
+fn gradle_wants(text: &str) -> Vec<Wanted> {
+    static STRING: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r#"\b[A-Za-z]\w*\s*\(?\s*["']([^"'\s:]+):([^"'\s:]+):([^"'\s:@]+)(?::[^"'\s]*)?(?:@\w+)?["']"#)
+            .expect("the pattern is valid")
+    });
+    static MAP: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
+            r#"group\s*[:=]\s*["']([^"']+)["']\s*,\s*name\s*[:=]\s*["']([^"']+)["']\s*,\s*version\s*[:=]\s*["']([^"']+)["']"#,
+        )
+        .expect("the pattern is valid")
+    });
+    let mut out = Vec::new();
+    for line in text.lines() {
+        let line = line.split("//").next().unwrap_or("");
+        for caps in STRING.captures_iter(line).chain(MAP.captures_iter(line)) {
+            let (group, artifact, version) = (&caps[1], &caps[2], &caps[3]);
+            out.push(Wanted {
+                key: format!("{group}:{artifact}"),
+                asked: format!("{group}:{artifact}:{version}"),
+                spec: gradle_spec(version),
+                // Which configurations are locked is the project's choice, and a dependency in one
+                // that is not has nothing in the lockfile: missing, it is not compared.
+                conditional: true,
+            });
+        }
+    }
+    out
+}
+
+/// A Gradle version as written: `1.2.3` (at least that), `1.2.3!!` (exactly that), `1.2.+` (that
+/// prefix), or a range in brackets.
+fn gradle_spec(text: &str) -> Spec {
+    // A version from a variable (`$v`) or a word (`latest.release`) has no number to read, and is
+    // not read below.
+    let text = text.trim();
+    // A prefix or a range says nothing of words after the number, so it is held to versions without.
+    if let Some(prefix) = text.strip_suffix(".+") {
+        return Spec::Qualified(String::new(), vec![(PyOp::Equal, format!("{prefix}.*"))]);
+    }
+    if text.starts_with(['[', '(', ']']) {
+        return gradle_range(text).map_or(Spec::Unread, |c| Spec::Qualified(String::new(), c));
+    }
+    let strict = text.strip_suffix("!!");
+    let (release, qualifier) = gradle_split(strict.unwrap_or(text));
+    if python_release(&release).is_none() {
+        return Spec::Unread;
+    }
+    let op = if strict.is_some() {
+        PyOp::Equal
+    } else {
+        PyOp::AtLeast
+    };
+    Spec::Qualified(qualifier, vec![(op, release)])
+}
+
+/// `[1.0,2.0)`, `[1.0,)`, `(,2.0]`: Maven's ranges, which Gradle reads, as clauses.
+fn gradle_range(text: &str) -> Option<Vec<(PyOp, String)>> {
+    let open = text.chars().next()?;
+    let close = text.chars().last()?;
+    let inner = &text[1..text.len() - 1];
+    let (low, high) = inner.split_once(',')?;
+    let mut clauses = Vec::new();
+    if !low.trim().is_empty() {
+        python_release(low)?;
+        clauses.push((
+            if open == '[' {
+                PyOp::AtLeast
+            } else {
+                PyOp::Above
+            },
+            low.trim().to_owned(),
+        ));
+    }
+    if !high.trim().is_empty() {
+        python_release(high)?;
+        clauses.push((
+            if close == ']' {
+                PyOp::AtMost
+            } else {
+                PyOp::Below
+            },
+            high.trim().to_owned(),
+        ));
+    }
+    Some(clauses)
+}
+
+/// A Gradle version's release number and what follows it, lower case: `33.0.0-jre` is `33.0.0` and
+/// `jre`, `5.3.2.Final` is `5.3.2` and `final`, and `2.1.0` is `2.1.0` and nothing.
+fn gradle_split(version: &str) -> (String, String) {
+    let mut release = Vec::new();
+    let mut rest = version;
+    loop {
+        let end = rest.find(['.', '-']).unwrap_or(rest.len());
+        let part = &rest[..end];
+        if part.is_empty() || !part.bytes().all(|b| b.is_ascii_digit()) {
+            break;
+        }
+        release.push(part);
+        rest = &rest[end..];
+        match rest.strip_prefix(['.', '-']) {
+            Some(after) if after.starts_with(|c: char| c.is_ascii_digit()) => rest = after,
+            Some(after) => {
+                rest = after;
+                break;
+            }
+            None => break,
+        }
+    }
+    (release.join("."), rest.to_lowercase())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1180,7 +1309,7 @@ mod tests {
         assert!(found.differs.is_empty(), "{found:?}");
         assert_eq!(found.not_compared.len(), 6, "{found:?}");
         // A manifest of another kind is not compared at all, rather than found to agree.
-        assert_eq!(compare("build.gradle", "dependencies {}\n", &[]), None);
+        assert_eq!(compare("pom.xml", "<project/>\n", &[]), None);
         assert_eq!(compare("package.json", "{not json", &[]), None);
     }
 
@@ -1619,5 +1748,114 @@ end
             not_compared,
             vec!["example.com/forked v1.2.0", "example.com/unused v0.1.0"]
         );
+    }
+
+    #[test]
+    fn gradle_build_files_are_held_to_gradle_lockfile() {
+        let groovy = r#"
+plugins {
+    id 'org.springframework.boot' version '3.2.0'
+}
+dependencies {
+    implementation 'com.google.guava:guava:32.1.0-jre'
+    implementation "org.slf4j:slf4j-api:2.0.9"
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.0!!'
+    runtimeOnly group: 'org.postgresql', name: 'postgresql', version: '42.7.1'
+    testImplementation 'junit:junit:4.+'
+    implementation "org.example:fromvar:$exampleVersion"
+    implementation project(':shared')
+    implementation libs.okhttp
+    // implementation 'com.example:commented:1.0.0'
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+}
+"#;
+        let lock = [
+            ("com.google.guava:guava", "33.0.0-jre"),
+            ("org.slf4j:slf4j-api", "1.7.36"),
+            ("com.fasterxml.jackson.core:jackson-databind", "2.17.1"),
+            ("org.postgresql:postgresql", "42.7.1"),
+            ("junit:junit", "4.13.2"),
+            ("org.example:fromvar", "1.0.0"),
+        ];
+        let (differs, not_compared) = found("build.gradle", groovy, &lock);
+        // A newer guava is what Gradle picks when something else asks for more; an older slf4j is not.
+        assert_eq!(
+            differs,
+            vec![
+                "org.slf4j:slf4j-api:2.0.9",
+                "com.fasterxml.jackson.core:jackson-databind:2.17.0!!",
+            ]
+        );
+        // A version from a variable, and a configuration the lockfile may not lock.
+        assert_eq!(
+            not_compared,
+            vec![
+                "org.example:fromvar:$exampleVersion",
+                "org.projectlombok:lombok:1.18.30",
+            ]
+        );
+
+        let kotlin = r#"
+dependencies {
+    implementation("io.ktor:ktor-server-core:2.3.7")
+    implementation(group = "org.jetbrains.exposed", name = "exposed-core", version = "0.45.0")
+    testImplementation("io.kotest:kotest-runner-junit5:[5.0,6.0)")
+}
+"#;
+        let (differs, not_compared) = found(
+            "build.gradle.kts",
+            kotlin,
+            &[
+                ("io.ktor:ktor-server-core", "2.3.7"),
+                ("org.jetbrains.exposed:exposed-core", "0.44.1"),
+                ("io.kotest:kotest-runner-junit5", "6.0.0"),
+            ],
+        );
+        assert_eq!(
+            differs,
+            vec![
+                "org.jetbrains.exposed:exposed-core:0.45.0",
+                "io.kotest:kotest-runner-junit5:[5.0,6.0)",
+            ]
+        );
+        assert!(not_compared.is_empty(), "{not_compared:?}");
+    }
+
+    #[test]
+    fn gradle_versions_are_read_as_gradle_resolves_them() {
+        let gradle = |v: &str, have: &str| allows(&gradle_spec(v), have);
+        for (version, have, expected) in [
+            ("1.2.3", "1.2.3", Some(true)),
+            ("1.2.3", "1.3.0", Some(true)),
+            ("1.2.3", "1.2.2", Some(false)),
+            ("1.2.3!!", "1.2.4", Some(false)),
+            ("1.2.3!!", "1.2.3", Some(true)),
+            ("1.2.+", "1.2.9", Some(true)),
+            ("1.2.+", "1.3.0", Some(false)),
+            ("[1.0,2.0)", "1.9.9", Some(true)),
+            ("[1.0,2.0)", "2.0", Some(false)),
+            ("(1.0,2.0]", "1.0", Some(false)),
+            ("[1.0,)", "9.0", Some(true)),
+            ("(,2.0]", "2.0", Some(true)),
+            ("32.1.0-jre", "33.0.0-jre", Some(true)),
+            ("32.1.0-jre", "31.0.0-jre", Some(false)),
+            ("32.1.0-jre", "33.0.0-android", None),
+            ("5.3.2.Final", "5.3.3.Final", Some(true)),
+            ("5.3.2.Final", "5.3.2.final", Some(true)),
+            ("2.0.0", "2.1.0-rc1", None),
+            ("latest.release", "1.0", None),
+            ("$v", "1.0", None),
+        ] {
+            assert_eq!(gradle(version, have), expected, "{version} against {have}");
+        }
+        assert_eq!(
+            gradle_split("33.0.0-jre"),
+            ("33.0.0".to_owned(), "jre".to_owned())
+        );
+        assert_eq!(
+            gradle_split("5.3.2.Final"),
+            ("5.3.2".to_owned(), "final".to_owned())
+        );
+        assert_eq!(gradle_split("2.1.0"), ("2.1.0".to_owned(), String::new()));
     }
 }
