@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 158 can be checked, 9 where a check helps but a person decides, and 178 with no check.
+345 requirements: 159 can be checked, 9 where a check helps but a person decides, and 177 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 81 can be checked)
+### Level 2 (183 requirements, 82 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -434,8 +434,8 @@ decided per app, from its `securevibe.toml` and its code.
 | **V16.4.1** Verify that all logging components appropriately encode data to prevent log injection. | Can be checked | Outside tools: codeql-javascript, 1 rule, its rules look for: log injection: user input written to a log without encoding, so it can forge or break log entries<br>Outside tools: codeql-python, 1 rule, its rules look for: log injection: user input written to a log without encoding, so it can forge or break log entries |
 | **V16.4.2** Verify that logs are protected from unauthorized access and cannot be modified. | No check | – |
 | **V16.4.3** Verify that logs are securely transmitted to a logically separate system for analysis, detection, alerting, and escalation. The aim is to ensure that if the application is breached, the logs are not compromised. | No check | – |
-| **V16.5.1** Verify that a generic message is returned to the consumer when an unexpected or security-sensitive error occurs, ensuring no exposure of sensitive internal system data such as stack traces, queries, secret keys, and tokens. | Can be checked | The running app: `probe.error-detail-leak`, if it fails: A stack trace names the framework, its version, the file layout and often the query that failed. It is the first thing somebody looking for a way in would like to read. |
-| **V16.5.2** Verify that the application continues to operate securely when external resource access fails, for example, by using patterns such as circuit breakers or graceful degradation. | No check | – |
+| **V16.5.1** Verify that a generic message is returned to the consumer when an unexpected or security-sensitive error occurs, ensuring no exposure of sensitive internal system data such as stack traces, queries, secret keys, and tokens. | Can be checked | The running app: `probe.error-detail-leak`, if it fails: A stack trace names the framework, its version, the file layout and often the query that failed. It is the first thing somebody looking for a way in would like to read.<br>The running app: `probe.ai-service-error-shown`, if it fails: When the AI service fails, the person sees the service's own error, or a trace of the app's code, instead of a plain message. That says which service the app uses and how it calls it, and an error can carry more, such as a key's first characters or an account id. (found failing only) |
+| **V16.5.2** Verify that the application continues to operate securely when external resource access fails, for example, by using patterns such as circuit breakers or graceful degradation. | Can be checked | The running app: `probe.ai-service-failure-handled`, if it fails: One failed call to the AI service leaves the feature broken for everyone afterwards, so an outage at the provider, or one bad answer, takes the app down with it. |
 | **V16.5.3** Verify that the application fails gracefully and securely, including when an exception occurs, preventing fail-open conditions such as processing a transaction despite errors resulting from validation logic. | No check | – |
 
 #### V17 WebRTC
