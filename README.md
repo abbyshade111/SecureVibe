@@ -117,8 +117,9 @@ itself.
 
 Some requirements are about where the app is *served from* rather than what is in it, and no amount
 of reading the code settles them. `sv probe https://your-app.example.com` asks your own live site the
-four that matter most: is the certificate one browsers trust, is plain HTTP still served, does it
-tell browsers to stick to HTTPS, and do its cookies carry the `__Host-` prefix.
+questions that matter most: is the certificate one browsers trust, is plain HTTP still served, does
+it tell browsers to stick to HTTPS, do its cookies carry the `__Host-` prefix, does it still accept
+the old TLS 1.0 or 1.1, and does it staple its certificate's revocation status.
 
 It is deliberately narrow about what it will do. The address has to be typed at the terminal, never
 read from a file. It fetches headers only, sends no cookies and no credentials, makes at most four

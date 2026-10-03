@@ -176,6 +176,7 @@ RUST_CHECKS = {
     "probe.certificate-not-trusted": ("production", ["V12.2.2"]),
     "probe.plain-http-served": ("production", ["V12.2.1"]),
     "probe.ocsp-not-stapled": ("production", ["V12.1.4"]),
+    "probe.old-tls-accepted": ("production", ["V12.1.1"]),
     "probe.no-hsts": ("production", ["V3.4.1"]),
     "live.ech-not-offered": ("production", ["V12.1.5"]),
     "live.hsts-not-preloaded": ("production", ["V3.7.4"]),
@@ -239,6 +240,9 @@ RUST_FINDINGS_ONLY = {
     "config.development-server-started",
     "config.mcp-server-unpinned",
     "config.rich-text-without-sanitizer",
+    # A refusal of TLS 1.0 and 1.1 is half of V12.1.1; the other half, the newest version preferred,
+    # is not something curl reports reliably, so a refusal is said and not credited.
+    "probe.old-tls-accepted",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
     "probe.retired-grants-offered",
