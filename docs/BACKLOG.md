@@ -109,6 +109,8 @@ another session is not a claim.
       `docs/PARTIAL-CHECKS.md`.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
+      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
+      in branch `claude/securevibe-e9-email-change`.
   15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
       file named to land outside the upload folder, then asked for where it would have landed.
       **The `../` half done on 3 October 2026** (DESIGN, "A file named to land outside the upload folder"): found one
