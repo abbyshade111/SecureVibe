@@ -170,8 +170,8 @@ const COMMANDS: &[Command] = &[
         name: "mcp",
         word: None,
         flags: &[],
-        valued: &["--root"],
-        help: "  sv mcp [--root DIR]\n                     serve the checks to an AI coding tool over MCP, for the apps under DIR\n",
+        valued: &["--root", "--time-limit"],
+        help: "  sv mcp [--root DIR] [--time-limit SECONDS]\n                     serve the checks to an AI coding tool over MCP, for the apps under DIR;\n                     a check that takes longer than SECONDS (50) is reported as not finished\n",
     },
 ];
 

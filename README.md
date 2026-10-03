@@ -284,6 +284,10 @@ its framework's own words), `securevibe_write_report` (the full reports, into th
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
 
+A check that takes longer than 50 seconds is stopped waiting for, and the tool is told it did not finish and that
+nothing was assessed, rather than being left waiting. Checking this whole repository takes about six seconds.
+`--time-limit SECONDS` changes the limit, and `sv report` at a terminal has none.
+
 A `.mcp.json` in the app's folder, with the JSON above, works in tools that have no `claude` command,
 such as the Claude desktop app.
 

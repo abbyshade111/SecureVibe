@@ -171,6 +171,9 @@ another session is not a claim.
   broken input. A time limit on a check (the other half of 6) stays unclaimed.
   **The time limit on a check (the other half of item 6) claimed the same day by session securevibe-e2**, at the
   owner's asking to continue with the backlog, in branch `claude/securevibe-e2-check-time-limit`.
+  **Done the same day** (DESIGN, "A time limit on a check over MCP"): each tool that checks the app waits at most
+  50 seconds (`sv mcp --time-limit` changes it), then says the check did not finish and nothing was assessed, and
+  refuses another check until the one still running ends. Seven guards broken in turn, each caught.
   **Done the same day** (DESIGN, "What the MCP server answers when it is sent nonsense"): batches, wrong
   versions, bad ids, and arguments that are not an object are refused; a line that is not UTF-8 is answered rather
   than ending the server; a line is at most 1 MiB; `/` and the home folder are refused as the root; and two tests
