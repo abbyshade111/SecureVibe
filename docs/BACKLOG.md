@@ -1467,6 +1467,9 @@ another session is not a claim.
      **Go's standard-library `crypto/pbkdf2` and C#'s two-argument `Rfc2898DeriveBytes` claimed on 3 October 2026 by
      session securevibe-e2**, at the owner's asking to continue with the backlog, in branch
      `claude/securevibe-e2-weak-kdf-more`. Counts between 210,000 and 600,000 with SHA-256 stay unclaimed.
+     **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 3 October):
+     both are reported, and x/crypto's own order is never misread as the standard library's. Six guards broken in
+     turn, each caught.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
