@@ -13,6 +13,11 @@ another session is not a claim.
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
   **Items 1 to 3 claimed the same day by session securevibe-e2**, at the owner's word ("go ahead"), in branch
   `claude/securevibe-e2-mcp-hardening`. **Items 4 to 7 not claimed; each can be claimed on its own.**
+  **Items 1 to 3 done the same day** (DESIGN, "Writing nothing through a link, and saying nothing on the app's
+  behalf"): report files and folders that are links are refused, and each file is written under a new name and
+  renamed into place; `securevibe_write_report` makes its folder one level at a time; and text from the app's folder
+  reaches the AI tool with its line breaks and invisible characters written as escapes. Nine guards broken in turn,
+  each caught.
   **Items 4, 5, 7, and the size half of 6 claimed the same day by session securevibe-e2**, at the owner's word
   ("go ahead"), in branch `claude/securevibe-e2-mcp-protocol`: a batch and a malformed request answered with an
   error, `/` and the home folder refused as `--root`, one request's size capped, and a test that feeds the server
