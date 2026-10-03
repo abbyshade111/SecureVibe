@@ -191,6 +191,8 @@ that run, and then asks:
   sign-out send the browser there? (V3.7.2; only ever a finding)
 - with `change-password` set: can the password be changed, and does that need the current one?
   (V6.2.2, V6.2.3)
+- with `change-email` and `signup` set: does changing the email address need the password again? (V7.5.1;
+  only ever done to an account made for it)
 - with `delete-account` and `signup` set: does deleting an account end its other sessions? (V7.4.2;
   only ever done to an account made for it)
 - is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a

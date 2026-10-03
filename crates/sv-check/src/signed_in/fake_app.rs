@@ -204,6 +204,10 @@ pub(super) struct Flaws {
     pub(super) redirect_anywhere: bool,
     /// Sign-in and sign-out follow `next` when it begins with `/`, which `//elsewhere` does.
     pub(super) redirect_checks_slash_only: bool,
+    /// An email change does not check the password.
+    pub(super) email_change_without_password: bool,
+    /// An email change answers as if it worked and changes nothing.
+    pub(super) email_change_does_nothing: bool,
     /// A password change leaves the account's other sessions working (V7.4.3).
     pub(super) change_keeps_sessions: bool,
     /// A password change sends the account holder no email (V6.3.7).
@@ -886,6 +890,35 @@ impl FakeApp {
                             "Your password was changed. If this was not you, reset it now."
                                 .to_owned(),
                         ));
+                    }
+                }
+                Self::respond(303, vec![("Location", "/account".into())], "")
+            }
+            ("POST", "/account/email") => {
+                let Some(who) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                let f = form(r);
+                let (password, to) = (f.get("password")?.clone(), f.get("email")?.clone());
+                let stored = self.users.get(&who)?.clone();
+                if !self.flaws.email_change_without_password
+                    && !self.password_matches(&stored.0, &password)
+                {
+                    return Some(Self::respond(403, vec![], "wrong password"));
+                }
+                if self.users.contains_key(&to) {
+                    return Some(Self::respond(409, vec![], "that address is taken"));
+                }
+                if !self.flaws.email_change_does_nothing {
+                    self.users.remove(&who);
+                    self.users.insert(to.clone(), stored);
+                    for u in self.sessions.values_mut() {
+                        if *u == who {
+                            *u = to.clone();
+                        }
                     }
                 }
                 Self::respond(303, vec![("Location", "/account".into())], "")
@@ -1706,6 +1739,14 @@ pub(super) fn users() -> UsersSection {
             &[
                 ("current", "{password}"),
                 ("new", "{new_password}"),
+                ("csrf_token", "{csrf}"),
+            ],
+        )),
+        change_email: Some(t(
+            "/account/email",
+            &[
+                ("password", "{password}"),
+                ("email", "{new_email}"),
                 ("csrf_token", "{csrf}"),
             ],
         )),

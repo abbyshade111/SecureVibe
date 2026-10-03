@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 159 can be checked, 9 where a check helps but a person decides, and 177 with no check.
+345 requirements: 160 can be checked, 9 where a check helps but a person decides, and 176 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 82 can be checked)
+### Level 2 (183 requirements, 83 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -296,7 +296,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V7.4.3** Verify that the application gives the option to terminate all other active sessions after a successful change or removal of any authentication factor (including password change via reset or recovery and, if present, an MFA settings update). | Can be checked | Signed in: `probe.password-change-ends-sessions`, if it fails: Somebody who already has a session, from a stolen cookie or a computer left signed in, keeps it after the account holder changes the password to lock them out. (credited only) |
 | **V7.4.4** Verify that all pages that require authentication have easy and visible access to logout functionality. | Can be checked | Signed in: `probe.sign-out-control-hidden`, if it fails: The sign-out control is in the page but a person cannot see it, so somebody who wants to sign out cannot, and a session left open on a shared machine is the next person's session.<br>Signed in: `probe.no-sign-out-link`, if it fails: Somebody who cannot find how to sign out stays signed in, and a session left open on a shared machine is the next person's session. |
 | **V7.4.5** Verify that application administrators are able to terminate active sessions for an individual user or for all users. | No check | – |
-| **V7.5.1** Verify that the application requires full re-authentication before allowing modifications to sensitive account attributes which may affect authentication such as email address, phone number, MFA configuration, or other information used in account recovery. | No check | – |
+| **V7.5.1** Verify that the application requires full re-authentication before allowing modifications to sensitive account attributes which may affect authentication such as email address, phone number, MFA configuration, or other information used in account recovery. | Can be checked | Signed in: `probe.email-change-without-password`, if it fails: Anybody who gets hold of a signed-in session for a moment can move the account to an email address of their own, then reset the password through it and keep the account. |
 | **V7.5.2** Verify that users are able to view and (having authenticated again with at least one factor) terminate any or all currently active sessions. | No check | – |
 | **V7.6.1** Verify that session lifetime and termination between Relying Parties (RPs) and Identity Providers (IdPs) behave as documented, requiring re-authentication as necessary such as when the maximum time between IdP authentication events is reached. | No check | – |
 | **V7.6.2** Verify that creation of a session requires either the user's consent or an explicit action, preventing the creation of new application sessions without user interaction. | No check | – |

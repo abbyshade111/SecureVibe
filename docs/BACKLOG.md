@@ -118,6 +118,11 @@ another session is not a claim.
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
       in branch `claude/securevibe-e9-email-change`.
+      **Done on 3 October 2026** (DESIGN, "Changing the email address without the password"):
+      `probe.email-change-without-password`, through a new `change-email` entry, only ever on an account made for it
+      through `signup`. A change counts as taken only when the new address signs in, so an app that signs in by user
+      name, or that waits for the new address to be confirmed, is not assessed rather than passed. Not yet run
+      against a real app: the example has no email change.
   15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
       file named to land outside the upload folder, then asked for where it would have landed.
       **The `../` half done on 3 October 2026** (DESIGN, "A file named to land outside the upload folder"): found one
@@ -127,6 +132,16 @@ another session is not a claim.
       **Compressed bombs (V5.2.3) not done, and open:** the probes' bodies are text, and a compressed file that expands
       far is binary throughout; V5.2.3's limits on uncompressed size and file count also have no place in
       `securevibe.toml` yet. Either needs deciding before it is built.
+      **The owner's decision, 3 October 2026, on V5.2.3:** build the check, and test all of it. (1) It is built rather
+      than left to the owner. (2) The owner states the limits in `securevibe.toml`, beside `max-bytes` on the `upload`
+      entry: the most an archive may unpack to and the most files it may hold (`max-unpacked-bytes`, `max-files`), and
+      `sv` sends an archive just over each; `sv` sets no limits of its own. (3) The owner also says whether the app
+      unpacks archives: accepted by an app that unpacks them is a finding; accepted by one that does not is nothing to
+      judge; refused is credited, held back when the upload crashed rather than being refused; and nothing is sent
+      while the owner has not said whether the app unpacks. (4) Each archive unpacks to just over the stated limit and
+      to about 1 GB at most, and is sent after every other upload check, so an app that does unpack it and falls over
+      takes no other check with it. Sending it needs the probes' request bodies to carry bytes rather than text.
+      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch `claude/archive-bombs`.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.

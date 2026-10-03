@@ -159,6 +159,7 @@ RUST_CHECKS = {
     "probe.password-change": ("signed-in", ["V6.2.2"]),
     "probe.password-change-without-current": ("signed-in", ["V6.2.3"]),
     "probe.open-redirect": ("signed-in", ["V3.7.2"]),
+    "probe.email-change-without-password": ("signed-in", ["V7.5.1"]),
     "probe.password-change-ends-sessions": ("signed-in", ["V7.4.3"]),
     "probe.password-change-notified": ("signed-in", ["V6.3.7"]),
     "probe.identity-header-trusted": ("signed-in", ["V4.1.3"]),
