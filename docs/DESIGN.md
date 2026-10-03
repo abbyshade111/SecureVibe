@@ -5974,23 +5974,6 @@ caching and sign-out checks that already read those answers. It cites the same r
 `probe.security-headers` under its own name: a private page missing a header is a finding even when the public
 pages pass, and a finding outranks any credit for the same requirement, so one cannot hide the other.
 
-<<<<<<< HEAD
-## When the AI service fails (3 October 2026)
-
-V16.5.2 asks that the app keeps working safely when something it depends on fails, and an app with an AI feature
-depends on the AI service on every message. The test model now has a `FAIL` kind: it answers 500 with an error in
-the service's own shape (OpenAI's `error` object, or Anthropic's `type: error`), whose message carries `SVERR` and
-the tag, as a real outage would. Client libraries retry an outage, so the test model counts the attempts, and more
-than one is the library at work.
-
-The AI check sends one message the test model fails on, then a plain one. The failure has to reach the test model,
-or it was not the service failing, and nothing is judged. `probe.ai-service-error-shown` (V16.5.1, only ever a
-finding) is the app's answer carrying the service's error or a trace. `probe.ai-service-failure-handled` (V16.5.2)
-is a finding when the plain message after it is not answered, and credited when the failing message was answered
-without the error and the plain one after it was answered with its reply. A 429 on the plain message is a limiter
-and says nothing, so it is not assessed. Not done: a service that answers slowly or not at all, which would hold
-the run for as long as the app waits, and a malformed structured answer (C7.1.1).
-=======
 ## Old TLS versions on the live site (3 October 2026)
 
 `sv probe` now makes one handshake offering only TLS 1.0 and 1.1 (V12.1.1, level 1). Both versions were retired in
@@ -6022,4 +6005,19 @@ the run for as long as the app waits, and a malformed structured answer (C7.1.1)
 Tried on 3 October 2026 with the built `sv probe`: github.com and www.digicert.com refused, through both curls.
 badssl.com's TLS 1.0 server was found through LibreSSL's curl. Through OpenSSL's curl its ordinary HTTPS request
 could not connect at all, so everything about it, V12.1.1 included, was reported as not assessed.
->>>>>>> origin/main
+
+## When the AI service fails (3 October 2026)
+
+V16.5.2 asks that the app keeps working safely when something it depends on fails, and an app with an AI feature
+depends on the AI service on every message. The test model now has a `FAIL` kind: it answers 500 with an error in
+the service's own shape (OpenAI's `error` object, or Anthropic's `type: error`), whose message carries `SVERR` and
+the tag, as a real outage would. Client libraries retry an outage, so the test model counts the attempts, and more
+than one is the library at work.
+
+The AI check sends one message the test model fails on, then a plain one. The failure has to reach the test model,
+or it was not the service failing, and nothing is judged. `probe.ai-service-error-shown` (V16.5.1, only ever a
+finding) is the app's answer carrying the service's error or a trace. `probe.ai-service-failure-handled` (V16.5.2)
+is a finding when the plain message after it is not answered, and credited when the failing message was answered
+without the error and the plain one after it was answered with its reply. A 429 on the plain message is a limiter
+and says nothing, so it is not assessed. Not done: a service that answers slowly or not at all, which would hold
+the run for as long as the app waits, and a malformed structured answer (C7.1.1).
