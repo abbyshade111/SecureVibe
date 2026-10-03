@@ -42,6 +42,8 @@ another session is not a claim.
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
      a refusal is real credit. Common in apps an AI coding tool writes; no proposal was on file.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e9-app-jwt`.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
