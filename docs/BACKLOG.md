@@ -9,6 +9,41 @@ another session is not a claim.
 
 ## Next
 
+- **A prompt library: the CSA guide's prompts, reworked, and new ones from what went wrong.** Asked
+  for by the owner on 3 October 2026, after a review of `sv` against the Cloud Security Alliance's
+  *Secure Vibe Coding Guide* (K. Huang, 9 April 2025): of its 53 checklist items, `sv` checks 12 and
+  part of 21, at commit `93b7bfa`. The review is the shared page
+  https://claude.ai/code/artifact/90a78da2-3fb3-4f12-96b0-b89c8e754fc1. **Not claimed.** Three
+  things to settle before any prompt is written:
+
+  1. **The guide's prompts are not copied as they stand.** Two reasons:
+     - **Some are weak in ways that hurt a beginner.** "Generate a function that sanitizes user input
+       to prevent XSS attacks" tends to produce a home-made sanitizer, when the safe answer is the
+       framework's own escaping and a proven library (V1.2.1, V3.2.2, V1.3.1). Thirteen of the
+       roughly sixty are requests for prompts ("give me prompts for…") rather than prompts.
+     - **They are CSA's copyrighted text.** Copying about sixty of them needs CSA's permission or
+       license terms, which nobody has checked yet; the Semgrep Rules License took the owner's own
+       review. Rewriting each in our words, with a link back to the guide, avoids the question.
+  2. **The lessons from real builds make better prompts than the guide's.** From the owner's first
+     build on 26 September 2026 and the review of it (see "What the owner's first build from
+     scratch found in `sv`"):
+     - Write `securevibe.toml` before any code, and delete a capability you are not sure of rather
+       than leaving it `false`.
+     - Never rewrite working code to silence a finding. If it looks like a false alarm, say so and
+       leave the code.
+     - Name a requirement in a test only where the test proves it, and read its wording with
+       `securevibe_explain` first.
+     - Put the app in git from its first commit, or the check for a committed secret never runs.
+     - Let the app's AI provider address be set from the environment, so `sv`'s test model can
+       stand in for it.
+  3. **Each prompt names the requirements it targets.** Then `sv` can offer the right prompt for a
+     requirement that still has no evidence, through `sv prompts` and an MCP tool beside
+     `securevibe_questions`. The citation guard that holds the rules to their requirements holds
+     the prompts too, so a prompt cannot claim a requirement its words do not touch.
+
+  **How a prompt is known to work:** the check it targets, run on an app built with it, and failing
+  on one built without it. The same discipline as every other check here.
+
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
   **Items 1 to 3 claimed the same day by session securevibe-e2**, at the owner's word ("go ahead"), in branch
