@@ -58,6 +58,9 @@ pub(super) struct FakeApp {
     pub(super) clear_site_data_value: Option<String>,
     /// Files the app has taken, by name.
     uploads: BTreeMap<String, String>,
+    /// Files saved outside the upload folder by a name starting `../`, by the rest of the name.
+    /// Served at `/{name}`, one folder above `/files/`.
+    escaped: BTreeMap<String, String>,
     /// When each file was taken, by the app's clock.
     upload_times: BTreeMap<String, u64>,
     /// The largest file body the app was sent, accepted or not. This is how the size cap's
@@ -260,6 +263,18 @@ pub(super) struct Flaws {
     pub(super) svg_as_attachment: bool,
     /// Refuses SVG uploads outright. Not a fault: an app that takes no SVG has nothing to clean.
     pub(super) refuses_svg: bool,
+    /// Builds the path an upload is saved at from its name as it came in, so a name starting
+    /// `../` lands one folder above the upload folder (V5.3.2). Without it, a name is reduced to
+    /// its last part, as `secure_filename` and `path.basename` do.
+    pub(super) upload_path_traversal: bool,
+    /// Refuses a file whose name holds a `/`. Not a fault.
+    pub(super) refuses_path_names: bool,
+    /// Answers any address it has nothing at with its own page and 200, as an app that hands
+    /// every path to a page in the browser does. Not a fault, but an answer that is not a file.
+    pub(super) answers_every_path: bool,
+    /// Saves a file whose name holds a `/` under a name of its own. Not a fault, and the safest
+    /// arrangement, but one nothing outside the app can see.
+    pub(super) renames_path_names: bool,
     /// Refuses `.txt` uploads, whatever is in them. Not a fault, but it leaves a refusal of the
     /// antivirus test file saying nothing.
     pub(super) refuses_text: bool,
@@ -1248,6 +1263,24 @@ impl Http for FakeApp {
                 if name.ends_with(".txt") && self.flaws.refuses_text {
                     return Some(Self::respond(415, vec![], "no text files"));
                 }
+                if name.contains('/') {
+                    if self.flaws.refuses_path_names {
+                        return Some(Self::respond(400, vec![], "no folders in names"));
+                    }
+                    if self.flaws.upload_path_traversal
+                        && let Some(rest) = name.strip_prefix("../")
+                    {
+                        self.escaped.insert(rest.to_owned(), contents);
+                        return Some(Self::respond(201, vec![], "stored"));
+                    }
+                    let own = if self.flaws.renames_path_names {
+                        format!("upload-{}", self.uploads.len())
+                    } else {
+                        name.rsplit('/').next().unwrap_or_default().to_owned()
+                    };
+                    self.uploads.insert(own, contents);
+                    return Some(Self::respond(201, vec![], "stored"));
+                }
                 let infected = contents == super::uploads::eicar();
                 let contents = if infected && self.flaws.scan_cleans {
                     "(this file held a virus, and it was removed)".to_owned()
@@ -1287,6 +1320,10 @@ impl Http for FakeApp {
                 self.upload_times.insert(name.clone(), self.clock);
                 self.uploads.insert(name, contents);
                 Self::respond(201, vec![], "stored")
+            }
+            ("GET", path) if self.escaped.contains_key(path.trim_start_matches('/')) => {
+                let contents = self.escaped[path.trim_start_matches('/')].clone();
+                Self::respond(200, vec![("Content-Type", "image/gif".into())], &contents)
             }
             ("GET", path) if path.starts_with("/files/") => {
                 let name = path.trim_start_matches("/files/");
@@ -1571,6 +1608,11 @@ impl Http for FakeApp {
                 }
                 Self::respond(303, vec![("Location", "/orders/7".into())], "Order placed")
             }
+            ("GET", _) if self.flaws.answers_every_path => Self::respond(
+                200,
+                vec![("Content-Type", "text/html; charset=utf-8".into())],
+                "<html><body>the app's own page, whatever was asked for</body></html>",
+            ),
             _ => Self::respond(404, vec![], "none"),
         })
     }

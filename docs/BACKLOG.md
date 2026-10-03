@@ -113,6 +113,13 @@ another session is not a claim.
       in branch `claude/securevibe-e9-email-change`.
   15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
       file named to land outside the upload folder, then asked for where it would have landed.
+      **The `../` half done on 3 October 2026** (DESIGN, "A file named to land outside the upload folder"): found one
+      folder above where uploads are served is a finding; refused, or saved under its last part, is credited; found in
+      neither is not assessed. Eight guards broken in turn, each caught; the one caught by nothing at first (a place
+      counts only when it answers with the run's value) now has a fake app that answers every address.
+      **Compressed bombs (V5.2.3) not done, and open:** the probes' bodies are text, and a compressed file that expands
+      far is binary throughout; V5.2.3's limits on uncompressed size and file count also have no place in
+      `securevibe.toml` yet. Either needs deciding before it is built.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
