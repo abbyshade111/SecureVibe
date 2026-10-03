@@ -87,6 +87,10 @@ another session is not a claim.
       file named to land outside the upload folder, then asked for where it would have landed.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
       **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
+      **Done on 3 October 2026** (DESIGN, "Old TLS versions on the live site"): one handshake offering only TLS 1.0
+      and 1.1, within the cap of four; accepted is a finding, refused is said and not credited, since V12.1.1 also asks
+      that the newest version be preferred and curl reports no version that can be relied on. Nine guards broken in
+      turn, each caught: seven by the one test written for each, two by two tests or more.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/old-tls-versions`. It may not raise the limit: a run of `sv probe` makes at most three requests since
       the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
