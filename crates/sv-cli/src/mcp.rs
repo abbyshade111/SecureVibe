@@ -134,19 +134,88 @@ pub fn cmd_mcp(args: &[String]) -> Result<()> {
         "sv mcp: serving {} over stdio; paths outside it are refused",
         server.root.display()
     );
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout().lock();
-    for line in stdin.lock().lines() {
-        let line = line.context("reading stdin")?;
-        if line.trim().is_empty() {
-            continue;
-        }
-        if let Some(reply) = server.handle_line(&line) {
-            writeln!(stdout, "{reply}").context("writing stdout")?;
-            stdout.flush().context("flushing stdout")?;
+    serve(&server, std::io::stdin().lock(), std::io::stdout().lock())
+}
+
+/// The longest request line read. A tool call is a few hundred bytes; this leaves room for any
+/// request this server understands, and stops one line from taking all the memory there is.
+const MAX_REQUEST_BYTES: usize = 1 << 20;
+
+/// Answers requests from `input` on `output`, one line each, until `input` ends.
+///
+/// Nothing a client sends ends the server or goes unanswered when it carried an id: a line too long
+/// to read, or one that is not UTF-8, gets an error in reply rather than stopping the loop, which is
+/// what `lines()` did with bytes that were not UTF-8.
+fn serve(server: &Server, mut input: impl BufRead, mut output: impl Write) -> Result<()> {
+    loop {
+        let reply = match read_request(&mut input, MAX_REQUEST_BYTES).context("reading stdin")? {
+            Request::End => return Ok(()),
+            Request::TooLong => Some(
+                error_reply(
+                    Value::Null,
+                    -32600,
+                    &format!("a request is at most {MAX_REQUEST_BYTES} bytes; this one was longer"),
+                )
+                .to_string(),
+            ),
+            Request::NotText => {
+                Some(error_reply(Value::Null, -32700, "a request has to be UTF-8 text").to_string())
+            }
+            Request::Line(line) if line.trim().is_empty() => None,
+            Request::Line(line) => server.handle_line(&line),
+        };
+        if let Some(reply) = reply {
+            writeln!(output, "{reply}").context("writing stdout")?;
+            output.flush().context("flushing stdout")?;
         }
     }
-    Ok(())
+}
+
+/// One line of input, as `serve` reads it.
+enum Request {
+    Line(String),
+    TooLong,
+    NotText,
+    End,
+}
+
+/// Reads up to the next newline, keeping at most `max` bytes. A longer line is read to its end and
+/// thrown away, so the next request starts where it should.
+fn read_request(input: &mut impl BufRead, max: usize) -> std::io::Result<Request> {
+    let mut kept = Vec::new();
+    let mut too_long = false;
+    let mut read_any = false;
+    loop {
+        let available = input.fill_buf()?;
+        if available.is_empty() {
+            break;
+        }
+        read_any = true;
+        let (chunk, ends_line) = match available.iter().position(|&b| b == b'\n') {
+            Some(at) => (&available[..at], true),
+            None => (available, false),
+        };
+        if kept.len() + chunk.len() > max {
+            too_long = true;
+        } else {
+            kept.extend_from_slice(chunk);
+        }
+        let used = chunk.len() + usize::from(ends_line);
+        input.consume(used);
+        if ends_line {
+            break;
+        }
+    }
+    if !read_any {
+        return Ok(Request::End);
+    }
+    if too_long {
+        return Ok(Request::TooLong);
+    }
+    Ok(match String::from_utf8(kept) {
+        Ok(line) => Request::Line(line),
+        Err(_) => Request::NotText,
+    })
 }
 
 impl Server {
@@ -155,6 +224,16 @@ impl Server {
             .canonicalize()
             .with_context(|| format!("the folder {} cannot be opened", root.display()))?;
         anyhow::ensure!(root.is_dir(), "{} is not a folder", root.display());
+        let home = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+            .and_then(|h| PathBuf::from(h).canonicalize().ok());
+        if let Some(why) = too_wide(&root, home.as_deref()) {
+            anyhow::bail!(
+                "sv mcp will not serve {}: {why}. Start it for the folder that holds your apps, \
+                 for example `sv mcp --root ~/code`.",
+                root.display()
+            );
+        }
         Ok(Server {
             root,
             loaded: crate::Loaded::load()?,
@@ -175,9 +254,35 @@ impl Server {
     }
 
     pub fn handle(&self, message: &Value) -> Option<Value> {
-        let id = message.get("id").cloned();
-        let method = message.get("method").and_then(Value::as_str);
-        let params = message.get("params").cloned().unwrap_or(Value::Null);
+        // A batch was dropped without a word, so a client that sent one waited for ever. The
+        // 2025-06-18 protocol has no batches, so one is refused, as anything else that is not an
+        // object is (BACKLOG, "Hardening the MCP server", item 4).
+        let Some(object) = message.as_object() else {
+            let why = if message.is_array() {
+                "batches are not accepted; send one request per line"
+            } else {
+                "a request is a JSON object"
+            };
+            return Some(error_reply(Value::Null, -32600, why));
+        };
+        // An id is a string or a number; anything else cannot be answered by it, so the answer
+        // carries none.
+        let id = match object.get("id") {
+            None => None,
+            Some(id @ (Value::String(_) | Value::Number(_))) => Some(id.clone()),
+            Some(_) => {
+                return Some(error_reply(
+                    Value::Null,
+                    -32600,
+                    "an id is a string or a number",
+                ));
+            }
+        };
+        if object.get("jsonrpc").and_then(Value::as_str) != Some("2.0") {
+            return id.map(|id| error_reply(id, -32600, "only JSON-RPC 2.0 is spoken here"));
+        }
+        let method = object.get("method").and_then(Value::as_str);
+        let params = object.get("params").cloned().unwrap_or(Value::Null);
         let Some(method) = method else {
             // A response to something we never asked, or a malformed request: nothing to answer
             // unless it carried an id to answer to.
@@ -194,6 +299,11 @@ impl Server {
                 Err(Refusal::UnknownTool(name)) => {
                     error_reply(id, -32602, &format!("there is no tool called {name}"))
                 }
+                Err(Refusal::BadArguments(name)) => error_reply(
+                    id,
+                    -32602,
+                    &format!("the arguments for {name} have to be a JSON object"),
+                ),
             },
             other => error_reply(id, -32601, &format!("no method called {other}")),
         })
@@ -218,6 +328,11 @@ impl Server {
     fn call(&self, params: &Value) -> Result<Value, Refusal> {
         let name = params.get("name").and_then(Value::as_str).unwrap_or("");
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
+        // Arguments that are not an object answered every lookup with its default, so `"arguments":
+        // "x"` checked the root as if `path` had been left out. A malformed call is refused instead.
+        if !args.is_object() {
+            return Err(Refusal::BadArguments(name.to_owned()));
+        }
         let result = match name {
             "securevibe_spec" => Ok(spec()),
             "securevibe_explain" => explain(&self.loaded.frameworks, &args),
@@ -518,8 +633,23 @@ impl Server {
     }
 }
 
+/// Why a root is too wide to serve, if it is: the whole computer, or the whole home folder, where an
+/// AI tool talked into it could read keys, mail, and every other project. `sv mcp` with no `--root`
+/// serves the folder it was started in, which is often the home folder (BACKLOG, "Hardening the MCP
+/// server", item 5). Both are canonical paths.
+fn too_wide(root: &Path, home: Option<&Path>) -> Option<&'static str> {
+    if root.parent().is_none() {
+        return Some("it is the top of the computer's files");
+    }
+    if home == Some(root) {
+        return Some("it is your whole home folder, where your keys and other projects are");
+    }
+    None
+}
+
 enum Refusal {
     UnknownTool(String),
+    BadArguments(String),
 }
 
 fn ok_reply(id: Value, result: Value) -> Value {
@@ -1484,6 +1614,178 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
         assert_eq!(result["isError"], true, "{}", text(&result));
         assert_eq!(after, "not the app's", "the link was written through");
+    }
+
+    /// A server for the protocol tests: a fresh empty folder, so no request can start a long check.
+    fn protocol_server(tag: &str) -> (Server, PathBuf) {
+        let root =
+            std::env::temp_dir().join(format!("sv-mcp-protocol-{tag}-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).unwrap();
+        (Server::new(&root).unwrap(), root)
+    }
+
+    /// Runs `input` through the server's own loop and returns each line it wrote, parsed.
+    fn served(server: &Server, input: &[u8]) -> Vec<Value> {
+        let mut out = Vec::new();
+        // Read a few bytes at a time, as a pipe hands them over, rather than all at once: every line
+        // then spans several reads, which is where the skipping of an over-long line can go wrong.
+        serve(
+            server,
+            std::io::BufReader::with_capacity(7, input),
+            &mut out,
+        )
+        .unwrap();
+        String::from_utf8(out)
+            .unwrap()
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap_or_else(|e| panic!("not JSON ({e}): {l}")))
+            .collect()
+    }
+
+    #[test]
+    fn every_malformed_request_is_answered_once_and_the_server_keeps_going() {
+        // Each of these was silent, ended the server, or was answered as if it were well formed
+        // (BACKLOG, "Hardening the MCP server", items 4 and 7). Each is followed by a ping, which
+        // has to be answered: the server is still there and still in step.
+        let (server, root) = protocol_server("malformed");
+        let long = format!(
+            "{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"x\":\"{}\"}}",
+            "a".repeat(MAX_REQUEST_BYTES)
+        );
+        let deep = format!("{}{}", "[".repeat(10_000), "]".repeat(10_000));
+        let cases: Vec<(Vec<u8>, Value, i64)> = vec![
+            (br#"[{"jsonrpc":"2.0","id":1,"method":"ping"}]"#.to_vec(), Value::Null, -32600),
+            (b"[]".to_vec(), Value::Null, -32600),
+            (br#""ping""#.to_vec(), Value::Null, -32600),
+            (b"42".to_vec(), Value::Null, -32600),
+            (b"null".to_vec(), Value::Null, -32600),
+            (br#"{"jsonrpc":"1.0","id":2,"method":"ping"}"#.to_vec(), json!(2), -32600),
+            (br#"{"id":3,"method":"ping"}"#.to_vec(), json!(3), -32600),
+            (br#"{"jsonrpc":"2.0","id":{"x":1},"method":"ping"}"#.to_vec(), Value::Null, -32600),
+            (br#"{"jsonrpc":"2.0","id":null,"method":"ping"}"#.to_vec(), Value::Null, -32600),
+            (br#"{"jsonrpc":"2.0","id":[4],"method":"ping"}"#.to_vec(), Value::Null, -32600),
+            (br#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"securevibe_check","arguments":"x"}}"#.to_vec(), json!(5), -32602),
+            (br#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"securevibe_check","arguments":[1]}}"#.to_vec(), json!(6), -32602),
+            (br#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":5}"#.to_vec(), json!(7), -32602),
+            (br#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":7}}"#.to_vec(), json!(8), -32602),
+            (b"\xff\xfe{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"ping\"}".to_vec(), Value::Null, -32700),
+            (long.into_bytes(), Value::Null, -32600),
+            // Not UTF-8 only inside a string: read leniently, it would pass as a ping.
+            (b"{\"jsonrpc\":\"2.0\",\"id\":10,\"method\":\"ping\",\"x\":\"\xff\"}".to_vec(), Value::Null, -32700),
+            (b"{not json".to_vec(), Value::Null, -32700),
+            (deep.into_bytes(), Value::Null, -32700),
+        ];
+        let mut input = Vec::new();
+        for (n, (line, _, _)) in cases.iter().enumerate() {
+            input.extend_from_slice(line);
+            input.push(b'\n');
+            input.extend_from_slice(
+                format!("{{\"jsonrpc\":\"2.0\",\"id\":\"after-{n}\",\"method\":\"ping\"}}\n")
+                    .as_bytes(),
+            );
+        }
+        let replies = served(&server, &input);
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(replies.len(), 2 * cases.len(), "{replies:#?}");
+        for (n, (line, id, code)) in cases.iter().enumerate() {
+            let what = String::from_utf8_lossy(&line[..line.len().min(80)]);
+            let (answer, ping) = (&replies[2 * n], &replies[2 * n + 1]);
+            assert_eq!(answer["jsonrpc"], "2.0", "{what}: {answer}");
+            assert_eq!(&answer["id"], id, "{what}: {answer}");
+            assert_eq!(answer["error"]["code"], *code, "{what}: {answer}");
+            assert_eq!(
+                ping["id"],
+                format!("after-{n}"),
+                "{what}: the next request was not answered in step"
+            );
+            assert_eq!(ping["result"], json!({}), "{what}: {ping}");
+        }
+    }
+
+    #[test]
+    fn a_stream_of_mangled_requests_never_stops_the_server_or_answers_out_of_turn() {
+        // The cases above are the ones thought of; this is the rest. Well-formed requests are cut,
+        // flipped, and sprinkled with stray bytes by a fixed-seed generator, so a failure repeats.
+        // After each, a ping must be answered, and nothing may be answered twice.
+        let (server, root) = protocol_server("mangled");
+        let seeds: [&[u8]; 5] = [
+            br#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18"}}"#,
+            br#"{"jsonrpc":"2.0","id":2,"method":"tools/list"}"#,
+            br#"{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"securevibe_spec","arguments":{}}}"#,
+            br#"{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"securevibe_explain","arguments":{"id":"V1.2.4"}}}"#,
+            br#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
+        ];
+        let mut state: u64 = 0x5eed_5ec0_7e00_0001;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut input = Vec::new();
+        let rounds = 400;
+        for round in 0..rounds {
+            let mut line = seeds[(next() % seeds.len() as u64) as usize].to_vec();
+            for _ in 0..(next() % 4) {
+                let at = (next() % (line.len() as u64 + 1)) as usize;
+                match next() % 4 {
+                    0 => line.truncate(at),
+                    1 if at < line.len() => line[at] ^= 1 << (next() % 8),
+                    2 => line.insert(at, (next() % 256) as u8),
+                    _ => {
+                        let stray = b"{}[]\":,\\\x00\xff";
+                        line.insert(at, stray[(next() % stray.len() as u64) as usize]);
+                    }
+                }
+            }
+            // A newline inside is two lines, which the loop would rightly answer twice.
+            line.retain(|&b| b != b'\n');
+            input.extend_from_slice(&line);
+            input.push(b'\n');
+            input.extend_from_slice(
+                format!("{{\"jsonrpc\":\"2.0\",\"id\":\"ping-{round}\",\"method\":\"ping\"}}\n")
+                    .as_bytes(),
+            );
+        }
+        let replies = served(&server, &input);
+        std::fs::remove_dir_all(&root).ok();
+        let pings: Vec<usize> = replies
+            .iter()
+            .enumerate()
+            .filter(|(_, r)| r["id"].as_str().is_some_and(|i| i.starts_with("ping-")))
+            .map(|(at, _)| at)
+            .collect();
+        assert_eq!(pings.len(), rounds, "a ping went unanswered");
+        let mut before = 0;
+        for (round, at) in pings.iter().enumerate() {
+            assert_eq!(replies[*at]["id"], format!("ping-{round}"));
+            assert!(
+                at - before <= 1,
+                "round {round} was answered more than once: {:?}",
+                &replies[before..*at]
+            );
+            before = at + 1;
+        }
+        assert!(
+            replies.iter().all(|r| r["jsonrpc"] == "2.0"),
+            "an answer without jsonrpc 2.0"
+        );
+    }
+
+    #[test]
+    fn the_whole_computer_and_the_whole_home_folder_are_not_served() {
+        let home = Path::new("/home/someone");
+        assert!(too_wide(Path::new("/"), Some(home)).is_some());
+        assert!(too_wide(home, Some(home)).is_some());
+        assert!(too_wide(&home.join("code"), Some(home)).is_none());
+        assert!(too_wide(Path::new("/home"), Some(home)).is_none());
+        assert!(too_wide(&home.join("code"), None).is_none());
+        // And the server itself refuses, with the reason.
+        let err = Server::new(Path::new("/"))
+            .err()
+            .expect("the top of the files was served");
+        assert!(format!("{err:#}").contains("will not serve"), "{err:#}");
     }
 
     #[test]
