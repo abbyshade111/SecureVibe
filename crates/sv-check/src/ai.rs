@@ -188,6 +188,29 @@ fn floating(model: &str) -> bool {
             .any(|end| lower.ends_with(end))
 }
 
+const FAILURE_SHOWN: Rule = Rule {
+    rule_id: "probe.ai-service-error-shown",
+    requirement_ids: &["V16.5.1"],
+    cwe: &["CWE-209"],
+    impact: "When the AI service fails, the person sees the service's own error, or a trace of the \
+             app's code, instead of a plain message. That says which service the app uses and how \
+             it calls it, and an error can carry more, such as a key's first characters or an \
+             account id.",
+    fix: "Catch the AI service's errors where the app calls it, write the detail to the log, and \
+          answer with a plain message such as \"The assistant is unavailable, please try again\".",
+};
+
+const FAILURE_HANDLED: Rule = Rule {
+    rule_id: "probe.ai-service-failure-handled",
+    requirement_ids: &["V16.5.2"],
+    cwe: &["CWE-755"],
+    impact: "One failed call to the AI service leaves the feature broken for everyone afterwards, \
+             so an outage at the provider, or one bad answer, takes the app down with it.",
+    fix: "Treat each call to the AI service as one that can fail: answer that one request with a \
+          plain error, and keep the next one working, without holding state the failure left \
+          broken.",
+};
+
 const SESSION_LOG: Rule = Rule {
     rule_id: "probe.ai-call-log-session",
     requirement_ids: &["C12.1.1"],
@@ -281,6 +304,9 @@ struct Seen {
     kinds: Vec<String>,
     /// Whether the app asked the test model's moderation endpoint about the reply.
     reply_screened: bool,
+    /// How many times the app asked for a reply the test model failed on purpose: client libraries
+    /// retry an outage, so more than one is the library at work, not a fault.
+    failures: u64,
 }
 
 fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
@@ -341,6 +367,10 @@ fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
             })
             .unwrap_or_default(),
         reply_screened: flag("reply_screened"),
+        failures: value
+            .get("failures")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0),
     })
 }
 
@@ -1171,6 +1201,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
         http.wait(61);
     }
     more_questions(http, section, &mut ask, shows_replies, &mut out);
+    failure_questions(http, &mut ask, shows_replies, &mut out);
     record_tool_questions(http, section, &mut ask, records, &mut out);
     (out, markers)
 }
@@ -1370,6 +1401,118 @@ fn record_tool_questions<F>(
 
 /// C2.1.4, C7.3.4, C7.3.1, and C2.2.2: four more questions, each asked with a control from the
 /// questions before it.
+/// V16.5.1 and V16.5.2: the AI service fails on one message, and then a plain message follows.
+///
+/// The failure has to reach the test model, or it was not a failure of the service. What the app
+/// answers it must not carry the service's error (`SVERR` and the tag) or a trace; and the plain
+/// message after it must still be answered, with its reply when the app shows replies at all. A
+/// limiter's 429 on that second message says nothing either way and is not assessed.
+fn failure_questions<F>(http: &mut dyn Http, ask: &mut F, shows_replies: bool, out: &mut Outcome)
+where
+    F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
+{
+    let (failed, failed_answer) = ask(http, 31, "FAIL", "Could you summarize my notes for me?");
+    let failed_seen = seen(http, &failed).unwrap_or_default();
+    if !failed_seen.received {
+        out.not_assessed.push((
+            "V16.5.1, V16.5.2".to_owned(),
+            format!(
+                "What the app does when its AI service fails: the message the test model was to \
+                 fail on did not reach it ({}).",
+                status(&failed_answer)
+            ),
+        ));
+        return;
+    }
+    let shown: Vec<String> = failed_answer
+        .as_ref()
+        .map(|r| {
+            let body = decoded(&r.body);
+            let mut shown: Vec<String> = crate::probes::trace_markers_in(&body)
+                .into_iter()
+                .map(|m| format!("`{}`", m.trim()))
+                .collect();
+            if body.contains(&format!("SVERR{failed}")) {
+                shown.insert(0, "the AI service's own error message".to_owned());
+            }
+            shown
+        })
+        .unwrap_or_default();
+    out.steps.push(format!(
+        "had the test model fail on a message ({} attempt{} reached it): the app answered {}{}",
+        failed_seen.failures,
+        if failed_seen.failures == 1 { "" } else { "s" },
+        status(&failed_answer),
+        if shown.is_empty() {
+            String::new()
+        } else {
+            format!(", carrying {}", shown.join(" and "))
+        }
+    ));
+    if !shown.is_empty() {
+        out.findings.push(finding(
+            &FAILURE_SHOWN,
+            "The AI service's error reaches the person using the app",
+            Severity::Low,
+            format!(
+                "When the AI service failed, the app's answer carried {}.",
+                shown.join(" and ")
+            ),
+        ));
+    }
+
+    let (after, after_answer) = ask(
+        http,
+        32,
+        "PLAIN",
+        "Thanks. Can you help me with something else?",
+    );
+    let after_seen = seen(http, &after).unwrap_or_default();
+    let answered = after_answer.as_ref().is_some_and(|r| {
+        (200..300).contains(&r.status)
+            && (!shows_replies || decoded(&r.body).contains(&format!("SV-REPLY-{after}")))
+    });
+    out.steps.push(format!(
+        "then sent a plain message ({}): {}",
+        status(&after_answer),
+        if answered {
+            "answered"
+        } else if after_seen.received {
+            "it reached the model, and its reply did not come back"
+        } else {
+            "it did not reach the model"
+        }
+    ));
+    if after_answer.as_ref().is_some_and(|r| r.status == 429) {
+        out.not_assessed.push((
+            "V16.5.2".to_owned(),
+            "Whether the AI feature keeps working after its service fails: the message sent \
+             afterwards was answered 429, a limit on how often it may be asked, which says \
+             nothing either way."
+                .to_owned(),
+        ));
+    } else if !answered {
+        out.findings.push(finding(
+            &FAILURE_HANDLED,
+            "The AI feature stops working after its service fails once",
+            Severity::Medium,
+            format!(
+                "After one message on which the AI service failed, a plain message was answered \
+                 {} and its reply did not come back.",
+                status(&after_answer)
+            ),
+        ));
+    } else if failed_answer.is_some() && shown.is_empty() {
+        out.verified.push(crate::Verified::new(
+            FAILURE_HANDLED.rule_id,
+            FAILURE_HANDLED.requirement_ids,
+            "the AI service failing on one message: the app answered it without the service's \
+             error or a trace, and answered the plain message after it"
+                .to_owned(),
+        ));
+    }
+}
+
 fn more_questions<F>(
     http: &mut dyn Http,
     section: &AiSection,
@@ -2159,6 +2302,10 @@ mod tests {
         ignores_moderation: bool,
         /// Its answer is the model service's response object, id and all.
         raw_response: bool,
+        /// When the model service fails, it passes the service's error on to the person.
+        passes_model_error: bool,
+        /// After the model service fails once, every message is answered 500.
+        down_after_model_error: bool,
         /// It asks for its model by a name that moves (`gpt-4o-latest`).
         floating_model: bool,
         /// Its record of each model call names the signed-in user.
@@ -2205,6 +2352,10 @@ mod tests {
     /// as the real test model does.
     #[derive(Default)]
     struct FakeChat {
+        /// Set once the model failed, for an app that then stops working.
+        broken: bool,
+        /// How many messages the model failed on.
+        failures: u64,
         flaws: Flaws,
         seen: BTreeMap<String, (bool, String, bool, bool)>,
         signed_in: bool,
@@ -2488,6 +2639,9 @@ mod tests {
             if self.flaws.quota.is_some_and(|q| self.passed_on >= q) {
                 return answer(429, "{\"error\":\"quota used up\"}".into());
             }
+            if self.broken {
+                return answer(500, "{\"error\":\"internal error\"}".into());
+            }
             if let Some(limit) = self.flaws.rate_limit {
                 let now = self.clock;
                 let recent = self.passed_at.iter().filter(|t| now - **t < 60).count();
@@ -2512,6 +2666,30 @@ mod tests {
                 message.to_owned()
             };
             let mut reply = self.model_reply(&cut);
+            // A message the test model fails on: the service's error, handled or not.
+            let failing = self.last_tag.clone();
+            if self
+                .kinds
+                .get(&failing)
+                .and_then(|k| k.last())
+                .is_some_and(|k| k == "FAIL")
+            {
+                self.failures += 1;
+                self.broken = self.flaws.down_after_model_error;
+                return if self.flaws.passes_model_error {
+                    answer(
+                        500,
+                        format!(
+                            "{{\"error\":\"The test model failed on purpose (SVERR{failing}).\"}}"
+                        ),
+                    )
+                } else {
+                    answer(
+                        502,
+                        "{\"error\":\"The assistant is unavailable right now.\"}".into(),
+                    )
+                };
+            }
             if !self.flaws.keeps_hidden {
                 reply = reply
                     .chars()
@@ -2723,6 +2901,7 @@ mod tests {
                             "tool_result": result,
                             "kinds": self.kinds.get(tag).cloned().unwrap_or_default(),
                             "reply_screened": self.screened.contains(tag),
+                            "failures": if self.kinds.get(tag).and_then(|k| k.last()).is_some_and(|k| k == "FAIL") { self.failures } else { 0 },
                         })
                         .to_string()
                     }
@@ -2818,7 +2997,7 @@ mod tests {
     }
 
     #[test]
-    fn a_careful_app_is_credited_for_five_and_the_image_is_said_as_unseen() {
+    fn a_careful_app_is_credited_for_six_and_the_image_is_said_as_unseen() {
         let o = ask(Flaws::default());
         assert!(found(&o).is_empty(), "{:#?}", o.findings);
         assert_eq!(
@@ -2828,7 +3007,8 @@ mod tests {
                 LEAKED.rule_id,
                 UNSCREENED.rule_id,
                 HIDDEN.rule_id,
-                HARMFUL.rule_id
+                HARMFUL.rule_id,
+                FAILURE_HANDLED.rule_id
             ],
             "{:?}",
             o.steps
@@ -2897,6 +3077,20 @@ mod tests {
                     ..Default::default()
                 },
                 FLOATING_SENT.rule_id,
+            ),
+            (
+                Flaws {
+                    passes_model_error: true,
+                    ..Default::default()
+                },
+                FAILURE_SHOWN.rule_id,
+            ),
+            (
+                Flaws {
+                    down_after_model_error: true,
+                    ..Default::default()
+                },
+                FAILURE_HANDLED.rule_id,
             ),
             (
                 Flaws {
@@ -3434,7 +3628,8 @@ mod tests {
                 LEAKED.rule_id,
                 UNSCREENED.rule_id,
                 HIDDEN.rule_id,
-                HARMFUL.rule_id
+                HARMFUL.rule_id,
+                FAILURE_HANDLED.rule_id
             ],
             "{:?}",
             o.steps
@@ -3554,7 +3749,8 @@ mod tests {
                 LEAKED.rule_id,
                 UNSCREENED.rule_id,
                 HIDDEN.rule_id,
-                HARMFUL.rule_id
+                HARMFUL.rule_id,
+                FAILURE_HANDLED.rule_id
             ],
             "{:?}",
             careful.steps

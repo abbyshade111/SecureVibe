@@ -60,6 +60,11 @@ fn start() -> Option<(Server, u16)> {
 
 /// One request, and the body of the answer.
 fn call(port: u16, method: &str, path: &str, body: &str) -> String {
+    call_with_status(port, method, path, body).1
+}
+
+/// One request, and the status and body of the answer.
+fn call_with_status(port: u16, method: &str, path: &str, body: &str) -> (u16, String) {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).expect("the test model answers");
     stream
         .set_read_timeout(Some(Duration::from_secs(10)))
@@ -72,9 +77,16 @@ fn call(port: u16, method: &str, path: &str, body: &str) -> String {
     .unwrap();
     let mut raw = String::new();
     stream.read_to_string(&mut raw).unwrap();
-    raw.split_once("\r\n\r\n")
+    let status = raw
+        .split_whitespace()
+        .nth(1)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0);
+    let body = raw
+        .split_once("\r\n\r\n")
         .map(|(_, b)| b.to_owned())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    (status, body)
 }
 
 fn chat(port: u16, message: &str) -> serde_json::Value {
@@ -165,6 +177,23 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     assert_ne!(seen(port, "1e1f")["reply_screened"], true);
     assert!(moderate(port, "SV-REPLY-1e1f Hello from the test model."));
     assert_eq!(seen(port, "1e1f")["reply_screened"], true);
+
+    // V16.5.2: a FAIL message is an outage in the service's own error shape, carrying its tag, and
+    // each attempt is counted, since client libraries retry.
+    let body = serde_json::json!({
+        "model": "gpt-test",
+        "messages": [{"role": "user", "content": "Summarize SV-PROBE-FAIL-2a2b"}],
+    })
+    .to_string();
+    for attempt in 1..=2 {
+        let (status, answer) = call_with_status(port, "POST", "/v1/chat/completions", &body);
+        assert_eq!(status, 500, "{answer}");
+        let error: serde_json::Value = serde_json::from_str(&answer).unwrap();
+        assert_eq!(error["error"]["type"], "server_error", "{answer}");
+        assert!(answer.contains("SVERR2a2b"), "{answer}");
+        assert_eq!(seen(port, "2a2b")["failures"], attempt);
+    }
+    assert_eq!(seen(port, "2a2b")["received"], true);
 
     // C9.5.3: a FETCH message has the model call the app's own tool it names, with its arguments,
     // and what the app sends back as that tool's result is recorded.
