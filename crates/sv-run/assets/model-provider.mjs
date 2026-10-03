@@ -27,6 +27,9 @@
 //   FAIL    no reply: the service fails, answering 500 with an error in its own shape whose message
 //           carries `SVERR<tag>`, as a real outage would; `failures` in what was seen counts the
 //           attempts, since client libraries retry
+//   MCPLOOP asks for `sv_lookup` again after every result, up to LOOP_CAP rounds, and only then
+//           answers; `rounds` in what was seen is how many results the app sent back before it
+//           stopped asking, so an app with no limit of its own reads as LOOP_CAP
 //   MCPPLAIN, MCPBAD, MCPINJECT
 //           asks for the MCP tool `sv_lookup`, when the app offered it, with the tag as its
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
@@ -46,6 +49,8 @@ import http from 'node:http';
 const HOST = process.env.HOST || 'localhost';
 const PORT = Number(process.env.PORT || 9100);
 const MODEL = 'sv-test-model';
+// How many tool rounds MCPLOOP keeps asking for before it stops by itself.
+const LOOP_CAP = 40;
 const seen = new Map(); // tag -> { kind, system, bounded, fetched, api, model, input_tokens, output_tokens }
 const between = (low, high) => low + Math.floor(Math.random() * (high - low));
 
@@ -144,6 +149,15 @@ function reply(api, body, usage) {
     if (!tool) return `${marker} I have no tool to look that up with.`;
     record.tool_requested = true;
     return { tool, args: wanted.args || {} };
+  }
+  if (kind === 'MCPLOOP') {
+    record.tools_offered = tools;
+    record.rounds = results.length;
+    const tool = tools.find((name) => name.includes('sv_lookup'));
+    if (!tool) return `${marker} I have no tool to look that up with.`;
+    record.tool_requested = true;
+    if (results.length >= LOOP_CAP) return `${marker} I will stop here.`;
+    return { tool, args: { q: `${tag}-${results.length}` } };
   }
   if (kind.startsWith('MCP')) {
     record.tools_offered = tools;

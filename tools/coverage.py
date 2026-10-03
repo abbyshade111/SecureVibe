@@ -98,6 +98,7 @@ RUST_CHECKS = {
     "probe.ai-floating-model-sent": ("running", ["C3.2.3"]),
     "probe.ai-service-error-shown": ("running", ["V16.5.1"]),
     "probe.ai-service-failure-handled": ("running", ["V16.5.2"]),
+    "probe.ai-agent-unbounded": ("running", ["C9.1.2"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
     "probe.mcp-server-origin-unchecked": ("running", ["C10.3.3"]),

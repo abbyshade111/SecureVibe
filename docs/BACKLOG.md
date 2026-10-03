@@ -80,6 +80,11 @@ another session is not a claim.
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
      `claude/securevibe-e9-agent-limit`.
+     **Done the same day** (DESIGN, "An AI agent with no limit on its tool calls"). The test model's `MCPLOOP` asks
+     for the test MCP tool again after every result, up to 40 rounds; `probe.ai-agent-unbounded` is a finding when
+     only that cap ended it, and credited when the app stopped sooner with an answer, as a limit on tool rounds.
+     Two guards broken in turn, each caught. Not done: the app's own tools named in `record-tool`, which may not
+     be read-only, and C9.1.1's per-tool quotas and timeouts.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
