@@ -1562,7 +1562,10 @@ another session is not a claim.
   container runs `--read-only`, but the app's container does not, so the app can write anywhere in its own file
   system outside `/app`; and the in-memory report folder has no size limit. Running the app `--read-only` with an
   in-memory `/tmp` would close that, at the cost of failing an app, or a build step, that writes elsewhere; a size
-  for the report folder is simpler. **Not claimed**, and whether to change it is the owner's call.
+  for the report folder is simpler. **The owner's decision, 3 October 2026: yes**, read-only with an in-memory
+  `/tmp`, no capabilities and no new privileges, and a size for the report folder, tested against the example
+  apps first. **Claimed on 3 October 2026 by session practical-banach-b1faa1** (the session that was
+  keen-meninsky-691a27).
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
