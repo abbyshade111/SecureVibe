@@ -232,6 +232,8 @@ another session is not a claim.
      shape, closed to fields it does not name, and a test holds every tool's real result to it. Seven ways broken,
      each caught.
   4. **Progress notifications during a long check**, so the tool does not look stuck.
+     **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-mcp-progress`.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-mcp-resources`.
