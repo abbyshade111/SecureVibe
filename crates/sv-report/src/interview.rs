@@ -58,7 +58,7 @@ pub fn text(report: &Report) -> String {
 
     let mut out = format!(
         "QUESTIONS FOR THE OWNER of {}: {total} to ask.\n",
-        report.app_name
+        crate::one_line(&report.app_name)
     );
     if total == 0 {
         out.push_str(
