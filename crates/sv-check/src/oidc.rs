@@ -141,7 +141,7 @@ fn set_mode(http: &mut dyn Http, mode: &str) -> bool {
             "Content-Type".to_owned(),
             "application/x-www-form-urlencoded".to_owned(),
         )],
-        body: Some(format!("mode={mode}")),
+        body: Some(format!("mode={mode}").into()),
     };
     ok(&http.provider(&request))
 }
@@ -862,7 +862,7 @@ mod tests {
                     let saved = &mut self.accounts.get_mut(&key).expect("signed in").2;
                     if r.method == "POST" {
                         if !self.flaws.saves_nothing {
-                            saved.push(r.body.clone().unwrap_or_default());
+                            saved.push(r.body_text().into_owned());
                         }
                         answer(201, vec![])
                     } else {
@@ -882,9 +882,8 @@ mod tests {
             if r.path == "/_sv/mode" {
                 self.mode_requests += 1;
                 self.mode = r
-                    .body
-                    .clone()
-                    .unwrap_or_default()
+                    .body_text()
+                    .into_owned()
                     .trim_start_matches("mode=")
                     .to_owned();
                 return Some(answer(200, vec![]));

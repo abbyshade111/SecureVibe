@@ -576,7 +576,7 @@ pub(super) fn pairs(text: &str) -> BTreeMap<String, String> {
 }
 
 pub(super) fn form(request: &ProbeRequest) -> BTreeMap<String, String> {
-    pairs(request.body.as_deref().unwrap_or(""))
+    pairs(&request.body_text())
 }
 
 impl Http for FakeApp {
@@ -1121,7 +1121,7 @@ impl Http for FakeApp {
             }
             ("POST", "/api/login") => {
                 let body: serde_json::Value =
-                    serde_json::from_str(r.body.as_deref().unwrap_or("")).ok()?;
+                    serde_json::from_slice(r.body.as_deref().unwrap_or_default()).ok()?;
                 let email = body.get("email")?.as_str()?.to_owned();
                 let password = body.get("password")?.as_str()?.to_owned();
                 let good = self.users.get(&email).is_some_and(|(p, _)| *p == password);
@@ -1234,7 +1234,7 @@ impl Http for FakeApp {
                 if user.is_none() || self.flaws.upload_broken {
                     return Some(Self::respond(403, vec![], "no"));
                 }
-                let body = r.body.clone().unwrap_or_default();
+                let body = r.body_text().into_owned();
                 let name = body
                     .split("filename=\"")
                     .nth(1)
@@ -1436,7 +1436,7 @@ impl Http for FakeApp {
                     .find(|(k, _)| k.eq_ignore_ascii_case("content-type"))
                     .map(|(_, v)| v.to_lowercase())
                     .unwrap_or_default();
-                let body = r.body.clone().unwrap_or_default();
+                let body = r.body_text().into_owned();
                 let as_json = || {
                     serde_json::from_str::<serde_json::Value>(&body)
                         .ok()

@@ -465,7 +465,18 @@ pub(crate) fn run_bounded(
     limit: Duration,
     cleanup: bool,
 ) -> Result<Bounded, String> {
-    use std::io::Read;
+    run_bounded_with_input(command, limit, cleanup, &[])
+}
+
+/// `run_bounded`, with `input` written to what the command reads, from a thread of its own, so a
+/// command that answers before it has read everything cannot leave both sides waiting.
+pub(crate) fn run_bounded_with_input(
+    command: &mut Command,
+    limit: Duration,
+    cleanup: bool,
+    input: &[u8],
+) -> Result<Bounded, String> {
+    use std::io::{Read, Write};
     if !cleanup && interrupted() {
         return Err("not started: the run was stopped with Ctrl-C".to_owned());
     }
@@ -476,11 +487,23 @@ pub(crate) fn run_bounded(
     #[cfg(unix)]
     std::os::unix::process::CommandExt::process_group(command, 0);
     let mut child = command
-        .stdin(Stdio::null())
+        .stdin(if input.is_empty() {
+            Stdio::null()
+        } else {
+            Stdio::piped()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| e.to_string())?;
+    if let Some(mut stdin) = child.stdin.take() {
+        let input = input.to_vec();
+        // A command that stops reading early (a refusal sent before the upload has arrived) ends
+        // the write with an error, which is not this function's to report: the answer is.
+        std::thread::spawn(move || {
+            let _ = stdin.write_all(&input);
+        });
+    }
     let read = |mut pipe: Box<dyn Read + Send>| {
         std::thread::spawn(move || {
             let mut bytes = Vec::new();
@@ -533,6 +556,21 @@ fn stop(child: &mut std::process::Child) {
 /// finish: every Docker call goes through here, and none may take longer than `DOCKER_CALL_LIMIT`.
 pub(crate) fn output_of(command: &mut Command) -> Result<(i32, String), String> {
     bounded_output(command, DOCKER_CALL_LIMIT, false)
+}
+
+/// `output_of`, with `input` written to what the command reads.
+pub(crate) fn output_with_input(
+    command: &mut Command,
+    input: &[u8],
+) -> Result<(i32, String), String> {
+    let done = run_bounded_with_input(command, DOCKER_CALL_LIMIT, false, input)?;
+    if done.stopped {
+        return Err(format!(
+            "it had not finished after {}, and was stopped",
+            minutes(DOCKER_CALL_LIMIT)
+        ));
+    }
+    Ok((done.code, done.text))
 }
 
 /// `output_of` with a limit of its own, and for cleanup, which still runs after Ctrl-C.

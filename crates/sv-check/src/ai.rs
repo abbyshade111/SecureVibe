@@ -2884,9 +2884,7 @@ mod tests {
             match (r.method.as_str(), r.path.as_str()) {
                 ("POST", "/signup") => {
                     let email = r
-                        .body
-                        .as_deref()
-                        .unwrap_or_default()
+                        .body_text()
                         .split('&')
                         .find_map(|kv| kv.strip_prefix("email="))
                         .unwrap_or_default()
@@ -2901,10 +2899,10 @@ mod tests {
                 }
                 ("POST", "/login")
                     if self.flaws.needs_account
-                        && !self.accounts.iter().any(|a| {
-                            !a.is_empty()
-                                && r.body.as_deref().unwrap_or_default().contains(a.as_str())
-                        }) =>
+                        && !self
+                            .accounts
+                            .iter()
+                            .any(|a| !a.is_empty() && r.body_text().contains(a.as_str())) =>
                 {
                     Some(ProbeResponse {
                         id: r.id.clone(),
@@ -2916,9 +2914,7 @@ mod tests {
                 ("POST", "/login") => {
                     self.signed_in = true;
                     self.user = r
-                        .body
-                        .as_deref()
-                        .unwrap_or_default()
+                        .body_text()
                         .split('&')
                         .find_map(|kv| kv.strip_prefix("email="))
                         .map(|v| v.replace("%40", "@"))
@@ -2942,13 +2938,14 @@ mod tests {
                 ("POST", "/api/chat") => {
                     self.caller = caller(r);
                     let body: serde_json::Value =
-                        serde_json::from_str(r.body.as_deref().unwrap_or("{}")).unwrap();
+                        serde_json::from_slice(r.body.as_deref().unwrap_or(b"{}")).unwrap();
                     let message = body["message"].as_str().unwrap_or_default().to_owned();
                     Some(self.chat(&message))
                 }
                 ("POST", "/notes") => {
                     let body: serde_json::Value =
-                        serde_json::from_str(r.body.as_deref().unwrap_or("{}")).unwrap_or_default();
+                        serde_json::from_slice(r.body.as_deref().unwrap_or(b"{}"))
+                            .unwrap_or_default();
                     let id = (self.notes.len() + 7).to_string();
                     self.notes.push((
                         id.clone(),
