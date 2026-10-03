@@ -50,6 +50,8 @@ another session is not a claim.
      credited from the answer on the health path, which is often a small JSON status reply rather than a page
      anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
      when all pass, naming them.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-headers-every-page`.
   4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
@@ -87,6 +89,10 @@ another session is not a claim.
       file named to land outside the upload folder, then asked for where it would have landed.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
       **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
+      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+      `claude/old-tls-versions`. It may not raise the limit: a run of `sv probe` makes at most three requests since
+      the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
+      code before anything else.
 
 - **Say when a manifest and its lockfile disagree.** Found on 3 October 2026; **not claimed.** On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
@@ -165,6 +171,8 @@ another session is not a claim.
   ("go ahead"), in branch `claude/securevibe-e2-mcp-protocol`: a batch and a malformed request answered with an
   error, `/` and the home folder refused as `--root`, one request's size capped, and a test that feeds the server
   broken input. A time limit on a check (the other half of 6) stays unclaimed.
+  **The time limit on a check (the other half of item 6) claimed the same day by session securevibe-e2**, at the
+  owner's asking to continue with the backlog, in branch `claude/securevibe-e2-check-time-limit`.
   **Done the same day** (DESIGN, "What the MCP server answers when it is sent nonsense"): batches, wrong
   versions, bad ids, and arguments that are not an object are refused; a line that is not UTF-8 is answered rather
   than ending the server; a line is at most 1 MiB; `/` and the home folder are refused as the root; and two tests
@@ -1562,7 +1570,10 @@ another session is not a claim.
   container runs `--read-only`, but the app's container does not, so the app can write anywhere in its own file
   system outside `/app`; and the in-memory report folder has no size limit. Running the app `--read-only` with an
   in-memory `/tmp` would close that, at the cost of failing an app, or a build step, that writes elsewhere; a size
-  for the report folder is simpler. **Not claimed**, and whether to change it is the owner's call.
+  for the report folder is simpler. **The owner's decision, 3 October 2026: yes**, read-only with an in-memory
+  `/tmp`, no capabilities and no new privileges, and a size for the report folder, tested against the example
+  apps first. **Claimed on 3 October 2026 by session practical-banach-b1faa1** (the session that was
+  keen-meninsky-691a27).
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
