@@ -137,7 +137,10 @@ another session is not a claim.
 
 - **Say when a manifest and its lockfile disagree.** Found on 3 October 2026. **Claimed the same day by session
   securevibe-e2**, at the owner's asking to continue with the backlog, in branch
-  `claude/securevibe-e2-manifest-lock`. On
+  `claude/securevibe-e2-manifest-lock`. **Done the same day** (DESIGN, "When a manifest and its lockfile
+  disagree"): `requirements.txt` and `package.json` are held to their lockfiles, package by package; a disagreement
+  is named in the bill of materials, `sv sbom`, `sv audit`, and the report, and withholds the clean known-vulnerability
+  claim. Not a finding. Other manifests are not compared yet. Nineteen guards broken in turn, each caught. On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
   `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
   (`crates/sv-check/src/sbom.rs`). So for ten days the two described different apps: GitHub saw PyJWT
