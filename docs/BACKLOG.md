@@ -249,6 +249,9 @@ another session is not a claim.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-mcp-resources`.
+     **Done the same day** (DESIGN, "The written reports, offered as resources"): every report `sv` wrote below the
+     root is listed, and its five files read back, in both the initializing and the stateless protocol; nothing that
+     is not a file of a marked report folder can be listed or read, links included. Nineteen ways broken, each caught.
   6. **The newest protocol version.** The newest the server speaks is 2025-06-18; whether a later one has been
      published, and what it changes, needs checking before it is added.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
