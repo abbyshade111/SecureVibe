@@ -214,12 +214,31 @@ pub struct RunSection {
     pub mcp_server: Option<McpServerSection>,
 }
 
+/// Whether a name is one an environment variable can have: letters, digits, and `_`, and not empty.
+/// What a name from securevibe.toml must be before it goes on a command line as `NAME=value`.
+pub fn is_variable_name(name: &str) -> bool {
+    !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// `[stack.run.mcp-server]`: the app serves tools over the Model Context Protocol's HTTP transport.
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct McpServerSection {
     /// The path the MCP endpoint answers on, such as `/mcp`.
     pub path: String,
+    /// The environment variable the app reads the access token it accepts from, for a server that
+    /// takes one fixed token. The run gives it a new random token and sends that with every request,
+    /// and asks, with none and with a made-up one, whether the server checks it (C10.2.1). A server
+    /// that checks tokens from a sign-in service cannot be given one yet.
+    #[serde(default)]
+    pub token_env: Option<String>,
+    /// The server is meant to answer anyone, with no token: then whether it checks one is not asked.
+    #[serde(default)]
+    pub public: bool,
+    /// A tool that is safe to call any number of times, and arguments it accepts, for the questions
+    /// about what it does with arguments it should refuse (C10.4.3, C10.4.4, C10.4.5).
+    #[serde(default)]
+    pub probe_tool: Option<RecordTool>,
 }
 
 /// `[stack.run.ai]`: the app has a feature that sends what a person types to a language model.

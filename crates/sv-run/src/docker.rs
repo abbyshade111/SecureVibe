@@ -240,6 +240,13 @@ impl DockerBackend {
         //     before the app, which may read the provider's details as it starts. The secret is new
         //     every run and goes only to the provider and the app.
         let client_secret = crate::random_hex(16);
+        // The access token the app's MCP server is told to accept, when it takes one fixed token.
+        // New every run, and given only to the app and to the questions that send it.
+        let mcp_token = plan
+            .mcp_server
+            .as_ref()
+            .and_then(|m| m.token_env.as_ref())
+            .map(|_| crate::random_hex(24));
         let provider = (plan.oidc.is_some()
             && self.start_provider(&network, &provider_name, &client_secret))
         .then_some(provider_name.as_str());
@@ -295,6 +302,18 @@ impl DockerBackend {
             _ => Vec::new(),
         };
         for pair in &model_env {
+            args.extend(["-e", pair.as_str()]);
+        }
+        let mcp_env: Vec<String> = match (
+            plan.mcp_server.as_ref().and_then(|m| m.token_env.as_ref()),
+            &mcp_token,
+        ) {
+            (Some(name), Some(token)) if sv_manifest::is_variable_name(name) => {
+                vec![format!("{name}={token}")]
+            }
+            _ => Vec::new(),
+        };
+        for pair in &mcp_env {
             args.extend(["-e", pair.as_str()]);
         }
         args.extend([plan.image.as_str(), "sh", "-c", command.as_str()]);
@@ -430,7 +449,7 @@ impl DockerBackend {
                 browser: None,
                 model: None,
             };
-            sv_check::mcp_server::run(&mut http, section)
+            sv_check::mcp_server::run(&mut http, section, mcp_token.as_deref())
         });
 
         // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.

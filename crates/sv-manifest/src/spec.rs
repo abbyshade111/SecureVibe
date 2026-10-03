@@ -61,6 +61,12 @@ health = "/"              # a path that returns 200 once the app is up
 # start a session as usual, then from a foreign web page (an `Origin` it has never heard of) and
 # under a foreign name (a `Host` it is not), and ends a session and tries to use it again.
 # path = "/mcp"             # where the MCP endpoint answers
+# token-env = "MCP_TOKEN"   # if it takes one fixed access token, the variable it reads it from; the
+#                           # run gives it a random one and asks whether none, or a made-up one, works
+# public = true             # instead, if it is meant to answer anyone with no token at all
+# probe-tool = { name = "echo", args = { text = "hello" } }   # a tool safe to call again and again,
+#                           # with arguments it accepts; the run sends it an unknown argument, one far
+#                           # too long, one of the wrong type, and a very large request
 
 [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'

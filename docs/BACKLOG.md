@@ -117,11 +117,20 @@ another session is not a claim.
   12. **The app's own MCP server, hardened (C10.2.1, C10.4.3, level 1; C10.4.4, C10.4.5).** No token, a junk token,
       an undeclared parameter, the wrong type, and an oversized payload, each against the ordinary call as the
       control. Proposed in `docs/PARTIAL-CHECKS.md` for C10.2.1 and C10.4.3.
+      **Done on 3 October 2026** (DESIGN, "The app's own MCP server: its token, and arguments it should refuse"),
+      behind `token-env`, `public`, and `probe-tool` under [stack.run.mcp-server]. Twelve guards broken in turn, each
+      caught.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking to continue with the backlog,
       in branch `claude/app-mcp-hardened`.
   13. **Limits and double-booking on the owner's own actions (V2.4.1, V2.3.4).** A burst, and parallel requests, at
       an action `securevibe.toml` names; more successes than its stated limit is the finding. Proposed in
       `docs/PARTIAL-CHECKS.md`.
+      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+      `claude/securevibe-e9-limits`.
+      **V2.3.4 done on 3 October 2026** (DESIGN, "An action sent many times at the same instant"):
+      `probe.action-done-twice`, through a new `once` entry, sent 20 times together by a new `send_at_once`. The
+      Docker runner's script was run against a local server with and without a lock, not yet in the busybox image.
+      V2.4.1, the burst, is still to do under this claim.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
