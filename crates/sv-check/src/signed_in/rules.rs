@@ -181,6 +181,18 @@ pub(super) const UPLOAD_SVG_SCRIPT: Rule = Rule {
           header as well.",
 };
 
+pub(super) const UPLOAD_PATH_TRAVERSAL: Rule = Rule {
+    rule_id: "probe.upload-path-traversal",
+    requirement_ids: &["V5.3.2"],
+    cwe: &["CWE-22"],
+    impact: "The app builds where it saves an upload from the name the uploader chose. A name starting \
+             `../` puts the file outside the upload folder, so whoever uploads can write files where \
+             the app keeps its own: over a page it serves, or a script it runs.",
+    fix: "Never use the uploaded name to build the path. Store each file under a name the app makes \
+          (a random id), keep the original only as data, or at least reduce it to its last part \
+          (`werkzeug.utils.secure_filename`, `path.basename`) before using it.",
+};
+
 pub(super) const UPLOAD_NOT_SCANNED: Rule = Rule {
     rule_id: "probe.upload-not-scanned",
     requirement_ids: &["V5.4.3"],

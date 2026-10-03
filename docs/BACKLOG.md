@@ -79,6 +79,8 @@ another session is not a claim.
      finding, read-only payloads only.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
+     in branch `claude/securevibe-e9-open-redirect`.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -113,6 +115,13 @@ another session is not a claim.
       in branch `claude/securevibe-e9-email-change`.
   15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
       file named to land outside the upload folder, then asked for where it would have landed.
+      **The `../` half done on 3 October 2026** (DESIGN, "A file named to land outside the upload folder"): found one
+      folder above where uploads are served is a finding; refused, or saved under its last part, is credited; found in
+      neither is not assessed. Eight guards broken in turn, each caught; the one caught by nothing at first (a place
+      counts only when it answers with the run's value) now has a fake app that answers every address.
+      **Compressed bombs (V5.2.3) not done, and open:** the probes' bodies are text, and a compressed file that expands
+      far is binary throughout; V5.2.3's limits on uncompressed size and file count also have no place in
+      `securevibe.toml` yet. Either needs deciding before it is built.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
@@ -128,7 +137,10 @@ another session is not a claim.
 
 - **Say when a manifest and its lockfile disagree.** Found on 3 October 2026. **Claimed the same day by session
   securevibe-e2**, at the owner's asking to continue with the backlog, in branch
-  `claude/securevibe-e2-manifest-lock`. On
+  `claude/securevibe-e2-manifest-lock`. **Done the same day** (DESIGN, "When a manifest and its lockfile
+  disagree"): `requirements.txt` and `package.json` are held to their lockfiles, package by package; a disagreement
+  is named in the bill of materials, `sv sbom`, `sv audit`, and the report, and withholds the clean known-vulnerability
+  claim. Not a finding. Other manifests are not compared yet. Nineteen guards broken in turn, each caught. On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
   `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
   (`crates/sv-check/src/sbom.rs`). So for ten days the two described different apps: GitHub saw PyJWT

@@ -419,7 +419,15 @@ pub fn audit_against(
     //
     // A second lockfile nobody read is the same wrong question from the other side: every package
     // in the list was compared, and the list may not be what the app is installed from.
-    let complete_enough = sbom.unread.is_empty() && sbom.passed_over.is_empty();
+    //
+    // A manifest that asks for other versions than its lockfile has is the same again: the list
+    // describes the lockfile, and whoever installs from the manifest runs something else.
+    let complete_enough = sbom.unread.is_empty()
+        && sbom.passed_over.is_empty()
+        && !sbom
+            .disagreements
+            .iter()
+            .any(crate::sbom::Disagreement::differs);
     if result.findings.is_empty()
         && result.advisories_read > 0
         && result.components_checked > 0
@@ -814,6 +822,7 @@ mod tests {
     fn sbom_of(components: Vec<Component>) -> Sbom {
         Sbom {
             passed_over: Vec::new(),
+            disagreements: Vec::new(),
             components,
             unread: Vec::new(),
         }
@@ -1050,6 +1059,44 @@ mod tests {
     }
 
     #[test]
+    fn a_manifest_that_disagrees_with_its_lockfile_stops_the_clean_claim() {
+        // The comparison read `package-lock.json` and found nothing. When `package.json` asks for
+        // another lodash, nothing says the app is installed from the file that was compared; when
+        // all that is known is that one entry could not be compared, the list is still the lock's.
+        let mut sbom = sbom_of(vec![component("lodash", "4.17.21", "npm")]);
+        let disagreement = |differs: Vec<crate::manifest_lock::Differs>,
+                            not_compared: Vec<String>| {
+            crate::sbom::Disagreement {
+                project: "npm".into(),
+                manifest: "package.json".into(),
+                lockfile: "package-lock.json".into(),
+                comparison: crate::manifest_lock::Comparison {
+                    differs,
+                    not_compared,
+                },
+            }
+        };
+        sbom.disagreements
+            .push(disagreement(Vec::new(), vec!["lodash latest".into()]));
+        let unknown = audit(&sbom, &[advisory(LODASH)]);
+        assert_eq!(unknown.verified.len(), 1, "the control: {unknown:?}");
+
+        sbom.disagreements.push(disagreement(
+            vec![crate::manifest_lock::Differs {
+                asked: "lodash 4.17.15".into(),
+                locked: vec!["4.17.21".into()],
+            }],
+            Vec::new(),
+        ));
+        let differing = audit(&sbom, &[advisory(LODASH)]);
+        assert!(differing.findings.is_empty(), "{differing:?}");
+        assert!(
+            differing.verified.is_empty(),
+            "no clean claim while the manifest asks for something else: {differing:?}"
+        );
+    }
+
+    #[test]
     fn an_ecosystem_named_only_beside_another_is_not_covered() {
         // As in OSV's crates.io export: a record about a crate that is also published to PyPI names
         // both. Loaded alone, it says nothing about the rest of PyPI.
@@ -1235,6 +1282,7 @@ mod deadline_tests {
     fn lodash() -> Sbom {
         Sbom {
             passed_over: Vec::new(),
+            disagreements: Vec::new(),
             components: vec![Component {
                 name: "lodash".into(),
                 version: "4.17.15".into(),

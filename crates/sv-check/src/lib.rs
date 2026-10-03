@@ -24,6 +24,7 @@ pub mod junit;
 pub mod launch;
 pub mod live_tls;
 pub mod logs;
+pub mod manifest_lock;
 pub mod mcp_server;
 pub mod model_files;
 pub mod notes;

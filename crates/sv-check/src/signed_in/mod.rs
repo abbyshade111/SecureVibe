@@ -769,6 +769,7 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     (OVERSIZED_FILE.rule_id, &["upload-oversized"]),
     (CONTENT_MISMATCH.rule_id, &["upload-mismatched"]),
     (UPLOAD_SVG_SCRIPT.rule_id, &["upload-svg"]),
+    (UPLOAD_PATH_TRAVERSAL.rule_id, &["upload-traversal"]),
     (UPLOAD_NOT_SCANNED.rule_id, &["upload-eicar"]),
 ];
 
@@ -2601,6 +2602,7 @@ mod crash_tests {
                     unchecked_contents_ok: true,
                     svg_scripts_kept: true,
                     no_malware_scan: true,
+                    upload_path_traversal: true,
                     session_not_verified: true,
                     ..Default::default()
                 },
