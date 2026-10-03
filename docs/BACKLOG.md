@@ -53,6 +53,10 @@ another session is not a claim.
   renamed into place; `securevibe_write_report` makes its folder one level at a time; and text from the app's folder
   reaches the AI tool with its line breaks and invisible characters written as escapes. Nine guards broken in turn,
   each caught.
+  **Items 4, 5, 7, and the size half of 6 claimed the same day by session securevibe-e2**, at the owner's word
+  ("go ahead"), in branch `claude/securevibe-e2-mcp-protocol`: a batch and a malformed request answered with an
+  error, `/` and the home folder refused as `--root`, one request's size capped, and a test that feeds the server
+  broken input. A time limit on a check (the other half of 6) stays unclaimed.
   1. **A report file that is a link is followed, and its target overwritten.** `write_report_files`
      (`crates/sv-cli/src/main.rs`), which both `sv report` and `securevibe_write_report` use, writes each of its five
      files and its marker with `std::fs::write`, which follows a link. With `securevibe-report/report.json` a link to
