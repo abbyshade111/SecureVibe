@@ -548,6 +548,7 @@
           "p/security-audit",
           "--config",
           "p/default",
+          "--metrics=off",
           "--sarif",
           "--output",
           "{output}",
@@ -558,8 +559,18 @@
         ]
       },
       "install": "pip install semgrep",
-      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those. So do 7 others for ASVS requirements a pattern can show missing and not present (V3.2.2, V4.4.1, V9.2.1). It runs `p/security-audit`, which holds the pattern rules, and `p/default`, which holds the rules that follow data from a request to where it is used; the first alone missed every injection fault planted in its fixture app. The registry pack `p/ai-best-practices`, where most of those AI rules live, is added for an app that may call a model (`conditional_args`), and left out only when the app is known not to: its rules can only ever find something, so running it where nobody has said costs almost nothing and credits nothing. Which rules each pack loads is measured in data/semgrep-packs.json.",
+      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is run with its usage reporting off (`--metrics=off`) and its check for a newer version off (`SEMGREP_ENABLE_VERSION_CHECK=0`), so the one place it connects to is semgrep.dev, for the rules: measured on 3 October 2026, usage reporting was a second connection, to an Amazon server in Oregon, on every run where it was on. When semgrep is not installed, Opengrep runs in its place (`stand_in`): the open-source fork of its engine, which loaded the same rules, found the same things, and gave `sv` the same report on 29 September 2026, and which has no usage reporting and refuses `--metrics`. The report says when it did. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those. So do 7 others for ASVS requirements a pattern can show missing and not present (V3.2.2, V4.4.1, V9.2.1). It runs `p/security-audit`, which holds the pattern rules, and `p/default`, which holds the rules that follow data from a request to where it is used; the first alone missed every injection fault planted in its fixture app. The registry pack `p/ai-best-practices`, where most of those AI rules live, is added for an app that may call a model (`conditional_args`), and left out only when the app is known not to: its rules can only ever find something, so running it where nobody has said costs almost nothing and credits nothing. Which rules each pack loads is measured in data/semgrep-packs.json.",
       "network": true,
+      "env": {
+        "SEMGREP_ENABLE_VERSION_CHECK": "0"
+      },
+      "stand_in": {
+        "name": "Opengrep",
+        "command": "opengrep",
+        "leave_out": [
+          "--metrics=off"
+        ]
+      },
       "conditional_args": [
         {
           "condition": "ai",

@@ -77,6 +77,8 @@ fn stand_in(dir: &Path, env: &[(&str, &str)]) -> Adapters {
         "{scanned}".to_owned(),
     ];
     args.extend(real[from..].iter().cloned());
+    // The fixed flags are gone, `--metrics=off` with them, and Opengrep plays no part here.
+    entry.as_object_mut().unwrap().remove("stand_in");
     entry["version"] = serde_json::json!({ "command": "true" });
     entry["run"] = serde_json::json!({ "command": "python3", "args": args });
     file["adapters"] = serde_json::json!([entry]);

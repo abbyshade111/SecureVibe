@@ -257,6 +257,10 @@ pub struct Examined {
     /// Why it did not run, or ran only in part, in the words the matching gap uses.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub why: Option<String>,
+    /// The program that did the looking when it was not the one this entry is named for: Opengrep
+    /// for `semgrep.`, when semgrep is not installed. In a sentence a person can read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stand_in: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -281,6 +285,7 @@ impl Examined {
             rules: rules.into(),
             state: ExaminedState::Ran,
             why: None,
+            stand_in: None,
         }
     }
 
@@ -289,6 +294,7 @@ impl Examined {
             rules: rules.into(),
             state: ExaminedState::NotRun,
             why: Some(why.into()),
+            stand_in: None,
         }
     }
 
@@ -297,7 +303,14 @@ impl Examined {
             rules: rules.into(),
             state: ExaminedState::Partly,
             why: Some(why.into()),
+            stand_in: None,
         }
+    }
+
+    /// The same entry, saying which program did the looking in place of the one it is named for.
+    pub fn stood_in_by(mut self, why: impl Into<String>) -> Self {
+        self.stand_in = Some(why.into());
+        self
     }
 
     pub fn nothing_to_examine(rules: impl Into<String>, why: impl Into<String>) -> Self {
@@ -305,6 +318,7 @@ impl Examined {
             rules: rules.into(),
             state: ExaminedState::NothingToExamine,
             why: Some(why.into()),
+            stand_in: None,
         }
     }
 

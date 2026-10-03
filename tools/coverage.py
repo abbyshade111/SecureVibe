@@ -207,6 +207,29 @@ RUST_CHECKS = {
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
 RUST_FINDINGS_ONLY = {
+    # Found on 3 October 2026 to be counted as crediting when no code path gives them credit: each
+    # only ever raises a finding. Several have a control that could let them credit (see the backlog).
+    "probe.directory-listing",
+    "probe.docs-or-monitoring-exposed",
+    "probe.jsonp-enabled",
+    "probe.unused-method-accepted",
+    "probe.version-disclosed",
+    "probe.account-details-sent-elsewhere",
+    "probe.activation-code-guessable",
+    "probe.activation-link-reusable",
+    "probe.default-account",
+    "probe.email-code-short",
+    "probe.forwarded-for-trusted",
+    "probe.password-in-url",
+    "probe.password-paste-blocked",
+    "probe.reset-code-guessable",
+    "probe.reset-keeps-old-password",
+    "probe.reset-reusable",
+    "probe.reset-reveals-account",
+    "probe.session-id-weak",
+    "probe.sign-out-on-get",
+    "probe.validation-only-in-the-browser",
+    "probe.websocket-after-sign-out",
     "config.workflow-secrets-with-fork-code",
     "probe.role-field-trusted",
     "probe.record-returns-secret-fields",

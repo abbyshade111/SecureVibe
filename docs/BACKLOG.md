@@ -29,11 +29,23 @@ another session is not a claim.
      that fails when a check that never credits is not listed would stop it happening again.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
      `claude/securevibe-e9-findings-only-counts`.
+     **Done the same day:** the 21 are in `RUST_FINDINGS_ONLY`, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md`
+     mark each as "only ever as a finding". Not done: the test that would catch the next one. A check gives credit
+     through helpers and tables of rules as often as by name, so reading the code for it is not reliable enough to
+     fail a build on; running every check against the fake apps and collecting what each credited would be.
   2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
      refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
      refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
      out by visiting an address leaving the session alive while the sign-out form ends it (V3.5.3); and the server
      refusing a value its own form forbids (V2.2.2). Each would credit only what it saw, as the others do.
+     **Withdrawn on 3 October 2026 by session securevibe-e9, which proposed it:** read against `docs/DESIGN.md`
+     before any code was kept, each of the six is finding-only on purpose, for a reason written there. A clean reset
+     leaves V6.4.3's own demand, that a reset not get round two-factor sign-in, untried, as it does code expiry
+     ("a clean reset credits nothing and says so"); activation leaves V6.4.1's expiry and initial passwords untried;
+     V4.4.3 asks that a socket's own tokens meet every session requirement; one address refusing a GET says nothing
+     of the others (V3.5.3); and the V2.2.2 check is only ever a finding by design. A test
+     (`a_reset_that_works_once_is_followed_through_and_faults_nothing`) holds the reset's no-credit decision, and it
+     went red when the credit was tried.
   3. **The stranger checks credit headers from one answer.** Security headers, cookies, and content types are
      credited from the answer on the health path, which is often a small JSON status reply rather than a page
      anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
@@ -42,6 +54,8 @@ another session is not a claim.
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
      a refusal is real credit. Common in apps an AI coding tool writes; no proposal was on file.
+     **Claimed on 3 October 2026 by session securevibe-e9 and released the same day, not built.** The work stopped
+     at the design stage; nothing was written. The item is open again, and the owner decides whether it is taken up.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
@@ -73,6 +87,39 @@ another session is not a claim.
       file named to land outside the upload folder, then asked for where it would have landed.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
       **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
+      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+      `claude/old-tls-versions`. It may not raise the limit: a run of `sv probe` makes at most three requests since
+      the OCSP stapling check (#465), so one handshake held to an old version is the fourth. To be confirmed in the
+      code before anything else.
+
+- **Say when a manifest and its lockfile disagree.** Found on 3 October 2026; **not claimed.** On
+  23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
+  `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
+  (`crates/sv-check/src/sbom.rs`). So for ten days the two described different apps: GitHub saw PyJWT
+  2.13.0 and opened 13 alerts against it on 2 October, while `sv` checked flask 3.0.0, gunicorn
+  21.2.0, authlib 1.3.0 and pyjwt 2.8.0. Nothing noticed until a person asked. Fixed for the example
+  in #482; nothing stops it happening in an owner's app.
+
+  **Why it matters to the owner.** A known-vulnerability result describes the file it was read from.
+  When the manifest and the lock disagree, whoever deploys from the other one runs versions the
+  report never looked at. The error runs both ways: a vulnerability in what is really installed goes
+  unreported, or one is reported in versions nobody runs.
+
+  **What exists already.** `passed_over` in `crates/sv-scan/src/ecosystems.rs` names a second
+  lockfile that was not read, "because two lockfiles can disagree". Nothing compares a manifest with
+  the lockfile beside it.
+
+  **What to build.** For each package the manifest pins exactly (`==`), compare it with the
+  lockfile's version, and say so beside the bill of materials when they differ: which file the
+  report describes, and each package where the other file says something else. A range in the
+  manifest (`flask>=3`) disagrees only when the lock's version falls outside it. Whether a
+  disagreement is also a finding, and against what, is for whoever builds it to decide. V15.1.2 — an
+  inventory "of all third-party libraries in use" — is the closest fit, but a lock that disagrees
+  with its manifest shows the inventory may be wrong, not that it is missing.
+
+  It is likeliest where nothing keeps the two in step: a `requirements.lock` compiled once and then
+  forgotten, as here. Witnesses needed in both directions — the lock older than the manifest, and the
+  manifest older than the lock — plus a range the lock satisfies, which must stay quiet.
 
 - **A prompt library: the CSA guide's prompts, reworked, and new ones from what went wrong.** Asked
   for by the owner on 3 October 2026, after a review of `sv` against the Cloud Security Alliance's
@@ -122,6 +169,8 @@ another session is not a claim.
   ("go ahead"), in branch `claude/securevibe-e2-mcp-protocol`: a batch and a malformed request answered with an
   error, `/` and the home folder refused as `--root`, one request's size capped, and a test that feeds the server
   broken input. A time limit on a check (the other half of 6) stays unclaimed.
+  **The time limit on a check (the other half of item 6) claimed the same day by session securevibe-e2**, at the
+  owner's asking to continue with the backlog, in branch `claude/securevibe-e2-check-time-limit`.
   **Done the same day** (DESIGN, "What the MCP server answers when it is sent nonsense"): batches, wrong
   versions, bad ids, and arguments that are not an object are refused; a line that is not UTF-8 is answered rather
   than ending the server; a line is at most 1 MiB; `/` and the home folder are refused as the root; and two tests
@@ -1110,7 +1159,11 @@ another session is not a claim.
   loaded the same 1,074 rules and gave the same finding. Connections were sampled about fifty times a second, which
   can miss a very short one.
 
-- **Run semgrep with usage reporting and its version check off, and accept Opengrep when semgrep is not installed.**
+- **Run semgrep with usage reporting and its version check off, and accept Opengrep when semgrep is not installed.
+  Done on 3 October 2026** (DESIGN, "Semgrep without usage reporting, and Opengrep in its place"). Each of eleven
+  guards was broken in turn and caught: eight by two tests or more, and three (the loader's two refusals and the
+  report's `stand_in` field) by the one test written for each. Not tried against a real Opengrep through `sv` since
+  the change; it was through a stand-in on 29 September.
   The owner's decision of 3 October 2026, from the evaluation above. **Claimed on 3 October 2026 by session
   securevibe-e10**, in branch `claude/semgrep-quiet-opengrep-fallback`. The semgrep adapter adds `--metrics=off` and
   sets `SEMGREP_ENABLE_VERSION_CHECK=0`; when `semgrep` is not found, `opengrep` is run in its place, without
@@ -1518,7 +1571,10 @@ another session is not a claim.
   container runs `--read-only`, but the app's container does not, so the app can write anywhere in its own file
   system outside `/app`; and the in-memory report folder has no size limit. Running the app `--read-only` with an
   in-memory `/tmp` would close that, at the cost of failing an app, or a build step, that writes elsewhere; a size
-  for the report folder is simpler. **Not claimed**, and whether to change it is the owner's call.
+  for the report folder is simpler. **The owner's decision, 3 October 2026: yes**, read-only with an in-memory
+  `/tmp`, no capabilities and no new privileges, and a size for the report folder, tested against the example
+  apps first. **Claimed on 3 October 2026 by session practical-banach-b1faa1** (the session that was
+  keen-meninsky-691a27).
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
