@@ -89,6 +89,16 @@ pub(super) struct FakeApp {
     code_born: BTreeMap<String, u64>,
     /// Whether the idle timeout ends sessions nobody has signed in to yet, too.
     pub(super) anonymous_sessions_time_out: bool,
+    /// Notes one user may create in a minute of the clock, answered 429 past it. `None`, the
+    /// default, is no limit at all.
+    pub(super) notes_per_minute: Option<u32>,
+    /// When each user created each note, by the clock.
+    note_times: BTreeMap<String, Vec<u64>>,
+    /// Past `notes_per_minute`, lets every other note through rather than none: a limit that does
+    /// not stay shut.
+    pub(super) notes_limit_leaks: bool,
+    /// Under `notes_limit_leaks`, whether the next note past the limit goes through.
+    leak_next: bool,
     /// Seats booked. There is one seat.
     pub(super) bookings: u32,
     /// While copies are being sent at the same instant: the bookings there were when they
@@ -1601,6 +1611,23 @@ impl FakeApp {
                     && r.headers.iter().any(|(k, v)| k == "Origin" && v == "null")
                 {
                     return Some(Self::respond(403, vec![], "no origin"));
+                }
+                if let Some(limit) = self.notes_per_minute {
+                    let now = self.clock;
+                    let times = self.note_times.entry(owner.clone()).or_default();
+                    times.retain(|t| now.saturating_sub(*t) < 60);
+                    let leaks = self.notes_limit_leaks && {
+                        self.leak_next = !self.leak_next;
+                        !self.leak_next
+                    };
+                    if times.len() >= limit as usize && !leaks {
+                        return Some(Self::respond(
+                            429,
+                            vec![("Retry-After", "60".into())],
+                            "slow down",
+                        ));
+                    }
+                    times.push(now);
                 }
                 self.notes
                     .push((owner, form(r).get("text").cloned().unwrap_or_default()));

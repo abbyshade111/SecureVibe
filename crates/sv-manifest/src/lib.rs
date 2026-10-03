@@ -916,6 +916,10 @@ pub struct PolicySection {
     /// C11.2.2: sized to how much an attacker could learn by asking, which only the owner can say.
     #[serde(default)]
     pub ai_requests_per_minute: Option<u32>,
+    /// Records a minute one user should be able to create through `owned` before the app pushes
+    /// back, for V2.4.1: the number the owner would defend, which only the owner can say.
+    #[serde(default)]
+    pub requests_per_minute: Option<u32>,
     /// Minutes a signed-in session may sit unused before the app asks for the password again, for
     /// V7.3.1. Held to it only by `sv run --slow`, which waits that long.
     #[serde(default)]
