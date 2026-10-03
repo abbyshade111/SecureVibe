@@ -1752,6 +1752,25 @@ mod probe_tests {
     }
 
     #[test]
+    fn an_echo_far_down_a_real_answer_reaches_the_judgment() {
+        // From the bytes the app sends to the finding: an error page that repeats the path it was
+        // asked for, after 6,000 characters of its own, the value cut short at the `<`.
+        let mark = sv_check::probes::REFLECTION_MARK;
+        let raw = format!(
+            "HTTP/1.0 404 Not Found\r\nContent-Type: text/html; charset=utf-8\r\n\r\n<html>{}<p>No page at /x-{mark}<\"'</p></html>",
+            "<p>filler</p>".repeat(460)
+        );
+        let answer = parse_response("reflect-missing", &raw).expect("an answer");
+        assert!(raw.find(mark).unwrap() > KEPT_CHARS, "the setup: past the cut");
+        let findings = sv_check::probes::evaluate(&[answer]);
+        assert!(
+            findings.iter().any(|f| f.rule_id == "probe.reflected-unencoded"),
+            "{:?}",
+            findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
     fn a_value_across_the_cut_is_kept_whole_and_no_character_is_split() {
         let mark = sv_check::probes::REFLECTION_MARK;
         // Starts ten characters before the cut, ends after it.
