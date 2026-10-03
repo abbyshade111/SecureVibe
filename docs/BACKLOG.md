@@ -156,6 +156,10 @@ another session is not a claim.
      than by instructions.
   2. **Keep the last report until the app's files change.** Every call builds the whole report again, and
      `securevibe_questions` runs the full check to list questions. Kept, "check after each feature" would be quick.
+     **Measured on 3 October 2026, and not worth building yet:** with a release build, `sv check` of
+     `examples/flask-booking` took 0.13 seconds, and three MCP calls on it 0.2 seconds together; only a folder the
+     size of this repository took long (6 seconds). A kept report would save little for the apps `sv` is for, and one
+     kept past a change to the app would say something no longer true.
   3. **Declare the shape of each tool's structured result** (`outputSchema`, in the 2025-06-18 protocol), so a
      client can rely on it. None is declared now.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -171,6 +175,9 @@ another session is not a claim.
      branch `claude/securevibe-e2-protocol-version`. Two later versions are published, 2025-11-25 and 2026-07-28
      (their schemas in the specification's repository); what each changes for a stdio server that offers only tools
      is the work.
+     **Done the same day** (DESIGN, "The newer protocol versions, 2025-11-25 and 2026-07-28"): a client that opens
+     with `initialize` may have 2025-11-25, and one that names 2026-07-28 on each request is answered statelessly,
+     with `server/discover`; wrong arguments come back as a tool's result. Nine ways broken, each caught.
 
 - **`ast.download-piped-to-shell` flags a download read as data.** **Claimed on 28 September 2026 by session
   cato-examined**, at the owner's asking. Found by cato-pipeline: `curl … | python3 -c '<fixed program>'` is

@@ -34,9 +34,24 @@ use serde_json::{Value, json};
 use std::io::{BufRead, Write};
 use std::path::{Component, Path, PathBuf};
 
-/// Protocol versions this server speaks, newest first. A client asking for one of these gets it;
-/// any other gets the newest, and decides for itself whether it can go on.
-const PROTOCOL_VERSIONS: &[&str] = &["2025-06-18", "2025-03-26", "2024-11-05"];
+/// Protocol versions a client that opens with `initialize` can have, newest first. A client asking
+/// for one of these gets it; any other gets the newest, and decides for itself whether it can go on.
+const PROTOCOL_VERSIONS: &[&str] = &["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
+
+/// Protocol versions with no `initialize`, where each request names its version in `_meta` and the
+/// server keeps no state between them (2026-07-28, "Make MCP stateless").
+const STATELESS_VERSIONS: &[&str] = &["2026-07-28"];
+
+/// Where a stateless request names its version, and where a stateless result names the server.
+const VERSION_META: &str = "io.modelcontextprotocol/protocolVersion";
+const SERVER_INFO_META: &str = "io.modelcontextprotocol/serverInfo";
+
+/// The error for a version the server does not speak (2026-07-28, `UnsupportedProtocolVersionError`).
+const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
+
+/// How long a client may keep the tool list or the discovery result before asking again. Neither
+/// changes while the server runs; an hour keeps a client from holding one past an upgrade for long.
+const CACHE_MS: u64 = 60 * 60 * 1000;
 
 const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AISVS 1.0 and the \
     Secure by Design checklist. Call securevibe_spec first if the app has no securevibe.toml, and \
@@ -290,6 +305,17 @@ impl Server {
         };
         // Notifications carry no id and are never answered, known or not.
         let id = id?;
+        // A request that names its version in `_meta`, or a probe for which versions there are, is
+        // answered the stateless way; anything else as the client that opened with `initialize`
+        // expects. One server can do both, and the client chooses by how it asks (2026-07-28,
+        // "Backward Compatibility with Initialization-Based Versions").
+        let named = params
+            .get("_meta")
+            .and_then(|m| m.get(VERSION_META))
+            .map(|v| v.as_str().unwrap_or_default().to_owned());
+        if named.is_some() || method == "server/discover" {
+            return Some(self.stateless(id, method, &params, named.as_deref()));
+        }
         Some(match method {
             "initialize" => ok_reply(id, self.initialize(&params)),
             "ping" => ok_reply(id, json!({})),
@@ -299,14 +325,69 @@ impl Server {
                 Err(Refusal::UnknownTool(name)) => {
                     error_reply(id, -32602, &format!("there is no tool called {name}"))
                 }
-                Err(Refusal::BadArguments(name)) => error_reply(
-                    id,
-                    -32602,
-                    &format!("the arguments for {name} have to be a JSON object"),
-                ),
             },
             other => error_reply(id, -32601, &format!("no method called {other}")),
         })
+    }
+
+    /// A request of the stateless protocol (2026-07-28): no handshake, the version named on the
+    /// request, and every result marked complete and signed with the server's name.
+    fn stateless(&self, id: Value, method: &str, params: &Value, version: Option<&str>) -> Value {
+        if let Some(asked) = version
+            && !STATELESS_VERSIONS.contains(&asked)
+        {
+            let supported: Vec<&str> = STATELESS_VERSIONS
+                .iter()
+                .chain(PROTOCOL_VERSIONS)
+                .copied()
+                .collect();
+            return json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "error": {
+                    "code": UNSUPPORTED_PROTOCOL_VERSION,
+                    "message": "Unsupported protocol version",
+                    "data": { "supported": supported, "requested": asked },
+                },
+            });
+        }
+        let mut result = match method {
+            "server/discover" => json!({
+                "supportedVersions": STATELESS_VERSIONS.iter().chain(PROTOCOL_VERSIONS).collect::<Vec<_>>(),
+                "capabilities": { "tools": {} },
+                "instructions": self.instructions(),
+                "ttlMs": CACHE_MS,
+                // The instructions name where this `sv` is on this computer, which is the person's own.
+                "cacheScope": "private",
+            }),
+            "tools/list" => json!({
+                "tools": tools(),
+                "ttlMs": CACHE_MS,
+                // The same for everyone who runs this version of `sv`.
+                "cacheScope": "public",
+            }),
+            "tools/call" => match self.call(params) {
+                Ok(result) => result,
+                Err(Refusal::UnknownTool(name)) => {
+                    return error_reply(id, -32602, &format!("there is no tool called {name}"));
+                }
+            },
+            // `initialize` and `ping` are gone from this version, and nothing else is offered.
+            other => return error_reply(id, -32601, &format!("no method called {other}")),
+        };
+        result["resultType"] = json!("complete");
+        result["_meta"] = json!({
+            SERVER_INFO_META: { "name": "securevibe", "version": env!("CARGO_PKG_VERSION") },
+        });
+        ok_reply(id, result)
+    }
+
+    /// What the AI tool is told about using this server, in either protocol.
+    fn instructions(&self) -> String {
+        format!(
+            "{INSTRUCTIONS}{}.",
+            at_a_terminal("<the app's folder>", "--run --tools")
+        )
     }
 
     fn initialize(&self, params: &Value) -> Value {
@@ -318,10 +399,7 @@ impl Server {
             "protocolVersion": version,
             "capabilities": { "tools": { "listChanged": false } },
             "serverInfo": { "name": "securevibe", "version": env!("CARGO_PKG_VERSION") },
-            "instructions": format!(
-                "{INSTRUCTIONS}{}.",
-                at_a_terminal("<the app's folder>", "--run --tools")
-            ),
+            "instructions": self.instructions(),
         })
     }
 
@@ -329,9 +407,13 @@ impl Server {
         let name = params.get("name").and_then(Value::as_str).unwrap_or("");
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
         // Arguments that are not an object answered every lookup with its default, so `"arguments":
-        // "x"` checked the root as if `path` had been left out. A malformed call is refused instead.
+        // "x"` checked the root as if `path` had been left out. A malformed call is refused instead,
+        // as a result the model reads and can correct, which is how the 2025-11-25 protocol asks for
+        // arguments that are wrong to be answered (SEP-1303), rather than as a protocol error.
         if !args.is_object() {
-            return Err(Refusal::BadArguments(name.to_owned()));
+            return Ok(tool_error(&format!(
+                "the arguments for {name} have to be a JSON object, such as {{\"path\": \"app\"}}"
+            )));
         }
         let result = match name {
             "securevibe_spec" => Ok(spec()),
@@ -648,7 +730,6 @@ fn too_wide(root: &Path, home: Option<&Path>) -> Option<&'static str> {
 
 enum Refusal {
     UnknownTool(String),
-    BadArguments(String),
 }
 
 /// Makes `relative` below `base` one folder at a time, refusing a level that is a link or is not a
@@ -2219,8 +2300,8 @@ mod tests {
             (br#"{"jsonrpc":"2.0","id":{"x":1},"method":"ping"}"#.to_vec(), Value::Null, -32600),
             (br#"{"jsonrpc":"2.0","id":null,"method":"ping"}"#.to_vec(), Value::Null, -32600),
             (br#"{"jsonrpc":"2.0","id":[4],"method":"ping"}"#.to_vec(), Value::Null, -32600),
-            (br#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"securevibe_check","arguments":"x"}}"#.to_vec(), json!(5), -32602),
-            (br#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"securevibe_check","arguments":[1]}}"#.to_vec(), json!(6), -32602),
+            (br#"{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"securevibe_check","arguments":"x"}}"#.to_vec(), json!(5), 0),
+            (br#"{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"securevibe_check","arguments":[1]}}"#.to_vec(), json!(6), 0),
             (br#"{"jsonrpc":"2.0","id":7,"method":"tools/call","params":5}"#.to_vec(), json!(7), -32602),
             (br#"{"jsonrpc":"2.0","id":8,"method":"tools/call","params":{"name":7}}"#.to_vec(), json!(8), -32602),
             (b"\xff\xfe{\"jsonrpc\":\"2.0\",\"id\":9,\"method\":\"ping\"}".to_vec(), Value::Null, -32700),
@@ -2247,7 +2328,13 @@ mod tests {
             let (answer, ping) = (&replies[2 * n], &replies[2 * n + 1]);
             assert_eq!(answer["jsonrpc"], "2.0", "{what}: {answer}");
             assert_eq!(&answer["id"], id, "{what}: {answer}");
-            assert_eq!(answer["error"]["code"], *code, "{what}: {answer}");
+            if *code == 0 {
+                // Wrong arguments are the tool's to answer, as a result the model can read
+                // (2025-11-25, SEP-1303), not a protocol error.
+                assert_eq!(answer["result"]["isError"], true, "{what}: {answer}");
+            } else {
+                assert_eq!(answer["error"]["code"], *code, "{what}: {answer}");
+            }
             assert_eq!(
                 ping["id"],
                 format!("after-{n}"),
@@ -2340,6 +2427,148 @@ mod tests {
             .err()
             .expect("the top of the files was served");
         assert!(format!("{err:#}").contains("will not serve"), "{err:#}");
+    }
+
+    /// A request of the stateless protocol: its version, and an empty set of client capabilities,
+    /// named in `_meta` as 2026-07-28 asks.
+    fn stateless(id: i64, method: &str, version: &str, mut params: Value) -> Value {
+        params["_meta"] = json!({
+            "io.modelcontextprotocol/protocolVersion": version,
+            "io.modelcontextprotocol/clientCapabilities": {},
+        });
+        json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params })
+    }
+
+    #[test]
+    fn a_stateless_client_is_answered_statelessly_and_an_initializing_one_as_before() {
+        let (server, root) = protocol_server("versions");
+        let discover = server
+            .handle(&stateless(1, "server/discover", "2026-07-28", json!({})))
+            .unwrap();
+        let tools_list = server
+            .handle(&stateless(2, "tools/list", "2026-07-28", json!({})))
+            .unwrap();
+        let spec = server
+            .handle(&stateless(
+                3,
+                "tools/call",
+                "2026-07-28",
+                json!({ "name": "securevibe_spec", "arguments": {} }),
+            ))
+            .unwrap();
+        let unknown_version = server
+            .handle(&stateless(4, "tools/list", "1900-01-01", json!({})))
+            .unwrap();
+        let ping = server
+            .handle(&stateless(5, "ping", "2026-07-28", json!({})))
+            .unwrap();
+        let init = server
+            .handle(&stateless(
+                6,
+                "initialize",
+                "2026-07-28",
+                json!({ "protocolVersion": "2025-11-25" }),
+            ))
+            .unwrap();
+        // A probe that names no version, as a client sends to learn which there are, is answered.
+        let probe = server
+            .handle(&json!({ "jsonrpc": "2.0", "id": 7, "method": "server/discover" }))
+            .unwrap();
+        let legacy_init = server
+            .handle(&json!({ "jsonrpc": "2.0", "id": 8, "method": "initialize", "params": { "protocolVersion": "2025-11-25" } }))
+            .unwrap();
+        let legacy_list = server
+            .handle(&json!({ "jsonrpc": "2.0", "id": 9, "method": "tools/list" }))
+            .unwrap();
+        std::fs::remove_dir_all(&root).ok();
+
+        // Discovery: every version, the tools capability, and how long to keep it.
+        let d = &discover["result"];
+        let versions: Vec<&str> = d["supportedVersions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert_eq!(
+            versions,
+            [
+                "2026-07-28",
+                "2025-11-25",
+                "2025-06-18",
+                "2025-03-26",
+                "2024-11-05"
+            ]
+        );
+        assert!(d["capabilities"]["tools"].is_object(), "{d}");
+        assert!(
+            d["instructions"]
+                .as_str()
+                .unwrap()
+                .contains("securevibe_check"),
+            "{d}"
+        );
+        assert_eq!(
+            d["cacheScope"], "private",
+            "the instructions hold this computer's paths"
+        );
+        assert_eq!(probe["result"]["supportedVersions"], d["supportedVersions"]);
+        // Every stateless result is complete and names the server.
+        for (what, r) in [
+            ("discover", &discover),
+            ("tools/list", &tools_list),
+            ("tools/call", &spec),
+            ("probe", &probe),
+        ] {
+            assert_eq!(r["result"]["resultType"], "complete", "{what}: {r}");
+            assert_eq!(
+                r["result"]["_meta"]["io.modelcontextprotocol/serverInfo"]["name"], "securevibe",
+                "{what}: {r}"
+            );
+        }
+        // The tool list is the same either way, with how long it may be kept.
+        assert_eq!(
+            tools_list["result"]["tools"],
+            legacy_list["result"]["tools"]
+        );
+        // Tool names as 2025-11-25 asks: 1 to 128 of letters, digits, `_`, `-`, and `.`.
+        for tool in tools_list["result"]["tools"].as_array().unwrap() {
+            let name = tool["name"].as_str().unwrap();
+            assert!(
+                (1..=128).contains(&name.len())
+                    && name
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c)),
+                "{name}"
+            );
+        }
+        assert_eq!(tools_list["result"]["cacheScope"], "public");
+        assert!(tools_list["result"]["ttlMs"].as_u64().unwrap() > 0);
+        assert_eq!(spec["result"]["isError"], false, "{spec}");
+        // A version it does not speak is named back, with the ones it does.
+        assert_eq!(
+            unknown_version["error"]["code"],
+            UNSUPPORTED_PROTOCOL_VERSION
+        );
+        assert_eq!(unknown_version["error"]["data"]["requested"], "1900-01-01");
+        assert_eq!(
+            unknown_version["error"]["data"]["supported"],
+            d["supportedVersions"]
+        );
+        // 2026-07-28 removed the handshake and ping.
+        assert_eq!(ping["error"]["code"], -32601, "{ping}");
+        assert_eq!(init["error"]["code"], -32601, "{init}");
+        // A client that opens with `initialize` is served as before, now up to 2025-11-25, and its
+        // results carry nothing of the stateless protocol.
+        assert_eq!(legacy_init["result"]["protocolVersion"], "2025-11-25");
+        assert!(
+            legacy_list["result"].get("resultType").is_none(),
+            "{legacy_list}"
+        );
+        assert!(
+            legacy_list["result"].get("ttlMs").is_none(),
+            "{legacy_list}"
+        );
     }
 
     #[test]
