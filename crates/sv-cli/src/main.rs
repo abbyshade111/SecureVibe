@@ -2115,13 +2115,17 @@ impl BundleOutcome {
                 self.left_out.len()
             ));
             for (path, reason) in &self.left_out {
-                text.push_str(&format!("  {path}: {reason}\n"));
+                text.push_str(&format!(
+                    "  {}: {}\n",
+                    sv_report::one_line(path),
+                    sv_report::one_line(reason)
+                ));
             }
         }
         if !self.categories.is_empty() {
             text.push_str(&format!(
                 "\nsecurevibe.toml says this app holds: {}. Those are not left out: sv cannot tell which files hold them.\n",
-                self.categories.join(", ")
+                sv_report::one_line(&self.categories.join(", "))
             ));
         }
         text.push_str(
@@ -2227,15 +2231,23 @@ fn write_bundle(
 /// `sv run` has been used they are recorded as a gap rather than as nothing to report — a section
 /// missing from a report reads as a section with nothing in it.
 /// Writes the five renderings of a report into `out_dir`, and says which were written.
+///
+/// The report folder usually sits inside the app, and an app can hold links, so nothing here follows
+/// one: a folder or a file that is a link is refused, and each file is written under a new name and
+/// renamed into place, since a rename replaces a link rather than writing through it. `std::fs::write`
+/// follows a link, and did: a `report.json` that was a link to a file outside the app had that file
+/// replaced by the report (BACKLOG, "Hardening the MCP server", item 1).
 fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<&'static str>> {
+    // Before the folder is created: creating it would follow a link to a folder that does not exist yet.
+    refuse_link(out_dir)?;
     std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
     // Marks the folder as `sv`'s own output, so the next check of the app does not read the report
     // as the app's code, whatever the folder is called (`sv_scan::ecosystems::REPORT_MARKER`).
-    std::fs::write(
-        out_dir.join(sv_scan::ecosystems::REPORT_MARKER),
-        "This folder holds a report written by sv. sv leaves it out when it checks the app.\n",
-    )
-    .with_context(|| format!("writing {}", sv_scan::ecosystems::REPORT_MARKER))?;
+    let marker = (
+        sv_scan::ecosystems::REPORT_MARKER,
+        "This folder holds a report written by sv. sv leaves it out when it checks the app.\n"
+            .to_owned(),
+    );
     let written = [
         ("report.html", sv_report::html::page(report)),
         ("compliance.md", sv_report::markdown::compliance(report)),
@@ -2243,10 +2255,49 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
         ("findings.sarif", sv_report::sarif::render(report)),
         ("report.json", sv_report::json::to_string(report)),
     ];
-    for (name, contents) in &written {
-        std::fs::write(out_dir.join(name), contents).with_context(|| format!("writing {name}"))?;
+    // Every name is looked at before any is written, so a refusal leaves the folder as it was.
+    for (name, _) in std::iter::once(&marker).chain(&written) {
+        refuse_link(&out_dir.join(name))?;
+    }
+    for (name, contents) in std::iter::once(&marker).chain(&written) {
+        write_without_following(out_dir, name, contents.as_bytes())
+            .with_context(|| format!("writing {name}"))?;
     }
     Ok(written.iter().map(|(name, _)| *name).collect())
+}
+
+/// Refuses a path that is a link, whatever it points to, saying so in the owner's terms.
+fn refuse_link(path: &Path) -> Result<()> {
+    if let Ok(meta) = std::fs::symlink_metadata(path) {
+        anyhow::ensure!(
+            !meta.file_type().is_symlink(),
+            "{} is a link to somewhere else, so sv does not write through it. Remove the link, or \
+             give a folder of your own with --out.",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
+/// Writes `name` in `dir` without following a link at that name: the bytes go to a file that did not
+/// exist before (`create_new` refuses a link as it refuses anything already there), which is then
+/// renamed over `name`. A link put at `name` after `refuse_link` looked is replaced, never written
+/// through.
+fn write_without_following(dir: &Path, name: &str, contents: &[u8]) -> Result<()> {
+    let target = dir.join(name);
+    let staging = dir.join(format!(".{name}.sv-{}", std::process::id()));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&staging)
+        .with_context(|| format!("{} could not be created", staging.display()))?;
+    let written = std::io::Write::write_all(&mut file, contents).and_then(|()| file.sync_all());
+    drop(file);
+    if let Err(e) = written.and_then(|()| std::fs::rename(&staging, &target)) {
+        let _ = std::fs::remove_file(&staging);
+        return Err(e).with_context(|| format!("{} could not be written", target.display()));
+    }
+    Ok(())
 }
 
 /// What a report is built from, and what the person asked for.
@@ -4081,6 +4132,78 @@ mod rate_limited_gap_tests {
                 && gap.why.contains("neither a finding nor a pass"),
             "{}",
             gap.why
+        );
+    }
+}
+
+#[cfg(all(test, unix))]
+mod writing_through_links_tests {
+    use super::{write_report_files, write_without_following};
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-links-{tag}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_link_put_where_a_file_is_written_is_replaced_and_what_it_points_to_is_left_alone() {
+        // The race `refuse_link` cannot close by looking first: a link put at the name after it looked.
+        let dir = scratch("replace");
+        std::fs::write(dir.join("precious.txt"), "keep me\n").unwrap();
+        std::fs::create_dir(dir.join("out")).unwrap();
+        std::os::unix::fs::symlink(dir.join("precious.txt"), dir.join("out/report.json")).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(dir.join("out/report.json")).unwrap(),
+            "keep me\n"
+        );
+
+        write_without_following(&dir.join("out"), "report.json", b"{}\n").unwrap();
+        let kept = std::fs::read_to_string(dir.join("precious.txt")).unwrap();
+        let meta = std::fs::symlink_metadata(dir.join("out/report.json")).unwrap();
+        let written = std::fs::read_to_string(dir.join("out/report.json")).unwrap();
+        let left: Vec<_> = std::fs::read_dir(dir.join("out"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .collect();
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(kept, "keep me\n", "the write went through the link");
+        assert!(!meta.file_type().is_symlink() && written == "{}\n");
+        assert_eq!(left.len(), 1, "a staging file was left behind: {left:?}");
+    }
+
+    #[test]
+    fn a_report_folder_that_is_a_link_is_refused_and_nothing_is_written() {
+        // `sv report` writes to `<app>/securevibe-report` unless told otherwise, and an app can ship
+        // that name as a link to a folder of the owner's.
+        let dir = scratch("folder");
+        std::fs::create_dir(dir.join("theirs")).unwrap();
+        std::os::unix::fs::symlink(dir.join("theirs"), dir.join("securevibe-report")).unwrap();
+        let app =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/flask-booking");
+        let report = super::assemble_report(
+            &app,
+            &super::ReportOptions {
+                run_the_app: false,
+                slow: false,
+                run_tools: false,
+                why_not_run: String::new(),
+                why_no_tools: String::new(),
+                advisories: None,
+                why_no_advisories: String::new(),
+            },
+            &super::Loaded::load().unwrap(),
+        )
+        .unwrap();
+        let result = write_report_files(&report, &dir.join("securevibe-report"));
+        let written: Vec<_> = std::fs::read_dir(dir.join("theirs")).unwrap().collect();
+        std::fs::remove_dir_all(&dir).ok();
+        let err = result.expect_err("a report folder that is a link was written through");
+        assert!(format!("{err:#}").contains("is a link"), "{err:#}");
+        assert!(
+            written.is_empty(),
+            "files were written through the link: {written:?}"
         );
     }
 }
