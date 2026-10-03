@@ -195,6 +195,43 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     }
     assert_eq!(seen(port, "2a2b")["received"], true);
 
+    // C9.1.2: MCPLOOP asks for the tool again after every result until 40 have come back, then
+    // answers, and says how many came back.
+    let looped = |results: usize| {
+        let mut messages = vec![serde_json::json!({
+            "role": "user", "content": "Look it up SV-PROBE-MCPLOOP-3c3d"
+        })];
+        for n in 0..results {
+            messages.push(serde_json::json!({"role": "tool", "content": format!("result {n}")}));
+        }
+        let body = serde_json::json!({
+            "model": "gpt-test",
+            "messages": messages,
+            "tools": [{"type": "function", "function": {"name": "mcp__sv_lookup"}}],
+        });
+        serde_json::from_str::<serde_json::Value>(&call(
+            port,
+            "POST",
+            "/v1/chat/completions",
+            &body.to_string(),
+        ))
+        .unwrap()
+    };
+    let asking = looped(39);
+    assert_eq!(
+        asking["choices"][0]["message"]["tool_calls"][0]["function"]["name"], "mcp__sv_lookup",
+        "{asking}"
+    );
+    assert_eq!(seen(port, "3c3d")["rounds"], 39);
+    let done = looped(40);
+    assert!(
+        done["choices"][0]["message"]["content"]
+            .as_str()
+            .is_some_and(|t| t.contains("SV-REPLY-3c3d")),
+        "{done}"
+    );
+    assert_eq!(seen(port, "3c3d")["rounds"], 40);
+
     // C9.5.3: a FETCH message has the model call the app's own tool it names, with its arguments,
     // and what the app sends back as that tool's result is recorded.
     let call = serde_json::json!({"tool": "get_note", "args": {"id": "7"}}).to_string();
