@@ -287,7 +287,8 @@ is written, if you want one).
 
 A check that takes longer than 50 seconds is stopped waiting for, and the tool is told it did not finish and that
 nothing was assessed, rather than being left waiting. Checking this whole repository takes about six seconds.
-`--time-limit SECONDS` changes the limit, and `sv report` at a terminal has none.
+`--time-limit SECONDS` changes the limit, and `sv report` at a terminal has none. A tool that asks to hear how a check
+is going is told each stage as it starts.
 
 A `.mcp.json` in the app's folder, with the JSON above, works in tools that have no `claude` command,
 such as the Claude desktop app.
