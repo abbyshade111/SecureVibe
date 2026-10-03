@@ -40,6 +40,56 @@ const SESSION_KEPT: Rule = Rule {
           answer any later request carrying that ID with 404, as the MCP transport requires.",
 };
 
+const TOKEN_UNCHECKED: Rule = Rule {
+    rule_id: "probe.mcp-server-token-unchecked",
+    requirement_ids: &["C10.2.1"],
+    cwe: &["CWE-306", "CWE-287"],
+    impact: "Anyone who can reach the MCP server can use its tools, with no token or with one they \
+             made up: whatever the tools can do, any AI client on the network can have done.",
+    fix: "Check the access token on every request, before anything else, and answer 401 when it is \
+          missing or wrong; within a session as well as when one starts.",
+};
+
+const PARAMETERS_UNCHECKED: Rule = Rule {
+    rule_id: "probe.mcp-server-takes-unknown-or-oversized-arguments",
+    requirement_ids: &["C10.4.3"],
+    cwe: &["CWE-20"],
+    impact: "A tool runs with arguments it never declared, or with one far longer than any real use \
+             needs. A model can be talked into writing either, and the tool's code then works on \
+             something nobody planned for.",
+    fix: "Validate each call against the tool's declared input schema before running it, with \
+          `additionalProperties: false` and a `maxLength` on strings, and answer an error for \
+          anything else.",
+};
+
+const TYPES_UNCHECKED: Rule = Rule {
+    rule_id: "probe.mcp-server-takes-wrong-types",
+    requirement_ids: &["C10.4.4"],
+    cwe: &["CWE-20"],
+    impact: "A tool runs with an argument of a type its schema does not allow, so its own code meets \
+             a value it was not written for.",
+    fix: "Validate each call against the declared schema, types included, before running the tool \
+          (the official MCP libraries do when a tool's input is declared with a schema library \
+          such as Zod or Pydantic), and answer an error for anything that does not fit.",
+};
+
+const NO_SIZE_LIMIT: Rule = Rule {
+    rule_id: "probe.mcp-server-no-size-limit",
+    requirement_ids: &["C10.4.5"],
+    cwe: &["CWE-770"],
+    impact: "The MCP endpoint reads and answers a request of several megabytes, far past what a tool \
+             call needs, so a few such requests can use up its memory.",
+    fix: "Set a maximum request size where the endpoint reads requests (a body-size limit in the web \
+          framework or the proxy in front of it), well below a megabyte unless a tool really needs \
+          more, and answer 413 above it.",
+};
+
+/// How long the over-long argument is, in characters: no real argument to a tool needs a megabyte.
+const LONG_ARGUMENT: usize = 1_000_000;
+/// How large the very large request is, in bytes: past any tool call, and inside what the run's
+/// request path carries (16 MB).
+const LARGE_REQUEST: usize = 8_000_000;
+
 const PROTOCOL: &str = "2025-06-18";
 const STRANGER: &str = "http://sv-evil.invalid";
 const REBOUND: &str = "sv-rebind.invalid";
@@ -90,21 +140,561 @@ fn request(
     }
 }
 
+/// The requirements the run asks, for a reason that stops all of them.
+fn asked(section: &McpServerSection) -> String {
+    let mut ids = vec!["C10.3.3", "C10.2.6"];
+    if section.token_env.is_some() && !section.public {
+        ids.push("C10.2.1");
+    }
+    if section.probe_tool.is_some() {
+        ids.extend(["C10.4.3", "C10.4.4", "C10.4.5"]);
+    }
+    ids.join(", ")
+}
+
+/// Sends every request with the run's token, unless the request carries its own `Authorization`
+/// header: a made-up token is sent as it is, and an empty one means none at all.
+struct Authed<'a> {
+    inner: &'a mut dyn Http,
+    bearer: Option<String>,
+}
+
+impl Http for Authed<'_> {
+    fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        let mut request = request.clone();
+        let own = request
+            .headers
+            .iter()
+            .position(|(n, _)| n.eq_ignore_ascii_case("authorization"));
+        match (own, &self.bearer) {
+            (Some(at), _) if request.headers[at].1.is_empty() => {
+                request.headers.remove(at);
+            }
+            (Some(_), _) | (None, None) => {}
+            (None, Some(bearer)) => request
+                .headers
+                .push(("Authorization".into(), bearer.clone())),
+        }
+        self.inner.send(&request)
+    }
+}
+
+/// What an answer to a call came to.
+#[derive(Debug, PartialEq, Eq)]
+enum Verdict {
+    /// A JSON-RPC result that is not a tool's error: the request was taken.
+    Took,
+    /// An HTTP error below 500, a JSON-RPC error, or a tool's own `isError`.
+    Refused,
+    /// No answer, or a server error: not an answer to the question.
+    NoAnswer,
+}
+
+fn verdict(r: &Option<ProbeResponse>) -> Verdict {
+    let Some(r) = r else {
+        return Verdict::NoAnswer;
+    };
+    if r.status >= 500 {
+        return Verdict::NoAnswer;
+    }
+    let squeezed: String = r.body.chars().filter(|c| !c.is_whitespace()).collect();
+    let tool_error = squeezed.contains("\"isError\":true");
+    if (200..300).contains(&r.status) && squeezed.contains("\"result\"") && !tool_error {
+        Verdict::Took
+    } else if r.status >= 400 || squeezed.contains("\"error\"") || tool_error {
+        Verdict::Refused
+    } else {
+        Verdict::NoAnswer
+    }
+}
+
+/// A value made for this run, so nothing an earlier run sent can stand in for it.
+fn nonce() -> String {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_nanos());
+    format!("{:x}", now ^ (u128::from(std::process::id()) << 64))
+}
+
+/// C10.2.1: no token, a made-up one, and none inside a session the run's token started. The control
+/// is the session itself, and the tools listed in it with the token.
+fn token_checks(
+    http: &mut dyn Http,
+    section: &McpServerSection,
+    path: &str,
+    session: Option<&str>,
+    out: &mut Outcome,
+) {
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push(("C10.2.1".to_owned(), why));
+    if section.public {
+        say(
+            "Whether the MCP server checks an access token: securevibe.toml says it is meant to \
+             answer anyone, so it was not asked."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    if let Some(name) = section
+        .token_env
+        .as_deref()
+        .filter(|n| !sv_manifest::is_variable_name(n))
+    {
+        say(
+            format!(
+                "Whether the MCP server checks an access token: `token-env` is `{name}`, which is \
+                 not an environment variable name (letters, digits, and `_`), so no token was given \
+                 to the app."
+            ),
+            out,
+        );
+        return;
+    }
+    if section.token_env.is_none() {
+        say(
+            "Whether the MCP server checks an access token: if it takes one fixed token, name the \
+             variable it reads it from as `token-env` under [stack.run.mcp-server]; if it is meant \
+             to answer anyone, say `public = true`."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let with = |mut r: ProbeRequest, auth: &str| {
+        r.headers.push(("Authorization".into(), auth.to_owned()));
+        r
+    };
+    let made_up = format!("Bearer sv-made-up-{}", nonce());
+    let none = http.send(&with(
+        request(
+            "mcp-no-token",
+            "POST",
+            path,
+            Some(rpc(10, "initialize")),
+            None,
+            &[],
+        ),
+        "",
+    ));
+    let wrong = http.send(&with(
+        request(
+            "mcp-made-up-token",
+            "POST",
+            path,
+            Some(rpc(11, "initialize")),
+            None,
+            &[],
+        ),
+        &made_up,
+    ));
+    let listed = session.map(|s| {
+        http.send(&request(
+            "mcp-list-with-token",
+            "POST",
+            path,
+            Some(rpc(12, "tools/list")),
+            Some(s),
+            &[],
+        ))
+    });
+    let bare = session.map(|s| {
+        http.send(&with(
+            request(
+                "mcp-list-no-token",
+                "POST",
+                path,
+                Some(rpc(13, "tools/list")),
+                Some(s),
+                &[],
+            ),
+            "",
+        ))
+    });
+    out.steps.push(format!(
+        "asked the MCP endpoint at {path} with no token ({}) and with a made-up one ({}){}",
+        status(&none),
+        status(&wrong),
+        match &bare {
+            Some(b) => format!(
+                ", and for its tools with no token inside a session ({})",
+                status(b)
+            ),
+            None => String::new(),
+        }
+    ));
+    let mut took = Vec::new();
+    let mut answers = vec![verdict(&none), verdict(&wrong)];
+    if verdict(&none) == Verdict::Took {
+        took.push("a request with no token started a session");
+    }
+    if verdict(&wrong) == Verdict::Took {
+        took.push("a request with a made-up token started a session");
+    }
+    if let (Some(listed), Some(bare)) = (&listed, &bare)
+        && verdict(listed) == Verdict::Took
+    {
+        answers.push(verdict(bare));
+        if verdict(bare) == Verdict::Took {
+            took.push("a request with no token inside a session listed its tools");
+        }
+    }
+    if !took.is_empty() {
+        out.findings.push(finding(
+            &TOKEN_UNCHECKED,
+            "The MCP server answers without its access token",
+            Severity::High,
+            format!(
+                "At {path}, {}, where the server was given its own token to check.",
+                took.join("; ")
+            ),
+        ));
+    } else if answers.iter().all(|v| *v == Verdict::Refused) {
+        out.verified.push(crate::Verified::new(
+            TOKEN_UNCHECKED.rule_id,
+            TOKEN_UNCHECKED.requirement_ids,
+            format!(
+                "the MCP endpoint at {path} refused a request with no token and one with a made-up \
+                 token{}, where the run's own token started a session",
+                if answers.len() > 2 {
+                    ", and a request with no token inside a session"
+                } else {
+                    ""
+                }
+            ),
+        ));
+    } else {
+        say(
+            "Whether the MCP server checks an access token: one of the requests without the run's \
+             token got no answer, or an error of the server's own, which is not a refusal."
+                .to_owned(),
+            out,
+        );
+    }
+}
+
+/// The tool named as `probe-tool`, called with `arguments`, and with `params` added beside them.
+fn call(
+    id: &str,
+    n: u32,
+    tool: &str,
+    arguments: serde_json::Value,
+    extra: Option<(&str, serde_json::Value)>,
+    path: &str,
+    session: Option<&str>,
+) -> ProbeRequest {
+    let mut params = serde_json::json!({"name": tool, "arguments": arguments});
+    if let Some((k, v)) = extra {
+        params[k] = v;
+    }
+    let body =
+        serde_json::json!({"jsonrpc": "2.0", "id": n, "method": "tools/call", "params": params});
+    request(id, "POST", path, Some(body.to_string()), session, &[])
+}
+
+/// C10.4.3, C10.4.4, and C10.4.5, with the owner's safe tool: called as it should be (the control),
+/// with an argument it never declared, with one a megabyte long, with one of a type its schema does
+/// not allow, and, last, inside a request of eight megabytes.
+fn tool_checks(
+    http: &mut dyn Http,
+    section: &McpServerSection,
+    path: &str,
+    session: Option<&str>,
+    out: &mut Outcome,
+) {
+    let say = |ids: &str, why: String, out: &mut Outcome| {
+        out.not_assessed.push((ids.to_owned(), why));
+    };
+    let Some(tool) = &section.probe_tool else {
+        say(
+            "C10.4.3, C10.4.4, C10.4.5",
+            "What the MCP server does with arguments it should refuse: name a tool that is safe to \
+             call again and again, with arguments it accepts, as `probe-tool` under \
+             [stack.run.mcp-server]."
+                .to_owned(),
+            out,
+        );
+        return;
+    };
+    let valid: serde_json::Map<String, serde_json::Value> = tool
+        .args
+        .iter()
+        .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+        .collect();
+    let control = http.send(&call(
+        "mcp-tool-control",
+        20,
+        &tool.name,
+        valid.clone().into(),
+        None,
+        path,
+        session,
+    ));
+    out.steps.push(format!(
+        "called its tool `{}` with the arguments securevibe.toml gives ({})",
+        tool.name,
+        status(&control)
+    ));
+    if verdict(&control) != Verdict::Took {
+        say(
+            "C10.4.3, C10.4.4, C10.4.5",
+            format!(
+                "What the MCP server does with arguments it should refuse: its tool `{}`, called \
+                 with the arguments securevibe.toml gives, did not answer with a result ({}), so a \
+                 refusal of anything else would show nothing.",
+                tool.name,
+                status(&control)
+            ),
+            out,
+        );
+        return;
+    }
+
+    // C10.4.3: an argument it never declared, and one far longer than any real one.
+    let mut unknown = valid.clone();
+    unknown.insert(format!("sv_unknown_{}", nonce()), "x".into());
+    let unknown_answer = http.send(&call(
+        "mcp-tool-unknown-argument",
+        21,
+        &tool.name,
+        unknown.into(),
+        None,
+        path,
+        session,
+    ));
+    let long_answer = valid.keys().next().map(|first| {
+        let mut long = valid.clone();
+        long.insert(first.clone(), "a".repeat(LONG_ARGUMENT).into());
+        http.send(&call(
+            "mcp-tool-long-argument",
+            22,
+            &tool.name,
+            long.into(),
+            None,
+            path,
+            session,
+        ))
+    });
+    out.steps.push(format!(
+        "called it with an argument it never declared ({}){}",
+        status(&unknown_answer),
+        match &long_answer {
+            Some(a) => format!(
+                " and with one {LONG_ARGUMENT} characters long ({})",
+                status(a)
+            ),
+            None => String::new(),
+        }
+    ));
+    let mut took = Vec::new();
+    if verdict(&unknown_answer) == Verdict::Took {
+        took.push("an argument it never declared".to_owned());
+    }
+    if long_answer
+        .as_ref()
+        .is_some_and(|a| verdict(a) == Verdict::Took)
+    {
+        took.push(format!("an argument {LONG_ARGUMENT} characters long"));
+    }
+    let refused = verdict(&unknown_answer) == Verdict::Refused
+        && long_answer
+            .as_ref()
+            .is_some_and(|a| verdict(a) == Verdict::Refused);
+    if !took.is_empty() {
+        out.findings.push(finding(
+            &PARAMETERS_UNCHECKED,
+            "An MCP tool runs with arguments it should refuse",
+            Severity::Medium,
+            format!(
+                "The tool `{}` at {path} answered with a result for {}, as it did for the \
+                 arguments it declares. Some libraries drop unknown arguments without saying so, \
+                 which is safer than using them but is still not refusing them.",
+                tool.name,
+                took.join(" and for ")
+            ),
+        ));
+    } else if refused {
+        out.verified.push(crate::Verified::new(
+            PARAMETERS_UNCHECKED.rule_id,
+            PARAMETERS_UNCHECKED.requirement_ids,
+            format!(
+                "the MCP tool `{}` refused an argument it never declared and one {LONG_ARGUMENT} \
+                 characters long, where the same tool answered its declared arguments; one tool",
+                tool.name
+            ),
+        ));
+    } else {
+        say(
+            "C10.4.3",
+            format!(
+                "What the tool `{}` does with an unknown or over-long argument: {}.",
+                tool.name,
+                if long_answer.is_none() {
+                    "securevibe.toml gives it no argument to make long, and an unknown one alone is \
+                     not all of the question"
+                        .to_owned()
+                } else {
+                    "one of the calls got no answer, or an error of the server's own, which is not \
+                     a refusal"
+                        .to_owned()
+                }
+            ),
+            out,
+        );
+    }
+
+    // C10.4.4: a value no schema could read as a string, where the schema declares a string.
+    let listed = http.send(&request(
+        "mcp-tool-schema",
+        "POST",
+        path,
+        Some(rpc(23, "tools/list")),
+        session,
+        &[],
+    ));
+    let declared_string = listed.as_ref().and_then(|r| {
+        let text = r.body.trim();
+        let json = text
+            .lines()
+            .find_map(|l| l.strip_prefix("data:"))
+            .unwrap_or(text);
+        let value: serde_json::Value = serde_json::from_str(json.trim()).ok()?;
+        let tools = value["result"]["tools"].as_array()?;
+        let schema = &tools.iter().find(|t| t["name"] == tool.name.as_str())?["inputSchema"];
+        valid
+            .keys()
+            .find(|k| schema["properties"][k.as_str()]["type"] == "string")
+            .cloned()
+    });
+    match declared_string {
+        None => say(
+            "C10.4.4",
+            format!(
+                "Whether the tool `{}` refuses a value of the wrong type: its listed schema declares \
+                 none of the arguments securevibe.toml gives as a string, so there was no type to \
+                 get wrong on purpose.",
+                tool.name
+            ),
+            out,
+        ),
+        Some(name) => {
+            let mut wrong = valid.clone();
+            wrong.insert(name.clone(), serde_json::json!({"sv": [1, 2]}));
+            let answer = http.send(&call(
+                "mcp-tool-wrong-type",
+                24,
+                &tool.name,
+                wrong.into(),
+                None,
+                path,
+                session,
+            ));
+            out.steps.push(format!(
+                "called it with an object where `{name}` is declared a string ({})",
+                status(&answer)
+            ));
+            match verdict(&answer) {
+                Verdict::Took => out.findings.push(finding(
+                    &TYPES_UNCHECKED,
+                    "An MCP tool runs with an argument of the wrong type",
+                    Severity::Medium,
+                    format!(
+                        "The tool `{}` at {path} answered with a result when `{name}`, declared a \
+                         string, was sent an object.",
+                        tool.name
+                    ),
+                )),
+                Verdict::Refused => out.verified.push(crate::Verified::new(
+                    TYPES_UNCHECKED.rule_id,
+                    TYPES_UNCHECKED.requirement_ids,
+                    format!(
+                        "the MCP tool `{}` refused an object where its schema declares `{name}` a \
+                         string; one tool, one argument",
+                        tool.name
+                    ),
+                )),
+                Verdict::NoAnswer => say(
+                    "C10.4.4",
+                    format!(
+                        "Whether the tool `{}` refuses a value of the wrong type: the call got no \
+                         answer, or an error of the server's own, which is not a refusal.",
+                        tool.name
+                    ),
+                    out,
+                ),
+            }
+        }
+    }
+
+    // C10.4.5, last, since a server with no limit may not survive it: the control call inside a
+    // request of eight megabytes. Only ever a finding: the requirement names no size.
+    let large = http.send(&call(
+        "mcp-large-request",
+        25,
+        &tool.name,
+        valid.into(),
+        Some(("sv_padding", "x".repeat(LARGE_REQUEST).into())),
+        path,
+        session,
+    ));
+    out.steps.push(format!(
+        "sent it a request of {LARGE_REQUEST} bytes ({})",
+        status(&large)
+    ));
+    match verdict(&large) {
+        Verdict::Took => out.findings.push(finding(
+            &NO_SIZE_LIMIT,
+            "The MCP endpoint takes a request of several megabytes",
+            Severity::Medium,
+            format!(
+                "The MCP endpoint at {path} read a request of {LARGE_REQUEST} bytes and answered it \
+                 with a result."
+            ),
+        )),
+        Verdict::Refused => say(
+            "C10.4.5",
+            format!(
+                "The MCP endpoint at {path} refused a request of {LARGE_REQUEST} bytes ({}). The \
+                 requirement names no size, and this is one size, so it is said and not credited.",
+                status(&large)
+            ),
+            out,
+        ),
+        Verdict::NoAnswer => say(
+            "C10.4.5",
+            format!(
+                "Whether the MCP endpoint limits the size of a request: a request of \
+                 {LARGE_REQUEST} bytes got no answer, or an error of the server's own ({}), which \
+                 is not a limit.",
+                status(&large)
+            ),
+            out,
+        ),
+    }
+}
+
 /// A JSON-RPC result in the answer, plain or as a server-sent event.
 fn answered(r: &Option<ProbeResponse>) -> bool {
     r.as_ref()
         .is_some_and(|r| (200..300).contains(&r.status) && r.body.contains("\"result\""))
 }
 
-pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
+/// Asks the app's MCP endpoint. `token` is the access token the run gave the app in
+/// `token-env`, sent with every request unless a request says otherwise; never written anywhere.
+pub fn run(http: &mut dyn Http, section: &McpServerSection, token: Option<&str>) -> Outcome {
+    let mut authed = Authed {
+        inner: http,
+        bearer: token.map(|t| format!("Bearer {t}")),
+    };
+    let http: &mut dyn Http = &mut authed;
     let mut out = Outcome::default();
     let path = section.path.as_str();
+    let all = asked(section);
     let say = |ids: &str, why: String, out: &mut Outcome| {
         out.not_assessed.push((ids.to_owned(), why));
     };
     if !path.starts_with('/') {
         say(
-            "C10.3.3, C10.2.6",
+            &all,
             format!("[stack.run.mcp-server] path must begin with `/`; it is `{path}`."),
             &mut out,
         );
@@ -126,11 +716,12 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
     ));
     if !answered(&first) {
         say(
-            "C10.3.3, C10.2.6",
+            &all,
             format!(
                 "The MCP endpoint at {path} did not start a session for an ordinary request ({}), \
-                 so a refusal of the others would show nothing. If it needs a token, that is not \
-                 something the run can give it yet.",
+                 so a refusal of the others would show nothing. If it takes one fixed access \
+                 token, name the variable it reads it from as `token-env` under \
+                 [stack.run.mcp-server]; a token from a sign-in service cannot be given to it yet.",
                 status(&first)
             ),
             &mut out,
@@ -155,6 +746,59 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
         ));
     }
 
+    token_checks(http, section, path, session.as_deref(), &mut out);
+    where_from_and_session_end(http, path, session.clone(), &mut out);
+    // The session above was ended on purpose (C10.2.6), so the tool questions start their own.
+    if section.probe_tool.is_some() {
+        let tools_session = start_session(http, path, "mcp-tools-initialize", 19);
+        tool_checks(http, section, path, tools_session.as_deref(), &mut out);
+    } else {
+        tool_checks(http, section, path, None, &mut out);
+    }
+    out
+}
+
+/// Starts a session as any client does, and says it is ready. The session's ID, when the server
+/// gives one; a server that keeps none is asked without.
+fn start_session(http: &mut dyn Http, path: &str, id: &str, n: u32) -> Option<String> {
+    let first = http.send(&request(
+        id,
+        "POST",
+        path,
+        Some(rpc(n, "initialize")),
+        None,
+        &[],
+    ));
+    let session = first
+        .as_ref()
+        .and_then(|r| r.header("mcp-session-id"))
+        .map(str::to_owned);
+    if let Some(session) = &session {
+        let _ = http.send(&request(
+            &format!("{id}-done"),
+            "POST",
+            path,
+            Some(
+                serde_json::json!({"jsonrpc": "2.0", "method": "notifications/initialized"})
+                    .to_string(),
+            ),
+            Some(session),
+            &[],
+        ));
+    }
+    session
+}
+
+/// C10.3.3 and C10.2.6, asked after the control session started.
+fn where_from_and_session_end(
+    http: &mut dyn Http,
+    path: &str,
+    session: Option<String>,
+    out: &mut Outcome,
+) {
+    let say = |ids: &str, why: String, out: &mut Outcome| {
+        out.not_assessed.push((ids.to_owned(), why));
+    };
     // C10.3.3: a foreign Origin, then a foreign Host, each on its own.
     let from_page = http.send(&request(
         "mcp-foreign-origin",
@@ -214,7 +858,7 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
             "Whether the MCP server checks Origin and Host: one of the two requests got no answer \
              at all, which is not a refusal."
                 .to_owned(),
-            &mut out,
+            out,
         );
     }
 
@@ -226,9 +870,9 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
                 "The MCP endpoint at {path} gave no `Mcp-Session-Id`, so it keeps no session a \
                  client could end, and there is nothing of one to ask about."
             ),
-            &mut out,
+            out,
         );
-        return out;
+        return;
     };
     let before = http.send(&request(
         "mcp-list-before",
@@ -270,7 +914,7 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
                  before it was ended ({}), so a refusal afterwards shows nothing.",
                 status(&before)
             ),
-            &mut out,
+            out,
         );
     } else if ended_status == 405 {
         say(
@@ -279,7 +923,7 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
              session (405), which the transport allows, so what ending one leaves behind cannot be \
              asked here."
                 .to_owned(),
-            &mut out,
+            out,
         );
     } else if !(200..300).contains(&ended_status) {
         say(
@@ -288,7 +932,7 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
                 "Whether an ended MCP session stays usable: ending it was refused ({}).",
                 status(&ended)
             ),
-            &mut out,
+            out,
         );
     } else if answered(&after) {
         out.findings.push(finding(
@@ -320,10 +964,9 @@ pub fn run(http: &mut dyn Http, section: &McpServerSection) -> Outcome {
             "Whether an ended MCP session stays usable: the request after it was ended got no \
              answer at all, which is not a refusal."
                 .to_owned(),
-            &mut out,
+            out,
         );
     }
-    out
 }
 
 #[cfg(test)]
@@ -342,11 +985,31 @@ mod tests {
         needs_token: bool,
         /// Answers with server-sent events rather than plain JSON.
         streams: bool,
+        /// Given a token, answers whatever token a request carries, or none.
+        token_unchecked: bool,
+        /// Given a token, checks it only when a session starts.
+        token_at_start_only: bool,
+        /// Its tool takes arguments it never declared.
+        unknown_arguments_ok: bool,
+        /// Its tool takes a string past its declared `maxLength`.
+        long_arguments_ok: bool,
+        /// Its tool takes a value of the wrong type.
+        wrong_types_ok: bool,
+        /// It reads a request of any size.
+        no_size_limit: bool,
+        /// Its tool fails with a server error whatever it is sent.
+        tool_broken: bool,
     }
+
+    /// The largest request the careful fake reads, past the long argument and short of the large
+    /// request.
+    const FAKE_LIMIT: usize = 2_000_000;
 
     #[derive(Default)]
     struct FakeMcp {
         flaws: Flaws,
+        /// The token it was given, as the app would read it from `token-env`.
+        token: Option<String>,
         sessions: BTreeSet<String>,
         next: u32,
         sent: Vec<ProbeRequest>,
@@ -377,6 +1040,18 @@ mod tests {
             }
             if self.flaws.needs_token {
                 return reply(401, Vec::new(), "{\"error\":\"token\"}".into());
+            }
+            if r.body.as_ref().is_some_and(|b| b.len() > FAKE_LIMIT) && !self.flaws.no_size_limit {
+                return reply(413, Vec::new(), "{\"error\":\"too large\"}".into());
+            }
+            if let Some(token) = &self.token {
+                let carried = Self::header(r, "authorization") == Some(&format!("Bearer {token}"));
+                let starting = r.body_text().contains("\"initialize\"");
+                let checked =
+                    !self.flaws.token_unchecked && (starting || !self.flaws.token_at_start_only);
+                if checked && !carried {
+                    return reply(401, Vec::new(), "{\"error\":\"token\"}".into());
+                }
             }
             if Self::header(r, "origin").is_some_and(|o| o != "http://localhost")
                 && !self.flaws.origin_unchecked
@@ -417,7 +1092,44 @@ mod tests {
             {
                 return reply(404, Vec::new(), "{\"error\":\"no such session\"}".into());
             }
-            let result = serde_json::json!({"jsonrpc": "2.0", "id": id, "result": {"tools": []}});
+            let tool = serde_json::json!({
+                "name": "echo",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {"text": {"type": "string", "maxLength": 1000}},
+                    "required": ["text"],
+                    "additionalProperties": false,
+                },
+            });
+            let result = if method == "tools/call" {
+                if self.flaws.tool_broken {
+                    return reply(500, Vec::new(), "Internal Server Error".into());
+                }
+                let args = &body["params"]["arguments"];
+                let fault = if args
+                    .as_object()
+                    .is_some_and(|a| a.keys().any(|k| k != "text"))
+                    && !self.flaws.unknown_arguments_ok
+                {
+                    Some("unknown argument")
+                } else if !args["text"].is_string() && !self.flaws.wrong_types_ok {
+                    Some("text must be a string")
+                } else if args["text"].as_str().is_some_and(|t| t.len() > 1000)
+                    && !self.flaws.long_arguments_ok
+                {
+                    Some("text is too long")
+                } else {
+                    None
+                };
+                match fault {
+                    Some(why) => serde_json::json!({"jsonrpc": "2.0", "id": id,
+                        "error": {"code": -32602, "message": why}}),
+                    None => serde_json::json!({"jsonrpc": "2.0", "id": id,
+                        "result": {"content": [{"type": "text", "text": "ok"}], "isError": false}}),
+                }
+            } else {
+                serde_json::json!({"jsonrpc": "2.0", "id": id, "result": {"tools": [tool]}})
+            };
             let text = if self.flaws.streams {
                 format!("event: message\ndata: {result}\n\n")
             } else {
@@ -436,7 +1148,33 @@ mod tests {
             &mut server,
             &McpServerSection {
                 path: "/mcp".into(),
+                ..Default::default()
             },
+            None,
+        );
+        (out, server)
+    }
+
+    /// A run where the server takes the run's token and the owner names its safe tool.
+    fn ask_all(flaws: Flaws) -> (Outcome, FakeMcp) {
+        let token = "sv-test-token-1".to_owned();
+        let mut server = FakeMcp {
+            flaws,
+            token: Some(token.clone()),
+            ..Default::default()
+        };
+        let out = run(
+            &mut server,
+            &McpServerSection {
+                path: "/mcp".into(),
+                token_env: Some("MCP_TOKEN".into()),
+                public: false,
+                probe_tool: Some(sv_manifest::RecordTool {
+                    name: "echo".into(),
+                    args: [("text".to_owned(), "hello".to_owned())].into(),
+                }),
+            },
+            Some(&token),
         );
         (out, server)
     }
@@ -573,7 +1311,11 @@ mod tests {
 
         let o = run(
             &mut FakeMcp::default(),
-            &McpServerSection { path: "mcp".into() },
+            &McpServerSection {
+                path: "mcp".into(),
+                ..Default::default()
+            },
+            None,
         );
         assert!(credited(&o).is_empty() && o.steps.is_empty());
         assert!(
@@ -581,5 +1323,173 @@ mod tests {
                 .iter()
                 .any(|w| w.contains("must begin with"))
         );
+    }
+
+    #[test]
+    fn a_careful_server_is_credited_for_its_token_and_its_tools() {
+        let (o, server) = ask_all(Flaws::default());
+        assert!(found(&o).is_empty(), "{:?} {:?}", o.findings, o.steps);
+        for rule in [&TOKEN_UNCHECKED, &PARAMETERS_UNCHECKED, &TYPES_UNCHECKED] {
+            assert!(
+                credited(&o).contains(&rule.rule_id),
+                "{} {:?}",
+                rule.rule_id,
+                o.steps
+            );
+        }
+        // C10.4.5 is only ever a finding: a refusal is said.
+        assert!(!credited(&o).contains(&NO_SIZE_LIMIT.rule_id));
+        assert!(
+            why(&o, "C10.4.5")
+                .iter()
+                .any(|w| w.contains("said and not credited"))
+        );
+        // The setup: the large request really was sent, and was the last.
+        let last = server.sent.last().unwrap();
+        assert_eq!(last.id, "mcp-large-request");
+        assert!(last.body.as_ref().unwrap().len() > LARGE_REQUEST);
+        // And the run's token went with every request but those meant to go without it.
+        for r in &server.sent {
+            let auth = FakeMcp::header(r, "authorization");
+            match r.id.as_str() {
+                "mcp-no-token" | "mcp-list-no-token" => assert_eq!(auth, None, "{}", r.id),
+                "mcp-made-up-token" => assert!(auth.is_some_and(|a| a.contains("sv-made-up-"))),
+                _ => assert_eq!(auth, Some("Bearer sv-test-token-1"), "{}", r.id),
+            }
+        }
+    }
+
+    #[test]
+    fn a_server_that_answers_without_its_token_is_found() {
+        for flaw in [
+            Flaws {
+                token_unchecked: true,
+                ..Default::default()
+            },
+            Flaws {
+                token_at_start_only: true,
+                ..Default::default()
+            },
+        ] {
+            let (o, _) = ask_all(flaw);
+            assert!(
+                found(&o).contains(&TOKEN_UNCHECKED.rule_id),
+                "{:?}",
+                o.steps
+            );
+            assert!(!credited(&o).contains(&TOKEN_UNCHECKED.rule_id));
+        }
+        // Checked only when a session starts: what is found is the request inside one.
+        let (o, _) = ask_all(Flaws {
+            token_at_start_only: true,
+            ..Default::default()
+        });
+        let f = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == TOKEN_UNCHECKED.rule_id)
+            .unwrap();
+        assert!(
+            f.description.contains("inside a session"),
+            "{}",
+            f.description
+        );
+        assert!(
+            !f.description.contains("no token started"),
+            "{}",
+            f.description
+        );
+    }
+
+    #[test]
+    fn a_tool_that_takes_what_it_should_refuse_is_found_for_each() {
+        let cases: [(Flaws, &Rule, &str); 4] = [
+            (
+                Flaws {
+                    unknown_arguments_ok: true,
+                    ..Default::default()
+                },
+                &PARAMETERS_UNCHECKED,
+                "never declared",
+            ),
+            (
+                Flaws {
+                    long_arguments_ok: true,
+                    ..Default::default()
+                },
+                &PARAMETERS_UNCHECKED,
+                "characters long",
+            ),
+            (
+                Flaws {
+                    wrong_types_ok: true,
+                    ..Default::default()
+                },
+                &TYPES_UNCHECKED,
+                "sent an object",
+            ),
+            (
+                Flaws {
+                    no_size_limit: true,
+                    ..Default::default()
+                },
+                &NO_SIZE_LIMIT,
+                "bytes and answered",
+            ),
+        ];
+        for (flaw, rule, words) in cases {
+            let (o, _) = ask_all(flaw);
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == rule.rule_id)
+                .unwrap_or_else(|| panic!("{} not found: {:?}", rule.rule_id, o.steps));
+            assert!(f.description.contains(words), "{}", f.description);
+            assert!(!credited(&o).contains(&rule.rule_id));
+        }
+    }
+
+    #[test]
+    fn a_tool_that_fails_or_is_not_named_settles_nothing() {
+        // Broken whatever it is sent: the control fails, and nothing is said either way.
+        let (o, _) = ask_all(Flaws {
+            tool_broken: true,
+            ..Default::default()
+        });
+        for rule in [&PARAMETERS_UNCHECKED, &TYPES_UNCHECKED, &NO_SIZE_LIMIT] {
+            assert!(!found(&o).contains(&rule.rule_id));
+            assert!(!credited(&o).contains(&rule.rule_id));
+        }
+        assert!(
+            why(&o, "C10.4.3")
+                .iter()
+                .any(|w| w.contains("did not answer with a result"))
+        );
+        // Not named, nor a token: the owner is told what to say.
+        let (o, _) = ask(Flaws::default());
+        assert!(why(&o, "C10.4.4").iter().any(|w| w.contains("probe-tool")));
+        assert!(why(&o, "C10.2.1").iter().any(|w| w.contains("token-env")));
+        assert!(!credited(&o).contains(&TOKEN_UNCHECKED.rule_id));
+    }
+
+    #[test]
+    fn a_server_meant_for_anyone_is_not_asked_for_a_token() {
+        let mut server = FakeMcp::default();
+        let o = run(
+            &mut server,
+            &McpServerSection {
+                path: "/mcp".into(),
+                public: true,
+                ..Default::default()
+            },
+            None,
+        );
+        assert!(!found(&o).contains(&TOKEN_UNCHECKED.rule_id));
+        assert!(
+            why(&o, "C10.2.1")
+                .iter()
+                .any(|w| w.contains("meant to answer anyone"))
+        );
+        assert!(!server.sent.iter().any(|r| r.id.starts_with("mcp-no-token")));
     }
 }

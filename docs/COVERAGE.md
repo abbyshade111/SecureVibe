@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 160 (46%) | 9 | 176 |
-| OWASP AISVS 1.0 | 191 | 33 (17%) | 0 | 158 |
+| OWASP AISVS 1.0 | 191 | 37 (19%) | 0 | 154 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 9 | 27 |
 
@@ -293,11 +293,11 @@ does not reach.
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 1 | 0 | 10 |
 | C9 Orchestration & Agentic Security | 34 | 7 | 0 | 27 |
-| C10 Model Context Protocol (MCP) Security | 23 | 5 | 0 | 18 |
+| C10 Model Context Protocol (MCP) Security | 23 | 9 | 0 | 14 |
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-17 of these 36 can only ever be marked *needs attention*: a check can
+18 of these 40 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -326,10 +326,14 @@ need `--tools`.
 - C9.5.4: found failing by semgrep's `mcp-credential-in-response`.
 - C9.6.1: settled by `probe.ai-kill-switch-ignored`.
 - C10.1.1: found failing by sv's `config.mcp-server-unpinned`.
+- C10.2.1: settled by `probe.mcp-server-token-unchecked`.
 - C10.2.6: settled by `probe.mcp-session-survives-end`.
 - C10.3.3: settled by `probe.mcp-server-origin-unchecked`.
 - C10.4.1: settled by `probe.ai-mcp-output-unvalidated`.
 - C10.4.2: settled by `probe.ai-mcp-injection-unscreened`; and found failing by semgrep's `mcp-tool-poisoning`, `mcp-unsanitized-return`.
+- C10.4.3: settled by `probe.mcp-server-takes-unknown-or-oversized-arguments`.
+- C10.4.4: settled by `probe.mcp-server-takes-wrong-types`.
+- C10.4.5: found failing by sv's `probe.mcp-server-no-size-limit`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
 - C11.3.2: found failing by sv's `probe.ai-raw-response-exposed`.
 - AC.12.1: settled by `config.workflow-runs-fork-code`.

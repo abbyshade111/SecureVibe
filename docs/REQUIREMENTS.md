@@ -626,9 +626,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 33 can be checked, 0 where a check helps but a person decides, and 158 with no check.
+191 requirements: 37 can be checked, 0 where a check helps but a person decides, and 154 with no check.
 
-### Level 1 (51 requirements, 17 can be checked)
+### Level 1 (51 requirements, 19 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -706,14 +706,14 @@ decided per app, from its `securevibe.toml` and its code.
 | Requirement | Coverage | Checks |
 |---|---|---|
 | **C10.1.1** Verify that MCP components are obtained only from trusted sources and cryptographically verified. | Can be checked | Reads the code: `config.mcp-server-unpinned`, looks for: An MCP server is downloaded fresh, at whatever version is newest, every time it starts (found failing only) |
-| **C10.2.1** Verify that MCP servers validate access tokens for each request and do not rely on transport security alone. | No check | – |
+| **C10.2.1** Verify that MCP servers validate access tokens for each request and do not rely on transport security alone. | Can be checked | The running app: `probe.mcp-server-token-unchecked`, if it fails: Anyone who can reach the MCP server can use its tools, with no token or with one they made up: whatever the tools can do, any AI client on the network can have done. |
 | **C10.2.2** Verify that MCP servers validate the presented access token's issuer, audience, expiration, and scope claims in accordance with OAuth 2.1. | No check | – |
 | **C10.2.3** Verify that MCP servers acting as OAuth 2.1 resource servers do not store or persist access tokens or user credentials. | No check | – |
 | **C10.3.1** Verify that authenticated, encrypted streamable HTTP is used for MCP transport for remote services. | No check | – |
 | **C10.3.2** Verify that stdio transport is permitted only in controlled local environments. | No check | – |
 | **C10.4.1** Verify that MCP tools/list and tools/call responses are validated against their declared schemas before being injected into the model context. | Can be checked | The running app: `probe.ai-mcp-output-unvalidated`, if it fails: A tool's result that does not match the shape the tool promised is passed to the model as if it did, so a broken or hostile MCP server decides what the model is told. |
 | **C10.4.2** Verify that MCP tools/list and tools/call responses are screened for indirect prompt injection before being injected into the model context. | Can be checked | The running app: `probe.ai-mcp-injection-unscreened`, if it fails: Whoever controls what an MCP tool returns can write instructions to the model, and the model reads them with the same authority as the app's own.<br>Outside tools: semgrep, 2 rules, its rules look for: an MCP tool that returns an outside response unscreened for indirect prompt injection into the model context; an MCP tool whose description carries hidden instructions, an indirect prompt injection in its tools/list entry (found failing only) |
-| **C10.4.3** Verify that MCP servers reject unrecognized or oversized parameters in function calls. | No check | – |
+| **C10.4.3** Verify that MCP servers reject unrecognized or oversized parameters in function calls. | Can be checked | The running app: `probe.mcp-server-takes-unknown-or-oversized-arguments`, if it fails: A tool runs with arguments it never declared, or with one far longer than any real use needs. A model can be talked into writing either, and the tool's code then works on something nobody planned for. |
 
 #### C11 Adversarial Robustness
 
@@ -736,7 +736,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 14 can be checked)
+### Level 2 (95 requirements, 16 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -858,8 +858,8 @@ decided per app, from its `securevibe.toml` and its code.
 | **C10.2.7** Verify that MCP servers do not pass through access tokens received from clients to downstream APIs. | No check | – |
 | **C10.3.3** Verify that MCP servers validate both the Origin header and the Host header independently on all HTTP-based transports to prevent DNS rebinding attacks. | Can be checked | The running app: `probe.mcp-server-origin-unchecked`, if it fails: A web page open in someone's browser can send requests to an MCP server on their own computer or network, by pointing its own name at it (DNS rebinding). A server that does not check where requests come from answers them, and hands the page its tools. |
 | **C10.3.4** Verify that MCP clients enforce a minimum acceptable protocol version and reject initialize responses that propose a version below that minimum. | No check | – |
-| **C10.4.4** Verify that all MCP servers enforce strict schema validation. | No check | – |
-| **C10.4.5** Verify that all MCP transports enforce maximum payload size limits. | No check | – |
+| **C10.4.4** Verify that all MCP servers enforce strict schema validation. | Can be checked | The running app: `probe.mcp-server-takes-wrong-types`, if it fails: A tool runs with an argument of a type its schema does not allow, so its own code meets a value it was not written for. |
+| **C10.4.5** Verify that all MCP transports enforce maximum payload size limits. | Can be checked | The running app: `probe.mcp-server-no-size-limit`, if it fails: The MCP endpoint reads and answers a request of several megabytes, far past what a tool call needs, so a few such requests can use up its memory. (found failing only) |
 | **C10.4.6** Verify that MCP servers sign tool responses with a unique nonce and timestamp so MCP clients can detect replay attempts. | No check | – |
 | **C10.4.7** Verify that MCP clients present users with explicit consent dialogue and cancellation options upon installation of a local MCP server. | No check | – |
 
