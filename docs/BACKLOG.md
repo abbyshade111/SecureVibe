@@ -111,6 +111,8 @@ another session is not a claim.
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
   15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
       file named to land outside the upload folder, then asked for where it would have landed.
+      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+      `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
       **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
       **Done on 3 October 2026** (DESIGN, "Old TLS versions on the live site"): one handshake offering only TLS 1.0
