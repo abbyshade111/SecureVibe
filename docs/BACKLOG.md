@@ -79,6 +79,8 @@ another session is not a claim.
      finding, read-only payloads only.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
+     in branch `claude/securevibe-e9-open-redirect`.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
