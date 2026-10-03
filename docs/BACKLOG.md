@@ -50,6 +50,8 @@ another session is not a claim.
      `securevibe_questions` runs the full check to list questions. Kept, "check after each feature" would be quick.
   3. **Declare the shape of each tool's structured result** (`outputSchema`, in the 2025-06-18 protocol), so a
      client can rely on it. None is declared now.
+     **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-output-schema`.
   4. **Progress notifications during a long check**, so the tool does not look stuck.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
   6. **The newest protocol version.** The newest the server speaks is 2025-06-18; whether a later one has been
