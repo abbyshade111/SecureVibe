@@ -109,7 +109,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | Requirement | Level | Checks |
 |---|---|---|
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
-| V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` |
+| V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
 | V3.2.2 | L1 | Signed in: `probe.text-rendered-as-markup`; Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `react-dangerouslysetinnerhtml`) |
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
@@ -123,15 +123,15 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.4.8 | L3 | The running app: `probe.opener-policy-missing` |
 | V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.5.2 | L1 | Signed in: `probe.preflight-skipped` |
-| V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` |
-| V3.5.6 | L3 | The running app: `probe.jsonp-enabled` |
+| V3.5.3 | L1 | Signed in: `probe.sign-out-on-get` (sv only ever as a finding: `probe.sign-out-on-get`) |
+| V3.5.6 | L3 | The running app: `probe.jsonp-enabled` (sv only ever as a finding: `probe.jsonp-enabled`) |
 | V4.1.1 | L1 | The running app: `probe.content-type` |
 | V4.1.3 | L2 | Signed in: `probe.identity-header-trusted` (sv only ever as a finding: `probe.identity-header-trusted`) |
-| V4.1.4 | L3 | The running app: `probe.unused-method-accepted` |
+| V4.1.4 | L3 | The running app: `probe.unused-method-accepted` (sv only ever as a finding: `probe.unused-method-accepted`) |
 | V4.3.1 | L2 | The running app: `probe.graphql-no-amount-limit` |
 | V4.3.2 | L2 | The running app: `probe.graphql-introspection` |
 | V4.4.2 | L2 | The running app: `probe.websocket-origin-unchecked` |
-| V4.4.3 | L2 | Signed in: `probe.websocket-after-sign-out` |
+| V4.4.3 | L2 | Signed in: `probe.websocket-after-sign-out` (sv only ever as a finding: `probe.websocket-after-sign-out`) |
 | V4.4.4 | L2 | Signed in: `probe.websocket-without-session` |
 | V5.2.1 | L1 | Signed in: `probe.oversized-file-accepted` |
 | V5.2.2 | L1 | Signed in: `probe.file-contents-unchecked` |
@@ -144,25 +144,25 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V6.2.4 | L1 | Signed in: `probe.common-password-accepted` |
 | V6.2.5 | L1 | Signed in: `probe.password-composition-rules` |
 | V6.2.6 | L1 | Signed in: `probe.password-field-unmasked` |
-| V6.2.7 | L1 | Signed in: `probe.password-paste-blocked` |
+| V6.2.7 | L1 | Signed in: `probe.password-paste-blocked` (sv only ever as a finding: `probe.password-paste-blocked`) |
 | V6.2.8 | L1 | Signed in: `probe.password-altered` |
 | V6.2.9 | L2 | Signed in: `probe.long-password-refused` |
 | V6.2.11 | L2 | Signed in: `probe.context-word-password-accepted` |
 | V6.3.1 | L1 | Signed in: `probe.failed-sign-ins-unlimited` |
-| V6.3.2 | L1 | Signed in: `probe.default-account` |
+| V6.3.2 | L1 | Signed in: `probe.default-account` (sv only ever as a finding: `probe.default-account`) |
 | V6.3.7 | L3 | Signed in: `probe.password-change-notified` |
-| V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` |
-| V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` |
+| V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` (sv only ever as a finding: `probe.reset-reveals-account`) |
+| V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` (sv only ever as a finding: `probe.activation-code-guessable`, `probe.activation-link-reusable`) |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` |
-| V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` |
+| V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |
 | V6.5.1 | L2 | Signed in: `probe.totp-reused`, `probe.email-code-reusable` |
-| V6.5.4 | L2 | Signed in: `probe.email-code-short` |
+| V6.5.4 | L2 | Signed in: `probe.email-code-short` (sv only ever as a finding: `probe.email-code-short`) |
 | V6.5.5 | L2 | Signed in: `probe.email-code-long-lived`, `probe.totp-old-code-accepted` |
 | V6.6.2 | L2 | Signed in: `probe.email-code-unbound` |
 | V6.6.3 | L2 | Signed in: `probe.email-code-guessing-unlimited` |
 | V6.8.2 | L2 | Signed in: `probe.oidc-signature-not-checked` |
 | V7.2.1 | L1 | Signed in: `probe.session-token-unverified` |
-| V7.2.3 | L1 | Signed in: `probe.session-id-weak` |
+| V7.2.3 | L1 | Signed in: `probe.session-id-weak` (sv only ever as a finding: `probe.session-id-weak`) |
 | V7.2.4 | L1 | Signed in: `probe.session-not-renewed` |
 | V7.3.1 | L2 | Signed in: `probe.session-idle-timeout` |
 | V7.3.2 | L2 | Signed in: `probe.session-lifetime` |
@@ -184,19 +184,19 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
 | V13.4.2 | L2 | The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `semgrep`, `codeql-python` (sv only ever as a finding: `probe.development-console-open`) |
-| V13.4.3 | L2 | The running app: `probe.directory-listing` |
+| V13.4.3 | L2 | The running app: `probe.directory-listing` (sv only ever as a finding: `probe.directory-listing`) |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
-| V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` |
-| V13.4.6 | L3 | The running app: `probe.version-disclosed` |
+| V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` (sv only ever as a finding: `probe.docs-or-monitoring-exposed`) |
+| V13.4.6 | L3 | The running app: `probe.version-disclosed` (sv only ever as a finding: `probe.version-disclosed`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
-| V14.2.1 | L1 | Signed in: `probe.password-in-url` |
+| V14.2.1 | L1 | Signed in: `probe.password-in-url` (sv only ever as a finding: `probe.password-in-url`) |
 | V14.3.1 | L1 | Signed in: `probe.storage-kept-after-sign-out`, `probe.clear-site-data` |
 | V14.3.2 | L2 | Signed in: `probe.private-page-cached` |
 | V14.3.3 | L2 | Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `probe.password-in-browser-storage`) |
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`) |
 | V15.3.3 | L2 | Signed in: `probe.role-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `probe.role-field-trusted`) |
-| V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` |
+| V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` (sv only ever as a finding: `probe.forwarded-for-trusted`) |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
 | V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
 | V16.2.4 | L2 | Signed in: `probe.log-common-format` |
@@ -265,7 +265,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 9 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
 | V14.2.2 | L2 | Signed in: `probe.private-page-shared-cache` (sv only ever as a finding: `probe.private-page-shared-cache`) |
-| V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` |
+| V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` (sv only ever as a finding: `probe.account-details-sent-elsewhere`) |
 
 ### Level 1 with no check at all (11)
 
