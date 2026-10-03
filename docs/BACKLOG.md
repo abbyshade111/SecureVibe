@@ -76,9 +76,13 @@ another session is not a claim.
      a foreign address; a `Location` header pointing there is the finding.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-agent-limit`.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
+      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+      `claude/securevibe-e9-ai-failure`.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
