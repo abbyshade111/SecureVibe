@@ -1505,7 +1505,11 @@ mod tests {
             },
             Some("t"),
         );
-        assert!(!found(&o).contains(&TOKEN_UNCHECKED.rule_id), "{:?}", o.steps);
+        assert!(
+            !found(&o).contains(&TOKEN_UNCHECKED.rule_id),
+            "{:?}",
+            o.steps
+        );
         assert!(
             why(&o, "C10.2.1")
                 .iter()
