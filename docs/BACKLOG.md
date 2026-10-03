@@ -52,6 +52,11 @@ another session is not a claim.
      when all pass, naming them.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
      `claude/securevibe-e9-headers-every-page`.
+     **Done the same day** (DESIGN, "The headers a browser relies on, on more than the health path"). The root page
+     is asked too and judged when it answers with a page; a finding names the page that fell short, and the credit
+     needs every page judged to pass. `probe.private-page-headers` asks the same four headers of each private page
+     the signed-in run opens. Five guards broken in turn, each caught. Not done: the cookies a signed-in page sets,
+     which `probe.session-cookie-attributes` already judges at sign-in, and pages the run does not ask for.
   4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
