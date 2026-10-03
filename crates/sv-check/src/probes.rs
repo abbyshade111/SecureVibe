@@ -61,6 +61,15 @@ const STRANGER: &str = "https://sv-probe-stranger.invalid";
 
 /// The requests this suite needs.
 pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
+    // The root as well as the health path, when they differ: a health path is often a small JSON
+    // status reply nobody sees, and the root is the page people land on.
+    let root = (health_path != "/").then(|| ProbeRequest {
+        id: "root".into(),
+        method: "GET".into(),
+        path: "/".into(),
+        headers: Vec::new(),
+        body: None,
+    });
     vec![
         ProbeRequest {
             id: "home".into(),
@@ -137,6 +146,7 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
         headers: Vec::new(),
         body: None,
     }))
+    .chain(root)
     .chain(CONSOLES.iter().map(|console| ProbeRequest {
         id: console_id(console.path),
         method: "GET".into(),
@@ -240,10 +250,9 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     let mut out = Vec::new();
     let find = |id: &str| responses.iter().find(|r| r.id == id);
 
-    if let Some(home) = find("home") {
-        out.extend(security_headers(home));
-        out.extend(cookie_attributes(home));
-    }
+    let judged = pages(responses);
+    out.extend(security_headers(&judged));
+    out.extend(cookie_attributes(&judged));
     if let Some(cors) = find("cors") {
         out.extend(reflected_origin(cors));
     }
@@ -299,23 +308,30 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
     let mut out = Vec::new();
     let find = |id: &str| responses.iter().find(|r| r.id == id);
 
-    if let Some(home) = find("home") {
-        if security_headers(home).is_none() {
-            out.push(crate::Verified::new(
-                SECURITY_HEADERS.rule_id,
-                SECURITY_HEADERS.requirement_ids,
-                "the app's answer on its health path, as somebody not signed in".to_owned(),
-            ));
-        }
-        // Only when there was a cookie to judge. No cookie is not a correct cookie.
-        let sets_a_cookie = home.headers.iter().any(|(k, _)| k == "set-cookie");
-        if sets_a_cookie && cookie_attributes(home).is_none() {
-            out.push(crate::Verified::new(
-                COOKIE_ATTRIBUTES.rule_id,
-                COOKIE_ATTRIBUTES.requirement_ids,
-                "every cookie the app set on that answer".to_owned(),
-            ));
-        }
+    // Every judged page has to pass for the credit, which names them.
+    let judged = pages(responses);
+    let names = judged
+        .iter()
+        .map(|p| page_name(p))
+        .collect::<Vec<_>>()
+        .join(" and ");
+    if !judged.is_empty() && security_headers(&judged).is_none() {
+        out.push(crate::Verified::new(
+            SECURITY_HEADERS.rule_id,
+            SECURITY_HEADERS.requirement_ids,
+            format!("the app's answers on {names}, as somebody not signed in"),
+        ));
+    }
+    // Only when there was a cookie to judge. No cookie is not a correct cookie.
+    let sets_a_cookie = judged
+        .iter()
+        .any(|p| p.headers.iter().any(|(k, _)| k == "set-cookie"));
+    if sets_a_cookie && cookie_attributes(&judged).is_none() {
+        out.push(crate::Verified::new(
+            COOKIE_ATTRIBUTES.rule_id,
+            COOKIE_ATTRIBUTES.requirement_ids,
+            format!("every cookie the app set on {names}"),
+        ));
     }
     if let Some(cors) = find("cors") {
         // And only when the app answered the CORS question at all. An app that sends no
@@ -352,9 +368,12 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
     // answer judged is not the app's responses judged.
     let judged: Vec<&ProbeResponse> = with_bodies(responses)
         .into_iter()
-        .filter(|r| r.id == "home" || r.id == "missing")
+        .filter(|r| r.id == "home" || r.id == "missing" || r.id == "root")
         .collect();
-    if judged.len() == 2 && content_type(&judged).is_none() {
+    if judged.iter().any(|r| r.id == "home")
+        && judged.iter().any(|r| r.id == "missing")
+        && content_type(&judged).is_none()
+    {
         out.push(crate::Verified::new(
             CONTENT_TYPE.rule_id,
             CONTENT_TYPE.requirement_ids,
@@ -777,7 +796,27 @@ const WS_ORIGIN: Rule = Rule {
 };
 
 /// Headers a browser needs in order to protect the people using the app.
-fn security_headers(response: &ProbeResponse) -> Option<Finding> {
+/// The answers the page checks judge: the health path's always, and the root's when it answered
+/// with a page of its own. Each is named in what the checks say, so a credit says which pages it
+/// covers and a finding which page fell short.
+fn pages(responses: &[ProbeResponse]) -> Vec<&ProbeResponse> {
+    responses
+        .iter()
+        .filter(|r| r.id == "home" || (r.id == "root" && (200..300).contains(&r.status)))
+        .collect()
+}
+
+/// Which page a judged answer was, for saying so.
+fn page_name(response: &ProbeResponse) -> &'static str {
+    if response.id == "root" {
+        "the root page"
+    } else {
+        "the health path"
+    }
+}
+
+/// The headers one answer lacks.
+pub(crate) fn missing_headers(response: &ProbeResponse) -> Vec<&'static str> {
     let mut missing = Vec::new();
     if response.header("content-security-policy").is_none() {
         missing.push("Content-Security-Policy, which limits what a page may load and run");
@@ -796,15 +835,42 @@ fn security_headers(response: &ProbeResponse) -> Option<Finding> {
     if response.header("referrer-policy").is_none() {
         missing.push("Referrer-Policy, which stops addresses leaking to other sites");
     }
-    if missing.is_empty() {
+    missing
+}
+
+/// Every judged page carries the headers; a finding names each page that does not, and what it
+/// lacks.
+fn security_headers(pages: &[&ProbeResponse]) -> Option<Finding> {
+    let short: Vec<String> = pages
+        .iter()
+        .filter_map(|page| {
+            let missing = missing_headers(page);
+            (!missing.is_empty()).then(|| {
+                format!(
+                    "{} came back without {}",
+                    page_name(page),
+                    missing.join("; without ")
+                )
+            })
+        })
+        .collect();
+    if short.is_empty() {
         return None;
     }
     Some(finding(
         &SECURITY_HEADERS,
         "The app is missing headers a browser relies on",
         Severity::Medium,
-        format!("The page came back without {}.", missing.join("; without ")),
+        format!("{}.", capitalized(&short.join(". "))),
     ))
+}
+
+fn capitalized(text: &str) -> String {
+    let mut chars = text.chars();
+    chars
+        .next()
+        .map(|c| c.to_uppercase().chain(chars).collect())
+        .unwrap_or_default()
 }
 
 const COOKIE_ATTRIBUTES: Rule = Rule {
@@ -820,29 +886,28 @@ const COOKIE_ATTRIBUTES: Rule = Rule {
 };
 
 /// A cookie that a script can read, or that travels to another site, is a session waiting to be taken.
-fn cookie_attributes(response: &ProbeResponse) -> Option<Finding> {
-    let cookies: Vec<&str> = response
-        .headers
-        .iter()
-        .filter(|(k, _)| k == "set-cookie")
-        .map(|(_, v)| v.as_str())
-        .collect();
-    if cookies.is_empty() {
-        return None;
-    }
+fn cookie_attributes(pages: &[&ProbeResponse]) -> Option<Finding> {
     let mut problems = Vec::new();
-    for cookie in &cookies {
-        let lower = cookie.to_lowercase();
-        let name = cookie.split('=').next().unwrap_or("a cookie").trim();
-        if !lower.contains("httponly") {
-            problems.push(format!(
-                "`{name}` can be read by any script on the page (no HttpOnly)"
-            ));
-        }
-        if !lower.contains("samesite") {
-            problems.push(format!(
-                "`{name}` does not say when it may travel to other sites (no SameSite)"
-            ));
+    for page in pages {
+        for (k, cookie) in &page.headers {
+            if k != "set-cookie" {
+                continue;
+            }
+            let lower = cookie.to_lowercase();
+            let name = cookie.split('=').next().unwrap_or("a cookie").trim();
+            if !lower.contains("httponly") {
+                problems.push(format!(
+                    "`{name}`, set by {}, can be read by any script on the page (no HttpOnly)",
+                    page_name(page)
+                ));
+            }
+            if !lower.contains("samesite") {
+                problems.push(format!(
+                    "`{name}`, set by {}, does not say when it may travel to other sites (no \
+                     SameSite)",
+                    page_name(page)
+                ));
+            }
         }
     }
     if problems.is_empty() {
@@ -1374,7 +1439,7 @@ const OPENER_POLICY: Rule = Rule {
 fn html_documents(responses: &[ProbeResponse]) -> Vec<&ProbeResponse> {
     responses
         .iter()
-        .filter(|r| r.id == "home" || r.id == "missing")
+        .filter(|r| r.id == "home" || r.id == "missing" || r.id == "root")
         .filter(|r| {
             r.header("content-type")
                 .is_some_and(|t| t.to_lowercase().starts_with("text/html"))
@@ -1861,6 +1926,101 @@ mod tests {
         );
     }
 
+    /// The healthy home answer's headers, on the root page instead.
+    fn good_root() -> ProbeResponse {
+        let mut root = good_home();
+        root.id = "root".into();
+        root
+    }
+
+    #[test]
+    fn a_root_page_without_the_headers_is_named_and_withholds_the_credit() {
+        // The health path is fine and the root page, the one people see, is not.
+        let mut root = good_root();
+        root.headers.retain(|(k, _)| k != "referrer-policy");
+        let answers = [good_home(), root];
+        let findings = evaluate(&answers);
+        let found = findings
+            .iter()
+            .find(|f| f.rule_id == SECURITY_HEADERS.rule_id)
+            .unwrap_or_else(|| panic!("{findings:?}"));
+        assert!(
+            found
+                .description
+                .starts_with("The root page came back without Referrer-Policy"),
+            "{}",
+            found.description
+        );
+        assert!(
+            !found.description.contains("health path"),
+            "{}",
+            found.description
+        );
+        assert!(
+            !verified(&answers)
+                .iter()
+                .any(|v| v.check_id == SECURITY_HEADERS.rule_id),
+            "one page short of the headers is no credit for either"
+        );
+    }
+
+    #[test]
+    fn both_pages_with_the_headers_are_credited_and_named() {
+        let answers = [good_home(), good_root()];
+        assert!(!ids(&evaluate(&answers)).contains(&SECURITY_HEADERS.rule_id));
+        let credit = verified(&answers)
+            .into_iter()
+            .find(|v| v.check_id == SECURITY_HEADERS.rule_id)
+            .expect("credited");
+        assert!(
+            credit.scope.contains("the health path and the root page"),
+            "{}",
+            credit.scope
+        );
+        let cookies = verified(&answers)
+            .into_iter()
+            .find(|v| v.check_id == COOKIE_ATTRIBUTES.rule_id)
+            .expect("cookies credited");
+        assert!(cookies.scope.contains("the root page"), "{}", cookies.scope);
+    }
+
+    #[test]
+    fn a_root_that_is_not_there_is_not_judged() {
+        // An app that serves only an API answers its root with a 404: nothing there is a page.
+        let mut root = good_root();
+        root.status = 404;
+        root.headers.clear();
+        let answers = [good_home(), root];
+        assert!(!ids(&evaluate(&answers)).contains(&SECURITY_HEADERS.rule_id));
+        let credit = verified(&answers)
+            .into_iter()
+            .find(|v| v.check_id == SECURITY_HEADERS.rule_id)
+            .expect("the health path alone is still credited");
+        assert!(!credit.scope.contains("root"), "{}", credit.scope);
+    }
+
+    #[test]
+    fn a_cookie_the_root_page_sets_without_protection_is_found_there() {
+        let mut root = good_root();
+        root.headers
+            .push(("set-cookie".into(), "prefs=dark; Path=/".into()));
+        let answers = [good_home(), root];
+        let found = evaluate(&answers)
+            .into_iter()
+            .find(|f| f.rule_id == COOKIE_ATTRIBUTES.rule_id)
+            .expect("the root page's cookie is judged");
+        assert!(
+            found.description.contains("`prefs`, set by the root page"),
+            "{}",
+            found.description
+        );
+        assert!(
+            !verified(&answers)
+                .iter()
+                .any(|v| v.check_id == COOKIE_ATTRIBUTES.rule_id)
+        );
+    }
+
     #[test]
     fn the_suite_asks_what_it_says_it_asks() {
         let requests = requests("/healthz");
@@ -1870,8 +2030,12 @@ mod tests {
                 + UNUSED_METHODS.len()
                 + 1
                 + EXPOSED_PATHS.len()
+                + 1
                 + CONSOLES.len()
         );
+        // The root is asked as well as the health path, and only once when they are the same.
+        assert!(requests.iter().any(|r| r.id == "root" && r.path == "/"));
+        assert!(!super::requests("/").iter().any(|r| r.id == "root"));
         for path in EXPOSED_PATHS {
             let request = requests
                 .iter()
