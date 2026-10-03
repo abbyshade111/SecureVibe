@@ -5781,9 +5781,25 @@ any Ruby receiver, and the five-argument guard removed; then, for the five langu
 in each, any `openssl` option taken for `-iter`, any Rust function, the wrong argument in Swift, and any Dart label.
 
 **Not done here.** A single hash of a password used as an encryption key: nothing in the code says a hashed value is
-a password without guessing from its name. Go's standard-library `crypto/pbkdf2`, which takes the hash first (its
-argument order would need its own query, and the one for `x/crypto` would misread it). C#'s two-argument
-`Rfc2898DeriveBytes(password, salt)`, which uses 1,000 rounds without saying so. scrypt's and Argon2's own settings.
+a password without guessing from its name. scrypt's and Argon2's own settings. (Go's standard library and C#'s
+two-argument constructor were left here too, and were added on 3 October 2026; see below.)
+
+**Added on 3 October 2026: Go's standard library, and C#'s count left unsaid.** Go 1.24's `crypto/pbkdf2` has the
+same function name as `golang.org/x/crypto/pbkdf2` and its arguments in another order: `pbkdf2.Key(sha256.New,
+password, salt, 4096, 32)` against `pbkdf2.Key(password, salt, 4096, 32, sha256.New)`. A second Go pattern reads the
+fourth argument when the first is a hash written as `package.Function` and the fifth is a number or a name. Neither
+holds for x/crypto's order, whose fifth argument is the hash, so its key length is never read as a count; one case
+holds a password read from a field, and another a hash passed in a variable, where only the hash coming first tells
+the two apart.
+
+C#'s `new Rfc2898DeriveBytes(password, salt)`, with exactly two arguments, uses 1,000 rounds of SHA-1 without the code
+saying so, and is reported. The rules match a call only through what a part of it captures (`@arg`), so the pattern
+captures the closing parenthesis of a list of exactly two arguments, and C#'s argument pattern accepts `)` beside a
+number. A three-argument call with a count from a variable is still not judged.
+
+Six guards broken in turn, each caught: either new pattern removed, the hash not required first, the number or name
+not required last, the two arguments not required to be the only ones, and `)` not accepted. The case with the hash in
+a variable was added when breaking the hash-first guard turned nothing red.
 
 ## Static files served from the app's own folder (30 September 2026)
 

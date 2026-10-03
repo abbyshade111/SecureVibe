@@ -15,6 +15,11 @@ updates:
     # below (found on 27 September 2026, when it first checked this file); the Rust packages keep it.
     cooldown:
       default-days: 7
+    # CodeQL's `init` and `analyze` steps have to be the same version, and as separate pull requests each one moved
+    # one step and failed (#468 and #469, 3 October 2026). Grouped, they arrive together.
+    groups:
+      codeql-action:
+        patterns: ['github/codeql-action*']
 
   # The Rust packages `sv` is built from (Cargo.lock).
   - package-ecosystem: cargo
