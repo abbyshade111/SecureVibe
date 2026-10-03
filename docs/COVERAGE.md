@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 2 |
+| L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 3 |
 | L2 | 183 | 81 | 8 | 0 | 15 | 42 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 36 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -211,7 +211,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (37)
+### Settled only by an outside tool (36)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -241,7 +241,6 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.4.2 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V11.4.3 | L2 | Outside tools: `semgrep` |
 | V11.5.1 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript` |
-| V12.1.1 | L1 | Outside tools: `semgrep`, `codeql-python` |
 | V12.1.2 | L2 | Outside tools: `semgrep` |
 | V12.3.1 | L2 | Outside tools: `semgrep` |
 | V12.3.2 | L2 | Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
