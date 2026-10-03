@@ -525,7 +525,7 @@ pub(super) fn owned_checks(
         .map(|b| http.send(&get("owned-b", &read_path, &b.session)));
     let as_nobody = http.send(&get("owned-anonymous", &read_path, &Session::default()));
     let mut leaked_to = Vec::new();
-    if as_b.as_ref().is_some_and(&holds_marker) {
+    if as_b.as_ref().is_some_and(holds_marker) {
         leaked_to.push("another signed-in user");
     }
     if holds_marker(&as_nobody) {
