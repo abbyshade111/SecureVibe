@@ -382,3 +382,129 @@ fn a_second_lockfile_nothing_read_keeps_known_vulnerabilities_from_counting_as_l
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_manifest_that_disagrees_with_its_lockfile_keeps_known_vulnerabilities_from_counting_as_looked_for()
+ {
+    // `package-lock.json` is what is read and compared. When `package.json` asks for another
+    // version, whoever installs from the manifest runs something the comparison never saw.
+    let dir = npm_app("manifest-disagrees");
+    advisory(&dir, "GHSA-0000-0000-0003", "npm", "lodash");
+    let osv = dir.join("osv");
+    let osv = osv.to_str().unwrap();
+
+    let agreeing = report(&dir, &["--advisories", osv]);
+    assert_eq!(
+        entry(&agreeing, "advisory.").0,
+        "ran",
+        "the control: the two agree"
+    );
+    assert!(!has_gap(&agreeing, "whether npm is installed"));
+    assert!(!has_gap(&agreeing, "whether `package.json`"));
+
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","dependencies":{"lodash":"4.17.21"}}"#,
+    )
+    .unwrap();
+    let disagreeing = report(&dir, &["--advisories", osv]);
+    assert!(
+        has_gap(
+            &disagreeing,
+            "whether npm is installed from `package-lock.json` or `package.json`"
+        ),
+        "{}",
+        disagreeing["gaps"]
+    );
+    let (state, why) = entry(&disagreeing, "advisory.");
+    assert_eq!(state, "partly", "{why}");
+    assert!(
+        why.contains("`package.json` asks for other versions than `package-lock.json` has"),
+        "{why}"
+    );
+    // The lockfile is still what is listed and compared.
+    assert!(
+        disagreeing["findings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|f| f["rule_id"] == "advisory.GHSA-0000-0000-0003"),
+        "{}",
+        disagreeing["findings"]
+    );
+
+    // A range `sv` cannot hold the lock to is said, and does not stop the claim: the list is still
+    // a full reading of the lockfile, as it was before anything was compared.
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","dependencies":{"lodash":"latest"}}"#,
+    )
+    .unwrap();
+    let unread = report(&dir, &["--advisories", osv]);
+    assert!(
+        has_gap(
+            &unread,
+            "whether `package.json` and `package-lock.json` agree about every package"
+        ),
+        "{}",
+        unread["gaps"]
+    );
+    assert!(!has_gap(&unread, "whether npm is installed"));
+    assert_eq!(entry(&unread, "advisory.").0, "ran");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn sbom_and_audit_say_when_the_manifest_asks_for_something_else() {
+    let dir = npm_app("manifest-disagrees-cli");
+    // An advisory about another npm package: npm is covered, and nothing the app has is affected,
+    // so with the two files in step the audit is clean.
+    advisory(&dir, "GHSA-0000-0000-0004", "npm", "left-pad");
+    let run = |args: &[&str]| {
+        let out = Command::new(env!("CARGO_BIN_EXE_sv"))
+            .args(args)
+            .output()
+            .expect("sv runs");
+        (
+            out.status.code(),
+            format!(
+                "{}{}",
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            ),
+        )
+    };
+    let path = dir.to_str().unwrap();
+    let osv = dir.join("osv");
+    let osv = osv.to_str().unwrap();
+    // The control: in step, neither says anything about it, and the audit is clean.
+    let (_, sbom) = run(&["sbom", path]);
+    assert!(sbom.contains("so this is what is installed"), "{sbom}");
+    assert!(!sbom.contains("disagree"), "{sbom}");
+    let (code, audit) = run(&["audit", path, "--advisories", osv]);
+    assert_eq!(code, Some(0), "{audit}");
+    assert!(!audit.contains("disagree"), "{audit}");
+
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{"name":"demo","version":"1.0.0","dependencies":{"lodash":"^4.17.21"}}"#,
+    )
+    .unwrap();
+    let (_, sbom) = run(&["sbom", path]);
+    assert!(
+        sbom.contains("npm: `package.json` and `package-lock.json` disagree about 1 package: `lodash ^4.17.21` (the lockfile has 4.17.15)"),
+        "{sbom}"
+    );
+    assert!(
+        sbom.contains("not the manifest that disagrees with it"),
+        "{sbom}"
+    );
+    assert!(!sbom.contains("so this is what is installed"), "{sbom}");
+    let (code, audit) = run(&["audit", path, "--advisories", osv]);
+    assert_eq!(code, Some(2), "not assessed, never clean:\n{audit}");
+    assert!(
+        audit.contains("Not assessed — npm: `package.json` and `package-lock.json` disagree"),
+        "{audit}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

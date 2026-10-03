@@ -63,6 +63,86 @@ pub struct Sbom {
     /// lockfile it came from, so this does not make it incomplete; it says which lockfile the
     /// versions are from, and which were not read.
     pub passed_over: Vec<PassedOver>,
+    /// Projects whose manifest and lockfile were compared and did not wholly agree, or could not
+    /// all be compared. The list is still the lockfile's; this says the manifest asks for something
+    /// else, so whoever installs from the manifest runs versions the list does not name.
+    pub disagreements: Vec<Disagreement>,
+}
+
+/// A project whose manifest asks for something other than what its lockfile has.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Disagreement {
+    /// The project, as `DetectedEcosystem::label` names it.
+    pub project: String,
+    pub manifest: String,
+    pub lockfile: String,
+    pub comparison: crate::manifest_lock::Comparison,
+}
+
+impl Disagreement {
+    /// The packages that differ, each as "`asked` (the lockfile has 2.8.0)": at most five, then a count.
+    fn differing(&self) -> String {
+        let shown: Vec<String> = self
+            .comparison
+            .differs
+            .iter()
+            .take(5)
+            .map(|d| {
+                if d.locked.is_empty() {
+                    format!("`{}` (not in the lockfile)", d.asked)
+                } else {
+                    format!("`{}` (the lockfile has {})", d.asked, d.locked.join(", "))
+                }
+            })
+            .collect();
+        let more = self.comparison.differs.len().saturating_sub(shown.len());
+        if more == 0 {
+            shown.join("; ")
+        } else {
+            format!("{}; and {more} more", shown.join("; "))
+        }
+    }
+
+    /// The sentence a person reads about the packages that differ.
+    pub fn explain(&self) -> String {
+        let n = self.comparison.differs.len();
+        format!(
+            "`{}` and `{}` disagree about {n} package{}: {}. The versions listed here are the \
+             lockfile's, so if the app is installed from `{}`, they are not the ones installed",
+            self.manifest,
+            self.lockfile,
+            if n == 1 { "" } else { "s" },
+            self.differing(),
+            self.manifest,
+        )
+    }
+
+    /// The sentence a person reads about the packages that could not be compared.
+    pub fn explain_not_compared(&self) -> String {
+        let n = self.comparison.not_compared.len();
+        let shown: Vec<String> = self
+            .comparison
+            .not_compared
+            .iter()
+            .take(5)
+            .map(|p| format!("`{p}`"))
+            .collect();
+        format!(
+            "{n} package{} in `{}` could not be held to `{}` ({}{}): a pre-release, a link instead \
+             of a version, a platform condition, or a range written in a form `sv` does not read, so \
+             whether they agree is not known",
+            if n == 1 { "" } else { "s" },
+            self.manifest,
+            self.lockfile,
+            shown.join(", "),
+            if n > 5 { ", …" } else { "" },
+        )
+    }
+
+    /// Whether any package was found to differ, as opposed to only some not compared.
+    pub fn differs(&self) -> bool {
+        !self.comparison.differs.is_empty()
+    }
 }
 
 /// One project's lockfiles when it has more than one: the one read, and the rest.
@@ -220,6 +300,21 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
                 ),
             ));
             return;
+        }
+        // The list is the lockfile's. Whether the manifest beside it asks for the same thing is said
+        // beside it (DESIGN, "When a manifest and its lockfile disagree").
+        let manifest_name = sv_scan::ecosystems::file_name(&eco.manifest);
+        if let Some(manifest) = read(manifest_name)
+            && let Some(comparison) =
+                crate::manifest_lock::compare(manifest_name, &manifest, &pairs)
+            && comparison != crate::manifest_lock::Comparison::default()
+        {
+            sbom.disagreements.push(Disagreement {
+                project: eco.label(),
+                manifest: eco.manifest.clone(),
+                lockfile: lockfile_path.clone(),
+                comparison,
+            });
         }
         sbom.components
             .extend(pairs.into_iter().map(|(name, version)| Component {
@@ -706,6 +801,20 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
             value: passed.explain(),
         });
     }
+    for disagreement in &sbom.disagreements {
+        if disagreement.differs() {
+            properties.push(Property {
+                name: format!("securevibe:manifest-disagrees:{}", disagreement.project),
+                value: disagreement.explain(),
+            });
+        }
+        if !disagreement.comparison.not_compared.is_empty() {
+            properties.push(Property {
+                name: format!("securevibe:manifest-not-compared:{}", disagreement.project),
+                value: disagreement.explain_not_compared(),
+            });
+        }
+    }
 
     CycloneDx {
         bom_format: "CycloneDX",
@@ -969,6 +1078,100 @@ mod tests {
                 .all(|c| c.source == VersionSource::Locked),
             "{sbom:?}"
         );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_manifest_that_disagrees_with_its_lockfile_is_named_in_the_document() {
+        let dir = scratch("manifest-disagrees");
+        fs::write(
+            dir.join("requirements.txt"),
+            "flask==3.0.0\npyjwt==2.13.0\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("requirements.lock"),
+            "flask==3.0.0\npyjwt==2.8.0\n",
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("server")).unwrap();
+        fs::write(
+            dir.join("server/package.json"),
+            r#"{"name":"web","dependencies":{"lodash":"^4.17.21","left-pad":"1.3.0"}}"#,
+        )
+        .unwrap();
+        fs::write(
+            dir.join("server/package-lock.json"),
+            r#"{"lockfileVersion":3,"packages":{"node_modules/lodash":{"version":"4.17.21"}}}"#,
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        // The list is still the lockfiles', and still complete.
+        assert!(sbom.is_complete(), "{sbom:?}");
+        assert!(
+            sbom.components
+                .iter()
+                .any(|c| c.name == "pyjwt" && c.version == "2.8.0"),
+            "{sbom:?}"
+        );
+        let said: Vec<(&str, &str, &str)> = sbom
+            .disagreements
+            .iter()
+            .map(|d| (d.project.as_str(), d.manifest.as_str(), d.lockfile.as_str()))
+            .collect();
+        assert_eq!(
+            said,
+            vec![
+                ("Python", "requirements.txt", "requirements.lock"),
+                (
+                    "npm in server/",
+                    "server/package.json",
+                    "server/package-lock.json"
+                ),
+            ]
+        );
+        let doc = serde_json::to_value(to_cyclonedx(&sbom)).unwrap();
+        let property = |name: &str| {
+            doc["metadata"]["properties"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|p| p["name"] == name)
+                .and_then(|p| p["value"].as_str())
+                .map(str::to_owned)
+        };
+        let python = property("securevibe:manifest-disagrees:Python")
+            .unwrap_or_else(|| panic!("the document names it: {doc}"));
+        assert!(
+            python.contains("`pyjwt==2.13.0` (the lockfile has 2.8.0)")
+                && python.contains("about 1 package:"),
+            "{python}"
+        );
+        let npm = property("securevibe:manifest-disagrees:npm in server/").unwrap();
+        assert!(
+            npm.contains("`left-pad 1.3.0` (not in the lockfile)"),
+            "{npm}"
+        );
+
+        // In step, nothing is said.
+        fs::write(
+            dir.join("requirements.lock"),
+            "flask==3.0.0\npyjwt==2.13.0\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("server/package.json"),
+            r#"{"name":"web","dependencies":{"lodash":"^4.17.21"}}"#,
+        )
+        .unwrap();
+        let in_step = build(&dir);
+        assert!(
+            in_step.disagreements.is_empty(),
+            "{:?}",
+            in_step.disagreements
+        );
+        let doc = serde_json::to_string(&to_cyclonedx(&in_step)).unwrap();
+        assert!(!doc.contains("manifest-"), "{doc}");
         fs::remove_dir_all(&dir).ok();
     }
 
