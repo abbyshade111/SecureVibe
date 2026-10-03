@@ -13,9 +13,7 @@
 //! 5. Run the declared test command inside the app container.
 //! 6. Tear everything down, whatever happened.
 
-use crate::{
-    Backend, CannotRun, Fence, REPORT_DIR, RunFailed, RunOutcome, RunPlan, TestResult, output_of,
-};
+use crate::{Backend, CannotRun, Fence, RunFailed, RunOutcome, RunPlan, TestResult, output_of};
 use std::process::Command;
 use std::time::Duration;
 
@@ -254,9 +252,7 @@ impl DockerBackend {
         let browser = (wants_browser && self.start_browser(&network, &browser_name))
             .then_some(browser_name.as_str());
 
-        // 2. The app. Its folder is mounted read-only: `sv` reads code, it does not let the code
-        //    it is checking rewrite itself mid-check. No port is published — nothing on this
-        //    computer could reach it anyway, and saying so in the arguments keeps that honest.
+        // 2. The app, fenced and hardened like every helper (`app_args`).
         let mount = format!("{}:/app:ro", plan.app_dir.display());
         let port_env = format!("PORT={}", plan.port);
         let mail_env: Vec<String> = mail
@@ -272,32 +268,7 @@ impl DockerBackend {
             Some(build) => format!("cd /app && {build} && {}", plan.start),
             None => format!("cd /app && {}", plan.start),
         };
-        let mut args: Vec<&str> = vec![
-            "run",
-            "-d",
-            "--name",
-            &app,
-            "--network",
-            &network,
-            "-v",
-            &mount,
-            // The one writable folder `sv` provides, in memory rather than on the owner's disk. The
-            // container's own file system outside `/app` is writable too, since the app is not run
-            // `--read-only` (ADR-019, "Later, 30 September 2026").
-            // `/app` is read-only on purpose, so a test runner has nowhere to put its report
-            // unless something is provided — which is how the first version of `test-report`
-            // failed: the runner could not write the file and the report read as "no report",
-            // correctly but uselessly. Findings are still only ever read out with `exec`.
-            "--tmpfs",
-            REPORT_DIR,
-            "-w",
-            "/app",
-            "-e",
-            &port_env,
-            // Nothing of the owner's reaches the app: no API keys, no home directory.
-            "--env-file",
-            "/dev/null",
-        ];
+        let mut args: Vec<&str> = app_args(&app, &network, &mount, &port_env);
         for pair in &mail_env {
             args.extend(["-e", pair.as_str()]);
         }
@@ -384,7 +355,7 @@ impl DockerBackend {
             }
             return Err(CannotRun::NeverReady {
                 waited_seconds: READY_TIMEOUT_SECONDS,
-                detail: format!("Its last output was: {}", first_line(&logs)),
+                detail: never_ready_detail(&logs, plan.build.as_deref()),
             });
         }
 
@@ -742,6 +713,74 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
                 .collect(),
         )
     }
+}
+
+/// What an app that never answered last said, and, when it had a build step, why such a step so
+/// often fails here. The step runs inside the fence like the app, where nothing can be downloaded
+/// and nothing outside `/tmp` written, so one that installs packages fails whatever it prints:
+/// `pip install` says its package folder "is not writeable", and before the app ran read-only it
+/// said the network was unreachable. Neither line names the cause, so this does.
+fn never_ready_detail(logs: &str, build: Option<&str>) -> String {
+    let last = format!("Its last output was: {}", first_line(logs));
+    match build {
+        Some(step) => format!(
+            "{last} Its build step (`{step}`) ran inside the fence, where nothing can be \
+             downloaded and the file system is read-only apart from /tmp, so a step that installs \
+             packages cannot work there: install them into the image instead."
+        ),
+        None => last,
+    }
+}
+
+/// The app's own `/tmp`: in memory, and with a size, so the app has somewhere to keep its data
+/// while it runs (`sv init` tells it to use `/tmp`) and cannot fill the machine's memory through it.
+const APP_TMP: &str = "/tmp:size=256m";
+
+/// The folder a test runner writes its report to, at `REPORT_DIR`, in memory and with a size.
+/// `/app` is read-only on purpose, so a test runner has nowhere to put its report unless something
+/// is provided — which is how the first version of `test-report` failed: the runner could not
+/// write the file and the report read as "no report", correctly but uselessly. Findings are still
+/// only ever read out with `exec`.
+const REPORT_TMPFS: &str = "/sv-reports:size=16m";
+
+/// How the app itself is started: on the fenced network, and hardened like every helper — a
+/// read-only file system, no capabilities, no way to gain any (ADR-019, "Later, 30 September
+/// 2026"). Its writable places are two in-memory folders with a size each, `/tmp` and the report
+/// folder. Its own folder is mounted read-only: `sv` reads code, it does not let the code it is
+/// checking rewrite itself mid-check. No port is published — nothing on this computer could reach
+/// it anyway, and saying so in the arguments keeps that honest. Separate so a test can read it.
+fn app_args<'a>(
+    name: &'a str,
+    network: &'a str,
+    mount: &'a str,
+    port_env: &'a str,
+) -> Vec<&'a str> {
+    vec![
+        "run",
+        "-d",
+        "--name",
+        name,
+        "--network",
+        network,
+        "--read-only",
+        "--tmpfs",
+        APP_TMP,
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "-v",
+        mount,
+        "--tmpfs",
+        REPORT_TMPFS,
+        "-w",
+        "/app",
+        "-e",
+        port_env,
+        // Nothing of the owner's reaches the app: no API keys, no home directory.
+        "--env-file",
+        "/dev/null",
+    ]
 }
 
 /// How the test provider is started: fenced and hardened like the mail server, with its script
@@ -1635,6 +1674,62 @@ mod probe_tests {
 
     /// The flags a container making requests to the app must carry, whichever path started it.
     const HARDENING: [&str; 4] = ["--read-only", "--cap-drop", "ALL", "no-new-privileges"];
+
+    #[test]
+    fn an_app_with_a_build_step_is_told_why_the_step_cannot_install_here() {
+        let pip = "Defaulting to user installation because normal site-packages is not writeable";
+        let with = never_ready_detail(pip, Some("pip install -r requirements.txt"));
+        assert!(
+            with.starts_with(&format!("Its last output was: {pip}")),
+            "{with}"
+        );
+        assert!(with.contains("`pip install -r requirements.txt`"), "{with}");
+        assert!(
+            with.contains("install them into the image instead"),
+            "{with}"
+        );
+        // No build step, no sentence about one.
+        let without = never_ready_detail("Traceback: KeyError: 'PORT'", None);
+        assert_eq!(without, "Its last output was: Traceback: KeyError: 'PORT'");
+    }
+
+    #[test]
+    fn the_app_is_hardened_like_every_helper() {
+        let args = app_args("sv-1-app", "sv-1-net", "/apps/notes:/app:ro", "PORT=8080");
+        for flag in HARDENING {
+            assert!(args.contains(&flag), "{flag} missing: {args:?}");
+        }
+        let at = args.iter().position(|a| *a == "--network").unwrap();
+        assert_eq!(args[at + 1], "sv-1-net");
+        assert!(
+            !args
+                .iter()
+                .any(|a| *a == "-p" || a.starts_with("--publish")),
+            "nothing published: {args:?}"
+        );
+        assert!(
+            args.contains(&"/apps/notes:/app:ro"),
+            "the app's folder stays read-only: {args:?}"
+        );
+        // Its only writable places are in memory, and each has a size, so neither can be used to
+        // fill the machine's memory.
+        let tmpfs: Vec<&str> = args
+            .windows(2)
+            .filter(|w| w[0] == "--tmpfs")
+            .map(|w| w[1])
+            .collect();
+        assert_eq!(tmpfs.len(), 2, "{tmpfs:?}");
+        for mount in &tmpfs {
+            assert!(mount.contains("size="), "{mount} has no size");
+        }
+        assert!(tmpfs.iter().any(|m| m.starts_with("/tmp:")), "{tmpfs:?}");
+        assert!(
+            tmpfs
+                .iter()
+                .any(|m| m.split(':').next() == Some(crate::REPORT_DIR)),
+            "the report folder is where test runners are told to write: {tmpfs:?}"
+        );
+    }
 
     #[test]
     fn both_ways_of_reaching_the_app_are_fenced_the_same() {
