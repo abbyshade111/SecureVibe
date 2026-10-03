@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 4 | 31 | 21 | 2 |
-| L2 | 183 | 81 | 8 | 0 | 15 | 38 | 28 | 1 |
+| L2 | 183 | 81 | 8 | 0 | 15 | 42 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 37 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -115,10 +115,10 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.4.2 | L1 | The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` |
-| V3.4.3 | L2 | The running app: `probe.security-headers` |
-| V3.4.4 | L2 | The running app: `probe.security-headers` |
-| V3.4.5 | L2 | The running app: `probe.security-headers` |
-| V3.4.6 | L2 | The running app: `probe.security-headers` |
+| V3.4.3 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |
+| V3.4.4 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |
+| V3.4.5 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |
+| V3.4.6 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |
 | V3.4.7 | L3 | The running app: `probe.csp-no-report` |
 | V3.4.8 | L3 | The running app: `probe.opener-policy-missing` |
 | V3.5.1 | L1 | Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |

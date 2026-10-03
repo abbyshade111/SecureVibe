@@ -183,6 +183,7 @@ RUST_CHECKS = {
     "probe.directory-listing": ("running", ["V13.4.3"]),
     "probe.private-page-cached": ("signed-in", ["V14.3.2"]),
     "probe.private-page-shared-cache": ("signed-in", ["V14.2.2"]),
+    "probe.private-page-headers": ("signed-in", ["V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6"]),
     "probe.no-sign-out-link": ("signed-in", ["V7.4.4"]),
     "probe.oversized-file-accepted": ("signed-in", ["V5.2.1"]),
     "probe.file-contents-unchecked": ("signed-in", ["V5.2.2"]),
