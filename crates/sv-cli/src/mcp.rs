@@ -113,7 +113,10 @@ fn terminal_command(
     in_container: bool,
     program: Option<PathBuf>,
 ) -> String {
-    let command = |program: &str| format!("`{} report {} {flags}`", quoted(program), quoted(app));
+    let command = |program: &str| {
+        let typed = format!("{} report {} {flags}", quoted(program), quoted(app));
+        format!("`{}`", typed.trim_end())
+    };
     if in_container {
         return format!(
             "{} in a terminal, with `sv` installed on the computer itself rather than this \
@@ -153,21 +156,45 @@ fn quoted(text: &str) -> String {
 pub struct Server {
     /// The folder every path is resolved against, canonical.
     root: PathBuf,
-    /// The frameworks and rules, loaded when the server starts and shared by every call.
-    loaded: crate::Loaded,
+    /// The frameworks and rules, loaded when the server starts and shared by every call, and by a
+    /// check still running after its time ran out.
+    loaded: std::sync::Arc<crate::Loaded>,
+    /// How long one check may take before the tool is told it did not finish.
+    time_limit: std::time::Duration,
+    /// The last check, which may still be running after its time ran out.
+    last_check: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
+
+/// How long a check may take, unless `--time-limit` says otherwise. Checking this whole repository
+/// takes about six seconds. Under a minute, because a client commonly gives up on a request after
+/// one (the official TypeScript SDK's default), and an answer it has stopped waiting for tells the
+/// person nothing.
+const TIME_LIMIT_SECONDS: u64 = 50;
 
 /// Runs the server on stdin and stdout until stdin closes.
 pub fn cmd_mcp(args: &[String]) -> Result<()> {
     let mut root = PathBuf::from(".");
+    let mut time_limit = TIME_LIMIT_SECONDS;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
             "--root" => root = PathBuf::from(rest.next().context("--root needs a folder")?),
+            "--time-limit" => {
+                let given = rest
+                    .next()
+                    .context("--time-limit needs a number of seconds")?;
+                time_limit = given
+                    .parse::<u64>()
+                    .ok()
+                    .filter(|s| *s > 0)
+                    .with_context(|| {
+                        format!("--time-limit is a whole number of seconds, above 0: {given}")
+                    })?;
+            }
             other => anyhow::bail!("unknown option for `sv mcp`: {other}"),
         }
     }
-    let server = Server::new(&root)?;
+    let server = Server::new(&root)?.with_time_limit(std::time::Duration::from_secs(time_limit));
     eprintln!(
         "sv mcp: serving {} over stdio; paths outside it are refused",
         server.root.display()
@@ -274,8 +301,15 @@ impl Server {
         }
         Ok(Server {
             root,
-            loaded: crate::Loaded::load()?,
+            loaded: std::sync::Arc::new(crate::Loaded::load()?),
+            time_limit: std::time::Duration::from_secs(TIME_LIMIT_SECONDS),
+            last_check: std::sync::Mutex::new(None),
         })
+    }
+
+    pub fn with_time_limit(mut self, limit: std::time::Duration) -> Self {
+        self.time_limit = limit;
+        self
     }
 
     /// One line of input to at most one line of output. Notifications get none.
@@ -621,6 +655,14 @@ impl Server {
         Ok(resolved)
     }
 
+    /// The report for the app, built as `sv report` builds it, within the time limit.
+    ///
+    /// A check of a very large folder had no end, and the tool waited on it with nothing to say
+    /// (BACKLOG, "Hardening the MCP server", item 6). The check now runs on a thread of its own; if
+    /// the time runs out, the tool is told the check did not finish and that nothing was assessed,
+    /// and how the person can run it at a terminal, where there is no limit. A thread cannot be
+    /// stopped from outside, so the check runs on to its end and its result is dropped; until it
+    /// ends, another check is refused rather than started beside it.
     fn report_for(&self, app_dir: &Path) -> Result<sv_report::Report> {
         anyhow::ensure!(
             app_dir.join("securevibe.toml").exists(),
@@ -628,28 +670,48 @@ impl Server {
              into that folder, and check again.",
             app_dir.display()
         );
-        crate::assemble_report(
-            app_dir,
-            &crate::ReportOptions {
-                run_the_app: false,
-                slow: false,
-                run_tools: false,
-                why_not_run: format!(
-                    "The MCP server never starts the app; the person can, with {}.",
-                    at_a_terminal(&app_dir.to_string_lossy(), "--run")
-                ),
-                why_no_tools: format!(
-                    "The MCP server never runs other people's tools; the person can, with {}.",
-                    at_a_terminal(&app_dir.to_string_lossy(), "--tools")
-                ),
-                advisories: None,
-                why_no_advisories: format!(
-                    "The MCP server does not read an advisory database; the person can, with {}.",
-                    at_a_terminal(&app_dir.to_string_lossy(), "--advisories DIR")
-                ),
-            },
-            &self.loaded,
-        )
+        let mut last = self
+            .last_check
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if last.as_ref().is_some_and(|check| !check.is_finished()) {
+            anyhow::bail!(
+                "the last check ran out of time and is still finishing, so no other is started \
+                 beside it. Nothing was assessed. Ask again in a minute, or ask the person to run {}.",
+                at_a_terminal(&app_dir.to_string_lossy(), "")
+            );
+        }
+        let (send, receive) = std::sync::mpsc::channel();
+        let loaded = std::sync::Arc::clone(&self.loaded);
+        let dir = app_dir.to_path_buf();
+        let check = std::thread::Builder::new()
+            .name("sv-check".to_owned())
+            .spawn(move || {
+                // The other end is gone when the time ran out; the result then has nowhere to go.
+                let _ = send.send(assemble(&dir, &loaded));
+            })
+            .context("the check could not be started")?;
+        *last = Some(check);
+        match receive.recv_timeout(self.time_limit) {
+            Ok(report) => {
+                // Sent, but the thread may not have ended yet; the next check would find it still
+                // running and be refused. It has nothing left to do, so this wait is short.
+                if let Some(check) = last.take() {
+                    let _ = check.join();
+                }
+                report
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => anyhow::bail!(
+                "the check did not finish within {} seconds, so nothing was assessed: this is not a \
+                 pass and not a failure. The folder may be very large; check a smaller folder with \
+                 `path`, or ask the person to run {}, which has no time limit.",
+                self.time_limit.as_secs_f64(),
+                at_a_terminal(&app_dir.to_string_lossy(), "")
+            ),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                anyhow::bail!("the check stopped before it finished, so nothing was assessed")
+            }
+        }
     }
 
     fn check(&self, args: &Value) -> Result<Value> {
@@ -897,6 +959,32 @@ fn too_wide(root: &Path, home: Option<&Path>) -> Option<&'static str> {
 
 enum Refusal {
     UnknownTool(String),
+}
+
+/// What `sv report` assembles, with what the MCP server never does said in the report.
+fn assemble(app_dir: &Path, loaded: &crate::Loaded) -> Result<sv_report::Report> {
+    crate::assemble_report(
+        app_dir,
+        &crate::ReportOptions {
+            run_the_app: false,
+            slow: false,
+            run_tools: false,
+            why_not_run: format!(
+                "The MCP server never starts the app; the person can, with {}.",
+                at_a_terminal(&app_dir.to_string_lossy(), "--run")
+            ),
+            why_no_tools: format!(
+                "The MCP server never runs other people's tools; the person can, with {}.",
+                at_a_terminal(&app_dir.to_string_lossy(), "--tools")
+            ),
+            advisories: None,
+            why_no_advisories: format!(
+                "The MCP server does not read an advisory database; the person can, with {}.",
+                at_a_terminal(&app_dir.to_string_lossy(), "--advisories DIR")
+            ),
+        },
+        loaded,
+    )
 }
 
 /// Why a resource was not read: the request was malformed, or there is no such report file.
@@ -3195,6 +3283,96 @@ mod tests {
             ))
             .unwrap();
         assert_eq!(missing["error"]["code"], -32602, "{missing}");
+    }
+
+    /// Waits for the check left running after its time ran out, and says whether there was one.
+    fn wait_for_last_check(server: &Server) -> bool {
+        let last = server.last_check.lock().unwrap().take();
+        last.map(|check| check.join().unwrap()).is_some()
+    }
+
+    #[test]
+    fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_on() {
+        let root = scratch_app("time-limit", "flask-booking");
+        // Every tool that checks the app goes through the limit.
+        for (tool, args) in [
+            ("securevibe_check", json!({ "path": "app" })),
+            ("securevibe_questions", json!({ "path": "app" })),
+            ("securevibe_write_report", json!({ "path": "app" })),
+            ("securevibe_bundle", json!({ "path": "app" })),
+        ] {
+            let mut server = Server::new(&root)
+                .unwrap()
+                .with_time_limit(std::time::Duration::from_nanos(1));
+            let late = call(&server, tool, args.clone());
+            let said = text(&late).to_owned();
+            assert_eq!(late["isError"], true, "{tool}: {said}");
+            assert!(said.contains("did not finish within"), "{tool}: {said}");
+            assert!(said.contains("nothing was assessed"), "{tool}: {said}");
+            assert!(
+                said.contains("not a pass and not a failure"),
+                "{tool}: {said}"
+            );
+            assert!(
+                said.contains("report"),
+                "{tool}: says how to run it at a terminal: {said}"
+            );
+
+            // The check runs on, and no other is started beside it. The setup is real: the check
+            // that ran out of time is still running when the second call comes.
+            let still_running = server
+                .last_check
+                .lock()
+                .unwrap()
+                .as_ref()
+                .is_some_and(|check| !check.is_finished());
+            assert!(
+                still_running,
+                "{tool}: the check ended before it could be refused"
+            );
+            let beside = call(&server, tool, args.clone());
+            assert_eq!(beside["isError"], true, "{tool}");
+            assert!(
+                text(&beside).contains("still finishing"),
+                "{tool}: {}",
+                text(&beside)
+            );
+
+            // Once it has ended, a check with time enough finishes as it always did.
+            assert!(wait_for_last_check(&server), "{tool}");
+            server.time_limit = std::time::Duration::from_secs(TIME_LIMIT_SECONDS);
+            let done = call(&server, tool, args.clone());
+            assert_eq!(done["isError"], false, "{tool}: {}", text(&done));
+            // A check that finished in time is waited out to its end, so the next is not refused
+            // for a thread that had only to stop: the full test run found it so, once.
+            assert!(
+                server.last_check.lock().unwrap().is_none(),
+                "{tool}: a finished check is still held"
+            );
+            let again = call(&server, tool, args);
+            assert_eq!(again["isError"], false, "{tool}: {}", text(&again));
+        }
+    }
+
+    #[test]
+    fn the_time_limit_is_a_whole_number_of_seconds_above_nothing() {
+        for (args, said) in [
+            (vec!["--time-limit", "0"], "above 0"),
+            (vec!["--time-limit", "-5"], "above 0"),
+            (vec!["--time-limit", "ten"], "above 0"),
+            (vec!["--time-limit", "1.5"], "above 0"),
+            (vec!["--time-limit"], "needs a number of seconds"),
+        ] {
+            let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
+            let refused = cmd_mcp(&args).expect_err(&format!("{args:?}"));
+            assert!(
+                format!("{refused:#}").contains(said),
+                "{args:?}: {refused:#}"
+            );
+        }
+        // The default leaves a check of this whole repository, about six seconds, room to finish,
+        // and answers before a client that waits a minute gives up.
+        assert!((10..60).contains(&TIME_LIMIT_SECONDS));
     }
 
     #[test]
