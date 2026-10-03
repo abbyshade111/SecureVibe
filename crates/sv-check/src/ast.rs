@@ -2702,6 +2702,16 @@ mod tests {
         ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 600_000, 32, sha256.New) }", false),
         ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, n, 32, sha256.New) }", false),
         ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := cache.Key(a, b, 100, 2) }", false),
+        // The standard library's crypto/pbkdf2 (Go 1.24) takes the hash first and the count fourth.
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha256.New, pw, salt, 4096, 32) }", true),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha512.New, pw, salt, 100_000, keyLen) }", true),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha512.New, pw, salt, 210_000, 64) }", false),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha256.New, pw, salt, cfg.Rounds, 32) }", false),
+        // x/crypto's order with a password read from a field: its fourth argument is the key's length, and
+        // its last is the hash, so it is not read as the standard library's count.
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(cfg.Password, salt, 600_000, 32, sha256.New) }", false),
+        // And with the hash passed in a variable, where only the hash coming first tells the two apart.
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 600_000, 32, h) }", false),
         ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2(\"sha256\", $pw, $salt, 1000, 32);", true),
         ("ast.weak-password-key-derivation", "php", "<?php $k = openssl_pbkdf2($pw, $salt, 32, 10000, \"sha256\");", true),
         ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2(\"sha256\", $pw, $salt, 600000, 32);", false),
@@ -2714,6 +2724,13 @@ mod tests {
         ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 1000, HashAlgorithmName.SHA256); } }", true),
         ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var b = Rfc2898DeriveBytes.Pbkdf2(pw, salt, 10000, HashAlgorithmName.SHA256, 32); } }", true),
         ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 600000, HashAlgorithmName.SHA256); } }", false),
+        // Two arguments: 1,000 rounds of SHA-1, without the code saying so.
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt); } }", true),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(password, 16); } }", true),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, rounds); } }", false),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 600000, HashAlgorithmName.SHA256); } }", false),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var p = new Point(1, 2); } }", false),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var x = Rfc2898DeriveBytes.Create(pw, salt); } }", false),
         ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1000, EVP_sha256(), 32, out); }", true),
         ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 600000, EVP_sha256(), 32, out); }", false),
         ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC_SHA1(pw, n, salt, sn, 2048, 32, out); }", true),
