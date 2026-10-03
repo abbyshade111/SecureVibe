@@ -35,10 +35,10 @@
 
 use crate::{Confidence, Finding, Location, Severity, Verified};
 
-/// The most requests one run may make. A run makes at most three: HTTPS; then either the same
-/// address without verification, only when the certificate failed, or the question about its
-/// stapled status (V12.1.4), only when it passed and names an OCSP responder, never both; then plain
-/// HTTP. The fourth is slack.
+/// The most requests one run may make, and a run can make all four: HTTPS; then either the same
+/// address without verification, only when the certificate failed, or, only when it passed, the
+/// question about its stapled status (V12.1.4) when it names an OCSP responder and one handshake
+/// offering only TLS 1.0 and 1.1 (V12.1.1); then plain HTTP. There is no slack left.
 pub const MOST_REQUESTS: usize = 4;
 
 /// What a request to the live site came back with, or why it could not be made.
@@ -74,6 +74,18 @@ pub enum Stapling {
     CannotAsk(String),
 }
 
+/// What one handshake offering only TLS 1.0 and 1.1 came back with.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OldTls {
+    /// The site completed the handshake: it still accepts one of them.
+    Accepted,
+    /// The site refused, in words that can only have come from its side of the handshake, quoted.
+    Refused(String),
+    /// Anything else, and why: this machine's TLS library would not offer the old versions, the
+    /// connection was dropped, a timeout. Not an answer either way.
+    CannotTell(String),
+}
+
 impl Answer {
     pub fn header(&self, name: &str) -> Option<&str> {
         self.headers
@@ -99,6 +111,12 @@ pub trait Fetch {
     /// on. One more request, counted against the same cap.
     fn stapled(&mut self, _url: &str) -> Stapling {
         Stapling::CannotAsk("this fetcher cannot ask for a stapled status".to_owned())
+    }
+
+    /// A HEAD to `url` whose handshake offers only TLS 1.0 and 1.1 (V12.1.1), with verification on.
+    /// One more request, counted against the same cap.
+    fn old_tls(&mut self, _url: &str) -> OldTls {
+        OldTls::CannotTell("this fetcher cannot offer old TLS versions".to_owned())
     }
 }
 
@@ -242,6 +260,19 @@ const OCSP_NOT_STAPLED: Rule = Rule {
           in their TLS settings.",
 };
 
+const OLD_TLS_ACCEPTED: Rule = Rule {
+    rule_id: "probe.old-tls-accepted",
+    requirement_ids: &["V12.1.1"],
+    title: "The site still accepts TLS 1.0 or 1.1",
+    severity: Severity::Medium,
+    impact: "TLS 1.0 and 1.1 have known weaknesses and were retired in 2021. A site that still \
+             accepts them lets an old or misconfigured browser, or somebody in the middle forcing \
+             the connection down, use the weaker protection.",
+    fix: "Allow only TLS 1.2 and 1.3 where TLS ends: nginx `ssl_protocols TLSv1.2 TLSv1.3;`, Apache \
+          `SSLProtocol -all +TLSv1.2 +TLSv1.3`. Most hosting and CDN services have a \"minimum TLS \
+          version\" setting; set it to 1.2.",
+};
+
 const NO_HSTS: Rule = Rule {
     rule_id: "probe.no-hsts",
     requirement_ids: &["V3.4.1"],
@@ -314,7 +345,7 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
             ));
         } else {
             out.not_assessed.push((
-                "V12.2.1, V12.2.2, V3.4.1, V3.3.3".to_owned(),
+                "V12.2.1, V12.2.2, V12.1.1, V3.4.1, V3.3.3".to_owned(),
                 format!("{} could not be reached at all: {why}", target.https),
             ));
             return out;
@@ -335,7 +366,7 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
     //     certificate this machine trusts, and only when it names an OCSP responder: without one
     //     there is nothing to staple, which is so for every Let's Encrypt certificate since 2025,
     //     and says nothing about how revocation is handled instead. Made only where the unverified
-    //     retry above was not, so a run still makes at most three requests.
+    //     retry above was not, so a run still makes at most four requests.
     if secure.failure.is_none() {
         match &secure.revocation {
             None => out.not_assessed.push((
@@ -389,6 +420,52 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
                 }
             }
         }
+    }
+
+    // 1c. Old TLS versions (V12.1.1): one handshake offering only TLS 1.0 and 1.1. Only for a
+    //     certificate this machine trusts, so a certificate problem cannot be read as a refusal, and
+    //     made in the run where the unverified retry was not, so a run still makes at most four
+    //     requests. Only ever a finding: V12.1.1 also asks that the newest version be the one
+    //     preferred, and curl reports no negotiated version that can be relied on, so a refusal is
+    //     said and not credited.
+    if secure.failure.is_none() {
+        out.requested
+            .push(format!("{} (offering only TLS 1.0 and 1.1)", target.https));
+        match http.old_tls(&target.https) {
+            OldTls::Accepted => out.findings.push(finding(
+                &OLD_TLS_ACCEPTED,
+                format!(
+                    "{} completed a handshake when offered nothing newer than TLS 1.1.",
+                    target.https
+                ),
+                &target.host,
+            )),
+            OldTls::Refused(said) => out.not_assessed.push((
+                "V12.1.1".to_owned(),
+                format!(
+                    "{} refused a handshake offering only TLS 1.0 and 1.1 ({said}), so the old \
+                     versions are off. V12.1.1 also asks that the newest version be the one \
+                     preferred, which this does not ask, so it is not credited.",
+                    target.https
+                ),
+            )),
+            OldTls::CannotTell(why) => out.not_assessed.push((
+                "V12.1.1".to_owned(),
+                format!(
+                    "Whether {} still accepts TLS 1.0 or 1.1 could not be told: {why}",
+                    target.https
+                ),
+            )),
+        }
+    } else {
+        out.not_assessed.push((
+            "V12.1.1".to_owned(),
+            format!(
+                "Whether {} still accepts TLS 1.0 or 1.1 is asked only of a certificate this \
+                 machine trusts, so that a certificate problem is never read as a refusal.",
+                target.https
+            ),
+        ));
     }
 
     // The handshake succeeding is what V12.2.2 asks about, and it is answered above whatever comes
@@ -548,9 +625,21 @@ mod tests {
         asked: Vec<(String, bool)>,
         /// What asking for the stapled status gets; `None` is a fetcher that cannot ask.
         stapling: Option<Stapling>,
+        /// What a handshake offering only TLS 1.0 and 1.1 gets; `None` is a fetcher that cannot.
+        pub old_tls: Option<OldTls>,
+        /// How many times that was asked. It is also in `asked`, as a request to the HTTPS address.
+        pub old_tls_asked: usize,
     }
 
     impl Fetch for FakeSite {
+        fn old_tls(&mut self, url: &str) -> OldTls {
+            self.asked.push((url.to_owned(), true));
+            self.old_tls_asked += 1;
+            self.old_tls
+                .clone()
+                .unwrap_or_else(|| OldTls::CannotTell("the fake was given no answer".to_owned()))
+        }
+
         fn stapled(&mut self, url: &str) -> Stapling {
             self.asked.push((url.to_owned(), true));
             self.stapling
@@ -598,6 +687,8 @@ mod tests {
                 .collect(),
             asked: Vec::new(),
             stapling: None,
+            old_tls: None,
+            old_tls_asked: 0,
         }
     }
 
@@ -863,7 +954,7 @@ mod tests {
             .iter()
             .filter(|(u, v)| u == "https://example.test/" && *v)
             .count()
-            .saturating_sub(1)
+            .saturating_sub(1 + s.old_tls_asked)
     }
 
     fn ocsp() -> Option<Revocation> {
@@ -900,20 +991,111 @@ mod tests {
     }
 
     #[test]
-    fn asking_about_stapling_keeps_a_run_to_three_requests_all_reported() {
-        // The unverified retry happens only when the certificate failed, and the stapling question
-        // only when it passed, so a run never makes both: HTTPS, one of the two, plain HTTP.
+    fn asking_about_stapling_and_old_tls_keeps_a_run_to_four_requests_all_reported() {
+        // The unverified retry happens only when the certificate failed, and the stapling and old
+        // TLS questions only when it passed, so a run never makes all three: HTTPS, the stapling
+        // question, the old TLS handshake, plain HTTP.
         for stapling in [Stapling::Stapled, Stapling::NotStapled] {
             let mut s = stapling_site(ocsp(), Some(stapling));
             let out = run(&mut s, &target());
-            assert_eq!(s.asked.len(), 3, "{:?}", s.asked);
+            assert_eq!(s.asked.len(), 4, "{:?}", s.asked);
+            assert_eq!(s.old_tls_asked, 1);
             assert_eq!(
                 out.requested.len(),
                 s.asked.len(),
-                "every request, the stapling question included, is reported to the owner"
+                "every request, the stapling and old TLS questions included, is reported"
             );
-            assert!(s.asked.len() < MOST_REQUESTS);
+            assert_eq!(
+                s.asked.len(),
+                MOST_REQUESTS,
+                "the cap is reached and not passed"
+            );
         }
+    }
+
+    fn old_tls_site(answer: Option<OldTls>) -> FakeSite {
+        let mut s = stapling_site(Some(Revocation::NoOcsp), None);
+        s.old_tls = answer;
+        s
+    }
+
+    fn old_tls_credited(out: &Outcome) -> bool {
+        out.verified
+            .iter()
+            .any(|v| v.requirement_ids.iter().any(|r| r == "V12.1.1"))
+    }
+
+    #[test]
+    fn a_site_that_accepts_old_tls_is_found_and_one_that_refuses_is_not_credited() {
+        let mut accepts = old_tls_site(Some(OldTls::Accepted));
+        let out = run(&mut accepts, &target());
+        assert_eq!(accepts.old_tls_asked, 1);
+        assert!(
+            rules(&out).contains(&OLD_TLS_ACCEPTED.rule_id),
+            "{:?}",
+            rules(&out)
+        );
+        assert!(!old_tls_credited(&out));
+        assert!(
+            out.requested
+                .iter()
+                .any(|r| r.contains("offering only TLS 1.0 and 1.1")),
+            "{:?}",
+            out.requested
+        );
+
+        let mut refuses =
+            old_tls_site(Some(OldTls::Refused("tlsv1 alert protocol version".into())));
+        let out = run(&mut refuses, &target());
+        assert_eq!(refuses.old_tls_asked, 1);
+        assert!(!rules(&out).contains(&OLD_TLS_ACCEPTED.rule_id));
+        assert!(!old_tls_credited(&out), "half of V12.1.1 is not all of it");
+        assert!(
+            out.not_assessed.iter().any(|(ids, why)| ids == "V12.1.1"
+                && why.contains("alert protocol version")
+                && why.contains("not credited")),
+            "{:?}",
+            out.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_old_tls_question_that_went_nowhere_settles_nothing() {
+        for answer in [
+            None,
+            Some(OldTls::CannotTell(
+                "legacy sigalg disallowed or unsupported".into(),
+            )),
+        ] {
+            let mut s = old_tls_site(answer);
+            let out = run(&mut s, &target());
+            assert_eq!(s.old_tls_asked, 1);
+            assert!(!rules(&out).contains(&OLD_TLS_ACCEPTED.rule_id));
+            assert!(!old_tls_credited(&out));
+            assert!(
+                out.not_assessed
+                    .iter()
+                    .any(|(ids, why)| ids == "V12.1.1" && why.contains("could not be told")),
+                "{:?}",
+                out.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_host_that_is_not_there_names_old_tls_among_what_it_could_not_settle() {
+        let mut s = site(&[]);
+        s.old_tls = Some(OldTls::Accepted);
+        let out = run(&mut s, &target());
+        assert_eq!(s.old_tls_asked, 0);
+        assert!(!rules(&out).contains(&OLD_TLS_ACCEPTED.rule_id));
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, _)| ids.contains("V12.1.1")),
+            "{:?}",
+            out.not_assessed
+        );
     }
 
     #[test]
@@ -996,8 +1178,12 @@ mod tests {
             fn stapled(&mut self, url: &str) -> Stapling {
                 self.0.stapled(url)
             }
+            fn old_tls(&mut self, url: &str) -> OldTls {
+                self.0.old_tls(url)
+            }
         }
         let mut u = Untrusted(stapling_site(ocsp(), Some(Stapling::Stapled)));
+        u.0.old_tls = Some(OldTls::Accepted);
         let out = run(&mut u, &target());
         assert!(
             rules(&out).contains(&UNTRUSTED_CERTIFICATE.rule_id),
@@ -1014,6 +1200,17 @@ mod tests {
                 .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
         );
         assert!(!out.not_assessed.iter().any(|(ids, _)| ids == "V12.1.4"));
+        // Nor about old TLS: a handshake refused for the certificate is not a refusal of TLS 1.0.
+        assert_eq!(u.0.old_tls_asked, 0, "{:?}", u.0.asked);
+        assert!(!rules(&out).contains(&OLD_TLS_ACCEPTED.rule_id));
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V12.1.1" && why.contains("only of a certificate")),
+            "{:?}",
+            out.not_assessed
+        );
+        assert!(out.requested.len() <= MOST_REQUESTS);
     }
 
     /// curl 8.12.1's `%{certs}` for a certificate that names a responder, cut to the lines that
@@ -1079,6 +1276,14 @@ mod tests {
                 self.asked += 1;
                 stapling_from(self.staple.0, self.staple.1)
             }
+            fn old_tls(&mut self, _url: &str) -> OldTls {
+                // What curl 8.12.1 on OpenSSL 3.0.17 printed for github.com on 3 October 2026.
+                self.asked += 1;
+                old_tls_from(
+                    Some(35),
+                    "curl: (35) TLS connect error: error:0A00042E:SSL routines::tlsv1 alert protocol version",
+                )
+            }
         }
         let probe = |certs, staple| {
             let mut f = CurlShaped {
@@ -1113,7 +1318,16 @@ mod tests {
                 .any(|v| v.check_id == OCSP_NOT_STAPLED.rule_id)
         );
         assert!(out.requested.iter().any(|r| r.contains("stapled status")));
-        assert_eq!((asked, out.requested.len()), (3, 3));
+        assert_eq!((asked, out.requested.len()), (4, 4));
+        // The old TLS handshake, refused in the site's words: said, and V12.1.1 not credited.
+        assert!(
+            out.not_assessed.iter().any(|(ids, why)| ids == "V12.1.1"
+                && why.contains("tlsv1 alert protocol version")
+                && !why.contains("curl: ")),
+            "{:?}",
+            out.not_assessed
+        );
+        assert!(!rules(&out).contains(&OLD_TLS_ACCEPTED.rule_id));
 
         // A stapled status that says the certificate was revoked is not "none stapled".
         let (out, _) = probe(
@@ -1132,7 +1346,7 @@ mod tests {
 
         // Only the issuer names a responder: the site's certificate names none, and nothing is asked.
         let (out, asked) = probe(CERTS_WITHOUT_OCSP, (Some(0), ""));
-        assert_eq!(asked, 2);
+        assert_eq!(asked, 3, "HTTPS, the old TLS handshake, plain HTTP");
         assert!(
             v1214(&out)
                 .iter()
@@ -1141,7 +1355,7 @@ mod tests {
 
         // curl printed no certificate details: not known, and not "no responder".
         let (out, asked) = probe("", (Some(0), ""));
-        assert_eq!(asked, 2);
+        assert_eq!(asked, 3, "HTTPS, the old TLS handshake, plain HTTP");
         assert!(
             v1214(&out).iter().any(|w| w.contains("did not report")),
             "{:?}",
@@ -1307,6 +1521,84 @@ impl Fetch for Curl {
         };
         stapling_from(out.status.code(), &String::from_utf8_lossy(&out.stderr))
     }
+
+    fn old_tls(&mut self, url: &str) -> OldTls {
+        if self.made >= MOST_REQUESTS {
+            return OldTls::CannotTell(format!(
+                "this check makes at most {MOST_REQUESTS} requests, and that is all of them"
+            ));
+        }
+        // Asked of curl itself, on this machine, before the request: which TLS library it uses.
+        let library = std::process::Command::new("curl")
+            .arg("--version")
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default();
+        self.made += 1;
+        let mut args: Vec<&str> = vec![
+            "--tlsv1.0",
+            "--tls-max",
+            "1.1",
+            "--head",
+            "--silent",
+            "--show-error",
+            "--max-redirs",
+            "0",
+            "--max-time",
+            "15",
+            "--user-agent",
+            "sv-probe (OWASP ASVS check, read-only)",
+            "--no-alpn",
+            "--disable",
+            "--output",
+            "/dev/null",
+        ];
+        args.extend(old_tls_library_args(&library));
+        args.push(url);
+        match std::process::Command::new("curl").args(&args).output() {
+            Ok(out) => old_tls_from(out.status.code(), &String::from_utf8_lossy(&out.stderr)),
+            Err(e) => OldTls::CannotTell(format!("curl could not be run: {e}")),
+        }
+    }
+}
+
+/// What curl needs, for the TLS library it was built with, to offer TLS 1.0 and 1.1 at all.
+///
+/// OpenSSL 3 will not offer them at its default security level: measured on 3 October 2026, curl
+/// 8.12.1 on OpenSSL 3.0.17 and Debian trixie's curl failed against servers that speak
+/// only TLS 1.0 or 1.1 with errors of their own ("legacy sigalg disallowed", "no protocols
+/// available"), and completed the handshake with `--ciphers DEFAULT@SECLEVEL=0`. macOS's curl, on
+/// LibreSSL 3.3.6, offers them as it is and refuses that cipher list. Any other library gets nothing
+/// added; if it will not offer them, the request fails in its own words and is not read as the
+/// site refusing.
+fn old_tls_library_args(curl_version: &str) -> Vec<&'static str> {
+    let first = curl_version.lines().next().unwrap_or("");
+    if first.contains("OpenSSL/") {
+        vec!["--ciphers", "DEFAULT@SECLEVEL=0"]
+    } else {
+        Vec::new()
+    }
+}
+
+/// Reads curl's answer to a handshake offering only TLS 1.0 and 1.1.
+///
+/// Only two messages are read as the site refusing, each seen from a real server on 3 October 2026:
+/// `alert protocol version`, the alert a server sends when it will not speak any version offered
+/// (github.com and www.digicert.com, through LibreSSL and OpenSSL alike), and LibreSSL's `wrong ssl
+/// version`, when the server answers with a version that was not offered. Everything else, including
+/// a connection reset and every error the library raises on its own side, is not an answer.
+fn old_tls_from(code: Option<i32>, stderr: &str) -> OldTls {
+    let said = stderr.trim().trim_start_matches("curl: ").to_owned();
+    match code {
+        Some(0) => OldTls::Accepted,
+        _ if said.contains("alert protocol version") || said.contains("wrong ssl version") => {
+            OldTls::Refused(said)
+        }
+        _ if said.is_empty() => {
+            OldTls::CannotTell(format!("curl exited with {code:?} and said nothing"))
+        }
+        _ => OldTls::CannotTell(said),
+    }
 }
 
 /// Curl's output for a request: the headers, then, when asked for, the certificate's details after
@@ -1418,6 +1710,69 @@ mod curl_tests {
         assert!(
             answer.failure.unwrap().contains("at most"),
             "and it says why rather than looking like a network error"
+        );
+        assert!(
+            matches!(c.old_tls("https://example.test/"), OldTls::CannotTell(why) if why.contains("at most")),
+            "the old TLS handshake counts against the same cap"
+        );
+    }
+
+    #[test]
+    fn curls_answer_to_old_tls_is_read_for_what_it_says() {
+        // The messages are the ones curl printed on 3 October 2026.
+        assert_eq!(old_tls_from(Some(0), ""), OldTls::Accepted);
+        for refused in [
+            "curl: (35) LibreSSL/3.3.6: error:1404B42E:SSL routines:ST_CONNECT:tlsv1 alert protocol version",
+            "curl: (35) TLS connect error: error:0A00042E:SSL routines::tlsv1 alert protocol version",
+            "curl: (35) LibreSSL/3.3.6: error:1400410A:SSL routines:CONNECT_CR_SRVR_HELLO:wrong ssl version",
+        ] {
+            assert!(
+                matches!(old_tls_from(Some(35), refused), OldTls::Refused(ref s) if !s.starts_with("curl: ")),
+                "{refused}"
+            );
+        }
+        // This machine's own library declining, and a dropped connection, are not the site's answer.
+        for not_an_answer in [
+            "curl: (35) TLS connect error: error:0A00014D:SSL routines::legacy sigalg disallowed or unsupported",
+            "curl: (35) TLS connect error: error:0A0000BF:SSL routines::no protocols available",
+            "curl: (35) Recv failure: Connection reset by peer",
+            "curl: (59) failed setting cipher list: DEFAULT@SECLEVEL=0",
+            // Written for this test rather than seen: a timeout.
+            "curl: (28) Operation timed out after 15001 milliseconds",
+        ] {
+            assert!(
+                matches!(old_tls_from(Some(35), not_an_answer), OldTls::CannotTell(_)),
+                "{not_an_answer}"
+            );
+        }
+        assert!(
+            matches!(old_tls_from(Some(35), ""), OldTls::CannotTell(why) if why.contains("said nothing"))
+        );
+        assert!(
+            matches!(old_tls_from(None, ""), OldTls::CannotTell(_)),
+            "killed by a signal"
+        );
+    }
+
+    #[test]
+    fn openssl_is_asked_to_offer_old_tls_and_libressl_is_not() {
+        let lowered = vec!["--ciphers", "DEFAULT@SECLEVEL=0"];
+        // `curl --version`'s first line, as each printed it on 3 October 2026.
+        assert_eq!(
+            old_tls_library_args(
+                "curl 8.12.1 (Darwin) libcurl/8.12.1 OpenSSL/3.0.17 (SecureTransport) zlib/1.2.13\nRelease-Date: x"
+            ),
+            lowered
+        );
+        assert!(
+            old_tls_library_args(
+                "curl 8.7.1 (x86_64-apple-darwin23.0) libcurl/8.7.1 (SecureTransport) LibreSSL/3.3.6 zlib/1.2.12"
+            )
+            .is_empty()
+        );
+        assert!(
+            old_tls_library_args("").is_empty(),
+            "curl that did not answer"
         );
     }
 
