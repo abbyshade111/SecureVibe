@@ -9,6 +9,71 @@ another session is not a claim.
 
 ## Next
 
+- **The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add.** By session
+  securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
+  evidence"). Read: every check that asks the running app (31 as a stranger, 17 of the AI feature, 83 signed in,
+  7 against the live site), where each gives credit and where it only raises a finding, and every level 1 and 2
+  ASVS and AISVS requirement no running check speaks to. **Each numbered item can be claimed on its own.**
+  1. **`docs/COVERAGE.md` counts 18 requirements as checkable by a clean run when nothing can credit them.** 21
+     checks only ever raise a finding, and `tools/coverage.py` does not list them in `RUST_FINDINGS_ONLY`:
+     `probe.directory-listing`, `probe.docs-or-monitoring-exposed`, `probe.jsonp-enabled`,
+     `probe.unused-method-accepted`, `probe.version-disclosed`, `probe.account-details-sent-elsewhere`,
+     `probe.activation-code-guessable`, `probe.activation-link-reusable`, `probe.default-account`,
+     `probe.email-code-short`, `probe.forwarded-for-trusted`, `probe.password-in-url`, `probe.password-paste-blocked`,
+     `probe.reset-code-guessable`, `probe.reset-keeps-old-password`, `probe.reset-reusable`,
+     `probe.reset-reveals-account`, `probe.session-id-weak`, `probe.sign-out-on-get`,
+     `probe.validation-only-in-the-browser`, and `probe.websocket-after-sign-out`. Each was confirmed by reading where
+     it reports: none reaches a `Verified`. The requirements no other running check credits: V2.2.2, V3.5.3, V3.5.6,
+     V4.1.4, V4.4.3, V6.2.7, V6.3.2, V6.3.8, V6.4.1, V6.4.3, V6.5.4, V7.2.3, V13.4.3, V13.4.5, V13.4.6, V14.2.1,
+     V14.2.3, and V15.3.4. The reports are honest, since they never credit these; only the counts are wrong. A test
+     that fails when a check that never credits is not listed would stop it happening again.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-findings-only-counts`.
+  2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
+     refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
+     refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
+     out by visiting an address leaving the session alive while the sign-out form ends it (V3.5.3); and the server
+     refusing a value its own form forbids (V2.2.2). Each would credit only what it saw, as the others do.
+  3. **The stranger checks credit headers from one answer.** Security headers, cookies, and content types are
+     credited from the answer on the health path, which is often a small JSON status reply rather than a page
+     anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
+     when all pass, naming them.
+  4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
+     app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
+     expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
+     a refusal is real credit. Common in apps an AI coding tool writes; no proposal was on file.
+  5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
+     query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
+     and the marker appearing at all is the control.
+  6. **Requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4).** For a feature that fetches an address,
+     named in `securevibe.toml`, give it the test model's canary inside the fence, which already records every
+     fetch; a canary that answers with a redirect shows whether the app follows it. The fence makes this safe.
+  7. **SQL injection on the app's own records and search (V1.2.4; level 1).** The same request with an always-true
+     and an always-false condition added; answers that differ show the database reading the input. Only ever a
+     finding, read-only payloads only.
+  8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
+     a foreign address; a `Location` header pointing there is the finding.
+  9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
+     credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
+  10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
+      model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
+      working, and passes on neither the raw error nor the bad structure.
+  11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
+      document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
+      as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
+  12. **The app's own MCP server, hardened (C10.2.1, C10.4.3, level 1; C10.4.4, C10.4.5).** No token, a junk token,
+      an undeclared parameter, the wrong type, and an oversized payload, each against the ordinary call as the
+      control. Proposed in `docs/PARTIAL-CHECKS.md` for C10.2.1 and C10.4.3.
+  13. **Limits and double-booking on the owner's own actions (V2.4.1, V2.3.4).** A burst, and parallel requests, at
+      an action `securevibe.toml` names; more successes than its stated limit is the finding. Proposed in
+      `docs/PARTIAL-CHECKS.md`.
+  14. **Changing the email address without the password again (V7.5.1).** The shape of
+      `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
+  15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
+      file named to land outside the upload folder, then asked for where it would have landed.
+  16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
+      **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
+
 - **Say when a manifest and its lockfile disagree.** Found on 3 October 2026; **not claimed.** On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
   `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
@@ -120,6 +185,10 @@ another session is not a claim.
      than by instructions.
   2. **Keep the last report until the app's files change.** Every call builds the whole report again, and
      `securevibe_questions` runs the full check to list questions. Kept, "check after each feature" would be quick.
+     **Measured on 3 October 2026, and not worth building yet:** with a release build, `sv check` of
+     `examples/flask-booking` took 0.13 seconds, and three MCP calls on it 0.2 seconds together; only a folder the
+     size of this repository took long (6 seconds). A kept report would save little for the apps `sv` is for, and one
+     kept past a change to the app would say something no longer true.
   3. **Declare the shape of each tool's structured result** (`outputSchema`, in the 2025-06-18 protocol), so a
      client can rely on it. None is declared now.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -129,12 +198,17 @@ another session is not a claim.
      each caught.
   4. **Progress notifications during a long check**, so the tool does not look stuck.
   5. **Offer the written reports as MCP resources** the tool can open, rather than only files on disk.
+     **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-mcp-resources`.
   6. **The newest protocol version.** The newest the server speaks is 2025-06-18; whether a later one has been
      published, and what it changes, needs checking before it is added.
      **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-protocol-version`. Two later versions are published, 2025-11-25 and 2026-07-28
      (their schemas in the specification's repository); what each changes for a stdio server that offers only tools
      is the work.
+     **Done the same day** (DESIGN, "The newer protocol versions, 2025-11-25 and 2026-07-28"): a client that opens
+     with `initialize` may have 2025-11-25, and one that names 2026-07-28 on each request is answered statelessly,
+     with `server/discover`; wrong arguments come back as a tool's result. Nine ways broken, each caught.
 
 - **`ast.download-piped-to-shell` flags a download read as data.** **Claimed on 28 September 2026 by session
   cato-examined**, at the owner's asking. Found by cato-pipeline: `curl … | python3 -c '<fixed program>'` is
