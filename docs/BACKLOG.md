@@ -108,6 +108,8 @@ another session is not a claim.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
+      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+      `claude/ai-others-documents`.
   12. **The app's own MCP server, hardened (C10.2.1, C10.4.3, level 1; C10.4.4, C10.4.5).** No token, a junk token,
       an undeclared parameter, the wrong type, and an oversized payload, each against the ordinary call as the
       control. Proposed in `docs/PARTIAL-CHECKS.md` for C10.2.1 and C10.4.3.
