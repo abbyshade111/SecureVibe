@@ -5385,7 +5385,7 @@ Two manifests are read: `requirements.txt`, with Python's version clauses (`==`,
 `||`). Versions are compared as plain release numbers. What cannot be compared that way is listed as not compared,
 never as agreeing: a pre-release or post-release on either side, a link or a path instead of a version, a tag such as
 `latest`, a platform condition with nothing locked, or a range written in a form not read here. The other manifests
-were added later the same day (see the end of this section); Gradle's files are not compared yet.
+were added later the same day (see the end of this section), and Gradle's after them.
 
 **Where it is said.** In the same places as "Two lockfiles of one kind", since it is the same doubt from the other
 side: the list describes a file the app may not be installed from.
@@ -5449,6 +5449,22 @@ Poetry folder dependency that also names a version, and a commented-out line in 
 check for stability flags, branches, and aliases was removed: every one of them already fails to read as a version,
 so the check carried no weight. Two more showed a check for `platforms` that the shorter check for `platform` already
 covered; it was removed, and the `install_if` block got a case.
+
+
+**Gradle, added last.** `build.gradle` and `build.gradle.kts` are read for coordinates written out in full, as
+`'group:artifact:version'` or as `group: 'g', name: 'a', version: 'v'`, in either language, and held to
+`gradle.lockfile`. A plain version is not exact in Gradle: it is the least Gradle will use, and it picks the
+highest version anything in the build asks for, so a lockfile holding a newer version agrees and only an older one
+disagrees. `1.2.3!!` is exact, `1.2.+` is a prefix, and `[1.0,2.0)` is a range, as Maven writes them. The words after
+a version's number (`33.0.0-jre`, `5.3.2.Final`) must be the same on both sides to be compared, case aside; other
+words cannot be put in order, so they are not compared. A version from a variable (`$v`), a word such as
+`latest.release`, a version catalog entry (`libs.okhttp`), and another project in the build are not read. Which
+configurations are locked is the project's choice, so a dependency missing from the lockfile is not compared rather
+than disagreeing.
+
+Two tests, a Groovy and a Kotlin build file, and 20 cases of what a version allows. Thirteen guards broken in turn,
+each caught. A check for versions from a variable or `latest.` carried no weight, since neither reads as a number,
+and was removed.
 
 ## A crash is not a refusal (29 September 2026)
 
