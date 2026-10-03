@@ -77,6 +77,8 @@ another session is not a claim.
   7. **SQL injection on the app's own records and search (V1.2.4; level 1).** The same request with an always-true
      and an always-false condition added; answers that differ show the database reading the input. Only ever a
      finding, read-only payloads only.
+     **Claimed on 3 October 2026 by session securevibe-e9 and released the same day, not built.** The work stopped
+     during design, before any code was written; it is left for the owner to decide how, or whether, to take it up.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
