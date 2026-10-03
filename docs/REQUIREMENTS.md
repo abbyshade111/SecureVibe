@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 162 can be checked, 9 where a check helps but a person decides, and 174 with no check.
+345 requirements: 163 can be checked, 10 where a check helps but a person decides, and 172 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -180,7 +180,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can be checked | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 85 can be checked)
+### Level 2 (183 requirements, 86 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -215,8 +215,8 @@ decided per app, from its `securevibe.toml` and its code.
 | **V2.2.3** Verify that the application ensures that combinations of related data items are reasonable according to the pre-defined rules. | No check | – |
 | **V2.3.2** Verify that business logic limits are implemented per the application's documentation to avoid business logic flaws being exploited. | No check | – |
 | **V2.3.3** Verify that transactions are being used at the business logic level such that either a business logic operation succeeds in its entirety or it is rolled back to the previous correct state. | No check | – |
-| **V2.3.4** Verify that business logic level locking mechanisms are used to ensure that limited quantity resources (such as theater seats or delivery slots) cannot be double-booked by manipulating the application's logic. | No check | – |
-| **V2.4.1** Verify that anti-automation controls are in place to protect against excessive calls to application functions that could lead to data exfiltration, garbage-data creation, quota exhaustion, rate-limit breaches, denial-of-service, or overuse of costly resources. | No check | – |
+| **V2.3.4** Verify that business logic level locking mechanisms are used to ensure that limited quantity resources (such as theater seats or delivery slots) cannot be double-booked by manipulating the application's logic. | A check helps; a person decides | Signed in: `probe.action-done-twice`, if it fails: Two requests arriving together can both take the one thing there was: the last seat is booked twice, a one-time code pays out twice. Anybody can do it on purpose by sending the same request several times at once. |
+| **V2.4.1** Verify that anti-automation controls are in place to protect against excessive calls to application functions that could lead to data exfiltration, garbage-data creation, quota exhaustion, rate-limit breaches, denial-of-service, or overuse of costly resources. | Can be checked | Signed in: `probe.create-rate-unlimited`, if it fails: One person, or a script, can create records as fast as it can send them: the app fills with junk, its storage and any per-record costs run up, and others are slowed down. |
 
 #### V3 Web Frontend Security
 

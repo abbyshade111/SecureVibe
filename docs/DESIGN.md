@@ -5384,8 +5384,8 @@ Two manifests are read: `requirements.txt`, with Python's version clauses (`==`,
 `===`, and `==1.2.*`), and `package.json`, with npm's ranges (`^`, `~`, `x`, comparators, hyphen ranges, and
 `||`). Versions are compared as plain release numbers. What cannot be compared that way is listed as not compared,
 never as agreeing: a pre-release or post-release on either side, a link or a path instead of a version, a tag such as
-`latest`, a platform condition with nothing locked, or a range written in a form not read here. `pyproject.toml`,
-`Cargo.toml`, `Gemfile`, `composer.json`, `go.mod`, and Gradle's files are not compared yet; for them nothing changes.
+`latest`, a platform condition with nothing locked, or a range written in a form not read here. The other manifests
+were added later the same day (see the end of this section); Gradle's files are not compared yet.
 
 **Where it is said.** In the same places as "Two lockfiles of one kind", since it is the same doubt from the other
 side: the list describes a file the app may not be installed from.
@@ -5417,6 +5417,38 @@ copy looked at; what cannot be compared taken as agreeing; names not normalized;
 `~=` without its prefix; a pre-release read as a release, on either side; a comparison that found nothing recorded
 anyway; the clean claim not withheld; the document's property, the report's two gaps, and the `examined` reason
 each left out; and `sv sbom`'s line, its closing sentence, and `sv audit`'s line each left out.
+
+
+**The other manifests, added later the same day.** Five more, each read with the range rules its package manager
+documents, because the same characters mean different things in each:
+
+- **`pyproject.toml`**: the project's own list (`[project] dependencies`, PEP 621), read as `requirements.txt` lines
+  are; its extras and `[dependency-groups]`, which may rightly be missing from a lock; and Poetry's tables, where
+  `^1.2` is `>=1.2,<2`, `~1.2` is `>=1.2,<1.3`, and a bare `1.2.3` is exactly that version. Poetry's `python` entry
+  is the Python, not a package; one with `git`, `path`, or `url` is not compared, whatever version it also names.
+- **`Cargo.toml`**: a bare `1.2` means `^1.2`, not exactly 1.2 as in npm; `=1.2.3` is exact; comma-joined
+  requirements must all hold. A workspace's shared `[workspace.dependencies]` are compared where they are written,
+  and a member's `workspace = true` is not compared again; `path` and `git` crates are not compared. A crate renamed
+  with `package =` is looked up by its real name. Optional crates and crates for one platform may be missing.
+- **`composer.json`**: `~1.2` means `>=1.2,<2.0`, unlike npm's and Poetry's `<1.3`; a bare `1.2` is exactly
+  `1.2.0`; `|` and `||` both mean "or". PHP itself and its extensions are not packages. Stability flags (`@beta`),
+  branches (`dev-main`), and aliases are not compared. Names are compared without regard to case, as Composer does.
+- **`Gemfile`**: the quoted constraints after a gem's name, with `~> 7.1` meaning `>=7.1,<8`. A gem from `git:`,
+  `github:`, or `path:` is not compared; one inside a `platforms` or `install_if` block, or with a `platforms:`
+  option, may be missing. `Gemfile.lock`'s platform suffix (`1.16.0-x86_64-linux`) is set aside.
+- **`go.mod`**: each `require` names one exact version, held to the versions `go.sum` lists for that module. A module
+  `replace`d by another or by a folder is not compared. A required module missing from `go.sum` is not compared
+  rather than disagreeing, because `go.sum` may hold only the hash of its `go.mod`, which the bill of materials
+  does not list, for a module nothing imports. A `go.sum` holding only other versions of it does disagree.
+
+Run on this repository, a Cargo workspace, every crate agrees with `Cargo.lock`, and nothing is said.
+
+Six more tests, one per manifest and one through the bill of materials, with 21 Poetry, 14 Cargo, 22 Composer, and 12
+RubyGems cases of what a range allows. Thirty guards broken in turn, each caught. The first run left three uncaught. A
+Poetry folder dependency that also names a version, and a commented-out line in `go.mod`, each got a case. Composer's
+check for stability flags, branches, and aliases was removed: every one of them already fails to read as a version,
+so the check carried no weight. Two more showed a check for `platforms` that the shorter check for `platform` already
+covered; it was removed, and the `install_if` block got a case.
 
 ## A crash is not a refusal (29 September 2026)
 
@@ -6395,6 +6427,48 @@ Tried on 3 October 2026 with `sv report --run`, through the real test model in D
   and nothing was found.
 - The copy that searches everybody's: both findings.
 
+## An action sent many times at the same instant (3 October 2026)
+
+V2.3.4 asks that an action which should happen once cannot happen twice when two requests arrive together: the last
+seat booked twice, or a one-time code redeemed twice. The usual cause is a gap between reading ("is one left?") and
+writing ("taken"), which requests one after another never hit. So this is the first check that sends requests at
+the same instant.
+
+- **The owner names the action.** A new optional `once` entry under `[stack.run.users]` gives the request and its
+  `completed` text, in the page or the address it sends the browser on to, as `flow` does. The app has to start the
+  run with exactly one of the thing to take, set up by `seed`, and nothing else in the run takes it.
+- **What is sent.** A signs in, reads the page's token once, and the same request goes out 20 times together, each
+  over its own connection.
+- **What is read.**
+  - Two or more answers carrying `completed` is `probe.action-done-twice` (CWE-362, high).
+  - Exactly one, with every other copy answered and refused, is credited for V2.3.4, scoped as "one race, tried once".
+  - None going through leaves it not assessed, since a refusal then shows nothing.
+  - One going through beside a copy that crashed or got no answer is not assessed. That is held twice: in the check
+    itself, and through `RESTS_ON_A_REFUSAL`, which `Patient` feeds.
+  - One going through beside copies a rate limit turned away (429) is not assessed either. Those copies never reached
+    the action, so the race was not run between them, and a limit is not a lock.
+- **Sending at once.** `Http` gained `send_at_once`. Its default says the runner cannot, which leaves V2.3.4 not
+  assessed, rather than sending the copies one after another and crediting a race that never ran. The Docker runner
+  does it with one script inside the fence: every `nc` is started in the background before any is waited for, each
+  answer goes to its own file, and all are printed in order, behind a mark of their own.
+
+**How the sending was tried.** This environment had no Docker daemon, so the script `sv` builds was run on its own:
+- with a stand-in for busybox's `nc -e`, against a local server holding a 200 ms gap between reading and writing;
+- all 20 copies arrived within 51 ms of each other, and all 20 booked the one seat;
+- the same script against the same server with a lock booked one and refused 19;
+- the runner's own parser read both sets of answers back correctly.
+
+The busybox image itself has not run it yet.
+
+**Break tests.** The scripted app gained `POST /book` with one seat, and three flaws: booking that races, booking that
+never works, and a rate limit on copies after the first. Each guard was broken in turn:
+- two going through not treated as a finding;
+- the rate limit ignored;
+- the count cut to one.
+
+Each was caught by a test. The crash guard was caught only with both of its holds removed, as expected for a guard
+held twice.
+
 ## The app's own MCP server: its token, and arguments it should refuse (3 October 2026)
 
 Three new settings under `[stack.run.mcp-server]`:
@@ -6432,6 +6506,47 @@ request was said, not credited. The careless one was found for all five. The fir
 reported as not assessed, rightly: its own host check refused the run's container name. Twelve guards broken in turn,
 each caught. One was caught by nothing at first: the `public` setting's test passed whatever the code did, because
 the message it looked for appeared in another message too.
+
+## A burst of creations, held to a stated limit (3 October 2026)
+
+V2.4.1 asks for limits against excessive calls to the app's functions. `probe.create-rate-unlimited` (CWE-770, medium)
+takes the shape of the AI feature's limit (C11.2.2) and applies it to the one action the manifest already names for
+creating things, `owned`:
+
+- **The owner states the number.** A new `[policy] requests-per-minute` gives the records a minute one user should
+  be able to create. Without it nothing is sent or judged. A limit kept by a proxy in production is not in the fenced
+  run, so "no limit seen here" alone would accuse apps that have one. That is why the backlog's proposal to report every
+  app with no limit as a finding was not taken up. Numbers of 0, or of 100 and above, are not tested.
+- **What is sent.**
+  1. B signs in and is shown a private page.
+  2. After a minute's wait, one more than the stated number of records is created, inside a minute.
+  3. The private page is asked for again.
+  4. Then another minute's wait, so the limit this set off no longer refuses the checks after it.
+
+  This runs before the password questions, which can change both A's and B's passwords: without `signup`, the
+  password change uses A, and a reset uses B. A first version ran it last, and its sign-in failed for exactly that
+  reason.
+- **Session checked before and after.** An app answers a request from somebody signed out with a redirect to its
+  sign-in page, and a redirect reads as the record going through. If the session stops opening the private page, the
+  burst is not judged.
+- **The requests are not waited out.** Their ids begin `burst-`, which `Patient` now treats like the guessing checks'.
+  A limiter's 429 is the answer being measured, and waiting it out would send one more than counted.
+- **What is read.**
+  - Every record going through is the finding.
+  - The first going through and the last refused is credit for that one action, scoped as such: V2.4.1 names many
+    functions, and this tries one.
+  - It is not assessed when the first is refused, when the burst took over 55 seconds, when one crashed, or when the
+    last went through after others were refused, which is not a limit that stayed shut.
+
+The scripted app gained a per-user limit on notes, off by default, and a variant that lets every other note through
+past it. These guards were broken in turn, and each was caught:
+- the session check;
+- the last going through;
+- the first refused;
+- the finding needing every record through.
+
+The "last going through" break was missed at first, which is what led to the leaking variant. The burst's credit is
+listed in `RESTS_ON_A_REFUSAL`, and the crash test's "signed up" scenario states a limit the app does not keep.
 
 ## A feature that fetches an address a person gives it (3 October 2026)
 

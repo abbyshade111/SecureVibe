@@ -31,10 +31,10 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 162 (47%) | 9 | 174 |
+| OWASP ASVS 5.0 | 345 | 163 (47%) | 10 | 172 |
 | OWASP AISVS 1.0 | 191 | 37 (19%) | 0 | 154 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
-| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 9 | 27 |
+| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
 
 ## ASVS 5.0 by level
 
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 6 | 32 | 21 | 3 |
-| L2 | 183 | 85 | 8 | 0 | 19 | 44 | 28 | 1 |
+| L2 | 183 | 86 | 8 | 0 | 19 | 45 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 33 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -59,7 +59,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 19 | 0 | 11 |
-| V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
+| V2 Validation and Business Logic | 13 | 2 | 2 | 9 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 9 | 0 | 7 |
 | V5 File Handling | 13 | 8 | 1 | 4 |
@@ -104,7 +104,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (105)
+### Settled by asking the running app (106)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -113,6 +113,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V1.3.6 | L2 | The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |
+| V2.4.1 | L2 | Signed in: `probe.create-rate-unlimited` |
 | V3.2.1 | L1 | Signed in: `probe.uploaded-file-rendered` |
 | V3.2.2 | L1 | Signed in: `probe.text-rendered-as-markup`; Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `react-dangerouslysetinnerhtml`) |
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
@@ -258,11 +259,12 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (9)
+### Supporting only (10)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
+| V2.3.4 | L2 | Signed in: `probe.action-done-twice` |
 | V5.4.3 | L2 | Signed in: `probe.upload-not-scanned` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
@@ -355,7 +357,7 @@ control as supporting evidence.
 |---|---|---|---|---|
 | A Architecture & Service Design | 8 | 1 | 1 | 1 |
 | B Data Management & Protection | 6 | 1 | 4 | 1 |
-| C Reliability & Resilience | 8 | 1 | 5 | 2 |
+| C Reliability & Resilience | 8 | 1 | 5 | 4 |
 | D Access Control & Secure Communication | 7 | 2 | 5 | 4 |
 | E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 1 |
 
@@ -363,6 +365,8 @@ control as supporting evidence.
 - SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
 - SBD-RR-02: through V16.5.2
+- SBD-RR-05: through V2.3.4
+- SBD-RR-07: through V2.4.1
 - SBD-AC-01: through V12.3.1, V12.3.3
 - SBD-AC-03: through V8.2.1
 - SBD-AC-04: through V8.3.1

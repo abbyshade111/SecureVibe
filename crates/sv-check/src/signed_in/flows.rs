@@ -3,7 +3,7 @@ use super::*;
 /// Whether an answer says the flow finished: `completed` in its page, or in the address it sends
 /// the browser on to. Only an answer the app accepted counts, so an error page that happens to
 /// mention the words does not.
-fn finished(response: &Option<ProbeResponse>, completed: &str) -> bool {
+pub(super) fn finished(response: &Option<ProbeResponse>, completed: &str) -> bool {
     response.as_ref().is_some_and(|r| {
         (200..400).contains(&r.status)
             && (r.body.contains(completed)

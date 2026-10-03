@@ -132,6 +132,12 @@ another session is not a claim.
       `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
       `claude/securevibe-e9-limits`.
+      **V2.3.4 done on 3 October 2026** (DESIGN, "An action sent many times at the same instant"):
+      `probe.action-done-twice`, through a new `once` entry, sent 20 times together by a new `send_at_once`. The
+      Docker runner's script was run against a local server with and without a lock, not yet in the busybox image.
+      **V2.4.1 done the same day** (DESIGN, "A burst of creations, held to a stated limit"): `probe.create-rate-unlimited`,
+      one record more than a new `[policy] requests-per-minute`, created through `owned` by B. Nothing is judged without
+      a stated number. Not done: functions other than `owned`, and a limit kept by a proxy in production.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -184,7 +190,11 @@ another session is not a claim.
   claim. Not a finding. Other manifests are not compared yet. Nineteen guards broken in turn, each caught.
   **The other manifests (`pyproject.toml`, `Cargo.toml`, `go.mod`, `composer.json`, and `Gemfile`) claimed the same
   day by session securevibe-e2**, at the owner's asking to continue with the backlog, in branch
-  `claude/securevibe-e2-more-manifests`. On
+  `claude/securevibe-e2-more-manifests`. **Done the same day** (DESIGN, "When a manifest and its lockfile
+  disagree", its last part): all five are held to their lockfiles, each with its own package manager's range rules.
+  Gradle's files are not compared yet. Thirty guards broken in turn, each caught.
+  **Gradle's `build.gradle` and `build.gradle.kts` claimed the same day by session securevibe-e2**, at the owner's
+  asking to continue with the backlog, in branch `claude/securevibe-e2-gradle-lock`. On
   23 September Dependabot bumped `examples/flask-booking/requirements.txt` (`517279a9`) and left
   `requirements.lock` alone. GitHub reads only the manifest; `sv` reads the lockfile when there is one
   (`crates/sv-check/src/sbom.rs`). So for ten days the two described different apps: GitHub saw PyJWT

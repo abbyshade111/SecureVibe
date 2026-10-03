@@ -95,6 +95,12 @@ health = "/"              # a path that returns 200 once the app is up
 #   `{marker}` in a field and name in `check` a page where that text shows once the action has been
 #   done, within the page's first 4,000 characters: that is how `sv` tells whose request worked.
 #   Without `check`, only an ordinary user's request answered as a success is reported.
+# once = { path = "/book", form = { slot = "1", csrf_token = "{csrf}" }, completed = "Booked" }
+#   An action that should go through only once, such as booking the last seat or redeeming a
+#   one-time code. It is sent 20 times at the same instant, as the first user, and the answers that
+#   carry `completed` (in the page, or in the address it sends the browser to) are counted. The app
+#   has to start the run with exactly one of the thing to take (set it up in `seed`), and nothing
+#   else in the run may take it.
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
 # change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 # change-email = { path = "/account/email", form = { password = "{password}", email = "{new_email}", csrf_token = "{csrf}" } }
@@ -198,6 +204,8 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
 # failed-codes = 5        # wrong emailed sign-in codes in a row before pushing back (with `email-code`)
 # ai-requests-per-minute = 20   # messages a minute the AI feature passes on before refusing (with `ai`)
+# requests-per-minute = 30   # records a minute one user can create through `owned` before the app
+#                            # pushes back; one more than this is sent
 # idle-timeout-minutes = 15       # how long a session may sit unused (checked by `sv run --slow`)
 # session-lifetime-minutes = 60   # how long a session may last however busy (`sv run --slow`, up to 90)
 # within-minutes = 15     # the window that count applies within (recorded, not tested: every

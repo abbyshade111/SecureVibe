@@ -193,6 +193,10 @@ that run, and then asks:
   (V6.2.2, V6.2.3)
 - with `change-email` and `signup` set: does changing the email address need the password again? (V7.5.1;
   only ever done to an account made for it)
+- with `owned` set and `requests-per-minute` under [policy]: when one user creates one record more than
+  that in a minute, is the last one refused? (V2.4.1)
+- with `once` set: does an action that should go through once (booking the last seat, redeeming a
+  one-time code) go through more than once when sent 20 times at the same instant? (V2.3.4)
 - with `delete-account` and `signup` set: does deleting an account end its other sessions? (V7.4.2;
   only ever done to an account made for it)
 - is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a

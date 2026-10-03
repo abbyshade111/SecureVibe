@@ -1176,6 +1176,46 @@ mod tests {
     }
 
     #[test]
+    fn the_other_manifests_are_held_to_their_lockfiles_too() {
+        let dir = scratch("other-manifests");
+        fs::write(dir.join("Gemfile"), "gem \"rails\", \"~> 7.1.0\"\n").unwrap();
+        fs::write(
+            dir.join("Gemfile.lock"),
+            "GEM\n  remote: https://rubygems.org/\n  specs:\n    rails (7.2.0)\n\nDEPENDENCIES\n  rails (~> 7.1.0)\n",
+        )
+        .unwrap();
+        fs::create_dir_all(dir.join("svc")).unwrap();
+        fs::write(
+            dir.join("svc/Cargo.toml"),
+            "[package]\nname = \"svc\"\n[dependencies]\nserde = \"1.0\"\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("svc/Cargo.lock"),
+            "[[package]]\nname = \"serde\"\nversion = \"1.0.228\"\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let said: Vec<(&str, Vec<String>)> = sbom
+            .disagreements
+            .iter()
+            .map(|d| {
+                (
+                    d.project.as_str(),
+                    d.comparison
+                        .differs
+                        .iter()
+                        .map(|x| x.asked.clone())
+                        .collect(),
+                )
+            })
+            .collect();
+        // The Gemfile asks for 7.1 and the lock has 7.2; Cargo's two agree, and say nothing.
+        assert_eq!(said, vec![("Ruby", vec!["rails ~> 7.1.0".to_owned()])]);
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn a_lockfile_passed_over_is_named_in_the_document_and_leaves_it_complete() {
         let dir = scratch("passed-over");
         fs::write(dir.join("Cargo.toml"), "[package]\nname='x'\n").unwrap();
