@@ -1873,6 +1873,27 @@ mod tests {
         assert!(!rule_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
         assert!(!verified_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id));
         assert!(v532(&o).iter().any(|why| why.contains("no `serves-at`")));
+        // An app that answers every address with its own page: an answer is not the file, so
+        // neither place is read as holding it.
+        let o = traversal_verdict(
+            Flaws {
+                renames_path_names: true,
+                answers_every_path: true,
+                ..Default::default()
+            },
+            Some("/files/{name}"),
+        );
+        assert!(
+            !rule_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            !verified_ids(&o).contains(&UPLOAD_PATH_TRAVERSAL.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(v532(&o).iter().any(|why| why.contains("names of its own")));
         // An upload that does not work at all: nothing about names is said.
         let o = traversal_verdict(
             Flaws {

@@ -269,6 +269,9 @@ pub(super) struct Flaws {
     pub(super) upload_path_traversal: bool,
     /// Refuses a file whose name holds a `/`. Not a fault.
     pub(super) refuses_path_names: bool,
+    /// Answers any address it has nothing at with its own page and 200, as an app that hands
+    /// every path to a page in the browser does. Not a fault, but an answer that is not a file.
+    pub(super) answers_every_path: bool,
     /// Saves a file whose name holds a `/` under a name of its own. Not a fault, and the safest
     /// arrangement, but one nothing outside the app can see.
     pub(super) renames_path_names: bool,
@@ -1605,6 +1608,11 @@ impl Http for FakeApp {
                 }
                 Self::respond(303, vec![("Location", "/orders/7".into())], "Order placed")
             }
+            ("GET", _) if self.flaws.answers_every_path => Self::respond(
+                200,
+                vec![("Content-Type", "text/html; charset=utf-8".into())],
+                "<html><body>the app's own page, whatever was asked for</body></html>",
+            ),
             _ => Self::respond(404, vec![], "none"),
         })
     }
