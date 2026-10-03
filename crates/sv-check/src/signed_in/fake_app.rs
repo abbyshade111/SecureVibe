@@ -295,6 +295,9 @@ pub(super) struct Flaws {
     pub(super) private_page_cacheable: bool,
     /// Private pages come back as `public, max-age=300`, for shared caches to keep.
     pub(super) private_page_shared_cache: bool,
+    /// Private pages come back without the headers a browser relies on (Content-Security-Policy,
+    /// X-Content-Type-Options, a framing rule, Referrer-Policy).
+    pub(super) private_page_no_headers: bool,
     /// Private pages carry no link or form pointing at the sign-out address — but do name it
     /// in a script, which is what a page built by JavaScript looks like and what a check
     /// searching the whole page for the text would wrongly credit.
@@ -1141,7 +1144,8 @@ impl Http for FakeApp {
                     // A correct private page: not to be kept by the browser, and carrying a
                     // visible way out. Each half is switched off by its own flaw, so a test
                     // that breaks one is not quietly relying on the other.
-                    let headers = match (&self.cache_control, self.flaws.private_page_cacheable) {
+                    let mut headers = match (&self.cache_control, self.flaws.private_page_cacheable)
+                    {
                         _ if self.flaws.private_page_shared_cache => {
                             vec![("Cache-Control", "public, max-age=300".to_string())]
                         }
@@ -1149,6 +1153,16 @@ impl Http for FakeApp {
                         (Some(value), _) => vec![("Cache-Control", value.clone())],
                         (None, _) => vec![("Cache-Control", "no-store".to_string())],
                     };
+                    if !self.flaws.private_page_no_headers {
+                        headers.extend([
+                            (
+                                "Content-Security-Policy",
+                                "default-src 'self'; frame-ancestors 'none'".to_string(),
+                            ),
+                            ("X-Content-Type-Options", "nosniff".to_string()),
+                            ("Referrer-Policy", "no-referrer".to_string()),
+                        ]);
+                    }
                     let body = if self.flaws.no_sign_out_link {
                         "your account<script>const OUT = '/logout';</script>".to_string()
                     } else {

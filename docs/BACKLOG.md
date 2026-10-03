@@ -50,6 +50,13 @@ another session is not a claim.
      credited from the answer on the health path, which is often a small JSON status reply rather than a page
      anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only
      when all pass, naming them.
+     **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-headers-every-page`.
+     **Done the same day** (DESIGN, "The headers a browser relies on, on more than the health path"). The root page
+     is asked too and judged when it answers with a page; a finding names the page that fell short, and the credit
+     needs every page judged to pass. `probe.private-page-headers` asks the same four headers of each private page
+     the signed-in run opens. Five guards broken in turn, each caught. Not done: the cookies a signed-in page sets,
+     which `probe.session-cookie-attributes` already judges at sign-in, and pages the run does not ask for.
   4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
      app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
      expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so
@@ -1566,7 +1573,7 @@ another session is not a claim.
      leave fenced containers running. It could be a line in ADR-019 or ADR-020 rather than a record of its own.
   7. **The container image is published from CI and runs as user 10001** (#333). Lower than the rest.
 
-- **The app's own container is not run read-only.** Found on 30 September 2026 by the first weekly review of the
+- ~~**The app's own container is not run read-only.**~~ Found on 30 September 2026 by the first weekly review of the
   decision records (ADR-019, "Later, 30 September 2026"). The app's folder is mounted read-only and every helper
   container runs `--read-only`, but the app's container does not, so the app can write anywhere in its own file
   system outside `/app`; and the in-memory report folder has no size limit. Running the app `--read-only` with an
@@ -1574,7 +1581,9 @@ another session is not a claim.
   for the report folder is simpler. **The owner's decision, 3 October 2026: yes**, read-only with an in-memory
   `/tmp`, no capabilities and no new privileges, and a size for the report folder, tested against the example
   apps first. **Claimed on 3 October 2026 by session practical-banach-b1faa1** (the session that was
-  keen-meninsky-691a27).
+  keen-meninsky-691a27). **Done the same day:** read-only, no capabilities, no new privileges, an in-memory
+  `/tmp` of 256 MB and a report folder of 16 MB, measured on every example app and on an app that starts only
+  when contained. See ADR-019, "Later, 3 October 2026".
 
 - **The paper's account of when the evaluation harness first ran disagrees with the first session's transcript.**
   Found on 27 September 2026 while tracing, at the owner's asking, where the harness came from. **Claimed on
