@@ -2458,6 +2458,29 @@ fn assemble_report(
     options: &ReportOptions,
     loaded: &Loaded,
 ) -> Result<sv_report::Report> {
+    assemble_report_saying(app_dir, options, loaded, &|_, _| {})
+}
+
+/// The stages of a report that `assemble_report_saying` names as it starts each, in order. The MCP
+/// server passes them on, so a long check does not look stuck.
+pub(crate) const REPORT_STAGES: [&str; 7] = [
+    "Reading the app's files",
+    "Recognizing its languages and frameworks",
+    "Listing the packages it uses",
+    "Looking for keys and passwords",
+    "Reading its configuration",
+    "Reading its code",
+    "Putting the report together",
+];
+
+/// `assemble_report`, calling `starting` with each stage's number (from 0) and name as it begins.
+fn assemble_report_saying(
+    app_dir: &Path,
+    options: &ReportOptions,
+    loaded: &Loaded,
+    starting: &dyn Fn(usize, &'static str),
+) -> Result<sv_report::Report> {
+    let stage = |n: usize| starting(n, REPORT_STAGES[n]);
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -2476,7 +2499,9 @@ fn assemble_report(
         ast_rules,
     } = loaded;
     // One walk of the folder, shared by every check in this report (DESIGN, "One walk of the app").
+    stage(0);
     let listing = sv_scan::files::Listing::of(app_dir);
+    stage(1);
     let scan_report = scan_for(&manifest, &listing, signatures)?;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(frameworks, config_rules, &ctx, manifest.target_level());
@@ -2486,10 +2511,15 @@ fn assemble_report(
     // and that is the difference between "this list is approximate" and "this list is empty".
     // Building it reads manifests and lockfiles; it opens no network connection. Built once, here,
     // and handed to the lockfile check and the findings below.
+    stage(2);
     let bill_of_materials = sbom::build_in(&listing);
+    stage(3);
     let secrets = sv_check::secrets::scan_listing(secret_rules, &listing);
+    stage(4);
     let config = check_dir_in(&listing, &bill_of_materials);
+    stage(5);
     let code = ast::scan_listing(ast_rules, &listing);
+    stage(6);
     let mut findings_from_advisories = Vec::new();
 
     // Known vulnerabilities, when the owner has pointed at a local advisory database, held to the

@@ -211,7 +211,15 @@ const MAX_REQUEST_BYTES: usize = 1 << 20;
 /// Nothing a client sends ends the server or goes unanswered when it carried an id: a line too long
 /// to read, or one that is not UTF-8, gets an error in reply rather than stopping the loop, which is
 /// what `lines()` did with bytes that were not UTF-8.
-fn serve(server: &Server, mut input: impl BufRead, mut output: impl Write) -> Result<()> {
+fn serve(server: &Server, mut input: impl BufRead, output: impl Write) -> Result<()> {
+    // Written to while a request is being answered (progress), and after it (the answer).
+    let output = std::cell::RefCell::new(output);
+    let tell = |note: Value| {
+        let mut output = output.borrow_mut();
+        // A notification that cannot be written is not worth ending the server for; the answer's
+        // own write, below, says so if the output is really gone.
+        let _ = writeln!(output, "{note}").and_then(|()| output.flush());
+    };
     loop {
         let reply = match read_request(&mut input, MAX_REQUEST_BYTES).context("reading stdin")? {
             Request::End => return Ok(()),
@@ -227,9 +235,10 @@ fn serve(server: &Server, mut input: impl BufRead, mut output: impl Write) -> Re
                 Some(error_reply(Value::Null, -32700, "a request has to be UTF-8 text").to_string())
             }
             Request::Line(line) if line.trim().is_empty() => None,
-            Request::Line(line) => server.handle_line(&line),
+            Request::Line(line) => server.handle_line_telling(&line, &tell),
         };
         if let Some(reply) = reply {
+            let mut output = output.borrow_mut();
             writeln!(output, "{reply}").context("writing stdout")?;
             output.flush().context("flushing stdout")?;
         }
@@ -312,8 +321,15 @@ impl Server {
         self
     }
 
-    /// One line of input to at most one line of output. Notifications get none.
+    /// One line of input to at most one line of output. Notifications get none. Progress, which
+    /// only `serve` can send while the request is answered, is not sent.
+    #[cfg(test)]
     pub fn handle_line(&self, line: &str) -> Option<String> {
+        self.handle_line_telling(line, &|_| {})
+    }
+
+    /// `handle_line`, with any progress notifications for the request given to `tell` as they come.
+    fn handle_line_telling(&self, line: &str, tell: &dyn Fn(Value)) -> Option<String> {
         let message: Value = match serde_json::from_str(line) {
             Ok(v) => v,
             Err(e) => {
@@ -322,10 +338,16 @@ impl Server {
                 );
             }
         };
-        self.handle(&message).map(|v| v.to_string())
+        self.handle_telling(&message, tell).map(|v| v.to_string())
     }
 
+    #[cfg(test)]
     pub fn handle(&self, message: &Value) -> Option<Value> {
+        self.handle_telling(message, &|_| {})
+    }
+
+    /// `handle`, with any progress notifications for the request given to `tell` as they come.
+    fn handle_telling(&self, message: &Value, tell: &dyn Fn(Value)) -> Option<Value> {
         // A batch was dropped without a word, so a client that sent one waited for ever. The
         // 2025-06-18 protocol has no batches, so one is refused, as anything else that is not an
         // object is (BACKLOG, "Hardening the MCP server", item 4).
@@ -362,6 +384,16 @@ impl Server {
         };
         // Notifications carry no id and are never answered, known or not.
         let id = id?;
+        // A client that wants to hear how a long request is going gives a token to say it with
+        // (`_meta.progressToken`, a string or a number); without one, nothing is sent but the answer.
+        let progress = Progress {
+            token: params
+                .get("_meta")
+                .and_then(|m| m.get("progressToken"))
+                .filter(|t| t.is_string() || t.is_number())
+                .cloned(),
+            tell,
+        };
         // A request that names its version in `_meta`, or a probe for which versions there are, is
         // answered the stateless way; anything else as the client that opened with `initialize`
         // expects. One server can do both, and the client chooses by how it asks (2026-07-28,
@@ -371,13 +403,13 @@ impl Server {
             .and_then(|m| m.get(VERSION_META))
             .map(|v| v.as_str().unwrap_or_default().to_owned());
         if named.is_some() || method == "server/discover" {
-            return Some(self.stateless(id, method, &params, named.as_deref()));
+            return Some(self.stateless(id, method, &params, named.as_deref(), &progress));
         }
         Some(match method {
             "initialize" => ok_reply(id, self.initialize(&params)),
             "ping" => ok_reply(id, json!({})),
             "tools/list" => ok_reply(id, json!({ "tools": tools() })),
-            "tools/call" => match self.call(&params) {
+            "tools/call" => match self.call(&params, &progress) {
                 Ok(result) => ok_reply(id, result),
                 Err(Refusal::UnknownTool(name)) => {
                     error_reply(id, -32602, &format!("there is no tool called {name}"))
@@ -395,7 +427,14 @@ impl Server {
 
     /// A request of the stateless protocol (2026-07-28): no handshake, the version named on the
     /// request, and every result marked complete and signed with the server's name.
-    fn stateless(&self, id: Value, method: &str, params: &Value, version: Option<&str>) -> Value {
+    fn stateless(
+        &self,
+        id: Value,
+        method: &str,
+        params: &Value,
+        version: Option<&str>,
+        progress: &Progress,
+    ) -> Value {
         if let Some(asked) = version
             && !STATELESS_VERSIONS.contains(&asked)
         {
@@ -429,7 +468,7 @@ impl Server {
                 // The same for everyone who runs this version of `sv`.
                 "cacheScope": "public",
             }),
-            "tools/call" => match self.call(params) {
+            "tools/call" => match self.call(params, progress) {
                 Ok(result) => result,
                 Err(Refusal::UnknownTool(name)) => {
                     return error_reply(id, -32602, &format!("there is no tool called {name}"));
@@ -604,7 +643,7 @@ impl Server {
         }))
     }
 
-    fn call(&self, params: &Value) -> Result<Value, Refusal> {
+    fn call(&self, params: &Value, progress: &Progress) -> Result<Value, Refusal> {
         let name = params.get("name").and_then(Value::as_str).unwrap_or("");
         let args = params.get("arguments").cloned().unwrap_or(json!({}));
         // Arguments that are not an object answered every lookup with its default, so `"arguments":
@@ -619,10 +658,10 @@ impl Server {
         let result = match name {
             "securevibe_spec" => Ok(spec()),
             "securevibe_explain" => explain(&self.loaded.frameworks, &args),
-            "securevibe_check" => self.check(&args),
-            "securevibe_write_report" => self.write_report(&args),
-            "securevibe_bundle" => self.bundle(&args),
-            "securevibe_questions" => self.questions(&args),
+            "securevibe_check" => self.check(&args, progress),
+            "securevibe_write_report" => self.write_report(&args, progress),
+            "securevibe_bundle" => self.bundle(&args, progress),
+            "securevibe_questions" => self.questions(&args, progress),
             "securevibe_notes_file" => self.notes_file(&args),
             "securevibe_guidance" => self.guidance(&args),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
@@ -663,7 +702,7 @@ impl Server {
     /// and how the person can run it at a terminal, where there is no limit. A thread cannot be
     /// stopped from outside, so the check runs on to its end and its result is dropped; until it
     /// ends, another check is refused rather than started beside it.
-    fn report_for(&self, app_dir: &Path) -> Result<sv_report::Report> {
+    fn report_for(&self, app_dir: &Path, progress: &Progress) -> Result<sv_report::Report> {
         anyhow::ensure!(
             app_dir.join("securevibe.toml").exists(),
             "there is no securevibe.toml in {}. Call securevibe_spec, write the file it describes \
@@ -687,12 +726,25 @@ impl Server {
         let check = std::thread::Builder::new()
             .name("sv-check".to_owned())
             .spawn(move || {
-                // The other end is gone when the time ran out; the result then has nowhere to go.
-                let _ = send.send(assemble(&dir, &loaded));
+                // The other end is gone when the time ran out; what is sent then has nowhere to go.
+                let starting = |n, stage| {
+                    let _ = send.send(FromCheck::Starting(n, stage));
+                };
+                let report = assemble(&dir, &loaded, &starting);
+                let _ = send.send(FromCheck::Done(Box::new(report)));
             })
             .context("the check could not be started")?;
         *last = Some(check);
-        match receive.recv_timeout(self.time_limit) {
+        let deadline = std::time::Instant::now() + self.time_limit;
+        let outcome = loop {
+            let left = deadline.saturating_duration_since(std::time::Instant::now());
+            match receive.recv_timeout(left) {
+                Ok(FromCheck::Starting(n, stage)) => progress.starting(n, stage),
+                Ok(FromCheck::Done(report)) => break Ok(*report),
+                Err(e) => break Err(e),
+            }
+        };
+        match outcome {
             Ok(report) => {
                 // Sent, but the thread may not have ended yet; the next check would find it still
                 // running and be refused. It has nothing left to do, so this wait is short.
@@ -714,9 +766,9 @@ impl Server {
         }
     }
 
-    fn check(&self, args: &Value) -> Result<Value> {
+    fn check(&self, args: &Value, progress: &Progress) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
-        let report = self.report_for(&app_dir)?;
+        let report = self.report_for(&app_dir, progress)?;
         Ok(json!({
             "content": [{ "type": "text", "text": summary(&report) }],
             "structuredContent": structured(&report),
@@ -725,9 +777,9 @@ impl Server {
     }
 
     /// The questions only a person can answer, for the tool to ask them one at a time.
-    fn questions(&self, args: &Value) -> Result<Value> {
+    fn questions(&self, args: &Value, progress: &Progress) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
-        let report = self.report_for(&app_dir)?;
+        let report = self.report_for(&app_dir, progress)?;
         Ok(json!({
             "content": [{ "type": "text", "text": sv_report::interview::text(&report) }],
             "structuredContent": { "questions": report.questions_for_you },
@@ -829,7 +881,7 @@ impl Server {
     /// One zip beside the app: the app, its report and a SHA-256 for every file, with anything that could hold a
     /// secret left out and listed (see `bundle.rs`). Written beside the app and never inside it, and only where
     /// this server may write at all: below the folder it was started for.
-    fn bundle(&self, args: &Value) -> Result<Value> {
+    fn bundle(&self, args: &Value, progress: &Progress) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
         let name = crate::bundle::safe_name(
             &app_dir
@@ -869,7 +921,7 @@ impl Server {
                 zip.display()
             );
         }
-        let report = self.report_for(&app_dir)?;
+        let report = self.report_for(&app_dir, progress)?;
         let outcome = crate::write_bundle(
             &app_dir,
             &zip,
@@ -888,7 +940,7 @@ impl Server {
         }))
     }
 
-    fn write_report(&self, args: &Value) -> Result<Value> {
+    fn write_report(&self, args: &Value, progress: &Progress) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
         let out = args
             .get("out")
@@ -920,7 +972,7 @@ impl Server {
             app_dir.display()
         );
         let out_dir = resolved;
-        let report = self.report_for(&app_dir)?;
+        let report = self.report_for(&app_dir, progress)?;
         let written = crate::write_report_files(&report, &out_dir)?;
         let files: Vec<String> = written
             .iter()
@@ -961,9 +1013,46 @@ enum Refusal {
     UnknownTool(String),
 }
 
+/// What a check sends back while it runs: each stage as it starts, then the report.
+enum FromCheck {
+    Starting(usize, &'static str),
+    Done(Box<Result<sv_report::Report>>),
+}
+
+/// Where a request's progress goes: the client's token, if it gave one, and how to send a
+/// notification while the request is still being answered.
+struct Progress<'a> {
+    token: Option<Value>,
+    tell: &'a dyn Fn(Value),
+}
+
+impl Progress<'_> {
+    /// Tells the client a stage of the check has started, if it asked to hear. Nothing of the app
+    /// is in it: the stage names are `sv`'s own.
+    fn starting(&self, n: usize, stage: &str) {
+        let Some(token) = &self.token else {
+            return;
+        };
+        (self.tell)(json!({
+            "jsonrpc": "2.0",
+            "method": "notifications/progress",
+            "params": {
+                "progressToken": token,
+                "progress": n,
+                "total": crate::REPORT_STAGES.len(),
+                "message": stage,
+            },
+        }));
+    }
+}
+
 /// What `sv report` assembles, with what the MCP server never does said in the report.
-fn assemble(app_dir: &Path, loaded: &crate::Loaded) -> Result<sv_report::Report> {
-    crate::assemble_report(
+fn assemble(
+    app_dir: &Path,
+    loaded: &crate::Loaded,
+    starting: &dyn Fn(usize, &'static str),
+) -> Result<sv_report::Report> {
+    crate::assemble_report_saying(
         app_dir,
         &crate::ReportOptions {
             run_the_app: false,
@@ -984,6 +1073,7 @@ fn assemble(app_dir: &Path, loaded: &crate::Loaded) -> Result<sv_report::Report>
             ),
         },
         loaded,
+        starting,
     )
 }
 
@@ -3008,7 +3098,13 @@ mod tests {
         let root = scratch_app("resources-names", "flask-booking");
         let report = Server::new(&root)
             .unwrap()
-            .report_for(&root.join("app").canonicalize().unwrap())
+            .report_for(
+                &root.join("app").canonicalize().unwrap(),
+                &Progress {
+                    token: None,
+                    tell: &|_| {},
+                },
+            )
             .unwrap();
         let written = crate::write_report_files(&report, &root.join("out")).unwrap();
         let offered: Vec<&str> = OFFERED_FILES.iter().map(|(name, _)| *name).collect();
@@ -3373,6 +3469,138 @@ mod tests {
         // The default leaves a check of this whole repository, about six seconds, room to finish,
         // and answers before a client that waits a minute gives up.
         assert!((10..60).contains(&TIME_LIMIT_SECONDS));
+    }
+
+    /// A `tools/call` line for `securevibe_check` of `app`, with `meta` as its `_meta`.
+    fn check_line(id: i64, meta: Value) -> String {
+        json!({
+            "jsonrpc": "2.0", "id": id, "method": "tools/call",
+            "params": { "name": "securevibe_check", "arguments": { "path": "app" }, "_meta": meta },
+        })
+        .to_string()
+    }
+
+    /// The progress notifications among `lines`, as (token, progress, total, message).
+    fn progress_in(lines: &[Value]) -> Vec<(Value, Value, Value, Value)> {
+        lines
+            .iter()
+            .filter(|l| l["method"] == "notifications/progress")
+            .map(|l| {
+                let p = &l["params"];
+                (
+                    p["progressToken"].clone(),
+                    p["progress"].clone(),
+                    p["total"].clone(),
+                    p["message"].clone(),
+                )
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_long_check_says_how_it_is_going_when_asked_and_only_then() {
+        let root = scratch_app("progress", "flask-booking");
+        let server = Server::new(&root).unwrap();
+        let ping = r#"{"jsonrpc":"2.0","id":99,"method":"ping"}"#;
+        for token in [json!("t-1"), json!(42)] {
+            let input = format!(
+                "{}\n{ping}\n",
+                check_line(1, json!({ "progressToken": token }))
+            );
+            let lines = served(&server, input.as_bytes());
+            // Each stage, in order, with the token as it was given, then the answer, then the ping's.
+            let expected: Vec<_> = crate::REPORT_STAGES
+                .iter()
+                .enumerate()
+                .map(|(n, stage)| {
+                    (
+                        token.clone(),
+                        json!(n),
+                        json!(crate::REPORT_STAGES.len()),
+                        json!(stage),
+                    )
+                })
+                .collect();
+            assert_eq!(progress_in(&lines), expected, "{lines:#?}");
+            let stages = crate::REPORT_STAGES.len();
+            assert_eq!(lines.len(), stages + 2, "{lines:#?}");
+            assert!(
+                lines[..stages]
+                    .iter()
+                    .all(|l| l["method"] == "notifications/progress" && l.get("id").is_none()),
+                "{lines:#?}"
+            );
+            assert_eq!(lines[stages]["id"], 1, "{lines:#?}");
+            assert_eq!(lines[stages]["result"]["isError"], false, "{lines:#?}");
+            assert_eq!(lines[stages + 1]["id"], 99, "{lines:#?}");
+        }
+
+        // No token, or one that is neither a string nor a number: nothing but the answer.
+        for meta in [
+            json!({}),
+            json!({ "progressToken": { "a": 1 } }),
+            json!({ "progressToken": null }),
+            json!({ "progressToken": [1] }),
+        ] {
+            let lines = served(
+                &server,
+                format!("{}\n", check_line(2, meta.clone())).as_bytes(),
+            );
+            assert_eq!(lines.len(), 1, "{meta}: {lines:#?}");
+            assert_eq!(lines[0]["id"], 2, "{meta}: {lines:#?}");
+        }
+
+        // A tool that does not check the app has nothing to report on the way.
+        let spec = json!({
+            "jsonrpc": "2.0", "id": 3, "method": "tools/call",
+            "params": { "name": "securevibe_spec", "arguments": {}, "_meta": { "progressToken": "s" } },
+        });
+        let lines = served(&server, format!("{spec}\n").as_bytes());
+        assert_eq!(lines.len(), 1, "{lines:#?}");
+
+        // A stateless client asks the same way, and hears the same.
+        let lines = served(
+            &server,
+            format!(
+                "{}\n",
+                check_line(
+                    4,
+                    json!({
+                        "progressToken": "st",
+                        "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+                        "io.modelcontextprotocol/clientCapabilities": {},
+                    })
+                )
+            )
+            .as_bytes(),
+        );
+        assert_eq!(
+            progress_in(&lines).len(),
+            crate::REPORT_STAGES.len(),
+            "{lines:#?}"
+        );
+        assert_eq!(lines.last().unwrap()["result"]["resultType"], "complete");
+    }
+
+    #[test]
+    fn nothing_is_said_about_a_check_after_its_answer() {
+        // A check that ran out of time has been answered; the stages it goes on to start are not
+        // sent, since the client has closed the request.
+        let root = scratch_app("progress-late", "flask-booking");
+        let server = Server::new(&root)
+            .unwrap()
+            .with_time_limit(std::time::Duration::from_nanos(1));
+        let input = format!("{}\n", check_line(1, json!({ "progressToken": "late" })));
+        let lines = served(&server, input.as_bytes());
+        let answer = lines.iter().position(|l| l["id"] == 1).unwrap();
+        assert_eq!(answer, lines.len() - 1, "{lines:#?}");
+        assert_eq!(lines[answer]["result"]["isError"], true, "{lines:#?}");
+        // The check really did go on, and start the stages that were not sent.
+        assert!(wait_for_last_check(&server));
+        assert!(
+            progress_in(&lines).len() < crate::REPORT_STAGES.len(),
+            "{lines:#?}"
+        );
     }
 
     #[test]
