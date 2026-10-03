@@ -81,6 +81,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   Without `check`, only an ordinary user's request answered as a success is reported.
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
 # change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
+# change-email = { path = "/account/email", form = { password = "{password}", email = "{new_email}", csrf_token = "{csrf}" } }
+#   Changing the signed-in user's email address, with `{password}` where the app asks for the
+#   password again. Only ever done to an account made for it through `signup`.
 # delete-account = { path = "/account/delete", form = { password = "{password}", csrf_token = "{csrf}" } }
 # upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" }, serves-at = "/files/{name}", max-bytes = 1048576 }
 #   `field` is the form field the file goes in; `serves-at` is where an upload can be fetched back,

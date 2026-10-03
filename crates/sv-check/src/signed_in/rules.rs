@@ -573,6 +573,16 @@ pub(super) const CHANGE_WITHOUT_CURRENT: Rule = Rule {
           hash, and refuse the change when it does not match.",
 };
 
+pub(super) const EMAIL_CHANGE_WITHOUT_PASSWORD: Rule = Rule {
+    rule_id: "probe.email-change-without-password",
+    requirement_ids: &["V7.5.1"],
+    cwe: &["CWE-620"],
+    impact: "Anybody who gets hold of a signed-in session for a moment can move the account to an \
+             email address of their own, then reset the password through it and keep the account.",
+    fix: "Ask for the current password again before the email address is changed, check it against \
+          the stored hash, and refuse the change when it does not match.",
+};
+
 /// Only ever credited. Other sessions that keep working after a change are not a finding, since
 /// V7.4.3 is also met by an app that offers to end them, which no request can see.
 pub(super) const CHANGE_ENDS_SESSIONS: Rule = Rule {

@@ -932,6 +932,160 @@ pub(super) fn change_password_checks(
     email_after_change(mail_after, &change.path, out);
 }
 
+/// V7.5.1: whether the email address can be changed without the password. Only ever asked of an
+/// account made for it through `signup`, since A and B have to keep signing in by their addresses.
+///
+/// A change counts as taken when the new address signs in with the account's password. That is
+/// all it rests on: a page showing the new address could be one saying a change is waiting to be
+/// confirmed, which is no change at all. So an app that signs in by user name, or that holds the
+/// change until the new address is confirmed, leaves this not assessed rather than credited.
+pub(super) fn change_email_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    const IDS: &str = "V7.5.1";
+    let Some(change) = &users.change_email else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether changing the email address needs the password again: securevibe.toml sets no \
+             `change-email` under [stack.run.users]."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(signup) = &users.signup else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether changing the email address needs the password again: it is only ever done to \
+             an account made for it, and securevibe.toml sets no `signup` to make one."
+                .to_owned(),
+        ));
+        return;
+    };
+    let Some(confirm) = confirm else {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether changing the email address needs the password again: telling needs a private \
+             page a signed-in user alone can open, and none was shown."
+                .to_owned(),
+        ));
+        return;
+    };
+    let spare = &accounts.spare;
+    if spare.len() < 32 {
+        return;
+    }
+    let account = Account {
+        user: format!("email.{}", accounts.a.user),
+        password: format!("Em-{}-aZ9!", &spare[3..27]),
+    };
+    sign_up(http, users, signup, "email", &account);
+    if !account_works(http, users, "email", &account, confirm, &mut out.steps) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Whether changing the email address needs the password again: the account made \
+                 for it, {}, could not sign in to begin with.",
+                account.user
+            ),
+        ));
+        return;
+    }
+    let wrong = format!("Wr-{}-aZ9!", &spare[5..29]);
+    let moved = |label: &str| Account {
+        user: format!("{label}.{}", account.user),
+        password: account.password.clone(),
+    };
+    let (by_wrong, by_right) = (moved("moved-wrong"), moved("moved-right"));
+
+    let changed = |http: &mut dyn Http, password: &str, to: &Account, label: &str| {
+        let mut quiet = Vec::new();
+        let signed_in = sign_in(http, users, &format!("email-{label}"), &account, &mut quiet)?;
+        let mut session = signed_in.session;
+        let values = Values {
+            user: &account.user,
+            password,
+            new_email: &to.user,
+            ..Default::default()
+        };
+        let pages: Vec<String> = users.private.clone();
+        send_template(
+            http,
+            &format!("change-email-{label}"),
+            change,
+            &values,
+            &mut session,
+            &pages,
+        )
+        .0
+    };
+
+    let answer = changed(http, &wrong, &by_wrong, "wrong-password");
+    out.steps.push(format!(
+        "asked to change the email address giving a wrong password ({})",
+        status(&answer)
+    ));
+    if account_works(
+        http,
+        users,
+        "email-moved-wrong",
+        &by_wrong,
+        confirm,
+        &mut out.steps,
+    ) {
+        out.findings.push(finding(
+            &EMAIL_CHANGE_WITHOUT_PASSWORD,
+            "The email address can be changed without the password",
+            Severity::High,
+            format!(
+                "A request to {} giving a wrong password changed the account's email address: \
+                 the new address then signed in.",
+                change.path
+            ),
+        ));
+        return;
+    }
+
+    let answer = changed(http, &account.password, &by_right, "right-password");
+    out.steps.push(format!(
+        "asked to change the email address giving the right password ({})",
+        status(&answer)
+    ));
+    if !account_works(
+        http,
+        users,
+        "email-moved-right",
+        &by_right,
+        confirm,
+        &mut out.steps,
+    ) {
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "A change of email address through {} with the right password did not take: the \
+                 new address did not sign in. That happens when sign-in is by user name rather \
+                 than email address, or when the app waits for the new address to be confirmed \
+                 first; otherwise check `change-email` in securevibe.toml. With no change that \
+                 works, a refused one shows nothing.",
+                change.path
+            ),
+        ));
+        return;
+    }
+    out.verified.push(crate::Verified::new(
+        EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id,
+        EMAIL_CHANGE_WITHOUT_PASSWORD.requirement_ids,
+        format!(
+            "a change of email address through {} giving a wrong password, refused where the same \
+             change with the right one took",
+            change.path
+        ),
+    ));
+}
+
 /// V7.4.3: whether a second session of the account still opened a private page after the password
 /// was changed in another. `None` when that second session could not be shown working just before
 /// the change.
@@ -1439,6 +1593,76 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn an_email_change_that_needs_the_password_is_credited() {
+        let o = run_signing_up(Flaws::default());
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        assert!(
+            verified_ids(&o).contains(&EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id),
+            "{:?}",
+            o.steps
+        );
+        // The control really ran: the new address signed in.
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("signed in as moved-right.") && s.ends_with("opened")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn an_email_change_without_the_password_is_found() {
+        let o = run_signing_up(Flaws {
+            email_change_without_password: true,
+            ..Default::default()
+        });
+        assert_eq!(
+            rule_ids(&o),
+            vec![EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id],
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id));
+    }
+
+    #[test]
+    fn an_email_change_that_never_takes_is_not_assessed() {
+        // Refusing the wrong password means nothing if the right one changes nothing either.
+        let o = run_signing_up(Flaws {
+            email_change_does_nothing: true,
+            ..Default::default()
+        });
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+        assert!(!verified_ids(&o).contains(&EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id));
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids == "V7.5.1")
+            .expect("named as not assessed");
+        assert!(why.contains("did not take"), "{why}");
+    }
+
+    #[test]
+    fn an_email_change_is_never_made_to_a_seeded_account() {
+        // Without `signup` there is only A and B, which every other question signs in as.
+        let o = run_against(Flaws::default(), &users());
+        assert!(!verified_ids(&o).contains(&EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(ids, why)| ids == "V7.5.1" && why.contains("no `signup`")),
+            "{:?}",
+            o.not_assessed
+        );
+        assert!(
+            !o.steps.iter().any(|s| s.contains("email address")),
+            "{:?}",
+            o.steps
+        );
     }
 
     #[test]

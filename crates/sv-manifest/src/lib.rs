@@ -340,8 +340,9 @@ pub struct OidcSection {
 /// One request the probes make on the app's behalf: how to sign up, sign in, or create something.
 ///
 /// Values may use `{user}`, `{password}`, `{csrf}` (a token read from the page first), `{marker}`
-/// (a unique string the probe can look for afterwards), and, in `change-password`, `{new_password}`. A body is sent as a form unless `json` is
-/// used instead; never both.
+/// (a unique string the probe can look for afterwards), in `change-password`, `{new_password}`,
+/// and, in `change-email`, `{new_email}`. A body is sent as a form unless `json` is used instead;
+/// never both.
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct RequestTemplate {
@@ -458,6 +459,11 @@ pub struct UsersSection {
     /// no `signup`.
     #[serde(default)]
     pub change_password: Option<RequestTemplate>,
+    /// Changes the signed-in user's email address: `{password}` is the current password, asked for
+    /// again, and `{new_email}` the new address. Only ever used on an account made for it through
+    /// `signup`, and only judged when sign-in is by email address (`{user}`).
+    #[serde(default)]
+    pub change_email: Option<RequestTemplate>,
     /// Deletes the signed-in user's own account; `{password}` if it asks for the password again.
     /// Only ever used on an account made for it through `signup`, never on A or B.
     #[serde(default)]
@@ -720,11 +726,25 @@ impl UsersSection {
                 t.path
             ));
         }
+        if let Some(t) = &self.change_email
+            && !t
+                .form
+                .values()
+                .chain(t.json.values())
+                .any(|v| v.contains("{new_email}"))
+        {
+            out.push(format!(
+                "`change-email` ({}) has no field with `{{new_email}}`, so there is no new address \
+                 to change to",
+                t.path
+            ));
+        }
         for t in [
             &self.signup,
             &self.login,
             &self.logout,
             &self.change_password,
+            &self.change_email,
             &self.delete_account,
         ]
         .into_iter()
@@ -1290,6 +1310,17 @@ mod tests {
         users.change_password = Some(template(&[
             ("current", "{password}"),
             ("new", "{new_password}"),
+        ]));
+        assert!(users.problems().is_empty(), "{:?}", users.problems());
+        users.change_email = Some(template(&[("password", "{password}"), ("email", "{user}")]));
+        let problems = users.problems();
+        assert!(
+            problems.iter().any(|p| p.contains("{new_email}")),
+            "{problems:?}"
+        );
+        users.change_email = Some(template(&[
+            ("password", "{password}"),
+            ("email", "{new_email}"),
         ]));
         assert!(users.problems().is_empty(), "{:?}", users.problems());
     }
