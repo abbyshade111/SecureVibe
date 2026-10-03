@@ -972,6 +972,21 @@ another session is not a claim.
   adapter's arguments, and `SEMGREP_ENABLE_VERSION_CHECK=0` in its environment, would say whether either is it.
   The decision is the owner's; nothing in the adapters has changed.
 
+  **The extra connection, looked at on 3 October 2026 by session securevibe-e10, at the owner's asking.** Semgrep
+  1.176.0, `p/default`, one file, three runs each. With nothing switched off, every run reached semgrep.dev and one
+  more Amazon server in Oregon (a different one most runs). With `--metrics=off`, none of the three reached the second
+  server; with `SEMGREP_ENABLE_VERSION_CHECK=0` alone, all three still did, and only the "new version" notice went.
+  So the second connection is semgrep's usage reporting (metrics.semgrep.dev is itself a rotating set of Amazon
+  addresses in Oregon); the version check goes to semgrep.dev, where the rules come from. Every run of all twelve
+  loaded the same 1,074 rules and gave the same finding. Connections were sampled about fifty times a second, which
+  can miss a very short one.
+
+- **Run semgrep with usage reporting and its version check off, and accept Opengrep when semgrep is not installed.**
+  The owner's decision of 3 October 2026, from the evaluation above. **Claimed on 3 October 2026 by session
+  securevibe-e10**, in branch `claude/semgrep-quiet-opengrep-fallback`. The semgrep adapter adds `--metrics=off` and
+  sets `SEMGREP_ENABLE_VERSION_CHECK=0`; when `semgrep` is not found, `opengrep` is run in its place, without
+  `--metrics` (Opengrep refuses the option), and the report says which of the two ran.
+
 - **Partial checks for the requirements no check speaks to, from the review of 28 September 2026.** The owner asked
   on 28 September 2026 for every requirement with no check to be reviewed for a partial check: a signal that tells the
   owner something useful even when it cannot settle the requirement. Session securevibe-e9 had seven reviewers go
