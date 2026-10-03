@@ -1669,8 +1669,26 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
             passed.explain()
         );
     }
+    for disagreement in &sbom.disagreements {
+        if disagreement.differs() {
+            eprintln!("{}: {}.", disagreement.project, disagreement.explain());
+        }
+        if !disagreement.comparison.not_compared.is_empty() {
+            eprintln!(
+                "{}: {}.",
+                disagreement.project,
+                disagreement.explain_not_compared()
+            );
+        }
+    }
+    let disagreeing = sbom.disagreements.iter().any(sbom::Disagreement::differs);
     if sbom.is_complete() {
-        if sbom.passed_over.is_empty() {
+        if disagreeing {
+            eprintln!(
+                "Every ecosystem in use was read from a lockfile. It is what is installed only if \
+                 the app is installed from the lockfile, not the manifest that disagrees with it."
+            );
+        } else if sbom.passed_over.is_empty() {
             eprintln!(
                 "Every ecosystem in use was read from a lockfile, so this is what is installed."
             );
@@ -1837,6 +1855,13 @@ fn cmd_audit(args: &[String]) -> Result<()> {
             "\nNot assessed — {}: {}. Remove the lockfile that is not in use.",
             passed.project,
             passed.explain()
+        );
+    }
+    for disagreement in sbom.disagreements.iter().filter(|d| d.differs()) {
+        println!(
+            "\nNot assessed — {}: {}.",
+            disagreement.project,
+            disagreement.explain()
         );
     }
 
@@ -2367,6 +2392,32 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
     }
     // A project with two lockfiles of its kind: the list is a full reading of one of them, and
     // nothing here says the app is installed from that one.
+    // A manifest that asks for other versions than its lockfile has: the list is the lockfile's,
+    // and nothing here says the app is installed from it.
+    for disagreement in &sbom.disagreements {
+        if disagreement.differs() {
+            gaps.push(sv_report::Gap {
+                what: format!(
+                    "whether {} is installed from `{}` or `{}`",
+                    disagreement.project, disagreement.lockfile, disagreement.manifest
+                ),
+                why: format!(
+                    "{}. Bring the two back into step (install from the manifest and write the \
+                     lockfile again), and the next report describes both",
+                    disagreement.explain()
+                ),
+            });
+        }
+        if !disagreement.comparison.not_compared.is_empty() {
+            gaps.push(sv_report::Gap {
+                what: format!(
+                    "whether `{}` and `{}` agree about every package",
+                    disagreement.manifest, disagreement.lockfile
+                ),
+                why: disagreement.explain_not_compared(),
+            });
+        }
+    }
     for passed in &sbom.passed_over {
         gaps.push(sv_report::Gap {
             what: format!("which lockfile {} is installed from", passed.project),
@@ -2595,6 +2646,17 @@ fn assemble_report_saying(
                         "{} not read beside `{}`",
                         passed.not_read_list(),
                         passed.read
+                    ));
+                }
+                // Nor is one that stops appearing because the manifest moved on and the lock did not.
+                for disagreement in bill_of_materials
+                    .disagreements
+                    .iter()
+                    .filter(|d| d.differs())
+                {
+                    short.push(format!(
+                        "`{}` asks for other versions than `{}` has",
+                        disagreement.manifest, disagreement.lockfile
                     ));
                 }
                 examined.push(if short.is_empty() {
@@ -4124,6 +4186,7 @@ mod dependency_gap_tests {
         // report, and a gap row for nothing reads as a hole where there is none.
         let sbom = sbom::Sbom {
             passed_over: Vec::new(),
+            disagreements: Vec::new(),
             components: vec![
                 component("npm", "react", sbom::VersionSource::Locked),
                 component("npm", "express", sbom::VersionSource::Locked),
@@ -4140,6 +4203,7 @@ mod dependency_gap_tests {
         // these are two different gaps and must not collapse into one sentence again.
         let sbom = sbom::Sbom {
             passed_over: Vec::new(),
+            disagreements: Vec::new(),
             components: vec![component("Python", "flask", sbom::VersionSource::Declared)],
             unread: vec![(
                 "npm".to_owned(),
@@ -4173,6 +4237,7 @@ mod dependency_gap_tests {
         // every ecosystem could not do.
         let sbom = sbom::Sbom {
             passed_over: Vec::new(),
+            disagreements: Vec::new(),
             components: vec![
                 component("Python", "flask", sbom::VersionSource::Declared),
                 component("Rust", "serde", sbom::VersionSource::Locked),

@@ -5365,6 +5365,59 @@ each of the document's property, the report's gap, the `examined` reason, the cl
 `sv sbom` wording turns at least its own test red. No example app in the repository has two lockfiles of one kind, so
 no report of theirs changes.
 
+## When a manifest and its lockfile disagree (3 October 2026)
+
+`sv` reads a project's lockfile when it has one, because it says what is installed. Nothing compared it with the
+manifest beside it. On 23 September a dependency bot raised `pyjwt` in `examples/flask-booking/requirements.txt` and
+left `requirements.lock` alone; for ten days GitHub, which reads the manifest, and `sv`, which reads the lock,
+described two different apps, and nothing noticed until a person asked (BACKLOG, "Say when a manifest and its
+lockfile disagree"). Whoever installs from the manifest runs versions the report never looked at, so a vulnerability
+in what is really installed can go unreported, or one be reported in versions nobody runs.
+
+**What is compared** (`sv-check`, `manifest_lock`). Each package the manifest asks for is held to every version the
+lockfile has for it. It agrees when one of them is allowed: npm can install two copies of a package, and the manifest
+governs only one. A package the lockfile does not have at all disagrees, unless its line in `requirements.txt` has a
+platform condition (`; sys_platform == "win32"`), since a lock made on another platform rightly leaves it out. Python
+names are compared as the package index compares them (`Flask_Login` is `flask-login`).
+
+Two manifests are read: `requirements.txt`, with Python's version clauses (`==`, `!=`, `>=`, `<=`, `>`, `<`, `~=`,
+`===`, and `==1.2.*`), and `package.json`, with npm's ranges (`^`, `~`, `x`, comparators, hyphen ranges, and
+`||`). Versions are compared as plain release numbers. What cannot be compared that way is listed as not compared,
+never as agreeing: a pre-release or post-release on either side, a link or a path instead of a version, a tag such as
+`latest`, a platform condition with nothing locked, or a range written in a form not read here. `pyproject.toml`,
+`Cargo.toml`, `Gemfile`, `composer.json`, `go.mod`, and Gradle's files are not compared yet; for them nothing changes.
+
+**Where it is said.** In the same places as "Two lockfiles of one kind", since it is the same doubt from the other
+side: the list describes a file the app may not be installed from.
+
+- **The bill of materials** (`Sbom::disagreements`): the list is still the lockfile's, and still complete in the sense
+  the document uses. The CycloneDX document carries a `securevibe:manifest-disagrees:<project>` property naming
+  each package that differs, as the manifest writes it, with what the lockfile has (at most five, then a count). Packages
+  not compared go in a `securevibe:manifest-not-compared:<project>` property.
+- **`sv sbom`** names them, and no longer ends with "so this is what is installed".
+- **The report**: a gap, "whether npm is installed from `package-lock.json` or `package.json`", saying to bring
+  the two back into step; and in `report.json`'s `examined` list, `advisory.` is `partly`. Packages not compared
+  get a gap of their own, "whether `package.json` and `package-lock.json` agree about every package".
+- **The clean claim** (`advisories::audit_against`): "every package compared, nothing found" is withheld while the
+  manifest asks for something the lockfile does not have, and `sv audit` says so and exits 2 (not assessed). A
+  vulnerability found in the lockfile is still reported. Packages that could not be compared do not withhold it: the
+  list is still a full reading of the lockfile, as it was before anything was compared.
+
+**Not a finding.** A disagreement shows the inventory may be wrong, not that one is missing, so it is not reported
+against V15.1.2 or anything else, and no requirement is cited for it.
+
+**How it was checked.** Twelve tests: eight of the comparison itself (the case that was found; each file the older
+one; a range the lock satisfies staying quiet; a package missing from the lock, and one for another platform; names
+as the index compares them; what cannot be compared; two copies of a package; 27 Python and 46 npm cases of what a
+range allows), the bill of materials and its document (a Python project and an npm project in a folder below, and
+the two in step saying nothing), the clean claim (with an only-not-compared control that keeps it), `report.json`
+(in step, disagreeing, and not compared), and `sv sbom` and `sv audit` (in step and disagreeing). Nineteen guards
+broken in turn, each caught: a missing package taken as agreeing; a platform condition ignored; only the first locked
+copy looked at; what cannot be compared taken as agreeing; names not normalized; `^0.x` and `~` read too wide;
+`~=` without its prefix; a pre-release read as a release, on either side; a comparison that found nothing recorded
+anyway; the clean claim not withheld; the document's property, the report's two gaps, and the `examined` reason
+each left out; and `sv sbom`'s line, its closing sentence, and `sv audit`'s line each left out.
+
 ## A crash is not a refusal (29 September 2026)
 
 The signed-in checks read any answer that is not 2xx as the app refusing. A 429 from a rate limiter was the first
@@ -6209,3 +6262,33 @@ The scripted app gained `POST /account/email`, with two flaws: the password not 
 though it worked and changes nothing. The first is in the "signed up" scenario of
 `a_crash_never_turns_a_finding_into_a_pass`, and the requests the credit rests on are listed in `RESTS_ON_A_REFUSAL`.
 The example app has no email change yet, so this has not been run against a real app.
+
+## A file named to land outside the upload folder (3 October 2026)
+
+The upload checks now send one more file, named `../sv-probe-escaped-<value>.gif`, a real GIF holding the same value
+(V5.3.2, level 1). The value is made for each run, so a file an earlier run left behind cannot answer for this one.
+Where the file ends up decides what is said:
+
+- **Refused**, where an ordinary GIF of the same shape was accepted, is credited: the app would not use that name.
+  Like the other upload refusals, the credit is held back when the upload crashed rather than being refused
+  (`RESTS_ON_A_REFUSAL`).
+- **Found one folder above where uploads are served** is `probe.upload-path-traversal` (CWE-22, high). The `../` was
+  used to build the path the file was saved at, so whoever uploads can write where the app keeps its own files. One
+  folder above is worked out from `serves-at`: `/files/{name}` gives `/{name}`, and `/static/uploads/{name}` gives
+  `/static/{name}`. When `serves-at` puts the name in a query, or there is no folder above, this place is not asked.
+- **Found where uploads are served, under its last part** is credited: the name was reduced to `sv-probe-escaped-…`,
+  as `secure_filename` and `path.basename` do.
+- **Found in neither place** is not assessed. An app that saves uploads under names of its own looks exactly like
+  this, and that is the safest arrangement of all, but nothing outside the app can see it.
+
+A place counts as holding the file only when it answers with the run's value. An app that answers every address
+with its own page, as one that hands every path to a page in the browser does, is otherwise read as holding it
+everywhere. Breaking that rule was caught by nothing until a fake app that does exactly that was added to the tests.
+
+Tried on 3 October 2026 with `sv report --run`. `examples/notes-with-users`, which keeps only the last part of a
+name, was credited. A copy changed to save a `../` name one folder up was found at once, with a high finding.
+
+**Not done: compressed bombs (V5.2.3, level 2).** The backlog item put them beside this. The probes' request bodies
+are text, which is why the upload checks send GIFs and not PNGs, and a compressed file that expands far is binary
+throughout. V5.2.3 also asks about limits on the uncompressed size and the number of files, which `securevibe.toml`
+has no way to state. Both are left for a later item.
