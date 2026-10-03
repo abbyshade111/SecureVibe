@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 159 (46%) | 9 | 177 |
+| OWASP ASVS 5.0 | 345 | 160 (46%) | 9 | 176 |
 | OWASP AISVS 1.0 | 191 | 30 (16%) | 0 | 161 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 9 | 27 |
@@ -43,7 +43,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 56 | 10 | 1 | 6 | 31 | 21 | 3 |
-| L2 | 183 | 82 | 8 | 0 | 16 | 42 | 28 | 1 |
+| L2 | 183 | 83 | 8 | 0 | 16 | 43 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 34 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -64,7 +64,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V4 API and Web Service | 16 | 9 | 0 | 7 |
 | V5 File Handling | 13 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 23 | 1 | 23 |
-| V7 Session Management | 19 | 9 | 0 | 10 |
+| V7 Session Management | 19 | 10 | 0 | 9 |
 | V8 Authorization | 13 | 4 | 1 | 8 |
 | V9 Self-contained Tokens | 7 | 4 | 0 | 3 |
 | V10 OAuth and OIDC | 36 | 8 | 0 | 28 |
@@ -104,7 +104,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (99)
+### Settled by asking the running app (100)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -172,6 +172,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V7.4.2 | L1 | Signed in: `probe.sessions-survive-deletion` |
 | V7.4.3 | L2 | Signed in: `probe.password-change-ends-sessions` |
 | V7.4.4 | L2 | Signed in: `probe.sign-out-control-hidden`, `probe.no-sign-out-link` |
+| V7.5.1 | L2 | Signed in: `probe.email-change-without-password` |
 | V8.2.1 | L1 | Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` |
 | V8.2.2 | L1 | Signed in: `probe.other-users-data` |
 | V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |

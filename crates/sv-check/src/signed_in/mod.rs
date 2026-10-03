@@ -331,12 +331,14 @@ struct Values<'a> {
     marker: &'a str,
     id: &'a str,
     new_password: &'a str,
+    new_email: &'a str,
     code: &'a str,
 }
 
 fn fill(text: &str, v: &Values) -> String {
     text.replace("{user}", v.user)
         .replace("{new_password}", v.new_password)
+        .replace("{new_email}", v.new_email)
         .replace("{password}", v.password)
         .replace("{csrf}", v.csrf.as_deref().unwrap_or(""))
         .replace("{marker}", v.marker)
@@ -740,6 +742,15 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
         ],
     ),
     (CHANGE_ENDS_SESSIONS.rule_id, &["bystander-after"]),
+    (
+        EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id,
+        &[
+            "change-email-wrong-password",
+            "login-email-wrong-password",
+            "login-email-moved-wrong",
+            "private-email-moved-wrong",
+        ],
+    ),
     (
         SESSIONS_SURVIVE_DELETION.rule_id,
         &["delete-after", "login-deleted", "private-deleted"],
@@ -1253,6 +1264,7 @@ fn run_checks(
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    change_email_check(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
     reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
     activation_checks(http, users, accounts, confirm.as_deref(), &mut out);
@@ -2566,6 +2578,7 @@ mod crash_tests {
                         context_word_ok: true,
                         case_folded: true,
                         change_without_current: true,
+                        email_change_without_password: true,
                         code_guessing_unlimited: true,
                         signup_trusts_role: true,
                         ..Default::default()
