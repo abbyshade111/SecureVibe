@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 160 (46%) | 9 | 176 |
-| OWASP AISVS 1.0 | 191 | 30 (16%) | 0 | 161 |
+| OWASP AISVS 1.0 | 191 | 33 (17%) | 0 | 158 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 9 | 27 |
 
@@ -288,16 +288,16 @@ does not reach.
 | C2 Input Validation | 12 | 5 | 0 | 7 |
 | C3 Model Lifecycle Management & Change Control | 15 | 1 | 0 | 14 |
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 1 | 0 | 13 |
-| C5 Access Control & Identity for AI Components & Users | 11 | 0 | 0 | 11 |
+| C5 Access Control & Identity for AI Components & Users | 11 | 2 | 0 | 9 |
 | C6 Supply Chain Security for Models | 7 | 1 | 0 | 6 |
 | C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
-| C8 Memory, Embeddings & Vector Database Security | 11 | 0 | 0 | 11 |
+| C8 Memory, Embeddings & Vector Database Security | 11 | 1 | 0 | 10 |
 | C9 Orchestration & Agentic Security | 34 | 7 | 0 | 27 |
 | C10 Model Context Protocol (MCP) Security | 23 | 5 | 0 | 18 |
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-14 of these 33 can only ever be marked *needs attention*: a check can
+17 of these 36 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. The rules about applications that call a model are semgrep's and CodeQL's, and
 need `--tools`.
@@ -309,12 +309,15 @@ need `--tools`.
 - C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.
 - C3.2.3: found failing by sv's `ast.floating-model-name`, `probe.ai-floating-model-sent`.
 - C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`, `config.model-file-can-run-code`.
+- C5.2.2: found failing by sv's `probe.ai-retrieval-ignores-user`.
+- C5.2.4: found failing by sv's `probe.ai-reply-carries-others-data`.
 - C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
 - C7.3.1: settled by `probe.ai-flagged-reply-shown`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.
 - C7.3.3: found failing by sv's `probe.ai-output-fetched`.
 - C7.3.4: settled by `probe.ai-hidden-content-passed`.
+- C8.1.3: found failing by sv's `probe.ai-retrieval-ignores-user`.
 - C9.1.2: settled by `probe.ai-agent-unbounded`; and found failing by semgrep's `agent-unbounded-loop`.
 - C9.3.1: found failing by semgrep's `langchain-dangerous-exec`.
 - C9.3.2: settled by `probe.ai-mcp-output-unvalidated`.

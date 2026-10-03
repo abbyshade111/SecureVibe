@@ -101,6 +101,8 @@ RUST_CHECKS = {
     "probe.ai-agent-unbounded": ("running", ["C9.1.2"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
+    "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
+    "probe.ai-reply-carries-others-data": ("signed-in", ["C5.2.4"]),
     "probe.mcp-server-origin-unchecked": ("running", ["C10.3.3"]),
     "probe.mcp-session-survives-end": ("running", ["C10.2.6"]),
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
@@ -255,6 +257,9 @@ RUST_FINDINGS_ONLY = {
     # One value on three pages is not every place the app writes out what it was sent.
     "probe.reflected-unencoded",
     "probe.reflected-json-unescaped",
+    # One note each and one question is not every way an app searches.
+    "probe.ai-retrieval-ignores-user",
+    "probe.ai-reply-carries-others-data",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
     "probe.retired-grants-offered",
