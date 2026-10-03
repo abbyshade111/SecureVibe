@@ -66,6 +66,8 @@ another session is not a claim.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
+     **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+     `claude/reflected-text`.
   6. **Requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4).** For a feature that fetches an address,
      named in `securevibe.toml`, give it the test model's canary inside the fence, which already records every
      fetch; a canary that answers with a redirect shows whether the app follows it. The fence makes this safe.
@@ -83,6 +85,11 @@ another session is not a claim.
       working, and passes on neither the raw error nor the bad structure.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
       `claude/securevibe-e9-ai-failure`.
+      **Done the same day** (DESIGN, "When the AI service fails"). The test model's `FAIL` answers 500 in the
+      service's own error shape, carrying `SVERR` and the tag; `probe.ai-service-error-shown` (V16.5.1, only ever
+      a finding) and `probe.ai-service-failure-handled` (V16.5.2, credited when the app fails cleanly and keeps
+      answering). Three guards broken in turn, each caught. Not done: a service that answers slowly or not at all,
+      and a malformed structured answer (C7.1.1).
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
