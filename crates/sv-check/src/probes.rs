@@ -154,6 +154,7 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
         headers: Vec::new(),
         body: None,
     }))
+    .chain(reflection_requests(health_path))
     .collect()
 }
 
@@ -201,7 +202,10 @@ pub fn unassessed_requirements(signed_in_ran: bool) -> Vec<(&'static str, &'stat
     out.push((
         "V5, V1.2",
         "Whether input is validated or escaped needs requests that send data and a way to see \
-         where it comes back out, which means knowing the app's forms and routes.",
+         where it comes back out, which means knowing the app's forms and routes. One value, with \
+         `<`, `\"` and `'` in it, is sent in the address of the health path, the root page and a \
+         page that does not exist, and coming back unencoded is a finding; coming back encoded \
+         credits nothing, since every other place the app writes out what it was sent is untried.",
     ));
     out
 }
@@ -267,6 +271,7 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     out.extend(directory_listing(responses));
     out.extend(unused_methods(responses));
     out.extend(jsonp(responses));
+    out.extend(reflected(responses));
     out.extend(exposed_endpoints(responses));
     out.extend(development_console(responses));
     out.extend(version_disclosed(responses));
@@ -1153,6 +1158,155 @@ fn jsonp(responses: &[ProbeResponse]) -> Option<Finding> {
     ))
 }
 
+/// The start of the value the reflection probes send. Nothing but `sv` would send it, so finding it
+/// in an answer means the answer is repeating what it was sent. The runner keeps the text around it
+/// when it comes back past the part of a page it otherwise keeps (`sv_run`'s `parse_response`).
+pub const REFLECTION_MARK: &str = "svEcho4b7e";
+/// The end of that value, so what came back between the two can be read.
+const REFLECTION_END: &str = "e7b4ohcEvs";
+
+/// The value, as it is written into an address: `<`, `"` and `'` percent-encoded, as a browser
+/// sends them. An app that decodes its address and writes it into a page unencoded writes them as
+/// they are.
+fn reflection_value() -> String {
+    format!("{REFLECTION_MARK}%3C%22%27{REFLECTION_END}")
+}
+
+/// The pages the value is sent to, by probe id: the health path and the root with it as `q`, the
+/// parameter a search reads, and a page that does not exist with it in the path, which an error
+/// page often repeats.
+fn reflection_requests(health_path: &str) -> Vec<ProbeRequest> {
+    let value = reflection_value();
+    let query = |path: &str| {
+        format!(
+            "{path}{}q={value}",
+            if path.contains('?') { '&' } else { '?' }
+        )
+    };
+    let mut asked = vec![(REFLECT_HOME, query(health_path))];
+    if health_path != "/" {
+        asked.push((REFLECT_ROOT, query("/")));
+    }
+    asked.push((REFLECT_MISSING, format!("{MISSING_PATH}-{value}")));
+    asked
+        .into_iter()
+        .map(|(id, path)| ProbeRequest {
+            id: id.into(),
+            method: "GET".into(),
+            path,
+            headers: Vec::new(),
+            body: None,
+        })
+        .collect()
+}
+
+const REFLECT_HOME: &str = "reflect-home";
+const REFLECT_ROOT: &str = "reflect-root";
+const REFLECT_MISSING: &str = "reflect-missing";
+
+fn reflected_page_name(id: &str) -> &'static str {
+    match id {
+        REFLECT_HOME => "the health path",
+        REFLECT_ROOT => "the root page",
+        _ => "a page that does not exist",
+    }
+}
+
+const REFLECTED_HTML: Rule = Rule {
+    rule_id: "probe.reflected-unencoded",
+    confidence: Confidence::High,
+    requirement_ids: &["V1.2.1"],
+    cwe: &["CWE-79"],
+    impact: "Whatever is in the address comes back as part of the page. Somebody can send a link whose \
+             address carries a script, and it runs in the app as the person who clicks it, with \
+             their session: this is reflected cross-site scripting.",
+    fix: "Write values into pages through the template engine's escaping (Jinja2, React, and most \
+          others do it unless told not to: look for `|safe`, `Markup`, `dangerouslySetInnerHTML`, \
+          `innerHTML`, or a page built by joining strings), and never into a page by hand.",
+};
+
+const REFLECTED_JSON: Rule = Rule {
+    rule_id: "probe.reflected-json-unescaped",
+    confidence: Confidence::High,
+    requirement_ids: &["V1.2.3"],
+    cwe: &["CWE-116"],
+    impact: "A `\"` sent in the address comes back in JSON as it is, so it ends the string it was put in \
+             and whatever follows is read as more of the JSON: the sender decides part of its shape.",
+    fix: "Build JSON with the language's JSON encoder (`json.dumps`, `JSON.stringify`, `jsonify`) \
+          rather than by joining strings.",
+};
+
+/// What came back of the value in one answer: the text between its start and its end, or up to 40
+/// characters when the end did not come back, for each time it appears.
+fn echoes(body: &str) -> Vec<&str> {
+    body.match_indices(REFLECTION_MARK)
+        .map(|(at, _)| {
+            let rest = &body[at + REFLECTION_MARK.len()..];
+            match rest.find(REFLECTION_END) {
+                Some(end) if end <= 40 => &rest[..end],
+                _ => {
+                    let cut = rest.char_indices().nth(40).map_or(rest.len(), |(i, _)| i);
+                    &rest[..cut]
+                }
+            }
+        })
+        .collect()
+}
+
+/// The value sent in an address, coming back in a page with `<` as it is, or in JSON with `"`
+/// unescaped. Only ever a finding: one value on three pages is not every place the app writes out
+/// what it was sent, and V1.2.1 asks about all of them.
+///
+/// In a page, only a raw `<` is a finding: a quote as it is is harmless in text and harmful in an
+/// attribute, and which one it landed in is not read here. In JSON, a `"` with no backslash before
+/// it is. An answer that is neither, or whose type is not said, is not judged.
+fn reflected(responses: &[ProbeResponse]) -> Vec<Finding> {
+    let mut html = Vec::new();
+    let mut json = Vec::new();
+    for r in responses
+        .iter()
+        .filter(|r| [REFLECT_HOME, REFLECT_ROOT, REFLECT_MISSING].contains(&r.id.as_str()))
+    {
+        let kind = r.header("content-type").unwrap_or("").to_lowercase();
+        let echoed = echoes(&r.body);
+        if kind.contains("html") && echoed.iter().any(|e| e.contains('<')) {
+            html.push(reflected_page_name(&r.id));
+        } else if kind.contains("json")
+            && echoed
+                .iter()
+                .any(|e| e.match_indices('"').any(|(i, _)| !e[..i].ends_with('\\')))
+        {
+            json.push(reflected_page_name(&r.id));
+        }
+    }
+    let mut out = Vec::new();
+    if !html.is_empty() {
+        out.push(finding(
+            &REFLECTED_HTML,
+            "Text from the address is written into the page unencoded",
+            Severity::High,
+            format!(
+                "Sent `<\"'` in the address of {}, the app wrote the `<` back into the page as it is, \
+                 where a browser reads it as the start of a tag.",
+                html.join(" and ")
+            ),
+        ));
+    }
+    if !json.is_empty() {
+        out.push(finding(
+            &REFLECTED_JSON,
+            "Text from the address is written into JSON unescaped",
+            Severity::Medium,
+            format!(
+                "Sent `<\"'` in the address of {}, the app wrote the `\"` back into its JSON with no \
+                 backslash before it.",
+                json.join(" and ")
+            ),
+        ));
+    }
+    out
+}
+
 /// Where documentation and monitoring pages are most often left. Each is judged by what comes back,
 /// not by answering at all: many apps answer every path with their own front page.
 const EXPOSED_PATHS: &[&str] = &[
@@ -2032,6 +2186,7 @@ mod tests {
                 + EXPOSED_PATHS.len()
                 + 1
                 + CONSOLES.len()
+                + 3
         );
         // The root is asked as well as the health path, and only once when they are the same.
         assert!(requests.iter().any(|r| r.id == "root" && r.path == "/"));
@@ -2750,6 +2905,195 @@ mod tests {
         ];
         assert!(evaluate(&answers).is_empty(), "{:?}", evaluate(&answers));
         assert!(!verified_ids(&answers).contains(&UNUSED_METHOD.rule_id.to_owned()));
+    }
+
+    /// What came back of the value, written into a body the way each kind of app writes it.
+    fn echoed(between: &str) -> String {
+        format!("{REFLECTION_MARK}{between}{REFLECTION_END}")
+    }
+
+    fn reflected_ids(id: &str, content_type: &str, body: &str) -> Vec<String> {
+        evaluate(&[
+            good_home(),
+            response(id, 200, &[("Content-Type", content_type)], body),
+        ])
+        .into_iter()
+        .filter(|f| f.rule_id.starts_with("probe.reflected"))
+        .map(|f| f.rule_id)
+        .collect()
+    }
+
+    #[test]
+    fn the_value_is_sent_to_three_pages_encoded_as_a_browser_sends_it() {
+        let asked = requests("/healthz");
+        let path = |id: &str| {
+            asked
+                .iter()
+                .find(|r| r.id == id)
+                .unwrap_or_else(|| panic!("{id} is never asked"))
+                .path
+                .clone()
+        };
+        let value = format!("{REFLECTION_MARK}%3C%22%27{REFLECTION_END}");
+        assert_eq!(path(REFLECT_HOME), format!("/healthz?q={value}"));
+        assert_eq!(path(REFLECT_ROOT), format!("/?q={value}"));
+        assert_eq!(path(REFLECT_MISSING), format!("{MISSING_PATH}-{value}"));
+        // Nothing in a request line may be a raw quote, angle bracket, or space.
+        for r in asked.iter().filter(|r| r.id.starts_with("reflect-")) {
+            assert!(!r.path.contains(['<', '"', '\'', ' ']), "{}", r.path);
+            assert_eq!(r.method, "GET");
+            assert!(r.body.is_none() && r.headers.is_empty());
+        }
+        // The root is the health path when they are the same, and asked once.
+        let at_root = requests("/");
+        assert!(!at_root.iter().any(|r| r.id == REFLECT_ROOT));
+        assert!(
+            at_root
+                .iter()
+                .any(|r| r.id == REFLECT_HOME && r.path == format!("/?q={value}"))
+        );
+        // A health path with its own query gets the value after `&`.
+        assert!(
+            requests("/health?full=1")
+                .iter()
+                .any(|r| r.id == REFLECT_HOME && r.path == format!("/health?full=1&q={value}"))
+        );
+    }
+
+    #[test]
+    fn a_page_that_writes_the_value_back_unencoded_is_found() {
+        for (id, body) in [
+            (
+                REFLECT_HOME,
+                format!("<p>You searched for {}</p>", echoed("<\"'")),
+            ),
+            (
+                REFLECT_ROOT,
+                format!("<h1>Results: {}</h1>", echoed("<\"'")),
+            ),
+            // An error page repeating the path it was asked for.
+            (
+                REFLECT_MISSING,
+                format!(
+                    "<p>No page at /sv-probe-does-not-exist-9f2a-{}</p>",
+                    echoed("<\"'")
+                ),
+            ),
+            // An app that stopped writing at the `<`, so the end never came back.
+            (REFLECT_HOME, format!("<p>{REFLECTION_MARK}<\"'</p>")),
+        ] {
+            assert_eq!(
+                reflected_ids(id, "text/html; charset=utf-8", &body),
+                ["probe.reflected-unencoded"],
+                "{body}"
+            );
+        }
+        let findings = evaluate(&[
+            good_home(),
+            response(
+                REFLECT_MISSING,
+                404,
+                &[("Content-Type", "text/html")],
+                &echoed("<\"'"),
+            ),
+        ]);
+        let f = findings
+            .iter()
+            .find(|f| f.rule_id == "probe.reflected-unencoded")
+            .unwrap();
+        assert_eq!(f.requirement_ids, ["V1.2.1"]);
+        assert!(
+            f.description.contains("a page that does not exist"),
+            "{}",
+            f.description
+        );
+    }
+
+    #[test]
+    fn a_page_that_encodes_the_value_or_does_not_repeat_it_is_not_found() {
+        for body in [
+            format!("<p>You searched for {}</p>", echoed("&lt;&quot;&#39;")),
+            format!("<p>You searched for {}</p>", echoed("&lt;&#34;&#x27;")),
+            // Written back as it was sent, still percent-encoded, in a link.
+            format!("<a href=\"/?q={}\">again</a>", echoed("%3C%22%27")),
+            // Taken out altogether.
+            format!("<p>You searched for {}</p>", echoed("")),
+            // The quotes as they are and the `<` encoded: harmless in text, harmful in an
+            // attribute, and which it is is not read, so not judged.
+            format!("<p>You searched for {}</p>", echoed("&lt;\"'")),
+            "<p>No results.</p>".to_owned(),
+        ] {
+            assert!(
+                reflected_ids(REFLECT_HOME, "text/html", &body).is_empty(),
+                "{body}"
+            );
+        }
+    }
+
+    #[test]
+    fn json_with_the_quote_unescaped_is_found_and_escaped_json_is_not() {
+        let raw = format!("{{\"query\": \"{}\"}}", echoed("<\"'"));
+        assert_eq!(
+            reflected_ids(REFLECT_HOME, "application/json", &raw),
+            ["probe.reflected-json-unescaped"]
+        );
+        for body in [
+            format!("{{\"query\": \"{}\"}}", echoed("<\\\"'")),
+            format!("{{\"query\": \"{}\"}}", echoed("\\u003c\\u0022\\u0027")),
+        ] {
+            assert!(
+                reflected_ids(REFLECT_HOME, "application/json", &body).is_empty(),
+                "{body}"
+            );
+        }
+        let findings = evaluate(&[
+            good_home(),
+            response(
+                REFLECT_HOME,
+                200,
+                &[("Content-Type", "application/json")],
+                &raw,
+            ),
+        ]);
+        let f = findings
+            .iter()
+            .find(|f| f.rule_id == "probe.reflected-json-unescaped")
+            .unwrap();
+        assert_eq!(f.requirement_ids, ["V1.2.3"]);
+    }
+
+    #[test]
+    fn an_answer_that_is_neither_a_page_nor_json_is_not_judged() {
+        let body = echoed("<\"'");
+        assert!(reflected_ids(REFLECT_HOME, "text/plain", &body).is_empty());
+        assert!(
+            reflected_ids(REFLECT_HOME, "", &body).is_empty(),
+            "no type said"
+        );
+        // Only the three reflection answers are read for it: the same text in another answer is
+        // that answer's business.
+        assert!(reflected_ids("home", "text/html", &body).is_empty());
+    }
+
+    #[test]
+    fn writing_the_value_back_encoded_is_never_credit() {
+        let encoded = response(
+            REFLECT_HOME,
+            200,
+            &[("Content-Type", "text/html")],
+            &echoed("&lt;&quot;&#39;"),
+        );
+        for v in verified(&[good_home(), encoded]) {
+            assert!(
+                !v.requirement_ids.iter().any(|r| r.starts_with("V1.2.")),
+                "{v:?}"
+            );
+        }
+        assert!(
+            unassessed_requirements(false)
+                .iter()
+                .any(|(ids, why)| ids.contains("V1.2") && why.contains("credits nothing")),
+        );
     }
 
     #[test]

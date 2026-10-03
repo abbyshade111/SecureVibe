@@ -105,6 +105,8 @@ RUST_CHECKS = {
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),
     "probe.development-console-open": ("running", ["V15.2.3", "V13.4.2"]),
     "probe.version-disclosed": ("running", ["V13.4.6"]),
+    "probe.reflected-unencoded": ("running", ["V1.2.1"]),
+    "probe.reflected-json-unescaped": ("running", ["V1.2.3"]),
     "probe.opener-policy-missing": ("running", ["V3.4.8"]),
     "probe.csp-no-report": ("running", ["V3.4.7"]),
     "probe.content-type": ("running", ["V4.1.1"]),
@@ -243,6 +245,9 @@ RUST_FINDINGS_ONLY = {
     # A refusal of TLS 1.0 and 1.1 is half of V12.1.1; the other half, the newest version preferred,
     # is not something curl reports reliably, so a refusal is said and not credited.
     "probe.old-tls-accepted",
+    # One value on three pages is not every place the app writes out what it was sent.
+    "probe.reflected-unencoded",
+    "probe.reflected-json-unescaped",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
     "probe.retired-grants-offered",
