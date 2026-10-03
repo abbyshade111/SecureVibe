@@ -212,12 +212,33 @@ pub struct RunSection {
     /// run can ask whether it checks where requests come from and ends sessions when told to.
     #[serde(default)]
     pub mcp_server: Option<McpServerSection>,
+    /// A feature that fetches an address a person gives it (a link preview, an import from a
+    /// web address), so the run can ask where it will go and whether it follows a redirect.
+    #[serde(default)]
+    pub fetch: Option<FetchSection>,
 }
 
 /// Whether a name is one an environment variable can have: letters, digits, and `_`, and not empty.
 /// What a name from securevibe.toml must be before it goes on a command line as `NAME=value`.
 pub fn is_variable_name(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// `[stack.run.fetch]`: the app fetches an address a person gives it.
+///
+/// For the run, it is given the address of a test server of `sv`'s own on the app's private network,
+/// a host nobody allowed on a port no service uses, and that server records whether it was fetched.
+#[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct FetchSection {
+    /// The request that hands the feature an address, with `{url}` where the address goes.
+    pub request: RequestTemplate,
+    /// Whether it needs a signed-in user. The second test user is used, from `[stack.run.users]`.
+    #[serde(default)]
+    pub signed_in: bool,
+    /// Following a redirect is what the feature is for, so whether it does is not asked (V15.3.2).
+    #[serde(default)]
+    pub follows_redirects: bool,
 }
 
 /// `[stack.run.mcp-server]`: the app serves tools over the Model Context Protocol's HTTP transport.

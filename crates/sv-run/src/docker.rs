@@ -253,8 +253,10 @@ impl DockerBackend {
 
         // 1d½. A test model, when the app has an AI feature to ask. Before the app, which may read
         //      the model's address as it starts.
-        let model = (plan.ai.is_some() && self.start_model(&network, &model_name))
-            .then_some(model_name.as_str());
+        // The test model's server also records what a feature that fetches addresses fetches.
+        let model = ((plan.ai.is_some() || plan.fetch.is_some())
+            && self.start_model(&network, &model_name))
+        .then_some(model_name.as_str());
 
         // 1e. A headless browser, when securevibe.toml asks for checks made in one. On the same
         //     fenced network, so the pages it draws can reach nothing the app could not. If it
@@ -452,6 +454,32 @@ impl DockerBackend {
             sv_check::mcp_server::run(&mut http, section, mcp_token.as_deref())
         });
 
+        // 4c''. A feature that fetches an address a person gives it, pointed at the test model's
+        //      server, which records each fetch.
+        let fetch = plan.fetch.as_ref().map(|section| {
+            let ready = model.filter(|host| self.model_ready(&via, host));
+            let canary = ready.map(|host| format!("http://{host}:{MODEL_PORT}"));
+            let mut http = DockerHttp {
+                backend: self,
+                via: &via,
+                app: &app,
+                port: plan.port,
+                mail: None,
+                provider: None,
+                browser: None,
+                model: ready,
+            };
+            let context = sv_check::fetch::Context {
+                signed_in: plan
+                    .users
+                    .as_ref()
+                    .zip(accounts.as_ref())
+                    .map(|(users, accounts)| (users, &accounts.b)),
+                canary: canary.as_deref(),
+            };
+            sv_check::fetch::run(&mut http, section, &context)
+        });
+
         // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
         //     Last of the questions, as the second test user when it needs one: nothing after it
         //     depends on that user's session.
@@ -527,7 +555,12 @@ impl DockerBackend {
         });
 
         // Still up after everything else it was asked, while the sidecar can still ask it.
-        if signed_in.is_some() || oidc.is_some() || ai.is_some() || mcp_server.is_some() {
+        if signed_in.is_some()
+            || oidc.is_some()
+            || ai.is_some()
+            || mcp_server.is_some()
+            || fetch.is_some()
+        {
             liveness.push(self.liveness(
                 &via,
                 &app,
@@ -632,6 +665,7 @@ impl DockerBackend {
             oidc,
             ai,
             mcp_server,
+            fetch,
             left_over_removed,
             liveness,
         })
