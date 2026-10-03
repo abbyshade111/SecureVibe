@@ -187,8 +187,12 @@ that run, and then asks:
   (V6.2.6; V6.2.7, only ever a finding)
 - does visiting the sign-out address, rather than submitting its form, sign the user out? (V3.5.3; only
   ever a finding)
+- given an address outside the app as `next` (and eight other common return parameters), do sign-in and
+  sign-out send the browser there? (V3.7.2; only ever a finding)
 - with `change-password` set: can the password be changed, and does that need the current one?
   (V6.2.2, V6.2.3)
+- with `change-email` and `signup` set: does changing the email address need the password again? (V7.5.1;
+  only ever done to an account made for it)
 - with `delete-account` and `signup` set: does deleting an account end its other sessions? (V7.4.2;
   only ever done to an account made for it)
 - is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a

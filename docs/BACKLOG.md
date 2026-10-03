@@ -81,6 +81,11 @@ another session is not a claim.
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
      in branch `claude/securevibe-e9-open-redirect`.
+     **Done on 3 October 2026** (DESIGN, "Open redirects in the sign-in flow"), as a finding only:
+     `probe.open-redirect` gives an address on `sv-redirect.invalid`, full and beginning with `//`, in `next` and
+     eight other return parameters, to the sign-in, the sign-in page opened signed in, and the sign-out. Three guards
+     broken in turn, each caught. Not done: redirects outside the sign-in flow, which the app's own addresses would
+     have to name, and a run against a real app.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -113,6 +118,11 @@ another session is not a claim.
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
       in branch `claude/securevibe-e9-email-change`.
+      **Done on 3 October 2026** (DESIGN, "Changing the email address without the password"):
+      `probe.email-change-without-password`, through a new `change-email` entry, only ever on an account made for it
+      through `signup`. A change counts as taken only when the new address signs in, so an app that signs in by user
+      name, or that waits for the new address to be confirmed, is not assessed rather than passed. Not yet run
+      against a real app: the example has no email change.
   15. **Upload names with `../` (V5.3.2, level 1) and compressed bombs (V5.2.3).** Extends the upload probes: a
       file named to land outside the upload folder, then asked for where it would have landed.
       **The `../` half done on 3 October 2026** (DESIGN, "A file named to land outside the upload folder"): found one

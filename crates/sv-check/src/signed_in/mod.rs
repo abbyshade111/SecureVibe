@@ -61,6 +61,7 @@ mod codes;
 mod flows;
 mod forgery;
 mod passwords;
+mod redirects;
 mod reset;
 mod rules;
 mod sessions;
@@ -73,6 +74,7 @@ use codes::*;
 use flows::*;
 use forgery::*;
 use passwords::*;
+use redirects::*;
 use reset::*;
 use rules::*;
 pub(crate) use rules::{Rule, finding};
@@ -331,12 +333,14 @@ struct Values<'a> {
     marker: &'a str,
     id: &'a str,
     new_password: &'a str,
+    new_email: &'a str,
     code: &'a str,
 }
 
 fn fill(text: &str, v: &Values) -> String {
     text.replace("{user}", v.user)
         .replace("{new_password}", v.new_password)
+        .replace("{new_email}", v.new_email)
         .replace("{password}", v.password)
         .replace("{csrf}", v.csrf.as_deref().unwrap_or(""))
         .replace("{marker}", v.marker)
@@ -740,6 +744,15 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
         ],
     ),
     (CHANGE_ENDS_SESSIONS.rule_id, &["bystander-after"]),
+    (
+        EMAIL_CHANGE_WITHOUT_PASSWORD.rule_id,
+        &[
+            "change-email-wrong-password",
+            "login-email-wrong-password",
+            "login-email-moved-wrong",
+            "private-email-moved-wrong",
+        ],
+    ),
     (
         SESSIONS_SURVIVE_DELETION.rule_id,
         &["delete-after", "login-deleted", "private-deleted"],
@@ -1241,6 +1254,9 @@ fn run_checks(
     // 9b. A private WebSocket, with a sign-in of its own that it signs out at the end: after
     //     everything that needed A's first session.
     websocket_session_checks(http, users, &accounts.a, &mut out);
+    // 9b'. Where the sign-in and sign-out send the browser when given an address outside the app:
+    //     sessions of their own, and nothing changed.
+    open_redirect_check(http, users, &accounts.a, &mut out);
 
     // 9c. Admin actions, sent by A and then by the admin. Late, because an action changes what the
     //     app holds and the checks above have had what they needed; before the password changes
@@ -1254,6 +1270,7 @@ fn run_checks(
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
     change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    change_email_check(http, users, accounts, confirm.as_deref(), &mut out);
     delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
     reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
     activation_checks(http, users, accounts, confirm.as_deref(), &mut out);
@@ -2567,6 +2584,7 @@ mod crash_tests {
                         context_word_ok: true,
                         case_folded: true,
                         change_without_current: true,
+                        email_change_without_password: true,
                         code_guessing_unlimited: true,
                         signup_trusts_role: true,
                         ..Default::default()
