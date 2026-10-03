@@ -66,6 +66,8 @@ another session is not a claim.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
+     **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+     `claude/reflected-text`.
   6. **Requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4).** For a feature that fetches an address,
      named in `securevibe.toml`, give it the test model's canary inside the fence, which already records every
      fetch; a canary that answers with a redirect shows whether the app follows it. The fence makes this safe.
