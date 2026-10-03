@@ -305,6 +305,7 @@ dependencies = [
  "sv-frameworks",
  "sv-manifest",
  "sv-scan",
+ "toml",
  "tree-sitter",
  "tree-sitter-bash",
  "tree-sitter-c",

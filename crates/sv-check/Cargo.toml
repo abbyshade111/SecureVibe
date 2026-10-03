@@ -8,6 +8,7 @@ license.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
+toml.workspace = true
 regex = "1"
 tree-sitter.workspace = true
 tree-sitter-python.workspace = true
