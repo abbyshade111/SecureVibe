@@ -122,6 +122,8 @@ another session is not a claim.
   13. **Limits and double-booking on the owner's own actions (V2.4.1, V2.3.4).** A burst, and parallel requests, at
       an action `securevibe.toml` names; more successes than its stated limit is the finding. Proposed in
       `docs/PARTIAL-CHECKS.md`.
+      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+      `claude/securevibe-e9-limits`.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
