@@ -576,6 +576,19 @@ pub(super) const OPEN_REDIRECT: Rule = Rule {
           page. Most frameworks have a helper for this, such as Django's `url_has_allowed_host_and_scheme`.",
 };
 
+pub(super) const DONE_TWICE: Rule = Rule {
+    rule_id: "probe.action-done-twice",
+    requirement_ids: &["V2.3.4"],
+    cwe: &["CWE-362"],
+    impact: "Two requests arriving together can both take the one thing there was: the last seat is \
+             booked twice, a one-time code pays out twice. Anybody can do it on purpose by sending \
+             the same request several times at once.",
+    fix: "Take the thing and check it was there in one step the database does at once: an update \
+          that only matches while one is left (`UPDATE ... SET left = left - 1 WHERE left > 0`, \
+          then check a row changed), a row lock (`SELECT ... FOR UPDATE`), or a unique constraint \
+          that refuses the second. Reading first and writing afterwards leaves a gap.",
+};
+
 pub(super) const CHANGE_WITHOUT_CURRENT: Rule = Rule {
     rule_id: "probe.password-change-without-current",
     requirement_ids: &["V6.2.3"],

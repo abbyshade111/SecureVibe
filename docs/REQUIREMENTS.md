@@ -31,7 +31,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 160 can be checked, 9 where a check helps but a person decides, and 176 with no check.
+345 requirements: 160 can be checked, 10 where a check helps but a person decides, and 175 with no check.
 
 ### Level 1 (70 requirements, 56 can be checked)
 
@@ -215,7 +215,7 @@ decided per app, from its `securevibe.toml` and its code.
 | **V2.2.3** Verify that the application ensures that combinations of related data items are reasonable according to the pre-defined rules. | No check | – |
 | **V2.3.2** Verify that business logic limits are implemented per the application's documentation to avoid business logic flaws being exploited. | No check | – |
 | **V2.3.3** Verify that transactions are being used at the business logic level such that either a business logic operation succeeds in its entirety or it is rolled back to the previous correct state. | No check | – |
-| **V2.3.4** Verify that business logic level locking mechanisms are used to ensure that limited quantity resources (such as theater seats or delivery slots) cannot be double-booked by manipulating the application's logic. | No check | – |
+| **V2.3.4** Verify that business logic level locking mechanisms are used to ensure that limited quantity resources (such as theater seats or delivery slots) cannot be double-booked by manipulating the application's logic. | A check helps; a person decides | Signed in: `probe.action-done-twice`, if it fails: Two requests arriving together can both take the one thing there was: the last seat is booked twice, a one-time code pays out twice. Anybody can do it on purpose by sending the same request several times at once. |
 | **V2.4.1** Verify that anti-automation controls are in place to protect against excessive calls to application functions that could lead to data exfiltration, garbage-data creation, quota exhaustion, rate-limit breaches, denial-of-service, or overuse of costly resources. | No check | – |
 
 #### V3 Web Frontend Security

@@ -89,6 +89,11 @@ pub(super) struct FakeApp {
     code_born: BTreeMap<String, u64>,
     /// Whether the idle timeout ends sessions nobody has signed in to yet, too.
     pub(super) anonymous_sessions_time_out: bool,
+    /// Seats booked. There is one seat.
+    pub(super) bookings: u32,
+    /// While copies are being sent at the same instant: the bookings there were when they
+    /// started, which each sees under `booking_races`, and how many have arrived.
+    together: Option<(u32, usize)>,
 }
 
 /// The fake app's own context-specific word, as an owner would list it in `context-words`.
@@ -208,6 +213,13 @@ pub(super) struct Flaws {
     pub(super) email_change_without_password: bool,
     /// An email change answers as if it worked and changes nothing.
     pub(super) email_change_does_nothing: bool,
+    /// Booking reads how many seats are taken and writes the booking afterwards, so copies sent at
+    /// the same instant all see the seat free (V2.3.4).
+    pub(super) booking_races: bool,
+    /// Booking refuses everybody, the first included.
+    pub(super) booking_broken: bool,
+    /// Booking answers copies sent at the same instant beyond the first with 429.
+    pub(super) booking_rate_limited: bool,
     /// A password change leaves the account's other sessions working (V7.4.3).
     pub(super) change_keeps_sessions: bool,
     /// A password change sends the account holder no email (V6.3.7).
@@ -613,6 +625,17 @@ impl Http for FakeApp {
         let answer = self.answer(r)?;
         Some(self.follow_next(r, answer))
     }
+
+    fn send_at_once(
+        &mut self,
+        r: &ProbeRequest,
+        times: usize,
+    ) -> Option<Vec<Option<ProbeResponse>>> {
+        self.together = Some((self.bookings, 0));
+        let answers = (0..times).map(|_| self.send(r)).collect();
+        self.together = None;
+        Some(answers)
+    }
 }
 
 impl FakeApp {
@@ -922,6 +945,29 @@ impl FakeApp {
                     }
                 }
                 Self::respond(303, vec![("Location", "/account".into())], "")
+            }
+            ("POST", "/book") => {
+                if user.is_none() {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                }
+                if !token_ok {
+                    return Some(Self::respond(403, vec![], "refused"));
+                }
+                if let Some((_, arrived)) = self.together.as_mut() {
+                    *arrived += 1;
+                    if self.flaws.booking_rate_limited && *arrived > 1 {
+                        return Some(Self::respond(429, vec![], "slow down"));
+                    }
+                }
+                let seen = match self.together {
+                    Some((at_start, _)) if self.flaws.booking_races => at_start,
+                    _ => self.bookings,
+                };
+                if self.flaws.booking_broken || seen >= 1 {
+                    return Some(Self::respond(409, vec![], "Sold out"));
+                }
+                self.bookings += 1;
+                Self::respond(200, vec![], "<p>Booked: seat 1</p>")
             }
             ("POST", "/activate") => {
                 if !token_ok {
@@ -1750,6 +1796,16 @@ pub(super) fn users() -> UsersSection {
                 ("csrf_token", "{csrf}"),
             ],
         )),
+        once: Some(sv_manifest::OnceAction {
+            method: "POST".into(),
+            path: "/book".into(),
+            form: [("slot", "1"), ("csrf_token", "{csrf}")]
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+            json: BTreeMap::new(),
+            completed: "Booked".into(),
+        }),
         delete_account: Some(t(
             "/account/delete",
             &[("password", "{password}"), ("csrf_token", "{csrf}")],

@@ -31,10 +31,10 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 160 (46%) | 9 | 176 |
+| OWASP ASVS 5.0 | 345 | 160 (46%) | 10 | 175 |
 | OWASP AISVS 1.0 | 191 | 33 (17%) | 0 | 158 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
-| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 9 | 27 |
+| Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 10 | 26 |
 
 ## ASVS 5.0 by level
 
@@ -59,7 +59,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | Chapter | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | V1 Encoding and Sanitization | 30 | 19 | 0 | 11 |
-| V2 Validation and Business Logic | 13 | 1 | 1 | 11 |
+| V2 Validation and Business Logic | 13 | 1 | 2 | 10 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 9 | 0 | 7 |
 | V5 File Handling | 13 | 8 | 1 | 4 |
@@ -256,11 +256,12 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V16.2.5 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V16.4.1 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
 
-### Supporting only (9)
+### Supporting only (10)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V2.3.1 | L1 | Signed in: `probe.flow-step-skipped` |
+| V2.3.4 | L2 | Signed in: `probe.action-done-twice` |
 | V5.4.3 | L2 | Signed in: `probe.upload-not-scanned` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
@@ -349,7 +350,7 @@ control as supporting evidence.
 |---|---|---|---|---|
 | A Architecture & Service Design | 8 | 1 | 1 | 1 |
 | B Data Management & Protection | 6 | 1 | 4 | 1 |
-| C Reliability & Resilience | 8 | 1 | 5 | 2 |
+| C Reliability & Resilience | 8 | 1 | 5 | 3 |
 | D Access Control & Secure Communication | 7 | 2 | 5 | 4 |
 | E Monitoring, Testing & Incident Readiness | 7 | 2 | 2 | 1 |
 
@@ -357,6 +358,7 @@ control as supporting evidence.
 - SBD-DM-02: through V12.2.1, V12.3.1
 - SBD-RR-01: through V16.5.1
 - SBD-RR-02: through V16.5.2
+- SBD-RR-05: through V2.3.4
 - SBD-AC-01: through V12.3.1, V12.3.3
 - SBD-AC-03: through V8.2.1
 - SBD-AC-04: through V8.3.1

@@ -390,6 +390,37 @@ pub struct AdminAction {
     pub check: Option<String>,
 }
 
+/// An action that should go through only once, such as booking the last seat or redeeming a
+/// one-time code: the probes send it many times at the same instant, as the first user, and count
+/// how many answers say it went through. The app has to start the run with exactly one of the thing
+/// to take, set up by `seed` or by the app itself, and nothing else in the run takes it.
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct OnceAction {
+    #[serde(default = "post")]
+    pub method: String,
+    pub path: String,
+    #[serde(default)]
+    pub form: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub json: std::collections::BTreeMap<String, String>,
+    /// Text the answer carries only when the action went through: in the page, or in the address
+    /// it sends the browser on to. "Booked", say, or `/bookings/`.
+    pub completed: String,
+}
+
+impl OnceAction {
+    /// The request itself, in the shape every other request here has.
+    pub fn request(&self) -> RequestTemplate {
+        RequestTemplate {
+            method: self.method.clone(),
+            path: self.path.clone(),
+            form: self.form.clone(),
+            json: self.json.clone(),
+        }
+    }
+}
+
 impl AdminAction {
     /// The request itself, in the shape every other request here has.
     pub fn request(&self) -> RequestTemplate {
@@ -458,6 +489,10 @@ pub struct UsersSection {
     /// then by the admin. Needs `seed`, as `admin` does.
     #[serde(default)]
     pub admin_actions: Vec<AdminAction>,
+    /// An action that should go through only once however many times it is sent at the same
+    /// instant (V2.3.4).
+    #[serde(default)]
+    pub once: Option<OnceAction>,
     #[serde(default)]
     pub owned: Option<OwnedSection>,
     /// Changes the signed-in user's password: `{password}` is the current one, `{new_password}`
@@ -653,6 +688,21 @@ impl UsersSection {
                         action.path
                     ));
                 }
+            }
+        }
+        if let Some(once) = &self.once {
+            if !once.form.is_empty() && !once.json.is_empty() {
+                out.push(format!(
+                    "`once` ({}) has both `form` and `json`; a request sends one",
+                    once.path
+                ));
+            }
+            if once.completed.trim().is_empty() {
+                out.push(format!(
+                    "`once` ({}) has no `completed` text, so an answer that went through cannot be \
+                     told from one that was refused",
+                    once.path
+                ));
             }
         }
         if !self.admin.is_empty() && self.seed.is_none() {
@@ -1286,6 +1336,48 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn a_once_action_is_read_and_held_to_its_completed_text() {
+        let users: UsersSection = toml::from_str(
+            "seed = \"seed\"\nlogin = { path = \"/login\" }\nprivate = [\"/account\"]\n\
+             once = { path = \"/book\", form = { slot = \"1\" }, completed = \"Booked\" }",
+        )
+        .expect("parses");
+        let once = users.once.as_ref().expect("read");
+        assert_eq!(
+            (once.method.as_str(), once.completed.as_str()),
+            ("POST", "Booked")
+        );
+        assert_eq!(
+            once.request().form.get("slot").map(String::as_str),
+            Some("1")
+        );
+        assert!(users.problems().is_empty(), "{:?}", users.problems());
+        let mut blank = users.clone();
+        blank.once.as_mut().unwrap().completed = " ".into();
+        assert!(
+            blank
+                .problems()
+                .iter()
+                .any(|p| p.contains("no `completed`")),
+            "{:?}",
+            blank.problems()
+        );
+        let mut both = users;
+        both.once
+            .as_mut()
+            .unwrap()
+            .json
+            .insert("slot".into(), "1".into());
+        assert!(
+            both.problems()
+                .iter()
+                .any(|p| p.contains("both `form` and `json`")),
+            "{:?}",
+            both.problems()
+        );
+    }
 
     #[test]
     fn a_password_change_with_nothing_to_change_to_is_named_as_a_problem() {
