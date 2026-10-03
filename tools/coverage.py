@@ -104,6 +104,8 @@ RUST_CHECKS = {
     "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
     "probe.ai-reply-carries-others-data": ("signed-in", ["C5.2.4"]),
     "probe.mcp-server-origin-unchecked": ("running", ["C10.3.3"]),
+    "probe.fetch-goes-anywhere": ("running", ["V1.3.6", "V13.2.4"]),
+    "probe.fetch-follows-redirect": ("running", ["V15.3.2"]),
     "probe.mcp-server-token-unchecked": ("running", ["C10.2.1"]),
     "probe.mcp-server-takes-unknown-or-oversized-arguments": ("running", ["C10.4.3"]),
     "probe.mcp-server-takes-wrong-types": ("running", ["C10.4.4"]),
@@ -268,6 +270,8 @@ RUST_FINDINGS_ONLY = {
     "probe.ai-reply-carries-others-data",
     # The requirement names no size, and this is one size.
     "probe.mcp-server-no-size-limit",
+    # The fence has no address that should be allowed, so not fetching is never credit.
+    "probe.fetch-goes-anywhere",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
     "probe.retired-grants-offered",

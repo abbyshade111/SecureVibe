@@ -16,6 +16,7 @@ pub mod config;
 pub mod confirm;
 pub mod cvss;
 pub mod design;
+pub mod fetch;
 pub mod finding;
 pub mod grants;
 pub mod hand;

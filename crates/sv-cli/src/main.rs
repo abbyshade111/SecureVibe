@@ -1210,6 +1210,7 @@ fn running_app_evidence(
         &outcome.oidc,
         &outcome.ai,
         &outcome.mcp_server,
+        &outcome.fetch,
     ]
     .into_iter()
     .flatten()

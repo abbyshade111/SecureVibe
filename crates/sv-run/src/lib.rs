@@ -164,6 +164,9 @@ pub struct RunPlan {
     pub ai: Option<sv_manifest::AiSection>,
     /// Where the app answers as an MCP server, when securevibe.toml says.
     pub mcp_server: Option<sv_manifest::McpServerSection>,
+    /// A feature that fetches an address a person gives it, when securevibe.toml says how to reach
+    /// it. The run then starts the test model, whose server records each fetch.
+    pub fetch: Option<sv_manifest::FetchSection>,
     /// Where the app answers GraphQL and WebSocket connections, when securevibe.toml says.
     pub graphql: Option<String>,
     pub websocket: Option<String>,
@@ -234,6 +237,7 @@ impl RunPlan {
             oidc: run.oidc.clone(),
             ai: run.ai.clone(),
             mcp_server: run.mcp_server.clone(),
+            fetch: run.fetch.clone(),
             graphql: run.graphql.clone(),
             websocket: run.websocket.clone(),
             public_api: manifest.capabilities.public_api,
@@ -280,6 +284,8 @@ pub struct RunOutcome {
     pub ai: Option<sv_check::signed_in::Outcome>,
     /// What asking the app as an MCP server showed, when securevibe.toml says where it answers.
     pub mcp_server: Option<sv_check::signed_in::Outcome>,
+    /// What asking the feature that fetches an address showed, when securevibe.toml says how.
+    pub fetch: Option<sv_check::signed_in::Outcome>,
     /// Containers and networks an earlier run on this machine left behind when its process was
     /// killed outright, removed before this run started. See `cleanup`.
     pub left_over_removed: Vec<String>,

@@ -40,6 +40,10 @@
 //           that breaks the tool's declared output schema, or one carrying an injected
 //           instruction; and whatever the app then sends back as the tool's result is recorded
 //
+// `GET /_sv/fetch/<tag>` and `GET /_sv/redirect/<tag>` are addresses for a feature of the app that
+// fetches what it is given: each request is recorded, and the redirect points at
+// `/_sv/fetch/<tag>-after`. `GET /_sv/fetched/<tag>` says whether either was asked for.
+//
 // `GET /_sv/seen/<tag>` says what arrived for that tag: whether it did, which of its markers, the
 // instructions it came with, whether the request limited the reply's length, whether anything has
 // since fetched the address an IMAGE reply named, and whether the app asked the moderation endpoint
@@ -56,6 +60,8 @@ const MODEL = 'sv-test-model';
 // How many tool rounds MCPLOOP keeps asking for before it stops by itself.
 const LOOP_CAP = 40;
 const seen = new Map(); // tag -> { kind, system, bounded, fetched, api, model, input_tokens, output_tokens }
+// Tags a feature of the app fetched through `/_sv/fetch/` or `/_sv/redirect/` (V1.3.6, V15.3.2).
+const fetches = new Set();
 const between = (low, high) => low + Math.floor(Math.random() * (high - low));
 
 const text = (content) => {
@@ -470,6 +476,22 @@ http
       const what = seen.get(seenAt[1]);
       return json(res, 200, what ? { received: true, ...what } : { received: false });
     }
+    // A feature of the app that fetches an address it is given: each fetch is recorded by its tag,
+    // and `/_sv/redirect/<tag>` answers with a redirect to `/_sv/fetch/<tag>-after`.
+    const fetchAt = /^\/_sv\/fetch\/([0-9a-f]+(?:-after)?)$/.exec(path);
+    if (fetchAt) {
+      fetches.add(fetchAt[1]);
+      res.writeHead(200, { 'content-type': 'text/html' });
+      return res.end('<html><head><title>sv test page</title></head><body>A page.</body></html>');
+    }
+    const redirectAt = /^\/_sv\/redirect\/([0-9a-f]+)$/.exec(path);
+    if (redirectAt) {
+      fetches.add(redirectAt[1]);
+      res.writeHead(302, { location: `http://${HOST}:${PORT}/_sv/fetch/${redirectAt[1]}-after` });
+      return res.end();
+    }
+    const fetchedAt = /^\/_sv\/fetched\/([0-9a-f]+(?:-after)?)$/.exec(path);
+    if (req.method === 'GET' && fetchedAt) return json(res, 200, { fetched: fetches.has(fetchedAt[1]) });
     const exfil = /^\/_sv\/exfil\/([0-9a-f]+)/.exec(path);
     if (exfil) {
       const what = seen.get(exfil[1]) || { received: false };

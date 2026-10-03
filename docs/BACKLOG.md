@@ -74,6 +74,9 @@ another session is not a claim.
   6. **Requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4).** For a feature that fetches an address,
      named in `securevibe.toml`, give it the test model's canary inside the fence, which already records every
      fetch; a canary that answers with a redirect shows whether the app follows it. The fence makes this safe.
+     **Done on 3 October 2026** (DESIGN, "A feature that fetches an address a person gives it"), behind
+     `[stack.run.fetch]`: fetched is a finding against V1.3.6 and V13.2.4 and never credit, and a followed redirect is a
+     finding against V15.3.2. Eight guards broken in turn, each caught.
      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking to continue with the backlog,
      in branch `claude/app-fetches`.
   7. **SQL injection on the app's own records and search (V1.2.4; level 1).** The same request with an always-true

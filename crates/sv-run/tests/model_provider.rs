@@ -107,6 +107,25 @@ fn seen(port: u16, tag: &str) -> serde_json::Value {
     serde_json::from_str(&call(port, "GET", &format!("/_sv/seen/{tag}"), "")).unwrap()
 }
 
+fn seen_fetched(port: u16, tag: &str) -> bool {
+    let v: serde_json::Value =
+        serde_json::from_str(&call(port, "GET", &format!("/_sv/fetched/{tag}"), "")).unwrap();
+    v["fetched"].as_bool().expect("a yes or no")
+}
+
+/// The whole answer, head included, for one that is not JSON.
+fn raw_get(port: u16, path: &str) -> String {
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    write!(
+        stream,
+        "GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
+    )
+    .unwrap();
+    let mut text = String::new();
+    stream.read_to_string(&mut text).unwrap();
+    text
+}
+
 fn moderate(port: u16, input: &str) -> bool {
     let body = serde_json::json!({ "input": input, "model": "omni-moderation-latest" });
     let answer: serde_json::Value =
@@ -168,6 +187,27 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     );
     chat(port, "SV-PROBE-LONG-0c0d xxxx");
     assert_eq!(seen(port, "0c0d")["kinds"], serde_json::json!(["LONG"]));
+
+    // V1.3.6 and V15.3.2: a fetch is recorded by its tag, the redirect points at its `-after`, and
+    // nothing is recorded that was not asked for.
+    assert!(!seen_fetched(port, "4a4b"));
+    let (status, _) = call_with_status(port, "GET", "/_sv/fetch/4a4b", "");
+    assert_eq!(status, 200);
+    assert!(seen_fetched(port, "4a4b"));
+    let redirect = raw_get(port, "/_sv/redirect/5a5b");
+    assert!(redirect.starts_with("HTTP/1.1 302"), "{redirect}");
+    assert!(
+        redirect
+            .to_lowercase()
+            .contains("location: http://sv-model:")
+            && redirect.contains("/_sv/fetch/5a5b-after"),
+        "{redirect}"
+    );
+    assert!(seen_fetched(port, "5a5b"));
+    assert!(
+        !seen_fetched(port, "5a5b-after"),
+        "the redirect alone fetches nothing more"
+    );
 
     // C5.2.2 and C5.2.4: RECALL records the private markers wherever the app put them (here, in
     // its instructions, as a search result often is), repeats them, and records none when none came.
