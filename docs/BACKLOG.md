@@ -66,6 +66,9 @@ another session is not a claim.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
+     **Done on 3 October 2026** (DESIGN, "Text reflected into a page without encoding"), as findings only: an encoded
+     echo is not credited, since one value on three pages is not every place the app writes out what it was sent.
+     Twelve guards broken in turn, each caught: five by two tests or more, seven by the one test written for each.
      **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
      `claude/reflected-text`.
   6. **Requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4).** For a feature that fetches an address,

@@ -1761,10 +1761,15 @@ mod probe_tests {
             "<p>filler</p>".repeat(460)
         );
         let answer = parse_response("reflect-missing", &raw).expect("an answer");
-        assert!(raw.find(mark).unwrap() > KEPT_CHARS, "the setup: past the cut");
+        assert!(
+            raw.find(mark).unwrap() > KEPT_CHARS,
+            "the setup: past the cut"
+        );
         let findings = sv_check::probes::evaluate(&[answer]);
         assert!(
-            findings.iter().any(|f| f.rule_id == "probe.reflected-unencoded"),
+            findings
+                .iter()
+                .any(|f| f.rule_id == "probe.reflected-unencoded"),
             "{:?}",
             findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
         );
