@@ -999,6 +999,11 @@ mod tests {
         no_size_limit: bool,
         /// Its tool fails with a server error whatever it is sent.
         tool_broken: bool,
+        /// Its tool fails with a server error on an argument it should refuse, rather than refusing.
+        crashes_on_bad_arguments: bool,
+        /// Its tool refuses a bad argument as a tool error (`isError: true`), not a JSON-RPC error.
+        /// Not a fault.
+        refuses_in_result: bool,
     }
 
     /// The largest request the careful fake reads, past the long argument and short of the large
@@ -1122,6 +1127,12 @@ mod tests {
                     None
                 };
                 match fault {
+                    Some(_) if self.flaws.crashes_on_bad_arguments => {
+                        return reply(500, Vec::new(), "Internal Server Error".into());
+                    }
+                    Some(why) if self.flaws.refuses_in_result => serde_json::json!({
+                        "jsonrpc": "2.0", "id": id,
+                        "result": {"content": [{"type": "text", "text": why}], "isError": true}}),
                     Some(why) => serde_json::json!({"jsonrpc": "2.0", "id": id,
                         "error": {"code": -32602, "message": why}}),
                     None => serde_json::json!({"jsonrpc": "2.0", "id": id,
@@ -1491,5 +1502,48 @@ mod tests {
                 .any(|w| w.contains("meant to answer anyone"))
         );
         assert!(!server.sent.iter().any(|r| r.id.starts_with("mcp-no-token")));
+    }
+
+    #[test]
+    fn a_tool_error_is_a_refusal_and_a_crash_is_not() {
+        // Refused as the tool's own error, `isError: true`: credited, as a JSON-RPC error is.
+        let (o, _) = ask_all(Flaws {
+            refuses_in_result: true,
+            ..Default::default()
+        });
+        assert!(
+            credited(&o).contains(&PARAMETERS_UNCHECKED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        assert!(
+            credited(&o).contains(&TYPES_UNCHECKED.rule_id),
+            "{:?}",
+            o.steps
+        );
+        // A crash on each bad argument: neither found nor credited, and said.
+        let (o, _) = ask_all(Flaws {
+            crashes_on_bad_arguments: true,
+            ..Default::default()
+        });
+        for rule in [&PARAMETERS_UNCHECKED, &TYPES_UNCHECKED] {
+            assert!(!found(&o).contains(&rule.rule_id), "{:?}", o.steps);
+            assert!(
+                !credited(&o).contains(&rule.rule_id),
+                "{} {:?}",
+                rule.rule_id,
+                o.steps
+            );
+        }
+        assert!(
+            why(&o, "C10.4.3")
+                .iter()
+                .any(|w| w.contains("not a refusal"))
+        );
+        assert!(
+            why(&o, "C10.4.4")
+                .iter()
+                .any(|w| w.contains("not a refusal"))
+        );
     }
 }
