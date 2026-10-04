@@ -228,6 +228,8 @@ another session is not a claim.
     the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
   - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-session-cookie`.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
     credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
     with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
