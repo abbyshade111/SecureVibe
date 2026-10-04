@@ -252,9 +252,12 @@ fn minutes_text(n: u32) -> String {
 
 /// Whether a session value this check invented is refused (V7.2.1).
 ///
-/// The app's own cookie says what a session looks like; this sends one of the same name and shape
-/// that no session store could ever have issued. A private page that opens for it is an app taking
-/// the cookie's word rather than checking it.
+/// The cookies the app set at sign-in are the session; every other cookie it gave (an anti-forgery
+/// cookie from the sign-in page, a preference) is not. Each sign-in cookie is given a value of the
+/// same length that no session store could have issued, and every other cookie is sent as it was,
+/// so the request differs from the real one in the session alone. A private page that opens for it
+/// is an app taking the cookie's word rather than checking it. The real session is sent first, as
+/// the control: a refusal is credited only when that just opened the same page.
 ///
 /// Different from V7.2.3, which asks whether a real session id could be *guessed*. This asks
 /// whether anything is checked at all, which is the more basic failure and the cheaper one to make.
@@ -264,25 +267,71 @@ pub(super) fn invented_session_check(
     confirm: Option<&str>,
     out: &mut Outcome,
 ) {
-    let (Some(confirm), Some(real)) = (confirm, signed_in.session.cookies.first()) else {
+    let Some(confirm) = confirm else {
         return;
     };
-    // The same name and the same length, so nothing is refused merely for being the wrong shape.
-    let (name, real_value) = real;
-    let invented: String = "sv0probe0invented0session0value0"
-        .chars()
-        .cycle()
-        .take(real_value.chars().count().max(16))
-        .collect();
-    if invented == *real_value {
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push(("V7.2.1".to_owned(), why));
+    if signed_in.set_at_login.is_empty() {
+        say(
+            "Whether a made-up session value is refused: signing in set no cookie, so there is no \
+             session cookie of the app's own to alter."
+                .to_owned(),
+            out,
+        );
         return;
     }
-    let mut session = Session::default();
-    session.cookies.push((name.clone(), invented));
-    let response = http.send(&get("invented-session", confirm, &session));
-    let opened = ok(&response);
+    if signed_in.session.bearer.is_some() {
+        say(
+            "Whether a made-up session value is refused: signing in also gave a token, which may be \
+             what carries the session, so altering the cookies alone would show nothing."
+                .to_owned(),
+            out,
+        );
+        return;
+    }
+    let mut session = signed_in.session.clone();
+    let mut altered = Vec::new();
+    for (name, value) in &mut session.cookies {
+        if !signed_in.set_at_login.iter().any(|c| c.name == *name) {
+            continue;
+        }
+        // The same length, so nothing is refused merely for being the wrong shape.
+        let invented: String = "sv0probe0invented0session0value0"
+            .chars()
+            .cycle()
+            .take(value.chars().count().max(16))
+            .collect();
+        if invented != *value {
+            *value = invented;
+            altered.push(format!("`{name}`"));
+        }
+    }
+    if altered.is_empty() {
+        return;
+    }
+    let altered = altered.join(", ");
+    let control = ok(&http.send(&get(
+        "invented-session-control",
+        confirm,
+        &signed_in.session,
+    )));
+    if !control {
+        out.steps.push(format!(
+            "asked for {confirm} with the real session, before making one up: refused"
+        ));
+        say(
+            format!(
+                "Whether a made-up session value is refused: the real session did not open \
+                 {confirm} just before, so a refusal of a made-up one would show nothing."
+            ),
+            out,
+        );
+        return;
+    }
+    let opened = ok(&http.send(&get("invented-session", confirm, &session)));
     out.steps.push(format!(
-        "asked for {confirm} with a session value this check invented: {}",
+        "asked for {confirm} with the real session (opened), then with a session value this \
+         check invented in {altered} and every other cookie kept: {}",
         if opened { "opened" } else { "refused" }
     ));
     if opened {
@@ -291,9 +340,9 @@ pub(super) fn invented_session_check(
             "A made-up session value opens a private page",
             Severity::High,
             format!(
-                "A cookie named `{}`, of the same length as a real one but with a value this check \
-                 made up, opened {confirm}.",
-                name
+                "With {altered}, the cookies set at sign-in, given values of the same length that \
+                 this check made up, and the app's other cookies as they were, {confirm} still \
+                 opened."
             ),
         ));
     } else {
@@ -301,8 +350,8 @@ pub(super) fn invented_session_check(
             SESSION_TOKEN_UNVERIFIED.rule_id,
             SESSION_TOKEN_UNVERIFIED.requirement_ids,
             format!(
-                "a cookie of the app's own session name and length, with an invented value, \
-                 refused {confirm} where the real session opened it"
+                "{altered}, set at sign-in, given made-up values of the same length with the app's \
+                 other cookies kept, refused {confirm}, where the real session had just opened it"
             ),
         ));
     }
@@ -1301,6 +1350,192 @@ mod tests {
         let correct = run_against(Flaws::default(), &users());
         assert!(!rule_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
         assert!(verified_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
+    }
+
+    /// A run against the scripted app with a cookie set on the sign-in page before the session
+    /// cookie, and, when `needed`, an app that treats a request without it as signed out.
+    fn run_with_pre_login_cookie(believes_any: bool, needed: bool) -> Outcome {
+        let mut app = FakeApp::new(Flaws {
+            session_not_verified: believes_any,
+            ..Default::default()
+        });
+        app.pre_login_cookie = true;
+        app.needs_pre_login_cookie = needed;
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        run(&mut app, &users(), &acc, true, &Default::default())
+    }
+
+    #[test]
+    fn the_cookie_set_at_sign_in_is_the_one_made_up_and_the_rest_are_kept() {
+        // The anti-forgery cookie comes first. Making that one up, and sending it alone, is refused
+        // by any app for want of a session at all, which is how an app believing any session id
+        // was credited.
+        for needed in [false, true] {
+            let believing = run_with_pre_login_cookie(true, needed);
+            assert!(
+                believing
+                    .steps
+                    .iter()
+                    .any(|s| s.contains("session value this check invented in `sid` and")),
+                "the setup: the session cookie is the one altered: {:#?}",
+                believing.steps
+            );
+            assert!(
+                rule_ids(&believing).contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+                "needed {needed}: {:?}",
+                rule_ids(&believing)
+            );
+            assert!(!verified_ids(&believing).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
+            // The control: an app that checks its sessions is credited, with the other cookie
+            // kept where the app refuses requests without it.
+            let correct = run_with_pre_login_cookie(false, needed);
+            assert!(
+                !rule_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+                "needed {needed}: {:?}",
+                rule_ids(&correct)
+            );
+            assert!(
+                verified_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+                "needed {needed}: {:?}\n{:#?}",
+                verified_ids(&correct),
+                correct.not_assessed
+            );
+        }
+    }
+
+    /// An app that answers each request id from a list, and records what it was sent.
+    struct Scripted {
+        open: Vec<&'static str>,
+        sent: Vec<ProbeRequest>,
+    }
+
+    impl Http for Scripted {
+        fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+            self.sent.push(request.clone());
+            Some(ProbeResponse {
+                id: request.id.clone(),
+                status: if self.open.contains(&request.id.as_str()) {
+                    200
+                } else {
+                    403
+                },
+                headers: Vec::new(),
+                body: String::new(),
+            })
+        }
+    }
+
+    fn signed_in_with(bearer: Option<&str>, set_at_login: &[&str]) -> SignedIn {
+        let mut session = Session::default();
+        session
+            .cookies
+            .push(("csrftoken".into(), "pre-login-value".into()));
+        session
+            .cookies
+            .push(("sid".into(), "0123456789abcdef0123".into()));
+        session.bearer = bearer.map(str::to_owned);
+        SignedIn {
+            session,
+            set_at_login: set_at_login
+                .iter()
+                .map(|n| Cookie {
+                    name: (*n).to_owned(),
+                    value: String::new(),
+                    http_only: true,
+                    same_site: None,
+                    secure: false,
+                    path: None,
+                })
+                .collect(),
+            before_login: Vec::new(),
+            landed: String::new(),
+        }
+    }
+
+    #[test]
+    fn a_refusal_is_credited_only_after_the_real_session_opened_the_page() {
+        // The control opens, the made-up session does not: credited, and the request differed
+        // from the real one in `sid` alone.
+        let mut app = Scripted {
+            open: vec!["invented-session-control"],
+            sent: Vec::new(),
+        };
+        let mut out = Outcome::default();
+        invented_session_check(
+            &mut app,
+            &signed_in_with(None, &["sid"]),
+            Some("/account"),
+            &mut out,
+        );
+        assert!(
+            verified_ids(&out).contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+            "{out:#?}"
+        );
+        let invented = app
+            .sent
+            .iter()
+            .find(|r| r.id == "invented-session")
+            .expect("sent");
+        let cookie = &invented
+            .headers
+            .iter()
+            .find(|(k, _)| k == "Cookie")
+            .expect("cookies")
+            .1;
+        assert!(cookie.contains("csrftoken=pre-login-value"), "{cookie}");
+        assert!(!cookie.contains("0123456789abcdef0123"), "{cookie}");
+        assert!(cookie.contains("sid=sv0probe0invented0s"), "{cookie}");
+
+        // Everything refused, the real session included: nothing is shown, so nothing credited.
+        let mut app = Scripted {
+            open: Vec::new(),
+            sent: Vec::new(),
+        };
+        let mut out = Outcome::default();
+        invented_session_check(
+            &mut app,
+            &signed_in_with(None, &["sid"]),
+            Some("/account"),
+            &mut out,
+        );
+        assert!(
+            !verified_ids(&out).contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+            "{out:#?}"
+        );
+        assert!(rule_ids(&out).is_empty(), "{out:#?}");
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V7.2.1" && why.contains("real session"))
+        );
+
+        // No cookie set at sign-in, or a token beside the cookies: not assessed, nothing sent.
+        for signed_in in [
+            signed_in_with(None, &[]),
+            signed_in_with(Some("token"), &["sid"]),
+        ] {
+            let mut app = Scripted {
+                open: vec!["invented-session-control", "invented-session"],
+                sent: Vec::new(),
+            };
+            let mut out = Outcome::default();
+            invented_session_check(&mut app, &signed_in, Some("/account"), &mut out);
+            assert!(app.sent.is_empty(), "{:?}", app.sent);
+            assert!(
+                out.verified.is_empty() && out.findings.is_empty(),
+                "{out:#?}"
+            );
+            assert!(
+                out.not_assessed.iter().any(|(id, _)| id == "V7.2.1"),
+                "{out:#?}"
+            );
+        }
     }
 
     #[test]

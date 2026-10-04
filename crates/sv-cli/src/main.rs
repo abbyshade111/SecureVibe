@@ -744,7 +744,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
          cookies and no credentials, and follows no redirect to any other host.\n"
     );
 
-    let mut http = sv_check::production::Curl::new();
+    // Looked up once, here, and every address checked before anything is sent: a name that leads
+    // to this computer or its network is refused, and curl is held to the addresses checked.
+    let addresses =
+        sv_check::production::addresses(&target, &mut sv_check::production::SystemResolver)
+            .map_err(|why| anyhow::anyhow!("{why}"))?;
+    let mut http = sv_check::production::Curl::held_to(&target, &addresses);
     let mut out = sv_check::production::run(&mut http, &target);
     // Whether the site answered at all, decided from its own answers before the two questions
     // below, which ask DNS and a local file rather than the site.

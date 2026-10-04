@@ -1,0 +1,42 @@
+# Decision records kept with the change (BACKLOG, "Decision records written with the change, not after it", the
+# owner's decision of 4 October 2026).
+#
+# Each of `sv`'s decision records lists on its `**Governs:**` line the files whose change can change the decision. A
+# pull request that touches one must change that record, or say in its description, on a line of its own,
+# `ADR-0NN: unchanged, because ...`. `tools/adr_check.py` does the reading; its self-test runs first.
+#
+# It runs again when the description is edited, so adding the line is enough to turn the check green. The
+# description is read from the event file by the script, never put into a shell command. Steps are pinned to an exact
+# commit fingerprint, as in rust.yml.
+
+name: Decision records
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: decision-records-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # The name is what `main`'s branch protection requires, so it says what it is and is unlike any other job's.
+  decision-records:
+    name: Decision records
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: The check's own test
+        run: python3 tools/adr_check.py --self-test
+      - name: What this pull request owes the decision records
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python3 tools/adr_check.py --base "$BASE_SHA" --head "$HEAD_SHA" --event "$GITHUB_EVENT_PATH"

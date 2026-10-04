@@ -4,6 +4,31 @@ A decision record ("ADR", architecture decision record) writes down one decision
 else was considered, and what it costs. It is kept so that nobody has to reconstruct the reasoning later from
 code, and so that undoing the decision is a choice made knowingly.
 
+## When a record is written, and how it stays true
+
+Since 4 October 2026, at the owner's asking, a record is written with the change that makes the decision, not after
+it. (`sv`'s first eleven were each written one to seven days after the decision, and only when a review noticed;
+`docs/paper/ADRS.md`.)
+
+- **What needs one.** A change to what counts as evidence or at which tier, to what `sv` runs or connects to, to what it
+  writes into someone's folder, to the network fence, a new or removed dependency, a default that changes what a report
+  concludes, and every choice the owner makes when a session asks. A change that does none of these needs none.
+- **When.** In the same pull request as the decision. For anything substantial, first: the backlog claim adds the
+  record as `Status: proposed`, and the pull request that builds it makes it accepted and says where the build
+  differs from the plan. A change to an existing decision is a dated "Later" entry on its record, or a new record that
+  replaces it; nothing in a record is quietly rewritten.
+- **Governs.** Each record lists the files whose change can change its decision. The "Decision records" check
+  (`.github/workflows/decision-records.yml`, `tools/adr_check.py`) fails a pull request that touches one of them and
+  neither changes the record nor says, on a line of its description, `ADR-0NN: unchanged, because ...` with a reason.
+  The reason is the point: it is the moment somebody reads the record against the change.
+- **References.** `crates/sv-cli/tests/decision_records.rs` fails when a record names a test or a file that no longer
+  exists, governs a pattern that matches nothing, or when any record number cited in the code or the documents has no
+  record, or a record is missing from the index below.
+- **Required.** The owner decided on 4 October 2026 that "Decision records" is a required check on `main`, so a pull
+  request that owes a record does not merge.
+- **The weekly review** stays as the safety net: once a week a scheduled session reads every record against the
+  week's merged pull requests, and reports how many days each new record came after its decision.
+
 ## Numbering
 
 One sequence runs across both versions of SecureVibe, so a number always means one decision.
@@ -45,7 +70,8 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-024](ADR-024.md) | An unanswered data list holds the app to ASVS level 2 |
 | [ADR-025](ADR-025.md) | `sv run` has an end: time limits, Ctrl-C that cleans up, and leftovers removed by the next run |
 | [ADR-026](ADR-026.md) | The owner's word counts only when `sv review` recorded it (changes part of ADR-022 and ADR-023) |
-| [ADR-027](ADR-027.md) | Exit codes: 2 only when a check could not run, 1 only when asked, 3 when `sv` failed |
+| [ADR-027](ADR-027.md) | `sv probe` asks only public addresses, and only the ones it checked |
+| [ADR-028](ADR-028.md) | Exit codes: 2 only when a check could not run, 1 only when asked, 3 when `sv` failed |
 
 ## Where v1's records disagree with what v1 built
 
