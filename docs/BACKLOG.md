@@ -86,6 +86,9 @@ another session is not a claim.
      a refusal is real credit. Common in apps an AI coding tool writes; no proposal was on file.
      **Claimed on 3 October 2026 by session securevibe-e9 and released the same day, not built.** The work stopped
      at the design stage; nothing was written. The item is open again, and the owner decides whether it is taken up.
+     **The owner's decision, 4 October 2026: yes**, the altered contents under the same signature, `alg: none`, and
+     past its expiry, with the real token as the control. Not the two forms that point the app at a key the probe
+     controls (`jku`, `kid`), which would need a key server inside the fence.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
@@ -107,6 +110,9 @@ another session is not a claim.
      finding, read-only payloads only.
      **Claimed on 3 October 2026 by session securevibe-e9 and released the same day, not built.** The work stopped
      during design, before any code was written; it is left for the owner to decide how, or whether, to take it up.
+     **The owner's decision, 4 October 2026: yes, limited** to requests that only read (GET: searches, and pages for
+     one record), and only on the copy of the app `sv` starts itself, with its throwaway data, so an always-true
+     condition can never reach a request that changes data. Only ever a finding, as above.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -334,6 +340,11 @@ another session is not a claim.
      itself, and the backlog records that this once credited the tool's own answers to the owner. A
      `securevibe_record_answer` tool would write each answer with its author, so the rule is held by the code rather
      than by instructions.
+     **The owner's decision, 4 October 2026:** build it, with every answer the tool records marked as the AI tool's
+     own, at the lowest tier. `sv` cannot tell whether the person said something or the AI tool only says they did,
+     so the tool takes no "the owner said this"; an answer counts as the owner's only when the owner confirms it
+     themselves, at the terminal or by editing the file. **Claimed the same day by session securevibe-e2**, at the
+     owner's word, in branch `claude/securevibe-e2-record-answer`.
   2. **Keep the last report until the app's files change.** Every call builds the whole report again, and
      `securevibe_questions` runs the full check to list questions. Kept, "check after each feature" would be quick.
      **Measured on 3 October 2026, and not worth building yet:** with a release build, `sv check` of
@@ -1333,6 +1344,9 @@ another session is not a claim.
      either way.
      **V8.2.3, C9.3.2, C9.3.7, and V14.2.2 claimed on 28 September 2026 by session securevibe-e9**, at the
      owner's asking to go ahead with this group; V9.2.3 stays the owner's call.
+     **The owner's decision on V9.2.3, 4 October 2026: not cited by the running probe.** `probe.oidc-audience-not-checked`
+     tests an app that signs people in through a provider accepting an ID token meant for another app, which is
+     V10.5.4 exactly; V9.2.3 is spoken to by the code rule `ast.token-audience-not-checked` (item 12 below).
      **C9.3.2 and C9.3.7 done the same day** (`crates/sv-check/src/ai.rs`). **V8.2.3 and V14.2.2 wait for the
      `signed_in.rs` freeze to lift**, since their checks live there: add V8.2.3 to the requirement lists of
      `probe.role-field-trusted` and `probe.record-returns-secret-fields` (both only ever findings), and add a
@@ -1549,7 +1563,8 @@ another session is not a claim.
       `docs/PARTIAL-CHECKS.md` and item 2 above, which says a code rule fits whichever way the owner decides the
       running probe. A rule for the explicit switches tutorials copy: `verify_aud` False in PyJWT and python-jose,
       `ValidateAudience = false` in ASP.NET, and their like. Only ever a finding.
-      Whether `probe.oidc-audience-not-checked` should also cite V9.2.3 stays the owner's call. **Claimed on 30
+      Whether `probe.oidc-audience-not-checked` should also cite V9.2.3 was the owner's call; **the owner's decision,
+      4 October 2026: it does not** (see item 2 above). **Claimed on 30
       September 2026 by session securevibe-e2**, at the owner's asking to find another small check, in branch
       `claude/securevibe-e2-jwt-audience`.
       **Done the same day** (DESIGN, "A token check told not to check who the token is for"):
@@ -1690,6 +1705,8 @@ another session is not a claim.
   in code merged that week with no record, and costly to undo without its reasons. Its reasons are mostly already in
   `DESIGN.md` and the pull requests named. **Not claimed; each can be claimed on its own**, and which ones are worth a
   record is the owner's call.
+  **The owner's decision, 4 October 2026:** write records for items 1 to 5; fold item 6 into an existing record as a
+  line rather than a record of its own; item 7 needs none.
   1. **A crash's or a rate limiter's answer is never read as the app refusing** (#412, #416, #418, #420). Undone
      quietly, 29 passes come back that rest on an answer the app never gave.
   2. **Whose word counts, and at which tier:** an AI tool's answers are marked as its own, the owner's are credited
