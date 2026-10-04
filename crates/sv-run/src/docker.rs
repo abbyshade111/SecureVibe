@@ -1211,11 +1211,11 @@ impl DockerBackend {
     /// one from the other stops the run rather than passing for a fence.
     pub fn verify_gateway_closed(&self, network: &str) -> Result<(), CannotRun> {
         let fail = |detail: String| Err(CannotRun::BackendFailed { detail });
-        let gateways = match self.docker(&[
+        let config = match self.docker(&[
             "network",
             "inspect",
             "-f",
-            "{{range .IPAM.Config}}{{.Gateway}} {{end}}",
+            "{{range .IPAM.Config}}{{.Gateway}}|{{.Subnet}} {{end}}",
             network,
         ]) {
             Ok((0, out)) => out,
@@ -1227,20 +1227,23 @@ impl DockerBackend {
             }
             Err(e) => return fail(format!("could not read the fence's gateway: {e}")),
         };
-        let Some(gateway) = gateways
-            .split_whitespace()
-            .find(|g| g.parse::<std::net::Ipv4Addr>().is_ok())
-        else {
+        // A network made without a gateway address may list none at all, so the address a gateway would
+        // have, the subnet's first, is knocked on as well as any Docker names.
+        let targets = gateway_targets(&config);
+        if targets.is_empty() {
             return fail(format!(
-                "Docker names no gateway for the network `{network}` ({}), so whether the app could \
-                 reach this computer through it cannot be checked",
-                gateways.trim()
+                "Docker names no IPv4 gateway or subnet for the network `{network}` ({}), so whether the \
+                 app could reach this computer through it cannot be checked",
+                config.trim()
             ));
-        };
-        let script = format!(
-            "nc -z -w 3 127.0.0.1 {GATEWAY_PORT} 2>&1; echo \"sv-self=$?\"; \
-             nc -z -w 3 {gateway} {GATEWAY_PORT} 2>&1; echo \"sv-gateway=$?\""
-        );
+        }
+        let gateway = targets.join(", ");
+        let mut script = format!("nc -z -w 3 127.0.0.1 {GATEWAY_PORT} 2>&1; echo \"sv-self=$?\"");
+        for target in &targets {
+            script.push_str(&format!(
+                "; nc -z -w 3 {target} {GATEWAY_PORT} 2>&1; echo \"sv-gateway=$?\""
+            ));
+        }
         let out = match self.docker(&[
             "run",
             "--rm",
@@ -1783,26 +1786,50 @@ enum GatewayVerdict {
     Unknown(String),
 }
 
-/// Reads the two knocks: the container's own loopback (the control, which must be refused) and the
-/// gateway. A connection or a refusal from the gateway is the host answering; a timeout, no route, or an
-/// unreachable network is the fence holding. Anything else is not taken for either.
-fn gateway_verdict(out: &str) -> GatewayVerdict {
-    let section = |mark: &str| -> Option<(String, i32)> {
-        let mut text = String::new();
-        for line in out.lines() {
-            if let Some(code) = line.strip_prefix(mark) {
-                return Some((text, code.trim().parse().ok()?));
-            }
-            if line.starts_with("sv-") {
-                text.clear();
-            } else {
-                text.push_str(line);
-                text.push('\n');
-            }
+/// The addresses to knock on for a network: every IPv4 gateway Docker names, and the first address of
+/// every IPv4 subnet, where a gateway would be. Read from `Gateway|Subnet` pairs, space-separated.
+fn gateway_targets(config: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for pair in config.split_whitespace() {
+        let (gateway, subnet) = pair.split_once('|').unwrap_or((pair, ""));
+        if let Ok(ip) = gateway.parse::<std::net::Ipv4Addr>() {
+            out.push(ip.to_string());
         }
-        None
-    };
-    let Some((own, own_code)) = section("sv-self=") else {
+        if let Some((base, bits)) = subnet.split_once('/')
+            && let (Ok(base), Ok(bits)) = (base.parse::<std::net::Ipv4Addr>(), bits.parse::<u32>())
+            && bits < 31
+        {
+            let mask = u32::MAX.checked_shl(32 - bits).unwrap_or(0);
+            out.push(std::net::Ipv4Addr::from((u32::from(base) & mask) + 1).to_string());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Reads the knocks: the container's own loopback (the control, which must be refused) and then each
+/// gateway address. A connection or a refusal from any of them is the host answering; a timeout, no
+/// route, or an unreachable network from every one is the fence holding. Anything else is not taken
+/// for either.
+fn gateway_verdict(out: &str) -> GatewayVerdict {
+    // Each knock's output, and its exit status, in order.
+    let mut sections: Vec<(String, String, Option<i32>)> = Vec::new();
+    let mut text = String::new();
+    for line in out.lines() {
+        if let Some((mark, code)) = line.split_once('=').filter(|(m, _)| m.starts_with("sv-")) {
+            sections.push((
+                mark.to_owned(),
+                std::mem::take(&mut text),
+                code.trim().parse().ok(),
+            ));
+        } else {
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
+    let Some((_, own, Some(own_code))) = sections.iter().find(|(m, _, _)| m == "sv-self").cloned()
+    else {
         return GatewayVerdict::Unknown("the check did not run".to_owned());
     };
     if own_code == 0 || !own.to_lowercase().contains("refused") {
@@ -1811,20 +1838,31 @@ fn gateway_verdict(out: &str) -> GatewayVerdict {
             own.trim()
         ));
     }
-    let Some((gateway, code)) = section("sv-gateway=") else {
+    let knocks: Vec<&(String, String, Option<i32>)> = sections
+        .iter()
+        .filter(|(m, _, _)| m == "sv-gateway")
+        .collect();
+    if knocks.is_empty() {
         return GatewayVerdict::Unknown("the knock on the gateway did not report back".to_owned());
-    };
-    let said = gateway.to_lowercase();
-    if code == 0 || said.contains("refused") {
-        GatewayVerdict::Reachable
-    } else if said.contains("timed out")
-        || said.contains("timeout")
-        || said.contains("no route")
-        || said.contains("unreachable")
-    {
-        GatewayVerdict::Closed
-    } else {
-        GatewayVerdict::Unknown(format!("nc said: {}", gateway.trim()))
+    }
+    let mut unknown = None;
+    for (_, said, code) in knocks {
+        let lower = said.to_lowercase();
+        if *code == Some(0) || lower.contains("refused") {
+            return GatewayVerdict::Reachable;
+        }
+        let closed = code.is_some()
+            && (lower.contains("timed out")
+                || lower.contains("timeout")
+                || lower.contains("no route")
+                || lower.contains("unreachable"));
+        if !closed && unknown.is_none() {
+            unknown = Some(format!("nc said: {}", said.trim()));
+        }
+    }
+    match unknown {
+        Some(why) => GatewayVerdict::Unknown(why),
+        None => GatewayVerdict::Closed,
     }
 }
 
@@ -2750,6 +2788,33 @@ mod gateway_tests {
                 "{gateway}"
             );
         }
+    }
+
+    #[test]
+    fn the_subnets_first_address_is_knocked_on_when_no_gateway_is_named() {
+        // What GitHub's Docker said of a network made without a gateway address: no gateway listed.
+        assert_eq!(gateway_targets("|172.18.0.0/16 "), vec!["172.18.0.1"]);
+        assert_eq!(
+            gateway_targets("172.20.0.1|172.20.0.0/16 "),
+            vec!["172.20.0.1"]
+        );
+        assert_eq!(
+            gateway_targets("10.9.0.254|10.9.0.0/24 |fd00::/64 "),
+            vec!["10.9.0.1", "10.9.0.254"]
+        );
+        assert!(gateway_targets("").is_empty());
+        assert!(gateway_targets("|fd00::/64 ").is_empty());
+    }
+
+    #[test]
+    fn one_answering_address_of_several_is_reachable() {
+        let out = format!(
+            "{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: can't connect to remote host (10.9.0.254): Connection refused\nsv-gateway=1\n"
+        );
+        assert_eq!(gateway_verdict(&out), GatewayVerdict::Reachable);
+        let out =
+            format!("{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: timed out\nsv-gateway=1\n");
+        assert_eq!(gateway_verdict(&out), GatewayVerdict::Closed);
     }
 
     #[test]
