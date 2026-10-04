@@ -1002,6 +1002,10 @@ pub struct DesignAnswer {
     /// A person confirming the AI tool's answer, with what they looked at. See `sv-check::confirm`.
     #[serde(default)]
     pub confirmed: Option<Confirmed>,
+    /// What `sv review` writes when the owner records the answer as theirs. Without one that holds,
+    /// `by = "owner"` counts as the AI tool's word. See `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
 }
 
 /// A person confirming what the AI coding tool said. See `sv-check::confirm`.
@@ -1029,6 +1033,10 @@ pub struct Confirmed {
     /// For a check made by hand: the result confirmed.
     #[serde(default)]
     pub result: Option<String>,
+    /// What `sv review` writes when a person records the confirmation. Without one that holds, the
+    /// confirmation is a proposal. See `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
 }
 
 /// One check made by hand, and what was seen. See `sv-check::hand`.
@@ -1054,6 +1062,10 @@ pub struct HandCheck {
     /// A person confirming a check the AI tool made. See `sv-check::confirm`.
     #[serde(default)]
     pub confirmed: Option<Confirmed>,
+    /// What `sv review` writes when the owner records the check as theirs. Without one that holds,
+    /// `by = "owner"` counts as the AI tool's word. See `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -1089,8 +1101,8 @@ pub struct Manifest {
 /// One finding set aside, as `[[finding-review]]` in securevibe.toml.
 ///
 /// It names the finding by its rule, its file, and the fingerprint the report prints beside it, and
-/// says what a person decided and why. Only a person's word counts: an entry the AI coding tool
-/// wrote, or one without `by`, is shown as a proposal and the finding still counts.
+/// says what a person decided and why. Only an entry a person recorded through `sv review`, which
+/// seals it, counts: any other is shown as a proposal and the finding still counts.
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct FindingReview {
@@ -1108,6 +1120,10 @@ pub struct FindingReview {
     /// When, as YYYY-MM-DD.
     #[serde(default)]
     pub on: Option<String>,
+    /// What `sv review` writes when a person records the entry. Without one that holds, the entry is
+    /// a proposal. See `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
 }
 
 impl Manifest {

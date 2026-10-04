@@ -74,7 +74,7 @@
     <span><span class="sw" style="background:var(--other)"></span>vendored code</span>
     <span><span class="sw" style="background:var(--learn)"></span>dependencies</span>
   </div>
-  <div class="chart"><svg id="classes" viewBox="0 0 960 190" role="img" aria-label="Findings by class. Fitness Tracker 6: own 4, dependencies 2. Pain in the Butt 157: own 10, tests 145, dependencies 2. SecureFit 20: own 16, tests 2, dependencies 2. my-first-app 19: own 8, tests 11. family-hub 220: own 24, tests 52, vendored 142, dependencies 2."></svg></div>
+  <div class="chart"><svg id="classes" viewBox="0 0 960 190" role="img" aria-label="Findings by class. Fitness Tracker 6: own 4, dependencies 2. Health tracker 157: own 10, tests 145, dependencies 2. SecureFit 20: own 16, tests 2, dependencies 2. my-first-app 19: own 8, tests 11. family-hub 220: own 24, tests 52, vendored 142, dependencies 2."></svg></div>
 
   <div class="grid2">
     <div>
@@ -84,7 +84,7 @@
         <span><span class="sw" style="background:var(--sv)"></span>medium</span>
         <span><span class="sw" style="background:var(--other)"></span>low</span>
       </div>
-      <div class="chart"><svg id="rates" viewBox="0 0 460 200" role="img" aria-label="Own-code findings per 1,000 lines: Fitness Tracker 1.84 (high 0.92), Pain in the Butt 7.29 (high 0), SecureFit 2.29 (high 0.29), my-first-app 6.75 (high 0), family-hub 7.56 (high 2.84)."></svg></div>
+      <div class="chart"><svg id="rates" viewBox="0 0 460 200" role="img" aria-label="Own-code findings per 1,000 lines: Fitness Tracker 1.84 (high 0.92), Health tracker 7.29 (high 0), SecureFit 2.29 (high 0.29), my-first-app 6.75 (high 0), family-hub 7.56 (high 2.84)."></svg></div>
     </div>
     <div>
       <h2>3. What the requirements came to</h2>
@@ -94,7 +94,7 @@
         <span><span class="sw" style="background:var(--v1)"></span>answered in writing</span>
         <span><span class="sw" style="background:var(--empty)"></span>not verified</span>
       </div>
-      <div class="chart"><svg id="reqs" viewBox="0 0 460 200" role="img" aria-label="Requirements that apply: Fitness Tracker 196 (182 not verified), Pain in the Butt 185 (171), SecureFit 254 (247), my-first-app 207 (182), family-hub 217 (188)."></svg></div>
+      <div class="chart"><svg id="reqs" viewBox="0 0 460 200" role="img" aria-label="Requirements that apply: Fitness Tracker 196 (182 not verified), Health tracker 185 (171), SecureFit 254 (247), my-first-app 207 (182), family-hub 217 (188)."></svg></div>
     </div>
   </div>
 
@@ -105,7 +105,7 @@
 
   <div class="wrap">
     <table>
-      <thead><tr><th></th><th>Fitness Tracker</th><th>Pain in the Butt</th><th>SecureFit</th><th>my-first-app</th><th>family-hub</th></tr></thead>
+      <thead><tr><th></th><th>Fitness Tracker</th><th>Health tracker</th><th>SecureFit</th><th>my-first-app</th><th>family-hub</th></tr></thead>
       <tbody id="tab"></tbody>
     </table>
   </div>
@@ -122,7 +122,7 @@
 (() => {
   const NS = "http://www.w3.org/2000/svg";
   const mk = (svg, tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
-  const apps = ["Fitness Tracker", "Pain in the Butt", "SecureFit", "my-first-app", "family-hub"];
+  const apps = ["Fitness Tracker", "Health tracker", "SecureFit", "my-first-app", "family-hub"];
   // [own, tests, vendored, dependencies]
   const cls = [[4, 0, 0, 2], [10, 145, 0, 2], [16, 2, 0, 2], [8, 11, 0, 0], [24, 52, 142, 2]];
   const C = ["var(--sv)", "var(--v1)", "var(--other)", "var(--learn)"];

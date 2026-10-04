@@ -17,3 +17,4 @@ sv-report = { path = "../sv-report" }
 sv-scan = { path = "../sv-scan" }
 sv-run = { path = "../sv-run" }
 sv-check = { path = "../sv-check" }
+toml_edit = "0.25"

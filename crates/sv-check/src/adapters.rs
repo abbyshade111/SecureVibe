@@ -1644,7 +1644,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         let (_, rule) = adapter(&dir, "unused");
         let seen = dir.join("seen");
         let ending = format!(
-            "d=$(dirname \"$1\"); echo \"$d $(stat -c %a \"$d\")\" >> '{}'; CLEAN; exit 1",
+            "d=$(dirname \"$1\"); echo \"$d $(stat -c %a \"$d\" 2>/dev/null || stat -f %Lp \"$d\")\" >> '{}'; CLEAN; exit 1",
             seen.display()
         );
         let adapter = tool(&dir, &rule, &ending);

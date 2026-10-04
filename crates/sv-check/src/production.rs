@@ -182,16 +182,36 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
 
 /// A redirect's destination, when it names one.
 fn redirect_host(answer: &Answer) -> Option<String> {
-    let location = answer.header("location")?;
-    let rest = location
-        .strip_prefix("https://")
-        .or_else(|| location.strip_prefix("http://"))?;
+    let (_, rest) = redirect_parts(answer)?;
     Some(
         rest.split(['/', '?', '#'])
             .next()
             .unwrap_or_default()
             .to_owned(),
     )
+}
+
+/// An absolute `Location`, split into whether it is HTTPS and what follows the scheme. A relative
+/// one (`/login`, `//host/`) is `None`: it keeps the scheme of the request, which was plain HTTP.
+fn redirect_parts(answer: &Answer) -> Option<(bool, &str)> {
+    let location = answer.header("location")?.trim();
+    let scheme_end = location.find("://")?;
+    let scheme = &location[..scheme_end];
+    let rest = &location[scheme_end + 3..];
+    if scheme.eq_ignore_ascii_case("https") {
+        Some((true, rest))
+    } else if scheme.eq_ignore_ascii_case("http") {
+        Some((false, rest))
+    } else {
+        None
+    }
+}
+
+/// Whether a redirect sends the browser to HTTPS on the host the owner named. Only an absolute
+/// `https://` address does: a relative one, or one to `http://`, leaves the browser on plain HTTP.
+fn redirects_to_https(answer: &Answer, host: &str) -> bool {
+    matches!(redirect_parts(answer), Some((true, _)))
+        && redirect_host(answer).is_some_and(|to| to.eq_ignore_ascii_case(host))
 }
 
 #[derive(Debug, Default)]
@@ -283,6 +303,64 @@ const NO_HSTS: Rule = Rule {
     fix: "Send `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS answers, \
           once you are sure every subdomain is served over HTTPS.",
 };
+
+const WEAK_HSTS: Rule = Rule {
+    rule_id: "probe.no-hsts",
+    requirement_ids: &["V3.4.1"],
+    title: "The site tells browsers to use HTTPS, but not for long enough",
+    severity: Severity::Medium,
+    impact: "Browsers forget the instruction soon, or at once, so a later visit, or a link typed \
+             without https, can be intercepted before the redirect happens.",
+    fix: "Send `Strict-Transport-Security: max-age=31536000; includeSubDomains` on HTTPS answers, \
+          once you are sure every subdomain is served over HTTPS.",
+};
+
+/// A year in seconds: the shortest max-age V3.4.1 accepts.
+const HSTS_YEAR: u64 = 31_536_000;
+
+/// What a Strict-Transport-Security value says, read the way a browser reads it (RFC 6797, 6.1).
+#[derive(Debug, PartialEq, Eq)]
+struct Hsts {
+    max_age: u64,
+    include_subdomains: bool,
+}
+
+/// `None` when a browser would ignore the header: no max-age, one that is not a number, or a
+/// directive given twice.
+fn read_hsts(value: &str) -> Option<Hsts> {
+    let mut max_age = None;
+    let mut include_subdomains = false;
+    let mut seen = std::collections::BTreeSet::new();
+    for directive in value.split(';').map(str::trim).filter(|d| !d.is_empty()) {
+        let (name, arg) = match directive.split_once('=') {
+            Some((n, a)) => (n.trim(), Some(a.trim())),
+            None => (directive, None),
+        };
+        let name = name.to_ascii_lowercase();
+        if !seen.insert(name.clone()) {
+            return None;
+        }
+        match name.as_str() {
+            "max-age" => {
+                let digits = arg?
+                    .strip_prefix('"')
+                    .and_then(|a| a.strip_suffix('"'))
+                    .unwrap_or(arg?);
+                if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+                    return None;
+                }
+                // A number too long for u64 is still a very long time.
+                max_age = Some(digits.parse().unwrap_or(u64::MAX));
+            }
+            "includesubdomains" => include_subdomains = true,
+            _ => {}
+        }
+    }
+    Some(Hsts {
+        max_age: max_age?,
+        include_subdomains,
+    })
+}
 
 const COOKIE_WITHOUT_HOST_PREFIX: Rule = Rule {
     rule_id: "probe.cookie-without-host-prefix",
@@ -485,19 +563,60 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
         ));
     }
 
-    // 2. Strict-Transport-Security, on the answer that came back over HTTPS.
-    match secure.header("strict-transport-security") {
-        Some(value) => out.verified.push(Verified::new(
-            NO_HSTS.rule_id,
-            NO_HSTS.requirement_ids,
-            format!("{} sent Strict-Transport-Security: {value}", target.https),
-        )),
-        None if ordinary => out.findings.push(finding(
+    // 2. Strict-Transport-Security, on the answer that came back over HTTPS. V3.4.1 asks for a
+    // max-age of at least a year, and from level 2 for the policy to cover every subdomain. The
+    // header being there is not enough: `max-age=0` tells a browser to forget the site's policy.
+    // An error answer's headers were already set aside above, and are not read here either way.
+    match (ordinary, secure.header("strict-transport-security")) {
+        (false, _) => {}
+        (true, None) => out.findings.push(finding(
             &NO_HSTS,
             format!("{} sent no Strict-Transport-Security header.", target.https),
             &target.host,
         )),
-        None => {}
+        (true, Some(value)) => match read_hsts(value) {
+            None => out.findings.push(finding(
+                &WEAK_HSTS,
+                format!(
+                    "{} sent Strict-Transport-Security: {value}, which has no max-age a browser \
+                     can read, so browsers ignore it.",
+                    target.https
+                ),
+                &target.host,
+            )),
+            Some(hsts) if hsts.max_age < HSTS_YEAR => out.findings.push(finding(
+                &WEAK_HSTS,
+                format!(
+                    "{} sent Strict-Transport-Security: {value}. {}",
+                    target.https,
+                    if hsts.max_age == 0 {
+                        "A max-age of 0 tells browsers to forget the site's HTTPS-only policy."
+                            .to_owned()
+                    } else {
+                        format!(
+                            "A max-age of {} seconds is less than the year (31536000 seconds) \
+                             V3.4.1 asks for.",
+                            hsts.max_age
+                        )
+                    }
+                ),
+                &target.host,
+            )),
+            Some(hsts) if !hsts.include_subdomains => out.not_assessed.push((
+                "V3.4.1".to_owned(),
+                format!(
+                    "{} sent Strict-Transport-Security: {value}. That is a year or more, which is \
+                     what level 1 asks; from level 2, V3.4.1 also asks for includeSubDomains, which \
+                     it does not carry. Which level applies is yours to say, so it is not credited.",
+                    target.https
+                ),
+            )),
+            Some(_) => out.verified.push(Verified::new(
+                NO_HSTS.rule_id,
+                NO_HSTS.requirement_ids,
+                format!("{} sent Strict-Transport-Security: {value}", target.https),
+            )),
+        },
     }
 
     // 3. Cookies set over HTTPS, and whether they carry the `__Host-` prefix.
@@ -560,9 +679,10 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
         return out;
     }
     let to = redirect_host(&plain);
+    let to_https = redirects_to_https(&plain, &target.host);
     match (plain.status, to.as_deref()) {
         // A redirect away from the host the owner named is not followed. See the module note.
-        (_, Some(elsewhere)) if elsewhere != target.host => {
+        (_, Some(elsewhere)) if !elsewhere.eq_ignore_ascii_case(&target.host) => {
             out.not_assessed.push((
                 "V12.2.1".to_owned(),
                 format!(
@@ -572,6 +692,23 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
                 ),
             ));
         }
+        // A redirect that does not name `https://` on this host leaves the browser on plain HTTP:
+        // `/login`, or `http://` again. Where it ends up would take following it, which this does
+        // not do, so it is neither credited nor a finding.
+        (300..=399, _) if !to_https => out.not_assessed.push((
+            "V12.2.1".to_owned(),
+            format!(
+                "{} answered {} and sent the browser to {}, which is not an HTTPS address on {}. \
+                 Where a browser ends up from there would take following it, which this does not \
+                 do.",
+                target.http,
+                plain.status,
+                plain
+                    .header("location")
+                    .map_or("no address at all", str::trim),
+                target.host
+            ),
+        )),
         (301 | 308, _) => out.verified.push(Verified::new(
             PLAIN_HTTP_SERVED.rule_id,
             PLAIN_HTTP_SERVED.requirement_ids,
@@ -706,7 +843,10 @@ mod tests {
             (
                 "https://example.test/",
                 ok(&[
-                    ("strict-transport-security", "max-age=31536000"),
+                    (
+                        "strict-transport-security",
+                        "max-age=31536000; includeSubDomains",
+                    ),
                     ("set-cookie", "__Host-session=abc; Secure; Path=/"),
                 ]),
             ),
@@ -926,6 +1066,162 @@ mod tests {
             "{:?}",
             rules(&out)
         );
+    }
+
+    /// The site at `target()`, with this HSTS value on its HTTPS answer (`None` sends none) and a
+    /// permanent redirect from plain HTTP.
+    fn hsts_site(hsts: Option<&str>, status: u16) -> FakeSite {
+        let mut secure = ok(&hsts
+            .map(|v| vec![("strict-transport-security", v)])
+            .unwrap_or_default());
+        secure.status = status;
+        site(&[
+            ("https://example.test/", secure),
+            (
+                "http://example.test/",
+                redirect(301, "https://example.test/"),
+            ),
+        ])
+    }
+
+    fn hsts_credited(out: &Outcome) -> bool {
+        out.verified.iter().any(|v| v.check_id == NO_HSTS.rule_id)
+    }
+
+    fn hsts_found(out: &Outcome) -> bool {
+        rules(out).contains(&NO_HSTS.rule_id)
+    }
+
+    #[test]
+    fn hsts_is_credited_only_for_a_year_or_more_across_subdomains() {
+        // The control: what V3.4.1 asks for at every level is credited, however it is spelled.
+        for good in [
+            "max-age=31536000; includeSubDomains",
+            "includesubdomains; max-age=63072000; preload",
+            "MAX-AGE=\"31536000\" ; INCLUDESUBDOMAINS",
+            "max-age=99999999999999999999999; includeSubDomains",
+        ] {
+            let out = run(&mut hsts_site(Some(good), 200), &target());
+            assert!(hsts_credited(&out), "{good}: {:?}", out.verified);
+            assert!(!hsts_found(&out), "{good}: {:?}", rules(&out));
+        }
+        // Too short, told to forget, or a header browsers ignore: a finding, never credit.
+        for (weak, says) in [
+            ("max-age=0", "forget"),
+            ("max-age=0; includeSubDomains", "forget"),
+            ("max-age=31535999; includeSubDomains", "31535999 seconds"),
+            ("max-age=1", "1 seconds"),
+            ("includeSubDomains", "no max-age"),
+            ("max-age=; includeSubDomains", "no max-age"),
+            ("max-age=1y; includeSubDomains", "no max-age"),
+            ("max-age=-1; includeSubDomains", "no max-age"),
+            (
+                "max-age=31536000; max-age=31536000; includeSubDomains",
+                "no max-age",
+            ),
+        ] {
+            let out = run(&mut hsts_site(Some(weak), 200), &target());
+            assert!(
+                !hsts_credited(&out),
+                "{weak} was credited: {:?}",
+                out.verified
+            );
+            let found = out
+                .findings
+                .iter()
+                .find(|f| f.rule_id == NO_HSTS.rule_id)
+                .unwrap_or_else(|| panic!("{weak} was not found: {:?}", rules(&out)));
+            assert!(
+                found.description.contains(says),
+                "{weak}: {}",
+                found.description
+            );
+        }
+    }
+
+    #[test]
+    fn a_year_without_subdomains_is_left_to_the_owners_level() {
+        // Enough at level 1, not at level 2 and up, and `sv probe` is not told which applies.
+        let out = run(&mut hsts_site(Some("max-age=31536000"), 200), &target());
+        assert!(!hsts_credited(&out), "{:?}", out.verified);
+        assert!(!hsts_found(&out), "{:?}", rules(&out));
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V3.4.1" && why.contains("includeSubDomains")),
+            "{:?}",
+            out.not_assessed
+        );
+    }
+
+    #[test]
+    fn hsts_on_an_error_answer_is_neither_credited_nor_found() {
+        // The control: the same header on an ordinary answer is credited.
+        let good = "max-age=31536000; includeSubDomains";
+        assert!(hsts_credited(&run(
+            &mut hsts_site(Some(good), 200),
+            &target()
+        )));
+        for status in [400, 404, 500, 503] {
+            for header in [Some(good), Some("max-age=0"), None] {
+                let out = run(&mut hsts_site(header, status), &target());
+                assert!(
+                    !hsts_credited(&out),
+                    "{status} {header:?}: {:?}",
+                    out.verified
+                );
+                assert!(!hsts_found(&out), "{status} {header:?}: {:?}", rules(&out));
+            }
+        }
+    }
+
+    #[test]
+    fn only_a_redirect_to_https_on_this_host_is_credited() {
+        // The control.
+        let credited = |to: &str, status: u16| {
+            let mut s = site(&[
+                ("https://example.test/", ok(&[])),
+                ("http://example.test/", redirect(status, to)),
+            ]);
+            let out = run(&mut s, &target());
+            let credited = out
+                .verified
+                .iter()
+                .any(|v| v.check_id == PLAIN_HTTP_SERVED.rule_id);
+            let found = rules(&out).contains(&PLAIN_HTTP_SERVED.rule_id);
+            let open = out.not_assessed.iter().any(|(id, _)| id == "V12.2.1");
+            (credited, found, open)
+        };
+        for good in [
+            "https://example.test/",
+            "https://EXAMPLE.test/login",
+            "HTTPS://example.test",
+            " https://example.test/?next=/ ",
+        ] {
+            assert_eq!(credited(good, 301), (true, false, false), "{good}");
+            assert_eq!(credited(good, 308), (true, false, false), "{good}");
+            // Temporary, to HTTPS: still the finding it always was.
+            assert_eq!(credited(good, 302), (false, true, false), "{good}");
+        }
+        // Each leaves the browser on plain HTTP, permanent or not: neither credit nor a finding,
+        // since where it ends up would take following it.
+        for plain in [
+            "http://example.test/",
+            "http://example.test/home",
+            "/login",
+            "login",
+            "//example.test/",
+            "?next=/",
+            "",
+        ] {
+            for status in [301, 302, 307, 308] {
+                assert_eq!(
+                    credited(plain, status),
+                    (false, false, true),
+                    "{status} to {plain:?}"
+                );
+            }
+        }
     }
 
     /// A well-set-up HTTPS answer whose certificate says this about revocation.

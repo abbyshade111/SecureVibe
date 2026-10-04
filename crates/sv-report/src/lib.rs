@@ -112,10 +112,8 @@ impl RequirementLine {
     /// The status as a person reads it: the tier's label, or the confirmed version of it.
     pub fn shown_label(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
-            (Status::Attested, true) => {
-                "stated by the AI coding tool, confirmed in securevibe.toml"
-            }
-            (Status::ByHand, true) => "checked by the AI coding tool, confirmed in securevibe.toml",
+            (Status::Attested, true) => "stated by the AI coding tool, confirmed through sv review",
+            (Status::ByHand, true) => "checked by the AI coding tool, confirmed through sv review",
             (status, _) => status.label(),
         }
     }
@@ -136,7 +134,7 @@ impl RequirementLine {
     pub fn whose_word(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
             (Status::Attested | Status::ByHand, true) => {
-                "the word of whoever securevibe.toml says confirmed it, which sv cannot check"
+                "the word of whoever confirmed it through sv review"
             }
             (Status::Attested, false) => "your word",
             (Status::ByHand, false) => "your word, from a check you made by hand",
@@ -826,15 +824,36 @@ pub fn accepted_note(report: &Report, f: &sv_check::Finding) -> Option<String> {
         })
         .map(|s| {
             format!(
-                "Known and accepted as a risk for now: securevibe.toml says {} accepted it on {}: \
-                 \"{}\". sv cannot tell who wrote that entry. It still needs attention; the \
+                "Known and accepted as a risk for now. {}: \"{}\". It still needs attention; the \
                  acceptance lapses after 90 days.",
-                sv_check::review::who_said(&s.by),
-                s.on,
+                recorded(s, "accepted it"),
                 s.why
             )
         })
 }
+
+/// Who recorded a finding set aside, and what the seal on it shows, as one sentence: "Recorded
+/// through `sv review` on this computer: the owner set it aside as a false alarm on 2026-10-04".
+fn recorded(s: &sv_check::review::SetAside, did: &str) -> String {
+    let who = sv_check::review::who_said(&s.by);
+    match &s.sealed {
+        sv_check::seal::Sealed::Here => format!(
+            "Recorded through `sv review` on this computer: {who} {did} on {}",
+            s.on
+        ),
+        sv_check::seal::Sealed::Unchecked { .. } => format!(
+            "securevibe.toml says {who} {did} on {} through `sv review`, sealed on another computer; \
+             this one has no key to check the seal with",
+            s.on
+        ),
+    }
+}
+
+/// What `sv review`'s seal shows and does not, said once above the false alarms set aside.
+pub const SEALED_WHY: &str = "`sv review` runs only in a terminal a person is typing in, and seals \
+    what it records with a key kept outside the app's folder, so an entry the AI coding tool wrote \
+    into the file does not count. The seal shows how an entry was recorded and that it has not \
+    changed since; it cannot show who was at the keyboard, so read each reason before relying on it.";
 
 /// Why each false alarm carries a link, said once under the list.
 pub const FALSE_ALARM_WHY: &str = "A false alarm set aside here is usually a rule that will misfire \
@@ -902,15 +921,13 @@ pub fn false_alarm_lines(report: &Report) -> Vec<String> {
         .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
         .map(|s| {
             format!(
-                "[{}] {} ({}, line {}; `{}`). securevibe.toml says {} set it aside as a false \
-                 alarm on {}: \"{}\"",
+                "[{}] {} ({}, line {}; `{}`). {}: \"{}\"",
                 s.finding.severity.name(),
                 s.finding.title,
                 s.finding.location.file,
                 s.finding.location.line,
                 s.finding.rule_id,
-                sv_check::review::who_said(&s.by),
-                s.on,
+                recorded(s, "set it aside as a false alarm"),
                 s.why
             )
         })
