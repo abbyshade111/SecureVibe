@@ -145,6 +145,9 @@
           "probe.log-timestamp-zoned",
           "probe.authorization-failure-logged"
         ],
+        "not_claimed": {
+          "V16.3.2": "The refused request was logged by the build with the prompt and by one of the two builds without it, so the prompt was not shown to change it."
+        },
         "passes_when": "probe.log-line-metadata and probe.log-timestamp-zoned credited",
         "fails_when": "either not credited (these checks only ever credit)"
       },
@@ -174,6 +177,9 @@
           "probe.session-idle-timeout",
           "probe.session-lifetime"
         ],
+        "not_claimed": {
+          "V7.3.2": "The prompt's 12 hours is longer than the 90 minutes `sv run --slow` waits, so the session's longest life was not assessed."
+        },
         "passes_when": "probe.session-idle-timeout credited",
         "fails_when": "probe.session-idle-timeout a finding"
       },
