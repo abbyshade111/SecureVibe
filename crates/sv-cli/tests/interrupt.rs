@@ -94,9 +94,13 @@ fn interrupt(command: &[&str]) {
             // Say why: without what sv said, a run refused for a reason of its own read the same as
             // a test that went wrong.
             let out = sv.wait_with_output().unwrap();
+            let said = |b: &[u8]| String::from_utf8_lossy(b).replace('\n', " / ");
+            let stdout = said(&out.stdout);
             panic!(
-                "sv ended before starting anything: {}",
-                String::from_utf8_lossy(&out.stderr).replace('\n', " / ")
+                "sv ended before starting anything ({}): {} {}",
+                out.status,
+                said(&out.stderr),
+                &stdout[stdout.len().saturating_sub(600)..]
             );
         }
         assert!(
