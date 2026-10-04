@@ -353,6 +353,8 @@ another session is not a claim.
   prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt
   (now an item under "Next"). Still to do: the rest of the batch (access control, headers, CORS, error pages), a
   second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
+  **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
+  tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
