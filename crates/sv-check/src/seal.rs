@@ -546,4 +546,82 @@ mod tests {
         assert!(broken.check(Some(&made.seal(FIELDS)), FIELDS).is_err());
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn every_field_of_an_owners_answer_is_sealed() {
+        let design = sv_manifest::DesignAnswer {
+            answer: "no".into(),
+            r#where: Some("app.py".into()),
+            by: Some("owner".into()),
+            ..Default::default()
+        };
+        let base = design_answer_fields("V8.3.1", &design);
+        for changed in [
+            design_answer_fields("V2.2.2", &design),
+            design_answer_fields(
+                "V8.3.1",
+                &sv_manifest::DesignAnswer {
+                    answer: "yes".into(),
+                    ..design.clone()
+                },
+            ),
+            design_answer_fields(
+                "V8.3.1",
+                &sv_manifest::DesignAnswer {
+                    r#where: Some("auth.py".into()),
+                    ..design.clone()
+                },
+            ),
+            design_answer_fields(
+                "V8.3.1",
+                &sv_manifest::DesignAnswer {
+                    by: Some("ai-tool".into()),
+                    ..design.clone()
+                },
+            ),
+        ] {
+            assert_ne!(changed, base);
+        }
+        let hand = sv_manifest::HandCheck {
+            result: "problem".into(),
+            on: Some("2026-10-04".into()),
+            by: Some("owner".into()),
+            how: Some("Two browsers booked one slot.".into()),
+            ..Default::default()
+        };
+        let base = hand_check_fields("V2.3.4", &hand);
+        for changed in [
+            hand_check_fields("V12.2.2", &hand),
+            hand_check_fields(
+                "V2.3.4",
+                &sv_manifest::HandCheck {
+                    result: "done".into(),
+                    ..hand.clone()
+                },
+            ),
+            hand_check_fields(
+                "V2.3.4",
+                &sv_manifest::HandCheck {
+                    on: Some("2026-10-03".into()),
+                    ..hand.clone()
+                },
+            ),
+            hand_check_fields(
+                "V2.3.4",
+                &sv_manifest::HandCheck {
+                    by: Some("ai-tool".into()),
+                    ..hand.clone()
+                },
+            ),
+            hand_check_fields(
+                "V2.3.4",
+                &sv_manifest::HandCheck {
+                    how: Some("One browser booked it.".into()),
+                    ..hand.clone()
+                },
+            ),
+        ] {
+            assert_ne!(changed, base);
+        }
+    }
 }

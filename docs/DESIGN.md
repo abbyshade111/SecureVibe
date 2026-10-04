@@ -7379,3 +7379,7 @@ Tests that wrote `by = "owner"` and expected the owner's tier now seal the answe
 the MCP server inside the test process, so `sv_check::seal::key_folder_for_tests` lets such a test fix the key folder
 once, keeping its result the same whether or not the computer running it has a review key; nothing outside a test can
 reach it.
+
+Thirteen guards undone in turn, each caught: the three judgments, the report's wiring for design answers and for
+checks made by hand, two of the sealed fields, the seal line kept out of the answer and out of what the tool may record,
+an old seal replaced, only `owner` accepted, and only the answers given as the owner's offered.
