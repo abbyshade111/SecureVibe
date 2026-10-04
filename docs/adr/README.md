@@ -39,6 +39,11 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-018](ADR-018.md) | `sv` checks apps written in any language, with rules of its own among the checks (replaces ADR-012's ruling against such rules) |
 | [ADR-019](ADR-019.md) | `sv` runs the app in a container on a network with no way out (replaces v1's ADR-010 choice, for `sv`) |
 | [ADR-020](ADR-020.md) | `sv` is written in Rust, a memory-safe language (replaces v1's ADR-001 choice, for `sv`) |
+| [ADR-021](ADR-021.md) | A crash's or a rate limiter's answer is never read as the app refusing |
+| [ADR-022](ADR-022.md) | Whose word counts, and at which tier (extends v1's ADR-006, for `sv`) |
+| [ADR-023](ADR-023.md) | False alarms and accepted risks a person records, and test code's findings listed apart |
+| [ADR-024](ADR-024.md) | An unanswered data list holds the app to ASVS level 2 |
+| [ADR-025](ADR-025.md) | `sv run` has an end: time limits, Ctrl-C that cleans up, and leftovers removed by the next run |
 
 ## Where v1's records disagree with what v1 built
 
