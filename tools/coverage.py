@@ -409,6 +409,11 @@ def check_words():
             if f:
                 words[m.group(1)] = (label, rust_string(body, f.end() - 1))
                 break
+    # The credential-assignment rule's title and advice depend on whether the value reads like a
+    # sentence, so its words are its `ASSIGNMENT_WHAT`, the constant the citation guard reads too.
+    m = re.search(r'pub const ASSIGNMENT_WHAT: &str =\s*"', code)
+    if m:
+        words.setdefault("secrets.credential-assignment", ("Looks for", rust_string(code, m.end() - 1)))
     for check, text in DESCRIBED.items():
         words.setdefault(check, ("Looks for", text))
     unsaid = sorted(c for c in RUST_CHECKS if c not in words)

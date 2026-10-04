@@ -3572,11 +3572,15 @@ fn assemble_report_saying(
     // `sv notes`, which is the common case and not a gap: the report then says the file exists to
     // be written.
     let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
+    // What this computer can check `sv review`'s seals with (`sv_check::seal`): the owner's own
+    // answers, here and below, count as theirs only when `sv review` recorded them.
+    let seals = sv_check::seal::Checker::this_computer();
     let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
             &sv_check::notes::read_answers(&text),
             &notes_catalog.file,
+            &seals,
         ),
         Err(_) => {
             let asked = notes_catalog
@@ -3644,6 +3648,11 @@ fn assemble_report_saying(
                     answer: a.answer.clone(),
                     location: a.r#where.clone(),
                     by: a.by.clone(),
+                    recorded: sv_check::seal::owner_recorded(
+                        &seals,
+                        a.seal.as_deref(),
+                        &sv_check::seal::design_answer_fields(id, a),
+                    ),
                 },
             )
         })
@@ -3713,6 +3722,11 @@ fn assemble_report_saying(
                     on: a.on.clone(),
                     by: a.by.clone(),
                     how: a.how.clone(),
+                    recorded: sv_check::seal::owner_recorded(
+                        &seals,
+                        a.seal.as_deref(),
+                        &sv_check::seal::hand_check_fields(id, a),
+                    ),
                 },
             )
         })
@@ -3786,8 +3800,6 @@ fn assemble_report_saying(
         result: c.result.clone(),
         seal: c.seal.clone(),
     };
-    // What this computer can check `sv review`'s seals with (`sv_check::seal`).
-    let seals = sv_check::seal::Checker::this_computer();
     let design_confirmations: std::collections::BTreeMap<
         String,
         (sv_check::confirm::Confirmation, String, Option<String>),

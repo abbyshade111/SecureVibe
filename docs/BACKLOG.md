@@ -171,6 +171,9 @@ another session is not a claim.
     in branch `claude/securevibe-e9-owner-answers`: `[design]` answers and `[checked-by-hand]` results written
     `by = "owner"`, and security-notes.md sections marked `Written by: owner`, count as the owner's word only when
     recorded through `sv review`; otherwise they count as the AI coding tool's.
+    **Done the same day** (DESIGN, "The owner's own answers are recorded through `sv review` too"): all three now
+    count as the owner's only when sealed by `sv review`, which offers each of them; without a seal they drop to
+    *stated by the AI coding tool*, and the report says why.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -477,6 +480,15 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** the credential rule keeps reporting a value that reads like a sentence, at low severity with "this reads like a sentence", rather than leaving it out (a real passphrase can be a sentence). The redirect half is left to whoever takes A1, its root cause, so two sessions do not change one rule; only the credential half is claimed here.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-7-sentence-credential`.
+     **Done the same day**, the credential half (DESIGN, "A credential name over a sentence is reported low, and
+     says so"): a value of three or more ordinary words, one space apart, ending in `.`, `?`, or `!` is still
+     reported, at `low` severity and "possible", with "this reads like a sentence" in its title, description, and
+     advice; everything else keeps `high`. The value now runs to the quote that opened it (an apostrophe used to cut
+     the family-hub line to `Your current password isn`). Redaction is unchanged. Tested with four tests: six
+     messages reported low, eleven passphrase, key, and token controls each shown still `high`, a table of what is
+     a sentence, and quote pairing; nine guards broken in turn, each caught, one only after a control was added.
+     Found: with `--tools`, Bandit's B105 on the same line now wins the merge and the sentence note is lost (not
+     changed; it is the merge's rule for all findings). The redirect half is A1's, untouched.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed

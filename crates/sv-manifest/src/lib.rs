@@ -999,6 +999,10 @@ pub struct DesignAnswer {
     /// A person confirming the AI tool's answer, with what they looked at. See `sv-check::confirm`.
     #[serde(default)]
     pub confirmed: Option<Confirmed>,
+    /// What `sv review` writes when the owner records the answer as theirs. Without one that holds,
+    /// `by = "owner"` counts as the AI tool's word. See `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
 }
 
 /// A person confirming what the AI coding tool said. See `sv-check::confirm`.
@@ -1055,6 +1059,10 @@ pub struct HandCheck {
     /// A person confirming a check the AI tool made. See `sv-check::confirm`.
     #[serde(default)]
     pub confirmed: Option<Confirmed>,
+    /// What `sv review` writes when the owner records the check as theirs. Without one that holds,
+    /// `by = "owner"` counts as the AI tool's word. See `sv-check::seal`.
+    #[serde(default)]
+    pub seal: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Default)]

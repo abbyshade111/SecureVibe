@@ -7349,6 +7349,41 @@ the lock never removed (five), part-written files taken as someone else's (one),
 (two), and Ctrl-C not letting go (one). Shared tool reports and container
 names, which two runs at once also collide on, are S6 and S10, not changed here.
 
+## The owner's own answers are recorded through `sv review` too (4 October 2026)
+
+The rest of the deep review's R1, as the owner decided the same day. After `sv review` sealed set-aside findings and
+confirmations, three more places still took "the owner" on one line anyone could write: a `[design]` answer and a
+`[checked-by-hand]` result written `by = "owner"` (*attested by the owner*, *checked by hand by the owner*), and a
+section of security-notes.md marked `Written by: owner` (*documented by the owner*). Each now counts as the owner's only
+when `sv review` recorded it.
+
+- **What is sealed.** A design answer: its requirement, answer, `where`, and `by`. A check made by hand: its
+  requirement, result, `on`, `by`, and `how`. A notes section: its requirement and its answer as the report reads it,
+  without the `Written by:` line and without the seal. The seal goes in a `seal` field in securevibe.toml, and in
+  security-notes.md on a line `Sealed by sv review: …` straight under `Written by: owner`. That line is never part of
+  the answer, so it can never make one, and the AI coding tool cannot record it through `securevibe_record_answer`.
+- **Without a seal that holds**, the answer drops one tier, to *stated by the AI coding tool*, and the report says
+  "securevibe.toml says you answered yes, … but it was not recorded through `sv review` …, so it counts as your AI coding
+  tool's word", with how to make it the owner's. A `no` or a `problem` is still a finding, worded as what the file says;
+  reporting a missing control never overstates the app. With no key to check with (CI), a sealed answer counts as the
+  owner's and says it was recorded on another computer.
+- **`sv review`** now also offers each answer given as the owner's and not recorded on this computer, shows it, and asks
+  for `owner`: only the app's owner gives these answers, so a name is refused, with a pointer to confirming instead. It
+  writes only the seal (in securevibe.toml through `toml_edit`; in security-notes.md one line under `Written by:`, any
+  earlier seal line in the section taken out), and reads the file back. Answers the AI coding tool gave are not offered:
+  the person confirms those, as before.
+- **The instructions** in the securevibe.toml spec, the interview, the notes template, and the MCP tools say that an
+  answer marked as the owner's counts once they run `sv review`, and that the tool must never run it for them.
+
+Tests that wrote `by = "owner"` and expected the owner's tier now seal the answer as `sv review` would. One of them runs
+the MCP server inside the test process, so `sv_check::seal::key_folder_for_tests` lets such a test fix the key folder
+once, keeping its result the same whether or not the computer running it has a review key; nothing outside a test can
+reach it.
+
+Thirteen guards undone in turn, each caught: the three judgments, the report's wiring for design answers and for
+checks made by hand, two of the sealed fields, the seal line kept out of the answer and out of what the tool may record,
+an old seal replaced, only `owner` accepted, and only the answers given as the owner's offered.
+
 ## HTTPS redirects and HSTS, held to what they say (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H12 and H13) found `sv probe` crediting two things on their form
@@ -7375,3 +7410,53 @@ accepting a directive given twice, accepting a max-age that is not a number, cre
 scheme, and comparing hosts letter for letter. Each was caught by the test written for it, and reading error answers
 by an earlier test as well.
 
+## A credential name over a sentence is reported low, and says so (4 October 2026)
+
+On family-hub (3 October) `secrets.credential-assignment` rated `WRONG_PASSWORD = "Your current password isn't
+right."` high and advised changing the credential (BACKLOG, "What the owner hit building family-hub", item 7, the
+credential half). The rule takes a name that says "credential" with a quoted value of 8 to 200 characters that is not
+a placeholder and has enough variety of characters, and a sentence passes. The owner's decision: keep reporting such
+a value, since a real passphrase can be a sentence, but at low severity and saying "this reads like a sentence".
+
+**What reads like a sentence** (`reads_like_sentence` in `crates/sv-check/src/secrets.rs`), kept narrow because it
+lowers a finding: three or more ordinary words, one space apart, the last ending in `.`, `?`, or `!`. An ordinary
+word is letters only, with an apostrophe or hyphen between letters (`isn't`, `sign-in`), a comma after any but the
+last, written in lowercase, with a capital first letter, or all in capitals. A digit or other symbol in a word, a
+letter case mixed inside one (`pAsS`), two spaces, a leading or trailing space, or no closing mark, and it is not a
+sentence. Such a value is reported at `low` severity and low confidence (so its certainty reads "possible", which
+tells the reader to look before changing code); its title, description, impact, and advice say it reads like a
+sentence and what to do in either case: a message is a false alarm to record, a passphrase is moved out and changed.
+Everything else keeps `high` and medium confidence, as before. Two words ending in a period (`Wrong password.`)
+stay high: too short to tell from a two-word passphrase, and the decision did not ask for them.
+
+**The value now runs to the quote that opened it.** Either quote used to end the value, so the reported line was
+judged as `Your current password isn` (no closing mark, and the wrong length in the finding). The pattern now pairs
+`"…"` and `'…'`, as `redact_text` already did; without this the sentence test could not have seen the sentence.
+
+**Redaction is unchanged, on purpose.** A sentence finding still carries `Secret::redact`'s four characters and
+length, never the value, and `redact_text` still cuts any value under a credential's name whatever its shape: a
+passphrase that is a sentence is still a passphrase. A finding at `low` still makes its requirements need attention
+and still stops the scan's clean claim, since the owner chose to keep reporting it; setting it aside as a false alarm
+is the way to clear it.
+
+**Where else the shape goes.** No vendor rule in `data/secret-rules.json` matches a sentence. Bandit's B105 does
+(any string under a name like `password`), and with `--tools` it and this rule merge on the same line (both CWE-259).
+`merge_same_place` keeps the more severe, then the surer: both are now `low`, and the adapter gives every tool
+finding medium confidence, so Bandit's "Bandit reported B105" is kept, this rule's sentence note is lost, and it is
+named only in "also reported by". Seen with the real Bandit on a one-file app. Before this change this rule's `high`
+was kept. Not changed here, since it is the merge's rule for every pair of findings.
+
+`docs/REQUIREMENTS.md` used to describe this rule by its impact ("if it fails: Anyone who can read the code…"),
+which `tools/coverage.py` read as the first string literal after the rule; the impact now depends on the value, so
+the script reads the rule's `ASSIGNMENT_WHAT` instead ("looks for: A value that looks like a credential, …").
+
+**Tested** with four tests in `secrets.rs`: the family-hub line and five other messages are reported low and
+"possible", with the note in title, description, and advice, the whole value judged, and the value redacted; eleven
+controls (passphrases without a closing mark, with a digit, symbols, hyphens, or mixed case, two spaces, two words,
+key- and token-shaped values) are each shown reported and still `high`; a table of what is and is not a sentence; and
+a value with the other quote inside it read whole, and a sentence still cut by `redact_text`. `sv check` on a
+one-file app gives `[low] … reads like a sentence (WRONG_PASSWORD)`, "found: Your… (30 more characters)". Nine
+guards broken in turn, each caught: never a sentence (two tests), the closing mark alone enough (two), either quote
+ending a value (two), the sentence kept at medium confidence (one) or high severity (one), two words enough (two),
+mixed case allowed (two), digits allowed (two, after a digit-inside-a-word control was added when only the table
+caught it at first), and the sentence not redacted (one).
