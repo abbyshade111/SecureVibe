@@ -83,7 +83,8 @@ OWASP Top 10 for Agentic Applications, 2026 edition, published by the OWASP GenA
 | ASI09 | control | A person can confirm what the tool wrote, at their own tier and never as "checked". A confirmation stops counting once it is stale, once the file changes, or when "the AI tool confirms itself", and the tool is told never to write one the person did not make | #242 (`4f1fcf8`) |
 
 **27 September to 4 October.** A session looked at the MCP server at the owner's asking on 3 October and reproduced
-seven faults (`docs/BACKLOG.md`, "Hardening the MCP server"); the deep review of 4 October found more.
+seven faults as the backlog lists them (`docs/BACKLOG.md`, "Hardening the MCP server"; the fault ledger counts eight,
+SV-98 to SV-105, as `COORDINATION.md` does); the deep review of 4 October found more.
 
 | Risk | Kind | What | Record |
 |---|---|---|---|
@@ -96,7 +97,7 @@ seven faults (`docs/BACKLOG.md`, "Hardening the MCP server"); the deep review of
 | ASI02 | open | The notes tool deletes the owner's own text, though its description says it "keeps everything" (also ASI09). Reproduced | deep review R7 |
 | ASI03 | incident | `sv mcp` with no `--root` gave the AI tool the whole folder it was started in, the home folder included. `/` and the home folder are now refused | #470 item 5 → #477 |
 | ASI03 | open | `--root` still accepts a folder above home, such as `/Users`. Reproduced | deep review R10 |
-| ASI05 | incident | The app's own container, the one running code nobody has reviewed, ran without the `--read-only`, `--cap-drop ALL`, and `no-new-privileges` every helper had, though ADR-019 said otherwise. Found by the weekly review of the decision records on 30 September; fixed on 3 October once the owner chose read-only | ADR-019, "Later"; #496 |
+| ASI05 | incident | The app's own container, the one running code nobody has reviewed, ran without the `--read-only`, `--cap-drop ALL`, and `no-new-privileges` every helper had, though ADR-019 said otherwise. Found by the weekly review of the decision records on 29 September (21:55, Eastern; this said 30 September, the UTC date, until 4 October); fixed on 3 October once the owner chose read-only | ADR-019, "Later"; #496 |
 | ASI05 | open | The network fence lets the app reach the host through the bridge's gateway; on Linux with Docker itself, that is the developer's own computer. Its only test tries the internet. Reproduced on Colima | deep review S2 |
 | ASI06 | incident | A change let `sv audit` stop counting known vulnerabilities in folders `securevibe.toml` marks as not the app. The AI tool writes that file, so one line could have hidden a vulnerability, `src` as easily as `examples`. Undone the same day | #337 → #344 |
 | ASI06 | open | A `not-the-app` entry can cover all the app's code without a warning, and a requirement then reads "does not apply". Reproduced | deep review R12 |
@@ -107,8 +108,8 @@ seven faults (`docs/BACKLOG.md`, "Hardening the MCP server"); the deep review of
 | ASI09 | open | The new answer-recording tool overwrites an owner's answer that has no "Written by:" line, on the day it was built. Reproduced | deep review R8 |
 | ASI02 | control | The reports are offered to the AI tool as MCP resources, and every read is checked again rather than trusting the address it names: the file must be below the root once links are resolved, in a folder carrying `sv`'s marker, one of the five report names, not a link, and the same file that was checked | #488 |
 | ASI08 | control | A check over MCP has a time limit. When it runs out, the tool is told the check did not finish and nothing was assessed, "neither a pass nor a failure", and another check is refused until it ends. Malformed requests get an error instead of silence | #477, #498 |
-| ASI09 | control | The AI tool records the person's answers only through `securevibe_record_answer`, which marks every answer as the tool's own and has no argument for who wrote it. An answer counts as the owner's only when the owner changes that line themselves. The owner's decision of 4 October, after #239 | #539 |
-| ASI09 | control | The prompt library the tool is handed (`securevibe_prompts`) marks each prompt, right above it, as *shown to work* (an app built with it passed the check, one built without it failed) or *not tested*: 2 of the 9 first tried were shown. Six design-time prompts were tried the same way and 3 shown; at the cut-off they were on a page of their own, not yet in the tool | #549, #554, #559 |
+| ASI09 | control | The AI tool records the person's answers only through `securevibe_record_answer`, which marks every answer as the tool's own and has no argument for who wrote it. An answer counts as the owner's only when the owner changes that line themselves. The owner's decision of 4 October, after #239. Superseded that afternoon: the owner's line now counts only when recorded through `sv review` (ADR-026) | #539; #598 |
+| ASI09 | control | The prompt library the tool is handed (`securevibe_prompts`) marks each prompt, right above it, as *shown to work* (an app built with it passed the check, one built without it failed) or *not tested*: 2 of the 9 first tried were shown. Six design-time prompts were tried the same way and 3 shown; at the cut-off they were on a page of their own, not yet in the tool; they were added that afternoon (#567) | #549, #554, #559 |
 
 ## 3. What `sv` checks in other apps' AI features
 
@@ -170,9 +171,9 @@ and the model's raw response passed to the person (C11.3.2), both #394.
 
 | Risk | Kind | What | Record |
 |---|---|---|---|
-| ASI07 | incident | The committed claim has a race. Review item 2 was claimed twice, at 03:11 and 03:13 UTC on 28 September, "neither session could see the other's claim", and both sessions built it; one build was closed and two of its parts were ported onto the other | #328, #331, #332, #334 |
+| ASI07 | incident | The committed claim has a race. Review item 2 was claimed twice, at 23:11 and 23:13 on 27 September, Eastern, "neither session could see the other's claim", and both sessions built it; one build was closed and two of its parts were ported onto the other | #328, #331, #332, #334 |
 | ASI07 | incident | The same day, a fault was claimed twice 27 seconds apart and built twice. The one session could not message the other, which "runs on another machine", so a note in the backlog was the only way it would learn of the clash | #340, #341, #342 |
-| ASI07 | control | Splitting a 15,351-line file across several sessions: one serial first step, eight slices to claim, code moved and never changed, and the file frozen for every other pull request until the split was done | #335, #358 to #405 |
+| ASI07 | control | Splitting a 15,463-line file so that several sessions could share it: one serial first step, eight slices to claim, code moved and never changed, and the file frozen for every other pull request until the split was done. In the event one session did every step | #335, #353 to #405 |
 | ASI09 | control | Review from outside the sessions that build `sv`: two sessions reviewing each other's work at the owner's asking (#343), and the cato-pipeline session, which did not build `sv`, running the comparison study (10 faults) and the deep review (58 findings, each labeled by how it was confirmed, the most serious checked again by reading or a test) | #343; `sv-study/` |
 
 ## 5. `sv` (v2) checking itself, through the agentic lens
@@ -221,6 +222,12 @@ To 4 October; the figures to 27 September are in brackets where they changed.
 Of the 13 open, 10 are from the deep review of 4 October, 2 from testing the prompt library on 3 and 4 October, and 1
 is the concern recorded before 27 September about tests the AI tool labeled itself.
 
+**Since the cut-off.** Four of the 13 were fixed that afternoon: S5 (ASI02, #562), S2 (ASI05, #558), R1 (ASI09, #578,
+#588, #598), and R2 (ASI09, #570). Counted at 16:30, the open column would read ASI02 2, ASI05 0, and ASI09 2, 9 in all.
+R1's fix is a structural one of the kind described below: `sv review` runs only in a terminal and seals what the owner
+records, so a line the tool writes no longer counts as the owner's (ADR-026). The table keeps the cut-off;
+`SINCE-THE-CUTOFF.md` has the rest.
+
 ## What this shows
 
 - **Still no attack.** Every incident and open item was found by someone working on SecureVibe: a session reviewing
@@ -245,7 +252,8 @@ is the concern recorded before 27 September about tests the AI tool labeled itse
   the owner's agreement, and "an instruction is not enough". The week after added two more structural answers to that
   failure: an answer-recording tool with no way to say "the owner said this", and prompts marked shown or not tested.
   The deep review found where the line between person and tool is still only a label: any name in a review's `by`
-  field but two counts as a person (R1, open).
+  field but two counts as a person (R1, open at the cut-off; that afternoon `sv review` made the owner's word something
+  only the owner can record, ADR-026).
 - **With an AI in the loop, a checker's errors become actions (ASI08).** A false alarm made the AI tool rewrite
   working code; a report folder read as code sent it undoing its own changes; a withheld test name made it pay to
   rediscover the name. In the week after, the same kind of false alarm kept three prompts from being shown to work,

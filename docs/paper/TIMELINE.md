@@ -284,7 +284,8 @@ No commits.
 
 ## Day 4 — 22 September: a second version begins
 
-10 commits, 21:58 to 23:46.
+10 changes reached `main`, 21:58 to 23:46, out of 28 commits in all. (Until 4 October this said "10 commits": the
+10 are the changes on `main`, counted as Days 6 to 13 count them.)
 
 In one evening a second SecureVibe began: **`sv`**, a language-agnostic checker written in Rust. v1 builds an
 app from a fixed template and checks it; `sv` checks an app written in any language by anyone. Its first
@@ -310,7 +311,7 @@ each was written.
 
 ## Day 5 — 23 September: pull requests and CodeQL
 
-12 commits, 11:04 to 22:55.
+12 changes reached `main`, 11:04 to 22:55, out of 46 commits in all (this said "12 commits" until 4 October).
 
 CodeQL became a committed workflow, the Rust checks joined CI, and from 22:34 changes began to arrive as pull
 requests (#19 onward) rather than as commits pushed to `main`. Every day after this is recorded mostly as pull
@@ -708,7 +709,7 @@ and the container image run as a user of its own (#333).
 | 23:41 | `5af904e` | #332 | Give sv run an end: time limits on Docker calls and tests, and Ctrl-C that cleans up |
 | 23:44 | `400bdae` | #333 | Run the image as a user of its own, not root |
 
-## Day 10 — 28 September: one file split across sessions
+## Day 10 — 28 September: one file split, planned for several sessions
 
 83 changes reached `main`, 09:53 to 23:55, all of them pull requests, out of 229 commits in all.
 
@@ -716,8 +717,10 @@ From this day the sessions that did most of the work (named in the backlog as `s
 and similar) left no transcript on this machine. Their record is the commits, the pull requests, and the
 backlog, and nothing below depends on more.
 
-The largest file of checks, `signed_in.rs`, was split into eight files by several sessions at once, one slice
-each, under a freeze planned in the backlog (#335, #358 to #405). Partial checks, for requirements no check had
+The largest file of checks, `signed_in.rs`, was split into eight files under a freeze planned in the backlog so that
+several sessions could each move one slice (#335). One session, securevibe-e2, did all ten steps, each with a claim
+of its own, from 15:22 to 19:05 (#353 to #405); `COORDINATION.md` has the detail. (Until 4 October this said "by
+several sessions at once, one slice each".) Partial checks, for requirements no check had
 spoken to, arrived in four parts (#377, #387, #394, #397), and every ASVS and AISVS requirement was listed
 with the checks that speak to it (#349). Paper analyses of corrected claims, decisions, coordination cost, and
 tests against faults went in (#372, #385), and eight places where the paper's earlier files disagreed with the
@@ -1016,3 +1019,9 @@ in six languages (#561).
 | 11:19 | `84dcbd4` | #554 | sv prompts and securevibe_prompts: the prompt library, each marked tested or not |
 | 11:30 | `4960179` | #563 | Claim deep review S12 |
 | 11:37 | `157ddc3` | #564 | Claim: design-time prompts in sv prompts, and a second test brief |
+
+## After the cut-off
+
+The record above ends at the cut-off, `157ddc3`. By 16:30 the same day, 41 more pull requests had reached `main`
+(numbered between #558 and #606), among them the paper's refresh (#569), fixes for 14 of the deep review's findings,
+and `sv review` (#588, #598). They are not in the tables; `SINCE-THE-CUTOFF.md` lists what changed.

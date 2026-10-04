@@ -129,13 +129,18 @@ Several decisions were tested by what happened after they were written:
   virtual machine's own services through the network's gateway, while the internet stayed blocked. On Linux with
   Docker itself, the gateway is the owner's own computer. The record's title, "a network with no way out", and its
   "nothing on it can reach anything outside it" are not true while that stands. S2 was claimed at the cut-off and
-  not yet fixed.
+  not yet fixed. It was fixed that afternoon (#558), and the record now says so in a "Later" entry.
 - **ADR-021, a crash is not a refusal.** Built after a rate limiter's answer was found credited as the app's refusal. When it was written down, the table of passes that rest on a refusal had grown from 29 rows to 36, and
   the record says both.
 - **ADR-022 and ADR-023, whose word counts.** Both records say their cost plainly: "`sv` cannot tell who typed a
   name", and "trust rests on the name in `by`". The deep review (R1) showed what that costs: an AI tool that wrote
   `by = "owner"` cleared its own findings, and the report then said a person had set them aside. The records were
   honest about the limit; the review asks for a stronger decision, which would be a new record.
+
+**After the cut-off.** The owner took that decision the same afternoon, and it is the twelfth record: ADR-026, "The
+owner's word counts only when `sv review` recorded it", written down that evening with "Later" entries on ADR-022 and
+ADR-023. Unlike the eleven, it was written the day it was built. The counts in this document stay those of the
+cut-off; `SINCE-THE-CUTOFF.md` has what followed.
 
 ## The records against the Top 10 analyses
 
@@ -215,7 +220,8 @@ history recorded one.
 - **A record can move the code, not only follow it.** ADR-019's untrue sentence was settled by making the app's
   container read-only rather than by editing the sentence.
 - **Checking the records is not checking the code.** Every review of the records read them against what was built,
-  and none tried the fence from inside. The deep review did, and found a way out of it that ADR-019's title denies.
+  and none tried the fence from inside. The deep review did, and found a way out of it that ADR-019's title denies (fixed
+  after the cut-off, #558).
 - **Most of v1's foundation was decided before the record began.** Ten of its thirteen records are dated
   16 September and survive only through the restore commit. They are the evidence of what the first two days
   decided, as `TIMELINE.md` notes.

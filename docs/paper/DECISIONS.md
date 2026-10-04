@@ -111,7 +111,7 @@ The first four points were written on 28 September and still hold; the last thre
   became the rule the whole project is judged by. It was a good rule, but the owner never made it.
 - **The owner's firmest rulings changed the design.** "I do NOT want to write any custom rules" (14) held for three
   days. It was then reversed in practice by an AI recommendation the owner accepted (16), and the record caught up
-  four days after that. The one time the owner overrode a recommendation (5) meant three AI providers had to be
+  four days after that. The first time the owner overrode a recommendation (5) meant three AI providers had to be
   supported instead of one.
 - **In the new week the owner made every final call, and most of the proposals were the AI's.** Of 13 decisions, the
   owner proposed one outright (the deep review, 35) and named the need in four; an AI session proposed the other
@@ -132,13 +132,22 @@ The first four points were written on 28 September and still hold; the last thre
 - **"Chosen by the AI" means no question or approval from the owner was found**, not that the owner was asked and
   refused. The first session asked the owner nothing about design.
 - **"Both" is a judgment.** It is used where the owner named the need and the AI named the answer.
-- **The 23 are the decisions that shaped the product, the process, or the paper.** Many smaller choices were made
+- **The 36 are the decisions that shaped the product, the process, or the paper.** Many smaller choices were made
   every hour, mostly by the AI, and are not counted.
 - **The transcripts are not in the repository**, and the first session's contains a credential, so they cannot be
   published as they are.
 - **From 28 September, decisions made with securevibe-e2 and securevibe-e9 are known only from the backlog and pull
-  requests those sessions wrote** (33, 34, 36, and the owner's half of 30). "Proposed by" for them is the session the
+  requests those sessions wrote** (33, 34, and 36; for 30, the owner's answer is quoted from a transcript, `2c599697`,
+  as its row says). "Proposed by" for them is the session the
   entry names; the owner's words are not on record, and none can be quoted except where the entry quotes them.
 - **Dates in the backlog are sometimes a day later than the Eastern time.** The decisions the backlog dates "4
   October" in #534 were recorded at 20:37 on 3 October, Eastern.
 - **The 35 recommended options are those that survive.** See "What the count cannot see" above.
+
+## After the cut-off
+
+Two more decisions were made on the afternoon of 4 October, after the cut-off, and are not in the table. The owner chose
+to build `sv review`, with what the owner records sealed by a key kept outside the app's folder, and the record kept in
+`securevibe.toml` rather than outside it; and then to give the owner's own answers the same rule. Both extend decision
+34, and both are recorded in ADR-026. The owner also confirmed on 4 October that the paper keeps the friend's health
+app anonymous, as decision 23 did for the repository; the paper was corrected after the cut-off (#591, #606). `SINCE-THE-CUTOFF.md` has the rest.
