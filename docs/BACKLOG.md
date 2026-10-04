@@ -345,6 +345,11 @@ another session is not a claim.
      so the tool takes no "the owner said this"; an answer counts as the owner's only when the owner confirms it
      themselves, at the terminal or by editing the file. **Claimed the same day by session securevibe-e2**, at the
      owner's word, in branch `claude/securevibe-e2-record-answer`.
+     **Done the same day** (DESIGN, "Answers the AI tool records, always as its own"): `securevibe_record_answer`
+     writes the answer under its question marked `Written by: AI coding tool`, never replaces a section the owner
+     wrote, and refuses an answer that says who wrote it or would not read back as written. The questions now tell
+     the tool to record through it and never to change the line for the person. Thirteen guards broken in turn,
+     each caught.
   2. **Keep the last report until the app's files change.** Every call builds the whole report again, and
      `securevibe_questions` runs the full check to list questions. Kept, "check after each feature" would be quick.
      **Measured on 3 October 2026, and not worth building yet:** with a release build, `sv check` of

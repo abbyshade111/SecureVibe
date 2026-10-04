@@ -165,6 +165,11 @@ should do with a file that is too big, who may see what. It offers what it found
 tip. "I'm not sure" is a fine answer. If you ask the tool to answer for you, the report says so, and
 counts it for less than your own answer.
 
+The answers to the questions about the app's rules go in `security-notes.md`. The tool writes them there, and
+every one it writes starts with `Written by: AI coding tool`, even when it is writing down what you told it:
+`sv` cannot tell your words from the tool's. Read what it wrote, and where it says what you decided, change
+that line to `Written by: owner` yourself. Only then does the report count it as yours.
+
 Some questions are checks to make by hand, such as opening the live site and looking at the padlock.
 The tool walks you through them and records what you saw.
 

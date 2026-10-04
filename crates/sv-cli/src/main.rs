@@ -1059,6 +1059,20 @@ pub(crate) struct NotesWritten {
 /// Writes or refreshes security-notes.md, keeping every answer already in it. Shared by `sv notes`
 /// and the MCP server, and prints nothing, because the MCP server's stdout is the protocol.
 pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
+    write_notes(app_dir, None)
+}
+
+/// Writes the notes file with the AI coding tool's answer under one question, marked as the tool's.
+///
+/// Refused when the question does not apply to the app, when the owner wrote that section (the
+/// tool's answer never replaces the owner's), and when the answer would not read back as exactly the
+/// tool's (`sv_check::notes::tool_answer`). Written under a new name and renamed into place, and
+/// never through a link.
+pub(crate) fn record_tool_answer(app_dir: &Path, id: &str, answer: &str) -> Result<NotesWritten> {
+    write_notes(app_dir, Some((id, answer)))
+}
+
+fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWritten> {
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -1101,14 +1115,54 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
             .get(id)
             .map(|r| r.description.clone())
     };
-    let text = sv_check::notes::write_template(
-        &catalog,
-        &applicable,
-        &facts,
-        existing.as_deref(),
-        &describe,
+    let Some((id, answer)) = record else {
+        let text = sv_check::notes::write_template(
+            &catalog,
+            &applicable,
+            &facts,
+            existing.as_deref(),
+            &describe,
+        );
+        std::fs::write(&out_path, &text)
+            .with_context(|| format!("writing {}", out_path.display()))?;
+        let asked = catalog
+            .sections
+            .iter()
+            .filter(|s| applicable.contains(&s.id))
+            .count();
+        return Ok(NotesWritten {
+            path: out_path,
+            asked,
+            already,
+        });
+    };
+    anyhow::ensure!(
+        catalog.section(id).is_some() && applicable.contains(id),
+        "{id} is not one of the questions in {} for this app; securevibe_questions lists the ones \
+         that are",
+        catalog.file
     );
-    std::fs::write(&out_path, &text).with_context(|| format!("writing {}", out_path.display()))?;
+    let mut answers = existing
+        .as_deref()
+        .map(sv_check::notes::read_answers)
+        .unwrap_or_default();
+    anyhow::ensure!(
+        answers.writer(id) != Some(sv_check::notes::Writer::Owner),
+        "the person wrote the answer to {id} themselves, and an answer from the AI coding tool never \
+         replaces theirs. Ask them whether they want to change it, and let them edit it."
+    );
+    let body = sv_check::notes::tool_answer(answer).map_err(|why| anyhow::anyhow!(why))?;
+    answers.set(id, body);
+    let text =
+        sv_check::notes::write_template_with(&catalog, &applicable, &facts, &answers, &describe);
+    if let Ok(meta) = std::fs::symlink_metadata(&out_path) {
+        anyhow::ensure!(
+            !meta.file_type().is_symlink(),
+            "{} is a link to somewhere else, so it is not written",
+            out_path.display()
+        );
+    }
+    write_without_following(app_dir, &catalog.file, text.as_bytes())?;
 
     let asked = catalog
         .sections

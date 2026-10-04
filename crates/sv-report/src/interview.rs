@@ -100,14 +100,16 @@ pub fn text(report: &Report) -> String {
     if !notes.is_empty() {
         out.push_str(&format!(
             "\n{}. WRITTEN DECISIONS ({}). These ask what the rules are, which only the person can \
-             decide. Make or refresh security-notes.md first (securevibe_notes_file, or `sv notes` \
-             in a terminal); it keeps whatever is already written. Write the person's decision, in \
-             a sentence or two of their words, under the question headed by its id, and start it \
-             with the line `Written by: owner`. If they ask you to write it from the code, you may, \
-             but start it with `Written by: AI coding tool`: the report counts that for less, as \
-             stated by the AI coding tool, and asks again. Change it to `Written by: owner` only \
-             once they have read what you wrote and agree with it. A section without that line \
-             counts as yours.\n",
+             decide. Record each answer, in a sentence or two of the person's words (or from the \
+             code, if they ask you to answer), with securevibe_record_answer and the question's id. \
+             sv marks what it records `Written by: AI coding tool`, which the report counts for less, \
+             as stated by the AI coding tool, and asks again: sv cannot tell the person's word from \
+             yours, so nothing you record counts as theirs. Show them what you recorded; if they \
+             agree with it, they change that line in security-notes.md to `Written by: owner` \
+             themselves. Never write or change that line for them. Without the MCP server, write \
+             the answer under the question in security-notes.md (`sv notes` makes the file) and \
+             start it with `Written by: AI coding tool`; a section without that line counts as \
+             yours.\n",
             if design.is_empty() { 1 } else { 2 },
             notes.len()
         ));
