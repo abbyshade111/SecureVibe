@@ -1,6 +1,9 @@
 use super::*;
 use std::collections::BTreeMap;
 
+/// The name of the cookie `pre_login_cookie` sets.
+const PRE_LOGIN_COOKIE: &str = "csrftoken";
+
 /// A small app, run in memory, with every flaw this suite looks for switchable.
 ///
 /// Sessions are server-side and named by a random-looking counter; notes belong to whoever made
@@ -15,6 +18,10 @@ pub(super) struct FakeApp {
     activation_codes: BTreeMap<String, (String, bool)>,
     /// Accounts signed up and not yet activated.
     not_activated: std::collections::BTreeSet<String>,
+    /// A cookie the sign-in page sets before the session cookie, as an anti-forgery cookie is.
+    pub(super) pre_login_cookie: bool,
+    /// Treats a request without that cookie as signed out, as an app checking it everywhere does.
+    pub(super) needs_pre_login_cookie: bool,
     /// Seconds the clock moves on with each request. Zero, the default, stands it still
     /// except during `wait`.
     pub(super) seconds_per_request: u64,
@@ -937,6 +944,9 @@ impl FakeApp {
                         .filter(|named| self.users.contains_key(named))
                 })
         };
+        let user = user.filter(|_| {
+            !self.needs_pre_login_cookie || cookie_value(r, PRE_LOGIN_COOKIE).is_some()
+        });
         let foreign = r
             .headers
             .iter()
@@ -992,9 +1002,17 @@ impl FakeApp {
                 let id = self.new_id();
                 self.sessions.insert(id.clone(), String::new());
                 let attrs = self.cookie_attrs();
+                let mut headers = Vec::new();
+                if self.pre_login_cookie {
+                    headers.push((
+                        "Set-Cookie",
+                        format!("{PRE_LOGIN_COOKIE}=pre-login-value-0123456789; {attrs}"),
+                    ));
+                }
+                headers.push(("Set-Cookie", format!("sid={id}; {attrs}")));
                 Self::respond(
                     200,
-                    vec![("Set-Cookie", format!("sid={id}; {attrs}"))],
+                    headers,
                     &format!(
                         "<form><input type=\"hidden\" name=\"csrf_token\" value=\"{CSRF}\">{}</form>",
                         self.password_input()
