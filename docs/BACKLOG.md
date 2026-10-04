@@ -4747,6 +4747,32 @@ another session is not a claim.
   **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking ("I definitely still want to look
   into reducing false alarms from tool C; more research into reducing false alarms for all languages would be great
   as well"), as research first, in branch `claude/securevibe-e9-false-alarms`.
+  **Research done the same day** (`docs/SEMGREP-FALSE-ALARMS.md`, one row per finding in
+  `docs/semgrep-false-alarms.csv`). Option C's 1,034 rules were run over 25 apps in six languages: 11 well-kept real
+  apps, 9 deliberately vulnerable ones, and `sv`'s 5 examples, each given the file list `sv` itself would give.
+  Every first-party finding was read.
+  - **Measured:** 868 findings: 555 false, 301 true, 12 unsure. The clean apps were quiet (31 findings in all, 24
+    false). 317 false alarms (57%) were in third-party JavaScript kept inside the app (jQuery, Bootstrap, and the like
+    in `public/`, `static/`, or `assets/`), and 112 (20%) were in test code. 309 findings repeat a line another
+    rule already named.
+  - **Three changes lose no true finding:** treating bundled library files as not the app's code (shown apart), test
+    code apart (the secret rules included), and one finding per line naming every rule. Together they take the
+    corpus from 868 to 359 findings, and false alarms from 555 to 104, keeping all 239 true lines. A narrow
+    secret-rule exception and documentation paths take it to 341 and 86, still with none lost.
+  - **What costs true findings:** a blanket hash filter on the secret rules, gating the Django rules by framework (6
+    lost), and a broad "worth a look" tier. A narrow tier for five rules costs one.
+  - **Also found:** `sv` never hands `.json` files to Semgrep, so the 57 `generic-api-key` findings on
+    `securevibe.provenance.json` in the earlier measurement cannot happen in a real `sv` run, if it scanned the folder.
+
+  **Follow-ups, each claimable on its own, and they apply to today's packs as well as to option C:**
+  1. Bundled third-party library files shown apart, detected by a known library's file (as retire.js does) rather
+     than by long lines alone, and checked on apps the test was not written against.
+  2. The secret rules' findings in test code kept apart with the rest.
+  3. One finding per file and line, naming every rule and requirement.
+  4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
+  5. Only then, and the owner's choice: the narrow "worth a look" tier (`unsafe-dynamic-method`,
+     `detect-non-literal-regexp`, `prohibit-jquery-html`, `plaintext-http-link`, `var-in-href`), which costs one real
+     finding in this corpus.
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
