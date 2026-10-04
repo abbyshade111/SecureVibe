@@ -6903,5 +6903,11 @@ The MCP tools had refused links since "Writing nothing through a link"; the comm
   before the marker, holding only `sv`'s names, is still written to; so are new and empty folders, and the default
   `securevibe-report`.
 
+Eleven guards were broken in turn; ten were caught, two of them only after a test was added (a marked folder
+holding a file of the owner's, and an app holding a `README.md` a loose match would take for the marker). The
+eleventh, writing the zip by rename rather than in place, only matters in the race below, which no test can stage. A
+filter for staging files left by an interrupted run was taken out instead of tested: the marker is the first file
+written, so such a folder is always marked.
+
 What is still open: a write races with a link put at the name between the check and the rename, which
 `write_without_following` closes by renaming over it (its own test); and S6 to S13 of the same review.
