@@ -6996,6 +6996,37 @@ Tested with a real pipe (`mkfifo`), in the walk's own test and end to end throug
 `sv bundle`, each run given a minute before the test fails, since the fault is a hang. Five guards broken in turn, each
 caught; undoing the walk's guard hung all three commands again.
 
+## Tools' reports in a folder of the run's own (4 October 2026)
+
+The deep review's S6. Each outside tool (Bandit, gosec, Brakeman, Semgrep, CodeQL) writes its findings to a file that
+`sv` then reads. That file used to have a fixed name, `sv-bandit.sarif` and so on, in the computer's shared temporary
+folder, and `sv` read whatever was there once the tool stopped, whatever exit code it stopped with. Somebody else on the
+same computer could put a clean report at that name beforehand, in a way `sv` could not remove, and Bandit was recorded
+as run with nothing found. Two checks run at once read each other's reports.
+
+Now three things hold:
+
+- **A folder of the run's own.** `run_all_in` makes a new folder for each run (`PrivateFolder`): readable by this user
+  alone (mode 700), with a name drawn from the system's randomness rather than the process id and the time, and made
+  with a call that fails on anything already there, a link included. It is removed with everything in it when the run
+  ends. If it cannot be made, no tool runs and each is reported as not run, with the reason.
+- **The tool's own exit codes.** Each entry in `data/adapters.json` lists `finished_exits`, the codes with which that
+  tool says it ran to the end, found something or not, taken from its own source: Bandit 0 and 1, Brakeman 0 and 3,
+  Semgrep 0 and 1, CodeQL 0. Any other code, or a tool stopped by a signal, is reported as not run, and its report is
+  not read: a tool that stopped part way can leave a report that looks clean. Brakeman's 7 is the case that matters
+  most: files it could not read, and nothing found. Gosec ends with 1 both when it finds something and when it fails,
+  so for gosec the exit code cannot tell them apart, and the report still decides.
+- **Only a report written in this run.** Anything already in the report's place is removed before the tool starts, and
+  if it cannot be removed the tool is not run. Afterwards the report must be a plain file: a link in its place points at
+  something that was there before.
+
+Seven guards undone in turn (the fixed name in the shared folder, mode 700, the exit codes, a signal, removal of an
+earlier report, the plain-file test, and removing the folder), and each was caught by its own unit test in
+`adapters.rs`.
+
+What this does not cover: the review's S7 (Bandit follows links `sv` refuses), S8 (a secret quoted in a tool's message),
+and H7 (a file Bandit could not parse, with exit code 0) are their own items.
+
 ## Workflows a comment can start (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H4) found a workflow started by `issue_comment` that checked
@@ -7027,6 +7058,33 @@ findings it adds how many more were set aside. It says they were set aside "in s
 `sv` cannot tell who wrote the entry, which is R1's question, not settled here. An accepted risk stays among the
 findings, so it is not counted twice. Three guards broken in turn, each caught, two of them also by the end-to-end
 review test, which now reads the headline in both `compliance.md` and the HTML page.
+
+## Who set a finding aside: what securevibe.toml says, not "a person" (4 October 2026)
+
+The deep review's R1. A `[[finding-review]]` entry, or a `confirmed` entry under `[design]`, counts only when its `by`
+names somebody other than the AI coding tool, and the report then said the finding was "set aside by a person" or the
+answer "confirmed by a person". But `sv` only reads the name in the file: an AI coding tool that writes
+`by = "owner"` was shown as the owner's decision, and the report vouched for a person nobody had seen.
+
+Now every report says where the decision is recorded and what the entry says, never that a person made it:
+
+- The section is "Set aside in securevibe.toml", and opens by saying that each entry names who decided, that `sv` reads
+  that name and cannot tell who really wrote the entry, and that an AI coding tool can write one as easily as a person.
+- Each false alarm reads "securevibe.toml says the owner set it aside as a false alarm on (date)", and each accepted
+  risk "securevibe.toml says (name) accepted it on (date)", with "sv cannot tell who wrote that entry".
+- A confirmed answer is "stated by the AI coding tool, confirmed in securevibe.toml", resting on "the word of whoever
+  securevibe.toml says confirmed it, which sv cannot check", and its evidence line reads "securevibe.toml says you
+  confirmed it on (date)".
+- What the AI coding tool is told through MCP is headed "SET ASIDE IN securevibe.toml" and says never to write an entry
+  naming the person in `by` itself.
+
+Twelve wordings put back in turn, and each was caught.
+
+Not done, and left for the owner to decide: the review's better fix, an interactive `sv review` that refuses input that is
+not a terminal and keeps its record outside the app's folder, with entries in securevibe.toml then counting only as
+proposals. That changes how the owner records every decision, so it is the owner's call. Showing the entry's git author
+was considered and left out: an AI coding tool commits under the owner's own git name, so the author would vouch for the
+owner just as `by` does, and look like more evidence than it is.
 
 ## The design-time prompts in `sv prompts`, and a second test app (4 October 2026)
 
@@ -7085,3 +7143,91 @@ is warned about, never answers `sv`, and is named as the likely cause; the same 
 warned about. Five guards broken in turn, each caught: the example put back (the starter test), the general sentence
 removed (the message test), the detector made to find nothing (the detector test and the container test), the warning
 not printed, and the address not passed into the message (the container test each).
+## A fresh sign-in after the `--slow` wait (4 October 2026)
+
+On family-hub, 3 October, `sv run --slow` waited out the 15-minute idle timeout (and credited V7.3.1), then went on
+asking with the session A had signed in with before the wait. That session had sat unused for the whole wait, so the
+app had ended it: "A signed out (400)", the owned record and the browser checks failed where a normal run minutes
+before had passed them (BACKLOG, the family-hub list, item 8). The timeout check itself was never at fault: it signs
+in two sessions of its own, one left alone and one kept busy, and reads only those. A's main session was the one
+left behind.
+
+`session_timeout_checks` now says whether it waited, and when it did, A signs in afresh, through the sign-in page
+as before, so a form token comes with the new session and later forms fetch theirs against it. The new session is
+shown to open the private page, as the first one was; every check after that uses it. When that sign-in gets no
+answer, or the new session does not open the page, the run stops there, as it does when the first sign-in fails,
+and says why in the report: the checks that needed a working session were not run rather than run with one the
+app may have ended. That last part matters beyond lost credits: with the dead session, the sign-out check read the
+app's refusal after sign-out as the sign-out working, and credited it.
+
+The tests use the fake app's clock, which `wait` moves on rather than sleeping, with sessions that end after 15
+idle minutes. A correct app run with `--slow` now earns every credit the same app earns without it, seeded and
+through sign-up; an app that stops accepting sign-ins during the wait leaves the rest not assessed, with the reason,
+and credits nothing that needed A. With the fresh sign-in turned off, both tests failed: the seeded slow run lost
+six credits (another user's records, cross-site requests, two private-page checks, the sign-out link, and a skipped
+flow step), and the run with sign-ins refused credited the sign-out with no working session. No test caught it
+before these two.
+## A finding that says it leaves the credit alone does (4 October 2026)
+
+The family-hub build of 3 October (BACKLOG, "What the owner hit building family-hub", item 6) found a finding whose
+text and effect disagreed. `tests.name-does-not-match-requirement` says a test named for a requirement shares no words
+with it, at `info` severity and low confidence, and its own advice says "about a third of these are honest tests
+written in different words, which is why this does not take the credit away". But `sv_report::build` made any finding
+naming a requirement "needs attention", so V6.3.3 and V2.3.2, each with a passing test, lost their credit to it. The
+owner then did what the warning invites, read the tests and recorded the warnings as false alarms, and that made it
+worse: a requirement with a finding set aside as a false alarm can never be *checked* by another check, so V10.5.2 and
+V10.1.2 read "not verified".
+
+**What changed.** `Finding::withholds_credit` (in `crates/sv-check/src/finding.rs`) says whether a finding keeps a
+requirement from being *checked*. It is false only for a rule named in `INFORMATION_ONLY`, at `info` severity, with no
+other rule merged into it; today the list holds the test-name rule alone. The report shows such a finding beside the
+requirement's status, in a new `information` list on each requirement line and in the status cell of both the Markdown
+and HTML tables ("also noted, for information, and not counted against it"), and still lists it among the findings. A
+false-alarm review of one leaves the credit standing, since that review is the warning's own advice. The rule's advice
+now says so too.
+
+**Kept narrow on purpose.** Keying this on `info` severity alone would have stopped a tool's lowest-level result
+(SARIF `none`, or a CVSS score of 0.0, both mapped to `info` in `adapters.rs`) and a known vulnerability with a 0.0
+score (`cvss.rs`) from counting. Those are a tool saying something is wrong, and nothing in their text says the credit
+stands, so they still make the requirement need attention. The other kinds of finding that sound advisory were read
+for the same mismatch and do not have it: a low-confidence ("possible") finding still needs attention, as
+`Finding::certainty` says; an accepted risk stays among the findings and its note says "it still needs attention";
+a finding in test code is "said beside it, never used to hide it" and still counts; a finding naming a requirement
+that does not apply is listed apart. The "not a failure" sentences in the signed-in checks are reasons for *not
+assessed*, not findings.
+
+**Tested.** Three report tests: the test-name finding beside a passing test leaves the requirement *checked* and is
+named in both tables; a real finding beside it (a high one, a tool's at `info`, the test-name rule raised to `low`,
+and one with another rule merged in) still makes it need attention; and the test-name finding set aside as a false
+alarm leaves the credit, where a real one set aside does not. The suite's own test asserts the finding it makes is
+the one the report treats as information. Seven guards broken in turn, each caught: every finding withholding credit
+(three tests), any false alarm blocking *checked* (one), the severity condition and the merged condition dropped (one
+each, the control), no finding withholding credit (twelve, across the report and threat tests), and the note left out
+of either table (one each).
+
+## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
+could miss a known vulnerability and still credit V15.2.1, the requirement that the app contains no component past its
+fix time frame.
+
+- **H8, Python names.** PyPI reads `jupyter_server`, `Jupyter.Server`, and `jupyter-server` as one package (PEP 503).
+  The comparison matched names letter for letter, ignoring only case, so a lockfile and an advisory that spelled one
+  name two ways never met. Python names are now compared through `manifest_lock::python_name`, the normalizer the
+  manifest-and-lockfile comparison already used. Other ecosystems are compared as before: in npm, `lodash_x` and
+  `lodash-x` are two packages, and a test holds that.
+- **H10, nested npm copies.** A `package-lock.json` of version 1 keeps a second version of a package under the package
+  that needs it. Only the top level was read, so an old copy installed underneath, the kind an advisory is usually
+  about, was never compared. Every level is read now, and each copy is listed by its own name and version.
+- **H11, packages known only from a manifest.** The clean claim required every lockfile to be read, but not every
+  package to come from one. A package listed only by the version its manifest asks for is not known to be what is
+  installed. The claim now requires the package list to be complete (`Sbom::is_complete`), the same test the SBOM
+  uses before calling itself complete. A comparison that finds something still reports it, with medium confidence,
+  as before.
+
+Each fix was broken in turn and the new test for it went red: comparing Python names without normalizing them,
+checking only for unread lockfiles, and not reading below the top level. In each case one test caught it, the one
+written for it; no earlier test did, which is how the three got through. A first version had its own normalizer, and
+breaking its joining of separator runs or its lowercasing was caught by the same test; it was replaced by the shared
+one, which `manifest_lock`'s own test holds.
+

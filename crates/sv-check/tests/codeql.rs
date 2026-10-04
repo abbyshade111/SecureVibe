@@ -136,8 +136,10 @@ fn run_with_leftover(
 ) -> adapters::AdapterRun {
     let dir = scratch(name);
     let app = app(&dir);
+    // Where a run's database went when every run used the same names in the shared folder. Each run
+    // now has a folder of its own, so this one is not the run's to use or to remove.
+    let stale = dir.join(format!("sv-{id}.db"));
     if leftover {
-        let stale = dir.join(format!("sv-{id}.db"));
         std::fs::create_dir_all(&stale).unwrap();
         std::fs::write(stale.join("source-root"), "/somewhere/else").unwrap();
     }
@@ -149,9 +151,19 @@ fn run_with_leftover(
         .unwrap()
         .flatten()
         .map(|e| e.file_name().to_string_lossy().to_string())
-        .filter(|n| n.ends_with(".db"))
+        .filter(|n| n.ends_with(".db") || n.starts_with("sv-tools-"))
+        .filter(|n| !(leftover && stale.ends_with(n)))
         .collect();
     assert!(leftovers.is_empty(), "left behind: {leftovers:?}");
+    if leftover {
+        assert_eq!(
+            std::fs::read_to_string(stale.join("source-root"))
+                .ok()
+                .as_deref(),
+            Some("/somewhere/else"),
+            "a folder this run did not make is left as it was"
+        );
+    }
     std::fs::remove_dir_all(&dir).ok();
     outcome
 }
@@ -470,7 +482,8 @@ fn leftover_is_not_read(id: &str, language: &str, report: &str) {
         "{id}: the old database was read"
     );
     assert!(
-        out.not_run[0].1.contains("wrote no report"),
+        // With no database built, the analysis fails with CodeQL's code for a failure.
+        out.not_run[0].1.contains("stopped with exit code 2"),
         "{id}: {:?}",
         out.not_run
     );

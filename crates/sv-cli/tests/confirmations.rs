@@ -75,10 +75,10 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
     // Holds: the tool's word, then the owner's, at the owner's rank and never as their own answer.
     let confirmed = status_of(&compliance, "V8.3.1");
     assert!(
-        confirmed.starts_with("stated by the AI coding tool, confirmed by a person")
-            && confirmed.contains("the word of the person who confirmed it")
+        confirmed.starts_with("stated by the AI coding tool, confirmed in securevibe.toml")
+            && confirmed.contains("securevibe.toml says confirmed it, which sv cannot check")
             && confirmed.contains("your AI coding tool answered yes")
-            && confirmed.contains(&format!("You confirmed it on {today}"))
+            && confirmed.contains(&format!("securevibe.toml says you confirmed it on {today}"))
             && confirmed.contains(how),
         "V8.3.1: {confirmed}"
     );
@@ -114,7 +114,7 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
     // A named person confirming a check the tool made by hand.
     let hand = status_of(&compliance, "V12.2.2");
     assert!(
-        hand.starts_with("checked by the AI coding tool, confirmed by a person")
+        hand.starts_with("checked by the AI coding tool, confirmed in securevibe.toml")
             && hand.contains("Sam Lee confirmed it"),
         "V12.2.2: {hand}"
     );
