@@ -22,7 +22,9 @@ languages = []            # e.g. ["python", "typescript"]
 # Leave blank and every check that needs a running app reports "not assessed".
 image = ""                # container image, e.g. "python:3.12-slim"
 build = ""                # e.g. "pip install -r requirements.txt"
-start = ""                # e.g. "uvicorn app:app --host 127.0.0.1 --port $PORT"
+start = ""                # e.g. "uvicorn app:app --host 0.0.0.0 --port $PORT"
+#   Listen on 0.0.0.0, not 127.0.0.1 or localhost: `sv` runs the app in a container and asks it
+#   from a second one, and an app listening on 127.0.0.1 answers only from inside its own.
 test = ""                 # e.g. "pytest -q". Name requirement ids in your test names — see below.
 test-report = ""          # where `test` writes JUnit XML, e.g. "junit.xml". See below.
 # test-time-limit = 600     # seconds the tests may run before `sv` stops them; ten minutes if left out
@@ -229,19 +231,22 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #   not-sure  — adds nothing, and is the right answer when you do not know. Leaving a question
 #               out entirely comes to the same thing.
 # An answer without `by` counts as the AI tool's: write by = "owner" only for an answer the
-# owner gave. Run `sv report` to see the questions that apply to this app; there are at most sixteen.
+# owner gave. It counts as the owner's only once they run `sv review` in their own terminal, which
+# records it with a `seal`; until then it counts as the AI tool's. Run `sv report` to see the
+# questions that apply to this app; there are at most sixteen.
 #
 # A person can confirm what the AI tool answered, after looking for themselves, and it then counts as
-# much as their own word, shown as "stated by the AI coding tool, confirmed in securevibe.toml" (sv
-# cannot tell who wrote the entry, so the report says where it is, not who):
-#   confirmed = { by = "owner" (or their name), on = "YYYY-MM-DD", how = "what they looked at and saw",
-#                 answer and where = the answer confirmed, repeated so a later change is noticed }
+# much as their own word, shown as "stated by the AI coding tool, confirmed through sv review". The AI
+# tool may propose one, saying what the person could look at:
+#   confirmed = { by = "ai-tool", how = "what to look at, and what it should show" }
+# It counts only once the person runs `sv review` in their own terminal and records it: that writes
+# their name, the date, the answer and `where` it confirms, and a seal. An entry written any other
+# way, `by = "owner"` included, is a proposal; `sv` cannot tell who typed a line in this file.
 # It stops counting after 90 days, when the answer changes, or when the `where` file changes after `on`.
-# The AI tool can never confirm its own answer.
 [design]
 # "V8.3.1" = { answer = "yes", where = "server/auth.py", by = "owner" }
 # "V2.2.2" = { answer = "not-sure", by = "ai-tool" }
-# "V15.3.1" = { answer = "yes", where = "views/index.ejs", by = "ai-tool", confirmed = { by = "owner", on = "2026-09-27", answer = "yes", where = "views/index.ejs", how = "Opened a product page and its source; only the fields shown are sent." } }
+# "V15.3.1" = { answer = "yes", where = "views/index.ejs", by = "ai-tool", confirmed = { by = "ai-tool", how = "Open a product page and its source; only the fields shown should be sent." } }
 
 # Checks made by hand: the ones no tool can make, such as the certificate on the live site or two
 # people booking the same slot. `sv questions` lists them, with how to make each one. Record what
@@ -254,9 +259,11 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #         until it is made again, because certificates expire and apps change.
 #   how = one sentence of what was done and what was seen. Required: it is the evidence, and the
 #         report prints it.
-#   by  = "owner" or "ai-tool", as for [design]; left out, it counts as the AI tool's.
-#   confirmed = { by, on, how, result } — a person making a check the AI tool made, and seeing the
-#         same; as for [design], it counts as much as their own check made by hand.
+#   by  = "owner" or "ai-tool", as for [design]; left out, it counts as the AI tool's, and
+#         "owner" counts as the owner's only once recorded through `sv review`.
+#   confirmed = { by = "ai-tool", how } — proposes that a person make a check the AI tool made; as
+#         for [design], it counts, as much as their own check made by hand, once they have made it
+#         and recorded it through `sv review`.
 [checked-by-hand]
 # "V12.2.2" = { result = "done", on = "2026-09-26", by = "owner", how = "Opened the live site; the padlock shows a trusted certificate for the right name, valid to December." }
 
@@ -268,9 +275,9 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #                                and lapses after 90 days.
 #   why = what was looked at and what it showed, at least 40 characters (80 for a key or password,
 #         saying why it is not a real one; a key or password cannot be an accepted risk).
-#   by  = the person who decided. An entry by "ai-tool", or with no `by`, is only a proposal: the
-#         finding still counts until a person has read the code and put their own name here.
-#   on  = the day, as "YYYY-MM-DD".
+#   by  = "ai-tool" for the AI tool's proposal. Every entry is only a proposal, and the finding
+#         still counts, until a person has read the code and recorded it by running `sv review` in
+#         their own terminal, which writes their name in `by`, the day in `on`, and a `seal`.
 # Setting a finding aside never makes its requirement "checked": a person's word that a warning
 # was wrong does not show the protection is there.
 # [[finding-review]]
@@ -279,8 +286,7 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # fingerprint = "3f2a9c1e0b7d4a55"
 # verdict = "false-alarm"
 # why = "The next= value is looked up in a fixed list of our own paths on the line above."
-# by = "owner"
-# on = "2026-09-27"
+# by = "ai-tool"
 "#;
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.

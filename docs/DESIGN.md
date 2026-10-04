@@ -7114,3 +7114,349 @@ the key and the command were caught; the missing sanitizer was not, because the 
 reads only locked packages. That gap, and the `shell=True` one, are items in the backlog. The four prompts stay
 not tested. Five guards in the loader were broken in turn (controls not searched, an id in both files, a file with
 no credit, controls not shown, the design file not read), each caught.
+
+## `sv review`: what a person records is sealed (4 October 2026)
+
+The deep review's R1, second fix, as the owner decided the same day. Until now an entry in securevibe.toml that set a
+finding aside (`[[finding-review]]`), or confirmed what the AI coding tool said (`confirmed` under `[design]` or
+`[checked-by-hand]`), counted whenever its `by` named someone other than the tool. The first fix made the reports say so
+honestly. This one makes the difference count: **an entry counts only when `sv review` recorded it.**
+
+- **`sv review [PATH]`** runs only when what it reads and what it writes are both a terminal, which an AI coding tool
+  running a command does not have. It goes through every entry that does not count on this computer, shows what is being
+  decided (the finding's rule, file, and line of code, found by its fingerprint; the answer or result being confirmed),
+  and asks for the person's name or `owner`. They can type `edit` to put the reason, or what they looked at, in their own
+  words. It refuses the AI coding tool's name, a reason under the length the report requires, and a confirmation that
+  says nothing about what was looked at.
+- **What it records is written back into securevibe.toml**, through `toml_edit`, so comments and layout stay: `by`, `on`,
+  the reason, and a `seal`. A confirmation records the answer and `where` (or the result) that were shown, not what the
+  proposal said. After each write the file is read back, and if the entry would not count the file is put back as it was.
+- **The seal** (`sv-check/src/seal.rs`) is HMAC-SHA-256 over every field of the entry, each prefixed by its length, under
+  a 32-byte key from `/dev/urandom` kept at `~/.config/securevibe/review-key` (or under `XDG_CONFIG_HOME`), outside the
+  app's folder. The folder is made readable by its owner only, the file with a call that fails on anything already there.
+  A seal is `v1:<key id>:<mac>`; the key id is 16 hex characters of a hash of the key, so the key is never shown.
+- **Where it is checked.** On the computer that holds the key, a seal that does not match (anything in the entry changed
+  afterwards, or the seal made up) is a proposal, and so is a seal made with another key: this computer cannot check it,
+  and a made-up seal naming a key that is not here would look the same. On a computer with no key at all, such as CI, a
+  sealed entry counts, as the owner decided, and the report says the seal was sealed on another computer and could not
+  be checked. Something in the key's place that cannot be used makes every entry a proposal.
+- **The reports** say "Recorded through `sv review` on this computer: the owner set it aside as a false alarm on (date)",
+  or, where unchecked, "securevibe.toml says … through `sv review`, sealed on another computer; this one has no key to
+  check the seal with". The section opens by saying what a seal shows (how an entry was recorded, and that it has not
+  changed) and what it cannot (who was at the keyboard). Entries that do not count say how to make them count: run
+  `sv review` in your own terminal. The MCP output tells the AI coding tool to write proposals with `by = "ai-tool"`,
+  never to run `sv review` for the person, and never to write a `seal` or a person's name.
+- **What it shows is kept safe.** A line is never shown for a rule about keys or passwords, or when the secrets scanner
+  finds anything in it; a file named with `..` or an absolute path is never read.
+
+What it does not do, said in the code and the README: the AI coding tool runs as the person, so a tool set on faking
+it could read the key or fake a terminal. The seal stops the easy path, one line in a file the tool is already editing,
+and makes the hard path a deliberate act. Entries made before this change count only once recorded through `sv review`.
+
+Twenty-one guards undone in turn; see the pull request for what caught each.
+
+## An app listening on 127.0.0.1 is named as the likely cause (4 October 2026)
+
+family-hub's first `sv report --run` waited a minute and said only that the app never answered on its health path.
+The AI tool had copied the starter file's own example, `uvicorn app:app --host 127.0.0.1 --port $PORT`. Inside its
+container an app listening on 127.0.0.1 answers only itself, and `sv` asks it from a second container on the fenced
+network (BACKLOG, "What the owner hit building family-hub", item 1).
+
+**The example.** The starter file now says `--host 0.0.0.0`, with a comment saying why. No other place `sv` tells an
+app or an AI tool where to listen named 127.0.0.1 or `localhost`: `data/`, `docs/prompts/`, the MCP server's text, and
+the example apps already say 0.0.0.0 or say nothing. A test reads the example out of the starter file and runs it
+through the same test as the warning.
+
+**The message.** "Never answered" now says that an app listening on 127.0.0.1 or `localhost` cannot be reached, and to
+have it listen on 0.0.0.0 at the port in `$PORT`. When the start command itself names 127.0.0.1, `localhost`, or `::1`
+(`sv_run::loopback_named_in`), the message names it as the likely cause; otherwise it is "one common cause". When the
+app's own output already says why (a read-only file system), that is said instead of the guess.
+
+**The warning, not a refusal.** Before waiting, `sv run` and `sv report --run` print a warning when the start command
+names one of those addresses, and start the app anyway: the command line is not where the app really listens, and an
+app may bind elsewhere than its command suggests, in either direction. Only the name as a whole counts, so
+`127.0.0.10`, `notlocalhost`, and `fe80::1` are not taken for it. A command that names 127.0.0.1 for another reason
+(a self-check with `wget`, say) is warned about too; the warning says it may be wrong.
+
+Tested with a real container: a busybox app listening on 127.0.0.1, which first shows it is up by answering itself,
+is warned about, never answers `sv`, and is named as the likely cause; the same app on 0.0.0.0 answers and is not
+warned about. Five guards broken in turn, each caught: the example put back (the starter test), the general sentence
+removed (the message test), the detector made to find nothing (the detector test and the container test), the warning
+not printed, and the address not passed into the message (the container test each).
+## A fresh sign-in after the `--slow` wait (4 October 2026)
+
+On family-hub, 3 October, `sv run --slow` waited out the 15-minute idle timeout (and credited V7.3.1), then went on
+asking with the session A had signed in with before the wait. That session had sat unused for the whole wait, so the
+app had ended it: "A signed out (400)", the owned record and the browser checks failed where a normal run minutes
+before had passed them (BACKLOG, the family-hub list, item 8). The timeout check itself was never at fault: it signs
+in two sessions of its own, one left alone and one kept busy, and reads only those. A's main session was the one
+left behind.
+
+`session_timeout_checks` now says whether it waited, and when it did, A signs in afresh, through the sign-in page
+as before, so a form token comes with the new session and later forms fetch theirs against it. The new session is
+shown to open the private page, as the first one was; every check after that uses it. When that sign-in gets no
+answer, or the new session does not open the page, the run stops there, as it does when the first sign-in fails,
+and says why in the report: the checks that needed a working session were not run rather than run with one the
+app may have ended. That last part matters beyond lost credits: with the dead session, the sign-out check read the
+app's refusal after sign-out as the sign-out working, and credited it.
+
+The tests use the fake app's clock, which `wait` moves on rather than sleeping, with sessions that end after 15
+idle minutes. A correct app run with `--slow` now earns every credit the same app earns without it, seeded and
+through sign-up; an app that stops accepting sign-ins during the wait leaves the rest not assessed, with the reason,
+and credits nothing that needed A. With the fresh sign-in turned off, both tests failed: the seeded slow run lost
+six credits (another user's records, cross-site requests, two private-page checks, the sign-out link, and a skipped
+flow step), and the run with sign-ins refused credited the sign-out with no working session. No test caught it
+before these two.
+## A finding that says it leaves the credit alone does (4 October 2026)
+
+The family-hub build of 3 October (BACKLOG, "What the owner hit building family-hub", item 6) found a finding whose
+text and effect disagreed. `tests.name-does-not-match-requirement` says a test named for a requirement shares no words
+with it, at `info` severity and low confidence, and its own advice says "about a third of these are honest tests
+written in different words, which is why this does not take the credit away". But `sv_report::build` made any finding
+naming a requirement "needs attention", so V6.3.3 and V2.3.2, each with a passing test, lost their credit to it. The
+owner then did what the warning invites, read the tests and recorded the warnings as false alarms, and that made it
+worse: a requirement with a finding set aside as a false alarm can never be *checked* by another check, so V10.5.2 and
+V10.1.2 read "not verified".
+
+**What changed.** `Finding::withholds_credit` (in `crates/sv-check/src/finding.rs`) says whether a finding keeps a
+requirement from being *checked*. It is false only for a rule named in `INFORMATION_ONLY`, at `info` severity, with no
+other rule merged into it; today the list holds the test-name rule alone. The report shows such a finding beside the
+requirement's status, in a new `information` list on each requirement line and in the status cell of both the Markdown
+and HTML tables ("also noted, for information, and not counted against it"), and still lists it among the findings. A
+false-alarm review of one leaves the credit standing, since that review is the warning's own advice. The rule's advice
+now says so too.
+
+**Kept narrow on purpose.** Keying this on `info` severity alone would have stopped a tool's lowest-level result
+(SARIF `none`, or a CVSS score of 0.0, both mapped to `info` in `adapters.rs`) and a known vulnerability with a 0.0
+score (`cvss.rs`) from counting. Those are a tool saying something is wrong, and nothing in their text says the credit
+stands, so they still make the requirement need attention. The other kinds of finding that sound advisory were read
+for the same mismatch and do not have it: a low-confidence ("possible") finding still needs attention, as
+`Finding::certainty` says; an accepted risk stays among the findings and its note says "it still needs attention";
+a finding in test code is "said beside it, never used to hide it" and still counts; a finding naming a requirement
+that does not apply is listed apart. The "not a failure" sentences in the signed-in checks are reasons for *not
+assessed*, not findings.
+
+**Tested.** Three report tests: the test-name finding beside a passing test leaves the requirement *checked* and is
+named in both tables; a real finding beside it (a high one, a tool's at `info`, the test-name rule raised to `low`,
+and one with another rule merged in) still makes it need attention; and the test-name finding set aside as a false
+alarm leaves the credit, where a real one set aside does not. The suite's own test asserts the finding it makes is
+the one the report treats as information. Seven guards broken in turn, each caught: every finding withholding credit
+(three tests), any false alarm blocking *checked* (one), the severity condition and the merged condition dropped (one
+each, the control), no finding withholding credit (twelve, across the report and threat tests), and the note left out
+of either table (one each).
+
+## Two blind spots: a manifest with no lockfile, and a shell the call asked for (4 October 2026)
+
+Both were found testing the prompt library: each shortcut was put back into an app built without it, and two were
+reported by nothing.
+
+**A rich-text editor declared, with no lockfile.** `config.rich-text-without-sanitizer` (V1.3.1) took its editors
+and sanitizers from the bill of materials, which lists an npm app's packages only from its lockfile. An app an AI
+tool wrote where nothing could be installed has a `package.json` and no lockfile, so a recipe app listing `quill`
+and no sanitizer was reported as "0 packages: none is a rich-text editor `sv` knows", while the same app with a
+lockfile was caught. The check needs which packages an app uses, not which versions, and the manifest says that:
+where the bill of materials could read nothing for an ecosystem, the check now reads the names the manifest
+declares, through the readers `manifest_lock.rs` already has for nine manifests (`declared_names`). Where it cannot
+read those either, it says the check was not assessed and why, rather than "none is an editor", which it had been
+saying for any app whose packages it could not read. It still credits nothing either way.
+
+**A command handed to a shell the call asked for.** `ast.shell-command` knows the calls that always use a shell
+(`os.system`, `exec` in Node, `system` in Ruby). Python's `subprocess` uses one only when told to, with
+`shell=True`, and so does Node's `spawn` and `execFile` with `shell: true` and Dart's `Process` with
+`runInShell: true`: `subprocess.run(f'notes-export "{title}" out.pdf', shell=True)` was reported by nothing unless
+Bandit or Semgrep ran. A new rule, `ast.shell-command-shell-true`, reports those calls when what reaches the shell
+was built: in Python and Node the command, unless it is a fixed string; in Node and Dart a list of arguments too,
+since with the shell option they are joined into one line for it. A fixed Node list (`['-la']`) is reported as well,
+because the grammar's arrays are not counted as fixed; that is a false alarm the rule accepts rather than missing a
+list with a value in it.
+
+A query cannot tell `shell=True` from `check=True` (the text predicates that would are parsed by the Rust binding
+and not applied), so the rule engine gains `keywordPatterns`: a pattern the `@kw` capture, the keyword's name, must
+match. The rule is findings-only: it reads Python, JavaScript, TypeScript, and Dart, and says for the other eleven
+languages why there is nothing to find (each either always uses a shell, which is `ast.shell-command`'s, or has no
+shell option at all). A clean run credits nothing, so no app's credit for V1.2.5 changed.
+
+Seven guards broken in turn, each caught: the manifest names not read, "none is an editor" said with a manifest
+unread, a sanitizer assumed where a manifest was unread, the keyword filter, the function names, a fixed command
+counted as built, and Node without its keyword pattern. The recipe app with its sanitizer removed, and a Python file
+with `shell=True`, are now caught; the app as built, and the list form with no shell, are not.
+
+## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
+could miss a known vulnerability and still credit V15.2.1, the requirement that the app contains no component past its
+fix time frame.
+
+- **H8, Python names.** PyPI reads `jupyter_server`, `Jupyter.Server`, and `jupyter-server` as one package (PEP 503).
+  The comparison matched names letter for letter, ignoring only case, so a lockfile and an advisory that spelled one
+  name two ways never met. Python names are now compared through `manifest_lock::python_name`, the normalizer the
+  manifest-and-lockfile comparison already used. Other ecosystems are compared as before: in npm, `lodash_x` and
+  `lodash-x` are two packages, and a test holds that.
+- **H10, nested npm copies.** A `package-lock.json` of version 1 keeps a second version of a package under the package
+  that needs it. Only the top level was read, so an old copy installed underneath, the kind an advisory is usually
+  about, was never compared. Every level is read now, and each copy is listed by its own name and version.
+- **H11, packages known only from a manifest.** The clean claim required every lockfile to be read, but not every
+  package to come from one. A package listed only by the version its manifest asks for is not known to be what is
+  installed. The claim now requires the package list to be complete (`Sbom::is_complete`), the same test the SBOM
+  uses before calling itself complete. A comparison that finds something still reports it, with medium confidence,
+  as before.
+
+Each fix was broken in turn and the new test for it went red: comparing Python names without normalizing them,
+checking only for unread lockfiles, and not reading below the top level. In each case one test caught it, the one
+written for it; no earlier test did, which is how the three got through. A first version had its own normalizer, and
+breaking its joining of separator runs or its lowercasing was caught by the same test; it was replaced by the shared
+one, which `manifest_lock`'s own test holds.
+
+## One run at a time in a report folder (4 October 2026)
+
+On family-hub (3 October) the owner and their AI coding tool each ran `sv report --run --tools` at about the same
+time. Both wrote `securevibe-report`; the good run finished first, and the owner's, which failed, replaced its
+report two minutes later with nothing to say so (BACKLOG, "What the owner hit building family-hub", item 2).
+
+**A lock, taken before the run and held until its report is written** (`crates/sv-cli/src/report_lock.rs`).
+`sv report` and the MCP server's `securevibe_write_report` both take `.securevibe-report.lock` in the report folder
+before reading the app. A second run refuses at once, naming the run that holds the folder: its command, process
+number, and when it started. It refuses rather than waits: a run takes minutes, and a command that sits silent
+because of another run nobody remembers starting looks stuck. The folder checks that used to come at the end
+(a link, someone else's files) now come first too, so a refusal comes before the wait rather than after it.
+
+**A lock a killed run left does not block.** The lock is the operating system's own (`File::try_lock`), which it
+lets go when the process ends, however it ends. The backlog suggested checking whether the holder's process number
+is still running; the operating system's answer is better, since a process number can be reused, or belong to
+another machine or container. The lock file still says who held it, so the next run says that run stopped before
+it finished and that its report may be part-written. A disk that will not lock is said, and the run goes on.
+
+**A report records when its run started and the hash of the `securevibe.toml` it read** (`run_record` in
+`report.json` only; the pages for people stay the same from run to run). Before writing, a run reads the report it
+would replace: if that came from a run that started later, it keeps the newer report, says so, and says whether the
+two read the same file. With the lock this happens only where the lock could not hold: a disk without locks, or an
+`sv` from before this. A `securevibe.toml` that changed while the run went on (family-hub's own start-command fix)
+is said on the terminal and as a gap in the report.
+
+**Found while testing:** a second run started as the first was writing its marker found the folder unmarked, with
+the marker's part-written file in it, and called the folder someone else's. `sv`'s own part-written files
+(`.report.json.sv-4321`) now count as `sv`'s, and the run holding the folder clears ones a stopped run left. And
+taking the folder before the run made it, and marked it, before there was a report to put in it, so Ctrl-C during
+`sv report --run` left an empty folder where it used to leave nothing (`interrupt.rs` caught it). A run that ends
+without a report now takes away the marker it wrote and the folder it made, if nothing else is in it; Ctrl-C, which
+leaves through `std::process::exit`, lets go first.
+
+Tested with real processes of the real binary (`crates/sv-cli/tests/report_lock.rs`): a run kept going by `--run`
+and a test command that sleeps, a second run at the same time, a `kill -9`, and an older report put beside a newer
+one. These need a container backend; without one, the two-run tests say so. Each guard broken in turn was caught:
+no lock (three tests), a leftover lock taken as a live one (two), no age check (one), no changed-file check (one),
+the lock never removed (five), part-written files taken as someone else's (one), a failed run's folder left
+(two), and Ctrl-C not letting go (one). Shared tool reports and container
+names, which two runs at once also collide on, are S6 and S10, not changed here.
+
+## The owner's own answers are recorded through `sv review` too (4 October 2026)
+
+The rest of the deep review's R1, as the owner decided the same day. After `sv review` sealed set-aside findings and
+confirmations, three more places still took "the owner" on one line anyone could write: a `[design]` answer and a
+`[checked-by-hand]` result written `by = "owner"` (*attested by the owner*, *checked by hand by the owner*), and a
+section of security-notes.md marked `Written by: owner` (*documented by the owner*). Each now counts as the owner's only
+when `sv review` recorded it.
+
+- **What is sealed.** A design answer: its requirement, answer, `where`, and `by`. A check made by hand: its
+  requirement, result, `on`, `by`, and `how`. A notes section: its requirement and its answer as the report reads it,
+  without the `Written by:` line and without the seal. The seal goes in a `seal` field in securevibe.toml, and in
+  security-notes.md on a line `Sealed by sv review: …` straight under `Written by: owner`. That line is never part of
+  the answer, so it can never make one, and the AI coding tool cannot record it through `securevibe_record_answer`.
+- **Without a seal that holds**, the answer drops one tier, to *stated by the AI coding tool*, and the report says
+  "securevibe.toml says you answered yes, … but it was not recorded through `sv review` …, so it counts as your AI coding
+  tool's word", with how to make it the owner's. A `no` or a `problem` is still a finding, worded as what the file says;
+  reporting a missing control never overstates the app. With no key to check with (CI), a sealed answer counts as the
+  owner's and says it was recorded on another computer.
+- **`sv review`** now also offers each answer given as the owner's and not recorded on this computer, shows it, and asks
+  for `owner`: only the app's owner gives these answers, so a name is refused, with a pointer to confirming instead. It
+  writes only the seal (in securevibe.toml through `toml_edit`; in security-notes.md one line under `Written by:`, any
+  earlier seal line in the section taken out), and reads the file back. Answers the AI coding tool gave are not offered:
+  the person confirms those, as before.
+- **The instructions** in the securevibe.toml spec, the interview, the notes template, and the MCP tools say that an
+  answer marked as the owner's counts once they run `sv review`, and that the tool must never run it for them.
+
+Tests that wrote `by = "owner"` and expected the owner's tier now seal the answer as `sv review` would. One of them runs
+the MCP server inside the test process, so `sv_check::seal::key_folder_for_tests` lets such a test fix the key folder
+once, keeping its result the same whether or not the computer running it has a review key; nothing outside a test can
+reach it.
+
+Thirteen guards undone in turn, each caught: the three judgments, the report's wiring for design answers and for
+checks made by hand, two of the sealed fields, the seal line kept out of the answer and out of what the tool may record,
+an old seal replaced, only `owner` accepted, and only the answers given as the owner's offered.
+
+## HTTPS redirects and HSTS, held to what they say (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H12 and H13) found `sv probe` crediting two things on their form
+alone.
+
+- **H12, the redirect from plain HTTP (V12.2.1).** A 301 or 308 was credited as "sent the browser to HTTPS" wherever
+  it pointed: to `http://` again, or to a relative address such as `/login`, which keeps the browser on plain HTTP.
+  Now only a redirect to an absolute `https://` address on the host the owner named is credited, and a temporary one
+  of that kind is still the finding it was. Any other redirect is not assessed, permanent or temporary, with the
+  address it named: where the browser ends up would take following it, and `sv probe` asks only the addresses the
+  owner gave, never one an answer points to. The scheme and the host are compared without regard to case, as browsers
+  compare them.
+- **H13, Strict-Transport-Security (V3.4.1).** Any value was credited, `max-age=0` included, which tells a browser to
+  forget the site's policy, and it was credited on error answers too, whose headers the code had already set aside as
+  not the site's own. V3.4.1 asks for a max-age of at least a year, and from level 2 for the policy to cover every
+  subdomain. The header is now read the way a browser reads it (RFC 6797): directive names in any case, a quoted
+  number allowed, and a header with no readable max-age, or a directive given twice, ignored. Less than a year, `0`,
+  or a header browsers ignore is a finding that says which. A year or more with includeSubDomains is credited. A year
+  or more without it is not assessed: it is what level 1 asks and not what level 2 asks, and `sv probe` is not told
+  which level applies. An error answer's header is neither credited nor found.
+
+Eight guards were broken in turn: accepting any max-age above zero, ignoring includeSubDomains, reading error answers,
+accepting a directive given twice, accepting a max-age that is not a number, crediting any redirect, crediting any
+scheme, and comparing hosts letter for letter. Each was caught by the test written for it, and reading error answers
+by an earlier test as well.
+
+## A credential name over a sentence is reported low, and says so (4 October 2026)
+
+On family-hub (3 October) `secrets.credential-assignment` rated `WRONG_PASSWORD = "Your current password isn't
+right."` high and advised changing the credential (BACKLOG, "What the owner hit building family-hub", item 7, the
+credential half). The rule takes a name that says "credential" with a quoted value of 8 to 200 characters that is not
+a placeholder and has enough variety of characters, and a sentence passes. The owner's decision: keep reporting such
+a value, since a real passphrase can be a sentence, but at low severity and saying "this reads like a sentence".
+
+**What reads like a sentence** (`reads_like_sentence` in `crates/sv-check/src/secrets.rs`), kept narrow because it
+lowers a finding: three or more ordinary words, one space apart, the last ending in `.`, `?`, or `!`. An ordinary
+word is letters only, with an apostrophe or hyphen between letters (`isn't`, `sign-in`), a comma after any but the
+last, written in lowercase, with a capital first letter, or all in capitals. A digit or other symbol in a word, a
+letter case mixed inside one (`pAsS`), two spaces, a leading or trailing space, or no closing mark, and it is not a
+sentence. Such a value is reported at `low` severity and low confidence (so its certainty reads "possible", which
+tells the reader to look before changing code); its title, description, impact, and advice say it reads like a
+sentence and what to do in either case: a message is a false alarm to record, a passphrase is moved out and changed.
+Everything else keeps `high` and medium confidence, as before. Two words ending in a period (`Wrong password.`)
+stay high: too short to tell from a two-word passphrase, and the decision did not ask for them.
+
+**The value now runs to the quote that opened it.** Either quote used to end the value, so the reported line was
+judged as `Your current password isn` (no closing mark, and the wrong length in the finding). The pattern now pairs
+`"…"` and `'…'`, as `redact_text` already did; without this the sentence test could not have seen the sentence.
+
+**Redaction is unchanged, on purpose.** A sentence finding still carries `Secret::redact`'s four characters and
+length, never the value, and `redact_text` still cuts any value under a credential's name whatever its shape: a
+passphrase that is a sentence is still a passphrase. A finding at `low` still makes its requirements need attention
+and still stops the scan's clean claim, since the owner chose to keep reporting it; setting it aside as a false alarm
+is the way to clear it.
+
+**Where else the shape goes.** No vendor rule in `data/secret-rules.json` matches a sentence. Bandit's B105 does
+(any string under a name like `password`), and with `--tools` it and this rule merge on the same line (both CWE-259).
+`merge_same_place` keeps the more severe, then the surer: both are now `low`, and the adapter gives every tool
+finding medium confidence, so Bandit's "Bandit reported B105" is kept, this rule's sentence note is lost, and it is
+named only in "also reported by". Seen with the real Bandit on a one-file app. Before this change this rule's `high`
+was kept. Not changed here, since it is the merge's rule for every pair of findings.
+
+`docs/REQUIREMENTS.md` used to describe this rule by its impact ("if it fails: Anyone who can read the code…"),
+which `tools/coverage.py` read as the first string literal after the rule; the impact now depends on the value, so
+the script reads the rule's `ASSIGNMENT_WHAT` instead ("looks for: A value that looks like a credential, …").
+
+**Tested** with four tests in `secrets.rs`: the family-hub line and five other messages are reported low and
+"possible", with the note in title, description, and advice, the whole value judged, and the value redacted; eleven
+controls (passphrases without a closing mark, with a digit, symbols, hyphens, or mixed case, two spaces, two words,
+key- and token-shaped values) are each shown reported and still `high`; a table of what is and is not a sentence; and
+a value with the other quote inside it read whole, and a sentence still cut by `redact_text`. `sv check` on a
+one-file app gives `[low] … reads like a sentence (WRONG_PASSWORD)`, "found: Your… (30 more characters)". Nine
+guards broken in turn, each caught: never a sentence (two tests), the closing mark alone enough (two), either quote
+ending a value (two), the sentence kept at medium confidence (one) or high severity (one), two words enough (two),
+mixed case allowed (two), digits allowed (two, after a digit-inside-a-word control was added when only the table
+caught it at first), and the sentence not redacted (one).

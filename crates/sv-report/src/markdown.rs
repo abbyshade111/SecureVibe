@@ -19,7 +19,7 @@ pub fn cell(text: &str) -> String {
 /// One requirement's status, in the words the table prints. Shared so the grouped tables and
 /// anything else that lists a requirement cannot drift apart in how they describe the same state.
 fn status_cell(line: &crate::RequirementLine) -> String {
-    match line.status {
+    let shown = match line.status {
         Status::NeedsAttention => {
             format!("**{}** ({})", line.status.label(), line.findings.join(", "))
         }
@@ -71,7 +71,9 @@ fn status_cell(line: &crate::RequirementLine) -> String {
                 .join("; ")
         ),
         Status::NotVerified => line.status.label().to_owned(),
-    }
+    };
+    // Information-only findings sit beside whatever the status is, never in place of it.
+    format!("{shown}{}", line.information_note())
 }
 
 pub fn compliance(report: &Report) -> String {
@@ -653,13 +655,12 @@ pub fn security(report: &Report) -> String {
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
         out.push_str("## Set aside in securevibe.toml\n\n");
         if !set_aside.is_empty() {
-            out.push_str(
-                "Found by a check, and set aside as a false alarm in securevibe.toml. Each entry \
-                 names who decided; `sv` reads that name and cannot tell who really wrote the entry, \
-                 and an AI coding tool can write one as easily as a person, so read each reason \
-                 before relying on it. They are not counted below. A requirement one of them was about is not credited \
+            out.push_str(&format!(
+                "Found by a check, and set aside as a false alarm in securevibe.toml through \
+                 `sv review`. {} They are not counted below. A requirement one of them was about is not credited \
                  for it: it is shown by whatever else is known about it, never as checked.\n\n",
-            );
+                crate::SEALED_WHY
+            ));
             for (line, report_it) in &set_aside {
                 out.push_str(&format!(
                     "- {line} [Report it against the rule]({report_it})\n"
@@ -670,7 +671,8 @@ pub fn security(report: &Report) -> String {
         if !report.reviews_not_counted.is_empty() {
             out.push_str(
                 "These entries in `[[finding-review]]` do not count, so the findings they name \
-                 still do:\n\n",
+                 still do. To record one as your decision, run `sv review` in your own \
+                 terminal.\n\n",
             );
             for line in &report.reviews_not_counted {
                 out.push_str(&format!("- {line}\n"));

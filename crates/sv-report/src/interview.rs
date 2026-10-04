@@ -30,19 +30,21 @@ How to ask them. These are for the person you are building this app with, not fo
   The \"where to look\" line under each question says where the answer is usually found.
 - Record the answer as the person gave it, as described in each part below. \"Not sure\" is a good
   answer, and is recorded as not-sure. A \"no\" is useful too: the report lists it as something to fix.
-- Write by = \"owner\" only for an answer the person gave or confirmed. If they ask you to answer, say
-  what the code does, answer from that, and write by = \"ai-tool\". The report shows that as \"stated by
-  the AI coding tool\", which is weaker than the person's own word, and says so.
+- Write by = \"owner\" only for an answer the person gave or confirmed. It counts as theirs only once
+  they run `sv review` in their own terminal, which records it; never run it for them. If they ask you
+  to answer, say what the code does, answer from that, and write by = \"ai-tool\". The report shows
+  that as \"stated by the AI coding tool\", which is weaker than the person's own word, and says so.
 - The person can confirm what you answered, and then it counts as much as their own word. Suggest
-  something they can look at or try themselves (a page to open, a thing to try), not a yes-or-no. If
-  they do it and agree, add confirmed = { by = \"owner\", on = \"YYYY-MM-DD\", how = \"what they
-  looked at and saw\" } beside your answer, repeating the answer and `where` (or the `result`) it
-  confirms. A colleague can confirm too, with their name in `by`. Never write a confirmation the
-  person did not make: you cannot confirm your own answer.
+  something they can look at or try themselves (a page to open, a thing to try), not a yes-or-no,
+  and write it beside your answer as a proposal: confirmed = { by = \"ai-tool\", how = \"what to
+  look at, and what it should show\" }. It counts only once the person has done it and recorded it by
+  running `sv review` in their own terminal. Never run `sv review` for them, and never write their
+  name or a `seal` yourself: you cannot confirm your own answer.
 - A finding you think is a false alarm: read the code first, and tell the person what you found. You
   may write it under [[finding-review]] with by = \"ai-tool\" as a proposal; it counts for nothing
-  until the person has looked and put their own name in `by`. Never write their name yourself, and
-  never change correct code only to make a warning go away.
+  until the person has looked and recorded it by running `sv review` in their own terminal. Never
+  run it for them or write their name or a `seal` yourself, and never change correct code only to
+  make a warning go away.
 - Never answer yes to make the report look better. An answer is a record of how the app is, and a
   wrong yes hides the one thing the question exists to find.
 - They are in order of what is most at stake: level 1, the baseline every app needs, first. When the
@@ -89,9 +91,10 @@ pub fn text(report: &Report) -> String {
                 out.push_str(
                     "   Only you, the AI coding tool, have answered this so far. Tell the person \
                      what you answered and why, and record their answer if they give one. Or \
-                     suggest how they can see it for themselves; if they look and agree, confirm \
-                     it: confirmed = { by = \"owner\", on = \"YYYY-MM-DD\", answer = \"yes\", \
-                     where = \"...\", how = \"what they saw\" }.\n",
+                     suggest how they can see it for themselves, as a proposal beside your \
+                     answer: confirmed = { by = \"ai-tool\", how = \"what to look at, and what it \
+                     should show\" }. If they look and agree, they record it by running `sv review` \
+                     in their own terminal; never run it for them.\n",
                 );
             }
         }
@@ -106,7 +109,8 @@ pub fn text(report: &Report) -> String {
              as stated by the AI coding tool, and asks again: sv cannot tell the person's word from \
              yours, so nothing you record counts as theirs. Show them what you recorded; if they \
              agree with it, they change that line in security-notes.md to `Written by: owner` \
-             themselves. Never write or change that line for them. Without the MCP server, write \
+             themselves and record it by running `sv review` in their own terminal. Never write or \
+             change that line for them, or run `sv review` for them. Without the MCP server, write \
              the answer under the question in security-notes.md (`sv notes` makes the file) and \
              start it with `Written by: AI coding tool`; a section without that line counts as \
              yours.\n",
@@ -126,9 +130,9 @@ pub fn text(report: &Report) -> String {
              \"2026-09-26\", by = \"owner\", how = \"Opened the live site; the padlock shows a \
              trusted certificate.\" }}\n   `result` is done, problem, or not-yet; `on` is the day; \
              `how` is one sentence of what was done and seen, in the person's words, and is \
-             required. A check you made yourself, reading the code, is by = \"ai-tool\"; if the \
-             person then makes it too and sees the same, add confirmed = {{ by = \"owner\", on = \
-             \"YYYY-MM-DD\", result = \"done\", how = \"what they saw\" }} beside it. A problem is \
+             required. A check you made yourself, reading the code, is by = \"ai-tool\"; to propose \
+             that the person make it too, add confirmed = {{ by = \"ai-tool\", how = \"what to look \
+             at\" }} beside it, and they record it by running `sv review` in their own terminal. A problem is \
              worth recording: the report lists it as something to fix.\n",
             1 + usize::from(!design.is_empty()) + usize::from(!notes.is_empty()),
             by_hand.len()

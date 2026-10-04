@@ -933,7 +933,8 @@ impl Server {
                     "Recorded under {id} in {}, marked `Written by: AI coding tool`. The report counts \
                      it as stated by the AI coding tool, which is less than the person's own word, and \
                      asks again. Show the person what you wrote; if they agree with it, they can change \
-                     that line to `Written by: owner` themselves. Do not change it for them.",
+                     that line to `Written by: owner` themselves and record it by running `sv review` \
+                     in their own terminal. Do not change it or run `sv review` for them.",
                     written.path.display()
                 ),
             }],
@@ -1029,6 +1030,7 @@ impl Server {
         // "elsewhere/a/b"` made `a/b` outside the root and only then was refused (BACKLOG,
         // "Hardening the MCP server", item 2). So the folder is made one level at a time, and a level
         // that is a link is refused before anything below it is created.
+        let made = std::fs::symlink_metadata(app_dir.join(out)).is_err();
         let out_dir = create_below(&app_dir, Path::new(out))?;
         let resolved = out_dir
             .canonicalize()
@@ -1040,8 +1042,25 @@ impl Server {
             app_dir.display()
         );
         let out_dir = resolved;
-        let report = self.report_for(&app_dir, progress)?;
+        // The same lock `sv report` takes, so the owner's run at a terminal and this one cannot both
+        // write the folder (BACKLOG, "What the owner hit building family-hub", item 2).
+        let elsewhere = "ask for a folder of its own with `out`";
+        let held = crate::claim_report_folder(
+            &out_dir,
+            &format!("securevibe_write_report, through sv's MCP server (sv mcp), out \"{out}\""),
+            elsewhere,
+            made,
+        )?;
+        let mut report = self.report_for(&app_dir, progress)?;
+        let mut notes = held.notes.clone();
+        if let Some((note, gap)) = crate::report_lock::manifest_changed(&report, &app_dir) {
+            notes.push(note);
+            report.gaps.push(gap);
+        }
+        crate::report_lock::refuse_older(&report, &out_dir, elsewhere)?;
         let written = crate::write_report_files(&report, &out_dir)?;
+        held.written();
+        drop(held);
         let files: Vec<String> = written
             .iter()
             .map(|name| out_dir.join(name).display().to_string())
@@ -1050,7 +1069,8 @@ impl Server {
             "content": [{
                 "type": "text",
                 "text": format!(
-                    "Wrote {} files to {}: {}. report.html is the one for a person to open. To keep the app and its report together or hand them on, securevibe_bundle makes one zip; offer it only if the person wants it.\n\n{}",
+                    "{}Wrote {} files to {}: {}. report.html is the one for a person to open. To keep the app and its report together or hand them on, securevibe_bundle makes one zip; offer it only if the person wants it.\n\n{}",
+                    notes.iter().map(|n| format!("{n}\n\n")).collect::<String>(),
                     files.len(),
                     out_dir.display(),
                     written.join(", "),
@@ -1530,7 +1550,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_record_answer",
             "title": "Record an answer in the security notes",
-            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves. A section the person wrote is never replaced.",
+            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves and record it by running `sv review` in their own terminal. A section the person wrote is never replaced.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -1785,8 +1805,9 @@ fn summary(report: &sv_report::Report) -> String {
     let set_aside = sv_report::false_alarm_entries(report);
     if !set_aside.is_empty() {
         out.push_str(&format!(
-            "\nSET ASIDE IN securevibe.toml as false alarms, not counted above ({}). sv cannot tell \
-             who wrote these entries: never write one naming the person in `by` yourself. {}\n",
+            "\nSET ASIDE IN securevibe.toml through `sv review`, as false alarms, not counted above \
+             ({}). Only the person can record these, by running `sv review` in their own terminal: \
+             never run it for them, and never write a `seal` or a person's name in `by`. {}\n",
             set_aside.len(),
             sv_report::FALSE_ALARM_TOOL_NOTE
         ));
@@ -1801,8 +1822,9 @@ fn summary(report: &sv_report::Report) -> String {
     if !report.reviews_not_counted.is_empty() {
         out.push_str(
             "\nNOT COUNTED in [[finding-review]], so the findings they name still count. A proposal \
-             of yours counts only once the owner has read the code and put their own name in `by`; \
-             never write a person's name there yourself:\n",
+             of yours (by = \"ai-tool\") counts only once the owner has read the code and recorded \
+             it through `sv review` in their own terminal; never run `sv review` for them, and never \
+             write a `seal` or a person's name in `by`:\n",
         );
         for line in &report.reviews_not_counted {
             out.push_str(&format!("- {}\n", one_line(line)));
@@ -1931,15 +1953,66 @@ mod tests {
         assert_eq!(result["isError"], true, "{}", text(&result));
     }
 
-    /// Each name `write_report_files` writes, the marker included.
+    /// Each name `write_report_files` writes, the marker and the lock included.
     const REPORT_FILES: &[&str] = &[
         ".securevibe-report",
+        crate::report_lock::LOCK_NAME,
         "report.html",
         "compliance.md",
         "security.md",
         "findings.sarif",
         "report.json",
     ];
+
+    #[test]
+    fn the_names_held_together_are_the_names_a_report_folder_holds() {
+        assert_eq!(REPORT_FILES, crate::REPORT_FOLDER_NAMES);
+        // And each file a report is written as (held to `write_report_files` by the test above).
+        for (name, _) in OFFERED_FILES {
+            assert!(crate::REPORT_FOLDER_NAMES.contains(name), "{name}");
+        }
+    }
+
+    #[test]
+    fn a_report_folder_another_run_holds_is_refused_and_named_then_taken_once_free() {
+        let root = scratch_app("held-folder", "flask-booking");
+        let folder = root.join("app/securevibe-report");
+        std::fs::create_dir_all(&folder).unwrap();
+        // The owner's `sv report` at a terminal, holding the folder the AI tool asks to write.
+        let theirs = crate::report_lock::take(&folder, "sv report . --run --tools", "--out")
+            .expect("the setup: the folder is free to take");
+        let server = Server::new(&root).unwrap();
+        let refused = call(&server, "securevibe_write_report", json!({ "path": "app" }));
+        assert_eq!(refused["isError"], true, "{}", text(&refused));
+        let said = text(&refused);
+        assert!(
+            said.contains("Another sv run is writing its report"),
+            "{said}"
+        );
+        assert!(said.contains("`sv report . --run --tools`"), "{said}");
+        assert!(said.contains("with `out`"), "{said}");
+        assert!(
+            !folder.join("report.json").exists(),
+            "nothing written beside it"
+        );
+
+        drop(theirs);
+        let written = call(&server, "securevibe_write_report", json!({ "path": "app" }));
+        assert_eq!(written["isError"], false, "{}", text(&written));
+        assert!(folder.join("report.json").is_file());
+        assert!(
+            !folder.join(crate::report_lock::LOCK_NAME).exists(),
+            "the server let the folder go"
+        );
+        let record: Value =
+            serde_json::from_str(&std::fs::read_to_string(folder.join("report.json")).unwrap())
+                .unwrap();
+        assert_eq!(
+            record["run_record"]["securevibe_toml_sha256"],
+            crate::bundle::sha256(&std::fs::read(root.join("app/securevibe.toml")).unwrap())
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
 
     #[test]
     #[cfg(unix)]
@@ -2626,10 +2699,31 @@ mod tests {
         let today = sv_check::advisories::Day::today().unwrap().show();
         let manifest = root.join("app").join("securevibe.toml");
         let mut toml = std::fs::read_to_string(&manifest).unwrap();
+        // Recorded through `sv review`, as the owner's word counts only then: sealed with the
+        // key this test process uses, whatever the computer running it has.
+        let keys = sv_check::seal::key_folder_for_tests(
+            std::env::temp_dir().join(format!("sv-mcp-test-keys-{}", std::process::id())),
+        );
+        let (key, _) = sv_check::seal::Key::load_or_make_in(keys).unwrap();
+        let seal = |result: &str, how: &str| {
+            let check = sv_manifest::HandCheck {
+                result: result.into(),
+                on: Some(today.clone()),
+                by: Some("owner".into()),
+                how: Some(how.into()),
+                confirmed: None,
+                seal: None,
+            };
+            key.seal(&sv_check::seal::as_strs(
+                &sv_check::seal::hand_check_fields("V12.2.2", &check),
+            ))
+        };
+        let padlock = "The padlock shows a trusted certificate.";
         toml.push_str(&format!(
             "\n[checked-by-hand]\n\
-             \"V12.2.2\" = {{ result = \"done\", on = \"{today}\", by = \"owner\", how = \"The padlock shows a trusted certificate.\" }}\n\
-             \"V2.3.4\" = {{ result = \"problem\", on = \"{today}\", by = \"owner\", how = \"Two browsers booked one slot.\" }}\n"
+             \"V12.2.2\" = {{ result = \"done\", on = \"{today}\", by = \"owner\", how = \"{padlock}\", seal = \"{}\" }}\n\
+             \"V2.3.4\" = {{ result = \"problem\", on = \"{today}\", by = \"owner\", how = \"Two browsers booked one slot.\" }}\n",
+            seal("done", padlock)
         ));
         std::fs::write(&manifest, toml).unwrap();
         let server = Server::new(&root).unwrap();

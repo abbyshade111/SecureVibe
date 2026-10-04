@@ -143,6 +143,26 @@ pub fn compare(
     Some(out)
 }
 
+/// The packages a manifest asks for, each named as its ecosystem compares names, when the manifest
+/// is one read here; `None` for a manifest of another kind, or one that could not be read.
+///
+/// For a check that needs to know *which* packages an app uses and not which versions, such as
+/// whether it has a rich-text editor, when there is no lockfile to read them from.
+pub fn declared_names(manifest_name: &str, manifest: &str) -> Option<Vec<String>> {
+    let wanted = match manifest_name {
+        "requirements.txt" => python_wants(manifest),
+        "pyproject.toml" => pyproject_wants(manifest)?,
+        "package.json" => npm_wants(manifest)?,
+        "Cargo.toml" => cargo_wants(manifest)?,
+        "composer.json" => composer_wants(manifest)?,
+        "Gemfile" => gem_wants(manifest),
+        "go.mod" => go_wants(manifest),
+        "build.gradle" | "build.gradle.kts" => gradle_wants(manifest),
+        _ => return None,
+    };
+    Some(wanted.into_iter().map(|w| w.key).collect())
+}
+
 /// Whether `version` is one the spec allows; `None` when that cannot be told.
 fn allows(spec: &Spec, version: &str) -> Option<bool> {
     match spec {
@@ -186,7 +206,7 @@ fn allows(spec: &Spec, version: &str) -> Option<bool> {
 
 /// A Python package name as the index compares it (PEP 503): lower case, with runs of `-`, `_`,
 /// and `.` read as one `-`.
-fn python_name(name: &str) -> String {
+pub(crate) fn python_name(name: &str) -> String {
     let mut out = String::new();
     let mut gap = false;
     for c in name.trim().chars() {

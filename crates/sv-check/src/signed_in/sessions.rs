@@ -14,6 +14,9 @@ pub(super) const MOST_WAIT_MINUTES: u32 = 90;
 /// The numbers are the owner's (`idle-timeout-minutes`, `session-lifetime-minutes`), as
 /// `failed-sign-ins` is: the requirements ask for timeouts "according to documented security
 /// decisions", and a number can be held to where prose cannot. Only with `--slow`.
+///
+/// Says whether it waited. Every session made before the wait sat unused through it, A's main one
+/// included, so a caller that waited signs A in again before anything else uses that session.
 pub(super) fn session_timeout_checks(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -22,7 +25,7 @@ pub(super) fn session_timeout_checks(
     policy: &sv_manifest::PolicySection,
     slow: bool,
     out: &mut Outcome,
-) {
+) -> bool {
     let idle = policy.idle_timeout_minutes;
     let lifetime = policy.session_lifetime_minutes;
     let say = |id: &str, why: String, out: &mut Outcome| {
@@ -37,7 +40,7 @@ pub(super) fn session_timeout_checks(
                 .to_owned(),
             out,
         );
-        return;
+        return false;
     }
     if !slow {
         say(
@@ -47,7 +50,7 @@ pub(super) fn session_timeout_checks(
                 .to_owned(),
             out,
         );
-        return;
+        return false;
     }
     let Some(confirm) = confirm else {
         say(
@@ -57,7 +60,7 @@ pub(super) fn session_timeout_checks(
                 .to_owned(),
             out,
         );
-        return;
+        return false;
     };
     // What will be waited out, within the most this waits.
     let lifetime = match lifetime {
@@ -104,7 +107,7 @@ pub(super) fn session_timeout_checks(
         Some(i) => Some(i),
     };
     if idle.is_none() && lifetime.is_none() {
-        return;
+        return false;
     }
 
     let opens = |http: &mut dyn Http, session: &Session, label: &str| {
@@ -115,7 +118,7 @@ pub(super) fn session_timeout_checks(
         sign_in(http, users, "idle", a, &mut quiet),
         sign_in(http, users, "busy", a, &mut quiet),
     ) else {
-        return;
+        return false;
     };
     let (left, busy) = (left.session, busy.session);
     if !(opens(http, &left, "idle-start") && opens(http, &busy, "busy-start")) {
@@ -126,7 +129,7 @@ pub(super) fn session_timeout_checks(
                 .to_owned(),
             out,
         );
-        return;
+        return false;
     }
     let began = http.now();
     // Kept busy well inside the shortest timeout, and never idle for more than two minutes.
@@ -239,6 +242,7 @@ pub(super) fn session_timeout_checks(
             );
         }
     }
+    true
 }
 
 /// "1 minute", "15 minutes".
@@ -1719,6 +1723,138 @@ mod tests {
                 o.not_assessed
             );
         }
+    }
+
+    /// The same seeded app and accounts as `slow_run`, without `--slow`: nothing is waited for.
+    fn fast_run(app_idle: Option<u64>, app_lifetime: Option<u64>) -> Outcome {
+        let mut app = FakeApp::new(Flaws::default());
+        app.idle_limit = app_idle.map(|m| m * 60);
+        app.lifetime_limit = app_lifetime.map(|m| m * 60);
+        let acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        let start = app.clock;
+        let o = super::run_with(
+            &mut app,
+            &users(),
+            &acc,
+            true,
+            &timeouts(Some(15), Some(60)),
+            false,
+        );
+        assert!(app.clock - start < 5 * 60, "the run without --slow waited");
+        o
+    }
+
+    #[test]
+    fn after_the_wait_every_later_check_asks_with_a_session_signed_in_afresh() {
+        // An app whose sessions end after 15 idle minutes and live at most 60, as stated: the
+        // first sign-in's session is dead by the time the waiting is over. Through sign-up too,
+        // where the record and form checks make their own requests with A's session.
+        let policy = timeouts(Some(15), Some(60));
+        for (how, slow, fast) in [
+            (
+                "seeded",
+                slow_run(Some(15), Some(60), &policy, |_| {}),
+                fast_run(Some(15), Some(60)),
+            ),
+            ("signed up", slow_signup_run(Some(15), Some(60), &policy), {
+                let mut app = FakeApp::new(Flaws::default());
+                app.idle_limit = Some(15 * 60);
+                app.lifetime_limit = Some(60 * 60);
+                let mut acc = accounts();
+                acc.admin = None;
+                super::run_with(&mut app, &with_signup(), &acc, false, &policy, false)
+            }),
+        ] {
+            // The setup: the wait really ended idle sessions (the idle check saw one refused
+            // beside a busy one that was not).
+            assert_eq!(
+                timeout_credits(&slow),
+                vec![NO_IDLE_TIMEOUT.rule_id, NO_SESSION_LIFETIME.rule_id],
+                "{how}: {:?}",
+                slow.steps
+            );
+            // A correct app: nothing found with the slow run, and everything the fast run credits
+            // the slow run credits too. Before the fix, the checks after the wait asked with A's
+            // dead session.
+            assert!(slow.findings.is_empty(), "{how}: {:#?}", slow.findings);
+            let slow_credits = verified_ids(&slow);
+            let fast_credits = verified_ids(&fast);
+            assert!(
+                fast_credits.len() > 5,
+                "{how}: the fast run credits little: {fast_credits:?}"
+            );
+            let missing: Vec<&&str> = fast_credits
+                .iter()
+                .filter(|id| !slow_credits.contains(id))
+                .collect();
+            assert!(
+                missing.is_empty(),
+                "{how}: credited without --slow, not with it: {missing:?}\n{:?}",
+                slow.not_assessed
+            );
+            // And it was the new sign-in that made the difference.
+            assert!(
+                slow.steps
+                    .iter()
+                    .any(|s| s.starts_with("signed in as A again after the wait")
+                        && s.ends_with("(200)")),
+                "{how}: {:?}",
+                slow.steps
+            );
+            assert!(
+                !slow
+                    .not_assessed
+                    .iter()
+                    .any(|(_, why)| why.contains("signed in again")),
+                "{how}: {:?}",
+                slow.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_sign_in_that_fails_after_the_wait_leaves_the_rest_not_assessed_and_says_why() {
+        // Sign-ins work for the first ten minutes, long enough for the timeout check's two
+        // sessions, and are refused by the time the 16-minute wait is over.
+        let o = slow_run(Some(15), None, &timeouts(Some(15), None), |app| {
+            app.sign_ins_refused_from = Some(app.clock + 10 * 60);
+        });
+        // The idle timeout itself is still judged, with the sessions made before the refusals.
+        assert_eq!(
+            timeout_credits(&o),
+            vec![NO_IDLE_TIMEOUT.rule_id],
+            "{:?}",
+            o.steps
+        );
+        // Nothing after the wait was asked, so nothing after it was found or credited.
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        for rule in [&LOGOUT, &OTHER_USERS_DATA, &FORGERY] {
+            assert!(
+                !verified_ids(&o).contains(&rule.rule_id),
+                "{} credited with no working session: {:?}",
+                rule.rule_id,
+                o.steps
+            );
+        }
+        assert!(
+            !o.steps.iter().any(|s| s.contains("signed out")),
+            "{:?}",
+            o.steps
+        );
+        // And the owner is told why.
+        let why = timeout_why(&o, "V8.2.1");
+        assert!(
+            why.iter()
+                .any(|w| w.contains("signed in again") && w.contains("did not open")),
+            "{:?}",
+            o.not_assessed
+        );
     }
 
     #[test]

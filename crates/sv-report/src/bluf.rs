@@ -297,6 +297,7 @@ mod tests {
             target_level: 1,
             generated: None,
             sv: Default::default(),
+            run_record: None,
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,
@@ -355,6 +356,7 @@ mod tests {
             why: "the value is a placeholder read from the environment at start-up".into(),
             by: "owner".into(),
             on: "2026-10-04".into(),
+            sealed: sv_check::seal::Sealed::Here,
         }
     }
 
@@ -614,6 +616,7 @@ mod tests {
             level: 1,
             status: Status::NotVerified,
             findings: Vec::new(),
+            information: Vec::new(),
             checked_by: Vec::new(),
             supported_by: Vec::new(),
             documented_by: Vec::new(),

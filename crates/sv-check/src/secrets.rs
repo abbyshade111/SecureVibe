@@ -331,7 +331,9 @@ fn scan_piece(
 /// (`process.env.SESSION_SECRET || 'dev-session-secret'`). What the others find is judged once
 /// more (`reads_as_text_or_a_name`).
 static QUOTED_SHAPES: LazyLock<Vec<(Regex, bool)>> = LazyLock::new(|| {
-    const VALUE: &str = r#"["'](?P<value>[^"'\n]{8,200})["']"#;
+    // The value runs to the quote that opened it, so `"Your password isn't right."` is read whole;
+    // until 4 October 2026 either quote ended it, and the rule judged `Your password isn` instead.
+    const VALUE: &str = r#"(?:"(?P<value>[^"\n]{8,200})"|'(?P<value1>[^'\n]{8,200})')"#;
     const NAME: &str = r"(?P<name>[A-Za-z_][A-Za-z0-9_.\-]*)";
     [
         // The shape read before: name = "v", name: "v".
@@ -425,7 +427,10 @@ fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
                 .iter()
                 .find_map(|g| caps.name(g))
                 .expect("every shape names its name");
-            let value = caps.name("value").expect("every shape names its value");
+            let value = caps
+                .name("value")
+                .or(caps.name("value1"))
+                .expect("every shape names its value");
             // The first shape goes first, so a pair it found is judged as it was before.
             if seen.insert((name.start(), value.start())) {
                 out.push(Named {
@@ -455,6 +460,60 @@ fn reads_as_text_or_a_name(value: &str) -> bool {
         || value
             .chars()
             .all(|c| c.is_ascii_lowercase() || matches!(c, '.' | '-' | '_'))
+}
+
+/// Whether a value reads like a sentence: three or more ordinary words, one space apart, the last
+/// ending in `.`, `?`, or `!`. An ordinary word is letters only, with an apostrophe or hyphen
+/// between letters (`isn't`, `sign-in`), a comma after it allowed on any but the last word, and
+/// written in lowercase, with a capital first letter, or all in capitals. A digit, any other
+/// symbol, a letter case mixed inside a word (`pAsS`), two spaces, or no closing mark and it is not
+/// a sentence. Kept narrow on purpose: it lowers a finding, so what it takes in must look like a
+/// message and nothing else, and a passphrase without closing punctuation, a key, or a token keeps
+/// its severity.
+fn reads_like_sentence(value: &str) -> bool {
+    let Some(body) = value
+        .strip_suffix('.')
+        .or_else(|| value.strip_suffix('?'))
+        .or_else(|| value.strip_suffix('!'))
+    else {
+        return false;
+    };
+    let words: Vec<&str> = body.split(' ').collect();
+    if words.len() < 3 {
+        return false;
+    }
+    let last = words.len() - 1;
+    words.iter().enumerate().all(|(i, word)| {
+        let word = if i < last {
+            word.strip_suffix(',').unwrap_or(word)
+        } else {
+            word
+        };
+        is_ordinary_word(word)
+    })
+}
+
+fn is_ordinary_word(word: &str) -> bool {
+    let chars: Vec<char> = word.chars().collect();
+    let (Some(first), Some(end)) = (chars.first(), chars.last()) else {
+        return false;
+    };
+    if !first.is_alphabetic() || !end.is_alphabetic() {
+        return false;
+    }
+    let joins_letters = |i: usize| chars[i - 1].is_alphabetic() && chars[i + 1].is_alphabetic();
+    let shape_ok = chars.iter().enumerate().all(|(i, c)| {
+        c.is_alphabetic() || (matches!(c, '\'' | '\u{2019}' | '-') && joins_letters(i))
+    });
+    let letters: Vec<char> = chars
+        .iter()
+        .copied()
+        .filter(|c| c.is_alphabetic())
+        .collect();
+    let lower = letters.iter().all(|c| c.is_lowercase());
+    let capitalized = letters[0].is_uppercase() && letters[1..].iter().all(|c| c.is_lowercase());
+    let capitals = letters.iter().all(|c| c.is_uppercase());
+    shape_ok && (lower || capitalized || capitals)
 }
 
 /// A name that says "credential" assigned a value that looks like one.
@@ -501,14 +560,56 @@ fn assignment_findings(
             continue;
         }
         reported.insert(value_match.start());
+        // A sentence under a credential's name is usually a message about the credential
+        // (`WRONG_PASSWORD = "Your current password isn't right."`, family-hub, 3 October 2026), but
+        // a real passphrase can be a sentence too. So it is still reported, low and "possible", and
+        // says why, rather than left out. The redaction is the same either way: were it a
+        // passphrase, the report must not hold it.
+        let sentence = reads_like_sentence(value);
+        let (severity, confidence) = if sentence {
+            (Severity::Low, Confidence::Low)
+        } else {
+            (Severity::High, Confidence::Medium)
+        };
+        let (title, description, fix) = if sentence {
+            (
+                format!(
+                    "A value written under a credential's name is in the code, but it reads like a \
+                     sentence (`{name}`)"
+                ),
+                format!(
+                    "`{name}` is set to a value in the code itself. The name says it holds a credential, \
+                     and the value is not a placeholder, but this reads like a sentence: several \
+                     ordinary words ending in a period, question mark, or exclamation mark. That is \
+                     most often a message shown to people, such as an error message, and sometimes a \
+                     passphrase."
+                ),
+                "This reads like a sentence, so read the line first. If it is a message shown to \
+                 people, nothing needs changing: record it as a false alarm. If it is a passphrase, \
+                 move it into the app's environment or secret store and change it: anything committed \
+                 should be treated as known."
+                    .to_owned(),
+            )
+        } else {
+            (
+                format!("A value that looks like a credential is written into the code (`{name}`)"),
+                format!(
+                    "`{name}` is set to a value in the code itself. The name says it holds a credential, \
+                     and the value is not a placeholder."
+                ),
+                "Move the value into the app's environment or secret store, and change the credential: \
+                 anything committed should be treated as known."
+                    .to_owned(),
+            )
+        };
         out.push(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             marked_test_code: false,
             rule_id: "secrets.credential-assignment".into(),
-            title: format!("A value that looks like a credential is written into the code (`{name}`)"),
-            severity: Severity::High,
-            confidence: Confidence::Medium,
+            title,
+            severity,
+            confidence,
             location: Location {
                 file: relative.to_owned(),
                 line: first_line - 1 + line_of(text, value_match.start()),
@@ -516,15 +617,15 @@ fn assignment_findings(
             secret: Some(Secret::redact(value)),
             requirement_ids: ASSIGNMENT_REQUIREMENTS.iter().map(|r| (*r).to_owned()).collect(),
             cwe: vec!["CWE-798".into(), "CWE-259".into()],
-            description: format!(
-                "`{name}` is set to a value in the code itself. The name says it holds a credential, and the \
-                 value is not a placeholder."
-            ),
-            impact: "Anyone who can read the code — or the history it is kept in — has the credential."
-                .into(),
-            fix: "Move the value into the app's environment or secret store, and change the credential: \
-                  anything committed should be treated as known."
-                .into(),
+            description,
+            impact: if sentence {
+                "If it is a passphrase, anyone who can read the code — or the history it is kept in — \
+                 has it. If it is a message, there is no harm."
+            } else {
+                "Anyone who can read the code — or the history it is kept in — has the credential."
+            }
+            .into(),
+            fix,
         });
     }
     out
@@ -1618,6 +1719,163 @@ mod tests {
                 "{template}: punctuation cut as a value"
             );
         }
+    }
+
+    /// The one assignment finding on `line`, which must be there: a control that is not reported
+    /// at all would pass "keeps its severity" for the wrong reason.
+    fn the_assignment(line: &str) -> Finding {
+        let found = assignment_findings("app/views.py", line, 1, &(0..usize::MAX));
+        assert_eq!(
+            found.len(),
+            1,
+            "expected one finding on a line of {} characters",
+            line.len()
+        );
+        found.into_iter().next().expect("one finding")
+    }
+
+    #[test]
+    fn a_message_under_a_password_name_is_reported_low_and_says_it_reads_like_a_sentence() {
+        // family-hub, 3 October 2026: this line was rated high, with advice to change the credential.
+        let message = "Your current password isn't right.";
+        let line = format!(r#"WRONG_PASSWORD = "{message}""#);
+        let f = the_assignment(&line);
+        assert_eq!(f.severity, Severity::Low);
+        assert_eq!(f.certainty(), "possible");
+        assert!(f.title.contains("reads like a sentence"), "{}", f.title);
+        assert!(f.description.contains("reads like a sentence"));
+        assert!(f.fix.contains("reads like a sentence"));
+        assert!(!f.fix.starts_with("Move the value"), "{}", f.fix);
+        // The whole message was judged, not the part before the apostrophe, and it is still
+        // redacted: a passphrase can be a sentence, so the report holds four characters of it.
+        let secret = f.secret.as_ref().expect("the value is recorded, redacted");
+        assert_eq!(secret.length(), message.chars().count());
+        assert_eq!(secret.as_str(), "Your… (30 more characters)");
+        let rendered = serde_json::to_string(&f).unwrap();
+        assert!(
+            !rendered.contains("current password isn"),
+            "the value reached the finding"
+        );
+
+        // Other messages an app shows, under names of every kind the rule reads. Each must clear
+        // the entropy gate first, or "not reported high" would say nothing.
+        for line in [
+            r#"PASSWORD_MISMATCH = "Passwords do not match!""#,
+            r#"token_prompt: 'Is this the token you were sent?'"#,
+            r#"API_KEY_HELP = "Please paste your key here, then press save.""#,
+            r#"secret_hint = "We'll never share your secret.""#,
+            r#"RESET_PASSWORD = "Check your email for a sign-in link.""#,
+        ] {
+            let f = the_assignment(line);
+            assert_eq!(
+                (f.severity, f.confidence),
+                (Severity::Low, Confidence::Low),
+                "{line}"
+            );
+        }
+    }
+
+    #[test]
+    fn passphrases_keys_and_tokens_that_are_not_sentences_keep_their_severity() {
+        // Built at run time, so this file holds no key-shaped literal.
+        let key = filler(32, MIXED);
+        let token = credential_shaped(&[&filler(12, MIXED), &filler(20, LETTERS)], ".");
+        for (case, value) in [
+            // A passphrase is words too; without the closing mark it is not a sentence.
+            (
+                "a passphrase without closing punctuation",
+                "violet harbor quickly juggles nine lanterns".to_owned(),
+            ),
+            (
+                "a capitalized passphrase without closing punctuation",
+                "Violet Harbor Quickly Juggles Nine Lanterns".to_owned(),
+            ),
+            (
+                "a passphrase with a digit in it",
+                "violet harbor juggles 9 lanterns.".to_owned(),
+            ),
+            (
+                "a passphrase with a digit inside a word",
+                "violet harb0r quickly juggles lanterns.".to_owned(),
+            ),
+            (
+                "a passphrase with symbols for letters",
+                "v1olet h@rbor jugg!es lanterns.".to_owned(),
+            ),
+            (
+                "a passphrase joined by hyphens",
+                "violet-harbor-quickly-juggles.".to_owned(),
+            ),
+            (
+                "words whose letter case is mixed",
+                "vIoLeT harBOR juggles lanterns.".to_owned(),
+            ),
+            (
+                "words two spaces apart",
+                "violet  harbor juggles lanterns.".to_owned(),
+            ),
+            ("two words only", "Wrong password.".to_owned()),
+            ("a key", key.clone()),
+            ("a key ending in a period", format!("{key}.")),
+            ("a token with a dot in it", token),
+        ] {
+            let f = the_assignment(&format!(r#"db_password = "{value}""#));
+            assert_eq!(
+                (f.severity, f.confidence),
+                (Severity::High, Confidence::Medium),
+                "{case}"
+            );
+            assert!(!f.description.contains("sentence"), "{case}");
+        }
+    }
+
+    #[test]
+    fn what_reads_like_a_sentence_is_narrow() {
+        for yes in [
+            "Your current password isn't right.",
+            "Your current password isn\u{2019}t right.",
+            "Is this your password?",
+            "Passwords do not match!",
+            "Sorry, that sign-in link has expired.",
+            "The API key is missing.",
+            "Ce mot de passe est trop court.",
+        ] {
+            assert!(reads_like_sentence(yes), "{yes:?}");
+        }
+        for no in [
+            "Your current password isn't right",
+            "Your password.",
+            "Your password .",
+            " Your current password is wrong.",
+            "Your current password is wrong. ",
+            "Your current password is wrong..",
+            "Your current password, is wrong,.",
+            "Your current passw0rd is wrong.",
+            "Your current pass_word is wrong.",
+            "Your current 'password' is wrong.",
+            "Your current password is - wrong.",
+            "Your current password is wrong\t.",
+            "Your cuRRent password is wrong.",
+        ] {
+            assert!(!reads_like_sentence(no), "{no:?}");
+        }
+    }
+
+    #[test]
+    fn a_value_runs_to_the_quote_that_opened_it() {
+        // Until 4 October 2026 either quote ended a value, so an apostrophe cut a message short and
+        // the rule judged a fragment. Each quote now ends only a value it opened.
+        let quoted = r#"She said "keep it" twice"#;
+        let f = the_assignment(&format!("secret_note = '{quoted}'"));
+        assert_eq!(
+            f.secret.as_ref().map(Secret::length),
+            Some(quoted.chars().count())
+        );
+        // A sentence redacted when `sv` passes text on, whatever its severity as a finding.
+        let message = "Your current password isn't right.";
+        let (out, n) = redact_text(&rules(), &format!(r#"WRONG_PASSWORD = "{message}""#));
+        assert_eq!(n, 1);
+        assert!(!out.contains(message));
     }
 
     #[test]

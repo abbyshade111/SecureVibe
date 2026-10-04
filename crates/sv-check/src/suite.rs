@@ -34,6 +34,10 @@ use std::path::Path;
 /// How many of a failing suite's last lines are kept for the report.
 pub const FAILING_OUTPUT_LINES: usize = 30;
 
+/// The rule that says a test named for a requirement shares no words with it. Information only: see
+/// `Finding::withholds_credit`.
+pub const NAME_MISMATCH: &str = "tests.name-does-not-match-requirement";
+
 /// The end of what a failing suite printed, as it read in a terminal.
 ///
 /// When the suite fails, its exit code says only that something did; which test, and why, is in the
@@ -458,7 +462,7 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         marked_test_code: false,
-        rule_id: "tests.name-does-not-match-requirement".into(),
+        rule_id: NAME_MISMATCH.into(),
         title: format!("A test named for {requirement_id} shares no words with it"),
         severity: Severity::Info,
         // Low on purpose, and the description says why. Roughly a third of these are honest tests
@@ -483,7 +487,8 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
         fix:
             "Read the test and the requirement side by side. If they do match, nothing needs doing \
               — about a third of these are honest tests written in different words, which is why \
-              this does not take the credit away."
+              this does not take the credit away. Recording it as a false alarm in \
+              securevibe.toml, to stop seeing it, leaves the credit standing too."
                 .into(),
     }
 }
@@ -737,6 +742,11 @@ mod tests {
         assert_eq!(findings.len(), 1, "and the mismatch is reported");
         assert_eq!(findings[0].severity, Severity::Info);
         assert_eq!(findings[0].confidence, Confidence::Low);
+        // What the report reads to keep the credit standing beside it (BACKLOG, family-hub item 6).
+        assert!(
+            !findings[0].withholds_credit(),
+            "the report must be told this one sits beside the credit, not over it"
+        );
         assert!(
             findings[0].fix.contains("about a third"),
             "the fix has to say how often this is nothing: {}",

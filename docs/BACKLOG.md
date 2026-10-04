@@ -40,6 +40,12 @@ another session is not a claim.
      a fixed string, quiet.
   **Items 1 and 2 claimed on 4 October 2026 by session securevibe-e10**, at the owner's word ("keep going"), in
   branch `claude/blind-spots`.
+  **Both done the same day** (DESIGN, "Two blind spots: a manifest with no lockfile, and a shell the call asked
+  for"). 1: the check reads the names a manifest declares where the bill of materials could read nothing, and says
+  not assessed, never "none is an editor", when it cannot read those either. 2: a new findings-only rule,
+  `ast.shell-command-shell-true`, for Python's `subprocess` with `shell=True`, Node's `spawn` and `execFile` with
+  `shell: true`, and Dart's `Process` with `runInShell: true`. Seven guards broken in turn, each caught; the recipe
+  app and the Python file that showed the gaps are now caught, and their safe forms are not.
 
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
@@ -152,6 +158,22 @@ another session is not a claim.
     without a valid seal counts only as a proposal. A seal that cannot be checked where `sv` runs (CI, another
     computer) still counts, saying it could not be checked there. **Claimed the same day by session securevibe-e9**,
     in branch `claude/securevibe-e9-sv-review`.
+    **Done the same day** (DESIGN, "`sv review`: what a person records is sealed"): `sv review [PATH]` runs only in a
+    terminal, shows each entry that does not count on this computer, and writes the person's name, the date, and an
+    HMAC seal back into securevibe.toml, keyed by `~/.config/securevibe/review-key`. Unsealed entries, `by = "owner"`
+    included, are proposals; on the computer holding the key a changed entry or another key's seal is too; with no key
+    (CI) a sealed entry counts and says it was not checked. Twenty-one guards undone in turn, each caught.
+    **Still open, the same gap one step over:** an answer under `[design]` or `[checked-by-hand]` written with
+    `by = "owner"` still counts as the owner's own word ("attested by the owner", "checked by hand by the owner")
+    without a seal. `sv review` could record those too; it changes how the owner answers every question, so it is the
+    owner's decision.
+    **The owner decided on 4 October 2026 to close it, and it was claimed the same day by session securevibe-e9**,
+    in branch `claude/securevibe-e9-owner-answers`: `[design]` answers and `[checked-by-hand]` results written
+    `by = "owner"`, and security-notes.md sections marked `Written by: owner`, count as the owner's word only when
+    recorded through `sv review`; otherwise they count as the AI coding tool's.
+    **Done the same day** (DESIGN, "The owner's own answers are recorded through `sv review` too"): all three now
+    count as the owner's only when sealed by `sv review`, which offers each of them; without a seal they drop to
+    *stated by the AI coding tool*, and the report says why.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -200,20 +222,34 @@ another session is not a claim.
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (DESIGN, "Advisories: Python names, nested npm copies, and declared packages"):
+    PyPI names are compared through `manifest_lock::python_name`, the normalizer already there.
   - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): a lockfile v1 is read at every depth.
   - **H11. High, Reproduced.** V15.2.1 is credited while the package list is incomplete (`complete_enough` ignores
     declared-only packages). Fix: require `sbom.is_complete()`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): `complete_enough` requires `sbom.is_complete()`.
   - **H12. High, Read.** A plain-HTTP redirect to plain HTTP, or to a relative path, is credited as sending the
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
+    **Done on 4 October 2026** (DESIGN, "HTTPS redirects and HSTS, held to what they say"): only a redirect to an
+    absolute `https://` address on the same host is credited; any other redirect is not assessed.
   - **H13. High, Read.** HSTS is credited whatever its value, `max-age=0` included, even on error answers (V3.4.1).
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
+    **Done on 4 October 2026** (same DESIGN section): credited only for a max-age of a year or more with
+    includeSubDomains, read as a browser reads it, and only on an ordinary answer.
   - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-session-cookie`.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
     credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
     with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
@@ -319,6 +355,14 @@ another session is not a claim.
      for a read-only file system. *Read*, and the transcript. Fix: the example says `--host 0.0.0.0`, with a comment
      on why; the "never answered" message says that an app listening on 127.0.0.1 or `localhost` cannot be reached;
      and `sv` could warn before waiting when the start command itself names 127.0.0.1 or `localhost`.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-1-host`.
+     **Done the same day** (DESIGN, "An app listening on 127.0.0.1 is named as the likely cause"): the example says
+     `--host 0.0.0.0` and why; "never answered" says an app listening on 127.0.0.1 or `localhost` cannot be reached,
+     and names the address as the likely cause when the start command names it; and `sv` warns before waiting when it
+     does, then starts the app anyway. Tested with a real container on 127.0.0.1 (shown to be up by answering itself)
+     and a control on 0.0.0.0; each of five guards broken on its own was caught, the warning and the message's naming
+     only by the container test.
   2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
      family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
      same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
@@ -331,6 +375,17 @@ another session is not a claim.
      report folder while a run is writing it (refuse, saying which run holds it), and record in `report.json` when
      the run started and a hash of the `securevibe.toml` it read, so a report older than the one it replaces says
      so rather than replacing it quietly.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-2-report-lock`.
+     **Done the same day** (DESIGN, "One run at a time in a report folder"): `sv report` and the MCP server take a
+     lock in the report folder before the run, and a second run refuses at once, naming the first (command,
+     process, start time). The lock is the operating system's, let go when a run ends however it ends, so a run
+     killed outright does not block the next, which says it stopped before it finished. `report.json` records
+     when its run started and the SHA-256 of the `securevibe.toml` it read; a run does not replace a report from
+     a run that started later, and a file changed during the run is said. Tested with real processes of the real
+     binary (a `--run` kept going by a sleeping test command, a second run beside it, `kill -9`); breaking each
+     guard was caught, and testing found a second run calling the folder someone else's while the first wrote its
+     marker, and Ctrl-C leaving the newly made folder behind, both fixed. S6 and S10 are unchanged.
   3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
      weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
      said "the private pages did not open in the browser with the first user's cookies, though they opened for the
@@ -347,6 +402,9 @@ another session is not a claim.
      browser checks then passed, against a copy of the app whose cookies are weaker than the real one. Fix: carry
      each cookie's attributes from the sign-in answer (at least `Secure`, and `Secure` for any `__Host-` or
      `__Secure-` name), check the browser's answer to each cookie, and when one is refused say that, by name.
+     **The owner's decision, 4 October 2026:** fix the cookie handling as above, and also warn in the report when the start command looks like it weakens the app for the run (an environment variable naming `INSECURE`, `DISABLE_`, or the like): a warning, not a refusal.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-3-cookies`.
   4. **The log checks need the test account's email address in the log, and an app that keeps personal data out of
      its log cannot be checked.** family-hub, 3 October: V16.3.1, V16.3.2, V16.2.1, V16.2.2, and V16.2.4 were not
      assessed ("Neither sign-in was named in the app's output", and "no such line was found"). The owner's
@@ -360,6 +418,9 @@ another session is not a claim.
      and the transcript. Fix: plant markers an app may log without personal data (a marker in the path's last part
      rather than after `?`, a `User-Agent` or request-id header), and say in the message that an app keeping emails
      and query strings out of its log ends up here.
+     **The owner's decision, 4 October 2026:** plant markers that are not personal data (in the address's path, not after `?`), and make the not-assessed message name an app's privacy rules as a likely reason. A `securevibe.toml` setting naming the log's user-id field can follow later.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-4-log-markers`.
   5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
      authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
      admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
@@ -372,6 +433,9 @@ another session is not a claim.
      seeded admin a secret too when `totp` is set (`SV_ADMIN_TOTP_SECRET`) and finish its sign-in with the code; and
      when the admin's sign-in ends on the `totp` path, or any page other than the private one, say that rather than
      suggest the page is in the wrong place.
+     **The owner's decision, 4 October 2026:** yes, `sv` may read a test admin's authenticator secret from `SV_ADMIN_TOTP_SECRET`, held like `SV_USER_TOTP` and never shown in a report; and fix the message either way.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-5-admin-totp`.
   6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
      V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
      owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the
@@ -387,6 +451,16 @@ another session is not a claim.
      cost the credit it says it leaves alone. *Read*, and family-hub's `report.json` of 3 October. Fix: show this
      finding (and any information-only one) beside the credit rather than over it, and let a person's "these do
      match" on it leave the test's credit standing; or, if it is meant to override, say so in its text.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-6-test-name-credit`.
+     **Done the same day** (DESIGN, "A finding that says it leaves the credit alone does"): `Finding::withholds_credit`
+     is false only for a rule listed in `INFORMATION_ONLY` (today the test-name rule alone) at `info` severity with
+     nothing merged into it. Such a finding is shown beside the requirement's status ("also noted, for information,
+     and not counted against it") instead of deciding it, and setting it aside as a false alarm leaves the test's
+     credit standing; every other finding, a tool's at `info` included, still makes its requirement need attention.
+     Tested with three report tests (beside the credit, the real-finding control in four forms, and the false-alarm
+     review) and an assertion in the suite's own test; seven guards broken in turn, each caught, and letting no
+     finding withhold credit turned twelve tests red.
   7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
      3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
      - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't
@@ -403,6 +477,18 @@ another session is not a claim.
      out a value with spaces between ordinary words that ends in a period or question mark, or at least rate it
      low with "this reads like a sentence"; for the redirect rule, when the value is a parameter, look at the
      function's callers in the same app and stay quiet when every one passes the app's own route.
+     **The owner's decision, 4 October 2026:** the credential rule keeps reporting a value that reads like a sentence, at low severity with "this reads like a sentence", rather than leaving it out (a real passphrase can be a sentence). The redirect half is left to whoever takes A1, its root cause, so two sessions do not change one rule; only the credential half is claimed here.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-7-sentence-credential`.
+     **Done the same day**, the credential half (DESIGN, "A credential name over a sentence is reported low, and
+     says so"): a value of three or more ordinary words, one space apart, ending in `.`, `?`, or `!` is still
+     reported, at `low` severity and "possible", with "this reads like a sentence" in its title, description, and
+     advice; everything else keeps `high`. The value now runs to the quote that opened it (an apostrophe used to cut
+     the family-hub line to `Your current password isn`). Redaction is unchanged. Tested with four tests: six
+     messages reported low, eleven passphrase, key, and token controls each shown still `high`, a table of what is
+     a sentence, and quote pairing; nine guards broken in turn, each caught, one only after a control was added.
+     Found: with `--tools`, Bandit's B105 on the same line now wins the merge and the sentence note is lost (not
+     changed; it is the merge's rule for all findings). The redirect half is A1's, untouched.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
@@ -414,6 +500,16 @@ another session is not a claim.
      again after the wait (or run the waiting checks last), and test it with the fake app's idle limit shorter than
      the wait.
 
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-8-slow-session`.
+     **Done the same day** (DESIGN, "A fresh sign-in after the `--slow` wait"): when the timeout check has waited,
+     A signs in again through the sign-in page (so a form token comes with the new session) and is shown opening
+     the private page before any later check uses the session; when that fails the run stops and says why, as it
+     does when the first sign-in fails. The timeout check keeps the two sessions of its own it always had. Tested on
+     the fake app's clock with sessions that end after 15 idle minutes: a correct app earns every credit with
+     `--slow` that it earns without, seeded and through sign-up, and sign-ins refused during the wait leave the rest
+     not assessed with the reason. With the fresh sign-in turned off, both tests failed: six credits lost, and the
+     sign-out credited with a dead session. No test caught it before.
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger
@@ -785,6 +881,10 @@ another session is not a claim.
   prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt
   (now an item under "Next"). Still to do: the rest of the batch (access control, headers, CORS, error pages), a
   second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
+  **The rest of the first batch claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
+  branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
+  open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
+  (`docs/prompts/trial/brief.md`), with and without the prompt.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in

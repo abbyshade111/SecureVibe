@@ -112,19 +112,29 @@ impl RequirementLine {
     /// The status as a person reads it: the tier's label, or the confirmed version of it.
     pub fn shown_label(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
-            (Status::Attested, true) => {
-                "stated by the AI coding tool, confirmed in securevibe.toml"
-            }
-            (Status::ByHand, true) => "checked by the AI coding tool, confirmed in securevibe.toml",
+            (Status::Attested, true) => "stated by the AI coding tool, confirmed through sv review",
+            (Status::ByHand, true) => "checked by the AI coding tool, confirmed through sv review",
             (status, _) => status.label(),
         }
+    }
+
+    /// The words shown after the status when an information-only finding names this requirement,
+    /// so it is seen beside the credit rather than lost. Empty when none does.
+    pub fn information_note(&self) -> String {
+        if self.information.is_empty() {
+            return String::new();
+        }
+        format!(
+            "; also noted, for information, and not counted against it: {}",
+            self.information.join(", ")
+        )
     }
 
     /// Whose word the status rests on, for the line after the label.
     pub fn whose_word(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
             (Status::Attested | Status::ByHand, true) => {
-                "the word of whoever securevibe.toml says confirmed it, which sv cannot check"
+                "the word of whoever confirmed it through sv review"
             }
             (Status::Attested, false) => "your word",
             (Status::ByHand, false) => "your word, from a check you made by hand",
@@ -142,8 +152,11 @@ pub struct RequirementLine {
     /// Secure by Design control or an AISVS appendix entry, which have no ASVS level.
     pub level: u8,
     pub status: Status,
-    /// Rule ids of the findings that cite this requirement.
+    /// Rule ids of the findings that cite this requirement and make it need attention.
     pub findings: Vec<String>,
+    /// Rule ids of the information-only findings that cite it (`Finding::withholds_credit` false):
+    /// shown beside whatever the status is, never deciding it.
+    pub information: Vec<String>,
     /// The checks that looked at this requirement and were satisfied, each with what it covered.
     pub checked_by: Vec<CheckedBy>,
     /// Checks that were satisfied about part of a requirement no check can settle.
@@ -483,6 +496,17 @@ impl MadeBy {
     }
 }
 
+/// When a run started and what it read. See `Report::run_record`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RunRecord {
+    /// `2026-10-04T18:55:02Z`, for a person.
+    pub started: String,
+    /// The same moment in milliseconds since 1970, for a program comparing two reports.
+    pub started_unix_ms: u64,
+    /// The SHA-256 of `securevibe.toml`'s bytes as this run read them, in lowercase hex.
+    pub securevibe_toml_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
     pub app_name: String,
@@ -492,6 +516,16 @@ pub struct Report {
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
     /// review naming a rule the reader's `sv` does not have could not be explained.
     pub sv: MadeBy,
+    /// When the run that made this report started, and which `securevibe.toml` it read. Only in
+    /// `report.json`, and only when a run filled it in, so a report built without one is unchanged.
+    ///
+    /// Two runs at once on family-hub (3 October 2026) wrote the same folder, and the one that
+    /// finished last, a failed run, replaced the good report with nothing to say it was older (BACKLOG,
+    /// "What the owner hit building family-hub", item 2). With this, a run can tell that the report
+    /// it would replace came from a run that started after it, and a reader can tell two reports of
+    /// different files apart.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_record: Option<RunRecord>,
     /// One sentence about the app having been started, and under which fence.
     ///
     /// Absent when it was not started, in which case the gap list says so. Present and prominent
@@ -790,15 +824,36 @@ pub fn accepted_note(report: &Report, f: &sv_check::Finding) -> Option<String> {
         })
         .map(|s| {
             format!(
-                "Known and accepted as a risk for now: securevibe.toml says {} accepted it on {}: \
-                 \"{}\". sv cannot tell who wrote that entry. It still needs attention; the \
+                "Known and accepted as a risk for now. {}: \"{}\". It still needs attention; the \
                  acceptance lapses after 90 days.",
-                sv_check::review::who_said(&s.by),
-                s.on,
+                recorded(s, "accepted it"),
                 s.why
             )
         })
 }
+
+/// Who recorded a finding set aside, and what the seal on it shows, as one sentence: "Recorded
+/// through `sv review` on this computer: the owner set it aside as a false alarm on 2026-10-04".
+fn recorded(s: &sv_check::review::SetAside, did: &str) -> String {
+    let who = sv_check::review::who_said(&s.by);
+    match &s.sealed {
+        sv_check::seal::Sealed::Here => format!(
+            "Recorded through `sv review` on this computer: {who} {did} on {}",
+            s.on
+        ),
+        sv_check::seal::Sealed::Unchecked { .. } => format!(
+            "securevibe.toml says {who} {did} on {} through `sv review`, sealed on another computer; \
+             this one has no key to check the seal with",
+            s.on
+        ),
+    }
+}
+
+/// What `sv review`'s seal shows and does not, said once above the false alarms set aside.
+pub const SEALED_WHY: &str = "`sv review` runs only in a terminal a person is typing in, and seals \
+    what it records with a key kept outside the app's folder, so an entry the AI coding tool wrote \
+    into the file does not count. The seal shows how an entry was recorded and that it has not \
+    changed since; it cannot show who was at the keyboard, so read each reason before relying on it.";
 
 /// Why each false alarm carries a link, said once under the list.
 pub const FALSE_ALARM_WHY: &str = "A false alarm set aside here is usually a rule that will misfire \
@@ -866,15 +921,13 @@ pub fn false_alarm_lines(report: &Report) -> Vec<String> {
         .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
         .map(|s| {
             format!(
-                "[{}] {} ({}, line {}; `{}`). securevibe.toml says {} set it aside as a false \
-                 alarm on {}: \"{}\"",
+                "[{}] {} ({}, line {}; `{}`). {}: \"{}\"",
                 s.finding.severity.name(),
                 s.finding.title,
                 s.finding.location.file,
                 s.finding.location.line,
                 s.finding.rule_id,
-                sv_check::review::who_said(&s.by),
-                s.on,
+                recorded(s, "set it aside as a false alarm"),
                 s.why
             )
         })
@@ -957,12 +1010,17 @@ pub fn build(inputs: Inputs<'_>) -> Report {
 
     let mut requirements = Vec::new();
     for id in &inputs.buckets.applicable {
-        let findings: Vec<String> = inputs
+        // A finding whose own text says it leaves the credit alone is shown beside the status, not
+        // made into it (BACKLOG, family-hub item 6). Every other finding still decides it.
+        let (findings, information): (Vec<&Finding>, Vec<&Finding>) = inputs
             .findings
             .iter()
             .filter(|f| f.requirement_ids.iter().any(|r| r == id))
-            .map(|f| f.rule_id.clone())
-            .collect();
+            .partition(|f| f.withholds_credit());
+        let findings: Vec<String> = findings.iter().map(|f| f.rule_id.clone()).collect();
+        let mut information: Vec<String> = information.iter().map(|f| f.rule_id.clone()).collect();
+        information.sort();
+        information.dedup();
         let satisfied: Vec<CheckedBy> = inputs
             .verified
             .iter()
@@ -1032,9 +1090,13 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         // rather than anything read from it.
         // A finding set aside as a false alarm stops counting, and says nothing for the requirement
         // either: the rule saw something there, and a person's word that it was wrong does not show
-        // the protection is in place. So no other check's clean run can make it *checked*.
+        // the protection is in place. So no other check's clean run can make it *checked*. The
+        // exception is a finding that never withheld the credit: a person's word that the test does
+        // match its requirement is the advice that finding gives, and following it must not cost
+        // the credit the finding said it left alone.
         let set_aside_here = inputs.set_aside.iter().any(|s| {
             s.verdict == sv_check::review::FALSE_ALARM
+                && s.finding.withholds_credit()
                 && s.finding.requirement_ids.iter().any(|r| r == id)
         });
         let status = if !findings.is_empty() {
@@ -1067,6 +1129,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 .unwrap_or(0),
             status,
             findings,
+            information,
             checked_by,
             supported_by,
             documented_by,
@@ -1356,6 +1419,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         target_level: inputs.target_level,
         generated: inputs.generated,
         sv: inputs.made_by,
+        run_record: None,
         run_note: inputs.run_note,
         run_steps: inputs.run_steps,
         test_output: inputs.test_output,

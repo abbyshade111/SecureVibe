@@ -20,7 +20,8 @@
 //!   *checked*, which means an automated check looked. It is still the owner's word, which `sv` cannot
 //!   repeat, so it stays a test to write where a test could show it and settles no threat.
 //! - **`done` by the AI coding tool**, or by nobody named, is *stated by the AI coding tool*, as for
-//!   the design questions.
+//!   the design questions. So is `by = "owner"` that `sv review` did not record (deep review R1):
+//!   the tool can write that line as easily as the owner.
 //! - **`problem`** is a finding, from either. Reporting a failure never overstates the app.
 //! - **`not-yet`** adds nothing, like `not-sure`.
 //!
@@ -48,12 +49,15 @@ pub const RESULTS: [&str; 3] = [DONE, PROBLEM, NOT_YET];
 pub const CURRENT_FOR_DAYS: u32 = 90;
 
 /// One check, as securevibe.toml gives it.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer {
     pub result: String,
     pub on: Option<String>,
     pub by: Option<String>,
     pub how: Option<String>,
+    /// For a check `by = "owner"`: whether `sv review` recorded it, as its seal is checked where
+    /// this runs, or why not. Not read for anyone else's.
+    pub recorded: Result<crate::seal::Sealed, String>,
 }
 
 /// What the checks came to.
@@ -147,8 +151,12 @@ pub fn evaluate(
             ));
             continue;
         }
+        let unrecorded = by_owner.then(|| answer.recorded.as_ref().err()).flatten();
+        let by_owner = by_owner && unrecorded.is_none();
         let who = if by_owner {
             "you"
+        } else if unrecorded.is_some() {
+            "you (so securevibe.toml says; not recorded through `sv review`)"
         } else if answer.by.is_some() {
             "your AI coding tool"
         } else {
@@ -162,10 +170,25 @@ pub fn evaluate(
             out.out_of_date.push((id.clone(), on.show()));
             continue;
         }
-        let scope = format!(
-            "securevibe.toml: checked by hand by {who} on {}: \"{how}\" Nothing here repeated it.",
-            on.show()
-        );
+        let scope = match (unrecorded, &answer.recorded) {
+            (Some(why), _) => format!(
+                "securevibe.toml says you checked it by hand on {}: \"{how}\" But {why}, so it \
+                 counts as your AI coding tool's word. If you made the check, run `sv review` in \
+                 your own terminal to record it as yours. Nothing here repeated it.",
+                on.show()
+            ),
+            (None, Ok(sealed)) if by_owner => format!(
+                "securevibe.toml: checked by hand by you on {}{}: \"{how}\" Nothing here \
+                 repeated it.",
+                on.show(),
+                crate::seal::recorded_where(sealed)
+            ),
+            _ => format!(
+                "securevibe.toml: checked by hand by {who} on {}: \"{how}\" Nothing here repeated \
+                 it.",
+                on.show()
+            ),
+        };
         if by_owner {
             out.by_owner
                 .push(Verified::new("hand.checked", &[id.as_str()], scope));
@@ -239,6 +262,7 @@ mod tests {
             on: on.map(Into::into),
             by: by.map(Into::into),
             how: how.map(Into::into),
+            recorded: Ok(crate::seal::Sealed::Here),
         }
     }
 
@@ -378,5 +402,39 @@ mod tests {
             today(),
         );
         assert!(out.findings.is_empty() && out.unreadable.is_empty());
+    }
+
+    #[test]
+    fn the_owners_check_counts_as_theirs_only_when_sv_review_recorded_it() {
+        let unrecorded = Answer {
+            recorded: Err("it was not recorded through `sv review`".into()),
+            ..answer(DONE, Some("2026-09-20"), Some("owner"), Some(SAW))
+        };
+        let out = run(unrecorded.clone());
+        assert!(out.by_owner.is_empty(), "{out:?}");
+        assert_eq!(out.stated.len(), 1);
+        assert!(
+            out.stated[0]
+                .scope
+                .contains("not recorded through `sv review`")
+                && out.stated[0]
+                    .scope
+                    .contains("counts as your AI coding tool's word"),
+            "{}",
+            out.stated[0].scope
+        );
+        // A problem still counts, whoever says so.
+        let problem = run(Answer {
+            result: PROBLEM.into(),
+            ..unrecorded
+        });
+        assert_eq!(problem.findings.len(), 1);
+        // Recorded on a computer that could not check the seal: the owner's, and it says so.
+        let elsewhere = run(Answer {
+            recorded: Ok(crate::seal::Sealed::Unchecked { key: "k".into() }),
+            ..answer(DONE, Some("2026-09-20"), Some("owner"), Some(SAW))
+        });
+        assert_eq!(elsewhere.by_owner.len(), 1);
+        assert!(elsewhere.by_owner[0].scope.contains("on another computer"));
     }
 }

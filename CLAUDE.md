@@ -64,6 +64,12 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 - One spelling standard: American English (color, behavior, organization, recognize) with the Oxford comma, in
   everything a person reads. Identifiers and JSON keys keep their names.
 - Say what was verified and what was not. Report test results as they are.
+- One app is anonymous in everything public, the paper included: the health-tracking app the owner built for a friend.
+  Call it "a health-tracking app built for a friend" in prose and "Health tracker" in a table or figure, and never write
+  its real name in a committed file, a figure, or anything else that leaves this machine. Its subject is somebody's
+  health and a public repository is permanent. The name is deliberately not recorded here, so this file cannot leak it.
+  Anonymized before the repository went public (20 September 2026, `d5d5719`); the owner confirmed on 4 October 2026
+  that the paper follows suit, after the comparison study had put the name back into `docs/paper` that morning.
 - Git is pre-approved. Commit and push to a working branch, open pull requests, and merge one into `main` once its checks
   are green, without asking first. Say what went in afterwards; a short, honest account of each change is the point, not a
   request for permission. The owner asked for this on 18 September 2026.
