@@ -71,6 +71,43 @@ pub fn headline(report: &Report) -> String {
     // attention. The first version of this line said "1 requirement needs attention" above a list
     // of two, which is the kind of small contradiction a reader notices and cannot resolve.
     let n = report.findings.len();
+    // False alarms left `findings` when they were set aside, so they are counted here or the
+    // headline would say nothing was found when something was (deep review R2). Who set them aside
+    // is only what securevibe.toml says, so the sentence says where, not who.
+    let set_aside = report
+        .set_aside
+        .iter()
+        .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
+        .count();
+    let set_aside_said = match set_aside {
+        0 => String::new(),
+        1 => " 1 more was found and set aside as a false alarm in securevibe.toml; it is listed \
+              under \"Set aside by a person\"."
+            .to_owned(),
+        k => format!(
+            " {k} more were found and set aside as false alarms in securevibe.toml; they are \
+             listed under \"Set aside by a person\"."
+        ),
+    };
+    if n == 0 && set_aside > 0 {
+        return format!(
+            "Nothing found is still open, but {} found and set aside as {} in securevibe.toml, \
+             listed under \"Set aside by a person\". That is not the same as this app being \
+             sound: {} of the {} requirements that apply have had nothing look at them at all.",
+            if set_aside == 1 {
+                "1 thing was".to_owned()
+            } else {
+                format!("{set_aside} things were")
+            },
+            if set_aside == 1 {
+                "a false alarm"
+            } else {
+                "false alarms"
+            },
+            report.counts.not_verified,
+            report.counts.applicable
+        );
+    }
     if n == 0 {
         return format!(
             "Nothing here found a problem. That is not the same as this app being sound: {} of \
@@ -91,7 +128,7 @@ pub fn headline(report: &Report) -> String {
         ),
     };
     format!(
-        "{n} thing{} {} found, worst first.{apart}",
+        "{n} thing{} {} found, worst first.{apart}{set_aside_said}",
         if n == 1 { "" } else { "s" },
         if n == 1 { "was" } else { "were" }
     )
@@ -309,6 +346,74 @@ mod tests {
         for word in ["pass", "secure", "compliant", "safe"] {
             assert!(!lowered.contains(word), "{word:?} must not appear: {line}");
         }
+    }
+
+    fn set_aside(rule: &str, verdict: &str) -> sv_check::review::SetAside {
+        sv_check::review::SetAside {
+            finding: a_finding(rule),
+            verdict: verdict.into(),
+            why: "the value is a placeholder read from the environment at start-up".into(),
+            by: "owner".into(),
+            on: "2026-10-04".into(),
+        }
+    }
+
+    #[test]
+    fn a_finding_set_aside_is_never_headlined_as_nothing_found() {
+        // Deep review R2: the only finding set aside as a false alarm, and the headline said
+        // "Nothing here found a problem".
+        let mut r = report(Counts {
+            applicable: 200,
+            not_verified: 190,
+            ..Counts::default()
+        });
+        r.set_aside = vec![set_aside(
+            "secrets.generic-assignment",
+            sv_check::review::FALSE_ALARM,
+        )];
+        let line = headline(&r);
+        assert!(!line.contains("Nothing here found a problem"), "{line}");
+        assert!(
+            line.contains("1 thing was found and set aside as a false alarm"),
+            "{line}"
+        );
+        assert!(
+            line.contains("Set aside by a person") && line.contains("190"),
+            "{line}"
+        );
+        // It says where the setting aside is recorded, not that a person did it: sv cannot tell.
+        assert!(line.contains("in securevibe.toml"), "{line}");
+
+        r.set_aside
+            .push(set_aside("ast.eval", sv_check::review::FALSE_ALARM));
+        let line = headline(&r);
+        assert!(
+            line.contains("2 things were found and set aside as false alarms"),
+            "{line}"
+        );
+
+        // Beside open findings, they are still counted.
+        r.findings = vec![a_finding("probe.private-page-anonymous")];
+        let line = headline(&r);
+        assert!(
+            line.starts_with("1 thing was found, worst first."),
+            "{line}"
+        );
+        assert!(
+            line.contains("2 more were found and set aside as false alarms"),
+            "{line}"
+        );
+    }
+
+    #[test]
+    fn an_accepted_risk_is_not_counted_twice() {
+        // An accepted risk stays among the findings, so the headline already counts it once.
+        let mut r = report(Counts::default());
+        let risk = set_aside("ast.eval", sv_check::review::ACCEPTED_RISK);
+        r.findings = vec![risk.finding.clone()];
+        r.set_aside = vec![risk];
+        let line = headline(&r);
+        assert_eq!(line, "1 thing was found, worst first.");
     }
 
     fn a_finding(rule: &str) -> sv_check::Finding {
