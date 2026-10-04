@@ -200,15 +200,19 @@ another session is not a claim.
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (DESIGN, "Advisories: Python names, nested npm copies, and declared packages"):
+    PyPI names are compared through `manifest_lock::python_name`, the normalizer already there.
   - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): a lockfile v1 is read at every depth.
   - **H11. High, Reproduced.** V15.2.1 is credited while the package list is incomplete (`complete_enough` ignores
     declared-only packages). Fix: require `sbom.is_complete()`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): `complete_enough` requires `sbom.is_complete()`.
   - **H12. High, Read.** A plain-HTTP redirect to plain HTTP, or to a relative path, is credited as sending the
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
