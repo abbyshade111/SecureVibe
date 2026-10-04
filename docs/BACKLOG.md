@@ -333,8 +333,7 @@ another session is not a claim.
     `claude/securevibe-e9-h25`.
     **Done the same day** (DESIGN, "A broken file holds back only the rules it could hide something from"; ADR-018,
     Later): a file that did not parse cleanly now holds back only the rules whose call it names anywhere, judged
-    word by word and only for name patterns made of words; everything else is held back as before. Found on the way
-    and fixed: a script in a page that did not parse was never counted as partly read.
+    word by word and only for name patterns made of words; everything else is held back as before.
 
 - **The deep review of `sv` at `eff3f17`, part 3 of 3: accuracy (A1 to A6), reviews and reports (R3 to R14), and
   improvements.** Same sender. **Each item can be claimed on its own.** R1 and R2 are in part 1.

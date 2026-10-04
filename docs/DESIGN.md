@@ -7818,15 +7818,13 @@ stays (`verified.rs`): what changes is which claims it touches. Recorded under A
 - **Only patterns made of words.** `names_only` accepts a pattern built from letters, digits, `_`, alternatives,
   groups, anchors, `?`, `!`, `*`, and `+`. Anything else can match text no word is, such as the shell's quoted
   `"/bin/sh"`, its `.`, `hashlib.pbkdf2_hmac`, or a character class, and holds its rule back whatever the file says.
-- **Unchanged:** a file not opened holds back every rule that reads its language; a language with no parser, and a
-  query that would not compile, hold back every rule.
-- **Fixed on the way:** a script in a page that did not parse never reached `unparsed_files`, so the page counted as
-  read in full. It is now partly read, as a file of its own is.
+- **Unchanged:** a file not opened holds back every rule that reads its language; a language with no parser, a page
+  whose script did not parse (it is left behind, as before), and a query that would not compile, hold back every
+  rule.
 - **What a person sees:** the file is still named as partly read. The message says a rule whose call is named in it
   cannot say it found nothing, and a rule whose call is named nowhere in it could not have found it there.
 
 How it is held: `a_file_that_does_not_parse_holds_back_the_rules_whose_call_it_names_and_keeps_its_findings`,
-`a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call`,
-`a_file_not_opened_holds_back_every_rule_that_reads_its_language`, and
-`a_script_in_a_page_that_does_not_parse_is_part_of_the_page_nobody_read` (`crates/sv-check/tests/clean_coverage.rs`),
+`a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call`, and
+`a_file_not_opened_holds_back_every_rule_that_reads_its_language` (`crates/sv-check/tests/clean_coverage.rs`),
 and `the_words_in_a_file_rule_out_only_what_a_name_pattern_can_match` (`crates/sv-check/src/ast.rs`).

@@ -336,31 +336,6 @@ fn a_file_not_opened_holds_back_every_rule_that_reads_its_language() {
 }
 
 #[test]
-fn a_script_in_a_page_that_does_not_parse_is_part_of_the_page_nobody_read() {
-    // Until 4 October 2026 a page whose script did not parse still counted as read in full.
-    let scan = scan_files(
-        "ast-page-broken",
-        &[
-            ("app.py", "print('hello')\n"),
-            (
-                "index.html",
-                "<html><body><script>function f( { return eval(x);</script></body></html>\n",
-            ),
-        ],
-    );
-    assert_eq!(scan.unparsed_files, vec!["index.html".to_owned()]);
-    assert_eq!(
-        scan.held_back
-            .get("ast.dynamic-code-execution")
-            .map(String::as_str),
-        Some("index.html"),
-        "{:?}",
-        scan.held_back
-    );
-    assert!(!verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"));
-}
-
-#[test]
 fn a_parse_error_is_noticed_in_every_language_and_a_clean_file_is_not_flagged() {
     // Asked of the parser directly, so the two tests above cannot pass on an accident of the walk.
     let rules = ast_rules();

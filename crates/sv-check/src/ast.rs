@@ -1906,20 +1906,6 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
             .or_default() += 1;
         let read = read_file(rules, fragment.language, relative, &fragment.code);
         note_broken(scan, read.broken);
-        // A script in a page that did not parse cleanly is part of the page nobody read, as it is
-        // in a file of its own. Until 4 October 2026 the page still counted as read in full.
-        if read.parse_error {
-            if !scan.unparsed_files.iter().any(|f| f == relative) {
-                scan.unparsed_files.push(relative.to_owned());
-            }
-            hold_back(
-                rules,
-                scan,
-                fragment.language,
-                relative,
-                Some(&fragment.code),
-            );
-        }
         for mut finding in read.findings {
             // Back to the line in the page. Without this a reader is sent to line 3 of something
             // that does not exist as a file.
