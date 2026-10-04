@@ -364,6 +364,9 @@ another session is not a claim.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
+    **Done the same day** (DESIGN, "A broken file holds back only the rules it could hide something from"; ADR-018,
+    Later): a file that did not parse cleanly now holds back only the rules whose call it names anywhere, judged
+    word by word and only for name patterns made of words; everything else is held back as before.
 
 - **The deep review of `sv` at `eff3f17`, part 3 of 3: accuracy (A1 to A6), reviews and reports (R3 to R14), and
   improvements.** Same sender. **Each item can be claimed on its own.** R1 and R2 are in part 1.
