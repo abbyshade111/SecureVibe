@@ -283,8 +283,10 @@ or, for a tool configured with JSON:
 { "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers nine tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_guidance` (the
+It offers ten tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
+`securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
+work),
 `securevibe_check` (what
 applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
 its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),

@@ -1,5 +1,6 @@
 {
   "_comment": "Prompts a person gives their AI coding tool, each written in this project's own words. Where one was inspired by the Cloud Security Alliance's Secure Vibe Coding Guide (K. Huang, 9 April 2025, https://cloudsecurityalliance.org/blog/2025/04/09/secure-vibe-coding-guide), `inspired_by` names the guide's section; none of the guide's text is copied. Each names the requirements it targets and the sv check that shows whether it worked. A prompt ships only once `tested` records an app built with it passing that check and the same app built without it failing (the owner's decision of 3 October 2026; see docs/BACKLOG.md, 'A prompt library'). `status` is `shown` once that has happened, `not-shown` when it was tried and did not show it (with why), and `untested` before it is tried. Prompts not shown to work are offered too, always marked as not tested, at the owner's asking on 4 October 2026.",
+  "credit": "Some of these prompts were inspired by the Cloud Security Alliance's Secure Vibe Coding Guide (K. Huang, 9 April 2025, https://cloudsecurityalliance.org/blog/2025/04/09/secure-vibe-coding-guide). They are written in SecureVibe's own words; none of the guide's text is copied.",
   "prompts": [
     {
       "id": "settings-file-first",

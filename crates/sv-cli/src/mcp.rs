@@ -665,6 +665,7 @@ impl Server {
             "securevibe_notes_file" => self.notes_file(&args),
             "securevibe_record_answer" => self.record_answer(&args),
             "securevibe_guidance" => self.guidance(&args),
+            "securevibe_prompts" => self.prompts(&args),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
         // A tool that could not do its job says so as its result, which the model reads; a protocol
@@ -832,6 +833,32 @@ impl Server {
                     "license": a.license, "licenseUrl": a.license_url, "changes": a.changes,
                 },
             },
+            "isError": false,
+        }))
+    }
+
+    /// The library's prompts for the AI coding tool, for one requirement or all of them, each saying
+    /// whether it has been shown to work. Reads only the library, and changes nothing.
+    fn prompts(&self, args: &Value) -> Result<Value> {
+        let requirement = args
+            .get("requirement")
+            .and_then(Value::as_str)
+            .filter(|q| !q.is_empty());
+        let (prompts, ids, text) = crate::prompts_for(&self.loaded.frameworks, requirement)?;
+        let chosen: Vec<Value> = ids
+            .iter()
+            .filter_map(|id| prompts.prompts.iter().find(|p| &p.id == id))
+            .map(|p| {
+                json!({
+                    "id": p.id, "title": p.title, "prompt": p.prompt,
+                    "requirements": p.requirements, "status": p.status.as_str(),
+                    "result": p.tested.as_ref().map(|t| t.result.as_str()),
+                })
+            })
+            .collect();
+        Ok(json!({
+            "content": [{ "type": "text", "text": text }],
+            "structuredContent": { "prompts": chosen, "credit": prompts.credit },
             "isError": false,
         }))
     }
@@ -1390,6 +1417,20 @@ fn output_schema(tool: &str) -> Option<Value> {
                 "attribution",
             ],
         ),
+        "securevibe_prompts" => object(
+            json!({
+                "prompts": { "type": "array", "items": object(
+                    json!({
+                        "id": string, "title": string, "prompt": string, "requirements": strings,
+                        "status": { "type": "string", "enum": ["shown", "not-shown", "untested"] },
+                        "result": { "type": ["string", "null"] },
+                    }),
+                    &["id", "title", "prompt", "requirements", "status", "result"],
+                ) },
+                "credit": string,
+            }),
+            &["prompts", "credit"],
+        ),
         "securevibe_notes_file" => object(
             json!({ "file": string, "asked": count, "alreadyAnswered": count }),
             &["file", "asked", "alreadyAnswered"],
@@ -1447,7 +1488,7 @@ fn tool_list() -> Value {
                 "type": "object",
                 "properties": {
                     "path": path,
-                    "out": { "type": "string", "description": "Folder inside the app to write to. No `..`." }
+                    "out": { "type": "string", "description": "Folder inside the app to write to: a new or empty one, or one sv wrote before. No `..`." }
                 }
             },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false }
@@ -1511,6 +1552,21 @@ fn tool_list() -> Value {
                         "type": "string",
                         "enum": ["secrets", "untrusted-content", "checking", "review", "dependencies", "agent-limits", "ci-workflows", "provenance", "incidents"],
                         "description": "Only the rules on this topic. Leave it out for all of them."
+                    }
+                }
+            },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_prompts",
+            "title": "Prompts for the person to give you",
+            "description": "Prompts from SecureVibe's library that ask an AI coding tool for something SecureVibe checks, such as keeping the app in git from the first file or building every database query with placeholders, each with the requirements it targets. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others are marked not tested. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "requirement": {
+                        "type": "string",
+                        "description": "Only the prompts for this requirement, such as V1.2.4. Leave it out for all of them."
                     }
                 }
             },
@@ -2318,6 +2374,69 @@ mod tests {
     }
 
     #[test]
+    fn prompts_for_a_requirement_say_whether_each_was_shown_to_work() {
+        let server = Server::new(&examples()).unwrap();
+        let all = call(&server, "securevibe_prompts", json!({}));
+        let listed = all["structuredContent"]["prompts"].as_array().unwrap();
+        // The control: the library holds prompts of both kinds, so the marks below are tested on each.
+        let status = |p: &Value| p["status"].as_str().unwrap().to_owned();
+        assert!(listed.iter().any(|p| status(p) == "shown"), "{all}");
+        assert!(listed.iter().any(|p| status(p) != "shown"), "{all}");
+        // Every prompt not shown to work is marked so where the person reads it, right above its text.
+        for p in listed {
+            let title = p["title"].as_str().unwrap();
+            let after = text(&all)
+                .split(&format!("### {title}\n\n"))
+                .nth(1)
+                .unwrap_or("");
+            let mark = if status(p) == "shown" {
+                "**Shown to work.**"
+            } else {
+                "**Not tested:**"
+            };
+            assert!(
+                after.starts_with(mark),
+                "{title} is not marked {mark}:\n{after}"
+            );
+        }
+        assert!(
+            text(&all).contains("Cloud Security Alliance"),
+            "{}",
+            text(&all)
+        );
+
+        let one = call(
+            &server,
+            "securevibe_prompts",
+            json!({ "requirement": "V1.2.4" }),
+        );
+        let ids: Vec<&str> = one["structuredContent"]["prompts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["id"].as_str().unwrap())
+            .collect();
+        assert_eq!(ids, ["database-placeholders"], "{one}");
+
+        // A requirement no prompt targets is said plainly; one that does not exist is refused.
+        let none = call(
+            &server,
+            "securevibe_prompts",
+            json!({ "requirement": "V2.1.1" }),
+        );
+        assert_eq!(none["isError"], false, "{none}");
+        assert!(text(&none).contains("No prompt"), "{}", text(&none));
+        // Built here, so the scan for requirement ids written into the code does not read it as one.
+        let made_up = format!("V{}.9.9", 99);
+        let wrong = call(
+            &server,
+            "securevibe_prompts",
+            json!({ "requirement": made_up }),
+        );
+        assert_eq!(wrong["isError"], true, "{wrong}");
+    }
+
+    #[test]
     fn the_server_tells_the_tool_to_ask_for_the_rules_before_it_codes() {
         let server = Server::new(&examples()).unwrap();
         let init = server
@@ -2620,6 +2739,7 @@ mod tests {
             ("securevibe_write_report", json!({ "path": "app" })),
             ("securevibe_bundle", json!({ "path": "app" })),
             ("securevibe_explain", json!({ "id": "V1.2.4" })),
+            ("securevibe_prompts", json!({})),
             ("securevibe_spec", json!({})),
         ];
         let mut results = Vec::new();
@@ -3878,6 +3998,7 @@ mod tests {
                 "securevibe_notes_file",
                 "securevibe_record_answer",
                 "securevibe_guidance",
+                "securevibe_prompts",
                 "securevibe_spec"
             ]
         );

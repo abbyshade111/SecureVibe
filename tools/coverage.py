@@ -17,6 +17,10 @@ claim a check the code does not have:
   requirements a check can support but never settle;
 - `data/sbd-asvs-crosswalk.json`, for the checklist controls with an ASVS counterpart.
 
+It also holds `data/prompts.json` to the same citations: each prompt names the requirements it
+targets and the rules whose result shows whether it worked, and every one of those requirements has
+to be cited by one of those rules, and every rule has to cite one of them (`check_prompts`).
+
 A test (`crates/sv-check/tests/coverage_doc.rs`) runs `--check`, so a change to the checks that is not
 followed by regenerating this document fails the build.
 """
@@ -523,6 +527,55 @@ def evidence():
     return ev
 
 
+PROMPT_STATUSES = {"shown", "not-shown", "untested"}
+
+
+def check_prompts(known_requirements):
+    """Holds each prompt in `data/prompts.json` to the rules it names as its check.
+
+    A prompt claims requirements, and names the rules whose result shows whether it worked. A claim
+    is only as good as the check behind it, so every requirement a prompt names has to be cited by
+    one of its rules, and every rule has to cite one of the prompt's requirements. A rule ending in
+    `.` names a family (`secrets.`), and each rule in it is held to the same.
+    """
+    cites = {}
+    for name in ("ast-rules.json", "secret-rules.json"):
+        for rule in load(ROOT / "data" / name)["rules"]:
+            cites[rule["id"]] = set(rule["requirementIds"])
+    for check, (_, ids) in RUST_CHECKS.items():
+        cites[check] = set(ids)
+    faults = []
+    prompts = load(ROOT / "data/prompts.json")["prompts"]
+    if not prompts:
+        faults.append("data/prompts.json holds no prompts")
+    for p in prompts:
+        pid = p["id"]
+        wanted = set(p["requirements"])
+        if p.get("status") not in PROMPT_STATUSES:
+            faults.append(f"{pid}: status {p.get('status')!r} is not one of {sorted(PROMPT_STATUSES)}")
+        if p.get("status") in ("shown", "not-shown") and not (p.get("tested") or {}).get("result"):
+            faults.append(f"{pid}: says it was tried, and `tested` does not say what happened")
+        for q in sorted(wanted - known_requirements):
+            faults.append(f"{pid}: {q} is not a requirement in ASVS 5.0 or AISVS 1.0")
+        rules = p["check"].get("rules", [])
+        if wanted and not rules:
+            faults.append(f"{pid}: names requirements and no rule that could show the prompt working")
+        covered = set()
+        for rule in rules:
+            matched = [r for r in cites if r.startswith(rule)] if rule.endswith(".") else (
+                [rule] if rule in cites else [])
+            if not matched:
+                faults.append(f"{pid}: the rule {rule} is not one sv has")
+            for r in matched:
+                if not cites[r] & wanted:
+                    faults.append(f"{pid}: the rule {r} cites {', '.join(sorted(cites[r]))}, "
+                                  f"none of the prompt's {', '.join(sorted(wanted)) or 'requirements (it names none)'}")
+                covered |= cites[r]
+        for q in sorted(wanted - covered):
+            faults.append(f"{pid}: names {q}, which none of its rules cites")
+    return faults
+
+
 def main():
     check = "--check" in sys.argv[1:]
 
@@ -546,6 +599,9 @@ def main():
 
     asvs = framework(ROOT / "data/frameworks/asvs-5.0.0.json")
     aisvs = framework(ROOT / "data/frameworks/aisvs-1.0.json")
+    faults = check_prompts(set(asvs) | set(aisvs))
+    if faults:
+        sys.exit("data/prompts.json claims what its checks do not cite:\n  " + "\n  ".join(faults))
     appendix = appendix_c(ROOT / "data/frameworks/aisvs-1.0-appendix-c.json")
     sbd = load(ROOT / "data/frameworks/sbd-checklist-0.5.0.json")
     crosswalk = load(ROOT / "data/sbd-asvs-crosswalk.json")["controls"]

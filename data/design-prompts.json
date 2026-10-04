@@ -1,0 +1,190 @@
+{
+  "_comment": "Design-time prompts: what a person asks their AI coding tool to decide before any code is written, drawn from the OWASP Secure by Design checklist 0.5.0 (data/frameworks/sbd-checklist-0.5.0.json). The companion of data/prompts.json, with the same fields and one more: `sbd_controls` names the checklist controls a prompt helps a person answer. It never meets one: every Secure by Design control is answered by a person, so no check settles it (DESIGN, 'The checklist that was named and never loaded'). `requirements` are the ASVS requirements the prompt's check speaks to. Tested as data/prompts.json's are: a prompt is `shown` only when an app built with it passed its check and the same app built without it failed (the owner's decision of 3 October 2026), and the others are offered marked not tested (4 October 2026). For a check that only ever credits, failing means not credited. Written for the backlog item 'Design-time prompts from the Secure by Design checklist'; docs/prompts/design-time.md is written from this by hand.",
+  "prompts": [
+    {
+      "id": "design-who-may-do-what",
+      "title": "Decide who may do what, before any page exists",
+      "prompt": "Before you write any page or endpoint, write down who may do what in this app.\n\n1. List every kind of user: for example someone not signed in, a signed-in member, and an admin.\n2. For every page, form, and API endpoint, say which of them may use it. For records (notes, bookings,\n   files, messages), say whose records each kind of user may see or change. Write this as a table in\n   security-notes.md, under the heading \"Who may do what\".\n3. Build it so that anything the table does not allow is refused by default. Check permission on the\n   server, on every request: hiding a button or a link is not a check. Check who owns a record every\n   time it is read or changed, not only on the page that lists them. A person who is not allowed gets\n   a refusal (403 or 404, or a redirect to sign in if they are not signed in), never the page.\n4. For every row of the table, write a test that signs in as someone who must be refused and shows\n   that they are.\n\nIf something I ask for later does not fit the table, stop and ask me to update the table first.",
+      "sbd_controls": [
+        "SBD-AC-03"
+      ],
+      "requirements": [
+        "V8.2.1",
+        "V8.2.2",
+        "V8.3.1"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "Signed in as two members and an admin, `sv` asks for a private page as nobody, the admin page and an admin action as a member, and one member's note as the other.",
+        "rules": [
+          "probe.private-page-anonymous",
+          "probe.admin-page-ordinary-user",
+          "probe.admin-action-ordinary-user",
+          "probe.other-users-data"
+        ],
+        "passes_when": "all four are credited",
+        "fails_when": "any of them is a finding"
+      },
+      "inspired_by": "OWASP Secure by Design checklist 0.5.0, AC-03",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "a Python standard-library app for a club: sign-in, private notes, one seat to book, an assistant that calls an OpenAI-compatible service, and an admin page with announcements; `securevibe.toml` held the run settings, with no [policy] numbers",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` (with `--slow` where sessions are timed), the tester's numbers added to [policy] only where a build had written none of its own",
+        "result": "All four were credited on the build with the prompt, and on both builds without it: the tool already refused other members' notes and kept the admin page to admins from the description alone."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "design-actions-once",
+      "title": "Make the actions that must happen once happen once",
+      "prompt": "Before you build anything that takes, spends, or counts something (booking a seat, paying, redeeming a\ncode, voting, claiming the last of anything), list those actions in security-notes.md under the\nheading \"Business limits\", saying for each what must never happen twice.\n\nThen, for each one:\n\n- Make the check and the change a single step the database does all at once: one conditional UPDATE\n  (\"take the seat only if it is still free\") whose row count you then read, a unique constraint, or a\n  transaction that locks what it reads. Checking first in code and writing afterwards is not enough:\n  two requests arriving at the same moment can both pass the check.\n- Make it safe to repeat: a double-click or a request sent again must not book, pay, or count twice.\n- Write a test that sends the same action many times at the same moment and shows only one goes\n  through.",
+      "sbd_controls": [
+        "SBD-RR-05",
+        "SBD-DM-03"
+      ],
+      "requirements": [
+        "V2.3.4"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "`sv` sends the booking 20 times at the same instant as one member and counts the answers that say it went through.",
+        "rules": [
+          "probe.action-done-twice"
+        ],
+        "passes_when": "no finding",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "OWASP Secure by Design checklist 0.5.0, RR-05 and DM-03",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "a Python standard-library app for a club: sign-in, private notes, one seat to book, an assistant that calls an OpenAI-compatible service, and an admin page with announcements; `securevibe.toml` held the run settings, with no [policy] numbers",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` (with `--slow` where sessions are timed), the tester's numbers added to [policy] only where a build had written none of its own",
+        "result": "Neither build without the prompt was found: both took the seat in one database step. The build with it was found, wrongly: it booked once, as the prompt asks, and answered the member's repeats with \"Booked\" again, which the check counts as 20 bookings. A false alarm in `sv`, recorded in docs/BACKLOG.md."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "design-limits",
+      "title": "Decide the limits on abuse, write them down, and enforce them",
+      "prompt": "Before building sign-in or anything people can create, decide the limits with me and write them down.\n\n1. Ask me how many wrong passwords in a row the app should allow before it pushes back, and how many\n   records (notes, posts, messages) one person may create in a minute. Suggest sensible numbers if I\n   am not sure. If securevibe.toml already has them under [policy], use those.\n2. Write the numbers into securevibe.toml under [policy] as `failed-sign-ins`, `within-minutes`, and\n   `requests-per-minute`, and into security-notes.md under \"Business limits\" and \"How sign-in is\n   protected against guessing\".\n3. Enforce them on the server, counted per account (an IP address is easy to change, so not only by\n   address). Once a limit is passed, answer with 429 Too Many Requests, say when to try again, and keep\n   refusing until then.\n4. Write a test that goes one past each limit and shows the app pushes back.",
+      "sbd_controls": [
+        "SBD-RR-07"
+      ],
+      "requirements": [
+        "V2.4.1",
+        "V6.3.1"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "With the numbers in [policy], `sv` creates one record more than `requests-per-minute` as one member, and tries one wrong password more than `failed-sign-ins`.",
+        "rules": [
+          "probe.create-rate-unlimited",
+          "probe.failed-sign-ins-unlimited"
+        ],
+        "passes_when": "both credited",
+        "fails_when": "either is a finding"
+      },
+      "inspired_by": "OWASP Secure by Design checklist 0.5.0, RR-07",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "a Python standard-library app for a club: sign-in, private notes, one seat to book, an assistant that calls an OpenAI-compatible service, and an admin page with announcements; `securevibe.toml` held the run settings, with no [policy] numbers",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` (with `--slow` where sessions are timed), the tester's numbers added to [policy] only where a build had written none of its own",
+        "result": "With the prompt the build wrote 5 wrong passwords in 15 minutes and 10 records a minute into securevibe.toml, enforced both, and was credited on both. Both builds without it were found on both. Neither limited new records at all. Each did lock an account after wrong passwords, but after 10, a number it chose and wrote down nowhere, so `sv` held it to the 5 standing in for the owner's: for wrong passwords, what the prompt changed is that the number was decided and written down."
+      },
+      "status": "shown"
+    },
+    {
+      "id": "design-when-things-fail",
+      "title": "Decide what happens when something the app relies on fails",
+      "prompt": "Before you write code that calls anything outside the app (an AI service, a payment provider, email,\nanother website, or the database), decide what happens when it is slow, down, or answers with an\nerror, and write it in security-notes.md under \"Everything the app talks to\".\n\nThen build it this way:\n\n- Every outside call has a time limit of a few seconds. None waits forever.\n- When a call fails, the person sees a short, plain message, such as \"The assistant is unavailable\n  right now. Please try again later.\" Never show them the error text, a stack trace, the other\n  service's status code, or anything the service sent back.\n- Write the full error to the app's log instead.\n- The rest of the app keeps working: one failed call never crashes the app or stops it answering the\n  next request.\n- Show visitors a plain error page of the app's own for anything unexpected, and turn off any debug\n  mode or setting that shows errors to them.\n- Write a test that makes each outside call fail and checks both the message and that the app still\n  answers afterwards.",
+      "sbd_controls": [
+        "SBD-RR-01",
+        "SBD-RR-06",
+        "SBD-AS-07"
+      ],
+      "requirements": [
+        "V16.5.1",
+        "V16.5.2"
+      ],
+      "check": {
+        "kind": "running",
+        "how": "`sv` sends the running app requests it cannot handle, and points its AI feature at a test model that fails.",
+        "rules": [
+          "probe.error-detail-leak",
+          "probe.ai-service-failure-handled"
+        ],
+        "passes_when": "both credited",
+        "fails_when": "either is a finding or not credited"
+      },
+      "inspired_by": "OWASP Secure by Design checklist 0.5.0, RR-01, RR-06 and AS-07",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "a Python standard-library app for a club: sign-in, private notes, one seat to book, an assistant that calls an OpenAI-compatible service, and an admin page with announcements; `securevibe.toml` held the run settings, with no [policy] numbers",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` (with `--slow` where sessions are timed), the tester's numbers added to [policy] only where a build had written none of its own",
+        "result": "Both were credited on the build with the prompt, and on both builds without it: the tool already showed a plain message when the assistant failed and kept answering."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "design-logging",
+      "title": "Decide what the app logs, and how each line reads",
+      "prompt": "Before building, decide what the app writes to its log, and put the list in security-notes.md under\n\"What the app logs\". At least:\n\n- every sign-in, successful or refused, with the account name that was tried;\n- every request refused because the person was not allowed (not signed in, the wrong user, not an\n  admin);\n- every admin action;\n- every limit that was hit.\n\nEach line carries the time with its time zone (for example `2026-10-04T13:05:00Z`), what happened, who\n(the account, or \"anonymous\"), where (the address that was asked for, query string included, and the\nclient's IP address), and the result (the HTTP status the app answered with, such as 302, 403, or\n429).\n\nNever log passwords, session cookies or tokens, API keys, or what is inside people's records. If a\nquery string can carry one of those, write that value as `[removed]` rather than leaving the address\nout. Write to standard output, one event per line, in one consistent format (key=value pairs or\nJSON). Decide how long logs are kept, and write that down too.",
+      "sbd_controls": [
+        "SBD-MT-01",
+        "SBD-MT-07"
+      ],
+      "requirements": [
+        "V16.2.1",
+        "V16.2.2"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "`sv` makes a refused sign-in and a refused request with markers in them, and reads the app's own output for the lines that record them.",
+        "rules": [
+          "probe.log-line-metadata",
+          "probe.log-timestamp-zoned",
+          "probe.authorization-failure-logged"
+        ],
+        "passes_when": "probe.log-line-metadata and probe.log-timestamp-zoned credited",
+        "fails_when": "either not credited (these checks only ever credit)"
+      },
+      "inspired_by": "OWASP Secure by Design checklist 0.5.0, MT-01 and MT-07",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "a Python standard-library app for a club: sign-in, private notes, one seat to book, an assistant that calls an OpenAI-compatible service, and an admin page with announcements; `securevibe.toml` held the run settings, with no [policy] numbers",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` (with `--slow` where sessions are timed), the tester's numbers added to [policy] only where a build had written none of its own",
+        "result": "With the prompt, the line recording a refused sign-in carried who, when with its zone, and where, and both checks were credited; neither build without it wrote such a line, so neither was. The refused request was logged (probe.authorization-failure-logged, V16.3.2) by the build with the prompt and by one of the two without, so that part is not shown and the prompt does not claim V16.3.2. The prompt's first wording asked for 'the path', and both builds with it left out the query string and the status; it now asks for the address with its query string and the status code, and was built again."
+      },
+      "status": "shown"
+    },
+    {
+      "id": "design-sign-in",
+      "title": "Decide how sign-in works and how long it lasts",
+      "prompt": "Before writing sign-in, decide these with me and write them in security-notes.md under \"Every way to\nsign in\" and \"How long someone stays signed in\":\n\n- Use a proven library or sign-in provider for passwords and sessions where the platform allows one,\n  rather than inventing your own. Store passwords only with a hashing function made for passwords\n  (Argon2, bcrypt, scrypt, or PBKDF2 with many iterations).\n- How long a session may sit unused before the password is asked for again, and the longest a session\n  may last however busy it is. Ask me; suggest 30 minutes unused and 12 hours at most if I am not\n  sure. If securevibe.toml already has them under [policy], use those. Put both numbers in\n  securevibe.toml under [policy] as `idle-timeout-minutes` and `session-lifetime-minutes`, and enforce\n  both on the server: how long the browser keeps the cookie is not enough.\n- If the app issues its own sign-in tokens (such as JWTs), keep them short-lived, check the signature\n  and the expiry on every request, and accept only the one signing method you use.\n- Admins sign in with a second step (a code from an authenticator app).\n- Signing out ends the session on the server, not only in the browser.\n\nWrite a test for each: a session unused past the limit is refused, one older than the lifetime is\nrefused, and an expired or altered token is refused.",
+      "sbd_controls": [
+        "SBD-AC-02"
+      ],
+      "requirements": [
+        "V7.3.1"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "With `idle-timeout-minutes` and `session-lifetime-minutes` in [policy], `sv run --slow` waits that long and asks whether the session still opens a private page.",
+        "rules": [
+          "probe.session-idle-timeout",
+          "probe.session-lifetime"
+        ],
+        "passes_when": "probe.session-idle-timeout credited",
+        "fails_when": "probe.session-idle-timeout a finding"
+      },
+      "inspired_by": "OWASP Secure by Design checklist 0.5.0, AC-02",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "a Python standard-library app for a club: sign-in, private notes, one seat to book, an assistant that calls an OpenAI-compatible service, and an admin page with announcements; `securevibe.toml` held the run settings, with no [policy] numbers",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` (with `--slow` where sessions are timed), the tester's numbers added to [policy] only where a build had written none of its own",
+        "result": "With the prompt the build wrote 30 minutes unused and 12 hours in all into securevibe.toml and enforced both; after 31 minutes `sv run --slow` found the unused session refused and a busy one still open, and credited it. The 12 hours is longer than the 90 minutes `--slow` waits, so V7.3.2 was not assessed and the prompt does not claim it. The build without the prompt that was run with `--slow` was found on both: it also ended sessions after 30 minutes and 12 hours, but wrote neither down, so `sv` held it to the 2 and 4 minutes standing in for the owner's. What the prompt was shown to change is that the decision is written where it can be held to, not that sessions end at all. The admin's second sign-in step the prompt asks for is not what this shows, and it stopped `sv`'s admin checks, whose settings have no field for the code."
+      },
+      "status": "shown"
+    }
+  ]
+}

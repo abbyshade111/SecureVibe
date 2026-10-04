@@ -10,7 +10,8 @@ It makes a small app in a temporary folder, a copy of `examples/tested-notes` wi
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
 <folder>:<folder> <image> mcp --root <folder>`). Then, over MCP:
 
-- the nine tools are offered, and `securevibe_spec` answers;
+- the ten tools are offered, and `securevibe_spec` answers;
+- `securevibe_prompts` gives the prompt library, each marked, so the prompts file is in the image;
 - `securevibe_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
 - `securevibe_check` ran the committed-secrets check and found the `.env`. **This is asserted before
   anything is compared.** The first local test compared the image with the native `sv` on an app with
@@ -51,6 +52,7 @@ TOOLS = [
     "securevibe_notes_file",
     "securevibe_record_answer",
     "securevibe_guidance",
+    "securevibe_prompts",
     "securevibe_spec",
 ]
 FAILURES = []
@@ -126,9 +128,15 @@ def main():
             ("tools/call", {"name": "securevibe_notes_file", "arguments": {"path": "app"}}),
             ("tools/call", {"name": "securevibe_bundle", "arguments": {"path": "app"}}),
             ("tools/call", {"name": "securevibe_guidance", "arguments": {"path": "app"}}),
+            ("tools/call", {"name": "securevibe_prompts", "arguments": {}}),
         ])
         names = [t["name"] for t in replies[0]["result"]["tools"]]
-        check(names == TOOLS, f"nine tools offered: {names}")
+        check(names == TOOLS, f"ten tools offered: {names}")
+        prompts = replies[6]["result"]
+        prompts_text = prompts["content"][0]["text"]
+        check(prompts["isError"] is False and "**Shown to work.**" in prompts_text
+              and "**Not tested:**" in prompts_text,
+              "securevibe_prompts gives the prompt library, each prompt marked")
         guidance = replies[5]["result"]
         rules_text = guidance["content"][0]["text"]
         check(guidance["isError"] is False and "CC BY-SA 4.0" in rules_text and "OWASP AISVS" in rules_text,

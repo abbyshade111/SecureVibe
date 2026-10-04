@@ -6856,6 +6856,46 @@ these were read.
 **Tests.** The reading of the knocks has unit tests. Two breaks were each caught: a refusal read as the fence
 holding, and the control left out. The fence tests ran for real in CI and passed.
 
+## Design-time prompts, tried (4 October 2026)
+
+The prompt library (`docs/PROMPTS.md`) asks the AI coding tool for something `sv` checks; these ask it to decide
+something with the owner first and write it down. They come from the OWASP Secure by Design checklist, whose controls
+are all design review: no check settles one (see "The checklist that was named and never loaded"). So each prompt
+names the controls it *helps answer* in `sbd_controls` (`data/design-prompts.json`) and is held to an ASVS requirement
+`data/sbd-asvs-crosswalk.json` pairs with them and a check of `sv`'s speaks to. Six were tried, under the library's
+rule (the owner's decision of 3 October 2026): shown only when a build with the prompt passed and the builds without
+it failed.
+
+**The trial.** One brief (`docs/prompts/trial/brief.md`): a club site in Python's standard library with sign-in,
+private notes, one seat to book, an assistant calling an OpenAI-compatible service, and an admin page. Fresh helper
+agents built it in folders of their own, twice without a prompt and once with each; `tools/prompt_trial.py` ran
+`sv report --run` on each behind the fence (Docker started by hand in this container) and read the targeted rules out
+of `report.json`. Where a build wrote [policy] numbers it was held to them; where it wrote none, the numbers in
+`docs/prompts/trial/policy.toml` stood in for the owner's.
+
+**What the first round got wrong, twice.** It gave every build a `securevibe.toml` that already held the [policy]
+numbers. The builds without a prompt read them and enforced them, so the settings file was acting as the prompt and
+prompts 3 and 7 could not fail without. And builds that read "10 requests a minute" applied it to sign-in by address;
+`sv` sends everything from one address and signs in dozens of times, so the limiter stopped it and the run credited
+almost nothing (ADR-021 working as meant). The second round took the numbers out and added a plain line to the brief
+that a tester signs in many times from one address.
+
+**What it showed.** Shown: 3 (limits; V2.4.1 and V6.3.1), 6 (logging; V16.2.1 and V16.2.2), and 7 (sign-in; V7.3.1).
+For 7, and 3's password limit, the builds without the prompt had a timeout or lockout of their own choosing, written
+down nowhere, so `sv` held them to the stand-in numbers: what the prompt changed is that the decision was recorded
+where it can be held to. That is worth having, and it is not the same as making sessions end, so the page says so.
+Not shown: 1 (who may do what) and 4 (when things fail), which both builds without a prompt already passed, and 2
+(actions once), where `sv` raised `probe.action-done-twice` against the build made with it: it took the seat in one
+conditional UPDATE and answered the holder's repeats with "Booked", which is what the prompt asks for and which the
+check counts as twenty bookings. That is a false alarm in `sv`, recorded in the backlog. Prompt 6's first wording
+asked for "the path"; both builds with it logged the path without its query string and without the status, so
+`probe.authorization-failure-logged` (which plants its marker in the query string and wants the status on the same
+line) could not credit them. It was reworded to ask for both and built again, and V16.3.2 is still not claimed,
+because one build without the prompt logged the refusal too.
+
+Not done: the eight design-time prompts no check can show working (backlog items 8 to 15), a second build per
+prompt, another brief, and another AI tool. One build each is a small sample, and every builder was the same model.
+
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
@@ -6884,3 +6924,75 @@ The test is the review's own fixture: a file named `..\outside\deploy_key.txt` i
 `outside/deploy_key.txt` holding a marker. Each layer was broken on its own and caught. With the first two broken,
 the third refused the bundle, naming the zip-slip entry. With all three broken, the test failed on the outside text in
 the zip, as the review reproduced it.
+
+## Files `sv` writes, never through a link and never over the app's own (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, S3 to S5) reproduced three ways `sv` wrote where it should not.
+The MCP tools had refused links since "Writing nothing through a link"; the command line had not.
+
+- **`sv rules` and `sv notes`** wrote `AGENTS.md` and `security-notes.md` with `std::fs::write`, which follows a
+  link: one pointing outside the app had its target read in and then written over. Both now refuse a link at that
+  name before reading it, and write through `write_without_following` (a new file, renamed into place). The check is
+  in `write_notes` itself, so `sv notes`, `securevibe_notes_file`, and `securevibe_record_answer` all have it.
+- **`sv bundle`** wrote its zip the same way, and worse, `bundle::resolve_for_writing` resolved links all the way
+  to the file, so a link at `app-securevibe-bundle.zip` beside the app was turned into its target before anything
+  could look at it. The function now resolves links in the folders on the way (why it exists: `/var` on a Mac) and
+  never the file name, and the zip is refused if that name is a link, then written under a new name and renamed.
+  This first fix missed the resolving; the test with the review's own fixture caught it.
+- **A report given `out` "."** (or `--out` at the app) was written into the app, and on a disk that does not tell
+  capitals apart its `security.md` replaced the app's `SECURITY.md`. `write_report_files` now refuses a folder that
+  holds anything but the names `sv` writes, unless it carries `sv`'s marker; and refuses, marked or not, a folder
+  holding a name that differs from one of `sv`'s only in capitals, since the marker can be planted. A folder from
+  before the marker, holding only `sv`'s names, is still written to; so are new and empty folders, and the default
+  `securevibe-report`.
+
+Eleven guards were broken in turn; ten were caught, two of them only after a test was added (a marked folder
+holding a file of the owner's, and an app holding a `README.md` a loose match would take for the marker). The
+eleventh, writing the zip by rename rather than in place, only matters in the race below, which no test can stage. A
+filter for staging files left by an interrupted run was taken out instead of tested: the marker is the first file
+written, so such a folder is always marked.
+
+What is still open: a write races with a link put at the name between the check and the rename, which
+`write_without_following` closes by renaming over it (its own test); and S6 to S13 of the same review.
+
+## Prompts the AI tool can fetch (4 October 2026)
+
+The prompt library (`data/prompts.json`, `docs/PROMPTS.md`) is offered two more ways: `sv prompts` prints it,
+and the MCP tool `securevibe_prompts` hands it to the AI coding tool, which can offer it to the person. Either
+can be narrowed to one requirement (`--requirement V1.2.4`, or `"requirement": "V1.2.4"`). An id that is no
+requirement at all is refused, so a mistyped one is never answered "no prompt targets it" as if it had been
+looked up.
+
+**Whether a prompt was shown to work travels with it.** A prompt is *shown to work* only when an app built
+with it passed its check and the same app built without it failed; the owner asked on 4 October 2026 for the
+rest to be offered too, marked. So every copy, in the terminal, the tool's text, and its structured result,
+says `shown`, `not-shown` (tried, with what happened), or `untested`, right above the prompt's text, and the
+ones shown to work come first. The loader refuses a prompt said to be tried that does not say what happened,
+and one not tried that carries a result, so the two cannot read alike. Eight of these guards were broken in turn,
+each caught; the first run found the "not tried yet" mark caught by nothing, because the library holds no untried
+prompt, so a test now makes one.
+
+**A prompt's requirements are a citation, held like the others.** `tools/coverage.py`, which a test runs, already
+knows what every rule cites. It now refuses a prompt that names a requirement none of its rules cites, a rule
+that cites none of the prompt's requirements, a rule `sv` does not have, and an unknown status. Eight ways of
+breaking the data were tried, each caught.
+
+**Not evidence.** Handing the tool a prompt says nothing about what it wrote, so no requirement changes status
+because a prompt was given or read; the tool's description says so.
+
+
+## A named pipe is named, never opened (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, S12) found that a named pipe in the app hung `sv`:
+`sv_scan::files::Listing` listed anything that was not a folder or a link as a file, and the first check to read a
+pipe waited for something to write into it, which nothing ever does. A socket or a device would have been read the
+same way.
+
+The walk now lists only regular files. Everything else, and an entry whose kind cannot be read, goes into
+`Listing::special` and is never opened, and is said, the way links are: `sv check` prints it, the report lists it as
+a gap ("not an ordinary file"), the checks that read the app's files say they read part of it, and `sv bundle`, whose
+walk is its own, lists it as left out with the reason where before it dropped it without a word.
+
+Tested with a real pipe (`mkfifo`), in the walk's own test and end to end through `sv check`, `sv report`, and
+`sv bundle`, each run given a minute before the test fails, since the fault is a hang. Five guards broken in turn, each
+caught; undoing the walk's guard hung all three commands again.

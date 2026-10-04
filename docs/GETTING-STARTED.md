@@ -158,6 +158,10 @@ Open the app's folder in your AI tool and paste this, with your app described at
 > 5. When the first version works, call `securevibe_questions` and ask me the questions one at a time.
 >    Record only what I actually answer as mine.
 
+More prompts like these, each for one thing SecureVibe checks, are in [the prompt library](PROMPTS.md).
+`sv prompts` prints them, and your AI tool can fetch them with `securevibe_prompts`. Each says whether it
+has been shown to work.
+
 ## 5. Answer the questions
 
 The tool will ask you things no program can know: how long someone may stay signed in, what the app

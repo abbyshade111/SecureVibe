@@ -7,6 +7,9 @@ when the build with it passed its check and the build without it failed. The res
 **not tested**, with what happened: they are worth using, but a prompt that has not been shown to change anything
 should not be trusted as if it had.
 
+`sv prompts` prints the same prompts at a terminal (`sv prompts --requirement V1.2.4` for those aimed at one
+requirement), and an AI coding tool connected to `sv mcp` can fetch them with `securevibe_prompts`.
+
 The prompts are written in this project's own words. Some were inspired by the Cloud Security Alliance's
 [Secure Vibe Coding Guide](https://cloudsecurityalliance.org/blog/2025/04/09/secure-vibe-coding-guide)
 (K. Huang, 9 April 2025); none of its text is copied. The same prompts, with the checks behind them, are in
@@ -106,3 +109,7 @@ check the result with `sv` as you would anything else.
 *Not tested:* The build without the prompt allowed only a few safe tags itself. `sv`'s check reads which libraries an app uses, so it could not judge that build either way.
 
 The same prompts, with the checks behind them, are in `data/prompts.json`.
+
+Prompts for what to decide **before** any code is written (who may do what, limits, logging, sign-in), drawn from the
+OWASP Secure by Design checklist and tested the same way, are on a page of their own:
+[Prompts to give your AI coding tool before it writes any code](prompts/design-time.md).

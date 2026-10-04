@@ -215,6 +215,10 @@ pub struct Listing {
     pub links: Vec<String>,
     /// Folders that are there and could not be opened.
     pub unopened: Vec<String>,
+    /// Entries that are not a regular file, a folder, or a link: a named pipe, a socket, a device, or
+    /// one whose kind could not be read. Never opened: opening a named pipe waits for something to
+    /// write into it, which hung `sv` (deep review S12).
+    pub special: Vec<String>,
 }
 
 impl Listing {
@@ -228,6 +232,7 @@ impl Listing {
         listing.dirs.sort();
         listing.links.sort();
         listing.unopened.sort();
+        listing.special.sort();
         listing
     }
 
@@ -339,8 +344,12 @@ fn walk(root: &Path, dir: &Path, in_editor: bool, out: &mut Listing) {
             walk(root, &path, editor, out);
             continue;
         }
-        // A regular file, or something whose kind could not be read: listed, with whatever is known.
-        // `DirEntry::metadata` does not follow links either.
+        if !kind.is_some_and(|k| k.is_file()) {
+            out.special.push(relative(root, &path));
+            continue;
+        }
+        // A regular file, listed with whatever is known. `DirEntry::metadata` does not follow links
+        // either.
         let size = entry.metadata().ok().map(|m| m.len());
         let extension = path
             .extension()
@@ -421,6 +430,33 @@ mod tests {
             "every link, to a file or a folder, once"
         );
         assert!(listing.unopened.is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_named_pipe_is_named_and_never_opened() {
+        // Opening a named pipe waits for a writer, and nothing ever writes: the walk would hang the
+        // first time a check read it (deep review S12).
+        let root = scratch("pipe");
+        std::fs::write(root.join("app.py"), "print('hi')\n").unwrap();
+        let made = std::process::Command::new("mkfifo")
+            .arg(root.join("queue"))
+            .status()
+            .expect("mkfifo runs");
+        assert!(made.success());
+        let kind = std::fs::symlink_metadata(root.join("queue"))
+            .unwrap()
+            .file_type();
+        assert!(
+            !kind.is_file() && !kind.is_dir() && !kind.is_symlink(),
+            "the plant is a pipe"
+        );
+
+        let listing = Listing::of(&root);
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(names(&listing.files), vec!["app.py"], "{listing:?}");
+        assert_eq!(listing.special, vec!["queue"]);
+        assert!(listing.links.is_empty() && listing.unopened.is_empty());
     }
 
     #[test]
