@@ -35,6 +35,20 @@ fn the_library_loads_with_the_shown_prompts_first() {
 }
 
 #[test]
+fn the_shown_prompts_come_first_wherever_the_file_puts_them() {
+    // The library happens to list them first already, so the order is tested with them moved last.
+    let path = changed("shown-last", |d| {
+        let list = d["prompts"].as_array_mut().unwrap();
+        list.sort_by_key(|p| p["status"] == "shown");
+    });
+    let loaded = Prompts::load(&path);
+    std::fs::remove_file(&path).ok();
+    let prompts = loaded.expect("the reordered library loads");
+    assert_ne!(prompts.prompts[0].status, Status::Shown, "the setup moved nothing");
+    assert_eq!(prompts.select(None)[0].status, Status::Shown);
+}
+
+#[test]
 fn a_prompt_said_to_be_tried_has_to_say_what_happened() {
     let path = changed("no-result", |d| {
         let tried = d["prompts"]
