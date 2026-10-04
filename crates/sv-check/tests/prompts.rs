@@ -44,7 +44,11 @@ fn the_shown_prompts_come_first_wherever_the_file_puts_them() {
     let loaded = Prompts::load(&path);
     std::fs::remove_file(&path).ok();
     let prompts = loaded.expect("the reordered library loads");
-    assert_ne!(prompts.prompts[0].status, Status::Shown, "the setup moved nothing");
+    assert_ne!(
+        prompts.prompts[0].status,
+        Status::Shown,
+        "the setup moved nothing"
+    );
     assert_eq!(prompts.select(None)[0].status, Status::Shown);
 }
 
@@ -76,7 +80,11 @@ fn every_prompt_is_marked_above_its_text_as_shown_or_not_tested() {
             Status::NotShown => "**Not tested:** tried, and not shown to work.",
             Status::Untested => "**Not tested:** not tried yet.",
         };
-        assert!(after.starts_with(mark), "{} is not marked {mark}:\n{after}", p.title);
+        assert!(
+            after.starts_with(mark),
+            "{} is not marked {mark}:\n{after}",
+            p.title
+        );
     }
     assert!(text.trim_end().ends_with(prompts.credit.as_str()), "{text}");
 }
