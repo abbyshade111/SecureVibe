@@ -1260,9 +1260,13 @@ impl DockerBackend {
         // CI found the first two tries silent. With nothing to send, a connection that opens ends at once.
         let mut script =
             format!("nc -vv -w 3 127.0.0.1 {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-self=$?\"");
+        // An address that is the knocking container's own is not knocked on: with no gateway, Docker
+        // gives the subnet's first address to the first container, which is this one, and its own
+        // refusal would read as the host answering. CI found exactly that.
         for target in &targets {
             script.push_str(&format!(
-                "; nc -vv -w 3 {target} {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-gateway=$?\""
+                "; case \" $(ip -4 -o addr show 2>/dev/null) \" in *\"inet {target}/\"*) echo \"sv-own={target}\";; \
+                 *) nc -vv -w 3 {target} {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-gateway=$?\";; esac"
             ));
         }
         let out = match self.docker(&[
@@ -1864,6 +1868,10 @@ fn gateway_verdict(out: &str) -> GatewayVerdict {
         .filter(|(m, _, _)| m == "sv-gateway")
         .collect();
     if knocks.is_empty() {
+        // Every address was the knocking container's own: nothing of the host's is on the network.
+        if sections.iter().any(|(m, _, _)| m == "sv-own") {
+            return GatewayVerdict::Closed;
+        }
         return GatewayVerdict::Unknown("the knock on the gateway did not report back".to_owned());
     }
     let mut unknown = None;
@@ -2836,6 +2844,21 @@ mod gateway_tests {
         let out =
             format!("{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: timed out\nsv-gateway=1\n");
         assert_eq!(gateway_verdict(&out), GatewayVerdict::Closed);
+    }
+
+    #[test]
+    fn the_knocking_containers_own_address_is_not_the_host() {
+        // CI, 4 October 2026: with no gateway, the subnet's first address was the knocking container's
+        // own, and its refusal read as the host answering.
+        assert_eq!(
+            gateway_verdict(&format!("{REFUSED_SELF}sv-own=172.18.0.1\n")),
+            GatewayVerdict::Closed
+        );
+        // Its own address skipped, another that answers still stops the run.
+        let out = format!(
+            "{REFUSED_SELF}sv-own=172.18.0.1\nnc: 172.18.0.254 (172.18.0.254:9): Connection refused\nsv-gateway=1\n"
+        );
+        assert_eq!(gateway_verdict(&out), GatewayVerdict::Reachable);
     }
 
     #[test]
