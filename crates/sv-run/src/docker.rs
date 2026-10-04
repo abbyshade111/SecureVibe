@@ -1238,10 +1238,14 @@ impl DockerBackend {
             ));
         }
         let gateway = targets.join(", ");
-        let mut script = format!("nc -z -w 3 127.0.0.1 {GATEWAY_PORT} 2>&1; echo \"sv-self=$?\"");
+        // Not `nc -z`: busybox's says nothing when a connection is refused, and a refusal read as
+        // silence would pass for a fence. Without it, and with nothing to send, it says why it could not
+        // connect, and a connection that opens ends at once.
+        let mut script =
+            format!("nc -w 3 127.0.0.1 {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-self=$?\"");
         for target in &targets {
             script.push_str(&format!(
-                "; nc -z -w 3 {target} {GATEWAY_PORT} 2>&1; echo \"sv-gateway=$?\""
+                "; nc -w 3 {target} {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-gateway=$?\""
             ));
         }
         let out = match self.docker(&[
