@@ -317,6 +317,16 @@ another session is not a claim.
 
   **How a prompt is known to work:** the check it targets, run on an app built with it, and failing
   on one built without it. The same discipline as every other check here.
+  **The owner's decisions, 3 October 2026:**
+  1. **Our own words.** Every prompt is written fresh in plain language, crediting and linking to the guide where
+     it inspired one. No CSA text is copied.
+  2. **The first batch:** about fifteen, the lessons from the owner's first build and prompts for the Level 1 areas
+     `sv` checks most (secrets, access control, injection, headers, CORS, error pages, uploads).
+  3. **Both ways of getting them:** a page in `docs/` first, then `sv prompts` and an MCP tool.
+  4. **Each is tested before it ships:** the same small app is built twice by fresh helper agents in a throwaway
+     folder, once with the prompt and once without, and `sv` checks both. A prompt ships only when its check
+     passes on the build with it and fails on the build without. A lesson with no check that could show it
+     working is listed apart, not shipped as a tested prompt.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
