@@ -1722,6 +1722,10 @@ another session is not a claim.
   line rather than a record of its own; item 7 needs none.
   **Items 1 to 6 claimed the same day by session securevibe-e2**, at the owner's word, in branch
   `claude/securevibe-e2-records-owed`: records ADR-021 to ADR-025 for items 1 to 5, and item 6 as a line in ADR-019.
+  **Done the same day:** ADR-021 (a crash's or a rate limiter's answer is never the app refusing), ADR-022 (whose
+  word counts), ADR-023 (false alarms and accepted risks a person records), ADR-024 (an unanswered data list holds the
+  app to level 2), ADR-025 (`sv run` has an end), and ADR-019, "Later, 4 October 2026", for item 6. Item 1's "29
+  passes" is 36 by the table today; ADR-021 gives both.
   1. **A crash's or a rate limiter's answer is never read as the app refusing** (#412, #416, #418, #420). Undone
      quietly, 29 passes come back that rest on an answer the app never gave.
   2. **Whose word counts, and at which tier:** an AI tool's answers are marked as its own, the owner's are credited
