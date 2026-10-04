@@ -274,6 +274,14 @@ another session is not a claim.
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/h9-pipenv`.
+    **Done the same day** (DESIGN, "Pipenv apps, and Python dependency files `sv` does not read"): `Pipfile` is a
+    manifest with `Pipfile.lock` its lockfile, read from every section, with a package that has no version named
+    rather than dropped (H21, for this reader only); a `Pipfile` alone lists its exact pins as asked for and names
+    the rest; `setup.py`, `setup.cfg`, other requirements files, and Conda's `environment.yml` are found and named
+    as unread (a hashed requirements file is read), so V15.2.1 is not credited and `sv audit` and the report say
+    which file and why. Tested end to end with Django 2.2.0 found through `Pipfile.lock`, a clean Pipenv app
+    credited, and five not-credited cases; eleven guards broken in turn, each caught. Still open: a range in a
+    `requirements.txt` without a lockfile is left out unnamed, and a `setup.py`-only app is not called unpinned.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -327,6 +335,8 @@ another session is not a claim.
     with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
+    **`Pipfile.lock` done with H9 on 4 October 2026**: its packages with no version are named. pnpm v9 and Yarn
+    are still open.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -1176,7 +1186,10 @@ another session is not a claim.
   question open. If it holds, text under a stray heading below an unanswered section could make it look answered, at
   the tier its `Written by:` line gives. The prompts are kept from causing it (a test holds them to `sv`'s headings);
   an owner or a tool writing a heading of their own is not. Ways out, for the owner: end a section at any heading, or
-  report a heading `sv` does not know as a gap. Not claimed.
+  report a heading `sv` does not know as a gap.
+  **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/notes-headings`. First
+  step: reproduce it end to end, with a test, before any fix; the way out is then the owner's to choose, and its
+  record is written with it.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
