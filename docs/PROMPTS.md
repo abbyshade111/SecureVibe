@@ -29,6 +29,13 @@ The build without any prompt still read the key from the environment, ran the pr
 passwords with a proper hash, and cleaned the formatted text. So these four stay **not tested**: with this AI model,
 on these two apps, the safe choice was made with or without them. They may matter more with another tool.
 
+**The rest of the first batch (4 October 2026).** Four more prompts, for things `sv` checks on the running app
+(security headers, cross-site access, error pages, and who may open what), were tried on the club app the
+[design-time prompts](prompts/design-time.md) were tried on: two builds with no prompt, and one with each prompt,
+each started behind `sv`'s network fence and signed in to as two members and an admin. Both builds without a
+prompt already passed all four checks. To be sure the checks could see the faults on this app at all, a copy of one
+of those builds had each fault put back, and every one was caught. So these four are **not tested** too.
+
 ## Shown to work
 
 ### Describe the app to SecureVibe before writing code
@@ -115,6 +122,38 @@ check the result with `sv` as you would anything else.
 *Requirement:* ASVS V1.3.1.
 
 *Not tested:* The build without the prompt allowed only a few safe tags itself. `sv`'s check reads which libraries an app uses, so it could not judge that build either way.
+
+### Send the security headers on every page
+
+> Send these headers on every response the app gives, error pages and the home page included: a Content-Security-Policy that starts from `default-src 'self'` and includes `frame-ancestors 'none'` (or `'self'` if the app frames its own pages), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` or stricter. Set them in one place that every response passes through, so a new page cannot leave them out.
+
+*Requirements:* ASVS V3.4.3, V3.4.4, V3.4.5, V3.4.6. Not from the guide, which has no item on headers.
+
+*Not tested:* Both builds without the prompt already sent these headers from one place.
+
+### Let other sites read the app only by name
+
+> Do not turn on cross-site access (CORS) unless a page served from another address really has to read this app's answers. If one does, write the exact addresses that may, and compare each request's Origin with that list. Never answer `Access-Control-Allow-Origin: *`, and never copy back whatever Origin the request sent, least of all together with `Access-Control-Allow-Credentials: true`.
+
+*Requirement:* ASVS V3.4.2.
+
+*Not tested:* No build turned cross-site access on, with or without the prompt.
+
+### Show plain error pages, and keep the details in the log
+
+> When something goes wrong, show the person a short, plain error page with nothing technical on it: no stack trace, no file paths, no query text, no library names or versions. Write those details to the app's log instead. Debug mode, and anything else that shows errors in the browser, must be off unless a setting meant only for your own computer turns it on.
+
+*Requirements:* ASVS V13.4.2, V16.5.1.
+
+*Not tested:* Every build, with or without the prompt, answered errors with a plain page.
+
+### Check on the server who may open each page and record
+
+> For every page and every action, check on the server, before doing anything: that the person is signed in if the page is private, that the record they asked for is their own, and that only admins reach admin pages and admin actions. Closed is the default: a new page or action is refused until a rule says who may use it. Never rely on hiding a link or a button, and never on an id in the address being hard to guess.
+
+*Requirements:* ASVS V8.2.1, V8.2.2, V8.3.1.
+
+*Not tested:* Both builds without the prompt already refused all of these.
 
 The same prompts, with the checks behind them, are in `data/prompts.json`.
 

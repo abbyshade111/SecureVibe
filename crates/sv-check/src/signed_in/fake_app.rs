@@ -2088,7 +2088,17 @@ pub(super) fn accounts() -> Accounts {
             // RFC 6238's own SHA-1 test secret.
             secret: b"12345678901234567890".to_vec(),
         }),
+        // As `sv run` makes one whenever there is an admin, a `totp` entry and a `seed`. The fake
+        // app enrolls the admin with it only when a test says so (`admin_needs_code`).
+        admin_totp_secret: Some(admin_secret()),
     }
+}
+
+/// The admin's two-factor secret in the tests: twenty bytes worked out here, so no file holds one.
+pub(super) fn admin_secret() -> Vec<u8> {
+    (0u8..20)
+        .map(|i| i.wrapping_mul(37).wrapping_add(11))
+        .collect()
 }
 
 /// Runs the suite against the fake app, seeded the way `seed` would seed it.
