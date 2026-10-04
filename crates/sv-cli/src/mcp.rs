@@ -3998,6 +3998,7 @@ mod tests {
                 "securevibe_notes_file",
                 "securevibe_record_answer",
                 "securevibe_guidance",
+                "securevibe_prompts",
                 "securevibe_spec"
             ]
         );
