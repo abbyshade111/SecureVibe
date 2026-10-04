@@ -871,8 +871,16 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
         path: out_path,
         asked,
         already,
+        kept,
     } = write_notes_file(&app_dir)?;
     println!("Wrote {}.", out_path.display());
+    if kept {
+        println!(
+            "\nSome of the text in it is not under any question. It is kept as you wrote it, near \
+             the top, under \"{}\"; the report does not read it as an answer.",
+            sv_check::notes::KEPT_HEADING.trim_start_matches("## ")
+        );
+    }
     if asked == 0 {
         println!(
             "None of the requirements that ask for a written decision apply to this app, so there \
@@ -1126,9 +1134,12 @@ pub(crate) struct NotesWritten {
     pub asked: usize,
     /// Of those, how many were already answered.
     pub already: usize,
+    /// Whether the file has text that is not under a question, kept in a section of its own.
+    pub kept: bool,
 }
 
-/// Writes or refreshes security-notes.md, keeping every answer already in it. Shared by `sv notes`
+/// Writes or refreshes security-notes.md, keeping everything in it that `sv` did not write: the
+/// answers under their questions, and any other text in a section of its own. Shared by `sv notes`
 /// and the MCP server, and prints nothing, because the MCP server's stdout is the protocol.
 pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
     write_notes(app_dir, None)
@@ -1178,10 +1189,33 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
     // Before reading: a notes file that is a link would have what it points at read in as answers and
     // then written over, from `sv notes` as from the MCP tools (deep review S3).
     refuse_link(&out_path, FILE_LINK)?;
-    let existing = std::fs::read_to_string(&out_path).ok();
+    // A file that is there but cannot be read as text is refused, never treated as absent: written
+    // over with a fresh template, every answer in it would be gone (deep review R7).
+    let existing = match std::fs::read(&out_path) {
+        Ok(bytes) => Some(String::from_utf8(bytes).map_err(|_| {
+            anyhow::anyhow!(
+                "{} is not plain text (UTF-8), so `sv` cannot keep what is in it and has written \
+                 nothing. Save it as UTF-8 text in your editor and run this again.",
+                out_path.display()
+            )
+        })?),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => {
+            return Err(e).with_context(|| {
+                format!(
+                    "{} could not be read, so `sv` has written nothing over it",
+                    out_path.display()
+                )
+            });
+        }
+    };
     let already = existing
         .as_deref()
-        .map(|text| sv_check::notes::read_answers(text).answered().len())
+        .map(|text| {
+            sv_check::notes::read_answers(&catalog, text)
+                .answered()
+                .len()
+        })
         .unwrap_or(0);
 
     let describe = |id: &str| {
@@ -1197,7 +1231,8 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
             &facts,
             existing.as_deref(),
             &describe,
-        );
+        )
+        .map_err(|why| anyhow::anyhow!(why))?;
         write_without_following(app_dir, &catalog.file, text.as_bytes())?;
         let asked = catalog
             .sections
@@ -1208,6 +1243,7 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
             path: out_path,
             asked,
             already,
+            kept: text.contains(sv_check::notes::KEPT_HEADING),
         });
     };
     anyhow::ensure!(
@@ -1218,7 +1254,7 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
     );
     let mut answers = existing
         .as_deref()
-        .map(sv_check::notes::read_answers)
+        .map(|text| sv_check::notes::read_answers(&catalog, text))
         .unwrap_or_default();
     anyhow::ensure!(
         answers.writer(id) != Some(sv_check::notes::Writer::Owner),
@@ -1228,7 +1264,8 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
     let body = sv_check::notes::tool_answer(answer).map_err(|why| anyhow::anyhow!(why))?;
     answers.set(id, body);
     let text =
-        sv_check::notes::write_template_with(&catalog, &applicable, &facts, &answers, &describe);
+        sv_check::notes::write_template_with(&catalog, &applicable, &facts, &answers, &describe)
+            .map_err(|why| anyhow::anyhow!(why))?;
     write_without_following(app_dir, &catalog.file, text.as_bytes())?;
 
     let asked = catalog
@@ -1240,6 +1277,7 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
         path: out_path,
         asked,
         already,
+        kept: text.contains(sv_check::notes::KEPT_HEADING),
     })
 }
 
@@ -3620,7 +3658,7 @@ fn assemble_report_saying(
     let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
-            &sv_check::notes::read_answers(&text),
+            &sv_check::notes::read_answers(&notes_catalog, &text),
             &notes_catalog.file,
             &seals,
         ),
