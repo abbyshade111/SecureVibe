@@ -158,6 +158,15 @@ another session is not a claim.
     without a valid seal counts only as a proposal. A seal that cannot be checked where `sv` runs (CI, another
     computer) still counts, saying it could not be checked there. **Claimed the same day by session securevibe-e9**,
     in branch `claude/securevibe-e9-sv-review`.
+    **Done the same day** (DESIGN, "`sv review`: what a person records is sealed"): `sv review [PATH]` runs only in a
+    terminal, shows each entry that does not count on this computer, and writes the person's name, the date, and an
+    HMAC seal back into securevibe.toml, keyed by `~/.config/securevibe/review-key`. Unsealed entries, `by = "owner"`
+    included, are proposals; on the computer holding the key a changed entry or another key's seal is too; with no key
+    (CI) a sealed entry counts and says it was not checked. Twenty-one guards undone in turn, each caught.
+    **Still open, the same gap one step over:** an answer under `[design]` or `[checked-by-hand]` written with
+    `by = "owner"` still counts as the owner's own word ("attested by the owner", "checked by hand by the owner")
+    without a seal. `sv review` could record those too; it changes how the owner answers every question, so it is the
+    owner's decision.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in

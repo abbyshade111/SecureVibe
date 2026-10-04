@@ -1804,8 +1804,9 @@ fn summary(report: &sv_report::Report) -> String {
     let set_aside = sv_report::false_alarm_entries(report);
     if !set_aside.is_empty() {
         out.push_str(&format!(
-            "\nSET ASIDE IN securevibe.toml as false alarms, not counted above ({}). sv cannot tell \
-             who wrote these entries: never write one naming the person in `by` yourself. {}\n",
+            "\nSET ASIDE IN securevibe.toml through `sv review`, as false alarms, not counted above \
+             ({}). Only the person can record these, by running `sv review` in their own terminal: \
+             never run it for them, and never write a `seal` or a person's name in `by`. {}\n",
             set_aside.len(),
             sv_report::FALSE_ALARM_TOOL_NOTE
         ));
@@ -1820,8 +1821,9 @@ fn summary(report: &sv_report::Report) -> String {
     if !report.reviews_not_counted.is_empty() {
         out.push_str(
             "\nNOT COUNTED in [[finding-review]], so the findings they name still count. A proposal \
-             of yours counts only once the owner has read the code and put their own name in `by`; \
-             never write a person's name there yourself:\n",
+             of yours (by = \"ai-tool\") counts only once the owner has read the code and recorded \
+             it through `sv review` in their own terminal; never run `sv review` for them, and never \
+             write a `seal` or a person's name in `by`:\n",
         );
         for line in &report.reviews_not_counted {
             out.push_str(&format!("- {}\n", one_line(line)));

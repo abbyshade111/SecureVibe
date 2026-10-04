@@ -4,7 +4,9 @@
 //! *false alarm*, the code is fine; *accepted risk*, a real problem lived with for now. Only a
 //! person's word counts: the AI coding tool rewrites code until a warning stops, and a switch that
 //! makes a warning stop is the easiest rewrite of all, so an entry the tool wrote is shown as its
-//! proposal and the finding still counts. A false alarm lapses when the flagged line changes, because
+//! proposal and the finding still counts. Since 4 October 2026 (deep review R1) that means an entry
+//! recorded through `sv review`, which seals it (`crate::seal`): `by = "owner"` written into the file
+//! by anyone else is a proposal too. A false alarm lapses when the flagged line changes, because
 //! the fingerprint it names stops matching; an accepted risk lapses after 90 days; a finding that has
 //! no line of code (a running-app probe, a settings check) has nothing to watch, so a false alarm
 //! about one lapses after 90 days as well. An entry that does not count is listed with its reason,
@@ -16,6 +18,7 @@
 
 use crate::advisories::Day;
 use crate::finding::Finding;
+use crate::seal::{Checker, Sealed};
 use std::path::Path;
 use sv_manifest::FindingReview;
 
@@ -48,6 +51,8 @@ pub struct SetAside {
     pub why: String,
     pub by: String,
     pub on: String,
+    /// Where its seal was checked: on this computer, or nowhere, this computer having no key.
+    pub sealed: Sealed,
 }
 
 /// What the entries came to.
@@ -66,7 +71,6 @@ pub struct Outcome {
 /// not. A finding with no line of code is named by its title instead. Only a hash of these is kept,
 /// sixteen hex characters of SHA-256, so the line a key was found on is never copied anywhere.
 pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
-    use sha2::{Digest, Sha256};
     let what = if crate::finding::reads_code(f) {
         std::fs::read_to_string(app_dir.join(&f.location.file))
             .ok()
@@ -79,8 +83,38 @@ pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
     } else {
         f.title.clone()
     };
-    let digest = Sha256::digest(format!("{}\n{}\n{what}", f.rule_id, f.location.file).as_bytes());
+    named(&f.rule_id, &f.location.file, &what)
+}
+
+/// The fingerprint of what a finding names, from its rule, its file, and its trimmed line (or its
+/// title, for a finding with no line of code).
+pub fn named(rule: &str, file: &str, what: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(format!("{rule}\n{file}\n{what}").as_bytes());
     digest.iter().take(8).map(|b| format!("{b:02x}")).collect()
+}
+
+/// The line of `file` an entry's fingerprint names, as its number and its text with spaces
+/// trimmed, for `sv review` to show the person what they are deciding about. `None` when no line
+/// matches (the line changed, or the finding is not about a line), and for a file outside the app
+/// folder, whose lines are never read.
+pub fn line_with_fingerprint(
+    app_dir: &Path,
+    rule: &str,
+    file: &str,
+    fingerprint: &str,
+) -> Option<(usize, String)> {
+    let inside = Path::new(file)
+        .components()
+        .all(|c| matches!(c, std::path::Component::Normal(_)));
+    if !inside {
+        return None;
+    }
+    let text = std::fs::read_to_string(app_dir.join(file)).ok()?;
+    text.lines()
+        .enumerate()
+        .find(|(_, l)| named(rule, file, l.trim()) == fingerprint)
+        .map(|(i, l)| (i + 1, l.trim().to_owned()))
 }
 
 /// Fills in every finding's fingerprint.
@@ -91,7 +125,12 @@ pub fn fill_fingerprints(app_dir: &Path, findings: &mut [Finding]) {
 }
 
 /// Applies the entries to the findings, which must already have their fingerprints.
-pub fn apply(entries: &[FindingReview], findings: Vec<Finding>, today: Day) -> Outcome {
+pub fn apply(
+    entries: &[FindingReview],
+    findings: Vec<Finding>,
+    today: Day,
+    seals: &Checker,
+) -> Outcome {
     let mut out = Outcome {
         findings,
         ..Outcome::default()
@@ -110,9 +149,9 @@ pub fn apply(entries: &[FindingReview], findings: Vec<Finding>, today: Day) -> O
             ));
             continue;
         };
-        match judge(entry, &out.findings[i], today) {
+        match judge(entry, &out.findings[i], today, seals) {
             Err(why) => out.not_counted.push(format!("{named}: {why}")),
-            Ok(()) => {
+            Ok(sealed) => {
                 let finding = if entry.verdict == FALSE_ALARM {
                     out.findings.remove(i)
                 } else {
@@ -124,6 +163,7 @@ pub fn apply(entries: &[FindingReview], findings: Vec<Finding>, today: Day) -> O
                     why: entry.why.trim().to_owned(),
                     by: entry.by.clone().unwrap_or_default(),
                     on: entry.on.clone().unwrap_or_default(),
+                    sealed,
                 });
             }
         }
@@ -132,7 +172,12 @@ pub fn apply(entries: &[FindingReview], findings: Vec<Finding>, today: Day) -> O
 }
 
 /// Whether an entry counts, and why not when it does not.
-fn judge(entry: &FindingReview, finding: &Finding, today: Day) -> Result<(), String> {
+fn judge(
+    entry: &FindingReview,
+    finding: &Finding,
+    today: Day,
+    seals: &Checker,
+) -> Result<Sealed, String> {
     let secret = finding.rule_id.starts_with("secrets.")
         || finding
             .also_reported_by
@@ -162,11 +207,14 @@ fn judge(entry: &FindingReview, finding: &Finding, today: Day) -> Result<(), Str
     {
         return Err(format!(
             "the AI coding tool's proposal, not a person's decision, so the finding still counts. \
-             It says: \"{}\". If you agree after reading the code, put your name (or `owner`) in \
-             `by` and today's date in `on`.",
+             It says: \"{}\". {AGREE}",
             entry.why.trim()
         ));
     }
+    let fields = crate::seal::finding_review_fields(entry);
+    let sealed = seals
+        .check(entry.seal.as_deref(), &crate::seal::as_strs(&fields))
+        .map_err(|why| format!("{why}. It says: \"{}\". {AGREE}", entry.why.trim()))?;
     let Some(on) = entry.on.as_deref().and_then(Day::parse) else {
         return Err("it has no date in `on` (YYYY-MM-DD), so how old it is cannot be told.".into());
     };
@@ -207,8 +255,12 @@ fn judge(entry: &FindingReview, finding: &Finding, today: Day) -> Result<(), Str
             }
         ));
     }
-    Ok(())
+    Ok(sealed)
 }
+
+/// What the owner does to make a proposal count.
+pub const AGREE: &str = "If you agree after reading the code, run `sv review` in your own terminal \
+    to record it as your decision.";
 
 #[cfg(test)]
 mod tests {
@@ -250,7 +302,35 @@ mod tests {
             why: why.into(),
             by: by.map(str::to_owned),
             on: Some(on.into()),
+            seal: Some(RESEAL.into()),
         }
+    }
+
+    /// Stands for the seal `sv review` would write over the entry as it is when applied, so a test
+    /// can change a field after making the entry.
+    const RESEAL: &str = "reseal";
+
+    /// This computer's key in these tests, from the system's randomness.
+    fn key() -> crate::seal::Key {
+        static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
+        KEY.get_or_init(|| crate::seal::Key::random().unwrap())
+            .clone()
+    }
+
+    /// `apply` as on the computer whose key sealed the entries.
+    fn apply(entries: &[FindingReview], findings: Vec<Finding>, today: Day) -> Outcome {
+        let sealed: Vec<FindingReview> = entries
+            .iter()
+            .map(|e| {
+                let mut e = e.clone();
+                if e.seal.as_deref() == Some(RESEAL) {
+                    let fields = crate::seal::finding_review_fields(&e);
+                    e.seal = Some(key().seal(&crate::seal::as_strs(&fields)));
+                }
+                e
+            })
+            .collect();
+        super::apply(&sealed, findings, today, &Checker::Key(key()))
     }
 
     fn today() -> Day {
@@ -291,6 +371,96 @@ mod tests {
             today(),
         );
         assert!(out.findings.is_empty(), "{:?}", out.not_counted);
+    }
+
+    #[test]
+    fn an_entry_counts_only_as_sv_review_sealed_it() {
+        let finding = || vec![finding("ast.a", "app.py", 5)];
+        let sealed =
+            |e: &FindingReview| {
+                let mut e = e.clone();
+                e.seal = Some(key().seal(&crate::seal::as_strs(
+                    &crate::seal::finding_review_fields(&e),
+                )));
+                e
+            };
+        let good = sealed(&entry(
+            "ast.a",
+            FALSE_ALARM,
+            Some("owner"),
+            "2026-09-27",
+            WHY,
+        ));
+        let here = super::apply(
+            std::slice::from_ref(&good),
+            finding(),
+            today(),
+            &Checker::Key(key()),
+        );
+        assert!(here.findings.is_empty(), "{:?}", here.not_counted);
+        assert_eq!(here.set_aside[0].sealed, Sealed::Here);
+
+        // `by = "owner"` with no seal, as the AI coding tool would write it: a proposal.
+        let unsealed = FindingReview {
+            seal: None,
+            ..good.clone()
+        };
+        // The reason changed after it was sealed.
+        let changed = FindingReview {
+            why: format!("{WHY} Also fine."),
+            ..good.clone()
+        };
+        // Sealed with another computer's key.
+        let other = crate::seal::Key::random().unwrap();
+        let elsewhere = sealed(&FindingReview {
+            seal: None,
+            ..good.clone()
+        });
+        let elsewhere = FindingReview {
+            seal: Some(
+                other.seal(&crate::seal::as_strs(&crate::seal::finding_review_fields(
+                    &elsewhere,
+                ))),
+            ),
+            ..elsewhere
+        };
+        for (e, says) in [
+            (&unsealed, "not recorded through `sv review`"),
+            (&changed, "does not match"),
+            (&elsewhere, "not this computer's"),
+        ] {
+            let out = super::apply(
+                std::slice::from_ref(e),
+                finding(),
+                today(),
+                &Checker::Key(key()),
+            );
+            assert_eq!(out.findings.len(), 1, "{says}");
+            assert!(out.set_aside.is_empty(), "{says}");
+            assert!(
+                out.not_counted[0].contains(says)
+                    && out.not_counted[0].contains("sv review")
+                    && out.not_counted[0].contains(WHY),
+                "{says}: {:?}",
+                out.not_counted
+            );
+        }
+
+        // Where there is no key to check with, a sealed entry counts and says so; an unsealed one
+        // is still a proposal.
+        let no_key = super::apply(
+            std::slice::from_ref(&elsewhere),
+            finding(),
+            today(),
+            &Checker::NoKey,
+        );
+        assert!(no_key.findings.is_empty(), "{:?}", no_key.not_counted);
+        assert_eq!(
+            no_key.set_aside[0].sealed,
+            Sealed::Unchecked { key: other.id() }
+        );
+        let no_key = super::apply(&[unsealed], finding(), today(), &Checker::NoKey);
+        assert_eq!(no_key.findings.len(), 1);
     }
 
     #[test]

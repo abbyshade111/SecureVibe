@@ -145,6 +145,7 @@ fn a_finding_set_aside_as_a_false_alarm_never_leaves_its_requirement_checked() {
         why: "looked at it".to_owned(),
         by: "owner".to_owned(),
         on: "2026-09-27".to_owned(),
+        sealed: sv_check::seal::Sealed::Here,
     };
     let mut i = inputs(&f, &buckets, vec![], &passed);
     i.set_aside = vec![set_aside(sv_check::review::FALSE_ALARM, "V1.2.1")];
@@ -302,6 +303,7 @@ fn a_person_saying_the_test_does_match_leaves_its_credit_standing() {
         why: "the test and the requirement were read side by side and they match".to_owned(),
         by: "owner".to_owned(),
         on: "2026-10-03".to_owned(),
+        sealed: sv_check::seal::Sealed::Here,
     };
     let mut i = inputs(&f, &buckets, vec![], &passed);
     i.set_aside = vec![
@@ -2642,6 +2644,7 @@ mod false_alarm_reports {
                 why: "the id is an integer from the route, internal detail".to_owned(),
                 by: "owner".to_owned(),
                 on: "2026-09-27".to_owned(),
+                sealed: sv_check::seal::Sealed::Here,
             },
             sv_check::review::SetAside {
                 finding: finding("ast.weak-hash-function", &["V1.2.1"]),
@@ -2649,6 +2652,7 @@ mod false_alarm_reports {
                 why: "a real problem, for now".to_owned(),
                 by: "owner".to_owned(),
                 on: "2026-09-27".to_owned(),
+                sealed: sv_check::seal::Sealed::Here,
             },
         ];
         build(i)

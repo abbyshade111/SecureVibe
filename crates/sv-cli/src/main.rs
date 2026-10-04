@@ -18,6 +18,7 @@ use sv_scan::{Evidence, Signatures};
 mod bundle;
 mod mcp;
 mod report_lock;
+mod review;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -63,6 +64,7 @@ fn main() -> Result<()> {
         "sbom" => cmd_sbom(rest.first().map(PathBuf::from)),
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
+        "review" => review::cmd_review(rest.first().map(PathBuf::from)),
         "bundle" => cmd_bundle(rest),
         "mcp" => mcp::cmd_mcp(rest),
         other => unreachable!("{other} is in COMMANDS and has no arm"),
@@ -167,6 +169,13 @@ const COMMANDS: &[Command] = &[
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories"],
         help: "  sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     write the reports: what applies, what was found, what nobody has answered\n",
+    },
+    Command {
+        name: "review",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv review [PATH]   record, in your own terminal, the findings you set aside and the\n                     answers you confirm; only what you record here counts\n",
     },
     Command {
         name: "bundle",
@@ -3775,7 +3784,10 @@ fn assemble_report_saying(
         answer: c.answer.clone(),
         location: c.r#where.clone(),
         result: c.result.clone(),
+        seal: c.seal.clone(),
     };
+    // What this computer can check `sv review`'s seals with (`sv_check::seal`).
+    let seals = sv_check::seal::Checker::this_computer();
     let design_confirmations: std::collections::BTreeMap<
         String,
         (sv_check::confirm::Confirmation, String, Option<String>),
@@ -3824,6 +3836,7 @@ fn assemble_report_saying(
                     ))
                 },
                 today,
+                &seals,
             ),
             sv_check::confirm::apply(
                 &mut hand.stated,
@@ -3833,6 +3846,7 @@ fn assemble_report_saying(
                     Some((c, sv_check::confirm::Current::Hand { result }))
                 },
                 today,
+                &seals,
             ),
         ),
         None => Default::default(),
@@ -3918,6 +3932,7 @@ fn assemble_report_saying(
         &manifest.finding_review,
         findings,
         sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
+        &seals,
     );
     let findings = reviewed.findings;
     examined.push(match &run_status {
