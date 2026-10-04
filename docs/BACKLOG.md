@@ -45,6 +45,9 @@ another session is not a claim.
   - **S5. High, Reproduced. A report written with `out` "." overwrites the app's own files** (`mcp.rs`,
     `main.rs`): on a case-insensitive volume `security.md` replaced the app's `SECURITY.md`. Fix: refuse an
     existing folder that holds other files and no marker of `sv`'s, comparing names case-insensitively.
+    **S3 to S5 claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
+    backlog, in branch `claude/securevibe-e2-safe-writes`: one way of writing a file `sv` makes, used by every
+    command.
   - **S6. High, Reproduced. Tool reports go to fixed names in the shared temporary folder, and a planted file is
     taken as a real run** (`adapters.rs`: `temp_dir()`, `sv-<id>.sarif`, any readable file accepted, exit status
     ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at
