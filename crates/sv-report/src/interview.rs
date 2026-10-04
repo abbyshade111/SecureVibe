@@ -30,9 +30,10 @@ How to ask them. These are for the person you are building this app with, not fo
   The \"where to look\" line under each question says where the answer is usually found.
 - Record the answer as the person gave it, as described in each part below. \"Not sure\" is a good
   answer, and is recorded as not-sure. A \"no\" is useful too: the report lists it as something to fix.
-- Write by = \"owner\" only for an answer the person gave or confirmed. If they ask you to answer, say
-  what the code does, answer from that, and write by = \"ai-tool\". The report shows that as \"stated by
-  the AI coding tool\", which is weaker than the person's own word, and says so.
+- Write by = \"owner\" only for an answer the person gave or confirmed. It counts as theirs only once
+  they run `sv review` in their own terminal, which records it; never run it for them. If they ask you
+  to answer, say what the code does, answer from that, and write by = \"ai-tool\". The report shows
+  that as \"stated by the AI coding tool\", which is weaker than the person's own word, and says so.
 - The person can confirm what you answered, and then it counts as much as their own word. Suggest
   something they can look at or try themselves (a page to open, a thing to try), not a yes-or-no,
   and write it beside your answer as a proposal: confirmed = { by = \"ai-tool\", how = \"what to
@@ -108,7 +109,8 @@ pub fn text(report: &Report) -> String {
              as stated by the AI coding tool, and asks again: sv cannot tell the person's word from \
              yours, so nothing you record counts as theirs. Show them what you recorded; if they \
              agree with it, they change that line in security-notes.md to `Written by: owner` \
-             themselves. Never write or change that line for them. Without the MCP server, write \
+             themselves and record it by running `sv review` in their own terminal. Never write or \
+             change that line for them, or run `sv review` for them. Without the MCP server, write \
              the answer under the question in security-notes.md (`sv notes` makes the file) and \
              start it with `Written by: AI coding tool`; a section without that line counts as \
              yours.\n",

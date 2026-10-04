@@ -27,6 +27,17 @@
 
 use std::path::{Path, PathBuf};
 
+/// A key folder a test running `sv` inside its own process sets once, so what it seals does not
+/// depend on whether the computer running the tests has a review key of its own. Nothing outside
+/// such a test sets it: there is no option or variable that reaches it.
+static FOLDER_FOR_TESTS: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
+/// Sets that folder, the first time it is called in a process, and returns the one in use.
+#[doc(hidden)]
+pub fn key_folder_for_tests(folder: PathBuf) -> &'static Path {
+    FOLDER_FOR_TESTS.get_or_init(|| folder)
+}
+
 /// The key's file, in the folder `Key::folder` names.
 pub const KEY_FILE: &str = "review-key";
 
@@ -63,6 +74,9 @@ impl Key {
     /// Where the key is kept: `$XDG_CONFIG_HOME/securevibe`, or `~/.config/securevibe`. `None`
     /// when neither can be told.
     pub fn folder() -> Option<PathBuf> {
+        if let Some(folder) = FOLDER_FOR_TESTS.get() {
+            return Some(folder.clone());
+        }
         let config = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .filter(|p| p.is_absolute())
@@ -204,27 +218,33 @@ impl Checker {
     /// Whether an entry with these fields and this seal counts, and where its seal was checked.
     /// `Err` says why not, in words for the owner, as the end of a sentence about the entry.
     pub fn check(&self, seal: Option<&str>, fields: &[&str]) -> Result<Sealed, String> {
-        let seal = seal.map(str::trim).filter(|s| !s.is_empty()).ok_or(
-            "it was not recorded through `sv review`, which a person runs in their own terminal, \
-             so it is a proposal and the finding or answer it is about stays as it was",
-        )?;
-        let (key_id, mac) = parse(seal).ok_or(
-            "its `seal` is not one `sv review` writes, so it is a proposal and the finding or \
-             answer it is about stays as it was",
-        )?;
+        self.recorded(seal, fields).map_err(|why| {
+            format!(
+                "{}, so {}",
+                why.why(),
+                match why {
+                    Unrecorded::NoSeal | Unrecorded::Malformed => {
+                        "it is a proposal and the finding or answer it is about stays as it was"
+                    }
+                    _ => "here it counts only as a proposal",
+                }
+            )
+        })
+    }
+
+    /// The same, with why not as a reason the caller words the consequence of.
+    pub fn recorded(&self, seal: Option<&str>, fields: &[&str]) -> Result<Sealed, Unrecorded> {
+        let seal = seal
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .ok_or(Unrecorded::NoSeal)?;
+        let (key_id, mac) = parse(seal).ok_or(Unrecorded::Malformed)?;
         match self {
             Checker::NoKey => Ok(Sealed::Unchecked {
                 key: key_id.to_owned(),
             }),
-            Checker::Broken(why) => Err(format!(
-                "this computer's review key cannot be used ({why}), so no seal can be checked \
-                 here and it counts only as a proposal"
-            )),
-            Checker::Key(key) if key.id() != key_id => Err(format!(
-                "it was sealed with a key that is not this computer's ({key_id}). This computer \
-                 cannot check that seal, and a made-up one would look the same, so here it counts \
-                 only as a proposal"
-            )),
+            Checker::Broken(why) => Err(Unrecorded::KeyBroken(why.clone())),
+            Checker::Key(key) if key.id() != key_id => Err(Unrecorded::OtherKey(key_id.to_owned())),
             Checker::Key(key) => {
                 // Compared in full, whatever differs first: the time taken says nothing useful.
                 let expected = key.mac(fields);
@@ -233,14 +253,41 @@ impl Checker {
                 if same {
                     Ok(Sealed::Here)
                 } else {
-                    Err(
-                        "its seal does not match what it says: it was changed after `sv review` \
-                         recorded it, or the seal was not made by `sv review`, so it counts only as \
-                         a proposal"
-                            .to_owned(),
-                    )
+                    Err(Unrecorded::Mismatch)
                 }
             }
+        }
+    }
+}
+
+/// Why an entry does not count as recorded through `sv review`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Unrecorded {
+    NoSeal,
+    Malformed,
+    KeyBroken(String),
+    OtherKey(String),
+    Mismatch,
+}
+
+impl Unrecorded {
+    /// Why, as a clause about the entry: "it was not recorded through `sv review`, …".
+    pub fn why(&self) -> String {
+        match self {
+            Unrecorded::NoSeal => "it was not recorded through `sv review`, which a person runs in \
+                                   their own terminal"
+                .to_owned(),
+            Unrecorded::Malformed => "its `seal` is not one `sv review` writes".to_owned(),
+            Unrecorded::KeyBroken(why) => format!(
+                "this computer's review key cannot be used ({why}), and no seal can be checked here"
+            ),
+            Unrecorded::OtherKey(id) => format!(
+                "it was sealed with a key that is not this computer's ({id}). This computer cannot \
+                 check that seal, and a made-up one would look the same"
+            ),
+            Unrecorded::Mismatch => "its seal does not match what it says: it was changed after \
+                                     `sv review` recorded it, or the seal was not made by `sv review`"
+                .to_owned(),
         }
     }
 }
@@ -323,6 +370,63 @@ pub fn manifest_confirmation_fields(
             c.result.as_deref(),
         ],
     )
+}
+
+/// The fields an answer under `[design]` is sealed over.
+pub fn design_answer_fields(requirement: &str, a: &sv_manifest::DesignAnswer) -> Vec<String> {
+    let field = |v: Option<&str>| v.unwrap_or("").trim().to_owned();
+    vec![
+        "design-answer".to_owned(),
+        requirement.trim().to_owned(),
+        a.answer.trim().to_owned(),
+        field(a.r#where.as_deref()),
+        field(a.by.as_deref()),
+    ]
+}
+
+/// The fields a result under `[checked-by-hand]` is sealed over.
+pub fn hand_check_fields(requirement: &str, h: &sv_manifest::HandCheck) -> Vec<String> {
+    let field = |v: Option<&str>| v.unwrap_or("").trim().to_owned();
+    vec![
+        "checked-by-hand-result".to_owned(),
+        requirement.trim().to_owned(),
+        h.result.trim().to_owned(),
+        field(h.on.as_deref()),
+        field(h.by.as_deref()),
+        field(h.how.as_deref()),
+    ]
+}
+
+/// The fields a section of the security notes is sealed over: its requirement and its answer, as
+/// the report reads it.
+pub fn notes_fields(requirement: &str, prose: &str) -> Vec<String> {
+    vec![
+        "security-notes".to_owned(),
+        requirement.trim().to_owned(),
+        prose.trim().to_owned(),
+    ]
+}
+
+/// What the reports add after "you answered yes" for an answer recorded through `sv review`.
+pub fn recorded_where(sealed: &Sealed) -> &'static str {
+    match sealed {
+        Sealed::Here => ", recorded through `sv review` on this computer",
+        Sealed::Unchecked { .. } => {
+            ", recorded through `sv review` on another computer (this one has no key to check its \
+             seal with)"
+        }
+    }
+}
+
+/// Whether an owner's answer counts as theirs, checked where this runs: the seal, or why not.
+pub fn owner_recorded(
+    checker: &Checker,
+    seal: Option<&str>,
+    fields: &[String],
+) -> Result<Sealed, String> {
+    checker
+        .recorded(seal, &as_strs(fields))
+        .map_err(|why| why.why())
 }
 
 /// The fields as the sealing functions take them.

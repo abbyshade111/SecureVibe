@@ -101,7 +101,7 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
 [design]
 "V8.3.1" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {} }}
 "V2.2.2" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {} }}
-"V15.3.1" = {{ answer = "yes", where = "app.py", by = "owner" }}
+"V15.3.1" = {{ answer = "yes", where = "app.py", by = "owner", seal = "{}" }}
 "V1.1.1" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {} }}
 "V4.1.3" = {{ answer = "yes", by = "ai-tool", confirmed = {} }}
 "V4.2.1" = {{ answer = "yes", by = "ai-tool", confirmed = {} }}
@@ -111,6 +111,15 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
 "#,
         d("V8.3.1", "owner", &today, "yes", Some("app.py"), Some(how)),
         d("V2.2.2", "owner", &today, "not-sure", Some("app.py"), Some(how)),
+        key.seal(&sv_check::seal::as_strs(&sv_check::seal::design_answer_fields(
+            "V15.3.1",
+            &sv_manifest::DesignAnswer {
+                answer: "yes".into(),
+                r#where: Some("app.py".into()),
+                by: Some("owner".into()),
+                ..Default::default()
+            }
+        ))),
         d("V1.1.1", "owner", &yesterday, "yes", Some("app.py"), Some(how)),
         d("V4.1.3", "ai-tool", &today, "yes", None, Some(how)),
         d("V4.2.1", "owner", &today, "yes", None, None),

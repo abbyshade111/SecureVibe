@@ -165,7 +165,7 @@ the reports say exactly that rather than counting them as things that were looke
 The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
 thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
 
-## Setting a finding aside, or confirming an answer: `sv review`
+## Setting a finding aside, confirming an answer, or giving your own: `sv review`
 
 When a finding is a false alarm, or a risk you choose to live with for now, it can be set aside under
 `[[finding-review]]` in `securevibe.toml`, with a reason. When your AI coding tool answered a question
@@ -175,6 +175,11 @@ by running this in your own terminal:
 ```bash
 sv review ./my-app
 ```
+
+The same goes for your own answers: a `[design]` answer or a `[checked-by-hand]` result written with
+`by = "owner"`, and a section of `security-notes.md` marked `Written by: owner`, count as yours only once
+recorded this way. Until then they count as your AI coding tool's word, a step lower, and the report says
+so.
 
 It goes through every entry that is not yet yours, shows the finding's line of code (never a line that
 may hold a key), and asks for your name, or `owner`. What you record is written back into

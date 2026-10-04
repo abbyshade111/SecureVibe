@@ -21,7 +21,16 @@ use sv_check::seal::{Checker, Key};
 /// One entry waiting for a person.
 enum Waiting {
     Finding(usize),
-    Confirmation { section: &'static str, id: String },
+    Confirmation {
+        section: &'static str,
+        id: String,
+    },
+    /// An answer under `[design]` given as the owner's.
+    DesignAnswer(String),
+    /// A result under `[checked-by-hand]` given as the owner's.
+    HandAnswer(String),
+    /// A section of the security notes marked `Written by: owner`.
+    Notes(String),
 }
 
 pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
@@ -110,26 +119,63 @@ fn review(
             });
         }
     }
+    // The owner's own answers: each counts as theirs only once recorded here.
+    for (id, a) in &manifest.design {
+        if a.by.as_deref() == Some(sv_check::design::OWNER)
+            && sv_check::seal::owner_recorded(
+                &checker,
+                a.seal.as_deref(),
+                &sv_check::seal::design_answer_fields(id, a),
+            )
+            .is_err()
+        {
+            waiting.push(Waiting::DesignAnswer(id.clone()));
+        }
+    }
+    for (id, h) in &manifest.checked_by_hand {
+        if h.by.as_deref() == Some(sv_check::design::OWNER)
+            && sv_check::seal::owner_recorded(
+                &checker,
+                h.seal.as_deref(),
+                &sv_check::seal::hand_check_fields(id, h),
+            )
+            .is_err()
+        {
+            waiting.push(Waiting::HandAnswer(id.clone()));
+        }
+    }
+    let notes_catalog = sv_check::notes::Catalog::load(&super::notes_path())?;
+    let notes_path = app_dir.join(&notes_catalog.file);
+    let notes = notes_text(&notes_path)?;
+    if let Some(text) = &notes {
+        let answers = sv_check::notes::read_answers(text);
+        for (id, who) in answers.answered() {
+            if who == sv_check::notes::Writer::Owner && answers.recorded(&id, &checker).is_err() {
+                waiting.push(Waiting::Notes(id));
+            }
+        }
+    }
     if waiting.is_empty() {
         writeln!(
             out,
-            "Nothing in {} is waiting for you: every finding set aside and every answer confirmed \
-             there was recorded through `sv review` on this computer.",
-            manifest_path.display()
+            "Nothing in {} or {} is waiting for you: every finding set aside, every answer \
+             confirmed, and every answer given as yours there was recorded through `sv review` on \
+             this computer.",
+            manifest_path.display(),
+            notes_catalog.file
         )?;
         return Ok(());
     }
     writeln!(
         out,
-        "{} in {} {} not recorded as yours on this computer. Each was proposed by your AI coding \
-         tool or written into the file by hand, so for now it counts for nothing. Read the code \
-         before you answer.",
+        "{} {} not recorded as yours on this computer. Each was proposed by your AI coding tool \
+         or written into a file by hand, so for now it counts for less than your word, or for \
+         nothing. Read the code before you answer.",
         if waiting.len() == 1 {
             "1 entry".to_owned()
         } else {
             format!("{} entries", waiting.len())
         },
-        manifest_path.display(),
         if waiting.len() == 1 { "is" } else { "are" }
     )?;
 
@@ -182,6 +228,71 @@ fn review(
                     None => None,
                 }
             }
+            Waiting::DesignAnswer(id) => {
+                let a = &manifest.design[&id];
+                let what = format!(
+                    "Your answer to requirement {id}, as securevibe.toml gives it: {}{}.",
+                    a.answer,
+                    a.r#where
+                        .as_deref()
+                        .map(|w| format!(", pointing at {w}"))
+                        .unwrap_or_default()
+                );
+                let fields = sv_check::seal::design_answer_fields(&id, a);
+                match record_own(&what, &fields, &key, input, out)? {
+                    Some(seal) => {
+                        set_seal(&mut doc, "design", &id, &seal)?;
+                        Some(Waiting::DesignAnswer(id))
+                    }
+                    None => None,
+                }
+            }
+            Waiting::HandAnswer(id) => {
+                let h = &manifest.checked_by_hand[&id];
+                let what = format!(
+                    "Your check made by hand for requirement {id}, as securevibe.toml gives it: {}, \
+                     on {}: \"{}\"",
+                    h.result,
+                    h.on.as_deref().unwrap_or("no date"),
+                    h.how.as_deref().unwrap_or("nothing written").trim()
+                );
+                let fields = sv_check::seal::hand_check_fields(&id, h);
+                match record_own(&what, &fields, &key, input, out)? {
+                    Some(seal) => {
+                        set_seal(&mut doc, "checked-by-hand", &id, &seal)?;
+                        Some(Waiting::HandAnswer(id))
+                    }
+                    None => None,
+                }
+            }
+            Waiting::Notes(id) => {
+                let text = notes_text(&notes_path)?.context("the notes file is gone")?;
+                let answers = sv_check::notes::read_answers(&text);
+                let prose = answers.prose_of(&id).unwrap_or_default();
+                let what = format!(
+                    "Your answer to requirement {id} in {}, marked `Written by: owner`:\n\n{}\n",
+                    notes_catalog.file,
+                    prose
+                        .lines()
+                        .map(|l| format!("    {l}"))
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                );
+                let fields = sv_check::seal::notes_fields(&id, &prose);
+                if let Some(seal) = record_own(&what, &fields, &key, input, out)? {
+                    let sealed = sv_check::notes::with_seal(&text, &id, &seal)
+                        .context("the section is not where it was")?;
+                    save_text(&notes_path, &sealed, &|| {
+                        notes_text(&notes_path).ok().flatten().is_some_and(|t| {
+                            sv_check::notes::read_answers(&t)
+                                .recorded(&id, &checker)
+                                .is_ok()
+                        })
+                    })?;
+                    recorded += 1;
+                }
+                None
+            }
         };
         if let Some(which) = done {
             save(&manifest_path, &doc, &|m| counts(m, &which, &checker))?;
@@ -190,8 +301,7 @@ fn review(
     }
     writeln!(
         out,
-        "\nRecorded {recorded} of {total} as yours, in {}.{}",
-        manifest_path.display(),
+        "\nRecorded {recorded} of {total} as yours.{}",
         if recorded < total {
             " The rest are still proposals; run `sv review` again when you have looked at them."
         } else {
@@ -466,6 +576,66 @@ fn record_confirmation(
     }
 }
 
+/// The notes file's text, or `None` when there is none.
+fn notes_text(path: &Path) -> Result<Option<String>> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e).with_context(|| format!("reading {}", path.display())),
+    }
+}
+
+/// Asks the owner whether an answer given as theirs is theirs. The seal to write when it is.
+fn record_own(
+    what: &str,
+    fields: &[String],
+    key: &Key,
+    input: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> Result<Option<String>> {
+    writeln!(
+        out,
+        "{what}\n  It is given as yours, but it was not recorded through `sv review`, so for now it \
+         counts as your AI coding tool's word. If it is wrong, change it in the file first."
+    )?;
+    loop {
+        let Some(answer) = ask(
+            input,
+            out,
+            "Type `owner` if this is your own answer, to record it as yours; or press Enter to \
+             leave it as it is.\n> ",
+        )?
+        else {
+            return Ok(None);
+        };
+        if answer.is_empty() {
+            writeln!(out, "  Left as it is.")?;
+            return Ok(None);
+        }
+        if !answer.eq_ignore_ascii_case(sv_check::design::OWNER) {
+            writeln!(
+                out,
+                "  Only the app's owner gives these answers. Type `owner` if that is you; someone \
+                 else who has looked can confirm the AI coding tool's answer instead."
+            )?;
+            continue;
+        }
+        writeln!(out, "  Recorded as your own answer.")?;
+        return Ok(Some(key.seal(&sv_check::seal::as_strs(fields))));
+    }
+}
+
+/// Puts `seal` on the answer to `id` in `section` of securevibe.toml, changing nothing else.
+fn set_seal(doc: &mut toml_edit::DocumentMut, section: &str, id: &str, seal: &str) -> Result<()> {
+    doc.get_mut(section)
+        .and_then(toml_edit::Item::as_table_like_mut)
+        .and_then(|t| t.get_mut(id))
+        .and_then(toml_edit::Item::as_table_like_mut)
+        .with_context(|| format!("{section} {id} is not where it was"))?
+        .insert("seal", toml_edit::value(seal));
+    Ok(())
+}
+
 fn set_finding(
     doc: &mut toml_edit::DocumentMut,
     i: usize,
@@ -501,6 +671,23 @@ fn counts(manifest: &sv_manifest::Manifest, which: &Waiting, checker: &Checker) 
                 .check(e.seal.as_deref(), &sv_check::seal::as_strs(&fields))
                 .is_ok()
         }),
+        Waiting::DesignAnswer(id) => manifest.design.get(id).is_some_and(|a| {
+            sv_check::seal::owner_recorded(
+                checker,
+                a.seal.as_deref(),
+                &sv_check::seal::design_answer_fields(id, a),
+            )
+            .is_ok()
+        }),
+        Waiting::HandAnswer(id) => manifest.checked_by_hand.get(id).is_some_and(|h| {
+            sv_check::seal::owner_recorded(
+                checker,
+                h.seal.as_deref(),
+                &sv_check::seal::hand_check_fields(id, h),
+            )
+            .is_ok()
+        }),
+        Waiting::Notes(_) => false,
         Waiting::Confirmation { section, id } => {
             let c = match *section {
                 "design" => manifest.design.get(id).and_then(|a| a.confirmed.as_ref()),
@@ -557,17 +744,23 @@ fn save(
     doc: &toml_edit::DocumentMut,
     counts: &dyn Fn(&sv_manifest::Manifest) -> bool,
 ) -> Result<()> {
+    save_text(path, &doc.to_string(), &|| {
+        sv_manifest::Manifest::load(path).is_ok_and(|m| counts(&m))
+    })
+}
+
+/// The same for any file: `counts` reads it back.
+fn save_text(path: &Path, text: &str, counts: &dyn Fn() -> bool) -> Result<()> {
     let before =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    std::fs::write(path, doc.to_string()).with_context(|| format!("writing {}", path.display()))?;
-    let problem = match sv_manifest::Manifest::load(path) {
-        Ok(m) if counts(&m) => return Ok(()),
-        Ok(_) => "what was recorded would not count as written".to_owned(),
-        Err(e) => format!("{e:#}"),
-    };
+    std::fs::write(path, text).with_context(|| format!("writing {}", path.display()))?;
+    if counts() {
+        return Ok(());
+    }
     std::fs::write(path, before).ok();
     bail!(
-        "{} was put back as it was, because after writing it {problem}. Nothing was recorded.",
+        "{} was put back as it was, because after writing it what was recorded would not count \
+         as written. Nothing was recorded.",
         path.display()
     )
 }
@@ -793,6 +986,59 @@ mod tests {
         assert_eq!(s.manifest(), manifest);
         save(&path, &doc, &|_| true).unwrap();
         assert!(s.manifest().contains("by = \"owner\""));
+    }
+
+    #[test]
+    fn the_owners_own_answers_are_recorded_only_as_the_owners() {
+        let s = Scratch::new("own");
+        with_app(
+            &s,
+            &format!(
+                "{HEAD}\n# Kept as written.\n[design]\n\"V8.3.1\" = {{ answer = \"yes\", where = \"app.py\", \
+                 by = \"owner\" }}\n\"V2.2.2\" = {{ answer = \"yes\", by = \"ai-tool\" }}\n\n\
+                 [checked-by-hand.'V12.2.2']\nresult = \"done\"\non = \"2026-10-01\"\nby = \"owner\"\n\
+                 how = \"Opened the live site; the padlock shows a trusted certificate.\"\n"
+            ),
+        );
+        let notes = "# Security notes\n\n## V6.1.1 — Sign-in\n\n> How is sign-in protected?\n\n\
+                     Written by: owner\n\nFive failed sign-ins in fifteen minutes lock the account for \
+                     an hour.\n\n## V8.1.1 — Who may do what\n\nWritten by: AI coding tool\n\n\
+                     Administrators may open every page; everyone else only their own.\n";
+        std::fs::write(s.app().join("security-notes.md"), notes).unwrap();
+        let (result, out) = s.run("owner\nSam Lee\nowner\nowner\n");
+        result.unwrap();
+        // The tool's own answers are not offered as the owner's.
+        assert!(!out.contains("V2.2.2") && !out.contains("V8.1.1"), "{out}");
+        assert!(
+            out.contains("Only the app's owner gives these answers"),
+            "{out}"
+        );
+        assert!(out.contains("Five failed sign-ins"), "{out}");
+        assert!(out.contains("Recorded 3 of 3"), "{out}");
+        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        for which in [
+            Waiting::DesignAnswer("V8.3.1".into()),
+            Waiting::HandAnswer("V12.2.2".into()),
+        ] {
+            assert!(counts(&m, &which, &s.checker()));
+        }
+        assert!(m.design["V2.2.2"].seal.is_none());
+        assert!(s.manifest().contains("# Kept as written."));
+        let after = std::fs::read_to_string(s.app().join("security-notes.md")).unwrap();
+        let answers = sv_check::notes::read_answers(&after);
+        assert!(answers.recorded("V6.1.1", &s.checker()).is_ok(), "{after}");
+        assert!(answers.recorded("V8.1.1", &s.checker()).is_err());
+        // Only the seal line was added.
+        let added: Vec<&str> = after
+            .lines()
+            .filter(|l| !notes.lines().any(|n| n == *l))
+            .collect();
+        assert_eq!(added.len(), 1, "{after}");
+        assert!(added[0].starts_with(sv_check::notes::SEALED_BY));
+        // Nothing waits the second time.
+        let (result, out) = s.run("");
+        result.unwrap();
+        assert!(out.contains("Nothing in"), "{out}");
     }
 
     #[test]

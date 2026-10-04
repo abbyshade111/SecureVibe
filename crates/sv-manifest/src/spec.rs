@@ -231,7 +231,9 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #   not-sure  — adds nothing, and is the right answer when you do not know. Leaving a question
 #               out entirely comes to the same thing.
 # An answer without `by` counts as the AI tool's: write by = "owner" only for an answer the
-# owner gave. Run `sv report` to see the questions that apply to this app; there are at most sixteen.
+# owner gave. It counts as the owner's only once they run `sv review` in their own terminal, which
+# records it with a `seal`; until then it counts as the AI tool's. Run `sv report` to see the
+# questions that apply to this app; there are at most sixteen.
 #
 # A person can confirm what the AI tool answered, after looking for themselves, and it then counts as
 # much as their own word, shown as "stated by the AI coding tool, confirmed through sv review". The AI
@@ -257,7 +259,8 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #         until it is made again, because certificates expire and apps change.
 #   how = one sentence of what was done and what was seen. Required: it is the evidence, and the
 #         report prints it.
-#   by  = "owner" or "ai-tool", as for [design]; left out, it counts as the AI tool's.
+#   by  = "owner" or "ai-tool", as for [design]; left out, it counts as the AI tool's, and
+#         "owner" counts as the owner's only once recorded through `sv review`.
 #   confirmed = { by = "ai-tool", how } — proposes that a person make a check the AI tool made; as
 #         for [design], it counts, as much as their own check made by hand, once they have made it
 #         and recorded it through `sv review`.
