@@ -211,7 +211,9 @@ fn python_wants(text: &str) -> Vec<Wanted> {
             Some(at) => &line[..at],
             None => line,
         };
-        let line = line.trim();
+        // A `\\` at the end carries the requirement on to the next line, where its `--hash`
+        // options are; it is not part of the version.
+        let line = line.trim().trim_end_matches('\\').trim();
         // Options (`-r`, `-e`, `--hash` on its own line) and comments are not packages.
         if line.is_empty() || line.starts_with('#') || line.starts_with('-') {
             continue;
@@ -1167,6 +1169,16 @@ mod tests {
             &python_spec(spec).map_or(Spec::Unread, Spec::Python),
             version,
         )
+    }
+
+    #[test]
+    fn a_hashed_requirement_is_read_without_its_continuation() {
+        // `name==version \` with its `--hash` on the next line, as pip-compile writes it: the
+        // backslash was read as part of the version, and nothing matched the lockfile.
+        let manifest = "blinker==1.9.0 \\\n    --hash=sha256:00\nflask[async]==3.1.3 \\\n    --hash=sha256:00\n";
+        let lock = locked(&[("blinker", "1.9.0"), ("flask", "3.1.3")]);
+        let found = compare("requirements.txt", manifest, &lock).unwrap();
+        assert_eq!(found, Comparison::default(), "{found:?}");
     }
 
     #[test]

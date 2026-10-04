@@ -6592,6 +6592,74 @@ Eight guards broken in turn, each caught, two of them in the test server's own N
 the run starts the test model for `fetch` when there is no `[stack.run.ai]`. That code runs only with Docker, and
 the runs above are what show it.
 
+## A Python project pinned by `pylock.toml`, or by a hashed `requirements.txt` (4 October 2026)
+
+family-hub pins every package in `requirements.txt` with `==` and `--hash`, and has a `pylock.toml` beside it. `sv`
+still said there was no lockfile, listed the packages "at the version asked for", and called the package list
+incomplete. The owner had done what `sv` asks, and the report said the opposite. The cato-pipeline session reported
+it.
+
+- **`pylock.toml` is a Python lockfile.** It is PEP 751's lockfile, written by `pip lock`, and a project may keep one
+  per environment as `pylock.<name>.toml`. Both now count for `requirements.txt` and `pyproject.toml` projects, after
+  the tools' own lockfiles and before `requirements.lock`. A named one beside the plain one is said to be passed over,
+  as any second lockfile is.
+- **It is read as TOML.** Each `[[packages]]` entry gives a name, and a version when the package comes from an index.
+  A package installed from a folder, a repository, or an archive may have no version. Such packages are named, and
+  the list is marked incomplete, rather than left out without a word.
+- **A `requirements.txt` that pins and hashes everything is its own lockfile.** Every requirement must be
+  `name==version` with no wildcard and at least one `--hash`, and there must be at least one requirement. Lines that
+  only set where pip looks (`--index-url` and the like) or turn on `--require-hashes` may stand beside them. Anything
+  that installs from elsewhere (`-r`, `-e`, a path, an address) means it is not a lock. Neither does one line with
+  no pin or no hash, since pip would install it without either. It only counts when no separate lockfile is there.
+- **A fault found on the way.** The manifest and lockfile comparison read `blinker==1.9.0 \` (a line carried on to
+  its `--hash`) as asking for version `1.9.0\`, so a hashed `requirements.txt` beside any lockfile disagreed with it
+  on every line. The backslash is now dropped.
+
+Tried end to end on a folder of family-hub's shape:
+- `sv check` gave the "commit the lockfile" finding before, and passes `config.versions-pinned` after.
+- `sv sbom` lists the three packages as installed and marks the list complete.
+
+**Break tests.** Each of these was caught:
+- a hash not required;
+- a wildcard version allowed;
+- `-r` and `-e` allowed;
+- the backslash kept.
+
+Reading `pylock.toml` line by line was caught only by the test of a package with no version. TOML puts a
+package's own keys before its sub-tables, so a wheel's `name` cannot be taken for a package; dropping an unversioned
+package is the real cost, and that test guards it.
+
+## Python versions compared as pip compares them (4 October 2026)
+
+The advisory comparison followed semver, where a pre-release comes after `-`. PyPI versions follow PEP 440, which
+writes it with no separator (`2.0.0rc1`, `1.0a1`, `3.0.0.dev0`, `1.0.post1`), so those did not parse. An advisory
+whose range began at one went unanswered. The cato-pipeline session found this on the owner's family-hub: werkzeug
+3.1.9 was left "could not be compared" against three werkzeug records whose ranges begin at `2.0.0rc1`.
+
+PyPI ranges are now compared by PEP 440, and every other ecosystem keeps semver.
+- **The order:** epoch, then release numbers (trailing zeros ignored), then pre-release (`a` < `b` < `rc`, with
+  `alpha`, `beta`, `c`, `pre`, and `preview` as other spellings), post-release (`.postN`, `-N`, `revN`), and
+  development release.
+- **What that gives:** `1.0.dev0 < 1.0a1 < 1.0b1 < 1.0rc1 < 1.0 < 1.0.post1`.
+- **Strings that are not PEP 440** stay "could not be compared".
+
+It was checked against Python's `packaging` 24.0, the library pip uses.
+- 345 version strings were tried. Both accepted the same 319 and refused the same 26.
+- All 101,481 ordered pairs of the 319 agreed, with one deliberate exception: local labels.
+- **The exception.** `packaging` sorts `2.1.0+cu118` after `2.1.0`, and `sv` treats them as equal. A local build
+  is built from that release's source. An advisory whose last affected version is `2.1.0` therefore reaches it,
+  and following `packaging` would read it as fixed.
+
+The temporary test that read `packaging`'s answers was not kept, since CI does not have them. The cases that matter
+are kept as ordinary tests: the six from the report, a chain of fifteen versions in order, eleven equal spellings,
+and the werkzeug range end to end.
+
+**Break tests.** Each of these was caught by a test:
+- semver used for PyPI;
+- a development release not placed before the pre-releases;
+- trailing zeros kept;
+- post-releases placed before the release.
+
 ## Answers the AI tool records, always as its own (4 October 2026)
 
 The AI coding tool wrote the person's answers into `security-notes.md` itself, told by the questions to start one

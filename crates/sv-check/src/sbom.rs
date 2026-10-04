@@ -276,6 +276,30 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("requirements.lock") => read("requirements.lock")
             .as_deref()
             .map(from_pinned_requirements),
+        // A requirements.txt that pins and hashes every package is its own lockfile (`detect_in`).
+        Some("requirements.txt") => read("requirements.txt")
+            .as_deref()
+            .map(from_pinned_requirements),
+        Some(name) if name.starts_with("pylock.") && name.ends_with(".toml") => {
+            let text = std::fs::read_to_string(app_dir.join(&lockfile_path)).ok();
+            let (pairs, unversioned) = text.as_deref().map(from_pylock).unwrap_or_default();
+            if !unversioned.is_empty() {
+                // PEP 751 lets a package installed from a folder, a repository, or an archive go
+                // without a version. It is installed all the same, so the list is not the whole of
+                // what is.
+                sbom.unread.push((
+                    eco.name.clone(),
+                    format!(
+                        "{} package(s) in `{lockfile_path}` give no version, because they are \
+                         installed from a folder, a repository, or an archive ({}), so they are not \
+                         listed; the rest are",
+                        unversioned.len(),
+                        unversioned.join(", ")
+                    ),
+                ));
+            }
+            text.map(|_| pairs)
+        }
         Some(other) => {
             sbom.unread.push((
                 eco.name.clone(),
@@ -303,8 +327,10 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         }
         // The list is the lockfile's. Whether the manifest beside it asks for the same thing is said
         // beside it (DESIGN, "When a manifest and its lockfile disagree").
+        // A requirements.txt that is its own lockfile has nothing else to be compared with.
         let manifest_name = sv_scan::ecosystems::file_name(&eco.manifest);
-        if let Some(manifest) = read(manifest_name)
+        if lockfile_path != eco.manifest
+            && let Some(manifest) = read(manifest_name)
             && let Some(comparison) =
                 crate::manifest_lock::compare(manifest_name, &manifest, &pairs)
             && comparison != crate::manifest_lock::Comparison::default()
@@ -704,6 +730,32 @@ fn from_go_sum(text: &str) -> Vec<(String, String)> {
 /// without the space before the `;`. The marker is not read: the package is listed wherever it would
 /// be installed, which for the comparison with advisories is the safe side, and makes the list say
 /// slightly more than one computer installs.
+/// PEP 751's `pylock.toml`: a `[[packages]]` entry for everything installed, transitive
+/// dependencies included, each with its `name` and, when it comes from an index, its `version`. A
+/// TOML reading rather than a line one: each package's `[[packages.wheels]]` carry a `name` too,
+/// which is a file name. Gives the pairs, and the names of the packages with no version.
+fn from_pylock(text: &str) -> (Vec<(String, String)>, Vec<String>) {
+    let Ok(table) = text.parse::<toml::Table>() else {
+        return (Vec::new(), Vec::new());
+    };
+    let (mut pairs, mut unversioned) = (Vec::new(), Vec::new());
+    for package in table
+        .get("packages")
+        .and_then(|p| p.as_array())
+        .into_iter()
+        .flatten()
+    {
+        let Some(name) = package.get("name").and_then(|n| n.as_str()) else {
+            continue;
+        };
+        match package.get("version").and_then(|v| v.as_str()) {
+            Some(version) => pairs.push((name.to_owned(), version.to_owned())),
+            None => unversioned.push(name.to_owned()),
+        }
+    }
+    (pairs, unversioned)
+}
+
 fn from_pinned_requirements(text: &str) -> Vec<(String, String)> {
     text.lines()
         .map(|l| {
@@ -714,9 +766,12 @@ fn from_pinned_requirements(text: &str) -> Vec<(String, String)> {
         .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('-'))
         .filter_map(|l| l.split_once("=="))
         .map(|(name, version)| {
+            // `name[extra]==1.0` installs `name`.
+            let name = name.split('[').next().unwrap_or(name);
             (
                 name.trim().to_owned(),
                 version
+                    .trim_start_matches('=')
                     .split_whitespace()
                     .next()
                     .unwrap_or(version)
@@ -1034,6 +1089,101 @@ mod tests {
             assert!(sbom.is_complete(), "{lock} should be a complete read");
             fs::remove_dir_all(&dir).ok();
         }
+    }
+
+    /// A `pylock.toml` as pip writes it, cut down: each package's wheels carry a `name` that is a
+    /// file name, which must not be read as a package.
+    const PYLOCK: &str = r#"lock-version = "1.0"
+created-by = "pip"
+requires-python = ">=3.12"
+
+[[packages]]
+name = "flask"
+version = "3.1.3"
+
+[[packages.wheels]]
+name = "flask-3.1.3-py3-none-any.whl"
+url = "https://files.pythonhosted.org/flask-3.1.3-py3-none-any.whl"
+hashes = { sha256 = "0000" }
+
+[[packages]]
+name = "werkzeug"
+version = "3.1.9"
+
+[[packages.wheels]]
+name = "werkzeug-3.1.9-py3-none-any.whl"
+hashes = { sha256 = "0000" }
+"#;
+
+    #[test]
+    fn a_pylock_file_is_read_as_the_list_of_what_is_installed() {
+        let dir = scratch("pylock-read");
+        fs::write(dir.join("requirements.txt"), "flask>=3\n").unwrap();
+        fs::write(dir.join("pylock.toml"), PYLOCK).unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(
+            purls,
+            vec!["pkg:pypi/flask@3.1.3", "pkg:pypi/werkzeug@3.1.9"],
+            "{sbom:?}"
+        );
+        assert!(
+            sbom.components
+                .iter()
+                .all(|c| c.source == VersionSource::Locked)
+        );
+        assert!(sbom.is_complete(), "{sbom:?}");
+    }
+
+    #[test]
+    fn a_pylock_package_with_no_version_leaves_the_list_incomplete_and_says_so() {
+        let dir = scratch("pylock-unversioned");
+        fs::write(dir.join("pyproject.toml"), "[project]\nname = \"demo\"\n").unwrap();
+        fs::write(
+            dir.join("pylock.toml"),
+            format!(
+                "{PYLOCK}\n[[packages]]\nname = \"local-tools\"\n\n[packages.directory]\npath = \"./tools\"\n"
+            ),
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert_eq!(sbom.components.len(), 2, "{sbom:?}");
+        assert!(!sbom.is_complete());
+        assert!(
+            sbom.unread
+                .iter()
+                .any(|(_, why)| why.contains("local-tools") && why.contains("the rest are")),
+            "{:?}",
+            sbom.unread
+        );
+    }
+
+    #[test]
+    fn a_requirements_file_that_pins_and_hashes_everything_is_listed_as_installed() {
+        // family-hub, reported on 3 October 2026: listed "at the version asked for rather than the
+        // version installed", though pip installs exactly these.
+        let dir = scratch("requirements-hashed-sbom");
+        let hash = "ab".repeat(32);
+        fs::write(
+            dir.join("requirements.txt"),
+            format!(
+                "blinker==1.9.0 \\\n    --hash=sha256:{hash}\nflask[async]==3.1.3 \\\n    --hash=sha256:{hash}\n"
+            ),
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(
+            purls,
+            vec!["pkg:pypi/blinker@1.9.0", "pkg:pypi/flask@3.1.3"],
+            "{sbom:?}"
+        );
+        assert!(sbom.is_complete(), "{sbom:?}");
+        assert!(incompleteness_finding(&sbom).is_none());
+        assert!(sbom.disagreements.is_empty(), "{:?}", sbom.disagreements);
     }
 
     #[test]
