@@ -22,6 +22,13 @@ another session is not a claim.
   self-assessment repeated on the cut-off's source (`self-assessment-v2/2026-10-04/`); and the documents checked
   against each other. `ARTIFACTS.md` lists what is where.
 
+- **Correct `docs/paper/` where it was wrong at the cut-off, add what changed since, and write ADR-026 for
+  `sv review`.** Asked for on 4 October 2026 by the owner, after a review of the appendix against the current `sv`
+  (errors at the cut-off fixed in place; one dated "since the cut-off" record the other documents point to, the
+  cut-off figures kept as they are; a record of the decision that the owner's word counts only when `sv review`
+  sealed it). **Claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-appendix-fixes`.
+  Other sessions: please leave `docs/paper/` and `docs/adr/` to it until this entry says done.
+
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
   1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
@@ -198,6 +205,12 @@ another session is not a claim.
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
     branch `claude/h3-credential-shapes`.
+    **Done the same day** (DESIGN, "The credential rule reads the shapes credentials are written in"): JSON and dict
+    keys, `=>`, `:=`, typed declarations in TypeScript, Kotlin, Swift, Rust, and Go, unquoted values in YAML,
+    `.properties`, and `.ini`, and defaults given to environment settings in Python, Ruby, Node, and PHP. What only
+    the new shapes find is passed over when it is text, a path, or a lower-case identifier: 90 false alarms in v1's
+    `node_modules` without that, none with it. Nothing found before is lost. Twenty-four guards broken in turn, each
+    caught. Not done: a passphrase with spaces written as a JSON value, and unquoted shell and Dockerfile lines.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
