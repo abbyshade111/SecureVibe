@@ -355,6 +355,11 @@ another session is not a claim.
   second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
+  **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
+  branch `claude/prompt-library-untested`: a command and a `securevibe_prompts` tool that read `data/prompts.json`,
+  give each prompt with its status (tested or not), and can pick the prompts for one requirement; and a test that
+  holds each prompt's requirements to what its check's rules cite. Prompts in other files (the design-time page)
+  join when they are written in the same form.
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
