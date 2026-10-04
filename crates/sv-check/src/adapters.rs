@@ -88,6 +88,10 @@ pub struct Adapter {
     /// Another program run in this one's place when this one is not installed.
     #[serde(default)]
     pub stand_in: Option<StandIn>,
+    /// The exit codes with which this tool says it ran to the end, whether it found something or
+    /// not, from its own source. Any other ending (another code, or a signal) is a failure, and its
+    /// report is not read: a tool that stopped part way can leave a report that looks clean.
+    pub finished_exits: Vec<i32>,
 }
 
 /// A program that reads the same rules and writes the same report as an adapter's own, run when
@@ -612,6 +616,19 @@ pub fn run_one_in(
     let database = report_path.with_extension("db");
     // A database left from an earlier run would be analyzed in place of this app's code.
     std::fs::remove_dir_all(&database).ok();
+    // Only a report the tool writes in this run is read. One already there, left by an earlier run
+    // or put there by somebody else, would be read as this run's.
+    std::fs::remove_file(report_path).ok();
+    if std::fs::symlink_metadata(report_path).is_ok() {
+        return Outcome::NotRun {
+            why: format!(
+                "something is already at the place {}'s report is written ({}) and could not be \
+                 removed, so a report read from there might not be this run's",
+                adapter.name,
+                report_path.display()
+            ),
+        };
+    }
     let fill = |arg: &str| {
         arg.replace("{dir}", &app_dir.to_string_lossy())
             .replace("{output}", &report_path.to_string_lossy())
@@ -670,11 +687,40 @@ pub fn run_one_in(
         }
     };
 
-    // A non-zero exit is how most of these tools say "I found something", not "I failed". The report
-    // file is the thing that decides: no report means no run, whatever the exit code said.
-    let Ok(text) = std::fs::read_to_string(report_path) else {
-        let detail = String::from_utf8_lossy(&output.stderr);
-        let detail = detail.lines().next().unwrap_or("no output").trim();
+    // A non-zero exit is how most of these tools say "I found something", not "I failed", so each
+    // adapter names the codes that mean it ran to the end. Any other is a failure, whatever report it
+    // left. Gosec says both with 1; for it, the report is what decides.
+    let detail = String::from_utf8_lossy(&output.stderr);
+    let detail = detail.lines().next().unwrap_or("no output").trim();
+    match output.status.code() {
+        Some(code) if adapter.finished_exits.contains(&code) => {}
+        Some(code) => {
+            std::fs::remove_file(report_path).ok();
+            return Outcome::NotRun {
+                why: format!(
+                    "{} stopped with exit code {code}, which it uses for a failure rather than for \
+                     finishing, so its report is not read ({detail})",
+                    adapter.name
+                ),
+            };
+        }
+        None => {
+            std::fs::remove_file(report_path).ok();
+            return Outcome::NotRun {
+                why: format!(
+                    "{} was stopped before it finished, so its report is not read ({detail})",
+                    adapter.name
+                ),
+            };
+        }
+    }
+    // A link in the report's place is not a report the tool wrote: it points at a file that was
+    // there before.
+    let written = std::fs::symlink_metadata(report_path).is_ok_and(|m| m.file_type().is_file());
+    let Some(text) = written
+        .then(|| std::fs::read_to_string(report_path).ok())
+        .flatten()
+    else {
         return Outcome::NotRun {
             why: format!(
                 "{} ran and wrote no report, so nothing can be concluded from it either way ({detail})",
@@ -732,9 +778,28 @@ pub fn run_all_in(
     scratch: &Path,
 ) -> AdapterRun {
     let mut run = AdapterRun::default();
+    // The reports go in a folder of this run's own, made new, readable by this user alone, and with
+    // a name nobody can guess, never under fixed names in a folder others can write to: there, a
+    // file put in place beforehand was read as a tool's report, and two runs read each other's.
+    let private = match PrivateFolder::new_in(scratch) {
+        Ok(private) => private,
+        Err(e) => {
+            for adapter in adapters.for_languages(languages) {
+                run.not_run.push((
+                    adapter.id.clone(),
+                    format!(
+                        "{} was not run: `sv` could not make a private folder for its report in \
+                         {} ({e})",
+                        adapter.name,
+                        scratch.display()
+                    ),
+                ));
+            }
+            return run;
+        }
+    };
     for adapter in adapters.for_languages(languages) {
-        let report_path = scratch.join(format!("sv-{}.sarif", adapter.id));
-        std::fs::remove_file(&report_path).ok();
+        let report_path = private.path().join(format!("{}.sarif", adapter.id));
         match run_one_in(adapter, listing, &report_path, not_holding) {
             Outcome::Ran {
                 findings,
@@ -1228,9 +1293,57 @@ fn last_line(text: &str) -> String {
         .collect()
 }
 
-/// Where to put a tool's report while it is being read.
+/// Where the private folder for the tools' reports is made.
 pub fn scratch_dir() -> PathBuf {
     std::env::temp_dir()
+}
+
+/// A folder made new for one run, readable and writable by this user alone, with a name nobody can
+/// guess, and removed with everything in it when dropped.
+#[derive(Debug)]
+pub struct PrivateFolder {
+    path: PathBuf,
+}
+
+impl PrivateFolder {
+    pub fn new_in(parent: &Path) -> std::io::Result<Self> {
+        use std::hash::{BuildHasher, Hasher};
+        let mut last = None;
+        for attempt in 0u32..8 {
+            // `RandomState` is seeded from the system's randomness, so the name is not the process
+            // id and the time, which anyone on the computer can work out.
+            let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+            hasher.write_u32(attempt);
+            let path = parent.join(format!(
+                "sv-tools-{:016x}{:016x}",
+                hasher.finish(),
+                std::collections::hash_map::RandomState::new()
+                    .build_hasher()
+                    .finish()
+            ));
+            let mut builder = std::fs::DirBuilder::new();
+            #[cfg(unix)]
+            std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+            // `create`, not `create_all`: it fails on anything already there, a link included, so
+            // the folder used is always the one made here.
+            match builder.create(&path) {
+                Ok(()) => return Ok(Self { path }),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => last = Some(e),
+                Err(e) => return Err(e),
+            }
+        }
+        Err(last.unwrap_or_else(|| std::io::Error::other("no free name")))
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for PrivateFolder {
+    fn drop(&mut self) {
+        std::fs::remove_dir_all(&self.path).ok();
+    }
 }
 
 #[cfg(test)]
@@ -1427,6 +1540,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             "run": { "command": primary, "args": ["--refused", "{output}"] },
             "install": "get primary",
             "env": { "SV_TEST_SWITCH": "off" },
+            "finished_exits": [0],
             "stand_in": { "name": "Other", "command": other, "leave_out": ["--refused"] },
             "rules": { rule: mapped },
         }))
@@ -1501,5 +1615,121 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             "{why}"
         );
         assert!(why.contains("cannot find its libraries"), "{why}");
+    }
+
+    /// A tool that writes a clean report naming `rule` and then does as `ending` says.
+    fn tool(dir: &Path, rule: &str, ending: &str) -> Adapter {
+        let text = format!(
+            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n{ending}\n",
+            ending = ending.replace(
+                "CLEAN",
+                &format!(
+                    "printf '{{\"version\":\"2.1.0\",\"runs\":[{{\"tool\":{{\"driver\":{{\"name\":\
+                     \"Tool\",\"rules\":[{{\"id\":\"{rule}\"}}]}}}},\"results\":[]}}]}}' > \"$1\""
+                )
+            )
+        );
+        let path = script(dir, "tool", &text);
+        let (mut adapter, _) = adapter(dir, &path);
+        adapter.name = "Tool".into();
+        adapter.run.args = vec!["{output}".into()];
+        adapter.stand_in = None;
+        adapter.finished_exits = vec![0, 1];
+        adapter
+    }
+
+    #[test]
+    fn a_report_is_written_in_a_private_folder_made_for_the_run() {
+        let dir = scratch("private");
+        let (_, rule) = adapter(&dir, "unused");
+        let seen = dir.join("seen");
+        let ending = format!(
+            "d=$(dirname \"$1\"); echo \"$d $(stat -c %a \"$d\")\" >> '{}'; CLEAN; exit 1",
+            seen.display()
+        );
+        let adapter = tool(&dir, &rule, &ending);
+        let first = run(&dir, adapter.clone());
+        let second = run(&dir, adapter);
+        let seen = std::fs::read_to_string(&seen).unwrap_or_default();
+        let left: Vec<String> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .filter(|n| n.starts_with("sv-tools-"))
+            .collect();
+        std::fs::remove_dir_all(&dir).ok();
+        // Exit code 1 is one this tool finishes with, and the report it wrote there was read.
+        assert_eq!(first.verified.len(), 1, "{first:?}");
+        assert_eq!(second.verified.len(), 1, "{second:?}");
+        let folders: Vec<(&str, &str)> = seen.lines().filter_map(|l| l.rsplit_once(' ')).collect();
+        assert_eq!(folders.len(), 2, "{seen}");
+        for (folder, mode) in &folders {
+            assert_eq!(*mode, "700", "{folder}");
+            let name = Path::new(folder).file_name().unwrap().to_string_lossy();
+            assert!(name.starts_with("sv-tools-") && name.len() == 41, "{name}");
+            assert_eq!(Path::new(folder).parent(), Some(dir.as_path()));
+        }
+        assert_ne!(folders[0].0, folders[1].0, "each run has its own folder");
+        assert!(left.is_empty(), "removed after the run: {left:?}");
+    }
+
+    #[test]
+    fn a_tool_that_ends_with_a_failure_is_not_read_whatever_it_wrote() {
+        for (ending, said) in [
+            ("CLEAN; exit 2", "stopped with exit code 2"),
+            ("CLEAN; kill -9 $$", "was stopped before it finished"),
+        ] {
+            let dir = scratch("failed");
+            let (_, rule) = adapter(&dir, "unused");
+            let outcome = run(&dir, tool(&dir, &rule, ending));
+            std::fs::remove_dir_all(&dir).ok();
+            assert!(outcome.verified.is_empty(), "{ending}: {outcome:?}");
+            assert!(outcome.ran.is_empty(), "{ending}: {outcome:?}");
+            let why = &outcome.not_run[0].1;
+            assert!(why.starts_with(&format!("Tool {said}")), "{ending}: {why}");
+        }
+    }
+
+    #[test]
+    fn only_a_report_the_tool_wrote_in_this_run_is_read() {
+        let dir = scratch("fresh");
+        let (_, rule) = adapter(&dir, "unused");
+        // A clean report already in the report's place, from an earlier run or put there.
+        let planted = dir.join("planted.sarif");
+        let report = dir.join("out.sarif");
+        let clean = tool(&dir, &rule, "CLEAN");
+        let make = Command::new(&clean.run.command)
+            .arg(&planted)
+            .status()
+            .unwrap();
+        assert!(
+            make.success() && planted.is_file(),
+            "the planted report was made"
+        );
+        std::fs::copy(&planted, &report).unwrap();
+        let app = dir.join("app");
+        std::fs::create_dir_all(&app).unwrap();
+        std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
+        // The tool writes nothing.
+        let silent = run_one(&tool(&dir, &rule, "exit 0"), &app, &report);
+        // The tool puts a link to the planted report in its report's place.
+        let linked = run_one(
+            &tool(
+                &dir,
+                &rule,
+                &format!("ln -s '{}' \"$1\"", planted.display()),
+            ),
+            &app,
+            &report,
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        for outcome in [silent, linked] {
+            match outcome {
+                Outcome::NotRun { why } => {
+                    assert!(why.starts_with("Tool ran and wrote no report"), "{why}")
+                }
+                Outcome::Ran { .. } => panic!("a report the tool did not write was read"),
+            }
+        }
     }
 }
