@@ -41,6 +41,9 @@ another session is not a claim.
      the SARIF's `tool.driver`, show it in `report.html`, and pass the commit to the image build.
      **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
      session, in branch `claude/securevibe-e9-report-provenance`.
+     **Done the same day** (DESIGN, "A report names the `sv` that made it"). Every form of the report names the
+     version and commit, and the image is built with its commit (`--build-arg SV_GIT_COMMIT`), which the CI image
+     job's smoke test checks.
 
 - **The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add.** By session
   securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
@@ -1722,6 +1725,8 @@ another session is not a claim.
   record is the owner's call.
   **The owner's decision, 4 October 2026:** write records for items 1 to 5; fold item 6 into an existing record as a
   line rather than a record of its own; item 7 needs none.
+  **Items 1 to 6 claimed the same day by session securevibe-e2**, at the owner's word, in branch
+  `claude/securevibe-e2-records-owed`: records ADR-021 to ADR-025 for items 1 to 5, and item 6 as a line in ADR-019.
   1. **A crash's or a rate limiter's answer is never read as the app refusing** (#412, #416, #418, #420). Undone
      quietly, 29 passes come back that rest on an answer the app never gave.
   2. **Whose word counts, and at which tier:** an AI tool's answers are marked as its own, the owner's are credited
