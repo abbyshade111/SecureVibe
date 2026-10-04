@@ -30,6 +30,7 @@ struct Run {
 fn report(dir: &Path) -> Run {
     let out = dir.join("report");
     let run = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", config())
         .arg("report")
         .arg(dir)
         .arg("--out")
@@ -80,10 +81,43 @@ fn status(run: &Run, id: &str) -> String {
         .to_owned()
 }
 
+/// The review key this test's runs of `sv` use, as `sv review` would have made it, so a person's
+/// entry can be sealed the way `sv review` seals it.
+fn config() -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("sv-finding-review-config-{}", std::process::id()));
+    std::fs::create_dir_all(dir.join("securevibe")).unwrap();
+    std::fs::write(
+        dir.join("securevibe").join(sv_check::seal::KEY_FILE),
+        format!("{}\n", "07".repeat(32)),
+    )
+    .unwrap();
+    dir
+}
+
+/// An entry; a person's is sealed as `sv review` seals it, the AI coding tool's is not.
 fn entry(rule: &str, file: &str, fingerprint: &str, verdict: &str, by: &str, why: &str) -> String {
+    let on = sv_check::advisories::Day::today().unwrap().show();
+    let review = sv_manifest::FindingReview {
+        rule: rule.into(),
+        file: file.into(),
+        fingerprint: fingerprint.into(),
+        verdict: verdict.into(),
+        why: why.into(),
+        by: Some(by.into()),
+        on: Some(on.clone()),
+        seal: None,
+    };
+    let seal = if by == "ai-tool" {
+        String::new()
+    } else {
+        let fields = sv_check::seal::finding_review_fields(&review);
+        format!(
+            "seal = \"{}\"\n",
+            sv_check::seal::Key::from_bytes([7; 32]).seal(&sv_check::seal::as_strs(&fields))
+        )
+    };
     format!(
-        "\n[[finding-review]]\nrule = \"{rule}\"\nfile = \"{file}\"\nfingerprint = \"{fingerprint}\"\nverdict = \"{verdict}\"\nwhy = \"{why}\"\nby = \"{by}\"\non = \"{}\"\n",
-        sv_check::advisories::Day::today().unwrap().show()
+        "\n[[finding-review]]\nrule = \"{rule}\"\nfile = \"{file}\"\nfingerprint = \"{fingerprint}\"\nverdict = \"{verdict}\"\nwhy = \"{why}\"\nby = \"{by}\"\non = \"{on}\"\n{seal}"
     )
 }
 
@@ -164,19 +198,22 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     assert!(!to_fix.contains("app.py` line 6"), "{}", after.security);
     assert!(after.security.contains("## Set aside in securevibe.toml"));
     assert!(after.security.contains(why));
-    // Who set it aside is only what the entry says: `by = "owner"` is not shown as a person's
-    // decision, because an AI coding tool can write the same line (deep review R1).
+    // Who set it aside is what `sv review` recorded, and the report says what its seal shows and
+    // what it cannot (deep review R1).
     for page in [&after.security, &after.html] {
         assert!(
             !page.to_lowercase().contains("set aside by a person"),
             "{page}"
         );
-        assert!(page.contains("cannot tell who really wrote"), "{page}");
+        assert!(
+            page.contains("it cannot show who was at the keyboard"),
+            "{page}"
+        );
     }
     assert!(
-        after
-            .security
-            .contains("securevibe.toml says the owner set it aside as a false alarm on"),
+        after.security.contains(
+            "Recorded through `sv review` on this computer: the owner set it aside as a false alarm on"
+        ),
         "{}",
         after.security
     );
@@ -212,8 +249,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
 
     // The accepted risk: still on the list, labeled, still needing attention.
     assert!(
-        to_fix.contains("securevibe.toml says Sam Lee accepted it on")
-            && to_fix.contains("sv cannot tell who wrote that entry"),
+        to_fix.contains("Known and accepted as a risk for now. Recorded through `sv review` on this computer: Sam Lee accepted it on"),
         "{to_fix}"
     );
     assert!(status(&after, "V1.2.4").starts_with("needs attention"));
@@ -257,8 +293,8 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     // not count and is never to be signed with a person's name.
     let tool = mcp_check(&dir);
     assert!(
-        tool.contains("SET ASIDE IN securevibe.toml")
-            && tool.contains("never write one naming the person in `by` yourself")
+        tool.contains("SET ASIDE IN securevibe.toml through `sv review`")
+            && tool.contains("never run it for them, and never write a `seal`")
             && tool.contains(why),
         "{tool}"
     );
@@ -270,7 +306,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     );
     assert!(
         tool.contains("NOT COUNTED in [[finding-review]]")
-            && tool.contains("never write a person's name there yourself")
+            && tool.contains("never run `sv review` for them, and never write a `seal` or a person's name in `by`")
             && tool.contains("the AI coding tool's proposal"),
         "{tool}"
     );
@@ -294,6 +330,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
 fn mcp_check(app: &Path) -> String {
     use std::io::Write;
     let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", config())
         .args(["mcp", "--root"])
         .arg(app.parent().unwrap())
         .stdin(std::process::Stdio::piped())

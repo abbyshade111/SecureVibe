@@ -18,6 +18,45 @@ fn status_of<'a>(compliance: &'a str, id: &str) -> &'a str {
     row.split('|').nth(2).unwrap_or("").trim()
 }
 
+/// A confirmation as inline TOML, sealed as `sv review` seals it with this test's key: every rule
+/// below is about what the confirmation says, so each is recorded the way a person would.
+#[allow(clippy::too_many_arguments)]
+fn sealed(
+    section: &str,
+    id: &str,
+    by: &str,
+    on: &str,
+    answer: Option<&str>,
+    location: Option<&str>,
+    result: Option<&str>,
+    how: Option<&str>,
+) -> String {
+    let c = sv_manifest::Confirmed {
+        by: Some(by.into()),
+        on: Some(on.into()),
+        how: how.map(str::to_owned),
+        answer: answer.map(str::to_owned),
+        r#where: location.map(str::to_owned),
+        result: result.map(str::to_owned),
+        seal: None,
+    };
+    let fields = sv_check::seal::manifest_confirmation_fields(section, id, &c);
+    let seal = sv_check::seal::Key::from_bytes([8; 32]).seal(&sv_check::seal::as_strs(&fields));
+    let mut parts = vec![format!("by = \"{by}\""), format!("on = \"{on}\"")];
+    for (name, value) in [
+        ("answer", answer),
+        ("where", location),
+        ("result", result),
+        ("how", how),
+    ] {
+        if let Some(value) = value {
+            parts.push(format!("{name} = \"{value}\""));
+        }
+    }
+    parts.push(format!("seal = \"{seal}\""));
+    format!("{{ {} }}", parts.join(", "))
+}
+
 #[test]
 fn the_report_shows_each_confirmation_for_what_it_is() {
     let today = Day::today().expect("a clock after 1970");
@@ -39,24 +78,43 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
         "the example grew answers of its own; this test would be adding to them"
     );
     let how = "Sent a POST to the site and got 405; only GET and HEAD work.";
+    let d =
+        |id: &str, by: &str, on: &str, answer: &str, location: Option<&str>, how: Option<&str>| {
+            sealed("design", id, by, on, Some(answer), location, None, how)
+        };
+    let hand_how = "Opened the live site; the padlock shows a trusted certificate.";
     manifest.push_str(&format!(
         r#"
 [design]
-"V8.3.1" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {{ by = "owner", on = "{today}", answer = "yes", where = "app.py", how = "{how}" }} }}
-"V2.2.2" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {{ by = "owner", on = "{today}", answer = "not-sure", where = "app.py", how = "{how}" }} }}
+"V8.3.1" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {} }}
+"V2.2.2" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {} }}
 "V15.3.1" = {{ answer = "yes", where = "app.py", by = "owner" }}
-"V1.1.1" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {{ by = "owner", on = "{yesterday}", answer = "yes", where = "app.py", how = "{how}" }} }}
-"V4.1.3" = {{ answer = "yes", by = "ai-tool", confirmed = {{ by = "ai-tool", on = "{today}", answer = "yes", how = "{how}" }} }}
-"V4.2.1" = {{ answer = "yes", by = "ai-tool", confirmed = {{ by = "owner", on = "{today}", answer = "yes" }} }}
+"V1.1.1" = {{ answer = "yes", where = "app.py", by = "ai-tool", confirmed = {} }}
+"V4.1.3" = {{ answer = "yes", by = "ai-tool", confirmed = {} }}
+"V4.2.1" = {{ answer = "yes", by = "ai-tool", confirmed = {} }}
 
 [checked-by-hand]
-"V12.2.2" = {{ result = "done", on = "{today}", by = "ai-tool", how = "Fetched the live site; the certificate chain is trusted.", confirmed = {{ by = "Sam Lee", on = "{today}", result = "done", how = "Opened the live site; the padlock shows a trusted certificate." }} }}
-"#
+"V12.2.2" = {{ result = "done", on = "{today}", by = "ai-tool", how = "Fetched the live site; the certificate chain is trusted.", confirmed = {} }}
+"#,
+        d("V8.3.1", "owner", &today, "yes", Some("app.py"), Some(how)),
+        d("V2.2.2", "owner", &today, "not-sure", Some("app.py"), Some(how)),
+        d("V1.1.1", "owner", &yesterday, "yes", Some("app.py"), Some(how)),
+        d("V4.1.3", "ai-tool", &today, "yes", None, Some(how)),
+        d("V4.2.1", "owner", &today, "yes", None, None),
+        sealed("checked-by-hand", "V12.2.2", "Sam Lee", &today, None, None, Some("done"), Some(hand_how)),
     ));
     std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    let config = dir.join("config");
+    std::fs::create_dir_all(config.join("securevibe")).unwrap();
+    std::fs::write(
+        config.join("securevibe").join(sv_check::seal::KEY_FILE),
+        format!("{}\n", "08".repeat(32)),
+    )
+    .unwrap();
 
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", &config)
         .arg("report")
         .arg(&dir)
         .arg("--out")
@@ -75,10 +133,12 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
     // Holds: the tool's word, then the owner's, at the owner's rank and never as their own answer.
     let confirmed = status_of(&compliance, "V8.3.1");
     assert!(
-        confirmed.starts_with("stated by the AI coding tool, confirmed in securevibe.toml")
-            && confirmed.contains("securevibe.toml says confirmed it, which sv cannot check")
+        confirmed.starts_with("stated by the AI coding tool, confirmed through sv review")
+            && confirmed.contains("the word of whoever confirmed it through sv review")
             && confirmed.contains("your AI coding tool answered yes")
-            && confirmed.contains(&format!("securevibe.toml says you confirmed it on {today}"))
+            && confirmed.contains(&format!(
+                "Recorded through `sv review` on this computer: you confirmed it on {today}"
+            ))
             && confirmed.contains(how),
         "V8.3.1: {confirmed}"
     );
@@ -114,7 +174,7 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
     // A named person confirming a check the tool made by hand.
     let hand = status_of(&compliance, "V12.2.2");
     assert!(
-        hand.starts_with("checked by the AI coding tool, confirmed in securevibe.toml")
+        hand.starts_with("checked by the AI coding tool, confirmed through sv review")
             && hand.contains("Sam Lee confirmed it"),
         "V12.2.2: {hand}"
     );

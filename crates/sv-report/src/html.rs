@@ -232,13 +232,12 @@ pub fn page(report: &Report) -> String {
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
         b.push_str("<h2>Set aside in securevibe.toml</h2>\n");
         if !set_aside.is_empty() {
-            b.push_str(
-                "<p>Found by a check, and set aside as a false alarm in securevibe.toml. Each entry \
-                 names who decided; <code>sv</code> reads that name and cannot tell who really wrote \
-                 the entry, and an AI coding tool can write one as easily as a person, so read each \
-                 reason before relying on it. They are not counted below, and a requirement one of them was about is never \
+            b.push_str(&format!(
+                "<p>Found by a check, and set aside as a false alarm in securevibe.toml through \
+                 <code>sv review</code>. {} They are not counted below, and a requirement one of them was about is never \
                  shown as checked because of it.</p>\n<ul>\n",
-            );
+                escape(crate::SEALED_WHY)
+            ));
             for (line, report_it) in &set_aside {
                 b.push_str(&format!(
                     "<li>{} <a href=\"{}\">Report it against the rule</a></li>\n",
@@ -254,7 +253,8 @@ pub fn page(report: &Report) -> String {
         if !report.reviews_not_counted.is_empty() {
             b.push_str(
                 "<p>These entries in <code>[[finding-review]]</code> do not count, so the findings \
-                 they name still do:</p>\n<ul>\n",
+                 they name still do. To record one as your decision, run <code>sv review</code> in \
+                 your own terminal.</p>\n<ul>\n",
             );
             for line in &report.reviews_not_counted {
                 b.push_str(&format!("<li>{}</li>\n", escape(line)));

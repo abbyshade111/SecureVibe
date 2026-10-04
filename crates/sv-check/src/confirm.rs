@@ -47,6 +47,7 @@
 
 use crate::Verified;
 use crate::advisories::Day;
+use crate::seal::{Checker, Sealed};
 
 /// How long a confirmation counts, the same as a check made by hand.
 pub const CURRENT_FOR_DAYS: u32 = crate::hand::CURRENT_FOR_DAYS;
@@ -67,6 +68,35 @@ pub struct Confirmation {
     pub location: Option<String>,
     /// The check made by hand's `result` confirmed.
     pub result: Option<String>,
+    /// What `sv review` wrote when a person recorded it (`crate::seal`).
+    pub seal: Option<String>,
+}
+
+impl Confirmation {
+    /// The fields its seal is made over, for the requirement it is about, under `check_id`.
+    pub fn sealed_fields(&self, check_id: &str, requirement: &str) -> Vec<String> {
+        crate::seal::confirmation_fields(
+            section_of(check_id),
+            requirement,
+            [
+                self.by.as_deref(),
+                self.on.as_deref(),
+                self.how.as_deref(),
+                self.answer.as_deref(),
+                self.location.as_deref(),
+                self.result.as_deref(),
+            ],
+        )
+    }
+}
+
+/// The part of securevibe.toml a confirmation credited under `check_id` sits in.
+pub fn section_of(check_id: &str) -> &'static str {
+    if check_id == HAND_CONFIRMED {
+        "checked-by-hand"
+    } else {
+        "design"
+    }
 }
 
 /// What the confirmation is of, as the manifest says it now.
@@ -180,8 +210,9 @@ pub fn judge(confirmation: &Confirmation, current: &Current, today: Day) -> Resu
     })
 }
 
-/// The confirmed version of a piece of *stated* evidence: the tool's words, then the person's.
-pub fn credit(stated: &Verified, check_id: &str, holds: &Holds) -> Verified {
+/// The confirmed version of a piece of *stated* evidence: the tool's words, then the person's, and
+/// whether `sv review`'s seal on it was checked here.
+pub fn credit(stated: &Verified, check_id: &str, holds: &Holds, sealed: &Sealed) -> Verified {
     Verified::new(
         check_id,
         &stated
@@ -189,14 +220,25 @@ pub fn credit(stated: &Verified, check_id: &str, holds: &Holds) -> Verified {
             .iter()
             .map(String::as_str)
             .collect::<Vec<_>>(),
-        format!(
-            "{} securevibe.toml says {} confirmed it on {}, having looked: \"{}\" (sv cannot \
-             tell who wrote that entry)",
-            stated.scope.trim_end(),
-            holds.who,
-            holds.on.show(),
-            holds.how
-        ),
+        match sealed {
+            Sealed::Here => format!(
+                "{} Recorded through `sv review` on this computer: {} confirmed it on {}, having \
+                 looked: \"{}\"",
+                stated.scope.trim_end(),
+                holds.who,
+                holds.on.show(),
+                holds.how
+            ),
+            Sealed::Unchecked { .. } => format!(
+                "{} securevibe.toml says {} confirmed it on {} through `sv review`, having looked: \
+                 \"{}\". It was sealed on another computer, and this one has no key to check the \
+                 seal with.",
+                stated.scope.trim_end(),
+                holds.who,
+                holds.on.show(),
+                holds.how
+            ),
+        },
     )
 }
 
@@ -218,6 +260,7 @@ pub fn apply<'a>(
     check_id: &str,
     confirmation_of: &dyn Fn(&str) -> Option<(&'a Confirmation, Current<'a>)>,
     today: Day,
+    seals: &Checker,
 ) -> Outcome {
     let mut out = Outcome::default();
     stated.retain(|item| {
@@ -227,9 +270,20 @@ pub fn apply<'a>(
         let Some((confirmation, current)) = confirmation_of(id) else {
             return true;
         };
-        match judge(confirmation, &current, today) {
-            Ok(holds) => {
-                out.confirmed.push(credit(item, check_id, &holds));
+        let fields = confirmation.sealed_fields(check_id, id);
+        match judge(confirmation, &current, today).and_then(|holds| {
+            let sealed = seals
+                .check(confirmation.seal.as_deref(), &crate::seal::as_strs(&fields))
+                .map_err(|why| {
+                    format!(
+                        "{why}. If you have looked for yourself, run `sv review` in your own \
+                         terminal to record it as yours"
+                    )
+                })?;
+            Ok((holds, sealed))
+        }) {
+            Ok((holds, sealed)) => {
+                out.confirmed.push(credit(item, check_id, &holds, &sealed));
                 false
             }
             Err(why) => {
@@ -257,7 +311,19 @@ mod tests {
             answer: Some("yes".into()),
             location: Some("src/app.js".into()),
             result: None,
+            seal: None,
         }
+    }
+
+    fn key() -> crate::seal::Key {
+        crate::seal::Key::from_bytes([5; 32])
+    }
+
+    /// The confirmation as `sv review` would have sealed it on the computer `key` belongs to.
+    fn sealed(mut c: Confirmation, check_id: &str, requirement: &str) -> Confirmation {
+        let fields = c.sealed_fields(check_id, requirement);
+        c.seal = Some(key().seal(&crate::seal::as_strs(&fields)));
+        c
     }
 
     fn design(modified: Option<&str>) -> Current<'static> {
@@ -427,20 +493,32 @@ mod tests {
             Verified::new("design.stated-by-ai", &["V2.2.2"], "the tool's word".to_owned()),
             Verified::new("design.stated-by-ai", &["V1.1.1"], "the tool's word".to_owned()),
         ];
-        let good = confirmed("owner", "2026-09-27", HOW);
-        let stale = Confirmation {
-            answer: Some("no".into()),
-            ..good.clone()
-        };
+        let good = sealed(
+            confirmed("owner", "2026-09-27", HOW),
+            DESIGN_CONFIRMED,
+            "V8.3.1",
+        );
+        let stale = sealed(
+            Confirmation {
+                answer: Some("no".into()),
+                ..confirmed("owner", "2026-09-27", HOW)
+            },
+            DESIGN_CONFIRMED,
+            "V2.2.2",
+        );
+        // Sealed for V8.3.1, then copied to V1.1.1: the seal names the requirement, so it fails.
+        let moved = good.clone();
         let out = apply(
             &mut stated,
             DESIGN_CONFIRMED,
             &|id| match id {
                 "V8.3.1" => Some((&good, design(None))),
                 "V2.2.2" => Some((&stale, design(None))),
+                "V1.1.1" => Some((&moved, design(None))),
                 _ => None,
             },
             day(TODAY),
+            &Checker::Key(key()),
         );
         assert_eq!(out.confirmed.len(), 1);
         assert_eq!(out.confirmed[0].check_id, DESIGN_CONFIRMED);
@@ -449,9 +527,9 @@ mod tests {
             out.confirmed[0]
                 .scope
                 .contains("your AI coding tool answered yes")
-                && out.confirmed[0]
-                    .scope
-                    .contains("securevibe.toml says you confirmed it on 2026-09-27")
+                && out.confirmed[0].scope.contains(
+                    "Recorded through `sv review` on this computer: you confirmed it on 2026-09-27"
+                )
                 && out.confirmed[0].scope.contains(HOW),
             "the tool's word first, then the person's: {}",
             out.confirmed[0].scope
@@ -465,7 +543,60 @@ mod tests {
             ["V2.2.2", "V1.1.1"],
             "what moved is not counted twice"
         );
-        assert_eq!(out.not_counted.len(), 1);
+        assert_eq!(out.not_counted.len(), 2);
         assert_eq!(out.not_counted[0].0, "V2.2.2");
+        assert_eq!(out.not_counted[1].0, "V1.1.1");
+        assert!(
+            out.not_counted[1].1.contains("does not match"),
+            "{:?}",
+            out.not_counted
+        );
+    }
+
+    #[test]
+    fn a_confirmation_counts_only_as_sv_review_sealed_it() {
+        let stated = || {
+            vec![Verified::new(
+                "design.stated-by-ai",
+                &["V8.3.1"],
+                "the tool's word".to_owned(),
+            )]
+        };
+        let run = |c: &Confirmation, seals: &Checker| {
+            let mut s = stated();
+            apply(
+                &mut s,
+                DESIGN_CONFIRMED,
+                &|_| Some((c, design(None))),
+                day(TODAY),
+                seals,
+            )
+        };
+        let plain = confirmed("owner", "2026-09-27", HOW);
+        let good = sealed(plain.clone(), DESIGN_CONFIRMED, "V8.3.1");
+        // Sealed as a check made by hand, then moved under [design]: it fails.
+        let other_section = sealed(plain.clone(), HAND_CONFIRMED, "V8.3.1");
+        let here = Checker::Key(key());
+        assert_eq!(run(&good, &here).confirmed.len(), 1);
+        for (c, says) in [
+            (&plain, "not recorded through `sv review`"),
+            (&other_section, "does not match"),
+        ] {
+            let out = run(c, &here);
+            assert!(out.confirmed.is_empty(), "{says}");
+            assert!(out.not_counted[0].1.contains(says), "{:?}", out.not_counted);
+        }
+        let elsewhere = run(&good, &Checker::Key(crate::seal::Key::from_bytes([6; 32])));
+        assert!(elsewhere.confirmed.is_empty());
+        // No key here: it counts, and says its seal could not be checked.
+        let unchecked = run(&good, &Checker::NoKey);
+        assert!(
+            unchecked.confirmed[0]
+                .scope
+                .contains("this one has no key to check the seal with"),
+            "{}",
+            unchecked.confirmed[0].scope
+        );
+        assert!(run(&plain, &Checker::NoKey).confirmed.is_empty());
     }
 }
