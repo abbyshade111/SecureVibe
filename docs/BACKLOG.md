@@ -374,6 +374,9 @@ another session is not a claim.
      browser checks then passed, against a copy of the app whose cookies are weaker than the real one. Fix: carry
      each cookie's attributes from the sign-in answer (at least `Secure`, and `Secure` for any `__Host-` or
      `__Secure-` name), check the browser's answer to each cookie, and when one is refused say that, by name.
+     **The owner's decision, 4 October 2026:** fix the cookie handling as above, and also warn in the report when the start command looks like it weakens the app for the run (an environment variable naming `INSECURE`, `DISABLE_`, or the like): a warning, not a refusal.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-3-cookies`.
   4. **The log checks need the test account's email address in the log, and an app that keeps personal data out of
      its log cannot be checked.** family-hub, 3 October: V16.3.1, V16.3.2, V16.2.1, V16.2.2, and V16.2.4 were not
      assessed ("Neither sign-in was named in the app's output", and "no such line was found"). The owner's
@@ -387,6 +390,9 @@ another session is not a claim.
      and the transcript. Fix: plant markers an app may log without personal data (a marker in the path's last part
      rather than after `?`, a `User-Agent` or request-id header), and say in the message that an app keeping emails
      and query strings out of its log ends up here.
+     **The owner's decision, 4 October 2026:** plant markers that are not personal data (in the address's path, not after `?`), and make the not-assessed message name an app's privacy rules as a likely reason. A `securevibe.toml` setting naming the log's user-id field can follow later.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-4-log-markers`.
   5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
      authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
      admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
@@ -399,6 +405,9 @@ another session is not a claim.
      seeded admin a secret too when `totp` is set (`SV_ADMIN_TOTP_SECRET`) and finish its sign-in with the code; and
      when the admin's sign-in ends on the `totp` path, or any page other than the private one, say that rather than
      suggest the page is in the wrong place.
+     **The owner's decision, 4 October 2026:** yes, `sv` may read a test admin's authenticator secret from `SV_ADMIN_TOTP_SECRET`, held like `SV_USER_TOTP` and never shown in a report; and fix the message either way.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-5-admin-totp`.
   6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
      V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
      owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the
@@ -440,6 +449,9 @@ another session is not a claim.
      out a value with spaces between ordinary words that ends in a period or question mark, or at least rate it
      low with "this reads like a sentence"; for the redirect rule, when the value is a parameter, look at the
      function's callers in the same app and stay quiet when every one passes the app's own route.
+     **The owner's decision, 4 October 2026:** the credential rule keeps reporting a value that reads like a sentence, at low severity with "this reads like a sentence", rather than leaving it out (a real passphrase can be a sentence). The redirect half is left to whoever takes A1, its root cause, so two sessions do not change one rule; only the credential half is claimed here.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-7-sentence-credential`.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
