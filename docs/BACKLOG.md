@@ -48,6 +48,12 @@ another session is not a claim.
     **S3 to S5 claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
     backlog, in branch `claude/securevibe-e2-safe-writes`: one way of writing a file `sv` makes, used by every
     command.
+    **S3 to S5 done the same day** (DESIGN, "Files `sv` writes, never through a link and never over the app's
+    own"): `sv rules`, `sv notes`, and `sv bundle` refuse a link where they write and write under a new name then
+    rename; `bundle::resolve_for_writing` no longer resolves the zip's own name, which had hidden the link from any
+    check; and a report is refused in a folder holding files `sv` did not write unless `sv` marked it, and in any
+    folder holding a name that differs from one of `sv`'s only in capitals. Eleven guards broken in turn; ten caught,
+    and the eleventh (the rename after the check) closes a race no test can stage, held by its own unit test.
   - **S6. High, Reproduced. Tool reports go to fixed names in the shared temporary folder, and a planted file is
     taken as a real run** (`adapters.rs`: `temp_dir()`, `sv-<id>.sarif`, any readable file accepted, exit status
     ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at
@@ -585,6 +591,13 @@ another session is not a claim.
   `securevibe_prompts` give the library, the prompts shown to work first, each marked shown or not tested where the
   person reads it; `tools/coverage.py` holds each prompt's requirements to its rules' citations. Not done: offering
   the prompts for the requirements an app still has no evidence for, which needs a report first.
+  **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+  `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
+  in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds
+  them to their rules' citations as it does the others; (b) a second app brief, written the way a beginner might ask,
+  whose plain build takes the shortcut the four prompts not yet shown were written against (a key pasted into the
+  chat, a command built from a title, passwords with only the standard library, formatted notes), built with and
+  without each of those four prompts.
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
