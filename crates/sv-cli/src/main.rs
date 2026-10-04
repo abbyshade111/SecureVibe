@@ -1242,6 +1242,10 @@ fn probe_the_running_app(
     let mut plan = RunPlan::from_manifest(manifest, app_dir).map_err(|e| e.explain())?;
     plan.slow = slow;
     let backend = sv_run::detect().map_err(|e| e.explain())?;
+    // Said before the wait, not only after it: the wait is a minute (family-hub, 3 October 2026).
+    if let Some(warning) = sv_run::loopback_warning(&plan.start) {
+        eprintln!("{warning}");
+    }
     let requests = anonymous_requests(&plan);
     let outcome = backend.run(&plan, &requests);
     // Stopped with Ctrl-C: the run has removed its containers and network on the way out. What it

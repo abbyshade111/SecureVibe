@@ -424,6 +424,7 @@ impl DockerBackend {
             return Err(CannotRun::NeverReady {
                 waited_seconds: READY_TIMEOUT_SECONDS,
                 detail: never_ready_detail(&logs, plan.build.as_deref()),
+                loopback: crate::loopback_named_in(&plan.start),
             });
         }
 
