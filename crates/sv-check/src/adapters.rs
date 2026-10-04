@@ -420,7 +420,7 @@ pub struct AdapterRun {
     pub not_run: Vec<(String, String)>,
     /// Adapters that ran over everything they read, found something or not.
     pub ran: Vec<String>,
-    /// Adapters that ran but were told not to look at part of the app, and what they skipped. One
+    /// Adapters that ran but did not look at all of the app (told not to, or unable to), and why. One
     /// that also found nothing is in `not_run` as well, as the report has always said it.
     pub partly: Vec<(String, String)>,
     /// Adapters whose stand-in ran in place of their own program, and the sentence saying so.
@@ -586,7 +586,7 @@ pub fn run_one_in(
     // A list left behind by an earlier run would vouch for files this one never read.
     std::fs::remove_file(&scanned_path).ok();
     let files = if names_files {
-        code_files_in(listing)
+        code_files_for(listing, &adapter.language)
     } else {
         Vec::new()
     };
@@ -736,6 +736,7 @@ pub fn run_one_in(
             loaded: loaded_rules(&text),
             looked_away: {
                 let mut reasons = looked_away(adapter, &text, app_dir);
+                reasons.extend(did_not_finish(&text, app_dir));
                 if lists_scanned {
                     reasons.extend(unread_files(&files, scanned.as_deref()));
                 }
@@ -821,7 +822,7 @@ pub fn run_all_in(
                     run.partly.push((
                         adapter.id.clone(),
                         format!(
-                            "{} was told not to look at part of this app: {}.",
+                            "{} did not look at all of this app: {}.",
                             name,
                             looked_away.join("; ")
                         ),
@@ -831,7 +832,7 @@ pub fn run_all_in(
                     run.not_run.push((
                         adapter.id.clone(),
                         format!(
-                            "{} ran and found nothing, but it was told not to look at part of \
+                            "{} ran and found nothing, but it did not look at all of \
                              this app, so finding nothing is not counted as a clean result: {}.",
                             name,
                             looked_away.join("; ")
@@ -989,9 +990,102 @@ pub fn code_files(app_dir: &Path) -> Vec<String> {
 /// `code_files`, from a listing already made. The listing never follows a link, which is what this
 /// walk refused on its own before there was one walk.
 pub fn code_files_in(listing: &sv_scan::files::Listing) -> Vec<String> {
-    let mut out: Vec<String> = listing.code_files().map(|e| e.relative.clone()).collect();
+    code_files_for(listing, "*")
+}
+
+/// The code files of one language, or of every language for `*`: what a tool that reads one
+/// language is given in place of the folder. `sv`'s own listing has already left out links, folders
+/// of installed or built code (`vendor/`, `node_modules/`), and anything it would not read itself
+/// (S7 of the deep review: Bandit given the folder followed a link out of the app and read `vendor/`).
+pub fn code_files_for(listing: &sv_scan::files::Listing, language: &str) -> Vec<String> {
+    let mut out: Vec<String> = listing
+        .code_files()
+        .filter(|e| language == "*" || e.language == Some(language))
+        .map(|e| e.relative.clone())
+        .collect();
     out.sort();
     out
+}
+
+/// What a tool's own report says about the parts of its run that did not succeed.
+///
+/// H7 of the deep review: Bandit skipped a file it could not parse, said so in its SARIF
+/// (`executionSuccessful` false, and a notification naming the file), and the clean result was
+/// credited because nothing read either. An error-level notification, or a run marked unsuccessful,
+/// keeps the run from counting as clean; its findings still stand.
+pub fn did_not_finish(sarif: &str, app_dir: &Path) -> Vec<String> {
+    let Ok(document) = serde_json::from_str::<serde_json::Value>(sarif) else {
+        return Vec::new();
+    };
+    let mut unsuccessful = false;
+    let mut errors: Vec<String> = Vec::new();
+    for invocation in document["runs"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|run| run["invocations"].as_array().into_iter().flatten())
+    {
+        if invocation["executionSuccessful"] == serde_json::Value::Bool(false) {
+            unsuccessful = true;
+        }
+        for kind in [
+            "toolExecutionNotifications",
+            "toolConfigurationNotifications",
+        ] {
+            for note in invocation[kind].as_array().into_iter().flatten() {
+                if note["level"].as_str() != Some("error") {
+                    continue;
+                }
+                let file = note["locations"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .find_map(|l| l["physicalLocation"]["artifactLocation"]["uri"].as_str())
+                    .map(|uri| relative_uri(uri, app_dir));
+                let message = note["message"]["text"].as_str().unwrap_or("").trim();
+                errors.push(match (file, message.is_empty()) {
+                    (Some(file), false) => format!("`{file}` ({})", first_line(message)),
+                    (Some(file), true) => format!("`{file}`"),
+                    (None, false) => first_line(message).to_owned(),
+                    (None, true) => "an error it did not describe".to_owned(),
+                });
+            }
+        }
+    }
+    let mut out = Vec::new();
+    if !errors.is_empty() {
+        let shown: Vec<&str> = errors.iter().take(5).map(String::as_str).collect();
+        let more = errors.len().saturating_sub(shown.len());
+        out.push(format!(
+            "its report names {} problem{} it could not get past: {}{}",
+            errors.len(),
+            if errors.len() == 1 { "" } else { "s" },
+            shown.join("; "),
+            if more > 0 {
+                format!("; and {more} more")
+            } else {
+                String::new()
+            }
+        ));
+    } else if unsuccessful {
+        out.push("its report says its run did not succeed, without saying why".to_owned());
+    }
+    out
+}
+
+fn first_line(text: &str) -> &str {
+    text.lines().next().unwrap_or("").trim()
+}
+
+/// A SARIF location as a path from the app folder: `file://` taken off, and the folder too.
+fn relative_uri(uri: &str, app_dir: &Path) -> String {
+    let path = uri.strip_prefix("file://").unwrap_or(uri);
+    let dir = app_dir.to_string_lossy();
+    path.strip_prefix(dir.as_ref())
+        .map(|p| p.trim_start_matches('/'))
+        .unwrap_or(path)
+        .trim_start_matches("./")
+        .to_owned()
 }
 
 /// Which of the files a tool was given it did not read, as a reason not to credit its clean run.
@@ -1636,6 +1730,139 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         adapter.stand_in = None;
         adapter.finished_exits = vec![0, 1];
         adapter
+    }
+
+    /// An app with a Python file, a JavaScript file, Python under `vendor/`, and a link to a Python
+    /// file outside it, and a tool that reads Python, writes a clean report, and records what it was
+    /// handed. Returns the run and what the tool was handed.
+    fn handed(name: &str, report: &str) -> (AdapterRun, Vec<String>) {
+        let dir = scratch(name);
+        let (_, rule) = adapter(&dir, "unused");
+        let seen = dir.join("seen");
+        let write = if report == "CLEAN" {
+            "CLEAN".to_owned()
+        } else {
+            format!("printf '%s' '{report}' > \"$1\"")
+        };
+        let ending = format!(
+            "out=\"$1\"; shift; [ \"$1\" = -- ] && shift; printf '%s\\n' \"$@\" > '{}'; set -- \"$out\"; {write}; exit 0",
+            seen.display()
+        );
+        let mut adapter = tool(&dir, &rule, &ending);
+        adapter.run.args = vec!["{output}".into(), "--".into(), "{files}".into()];
+        adapter.working_directory = Some("{dir}".into());
+        let app = dir.join("app");
+        std::fs::create_dir_all(app.join("vendor")).unwrap();
+        std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
+        std::fs::write(app.join("web.js"), "console.log(1)\n").unwrap();
+        std::fs::write(app.join("vendor/lib.py"), "print(2)\n").unwrap();
+        std::fs::write(dir.join("outside.py"), "print('outside the app')\n").unwrap();
+        std::os::unix::fs::symlink(dir.join("outside.py"), app.join("linked.py")).unwrap();
+        let outcome = run_all(
+            &Adapters {
+                adapters: vec![adapter],
+            },
+            &app,
+            &["python".to_owned(), "javascript".to_owned()],
+            &BTreeSet::new(),
+            &dir,
+        );
+        let given = std::fs::read_to_string(&seen)
+            .unwrap_or_default()
+            .lines()
+            .map(str::to_owned)
+            .collect();
+        std::fs::remove_dir_all(&dir).ok();
+        (outcome, given)
+    }
+
+    #[test]
+    fn a_tool_for_one_language_is_handed_that_language_s_files_and_nothing_else() {
+        // S7 of the deep review: Bandit handed the folder followed a link out of the app and read
+        // `vendor/`. Handed `sv`'s own listing, it gets the app's Python and nothing else.
+        let (outcome, given) = handed("one-language", "CLEAN");
+        assert_eq!(outcome.ran, ["primary"], "{outcome:?}");
+        assert_eq!(given, ["./app.py"], "{given:?}");
+    }
+
+    #[test]
+    fn a_run_whose_report_says_it_could_not_read_a_file_is_not_clean() {
+        // H7 of the deep review: the report says a file was skipped, so finding nothing is not a
+        // clean result, and the file is named.
+        let skipped = r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Tool","rules":[]}},"invocations":[{"executionSuccessful":false,"toolExecutionNotifications":[{"level":"error","message":{"text":"syntax error while parsing AST from file"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"broken.py"}}}]}]}],"results":[]}]}"#;
+        let (outcome, _) = handed("could-not-read", skipped);
+        assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
+        let partly = format!("{:?}", outcome.partly);
+        assert!(
+            partly.contains("`broken.py` (syntax error while parsing AST from file)"),
+            "{partly}"
+        );
+        assert!(
+            outcome
+                .not_run
+                .iter()
+                .any(|(_, why)| why.contains("ran and found nothing, but it did not look at all")),
+            "{:?}",
+            outcome.not_run
+        );
+
+        // The control: the same tool, its report saying the run succeeded, is credited.
+        let (clean, _) = handed("could-read", "CLEAN");
+        assert_eq!(clean.verified.len(), 1, "{clean:?}");
+    }
+
+    #[test]
+    fn only_an_error_or_an_unsuccessful_run_counts_against_a_report() {
+        let app = Path::new("/app");
+        let report = |invocation: &str| {
+            format!(r#"{{"runs":[{{"invocations":[{invocation}],"results":[]}}]}}"#)
+        };
+        // A warning is not a part of the run that failed.
+        assert!(did_not_finish(&report(r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"warning","message":{"text":"slow"}}]}"#), app).is_empty());
+        assert!(did_not_finish(&report(r#"{"executionSuccessful":true}"#), app).is_empty());
+        // Unsuccessful with nothing said, and an error with no file, still count.
+        let quiet = did_not_finish(&report(r#"{"executionSuccessful":false}"#), app);
+        assert_eq!(
+            quiet,
+            ["its report says its run did not succeed, without saying why"]
+        );
+        let config = did_not_finish(
+            &report(
+                r#"{"executionSuccessful":true,"toolConfigurationNotifications":[{"level":"error","message":{"text":"bad profile\nmore"}}]}"#,
+            ),
+            app,
+        );
+        assert_eq!(
+            config,
+            ["its report names 1 problem it could not get past: bad profile"]
+        );
+        // A file named by its full path is shown from the app folder.
+        let full = did_not_finish(
+            &report(
+                r#"{"toolExecutionNotifications":[{"level":"error","message":{"text":"x"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///app/pkg/a.py"}}}]}]}"#,
+            ),
+            app,
+        );
+        assert!(full[0].contains("`pkg/a.py` (x)"), "{full:?}");
+    }
+
+    #[test]
+    fn bandit_is_handed_the_app_s_files_and_never_the_folder() {
+        let adapters =
+            Adapters::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"))
+                .unwrap();
+        let bandit = adapters.adapters.iter().find(|a| a.id == "bandit").unwrap();
+        assert!(
+            bandit.run.args.iter().any(|a| a == "{files}"),
+            "{:?}",
+            bandit.run.args
+        );
+        assert!(
+            !bandit.run.args.iter().any(|a| a.contains("{dir}")),
+            "{:?}",
+            bandit.run.args
+        );
+        assert_eq!(bandit.language, "python");
     }
 
     #[test]

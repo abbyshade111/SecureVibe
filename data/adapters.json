@@ -14,7 +14,6 @@
       "run": {
         "command": "bandit",
         "args": [
-          "--recursive",
           "--format",
           "sarif",
           "--output",
@@ -23,11 +22,12 @@
           "--ini",
           "/dev/null",
           "--ignore-nosec",
-          "{dir}"
+          "--",
+          "{files}"
         ]
       },
       "install": "pip install bandit bandit-sarif-formatter",
-      "note": "Bandit has no SARIF formatter of its own; `bandit-sarif-formatter` registers one, which is why the install line names two packages. Bandit installed without it exits with `invalid choice: 'sarif'` and writes nothing, which is reported as not run with that message attached rather than as a clean scan. Bandit exits 1 when it finds something and 0 when it does not, and both are a finished run (`finished_exits`); 2, its code for a failure (bandit/cli/main.py), is reported as not run, as is a missing report. It is run with `--ignore-nosec`, so a line marked `# nosec` is still reported, and with `--ini /dev/null`, so a `.bandit` file in the app cannot switch rules or folders off: either one otherwise hides what it covers and leaves nothing in the report to say so, and a run that was told to look away would be credited as clean.",
+      "note": "Bandit has no SARIF formatter of its own; `bandit-sarif-formatter` registers one, which is why the install line names two packages. Bandit installed without it exits with `invalid choice: 'sarif'` and writes nothing, which is reported as not run with that message attached rather than as a clean scan. Bandit exits 1 when it finds something and 0 when it does not, and both are a finished run (`finished_exits`); 2, its code for a failure (bandit/cli/main.py), is reported as not run, as is a missing report. It is run with `--ignore-nosec`, so a line marked `# nosec` is still reported, and with `--ini /dev/null`, so a `.bandit` file in the app cannot switch rules or folders off: either one otherwise hides what it covers and leaves nothing in the report to say so, and a run that was told to look away would be credited as clean. It is handed the app's Python files by name, from `sv`'s own listing, rather than the folder: given the folder, it followed a link out of the app and read whatever the link pointed at, and it read `vendor/` and the other folders of installed code `sv` leaves out (139 of family-hub's Bandit findings were Flask's own code). A file it could not parse is named in its report as an error, and then its run is not counted as clean.",
       "rules": {
         "B608": {
           "what": "SQL query built by string formatting or concatenation",
@@ -145,6 +145,7 @@
           ]
         }
       },
+      "working_directory": "{dir}",
       "finished_exits": [
         0,
         1
