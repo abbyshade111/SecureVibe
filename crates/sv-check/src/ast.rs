@@ -94,6 +94,14 @@ pub struct AstRule {
     /// `ctx`, a name, which is never fixed text, so every such call was reported (A1 of the deep review).
     #[serde(default)]
     pub argument_positions: BTreeMap<String, BTreeMap<String, usize>>,
+    /// Per language, calls with a name too common to report on its name alone: a pattern over
+    /// `@fn`, and what the argument judged must look like for the call to be reported.
+    ///
+    /// `db.get("SELECT … " + id)` is a query, and `cache.get(key)` is not; both are `get`. Reading
+    /// only the name would report every `get` in the app, and leaving the name out missed every
+    /// query sent through it (H1 of the deep review: node-sqlite3's `all`, `get`, and `run`).
+    #[serde(default)]
+    pub arguments_for_common_names: BTreeMap<String, BTreeMap<String, String>>,
     /// When the argument judged is a plain name, not text visibly built in the call, and the call
     /// passes values after it, the finding's confidence is lowered and it says why: values passed
     /// beside a query are how placeholders work, so the query may already be safe. Text built in the
@@ -180,6 +188,7 @@ struct Compiled {
     safe_argument: BTreeMap<String, regex::Regex>,
     keyword: BTreeMap<String, regex::Regex>,
     positions: BTreeMap<String, Vec<(regex::Regex, usize)>>,
+    common_names: BTreeMap<String, Vec<(regex::Regex, regex::Regex)>>,
 }
 
 pub struct AstRules {
@@ -805,6 +814,27 @@ impl AstRules {
                 }
                 positions.insert(language.clone(), compiled_positions);
             }
+            let mut common_names = BTreeMap::new();
+            for (language, by_name) in &rule.arguments_for_common_names {
+                anyhow::ensure!(
+                    queries.contains_key(language),
+                    "rule {} has argumentsForCommonNames for {language} but no {language} query",
+                    rule.id
+                );
+                let mut pairs = Vec::new();
+                for (name, argument) in by_name {
+                    let compile = |source: &str| {
+                        regex::Regex::new(source).with_context(|| {
+                            format!(
+                                "rule {} has an unusable argumentsForCommonNames entry for {language}",
+                                rule.id
+                            )
+                        })
+                    };
+                    pairs.push((compile(name)?, compile(argument)?));
+                }
+                common_names.insert(language.clone(), pairs);
+            }
             // A pattern for a language the rule has no query in is a pattern that never runs, and
             // the rule reads as if it had been taught that language.
             for (what, patterns) in [
@@ -860,6 +890,7 @@ impl AstRules {
                 safe_argument,
                 keyword,
                 positions,
+                common_names,
             });
         }
         Ok(AstRules { compiled })
@@ -1530,12 +1561,26 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 && let Some(name) = text_of(m, fn_index)
                 && let Some((_, position)) = positions.iter().find(|(re, _)| re.is_match(&name))
             {
-                let list = arg_node.and_then(|n| n.parent());
+                // In the grammars that wrap each argument (PHP's `argument`, Kotlin's and Swift's
+                // `value_argument`, C#'s `argument`), the list is one level further up, and the value
+                // is the wrapper's last part, after any name it is given.
+                let wrapped =
+                    |n: tree_sitter::Node| matches!(n.kind(), "argument" | "value_argument");
+                let list = arg_node
+                    .and_then(|n| n.parent())
+                    .and_then(|p| if wrapped(p) { p.parent() } else { Some(p) });
                 arg_node = list.and_then(|list| {
                     let mut cursor = list.walk();
-                    list.named_children(&mut cursor)
+                    let chosen = list
+                        .named_children(&mut cursor)
                         .filter(|c| c.kind() != "comment")
-                        .nth(*position)
+                        .nth(*position)?;
+                    if wrapped(chosen) {
+                        let mut inner = chosen.walk();
+                        chosen.named_children(&mut inner).last()
+                    } else {
+                        Some(chosen)
+                    }
                 });
                 // A call without that many arguments is not the call the position was written for.
                 if arg_node.is_none() {
@@ -1543,6 +1588,13 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 }
             }
             let arg_text = arg_node.and_then(|n| n.utf8_text(source.as_bytes()).ok());
+            if let Some(pairs) = compiled.common_names.get(language)
+                && let Some(name) = text_of(m, fn_index)
+                && let Some((_, argument)) = pairs.iter().find(|(re, _)| re.is_match(&name))
+                && !arg_text.is_some_and(|text| argument.is_match(text))
+            {
+                continue;
+            }
             if let Some(pattern) = compiled.argument.get(language) {
                 match arg_text {
                     Some(text) if pattern.is_match(text) => {}
@@ -2681,6 +2733,209 @@ mod tests {
             !ids(&fixed).contains(&"ast.sql-built-by-hand"),
             "a written-out query is not a finding: {fixed:?}"
         );
+    }
+
+    #[test]
+    fn the_usual_query_calls_of_each_language_are_read_and_their_safe_forms_are_not_reported() {
+        // H1 of the deep review: nine real injections through the libraries people use gave no
+        // finding, while V1.2.4 was marked checked. Each is here, with the same call written safely.
+        let sql = "ast.sql-built-by-hand";
+        let cases: &[(&str, &str, &str, bool)] = &[
+            // better-sqlite3 and node-sqlite3.
+            (
+                "javascript",
+                "app.js",
+                "function f(db, n) { return db.prepare(`SELECT * FROM t WHERE n = '${n}'`).all(); }",
+                true,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function f(db, n) { return db.prepare('SELECT * FROM t WHERE n = ?').all(n); }",
+                false,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function f(db, n) { db.all(\"SELECT * FROM t WHERE n = '\" + n + \"'\", cb); }",
+                true,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function f(db, n) { db.all('SELECT * FROM t WHERE n = ?', [n], cb); }",
+                false,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function f(db, id) { db.run(`DELETE FROM t WHERE id = ${id}`); }",
+                true,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function f(db, sql) { db.exec(sql); }",
+                true,
+            ),
+            // Prisma's unsafe call, and its safe tagged template.
+            (
+                "typescript",
+                "app.ts",
+                "async function f(p: any, n: string) { return p.$queryRawUnsafe(`SELECT * FROM t WHERE n = '${n}'`); }",
+                true,
+            ),
+            (
+                "typescript",
+                "app.ts",
+                "async function f(p: any, n: string) { return p.$queryRaw`SELECT * FROM t WHERE n = ${n}`; }",
+                false,
+            ),
+            // PHP: mysqli takes the connection first, and PDO's prepare.
+            (
+                "php",
+                "app.php",
+                "<?php function f($conn, $n) { return mysqli_query($conn, \"SELECT * FROM t WHERE n = '$n'\"); }",
+                true,
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php function f($conn) { return mysqli_query($conn, \"SELECT * FROM t\"); }",
+                false,
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php function f($pdo, $n) { return $pdo->prepare(\"SELECT * FROM t WHERE n = '\" . $n . \"'\"); }",
+                true,
+            ),
+            (
+                "php",
+                "app.php",
+                "<?php function f($pdo) { return $pdo->prepare(\"SELECT * FROM t WHERE n = ?\"); }",
+                false,
+            ),
+            // Java: JDBC's prepareStatement and Spring's JdbcTemplate.
+            (
+                "java",
+                "A.java",
+                "class A { void f(Connection c, String n) throws Exception { c.prepareStatement(\"SELECT * FROM t WHERE n = '\" + n + \"'\"); } }",
+                true,
+            ),
+            (
+                "java",
+                "A.java",
+                "class A { void f(Connection c) throws Exception { c.prepareStatement(\"SELECT * FROM t WHERE n = ?\"); } }",
+                false,
+            ),
+            (
+                "java",
+                "A.java",
+                "class A { void f(JdbcTemplate j, String n) { j.queryForList(\"SELECT * FROM t WHERE n = '\" + n + \"'\"); } }",
+                true,
+            ),
+            (
+                "java",
+                "A.java",
+                "class A { void f(JdbcTemplate j, String n) { j.update(\"UPDATE t SET n = '\" + n + \"'\"); } }",
+                true,
+            ),
+            (
+                "java",
+                "A.java",
+                "class A { void f(Map<String, String> m, String k, String v) { m.update(k + v); } }",
+                false,
+            ),
+            // C#: a command built with `new`, and Dapper.
+            (
+                "csharp",
+                "A.cs",
+                "class A { void F(SqlConnection c, string n) { var cmd = new SqlCommand(\"SELECT * FROM t WHERE n = '\" + n + \"'\", c); } }",
+                true,
+            ),
+            (
+                "csharp",
+                "A.cs",
+                "class A { void F(SqlConnection c) { var cmd = new SqlCommand(\"SELECT * FROM t WHERE n = @n\", c); } }",
+                false,
+            ),
+            (
+                "csharp",
+                "A.cs",
+                "class A { void F(IDbConnection c, string n) { c.Query<T>($\"SELECT * FROM t WHERE n = '{n}'\"); } }",
+                true,
+            ),
+            (
+                "csharp",
+                "A.cs",
+                "class A { void F(Runner r, string n) { r.Execute(n + \"!\"); } }",
+                false,
+            ),
+            // Ruby: Active Record's `where` with interpolation, and with a placeholder or a hash.
+            (
+                "ruby",
+                "app.rb",
+                "def f(n)\n  User.where(\"name = '#{n}'\")\nend\n",
+                true,
+            ),
+            (
+                "ruby",
+                "app.rb",
+                "def f(n)\n  User.where(\"name = ?\", n)\nend\n",
+                false,
+            ),
+            (
+                "ruby",
+                "app.rb",
+                "def f(n)\n  User.where(name: n)\nend\n",
+                false,
+            ),
+            // pandas.
+            (
+                "python",
+                "app.py",
+                "def f(con, n):\n    return pd.read_sql(f\"SELECT * FROM t WHERE n = '{n}'\", con)\n",
+                true,
+            ),
+            (
+                "python",
+                "app.py",
+                "def f(con, n):\n    return pd.read_sql(\"SELECT * FROM t WHERE n = ?\", con, params=(n,))\n",
+                false,
+            ),
+            // The common names stay quiet when what they are given is not a query.
+            (
+                "javascript",
+                "app.js",
+                "function f(cache, key) { return cache.get(key); }",
+                false,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function f(re, s) { return re.exec(s); }",
+                false,
+            ),
+            (
+                "javascript",
+                "app.js",
+                "app.get('/notes', (req, res) => res.send('ok'));",
+                false,
+            ),
+        ];
+        let mut wrong = Vec::new();
+        for (language, file, code, expected) in cases {
+            assert!(
+                parses_cleanly(language, code),
+                "the fixture must parse, or a pass proves nothing: {code}"
+            );
+            let found = ids(&scan_file(&rules(), language, file, code)).contains(&sql);
+            if found != *expected {
+                wrong.push(format!("{language}: expected {expected}: {code}"));
+            }
+        }
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
     }
 
     #[test]

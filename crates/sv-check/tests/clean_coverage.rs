@@ -1514,8 +1514,9 @@ fn languages_the_rule_reads_alike_share_one_phrase() {
     );
     assert_eq!(
         scope_of(&scan, "ast.sql-built-by-hand"),
-        "a database query joined together from text and values, rather than sent with its values \
-         kept separate, in 1 go file, 2 python files, and 1 ruby file"
+        "a database query, sent through the usual database libraries' query calls, joined together \
+         from text and values rather than sent with its values kept separate, in 1 go file, 2 python \
+         files, and 1 ruby file"
     );
 }
 
