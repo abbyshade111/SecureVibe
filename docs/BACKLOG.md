@@ -95,6 +95,11 @@ another session is not a claim.
     only a report created after the tool started.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-tool-reports`.
+    **Done the same day** (DESIGN, "Tools' reports in a folder of the run's own"): each run makes a new folder,
+    mode 700 with a random name, for the tools' reports and removes it afterwards; each adapter lists the exit codes
+    that mean it finished, from its own source, and any other ending is not run; and only a plain file the tool
+    wrote in this run is read. Seven guards undone in turn, each caught by its own test. Gosec ends with 1 both on
+    finding and on failing, so for it the report still decides.
   - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
     reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
     gets; until then drop findings on linked files and mark the run partial.
