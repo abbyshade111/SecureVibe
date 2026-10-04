@@ -225,6 +225,11 @@ another session is not a claim.
     and the SQL argument's position per language; until then name the calls in the clean claim.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h1`.
+    **Done the same day** (DESIGN, "The query calls each language really uses"): the review's nine injections, through
+    better-sqlite3, node-sqlite3, Prisma, mysqli, PDO, JDBC, Spring, `new SqlCommand`, Dapper, Active Record, and
+    pandas, are each found, and each one's safe form is not. `argumentPositions` reaches past PHP's and C#'s argument
+    wrappers, and a new `argumentsForCommonNames` reports `get`, `all`, `run`, `update`, and their like only when what
+    they are given looks like SQL. The clean claim now says it covers the usual libraries' query calls.
   - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
     (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
     or mark the page left behind.
