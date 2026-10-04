@@ -92,6 +92,8 @@ another session is not a claim.
     entries without one counting as proposals; show the entry's git author.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-set-aside-headline`.
 
 - **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
   H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
@@ -109,6 +111,8 @@ another session is not a claim.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-comment-triggers`.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
