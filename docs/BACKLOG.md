@@ -128,6 +128,8 @@ another session is not a claim.
      **The owner's decision, 4 October 2026: yes, limited** to requests that only read (GET: searches, and pages for
      one record), and only on the copy of the app `sv` starts itself, with its throwaway data, so an always-true
      condition can never reach a request that changes data. Only ever a finding, as above.
+     **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
+     `claude/securevibe-e2-sql-injection`.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
