@@ -19,7 +19,7 @@ pub fn cell(text: &str) -> String {
 /// One requirement's status, in the words the table prints. Shared so the grouped tables and
 /// anything else that lists a requirement cannot drift apart in how they describe the same state.
 fn status_cell(line: &crate::RequirementLine) -> String {
-    match line.status {
+    let shown = match line.status {
         Status::NeedsAttention => {
             format!("**{}** ({})", line.status.label(), line.findings.join(", "))
         }
@@ -71,7 +71,9 @@ fn status_cell(line: &crate::RequirementLine) -> String {
                 .join("; ")
         ),
         Status::NotVerified => line.status.label().to_owned(),
-    }
+    };
+    // Information-only findings sit beside whatever the status is, never in place of it.
+    format!("{shown}{}", line.information_note())
 }
 
 pub fn compliance(report: &Report) -> String {

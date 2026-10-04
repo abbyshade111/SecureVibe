@@ -163,6 +163,157 @@ fn a_finding_set_aside_as_a_false_alarm_never_leaves_its_requirement_checked() {
     assert_eq!(status("V1.3.1"), Status::Checked);
 }
 
+/// The finding `sv_check::suite` makes when a test named for a requirement shares no words with it,
+/// as that module makes it: information, low confidence, and saying it does not take the credit.
+fn name_mismatch(requirement_id: &str) -> Finding {
+    Finding {
+        severity: Severity::Info,
+        confidence: Confidence::Low,
+        location: Location {
+            file: "tests/test_app.py".into(),
+            line: 3,
+        },
+        ..finding(sv_check::suite::NAME_MISMATCH, &[requirement_id])
+    }
+}
+
+fn a_passing_test_for(ids: &[&str]) -> Vec<Verified> {
+    vec![Verified::new(
+        "app-tests",
+        ids,
+        "the app's own test at tests/test_app.py:3, in a suite that passed".to_owned(),
+    )]
+}
+
+fn status_of(report: &sv_report::Report, id: &str) -> Status {
+    report
+        .requirements
+        .iter()
+        .find(|r| r.id == id)
+        .unwrap_or_else(|| panic!("{id} is not in the report"))
+        .status
+}
+
+#[test]
+fn an_information_only_finding_sits_beside_the_credit_not_over_it() {
+    // BACKLOG, family-hub item 6. The test-name warning says "this does not take the credit away";
+    // family-hub's V6.3.3 and V2.3.2, each with a passing test, read "needs attention" because of it.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let passed = a_passing_test_for(&["V1.2.1", "V1.3.1"]);
+    let mismatch = name_mismatch("V1.2.1");
+    // The setup is the finding the suite really makes, or this proves nothing about it.
+    assert!(!mismatch.withholds_credit(), "{mismatch:?}");
+    let report = build(inputs(&f, &buckets, vec![mismatch], &passed));
+    let line = report
+        .requirements
+        .iter()
+        .find(|r| r.id == "V1.2.1")
+        .unwrap();
+    assert_eq!(line.status, Status::Checked, "the test's credit stands");
+    assert!(line.findings.is_empty(), "{:?}", line.findings);
+    assert_eq!(
+        line.information,
+        vec![sv_check::suite::NAME_MISMATCH.to_owned()]
+    );
+    assert_eq!(report.counts.needs_attention, 0);
+    assert_eq!(report.counts.checked, 2);
+    // Beside the credit, not lost: the status cell names it, and the finding is still listed.
+    let markdown = sv_report::markdown::compliance(&report);
+    let html = sv_report::html::page(&report);
+    for rendered in [&markdown, &html] {
+        let row = rendered
+            .lines()
+            .find(|l| l.contains("V1.2.1") && l.contains("app-tests"))
+            .unwrap_or_else(|| panic!("no checked row for V1.2.1 in:\n{rendered}"));
+        assert!(
+            row.contains(sv_check::suite::NAME_MISMATCH) && row.contains("for information"),
+            "the warning has to be shown beside the credit: {row}"
+        );
+    }
+    assert_eq!(
+        report.findings.len(),
+        1,
+        "the finding itself is still reported"
+    );
+}
+
+#[test]
+fn a_real_finding_still_needs_attention_beside_an_information_only_one() {
+    // The control for the change above, and the one that matters: nothing that is meant to block
+    // the credit may stop blocking it. A rule's finding at any severity, a tool's finding at its
+    // lowest level, the test-name rule raised above information, and a finding another rule was
+    // merged into each still make the requirement need attention, over a passing test.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let passed = a_passing_test_for(&["V1.2.1"]);
+    let tool_at_info = Finding {
+        severity: Severity::Info,
+        ..finding("semgrep.some-rule", &["V1.2.1"])
+    };
+    let raised = Finding {
+        severity: Severity::Low,
+        ..name_mismatch("V1.2.1")
+    };
+    let merged = Finding {
+        also_reported_by: vec!["ast.sql".into()],
+        ..name_mismatch("V1.2.1")
+    };
+    for (what, real) in [
+        ("a high finding", finding("ast.sql", &["V1.2.1"])),
+        ("a tool's finding at info", tool_at_info),
+        ("the test-name rule raised to low", raised),
+        ("a finding another rule was merged into", merged),
+    ] {
+        assert!(real.withholds_credit(), "{what}");
+        let report = build(inputs(
+            &f,
+            &buckets,
+            vec![name_mismatch("V1.2.1"), real.clone()],
+            &passed,
+        ));
+        let line = &report.requirements[0];
+        assert_eq!(line.status, Status::NeedsAttention, "{what}");
+        assert!(line.findings.contains(&real.rule_id), "{what}: {line:?}");
+        assert_eq!(report.counts.checked, 0, "{what}");
+    }
+}
+
+#[test]
+fn a_person_saying_the_test_does_match_leaves_its_credit_standing() {
+    // family-hub's V10.5.2 and V10.1.2, each with a passing test, read "not verified" once the owner
+    // recorded the test-name warnings as false alarms, which is the review the warning invites.
+    // Setting aside a finding that never withheld the credit must not take it away either; setting
+    // aside a real one still leaves its requirement unchecked.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let passed = a_passing_test_for(&["V1.2.1", "V1.3.1"]);
+    let reviewed = |finding: Finding| sv_check::review::SetAside {
+        finding,
+        verdict: sv_check::review::FALSE_ALARM.to_owned(),
+        why: "the test and the requirement were read side by side and they match".to_owned(),
+        by: "owner".to_owned(),
+        on: "2026-10-03".to_owned(),
+    };
+    let mut i = inputs(&f, &buckets, vec![], &passed);
+    i.set_aside = vec![
+        reviewed(name_mismatch("V1.2.1")),
+        reviewed(finding("ast.sql", &["V1.3.1"])),
+    ];
+    let report = build(i);
+    assert_eq!(status_of(&report, "V1.2.1"), Status::Checked);
+    assert_eq!(status_of(&report, "V1.3.1"), Status::NotVerified);
+}
+
 #[test]
 fn nothing_is_ever_labelled_a_pass() {
     // "Checked" is an automated check being satisfied over stated coverage. The word "pass" would be read as the
