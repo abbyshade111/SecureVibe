@@ -349,6 +349,15 @@ another session is not a claim.
      so rather than replacing it quietly.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-2-report-lock`.
+     **Done the same day** (DESIGN, "One run at a time in a report folder"): `sv report` and the MCP server take a
+     lock in the report folder before the run, and a second run refuses at once, naming the first (command,
+     process, start time). The lock is the operating system's, let go when a run ends however it ends, so a run
+     killed outright does not block the next, which says it stopped before it finished. `report.json` records
+     when its run started and the SHA-256 of the `securevibe.toml` it read; a run does not replace a report from
+     a run that started later, and a file changed during the run is said. Tested with real processes of the real
+     binary (a `--run` kept going by a sleeping test command, a second run beside it, `kill -9`); breaking each
+     guard was caught, and testing found a second run calling the folder someone else's while the first wrote its
+     marker, and Ctrl-C leaving the newly made folder behind, both fixed. S6 and S10 are unchanged.
   3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
      weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
      said "the private pages did not open in the browser with the first user's cookies, though they opened for the

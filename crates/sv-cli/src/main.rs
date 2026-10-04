@@ -17,6 +17,7 @@ use sv_scan::{Evidence, Signatures};
 
 mod bundle;
 mod mcp;
+mod report_lock;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -1254,6 +1255,7 @@ fn probe_the_running_app(
         eprintln!(
             "Stopped with Ctrl-C. The app's containers and network were removed; nothing was written."
         );
+        report_lock::let_go_of_all();
         std::process::exit(130);
     }
     Ok((outcome.map_err(|e| e.explain())?, plan))
@@ -2392,6 +2394,75 @@ fn write_bundle(
     })
 }
 
+/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports. A test
+/// holds this to what `write_report_files` writes.
+const REPORT_FOLDER_NAMES: &[&str] = &[
+    sv_scan::ecosystems::REPORT_MARKER,
+    report_lock::LOCK_NAME,
+    "report.html",
+    "compliance.md",
+    "security.md",
+    "findings.sarif",
+    "report.json",
+];
+
+/// Makes `out_dir` ready for a report and takes it for this run, before the run starts: the checks
+/// `write_report_files` makes on the folder, made early so a refusal comes before the wait rather
+/// than after it, and the lock (`report_lock`). The marker is written once the folder is held, so the
+/// run's own reading of the app leaves the folder out.
+///
+/// A run that ends without writing its report leaves the folder as it found it: the marker goes if
+/// this wrote it, and the folder if this made it (`made_by_caller`, for a caller that made it just
+/// before) and nothing else is in it. Ctrl-C during `sv report --run` wrote no report and left the
+/// folder behind, which `interrupt.rs` caught.
+fn claim_report_folder(
+    out_dir: &Path,
+    command: &str,
+    elsewhere: &str,
+    made_by_caller: bool,
+) -> Result<report_lock::Held> {
+    refuse_link(out_dir, REPORT_LINK)?;
+    let made = made_by_caller || std::fs::symlink_metadata(out_dir).is_err();
+    std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+    for name in REPORT_FOLDER_NAMES {
+        refuse_link(&out_dir.join(name), REPORT_LINK)?;
+    }
+    let refused = refuse_someone_elses_folder(out_dir, REPORT_FOLDER_NAMES);
+    let taken = refused.and_then(|()| report_lock::take(out_dir, command, elsewhere));
+    let held = match taken {
+        Ok(held) => held,
+        Err(e) => {
+            if made {
+                let _ = std::fs::remove_dir(out_dir);
+            }
+            return Err(e);
+        }
+    };
+    let marker = out_dir.join(sv_scan::ecosystems::REPORT_MARKER);
+    held.undo_unless_written(
+        (!marker.is_file()).then(|| marker.clone()),
+        made.then(|| out_dir.to_path_buf()),
+    );
+    // Part-written files a stopped run left. Held, so no other run of this `sv` is writing them now.
+    if let Ok(entries) = std::fs::read_dir(out_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            if is_staging(&entry.file_name().to_string_lossy(), REPORT_FOLDER_NAMES) {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+    write_without_following(
+        out_dir,
+        sv_scan::ecosystems::REPORT_MARKER,
+        REPORT_MARKER_TEXT.as_bytes(),
+    )
+    .context("writing the report folder's marker")?;
+    Ok(held)
+}
+
+const REPORT_MARKER_TEXT: &str =
+    "This folder holds a report written by sv. sv leaves it out when it checks the app.\n";
+
 /// Writes the reports.
 ///
 /// Everything here runs offline and without a container. The probes need a running app, so unless
@@ -2412,8 +2483,7 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
     // as the app's code, whatever the folder is called (`sv_scan::ecosystems::REPORT_MARKER`).
     let marker = (
         sv_scan::ecosystems::REPORT_MARKER,
-        "This folder holds a report written by sv. sv leaves it out when it checks the app.\n"
-            .to_owned(),
+        REPORT_MARKER_TEXT.to_owned(),
     );
     let written = [
         ("report.html", sv_report::html::page(report)),
@@ -2426,11 +2496,7 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
     for (name, _) in std::iter::once(&marker).chain(&written) {
         refuse_link(&out_dir.join(name), REPORT_LINK)?;
     }
-    let ours: Vec<&str> = std::iter::once(&marker)
-        .chain(&written)
-        .map(|(name, _)| *name)
-        .collect();
-    refuse_someone_elses_folder(out_dir, &ours)?;
+    refuse_someone_elses_folder(out_dir, REPORT_FOLDER_NAMES)?;
     for (name, contents) in std::iter::once(&marker).chain(&written) {
         write_without_following(out_dir, name, contents.as_bytes())
             .with_context(|| format!("writing {name}"))?;
@@ -2477,7 +2543,7 @@ fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
         .any(|name| name == sv_scan::ecosystems::REPORT_MARKER);
     let others: Vec<&String> = names
         .iter()
-        .filter(|name| !ours.contains(&name.as_str()))
+        .filter(|name| !ours.contains(&name.as_str()) && !is_staging(name, ours))
         .collect();
     anyhow::ensure!(
         marked || others.is_empty(),
@@ -2493,6 +2559,18 @@ fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
         if others.len() > 3 { ", and more" } else { "" }
     );
     Ok(())
+}
+
+/// Whether `name` is one of `ours` part-written by `write_without_following` (`.report.json.sv-4321`):
+/// what a run stopped while writing leaves, and what a run writing at that moment has. Seen when two
+/// runs started together: the second found the first's marker half-written, in a folder not yet
+/// marked, and called the folder someone else's.
+fn is_staging(name: &str, ours: &[&str]) -> bool {
+    name.strip_prefix('.')
+        .and_then(|rest| rest.rsplit_once(".sv-"))
+        .is_some_and(|(base, pid)| {
+            ours.contains(&base) && !pid.is_empty() && pid.bytes().all(|b| b.is_ascii_digit())
+        })
 }
 
 /// Refuses a path that is a link, whatever it points to, saying so in the owner's terms and saying
@@ -2741,6 +2819,7 @@ fn assemble_report_saying(
     starting: &dyn Fn(usize, &'static str),
 ) -> Result<sv_report::Report> {
     let stage = |n: usize| starting(n, REPORT_STAGES[n]);
+    let started = std::time::SystemTime::now();
     let manifest_path = app_dir.join("securevibe.toml");
     if !manifest_path.exists() {
         bail!(
@@ -2748,7 +2827,11 @@ fn assemble_report_saying(
             app_dir.display()
         );
     }
-    let manifest = Manifest::load(&manifest_path)?;
+    // Read once, so the hash recorded is of the very bytes parsed.
+    let manifest_text = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("reading {}", manifest_path.display()))?;
+    let manifest = Manifest::parse(&manifest_text, &manifest_path)?;
+    let run_record = report_lock::run_record(started, manifest_text.as_bytes());
 
     let Loaded {
         frameworks,
@@ -3884,6 +3967,7 @@ fn assemble_report_saying(
         threats: Some((threat_rules, &ctx)),
     });
     report.examined = examined;
+    report.run_record = Some(run_record);
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
     // wrote it with nothing to go on; `sv scope` always said, and now the report does too.
@@ -3968,8 +4052,24 @@ fn cmd_report(args: &[String]) -> Result<()> {
         advisories_dir,
     } = parse_report_args(args, "a directory")?;
     let out_dir = out.unwrap_or_else(|| app_dir.join("securevibe-report"));
+    // Taken before the run, and held until its report is written, so a second run at the same time
+    // is refused at once rather than replacing this one's report when it finishes (BACKLOG, "What the
+    // owner hit building family-hub", item 2).
+    let command = std::iter::once("sv report")
+        .chain(args.iter().map(String::as_str))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let held = claim_report_folder(
+        &out_dir,
+        &command,
+        "give this run a folder of its own with --out",
+        false,
+    )?;
+    for note in &held.notes {
+        eprintln!("{note}\n");
+    }
 
-    let report = assemble_report(
+    let mut report = assemble_report(
         &app_dir,
         &ReportOptions {
             run_the_app,
@@ -3986,7 +4086,18 @@ fn cmd_report(args: &[String]) -> Result<()> {
         &Loaded::load()?,
     )?;
 
+    if let Some((note, gap)) = report_lock::manifest_changed(&report, &app_dir) {
+        eprintln!("{note}\n");
+        report.gaps.push(gap);
+    }
+    report_lock::refuse_older(
+        &report,
+        &out_dir,
+        "give this run a folder of its own with --out",
+    )?;
     let written = write_report_files(&report, &out_dir)?;
+    held.written();
+    drop(held);
 
     let c = &report.counts;
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
@@ -4595,5 +4706,57 @@ mod writing_through_links_tests {
             written.is_empty(),
             "files were written through the link: {written:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod report_folder_tests {
+    use super::{REPORT_FOLDER_NAMES, claim_report_folder, is_staging};
+
+    #[test]
+    fn a_part_written_file_of_svs_is_svs_and_is_cleared_once_the_folder_is_held() {
+        // What a run killed while writing its marker leaves: the folder not yet marked, and the
+        // marker's part-written file. Seen on 4 October 2026, when the next run called the folder
+        // someone else's and refused it.
+        let dir = std::env::temp_dir().join(format!("sv-staging-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        for name in ["..securevibe-report.sv-98295", ".report.json.sv-7"] {
+            std::fs::write(dir.join(name), "part").unwrap();
+        }
+        let held =
+            claim_report_folder(&dir, "sv report", "give --out", false).expect("sv's own folder");
+        assert!(dir.join(".securevibe-report").is_file(), "marked");
+        assert!(
+            !dir.join("..securevibe-report.sv-98295").exists(),
+            "cleared"
+        );
+        assert!(!dir.join(".report.json.sv-7").exists(), "cleared");
+        drop(held);
+        std::fs::remove_dir_all(&dir).ok();
+
+        // Names only like them are still someone else's.
+        for name in [
+            ".notes.md.sv-1",
+            ".report.json.sv-",
+            ".report.json.sv-12a",
+            "report.json.sv-1",
+        ] {
+            assert!(!is_staging(name, REPORT_FOLDER_NAMES), "{name}");
+        }
+        let theirs = std::env::temp_dir().join(format!("sv-staging-theirs-{}", std::process::id()));
+        std::fs::remove_dir_all(&theirs).ok();
+        std::fs::create_dir_all(&theirs).unwrap();
+        std::fs::write(theirs.join(".notes.md.sv-1"), "theirs").unwrap();
+        let refused = claim_report_folder(&theirs, "sv report", "give --out", false)
+            .err()
+            .expect("not sv's folder")
+            .to_string();
+        assert!(refused.contains("files sv did not write"), "{refused}");
+        assert!(
+            !theirs.join(".securevibe-report.lock").exists(),
+            "refused before a lock was put in someone else's folder"
+        );
+        std::fs::remove_dir_all(&theirs).ok();
     }
 }
