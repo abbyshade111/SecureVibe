@@ -408,6 +408,16 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** yes, `sv` may read a test admin's authenticator secret from `SV_ADMIN_TOTP_SECRET`, held like `SV_USER_TOTP` and never shown in a report; and fix the message either way.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-5-admin-totp`.
+     **Done the same day** (DESIGN, "An admin who signs in with a code"): when there is an admin, a `totp` entry
+     and a `seed`, `seed` is given `SV_ADMIN_TOTP_SECRET`, made fresh for each run like `SV_TOTP_SECRET`; when the
+     admin's password alone does not open the private page, both admin checks give the code worked out from it
+     (once more after the next 30-second step if the app refuses a code already used). When the admin is still not
+     shown signed in, the reason says where its sign-in stopped (the authenticator step, a refused code, or a step
+     the manifest does not name) and no longer blames the page. A failed `seed`'s output no longer carries the
+     run's passwords or secrets into the report. Tested against the fake app with the admin enrolled, with, without,
+     and with the wrong secret, and a leak test over everything the run hands the report; each guard broken in turn
+     was caught (no code, the old reason, no second try, the secret in a step, no redaction, the secret not given
+     to `seed`, no secret made).
   6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
      V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
      owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the

@@ -371,23 +371,29 @@ pub fn new_accounts(with_admin: bool, with_totp: bool) -> sv_check::signed_in::A
             password: format!("Sv-{}-aZ9!", random_hex(12)),
         }
     };
+    // Twenty random bytes: the secret length RFC 4226 recommends, and what authenticator apps make.
+    // Taken from the same random hex, two characters to a byte.
+    let secret = || -> Vec<u8> {
+        random_hex(20)
+            .as_bytes()
+            .chunks(2)
+            .map(|pair| {
+                u8::from_str_radix(std::str::from_utf8(pair).unwrap_or("00"), 16).unwrap_or(0)
+            })
+            .collect()
+    };
     sv_check::signed_in::Accounts {
         a: account("a"),
         b: account("b"),
         admin: with_admin.then(|| account("admin")),
         spare: random_hex(16),
-        // Twenty random bytes: the secret length RFC 4226 recommends, and what authenticator apps
-        // make. Taken from the same random hex, two characters to a byte.
         totp: with_totp.then(|| sv_check::signed_in::TotpAccount {
             account: account("totp"),
-            secret: random_hex(20)
-                .as_bytes()
-                .chunks(2)
-                .map(|pair| {
-                    u8::from_str_radix(std::str::from_utf8(pair).unwrap_or("00"), 16).unwrap_or(0)
-                })
-                .collect(),
+            secret: secret(),
         }),
+        // The admin's own, for an app that asks admins for a code: given to `seed` as
+        // SV_ADMIN_TOTP_SECRET, like the two-factor account's, and never written anywhere else.
+        admin_totp_secret: (with_admin && with_totp).then(secret),
     }
 }
 
@@ -944,6 +950,24 @@ mod tests {
         assert!(
             totp.secret.iter().any(|b| *b != 0),
             "a secret of zeros is what a failed parse would leave"
+        );
+        let admin_secret = one
+            .admin_totp_secret
+            .as_ref()
+            .expect("the admin gets a two-factor secret when there is a two-factor step");
+        assert_eq!(admin_secret.len(), 20);
+        assert_ne!(
+            admin_secret, &totp.secret,
+            "the admin's secret is not the two-factor account's"
+        );
+        assert!(admin_secret.iter().any(|b| *b != 0));
+        assert!(
+            new_accounts(true, false).admin_totp_secret.is_none(),
+            "no admin secret without a two-factor step"
+        );
+        assert!(
+            new_accounts(false, true).admin_totp_secret.is_none(),
+            "no admin secret without an admin"
         );
         let admin = one.admin.as_ref().expect("an admin when asked for");
         let passwords = [

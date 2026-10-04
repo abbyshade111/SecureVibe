@@ -1163,21 +1163,7 @@ impl DockerBackend {
         accounts: &sv_check::signed_in::Accounts,
     ) -> Result<(), String> {
         let mut args: Vec<String> = vec!["exec".into()];
-        let mut env = vec![
-            ("SV_USER_A", accounts.a.user.clone()),
-            ("SV_PASSWORD_A", accounts.a.password.clone()),
-            ("SV_USER_B", accounts.b.user.clone()),
-            ("SV_PASSWORD_B", accounts.b.password.clone()),
-        ];
-        if let Some(admin) = &accounts.admin {
-            env.push(("SV_ADMIN", admin.user.clone()));
-            env.push(("SV_ADMIN_PASSWORD", admin.password.clone()));
-        }
-        if let Some(totp) = &accounts.totp {
-            env.push(("SV_USER_TOTP", totp.account.user.clone()));
-            env.push(("SV_PASSWORD_TOTP", totp.account.password.clone()));
-            env.push(("SV_TOTP_SECRET", sv_check::totp::base32(&totp.secret)));
-        }
+        let env = seed_env(accounts);
         for (k, v) in env {
             args.push("-e".into());
             args.push(format!("{k}={v}"));
@@ -1191,11 +1177,7 @@ impl DockerBackend {
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
         match self.docker(&args) {
             Ok((0, _)) => Ok(()),
-            Ok((code, out)) => Err(format!(
-                "The seed command in securevibe.toml failed (exit {code}): {}. With no accounts \
-                 there is nobody to sign in as.",
-                first_line(&out)
-            )),
+            Ok((code, out)) => Err(seed_failed(code, &out, accounts)),
             Err(e) => Err(format!("The seed command could not be started: {e}.")),
         }
     }
@@ -1625,6 +1607,60 @@ impl Drop for Teardown<'_> {
     }
 }
 
+/// What `seed` is given: the run's accounts, their passwords, and the two-factor secrets in base32.
+fn seed_env(accounts: &sv_check::signed_in::Accounts) -> Vec<(&'static str, String)> {
+    let mut env = vec![
+        ("SV_USER_A", accounts.a.user.clone()),
+        ("SV_PASSWORD_A", accounts.a.password.clone()),
+        ("SV_USER_B", accounts.b.user.clone()),
+        ("SV_PASSWORD_B", accounts.b.password.clone()),
+    ];
+    if let Some(admin) = &accounts.admin {
+        env.push(("SV_ADMIN", admin.user.clone()));
+        env.push(("SV_ADMIN_PASSWORD", admin.password.clone()));
+    }
+    if let Some(totp) = &accounts.totp {
+        env.push(("SV_USER_TOTP", totp.account.user.clone()));
+        env.push(("SV_PASSWORD_TOTP", totp.account.password.clone()));
+        env.push(("SV_TOTP_SECRET", sv_check::totp::base32(&totp.secret)));
+    }
+    if let Some(secret) = &accounts.admin_totp_secret {
+        env.push(("SV_ADMIN_TOTP_SECRET", sv_check::totp::base32(secret)));
+    }
+    env
+}
+
+/// What the report says when `seed` failed: its exit code and the first line it wrote, with every
+/// password and two-factor secret the run gave it taken out. A seed that echoes its environment, or
+/// a stack trace that prints the value it choked on, would otherwise carry them into the report.
+fn seed_failed(code: i32, out: &str, accounts: &sv_check::signed_in::Accounts) -> String {
+    let mut line = first_line(out);
+    let mut secrets: Vec<String> = [&accounts.a, &accounts.b]
+        .into_iter()
+        .chain(accounts.admin.as_ref())
+        .chain(accounts.totp.as_ref().map(|t| &t.account))
+        .map(|account| account.password.clone())
+        .collect();
+    for secret in accounts
+        .totp
+        .as_ref()
+        .map(|t| &t.secret)
+        .into_iter()
+        .chain(accounts.admin_totp_secret.as_ref())
+    {
+        let encoded = sv_check::totp::base32(secret);
+        secrets.push(encoded.to_lowercase());
+        secrets.push(encoded);
+    }
+    for secret in secrets.iter().filter(|s| !s.is_empty()) {
+        line = line.replace(secret.as_str(), "[a test secret, left out]");
+    }
+    format!(
+        "The seed command in securevibe.toml failed (exit {code}): {line}. With no accounts there \
+         is nobody to sign in as."
+    )
+}
+
 fn first_line(text: &str) -> String {
     text.lines()
         .map(str::trim)
@@ -1685,6 +1721,56 @@ mod tests {
         let text = Fence::DockerInternalNetwork.explain();
         assert!(text.contains("could not reach the internet"));
         assert!(Fence::None.explain().contains("No network fence"));
+    }
+
+    #[test]
+    fn seed_is_given_the_admins_secret_only_when_there_is_a_two_factor_step() {
+        let accounts = crate::new_accounts(true, true);
+        let env = seed_env(&accounts);
+        let given = |name: &str| env.iter().find(|(k, _)| *k == name).map(|(_, v)| v.clone());
+        // Compared, never printed: the assertion messages name the variable only.
+        assert!(
+            given("SV_ADMIN_TOTP_SECRET")
+                == Some(sv_check::totp::base32(
+                    accounts.admin_totp_secret.as_ref().unwrap()
+                )),
+            "SV_ADMIN_TOTP_SECRET is the admin's secret, in base32"
+        );
+        assert!(
+            given("SV_ADMIN_TOTP_SECRET") != given("SV_TOTP_SECRET"),
+            "the admin's secret is its own"
+        );
+        let without = seed_env(&crate::new_accounts(true, false));
+        assert!(without.iter().all(|(k, _)| *k != "SV_ADMIN_TOTP_SECRET"));
+    }
+
+    #[test]
+    fn a_failed_seed_never_carries_a_secret_into_the_report() {
+        let accounts = crate::new_accounts(true, true);
+        let admin_secret = sv_check::totp::base32(accounts.admin_totp_secret.as_ref().unwrap());
+        let user_secret = sv_check::totp::base32(&accounts.totp.as_ref().unwrap().secret);
+        let admin_password = accounts.admin.as_ref().unwrap().password.clone();
+        // A seed that prints its environment as it fails, in both cases a secret may be printed in.
+        let echoed = format!(
+            "SV_ADMIN_TOTP_SECRET={admin_secret} SV_TOTP_SECRET={} SV_ADMIN_PASSWORD={admin_password}",
+            user_secret.to_lowercase()
+        );
+        // The setup: the line really carries them, so their absence below is the redaction's doing.
+        assert!(first_line(&echoed).contains(&admin_secret));
+        let said = seed_failed(1, &echoed, &accounts);
+        for secret in [
+            &admin_secret,
+            &user_secret,
+            &user_secret.to_lowercase(),
+            &admin_password,
+        ] {
+            assert!(
+                !said.contains(secret.as_str()),
+                "a secret reached the report"
+            );
+        }
+        assert!(said.contains("SV_ADMIN_TOTP_SECRET=[a test secret, left out]"));
+        assert!(said.contains("failed (exit 1)"));
     }
 
     #[test]

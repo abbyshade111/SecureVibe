@@ -85,7 +85,8 @@ health = "/"              # a path that returns 200 once the app is up
 # The app's folder is read-only while `sv` runs it, so keep its data somewhere like /tmp.
 # seed = "python seed.py"   # creates them; gets SV_USER_A, SV_PASSWORD_A, SV_USER_B, SV_PASSWORD_B,
 #                           # and SV_ADMIN, SV_ADMIN_PASSWORD when `admin` is listed, and
-#                           # SV_USER_TOTP, SV_PASSWORD_TOTP, SV_TOTP_SECRET when `totp` is set
+#                           # SV_USER_TOTP, SV_PASSWORD_TOTP, SV_TOTP_SECRET when `totp` is set,
+#                           # and SV_ADMIN_TOTP_SECRET too when both are
 # signup = { path = "/signup", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
@@ -132,7 +133,10 @@ health = "/"              # a path that returns 200 once the app is up
 #   The code step of a two-factor sign-in, sent after the password in the same session. Needs
 #   `seed`: make one more account from SV_USER_TOTP and SV_PASSWORD_TOTP, and enroll it in
 #   two-factor sign-in with SV_TOTP_SECRET (base32, as an authenticator app takes it). The probes
-#   work out its codes themselves and try one twice, and one from a few minutes ago.
+#   work out its codes themselves and try one twice, and one from a few minutes ago. If admins
+#   sign in with a code too, enroll the SV_ADMIN account with SV_ADMIN_TOTP_SECRET (also base32):
+#   the admin checks then finish the admin's sign-in with its code. Both secrets are made fresh for
+#   each run and never appear in a report.
 # browser = { text-form = "/notes/new", shows = "/notes" }
 #   Checks made in a real browser (a headless Chromium on the same fenced network), signed in as the
 #   first user: that the sign-out control on each private page can really be seen; that clicking it,
