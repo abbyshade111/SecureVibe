@@ -114,7 +114,9 @@ pub fn render(report: &Report) -> String {
         "runs": [{
             "tool": { "driver": {
                 "name": "sv",
+                "version": report.sv.version,
                 "informationUri": "https://github.com/abbyshade111/SecureVibe",
+                "properties": { "commit": report.sv.commit },
                 "rules": rules,
             }},
             "invocations": [{
@@ -137,6 +139,7 @@ mod tests {
             app_name: "test".into(),
             target_level: 1,
             generated: None,
+            sv: Default::default(),
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,

@@ -28,7 +28,10 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY data ./data
 COPY examples ./examples
-RUN cargo build --release --locked -p sv-cli
+# The build context has no `.git`, so the commit is given here for `sv --version` and the reports to name
+# (crates/sv-cli/build.rs). The workflows pass `github.sha`; built by hand without it, `sv` says `unknown`.
+ARG SV_GIT_COMMIT=
+RUN SV_GIT_COMMIT="$SV_GIT_COMMIT" cargo build --release --locked -p sv-cli
 
 FROM debian:trixie-slim@sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
 # git answers whether a secrets file was ever committed. It refuses a repository owned by another

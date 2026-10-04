@@ -3614,6 +3614,10 @@ fn assemble_report_saying(
         },
         target_level: manifest.target_level(),
         generated: None,
+        made_by: sv_report::MadeBy {
+            version: env!("CARGO_PKG_VERSION").to_owned(),
+            commit: env!("SV_GIT_COMMIT").to_owned(),
+        },
         run_note,
         run_steps,
         test_output,

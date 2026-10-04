@@ -66,7 +66,8 @@ pub fn page(report: &Report) -> String {
 
     b.push_str(&format!("<h1>{}</h1>\n", escape(&report.app_name)));
     b.push_str(&format!(
-        "<p class=\"note\">Produced by <code>sv</code>{}. ASVS level {}.</p>\n",
+        "<p class=\"note\">Produced by <code>sv</code> {}{}. ASVS level {}.</p>\n",
+        escape(&report.sv.describe()),
         report
             .generated
             .as_ref()

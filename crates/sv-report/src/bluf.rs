@@ -259,6 +259,7 @@ mod tests {
             app_name: "Test".into(),
             target_level: 1,
             generated: None,
+            sv: Default::default(),
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,
