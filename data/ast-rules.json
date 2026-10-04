@@ -275,6 +275,64 @@
       "looksFor": "backticks that run a command built from text"
     },
     {
+      "id": "ast.shell-command-shell-true",
+      "title": "A command built from text is run through a shell it was asked for",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.2.5"
+      ],
+      "cwe": [
+        "CWE-78"
+      ],
+      "description": "The program is told to hand this command to a shell (`shell=True` in Python, `shell: true` in Node.js, `runInShell: true` in Dart), and the command or its arguments are assembled from pieces rather than written out.",
+      "impact": "Whatever ends up in the command is run by a shell, so a semicolon or a quote in someone's input starts a second command with the app's own permissions.",
+      "fix": "Leave the shell option out and pass the program and its arguments separately, as in Python's subprocess.run([\"notes-export\", title, \"out.pdf\"]) or Node's execFile(\"notes-export\", [title, \"out.pdf\"]). Each argument then reaches the program as it is, and nothing in it is read as shell syntax.",
+      "literalArgumentIsSafe": true,
+      "functionPatterns": {
+        "python": "^(run|call|check_call|check_output|Popen)$",
+        "javascript": "^(spawn|spawnSync|execFile|execFileSync)$",
+        "typescript": "^(spawn|spawnSync|execFile|execFileSync)$",
+        "dart": "^(run|runSync|start)$"
+      },
+      "modulePatterns": {
+        "dart": "^Process$"
+      },
+      "keywordPatterns": {
+        "python": "^shell$",
+        "javascript": "^shell$",
+        "typescript": "^shell$",
+        "dart": "^runInShell$"
+      },
+      "queries": {
+        "python": "(call function: [(attribute attribute: (identifier) @fn) (identifier) @fn]\n      arguments: (argument_list . (_) @arg (keyword_argument name: (identifier) @kw value: (true)))) @hit",
+        "javascript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)]\n                  arguments: (arguments . (_) . (array) @arg . (object (pair key: (property_identifier) @kw value: (true)))))\n (call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)]\n                  arguments: (arguments . (_) @arg . (object (pair key: (property_identifier) @kw value: (true)))))] @hit",
+        "typescript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)]\n                  arguments: (arguments . (_) . (array) @arg . (object (pair key: (property_identifier) @kw value: (true)))))\n (call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)]\n                  arguments: (arguments . (_) @arg . (object (pair key: (property_identifier) @kw value: (true)))))] @hit",
+        "dart": "(call_expression function: (member_expression object: (identifier) @mod property: (identifier) @fn)\n                 arguments: (arguments . (_) . (list_literal) @arg (named_argument (label (identifier) @kw) (true)))) @hit"
+      },
+      "nothingToFind": {
+        "c": "C's system() and popen() always use a shell and are the shell-command rule's; there is no shell option to switch on.",
+        "cpp": "C++'s system() and popen() always use a shell and are the shell-command rule's; there is no shell option to switch on.",
+        "csharp": "Process.Start's UseShellExecute opens a file with the program associated with it rather than handing a command line to a shell; a shell named as the program is the shell-command rule's.",
+        "go": "Go's exec.Command runs the program directly and has no shell option; `sh -c` is the shell-command rule's.",
+        "java": "Runtime.exec and ProcessBuilder run the program directly and have no shell option; a shell named as the program is the shell-command rule's.",
+        "kotlin": "Kotlin runs programs through Java's Runtime.exec and ProcessBuilder, which have no shell option; a shell named as the program is the shell-command rule's.",
+        "php": "PHP's shell_exec, exec, system, and passthru always use a shell and are the shell-command rule's; there is no shell option to switch on.",
+        "ruby": "Ruby's system, exec, and spawn use a shell when given one string, and are the shell-command rule's; there is no shell option to switch on.",
+        "rust": "Rust's Command runs the program directly and has no shell option; `sh -c` is the shell-command rule's.",
+        "shell": "A shell script is already a shell; a command built from a variable and run by `sh -c` is the shell-command rule's.",
+        "swift": "Swift's Process runs the program directly and has no shell option; a shell named as the program is the shell-command rule's."
+      },
+      "looksFor": "a command built from text and run through a shell the call asks for (shell=True, shell: true, runInShell: true)",
+      "looksForIn": {
+        "python": "subprocess's run, call, check_call, check_output, and Popen with shell=True and a command that is not a fixed string",
+        "javascript": "child_process's spawn and execFile (and their Sync forms) with shell: true, and either a list of arguments or a command that is not a fixed string",
+        "typescript": "child_process's spawn and execFile (and their Sync forms) with shell: true, and either a list of arguments or a command that is not a fixed string",
+        "dart": "Process.run, runSync, and start with runInShell: true and a list of arguments that is not all fixed strings; a program that is not a fixed string is the shell-command rule's"
+      },
+      "findingsOnly": true
+    },
+    {
       "id": "ast.file-path-from-value",
       "title": "A file is opened at a path built from a value",
       "severity": "medium",

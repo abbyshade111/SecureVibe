@@ -40,6 +40,12 @@ another session is not a claim.
      a fixed string, quiet.
   **Items 1 and 2 claimed on 4 October 2026 by session securevibe-e10**, at the owner's word ("keep going"), in
   branch `claude/blind-spots`.
+  **Both done the same day** (DESIGN, "Two blind spots: a manifest with no lockfile, and a shell the call asked
+  for"). 1: the check reads the names a manifest declares where the bill of materials could read nothing, and says
+  not assessed, never "none is an editor", when it cannot read those either. 2: a new findings-only rule,
+  `ast.shell-command-shell-true`, for Python's `subprocess` with `shell=True`, Node's `spawn` and `execFile` with
+  `shell: true`, and Dart's `Process` with `runInShell: true`. Seven guards broken in turn, each caught; the recipe
+  app and the Python file that showed the gaps are now caught, and their safe forms are not.
 
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
