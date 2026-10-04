@@ -130,6 +130,8 @@ another session is not a claim.
     report of the day) were in `vendor/`, Flask's own code, which `sv`'s reading and Semgrep's file list both leave
     out (`SKIP_DIRS`, `crates/sv-scan/src/ecosystems.rs` line 573; `data/adapters.json` line 26). Bandit's rules
     are Bandit's; handing it the folder is `sv`'s choice. S7's fix, `sv`'s own file list, takes these out too.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with H7, at the owner's asking to work through the
+    review's open items, in branch `claude/s7-h7-bandit`.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
@@ -240,6 +242,7 @@ another session is not a claim.
     it; skip build folders only where an ecosystem puts them.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
   - **H8. High, Reproduced.** PyPI names are not normalized (PEP 503) in the advisory comparison: `jupyter_server`
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
