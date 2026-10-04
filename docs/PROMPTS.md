@@ -106,3 +106,7 @@ check the result with `sv` as you would anything else.
 *Not tested:* The build without the prompt allowed only a few safe tags itself. `sv`'s check reads which libraries an app uses, so it could not judge that build either way.
 
 The same prompts, with the checks behind them, are in `data/prompts.json`.
+
+Prompts for what to decide **before** any code is written (who may do what, limits, logging, sign-in), drawn from the
+OWASP Secure by Design checklist and tested the same way, are on a page of their own:
+[Prompts to give your AI coding tool before it writes any code](prompts/design-time.md).

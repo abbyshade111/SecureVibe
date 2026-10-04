@@ -630,6 +630,24 @@ another session is not a claim.
   **Prompts 1 to 4, 6, and 7 claimed on 4 October 2026 by session securevibe-e2**, at the owner's word, in branch
   `claude/securevibe-e2-design-prompts`, as a page of their own (`docs/prompts/design-time.md`) for the library's page
   to link to, so the two sessions do not edit one file. Prompts 8 to 15 are not claimed.
+  **Prompts 1 to 4, 6, and 7 done the same day** (`docs/prompts/design-time.md`, `data/design-prompts.json`; DESIGN,
+  "Design-time prompts, tried"). Three were shown to work: 3, limits on abuse (V2.4.1, V6.3.1); 6, what gets logged
+  (V16.2.1, V16.2.2); and 7, sign-in decisions (V7.3.1). For 7, and for 3's password limit, what the prompt changed is
+  that the number was decided and written down: the builds without it had a timeout or lockout of their own choosing,
+  recorded nowhere. Three were not: 1 and 4, because both builds without them already passed; and 2, because `sv`'s
+  check accused the build made with it of booking twenty times when it booked once (its own item below). Prompt 6
+  was reworded once, after both builds with its first wording left the query string and status out of their log lines.
+
+- **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
+  session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
+  instant, all as the first test user, and counts the answers carrying the `completed` text. The build made with the
+  "actions that must happen once" prompt took the seat in one conditional UPDATE, and answered a repeat from the member
+  who already held it with "Booked" again, changing nothing: what that prompt asks for ("safe to repeat"). The check
+  counted 20 bookings and raised the finding against a correct app (the trial in `docs/prompts/design-time.md`). An app's own
+  answer cannot tell "taken now" from "already yours". Ways out, for the owner to choose: send the copies as two or more
+  users, so only one of them can be told it went through; or read the effect, from a page `once` names that shows how
+  many were taken, rather than the answers. Until then the finding can accuse exactly the app it should credit, which
+  is the kind of false alarm that makes the tool rewrite correct code. Not claimed.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
