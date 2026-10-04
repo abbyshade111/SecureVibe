@@ -220,6 +220,9 @@ RUST_CHECKS = {
     "probe.websocket-origin-unchecked": ("running", ["V4.4.2"]),
     "probe.validation-only-in-the-browser": ("signed-in", ["V2.2.2"]),
     "probe.session-token-unverified": ("signed-in", ["V7.2.1"]),
+    "probe.app-token-signature-not-checked": ("signed-in", ["V9.1.1"]),
+    "probe.app-token-alg-none": ("signed-in", ["V9.1.2"]),
+    "probe.app-token-expired-accepted": ("signed-in", ["V9.2.1"]),
     "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1", "V8.2.3"]),
     "probe.clear-site-data": ("signed-in", ["V14.3.1"]),
 }
