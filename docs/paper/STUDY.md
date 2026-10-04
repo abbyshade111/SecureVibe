@@ -214,7 +214,7 @@ the arms A, B, and C of the 20 September comparison in `METHODOLOGY.md`.)
 | Requirements that apply | 217 | 217 | 223 |
 | … not verified | 188 | 188 | 169 |
 | … ruled out by the manifest | 1 | 1 | 216 |
-| … stated or checked by hand by the owner | 0 | 0 | 26 (11 + 15) |
+| … attested or checked by hand by the owner | 0 | 0 | 26 (11 + 15) |
 | Could not be placed | 236 | 236 | 15 |
 | Threats: found / not verified / cannot place | 3 / 11 / 28 | 3 / 11 / 28 | 3 / 13 / 2 |
 | Finding in the study's manifest | 1 | 0 | — |
@@ -246,11 +246,11 @@ fixes. Every fix is on `main` at the cut-off; each was merged before `eff3f17`, 
 | # | Issue | Fixed by | Merged (Eastern) | In the study's `sv`? |
 |---|---|---|---|---|
 | 1 | Advisories with `last_affected` read as never ending (a false alarm on paramiko) | PR #423, `d463721` | 29 Sep 11:56 | yes, 982f97e has it |
-| 2 | A shell variable reference (`"$OTHER_VAR"`) reported as a hard-coded credential | PR #433, `5fcde8b` | 29 Sep 17:17 | no |
+| 2 | A shell variable reference (`"$OTHER_VAR"`) reported as a hard-coded credential | PR #433, `5fcde8b` | 29 Sep 17:17 | no (45b6d71 has it) |
 | 3 | `sv`'s blank template trips its own credential check (`{new_password}`) | PR #443, `5a6c5ad` | 29 Sep 18:51 | no (45b6d71 has it) |
-| 4 | A folder given with a trailing `/.` leaves Bandit's paths absolute and changes their fingerprints | PR #443, `5a6c5ad` | 29 Sep 18:51 | no |
-| 5 | A missing tool reported as "installed and would not start" under amd64 emulation | PR #443, `5a6c5ad` | 29 Sep 18:51 | no |
-| 6 | Scanning a subfolder of a git repository reports "not a git repository" (affected SecureFit) | PR #443, `5a6c5ad` | 29 Sep 18:51 | no |
+| 4 | A folder given with a trailing `/.` leaves Bandit's paths absolute and changes their fingerprints | PR #443, `5a6c5ad` | 29 Sep 18:51 | no (45b6d71 has it) |
+| 5 | A missing tool reported as "installed and would not start" under amd64 emulation | PR #443, `5a6c5ad` | 29 Sep 18:51 | no (45b6d71 has it) |
+| 6 | Scanning a subfolder of a git repository reports "not a git repository" (affected SecureFit) | PR #443, `5a6c5ad` | 29 Sep 18:51 | no (45b6d71 has it) |
 | 7 | The download-piped-to-shell rule flagged a download read as data; files over 2 MB blocked the credential scan | PR #414, `3fc9324`; PR #407, `3231e6b` | 28 Sep 22:56; 28 Sep 19:31 | yes |
 | 8 | A fully hash-pinned `requirements.txt`, and a `pylock.toml`, not read as lockfiles (affected family-hub) | PR #537, `7090598` | 3 Oct 20:55 | no |
 | 9 | Python pre-release versions (`2.0.0rc1`) could not be compared (affected family-hub's werkzeug) | PR #535, `5da838e` | 3 Oct 20:43 | no |
@@ -260,7 +260,15 @@ Items 1 and 7 were fixed before the study began, so they did not affect its resu
 September, the day they were raised; items 8 to 10 the evening of 3 October, the day they were raised. The study's
 results were produced with `sv` 982f97e (and 45b6d71 for variants B and C), so items 3 to 6 and 8 to 10 are visible
 in them (item 4 only in runs 2 and 3, item 5 as Semgrep and CodeQL "installed and would not start"). A re-run on
-`main` would differ for family-hub's dependency figures at least.
+`main` would differ for family-hub's dependency figures at least. (The last column names 982f97e; until 4 October
+it noted 45b6d71 only for item 3, though 45b6d71 has the fixes for items 2 to 6.)
+
+**Since the cut-off.** `sv` changed in two ways that a re-run would show. The owner's word now counts only when the
+owner recorded it through `sv review` (ADR-026): variant C's 18 findings set aside and 26 answers at the owner's tiers
+were written into `securevibe.toml` without a seal, so on current `main` the findings would count again and the
+answers would be the AI coding tool's word until recorded. And the advisory matching changed (deep review H8, H10,
+H11). The study's results reproduce on 982f97e and 45b6d71, not on current `main`; `SINCE-THE-CUTOFF.md` has the
+rest.
 
 ## Where this document differs from the Word report
 

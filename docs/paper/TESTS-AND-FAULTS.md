@@ -34,6 +34,10 @@ fault is counted as found, with whether it was fixed. So the 255 are **196 fixed
 - 4 false alarms found in the prompt-library test builds on 3 and 4 October were also open.
 - Everything else found since 28 September, 46 faults, was fixed by the cut-off.
 
+By 16:30 the same day, 13 more of the review's counted findings were fixed (S2 to S6, S12, R1, R2, H8, H10 to H13), and
+H4 in part, so 14 of the 56 rather than 1. Six of those (R1, H8, H10 to H13) are among the 24 that fail open, described
+below. The table and `faults.csv` keep the cut-off; `SINCE-THE-CUTOFF.md` has the afternoon.
+
 230 of the 255 were in the product; the other 25 were tests that were weak or broken, which matters because a test
 that cannot fail guards nothing.
 
@@ -112,7 +116,9 @@ are as first published.
 
 ## Does a pattern hold?
 
-These are descriptions of thirteen days of work, not a test of anything, and several sessions were working at once.
+These are descriptions of fifteen days of work, not a test of anything, and several sessions were working at once.
+(Eighteen calendar days, 17 September to 4 October, with no work on 21 September or from 30 September to 2 October;
+this said "thirteen" until 4 October, which counted only 17 to 29 September.)
 
 - **The rate did not fall as the suite grew; it rose.** From 24 to 27 September `sv` found between 0.5 and 1.2 faults
   per 1,000 lines changed while the suite grew from 320 tests to 1,306. From 28 September to 3 October it found 1.3
@@ -154,7 +160,8 @@ here:
   of calls (H1), Svelte and Vue templates never read (H2), a redirect to plain HTTP credited as one to HTTPS (H12),
   HSTS credited at `max-age=0` (H13), an AI tool marking its own findings as reviewed by a person (R1).
 - **12 are about the safety of `sv` itself:** a backslash in a file name that let `sv bundle` read outside the app
-  (S1, critical, fixed 12 minutes after it reached the backlog on `main`), a fence the app could cross to the host's gateway
+  (S1, critical, fixed 12 minutes after it reached the backlog on `main`, both times taken from the merges; by commit
+  time, the five minutes from 09:54 to 09:59 that `faults.csv` records), a fence the app could cross to the host's gateway
   (S2), files written through links (S3, S4), a planted report taken as a real run (S6).
 - **The rest** are wrong results, among them the false alarms of A1, the same pattern the prompt-library builds had
   found the day before (SV-114 and SV-116), and bugs such as `sv report` exiting 0 whatever happened (R6).
@@ -201,5 +208,5 @@ test used v5's format (H24), and the only fence test tried the internet, not the
   code (as on 25 September), are.
 - **v1's counts from 23 September on** are a static count of test calls in the code, which runs 60 to 160 below the
   numbers stated in its commits; they are in `tests_by_day.csv`, not in the table above.
-- **Thirteen days is a small sample,** and the busiest days had the most sessions, the most code, and the most use at
+- **Fifteen days is a small sample,** and the busiest days had the most sessions, the most code, and the most use at
   once, so none of these can be separated from the others.
