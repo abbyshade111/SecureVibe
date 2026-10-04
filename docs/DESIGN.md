@@ -7085,11 +7085,16 @@ is said on the terminal and as a gap in the report.
 
 **Found while testing:** a second run started as the first was writing its marker found the folder unmarked, with
 the marker's part-written file in it, and called the folder someone else's. `sv`'s own part-written files
-(`.report.json.sv-4321`) now count as `sv`'s, and the run holding the folder clears ones a stopped run left.
+(`.report.json.sv-4321`) now count as `sv`'s, and the run holding the folder clears ones a stopped run left. And
+taking the folder before the run made it, and marked it, before there was a report to put in it, so Ctrl-C during
+`sv report --run` left an empty folder where it used to leave nothing (`interrupt.rs` caught it). A run that ends
+without a report now takes away the marker it wrote and the folder it made, if nothing else is in it; Ctrl-C, which
+leaves through `std::process::exit`, lets go first.
 
 Tested with real processes of the real binary (`crates/sv-cli/tests/report_lock.rs`): a run kept going by `--run`
 and a test command that sleeps, a second run at the same time, a `kill -9`, and an older report put beside a newer
 one. These need a container backend; without one, the two-run tests say so. Each guard broken in turn was caught:
 no lock (three tests), a leftover lock taken as a live one (two), no age check (one), no changed-file check (one),
-the lock never removed (five), part-written files taken as someone else's (one). Shared tool reports and container
+the lock never removed (five), part-written files taken as someone else's (one), a failed run's folder left
+(two), and Ctrl-C not letting go (one). Shared tool reports and container
 names, which two runs at once also collide on, are S6 and S10, not changed here.

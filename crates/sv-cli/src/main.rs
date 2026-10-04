@@ -1251,6 +1251,7 @@ fn probe_the_running_app(
         eprintln!(
             "Stopped with Ctrl-C. The app's containers and network were removed; nothing was written."
         );
+        report_lock::let_go_of_all();
         std::process::exit(130);
     }
     Ok((outcome.map_err(|e| e.explain())?, plan))
@@ -2405,18 +2406,39 @@ const REPORT_FOLDER_NAMES: &[&str] = &[
 /// `write_report_files` makes on the folder, made early so a refusal comes before the wait rather
 /// than after it, and the lock (`report_lock`). The marker is written once the folder is held, so the
 /// run's own reading of the app leaves the folder out.
+///
+/// A run that ends without writing its report leaves the folder as it found it: the marker goes if
+/// this wrote it, and the folder if this made it (`made_by_caller`, for a caller that made it just
+/// before) and nothing else is in it. Ctrl-C during `sv report --run` wrote no report and left the
+/// folder behind, which `interrupt.rs` caught.
 fn claim_report_folder(
     out_dir: &Path,
     command: &str,
     elsewhere: &str,
+    made_by_caller: bool,
 ) -> Result<report_lock::Held> {
     refuse_link(out_dir, REPORT_LINK)?;
+    let made = made_by_caller || std::fs::symlink_metadata(out_dir).is_err();
     std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
     for name in REPORT_FOLDER_NAMES {
         refuse_link(&out_dir.join(name), REPORT_LINK)?;
     }
-    refuse_someone_elses_folder(out_dir, REPORT_FOLDER_NAMES)?;
-    let held = report_lock::take(out_dir, command, elsewhere)?;
+    let refused = refuse_someone_elses_folder(out_dir, REPORT_FOLDER_NAMES);
+    let taken = refused.and_then(|()| report_lock::take(out_dir, command, elsewhere));
+    let held = match taken {
+        Ok(held) => held,
+        Err(e) => {
+            if made {
+                let _ = std::fs::remove_dir(out_dir);
+            }
+            return Err(e);
+        }
+    };
+    let marker = out_dir.join(sv_scan::ecosystems::REPORT_MARKER);
+    held.undo_unless_written(
+        (!marker.is_file()).then(|| marker.clone()),
+        made.then(|| out_dir.to_path_buf()),
+    );
     // Part-written files a stopped run left. Held, so no other run of this `sv` is writing them now.
     if let Ok(entries) = std::fs::read_dir(out_dir) {
         for entry in entries.filter_map(|e| e.ok()) {
@@ -4037,6 +4059,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         &out_dir,
         &command,
         "give this run a folder of its own with --out",
+        false,
     )?;
     for note in &held.notes {
         eprintln!("{note}\n");
@@ -4069,6 +4092,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         "give this run a folder of its own with --out",
     )?;
     let written = write_report_files(&report, &out_dir)?;
+    held.written();
     drop(held);
 
     let c = &report.counts;
@@ -4696,7 +4720,8 @@ mod report_folder_tests {
         for name in ["..securevibe-report.sv-98295", ".report.json.sv-7"] {
             std::fs::write(dir.join(name), "part").unwrap();
         }
-        let held = claim_report_folder(&dir, "sv report", "give --out").expect("sv's own folder");
+        let held =
+            claim_report_folder(&dir, "sv report", "give --out", false).expect("sv's own folder");
         assert!(dir.join(".securevibe-report").is_file(), "marked");
         assert!(
             !dir.join("..securevibe-report.sv-98295").exists(),
@@ -4719,7 +4744,7 @@ mod report_folder_tests {
         std::fs::remove_dir_all(&theirs).ok();
         std::fs::create_dir_all(&theirs).unwrap();
         std::fs::write(theirs.join(".notes.md.sv-1"), "theirs").unwrap();
-        let refused = claim_report_folder(&theirs, "sv report", "give --out")
+        let refused = claim_report_folder(&theirs, "sv report", "give --out", false)
             .err()
             .expect("not sv's folder")
             .to_string();

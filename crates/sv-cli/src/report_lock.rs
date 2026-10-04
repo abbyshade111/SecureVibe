@@ -46,7 +46,8 @@ fn millis(at: SystemTime) -> u64 {
         .unwrap_or(0)
 }
 
-/// A report folder this run holds. Dropping it lets the folder go and removes the lock file.
+/// A report folder this run holds. Dropping it lets the folder go and removes the lock file, and,
+/// unless `written` was called, takes away what taking the folder added (`undo_unless_written`).
 pub struct Held {
     /// `None` where the disk would not lock, in which case `notes` says so.
     file: Option<File>,
@@ -57,21 +58,89 @@ pub struct Held {
     pub notes: Vec<String>,
 }
 
+/// What a run that ends without a report takes away: the marker it wrote, and the folder it made,
+/// if nothing else is in it. A run stopped with Ctrl-C, or one that failed, wrote no report, and
+/// the folder is left as it was before (`interrupt.rs` holds this for Ctrl-C).
+#[derive(Default)]
+struct Undo {
+    marker: Option<PathBuf>,
+    folder: Option<PathBuf>,
+}
+
+impl Undo {
+    fn apply(&self) {
+        if let Some(marker) = &self.marker {
+            let _ = std::fs::remove_file(marker);
+        }
+        if let Some(folder) = &self.folder {
+            // Only an empty folder goes; anything else in it is left.
+            let _ = std::fs::remove_dir(folder);
+        }
+    }
+}
+
+/// The folders this process holds, by their lock's path, with what to undo for each. Kept so that
+/// `let_go_of_all` can let them go on the way out of a run stopped with Ctrl-C, which leaves through
+/// `std::process::exit`, where nothing is dropped.
+static LIVE: std::sync::Mutex<Vec<(PathBuf, Undo)>> = std::sync::Mutex::new(Vec::new());
+
+fn live() -> std::sync::MutexGuard<'static, Vec<(PathBuf, Undo)>> {
+    LIVE.lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+impl Held {
+    /// What to take away if the run ends without a report: `marker`, a file taking the folder
+    /// wrote, and `folder`, if taking it made the folder.
+    pub fn undo_unless_written(&self, marker: Option<PathBuf>, folder: Option<PathBuf>) {
+        if let Some(entry) = live().iter_mut().find(|(lock, _)| *lock == self.path) {
+            entry.1 = Undo { marker, folder };
+        }
+    }
+
+    /// The report is written: what taking the folder added stays.
+    pub fn written(&self) {
+        self.undo_unless_written(None, None);
+    }
+}
+
+/// Lets go of every folder this process holds, removing their locks and undoing what taking them
+/// added. For a run leaving through `std::process::exit`.
+pub fn let_go_of_all() {
+    for (lock, undo) in live().drain(..) {
+        let _ = std::fs::remove_file(&lock);
+        undo.apply();
+    }
+}
+
 impl Drop for Held {
     fn drop(&mut self) {
-        let Some(file) = self.file.take() else {
-            return;
+        let undo = {
+            let mut live = live();
+            live.iter()
+                .position(|(lock, _)| *lock == self.path)
+                .map(|at| live.remove(at).1)
+                .unwrap_or_default()
         };
-        // Removed while still locked, and only if the name is still this file, so a run that opened
-        // the old file and is waiting to lock it finds, once it has, that the name is gone, and starts
-        // again with a new one (`take`).
-        if let (Ok(on_disk), Ok(opened)) = (std::fs::symlink_metadata(&self.path), file.metadata())
-            && same_file(&on_disk, &opened)
-        {
-            let _ = std::fs::remove_file(&self.path);
+        if let Some(file) = self.file.take() {
+            // Removed while still locked, and only if the name is still this file, so a run that
+            // opened the old file and is waiting to lock it finds, once it has, that the name is
+            // gone, and starts again with a new one (`take`).
+            if let (Ok(on_disk), Ok(opened)) =
+                (std::fs::symlink_metadata(&self.path), file.metadata())
+                && same_file(&on_disk, &opened)
+            {
+                let _ = std::fs::remove_file(&self.path);
+            }
+            drop(file);
         }
-        drop(file);
+        undo.apply();
     }
+}
+
+fn held(file: Option<File>, path: PathBuf, notes: Vec<String>) -> Held {
+    live().push((path.clone(), Undo::default()));
+    Held { file, path, notes }
 }
 
 /// Takes `out_dir` for this run, or says which run holds it.
@@ -119,11 +188,7 @@ pub fn take(out_dir: &Path, command: &str, elsewhere: &str) -> Result<Held> {
                         out_dir.display()
                     ));
                 }
-                return Ok(Held {
-                    file: Some(file),
-                    path,
-                    notes,
-                });
+                return Ok(held(Some(file), path, notes));
             }
             Err(std::fs::TryLockError::WouldBlock) => {
                 let holder = read_holder(&mut file);
@@ -140,16 +205,16 @@ pub fn take(out_dir: &Path, command: &str, elsewhere: &str) -> Result<Held> {
                 );
             }
             Err(std::fs::TryLockError::Error(e)) => {
-                return Ok(Held {
-                    file: None,
+                return Ok(held(
+                    None,
                     path,
-                    notes: vec![format!(
+                    vec![format!(
                         "The disk {} is on would not lock the folder ({e}), so nothing kept another \
                          run from writing there at the same time. The report records when this run \
                          started, and a run does not replace a report from a run that started after it.",
                         out_dir.display()
                     )],
-                });
+                ));
             }
         }
     }

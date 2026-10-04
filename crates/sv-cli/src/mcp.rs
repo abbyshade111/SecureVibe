@@ -1029,6 +1029,7 @@ impl Server {
         // "elsewhere/a/b"` made `a/b` outside the root and only then was refused (BACKLOG,
         // "Hardening the MCP server", item 2). So the folder is made one level at a time, and a level
         // that is a link is refused before anything below it is created.
+        let made = std::fs::symlink_metadata(app_dir.join(out)).is_err();
         let out_dir = create_below(&app_dir, Path::new(out))?;
         let resolved = out_dir
             .canonicalize()
@@ -1047,6 +1048,7 @@ impl Server {
             &out_dir,
             &format!("securevibe_write_report, through sv's MCP server (sv mcp), out \"{out}\""),
             elsewhere,
+            made,
         )?;
         let mut report = self.report_for(&app_dir, progress)?;
         let mut notes = held.notes.clone();
@@ -1056,6 +1058,7 @@ impl Server {
         }
         crate::report_lock::refuse_older(&report, &out_dir, elsewhere)?;
         let written = crate::write_report_files(&report, &out_dir)?;
+        held.written();
         drop(held);
         let files: Vec<String> = written
             .iter()

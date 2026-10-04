@@ -342,3 +342,32 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
     assert!(!folder.join(LOCK).exists(), "let go after refusing");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn a_run_that_writes_no_report_leaves_the_folder_as_it_found_it() {
+    // A securevibe.toml that does not read: the run takes the folder, then fails.
+    let dir = app("failed", "");
+    let folder = dir.join("securevibe-report");
+    std::fs::write(dir.join("securevibe.toml"), "manifest-version = [\n").unwrap();
+    let failed = sv(&[], &dir);
+    assert!(!failed.status.success(), "the setup: the run fails");
+    assert!(
+        said(&failed).contains("securevibe.toml"),
+        "and fails reading the file: {}",
+        said(&failed)
+    );
+    assert!(!folder.exists(), "the folder it made is gone");
+
+    // A folder already there, with a report in it, keeps everything it had and loses the lock.
+    let good = app("failed-kept", "");
+    let kept = good.join("securevibe-report");
+    assert!(sv(&[], &good).status.success());
+    let before = std::fs::read(kept.join("report.json")).unwrap();
+    std::fs::write(good.join("securevibe.toml"), "manifest-version = [\n").unwrap();
+    assert!(!sv(&[], &good).status.success());
+    assert_eq!(std::fs::read(kept.join("report.json")).unwrap(), before);
+    assert!(kept.join(".securevibe-report").is_file(), "still marked");
+    assert!(!kept.join(LOCK).exists(), "let go");
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::remove_dir_all(&good).ok();
+}
