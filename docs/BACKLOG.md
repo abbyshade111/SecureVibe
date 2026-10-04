@@ -22,6 +22,9 @@ another session is not a claim.
      pip refuses anything else under `--require-hashes`. One line without either means it is not.
      **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
      session, in branch `claude/securevibe-e9-python-locks`.
+     **Done the same day** (DESIGN, "A Python project pinned by `pylock.toml`, or by a hashed `requirements.txt`").
+     Both pin a Python project now. On the way: the manifest comparison read the backslash that carries a line on
+     to its `--hash` as part of the version, which is fixed. Tried end to end on a folder of family-hub's shape.
   2. **Python pre-release versions (PEP 440) cannot be compared.** `compare` in `crates/sv-check/src/advisories.rs`
      follows semver, where a pre-release comes after `-`. PyPI writes `2.0.0rc1`, `1.0a1`, `3.0.0.dev0`, and
      `1.0.post1`, which do not parse, so an advisory whose range starts at `2.0.0rc1` goes unanswered. family-hub's
