@@ -6933,5 +6933,6 @@ up at run time in the format the secrets scan knows. The build without any promp
 `sv` found nothing in any of the five builds. Before believing that, each shortcut was put back into that build:
 the key and the command were caught; the missing sanitizer was not, because the app has no lockfile and the check
 reads only locked packages. That gap, and the `shell=True` one, are items in the backlog. The four prompts stay
-not tested.
+not tested. Five guards in the loader were broken in turn (controls not searched, an id in both files, a file with
+no credit, controls not shown, the design file not read), each caught.
 
