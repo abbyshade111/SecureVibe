@@ -145,6 +145,15 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     .unwrap();
     let after = report(&dir);
 
+    // The headline counts what was set aside, in both renderings, rather than leaving the reader to
+    // find it further down (deep review R2).
+    for page in [&after.compliance, &after.html] {
+        assert!(
+            page.contains("1 more was found and set aside as a false alarm in securevibe.toml"),
+            "{page}"
+        );
+    }
+
     // The false alarm: off the list, in its own section with the reason, and its requirement
     // back to what else is known, not needing attention and not checked.
     let to_fix = after
