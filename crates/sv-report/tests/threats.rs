@@ -23,6 +23,7 @@ fn line(id: &str, status: Status) -> RequirementLine {
         level: 1,
         status,
         findings: Vec::new(),
+        information: Vec::new(),
         checked_by: Vec::new(),
         supported_by: Vec::new(),
         documented_by: Vec::new(),

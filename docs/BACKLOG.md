@@ -153,6 +153,11 @@ another session is not a claim.
     output tells the AI coding tool never to name the person in `by` itself. Twelve wordings put back in turn, each
     caught. **Still open, for the owner to decide:** the interactive `sv review` with its record outside the app's
     folder. The git author was considered and left out: an AI coding tool commits under the owner's git name.
+    **The owner decided on 4 October 2026**: build `sv review`, a command that runs only in a terminal and seals each
+    entry it records with a key kept outside the app's folder; the entries stay in securevibe.toml, and an entry
+    without a valid seal counts only as a proposal. A seal that cannot be checked where `sv` runs (CI, another
+    computer) still counts, saying it could not be checked there. **Claimed the same day by session securevibe-e9**,
+    in branch `claude/securevibe-e9-sv-review`.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -175,6 +180,8 @@ another session is not a claim.
     or mark the page left behind.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
+    **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
+    branch `claude/h3-credential-shapes`.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
@@ -210,7 +217,11 @@ another session is not a claim.
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
   - **H12. High, Read.** A plain-HTTP redirect to plain HTTP, or to a relative path, is credited as sending the
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
   - **H13. High, Read.** HSTS is credited whatever its value, `max-age=0` included, even on error answers (V3.4.1).
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
   - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
@@ -318,6 +329,8 @@ another session is not a claim.
      for a read-only file system. *Read*, and the transcript. Fix: the example says `--host 0.0.0.0`, with a comment
      on why; the "never answered" message says that an app listening on 127.0.0.1 or `localhost` cannot be reached;
      and `sv` could warn before waiting when the start command itself names 127.0.0.1 or `localhost`.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-1-host`.
   2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
      family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
      same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
@@ -330,6 +343,8 @@ another session is not a claim.
      report folder while a run is writing it (refuse, saying which run holds it), and record in `report.json` when
      the run started and a hash of the `securevibe.toml` it read, so a report older than the one it replaces says
      so rather than replacing it quietly.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-2-report-lock`.
   3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
      weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
      said "the private pages did not open in the browser with the first user's cookies, though they opened for the
@@ -386,6 +401,16 @@ another session is not a claim.
      cost the credit it says it leaves alone. *Read*, and family-hub's `report.json` of 3 October. Fix: show this
      finding (and any information-only one) beside the credit rather than over it, and let a person's "these do
      match" on it leave the test's credit standing; or, if it is meant to override, say so in its text.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-6-test-name-credit`.
+     **Done the same day** (DESIGN, "A finding that says it leaves the credit alone does"): `Finding::withholds_credit`
+     is false only for a rule listed in `INFORMATION_ONLY` (today the test-name rule alone) at `info` severity with
+     nothing merged into it. Such a finding is shown beside the requirement's status ("also noted, for information,
+     and not counted against it") instead of deciding it, and setting it aside as a false alarm leaves the test's
+     credit standing; every other finding, a tool's at `info` included, still makes its requirement need attention.
+     Tested with three report tests (beside the credit, the real-finding control in four forms, and the false-alarm
+     review) and an assertion in the suite's own test; seven guards broken in turn, each caught, and letting no
+     finding withhold credit turned twelve tests red.
   7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
      3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
      - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't
@@ -413,6 +438,16 @@ another session is not a claim.
      again after the wait (or run the waiting checks last), and test it with the fake app's idle limit shorter than
      the wait.
 
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-8-slow-session`.
+     **Done the same day** (DESIGN, "A fresh sign-in after the `--slow` wait"): when the timeout check has waited,
+     A signs in again through the sign-in page (so a form token comes with the new session) and is shown opening
+     the private page before any later check uses the session; when that fails the run stops and says why, as it
+     does when the first sign-in fails. The timeout check keeps the two sessions of its own it always had. Tested on
+     the fake app's clock with sessions that end after 15 idle minutes: a correct app earns every credit with
+     `--slow` that it earns without, seeded and through sign-up, and sign-ins refused during the wait leave the rest
+     not assessed with the reason. With the fresh sign-in turned off, both tests failed: six credits lost, and the
+     sign-out credited with a dead session. No test caught it before.
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger
