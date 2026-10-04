@@ -22,6 +22,13 @@ another session is not a claim.
   self-assessment repeated on the cut-off's source (`self-assessment-v2/2026-10-04/`); and the documents checked
   against each other. `ARTIFACTS.md` lists what is where.
 
+- **Correct `docs/paper/` where it was wrong at the cut-off, add what changed since, and write ADR-026 for
+  `sv review`.** Asked for on 4 October 2026 by the owner, after a review of the appendix against the current `sv`
+  (errors at the cut-off fixed in place; one dated "since the cut-off" record the other documents point to, the
+  cut-off figures kept as they are; a record of the decision that the owner's word counts only when `sv review`
+  sealed it). **Claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-appendix-fixes`.
+  Other sessions: please leave `docs/paper/` and `docs/adr/` to it until this entry says done.
+
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
   1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
@@ -198,6 +205,12 @@ another session is not a claim.
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
     branch `claude/h3-credential-shapes`.
+    **Done the same day** (DESIGN, "The credential rule reads the shapes credentials are written in"): JSON and dict
+    keys, `=>`, `:=`, typed declarations in TypeScript, Kotlin, Swift, Rust, and Go, unquoted values in YAML,
+    `.properties`, and `.ini`, and defaults given to environment settings in Python, Ruby, Node, and PHP. What only
+    the new shapes find is passed over when it is text, a path, or a lower-case identifier: 90 false alarms in v1's
+    `node_modules` without that, none with it. Nothing found before is lost. Twenty-four guards broken in turn, each
+    caught. Not done: a passphrase with spaces written as a JSON value, and unquoted shell and Dockerfile lines.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
@@ -433,6 +446,17 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** plant markers that are not personal data (in the address's path, not after `?`), and make the not-assessed message name an app's privacy rules as a likely reason. A `securevibe.toml` setting naming the log's user-id field can follow later.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-4-log-markers`.
+     **Done the same day** (DESIGN, "Log markers an app that keeps personal data out of its log still writes"):
+     each of the two sign-ins is bracketed by requests for pages nobody has (`/sv-log-before-…`, `/sv-log-after-…`),
+     and a sign-in event written between them (`login_failed`, with the sign-in's own address taken out first) is
+     its record, so no personal data is needed; the refused request is also asked with the marker as the last part
+     of the path under the private page, counted only when the app refused it exactly as it refused the page and not
+     with a 404. Emails and the `?` marker are still read first. A line found by the window is not credited with
+     *who* (V16.2.1 not assessed, saying why). The not-assessed message names privacy rules (no emails, no query
+     strings in the log) as a likely reason. Tested against the fake app writing a family-hub-style log (JSON, path,
+     user id, no `@` or `?`, asserted): V16.3.1, V16.3.2, V16.2.2, and V16.2.4 are now assessed. Each of nine guards
+     broken on its own was caught by its own test; the 404 guard was caught by nothing until a fixture was added.
+     No `securevibe.toml` setting.
   5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
      authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
      admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
@@ -448,6 +472,16 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** yes, `sv` may read a test admin's authenticator secret from `SV_ADMIN_TOTP_SECRET`, held like `SV_USER_TOTP` and never shown in a report; and fix the message either way.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-5-admin-totp`.
+     **Done the same day** (DESIGN, "An admin who signs in with a code"): when there is an admin, a `totp` entry
+     and a `seed`, `seed` is given `SV_ADMIN_TOTP_SECRET`, made fresh for each run like `SV_TOTP_SECRET`; when the
+     admin's password alone does not open the private page, both admin checks give the code worked out from it
+     (once more after the next 30-second step if the app refuses a code already used). When the admin is still not
+     shown signed in, the reason says where its sign-in stopped (the authenticator step, a refused code, or a step
+     the manifest does not name) and no longer blames the page. A failed `seed`'s output no longer carries the
+     run's passwords or secrets into the report. Tested against the fake app with the admin enrolled, with, without,
+     and with the wrong secret, and a leak test over everything the run hands the report; each guard broken in turn
+     was caught (no code, the old reason, no second try, the secret in a step, no redaction, the secret not given
+     to `seed`, no secret made).
   6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
      V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
      owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the
@@ -501,6 +535,15 @@ another session is not a claim.
      a sentence, and quote pairing; nine guards broken in turn, each caught, one only after a control was added.
      Found: with `--tools`, Bandit's B105 on the same line now wins the merge and the sentence note is lost (not
      changed; it is the merge's rule for all findings). The redirect half is A1's, untouched.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-7-sentence-credential`: the Bandit merge follow-up above.
+     **Done the same day** (DESIGN, the same section, "The merge keeps `sv`'s words"): `merge_same_place` keeps the
+     most severe finding's words, then `sv`'s own rule's over a tool's, then the surer. It keeps that finding's own
+     confidence, carries the redacted value, and says in one line how `sv`'s own rules rated the line when a more
+     severe tool finding is kept. It never copies a tool's text, which can quote the value (S8). A review naming a
+     merged-in rule still counts. The family-hub line under `--tools` now reads "reads like a sentence", with
+     Bandit in "also reported by", shown with a stand-in and with the real Bandit 1.9.4. Ten guards broken in turn,
+     each caught. Changed: at the same severity a less sure `sv` finding is now kept over a tool's.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
@@ -897,6 +940,13 @@ another session is not a claim.
   branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
   open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
   (`docs/prompts/trial/brief.md`), with and without the prompt.
+  **Done the same day** (`data/prompts.json`, `docs/PROMPTS.md`). All four were tried and not shown: both builds
+  without a prompt already passed `probe.security-headers`, `probe.cors-any-origin`, `probe.error-detail-leak`,
+  and the four access checks, every run signed in and answering all 40 requests. A copy of one of those builds with
+  each fault put back (headers removed, `Access-Control-Allow-Origin: *`, a stack trace on errors, the admin page
+  open to members) was caught on every one, so the clean results are passes and not blind spots. The guide has no
+  item on headers; that prompt cites ASVS V3.4 instead. The runs needed the builds under the home folder, which is
+  all Colima shares with containers: `sv` said so and reported the first attempt not assessed.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in

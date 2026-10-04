@@ -164,6 +164,12 @@ pub struct Accounts {
     /// A third account with two-factor sign-in, when securevibe.toml has a `totp` entry and a
     /// `seed` to enroll it. Never A or B: they have to keep signing in with a password alone.
     pub totp: Option<TotpAccount>,
+    /// A secret for the admin's own two-factor sign-in, made with the accounts when there is an
+    /// admin, a `totp` entry and a `seed`. `seed` is given it in base32 as `SV_ADMIN_TOTP_SECRET`
+    /// and may enroll the admin with it; when the admin's sign-in then stops at the code step, the
+    /// code is worked out from it. Held like the two-factor account's: never written anywhere but
+    /// the app's container.
+    pub admin_totp_secret: Option<Vec<u8>>,
 }
 
 /// An account `seed` enrolled in two-factor sign-in with a secret this run made.
@@ -607,6 +613,9 @@ pub(crate) struct SignedIn {
     set_at_login: Vec<Cookie>,
     /// Cookies the app had given before sign-in.
     before_login: Vec<(String, String)>,
+    /// Where the sign-in answer left the browser, for a reason when the session turns out not to
+    /// be signed in: "answered 200", or "sent the browser to /login/2fa".
+    pub(crate) landed: String,
 }
 
 pub(crate) fn sign_in(
@@ -656,10 +665,22 @@ pub(crate) fn sign_in(
             .ok()
             .and_then(|v| v.get(field).and_then(|t| t.as_str()).map(str::to_owned));
     }
+    let landed = match response.header("location") {
+        Some(to) if (300..400).contains(&response.status) => {
+            // The path alone: what follows `?` may be a token of the app's own.
+            let path = strip_origin(to);
+            format!(
+                "sent the browser to {}",
+                path.split(['?', '#']).next().unwrap_or(path)
+            )
+        }
+        _ => format!("answered {}", response.status),
+    };
     Some(SignedIn {
         session,
         set_at_login,
         before_login,
+        landed,
     })
 }
 
