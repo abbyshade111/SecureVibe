@@ -104,6 +104,9 @@ pub(super) struct FakeApp {
     /// While copies are being sent at the same instant: the bookings there were when they
     /// started, which each sees under `booking_races`, and how many have arrived.
     together: Option<(u32, usize)>,
+    /// Records are looked up by an id the database keeps as text, so a value joined into the
+    /// query sits inside quotes.
+    pub(super) ids_are_text: bool,
 }
 
 /// The fake app's own context-specific word, as an owner would list it in `context-words`.
@@ -409,6 +412,10 @@ pub(super) struct Flaws {
     pub(super) ws_guest: bool,
     /// Sign-in codes never expire; otherwise they last ten minutes.
     pub(super) code_long_lived: bool,
+    /// A record's address is joined into its database query (V1.2.4).
+    pub(super) sql_in_record: bool,
+    /// The search term is joined into its database query (V1.2.4).
+    pub(super) sql_in_search: bool,
 }
 
 pub(super) const CSRF: &str = "tok-123";
@@ -596,6 +603,29 @@ pub(super) fn decode(text: &str) -> String {
         i += 1;
     }
     String::from_utf8_lossy(&out).into_owned()
+}
+
+/// What a database would make of `given` joined into a query after an `=` or a `LIKE`: the value
+/// before the first ` AND ` or ` OR `, the word, and whether the comparison after it holds.
+/// `None` when nothing follows the value.
+fn joined_condition(given: &str) -> Option<(String, &'static str, bool)> {
+    let (at, word) = [" AND ", " OR "]
+        .iter()
+        .filter_map(|w| given.find(w).map(|at| (at, *w)))
+        .min()?;
+    let value = given[..at].trim_end_matches('\'').to_owned();
+    let (left, right) = given[at + word.len()..].split_once('=')?;
+    let holds = left.trim_matches('\'') == right.trim_matches('\'');
+    Some((value, word.trim(), holds))
+}
+
+/// `<`, `>`, `&`, and quotes written as HTML, as a template engine writes them.
+fn escape(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
 }
 
 pub(super) fn pairs(text: &str) -> BTreeMap<String, String> {
@@ -1640,8 +1670,73 @@ impl FakeApp {
                     "",
                 )
             }
+            ("GET", "/note") => {
+                // The same record by a value in the query string, as `/note?id=1`.
+                let id = query.get("id").cloned().unwrap_or_default();
+                let mut by_path = r.clone();
+                by_path.path = format!("/notes/{}", encode_value(&id));
+                return self.answer(&by_path);
+            }
+            ("GET", "/search") => {
+                let Some(who) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                let q = query.get("q").cloned().unwrap_or_default();
+                // `WHERE owner = ? AND text LIKE '%<q>%'`, with the term joined in under the flaw.
+                let joined = if self.flaws.sql_in_search {
+                    joined_condition(&q)
+                } else {
+                    None
+                };
+                let found: Vec<&str> = self
+                    .notes
+                    .iter()
+                    .filter(|(owner, text)| {
+                        let mine = *owner == who;
+                        match &joined {
+                            Some((term, "AND", holds)) => mine && text.contains(term) && *holds,
+                            Some((term, _, holds)) => (mine && text.contains(term)) || *holds,
+                            None => mine && text.contains(&q),
+                        }
+                    })
+                    .map(|(_, text)| text.as_str())
+                    .collect();
+                Self::respond(
+                    200,
+                    vec![],
+                    &format!("<p>Results for {}</p><ul>{}</ul>", escape(&q), {
+                        let items: Vec<String> =
+                            found.iter().map(|t| format!("<li>{t}</li>")).collect();
+                        items.concat()
+                    }),
+                )
+            }
             ("GET", p) if p.starts_with("/notes/") => {
-                let n: usize = p["/notes/".len()..].parse().ok()?;
+                let given = decode(&p["/notes/".len()..]);
+                // Under the flaw, `WHERE id = <given>`, or `WHERE id = '<given>'` when the ids are
+                // text, joined in: the record when what follows the id holds, none when it does
+                // not, and a syntax error for a quote the query does not expect.
+                let none = || Some(Self::respond(404, vec![], "none"));
+                let quoted = given.contains('\'');
+                let joined = joined_condition(&given).filter(|_| self.flaws.sql_in_record);
+                let n: usize = match joined {
+                    Some(_) if quoted != self.ids_are_text => {
+                        if quoted {
+                            return Some(Self::respond(500, vec![], "syntax error"));
+                        }
+                        // The whole of it is one string, which is no id.
+                        return none();
+                    }
+                    Some((id, "AND", true)) => match id.parse() {
+                        Ok(n) => n,
+                        Err(_) => return none(),
+                    },
+                    Some(_) => return none(),
+                    None => match given.parse() {
+                        Ok(n) => n,
+                        Err(_) => return none(),
+                    },
+                };
                 let Some((owner, text)) = self.notes.get(n.checked_sub(1)?) else {
                     return Some(Self::respond(404, vec![], "none"));
                 };

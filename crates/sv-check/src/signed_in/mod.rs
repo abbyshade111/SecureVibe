@@ -68,6 +68,7 @@ mod reset;
 mod rules;
 mod sessions;
 mod signin;
+mod sql;
 mod totp;
 mod uploads;
 use activation::*;
@@ -84,6 +85,7 @@ use rules::*;
 pub(crate) use rules::{Rule, finding};
 use sessions::*;
 use signin::*;
+use sql::*;
 use totp::*;
 use uploads::*;
 
@@ -1267,6 +1269,10 @@ fn run_checks(
     // 6c. A flow of several steps, gone through in order with A's session and then skipped as B,
     //     signed in afresh. Neither disturbs A's session.
     flow_checks(http, users, accounts, &a, &mut out);
+
+    // 6d. Database conditions added to values the app reads from an address, with A's session:
+    //     requests that only read, which change nothing.
+    sql_injection_check(http, users, &a, owned_read.as_deref(), &mut out);
 
     // 7. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
