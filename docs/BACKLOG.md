@@ -141,6 +141,11 @@ another session is not a claim.
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-s9`.
+    **Done the same day** (DESIGN, "Limits on what the app may use"; ADR-019, Later): every container a run starts
+    gets 2 GB of memory with no swap beyond it, 512 processes, and up to two processors, added where every `docker
+    run` is labeled, so none is missed; the browser's and mail server's in-memory folders have a size; `sv` keeps at
+    most 32 MB of what any command prints, reads and drops the rest, and never hands a cut answer to a check.
+    `--user` was weighed and left out, with the reason in ADR-019. Five guards broken in turn, each caught.
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
     two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
     what this run made.
