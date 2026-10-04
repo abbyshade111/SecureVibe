@@ -254,6 +254,8 @@ another session is not a claim.
     credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
     with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
     refusal.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-refusals-that-count`.
   - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
     that includes `docker exec`'s own time.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
@@ -421,6 +423,17 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** plant markers that are not personal data (in the address's path, not after `?`), and make the not-assessed message name an app's privacy rules as a likely reason. A `securevibe.toml` setting naming the log's user-id field can follow later.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-4-log-markers`.
+     **Done the same day** (DESIGN, "Log markers an app that keeps personal data out of its log still writes"):
+     each of the two sign-ins is bracketed by requests for pages nobody has (`/sv-log-before-…`, `/sv-log-after-…`),
+     and a sign-in event written between them (`login_failed`, with the sign-in's own address taken out first) is
+     its record, so no personal data is needed; the refused request is also asked with the marker as the last part
+     of the path under the private page, counted only when the app refused it exactly as it refused the page and not
+     with a 404. Emails and the `?` marker are still read first. A line found by the window is not credited with
+     *who* (V16.2.1 not assessed, saying why). The not-assessed message names privacy rules (no emails, no query
+     strings in the log) as a likely reason. Tested against the fake app writing a family-hub-style log (JSON, path,
+     user id, no `@` or `?`, asserted): V16.3.1, V16.3.2, V16.2.2, and V16.2.4 are now assessed. Each of nine guards
+     broken on its own was caught by its own test; the 404 guard was caught by nothing until a fixture was added.
+     No `securevibe.toml` setting.
   5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
      authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
      admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
@@ -436,6 +449,16 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** yes, `sv` may read a test admin's authenticator secret from `SV_ADMIN_TOTP_SECRET`, held like `SV_USER_TOTP` and never shown in a report; and fix the message either way.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-5-admin-totp`.
+     **Done the same day** (DESIGN, "An admin who signs in with a code"): when there is an admin, a `totp` entry
+     and a `seed`, `seed` is given `SV_ADMIN_TOTP_SECRET`, made fresh for each run like `SV_TOTP_SECRET`; when the
+     admin's password alone does not open the private page, both admin checks give the code worked out from it
+     (once more after the next 30-second step if the app refuses a code already used). When the admin is still not
+     shown signed in, the reason says where its sign-in stopped (the authenticator step, a refused code, or a step
+     the manifest does not name) and no longer blames the page. A failed `seed`'s output no longer carries the
+     run's passwords or secrets into the report. Tested against the fake app with the admin enrolled, with, without,
+     and with the wrong secret, and a leak test over everything the run hands the report; each guard broken in turn
+     was caught (no code, the old reason, no second try, the secret in a step, no redaction, the secret not given
+     to `seed`, no secret made).
   6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
      V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
      owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the
@@ -894,6 +917,13 @@ another session is not a claim.
   branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
   open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
   (`docs/prompts/trial/brief.md`), with and without the prompt.
+  **Done the same day** (`data/prompts.json`, `docs/PROMPTS.md`). All four were tried and not shown: both builds
+  without a prompt already passed `probe.security-headers`, `probe.cors-any-origin`, `probe.error-detail-leak`,
+  and the four access checks, every run signed in and answering all 40 requests. A copy of one of those builds with
+  each fault put back (headers removed, `Access-Control-Allow-Origin: *`, a stack trace on errors, the admin page
+  open to members) was caught on every one, so the clean results are passes and not blind spots. The guide has no
+  item on headers; that prompt cites ASVS V3.4 instead. The runs needed the builds under the home folder, which is
+  all Colima shares with containers: `sv` said so and reported the first attempt not assessed.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
