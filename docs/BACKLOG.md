@@ -139,6 +139,8 @@ another session is not a claim.
     `claude/s8-bundle-tool-messages`.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s9`.
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
     two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
     what this run made.
@@ -156,6 +158,8 @@ another session is not a claim.
   - **S13. Low, Reproduced. `sv probe` takes internal addresses, and curl's globbing turns one address into
     several requests** (`production.rs`). Fix: `--globoff`, and refuse private, loopback, link-local, and
     unspecified addresses, names that resolve to them included.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s13`.
   - **R1. High, Reproduced. An AI tool can mark its own findings as reviewed by a person** (`review.rs`,
     `confirm.rs`): only an empty `by`, "ai-tool", and "AI coding tool" are refused, so `by = "owner"` cleared a
     finding, shown as "SET ASIDE BY A PERSON"; `confirmed.by` has the same gap. Fix: at least say what is known
@@ -209,6 +213,8 @@ another session is not a claim.
     Prisma `$queryRawUnsafe`; `mysqli_query($conn, ...)`, PDO `prepare`; `prepareStatement`, Spring `jdbc.query*`;
     `new SqlCommand`; Ruby `where("...#{x}")`; `pd.read_sql(f"...")`). Nine real injections gave none. Fix: sinks
     and the SQL argument's position per language; until then name the calls in the clean claim.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h1`.
   - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
     (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
     or mark the page left behind.
@@ -312,6 +318,8 @@ another session is not a claim.
     `.well-known/security.txt` and other spellings are not recognized.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h25`.
 
 - **The deep review of `sv` at `eff3f17`, part 3 of 3: accuracy (A1 to A6), reviews and reports (R3 to R14), and
   improvements.** Same sender. **Each item can be claimed on its own.** R1 and R2 are in part 1.
