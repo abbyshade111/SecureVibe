@@ -1251,6 +1251,12 @@ mod tests {
             "app.ts",
             r#"const apiKey: string = "{v}";"#,
         ),
+        // Read twice, once with the type as the name: reported once.
+        (
+            "a TypeScript type named like a key",
+            "app.ts",
+            r#"const apiKey: ApiKey = "{v}";"#,
+        ),
         (
             "Kotlin's typed val",
             "App.kt",
