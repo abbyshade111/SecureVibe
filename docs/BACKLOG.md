@@ -233,6 +233,8 @@ another session is not a claim.
   - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
     (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
     or mark the page left behind.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h2-svelte-vue`.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -257,6 +259,8 @@ another session is not a claim.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h5-next-node-sinks`.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
