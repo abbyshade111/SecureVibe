@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deep Review Findings</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --other: #a3a29b; --hot: #d03b3b; --v1: #2a78d6; --sv: #eb6834; --learn: #184f95; --empty: #d6d5cf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --other: #77766f; --hot: #e05252;
+      --v1: #3987e5; --sv: #d95926; --learn: #86b6ef; --empty: #4a4944;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --other: #77766f; --hot: #e05252;
+    --v1: #3987e5; --sv: #d95926; --learn: #86b6ef; --empty: #4a4944;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 24px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 14px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 12px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 170px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 4px 0 6px; }
+  .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .rows { display: grid; grid-template-columns: 230px 1fr; gap: 10px 14px; align-items: center; margin: 8px 0; }
+  .rows .lab { font-size: .86rem; }
+  .rows .lab small { display: block; color: var(--text-muted); font-size: .76rem; }
+  .sq { display: flex; flex-wrap: wrap; gap: 4px; }
+  .s { width: 16px; height: 16px; border-radius: 3px; position: relative; }
+  .s.fixed::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--surface-1); }
+  .s.pr { box-shadow: inset 0 0 0 2px var(--text-primary); }
+  .s.claim { box-shadow: inset 0 0 0 2px var(--text-muted); }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; min-width: 560px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
+  tr.tot td { font-weight: 600; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>The deep review of <code>sv</code>: 58 findings, and what was done by the cut-off</h1>
+  <p class="sub">Six reviewers each read one area of <code>sv</code> at <code>eff3f17</code> (4 October 2026, 09:08
+     Eastern) and tried each fault on a harmless made-up folder. The cut-off is <code>main</code> at <code>157ddc3</code>,
+     11:37 the same morning. The full account is <code>REVIEW.md</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b>58</b><span>findings: 1 critical, 26 high, 22 medium, 9 low; 42 reproduced, 14 read from the code, 2 plausible</span></div>
+    <div class="stat"><b style="color:var(--hot)">25</b><span>are "checked" claimed on a narrower test than the claim implies, the failure <code>sv</code> is built to avoid</span></div>
+    <div class="stat"><b>1</b><span>fixed by the cut-off: S1, the critical one, 12 minutes after it reached the backlog; fixes for 4 more were in open pull requests</span></div>
+  </div>
+
+  <h2>Each square is one finding</h2>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--hot)"></span>critical</span>
+    <span><span class="sw" style="background:var(--sv)"></span>high</span>
+    <span><span class="sw" style="background:var(--v1)"></span>medium</span>
+    <span><span class="sw" style="background:var(--other)"></span>low</span>
+  </div>
+  <div class="legend">
+    <span><span class="s fixed" style="display:inline-block;background:var(--hot);vertical-align:-3px;margin-right:5px"></span>fixed on <code>main</code></span>
+    <span><span class="s pr" style="display:inline-block;background:var(--sv);vertical-align:-3px;margin-right:5px"></span>fix in an open pull request</span>
+    <span><span class="s claim" style="display:inline-block;background:var(--v1);vertical-align:-3px;margin-right:5px"></span>claimed, no fix yet</span>
+    <span>plain: open, not claimed</span>
+  </div>
+  <div class="rows" id="rows"></div>
+
+  <div class="wrap">
+    <table>
+      <thead><tr><th>Part</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Total</th><th>Fixed</th><th>Fix in open PR</th><th>Open</th></tr></thead>
+      <tbody id="tab"></tbody>
+    </table>
+  </div>
+
+  <p class="note">Sources: <code>review.csv</code>, one row per finding, from <code>~/code/sv-study/sv-review-2026-10-04.md</code>;
+     status from <code>docs/BACKLOG.md</code> at <code>157ddc3</code> and the pull request record. A finding given two
+     severities is counted at the lower, the review's own rule; by that rule part R is 4 high, 6 medium, and 4 low, not
+     the 4, 7, and 3 of the review's summary table. S1 was fixed by PR #555 (<code>47ec409</code>); S2's fix is PR #558
+     and S3 to S5's is PR #562, both open at the cut-off; S12 was claimed in PR #563. "Open" counts the claimed S12.</p>
+</div>
+<script>
+(() => {
+  // [id, severity, status] in the review's order; status: f fixed, p fix in open PR, c claimed, o open
+  const F = {
+    S: ["Safety of sv itself", "isolation, files outside the app, bundles", "c h h h h h h h m m m m l", { S1: "f", S2: "p", S3: "p", S4: "p", S5: "p", S12: "c" }],
+    H: ["Honesty", "false cleans and coverage overclaims", "h h h h h h h h h h h h h h h m m m m m m m m m l", {}],
+    A: ["Accuracy", "false positives and noise", "m m l l l m", {}],
+    R: ["Reviews, reports, exit codes", "", "h h m m m h h m m m l l l l", {}],
+  };
+  const COL = { c: "var(--hot)", h: "var(--sv)", m: "var(--v1)", l: "var(--other)" };
+  const ORDER = { c: 0, h: 1, m: 2, l: 3 };
+  const rows = document.getElementById("rows"), tab = document.getElementById("tab");
+  const tot = { c: 0, h: 0, m: 0, l: 0, n: 0, f: 0, p: 0, o: 0 };
+  Object.entries(F).forEach(([k, [name, sub, sevs, status]]) => {
+    const items = sevs.split(" ").map((s, i) => ({ id: k + (i + 1), s, st: status[k + (i + 1)] || "o" }));
+    const lab = document.createElement("div"); lab.className = "lab";
+    lab.innerHTML = `<b>${k}.</b> <span></span><small></small>`;
+    lab.querySelector("span").textContent = name; lab.querySelector("small").textContent = `${items.length} findings${sub ? " · " + sub : ""}`;
+    const box = document.createElement("div"); box.className = "sq";
+    items.slice().sort((a, b) => ORDER[a.s] - ORDER[b.s]).forEach((it) => {
+      const e = document.createElement("span"); e.className = "s" + (it.st === "f" ? " fixed" : it.st === "p" ? " pr" : it.st === "c" ? " claim" : "");
+      e.style.background = COL[it.s]; e.title = `${it.id}`; box.appendChild(e);
+    });
+    rows.append(lab, box);
+    const c = { c: 0, h: 0, m: 0, l: 0 }; items.forEach((it) => c[it.s]++);
+    const f = items.filter((it) => it.st === "f").length, p = items.filter((it) => it.st === "p").length;
+    const tr = document.createElement("tr");
+    [`${k}. ${name}`, c.c || "—", c.h || "—", c.m || "—", c.l || "—", items.length, f || "—", p || "—", items.length - f - p].forEach((v) => { const td = document.createElement("td"); td.textContent = String(v); tr.appendChild(td); });
+    tab.appendChild(tr);
+    ["c", "h", "m", "l"].forEach((s) => (tot[s] += c[s])); tot.n += items.length; tot.f += f; tot.p += p; tot.o += items.length - f - p;
+  });
+  const tr = document.createElement("tr"); tr.className = "tot";
+  ["Total", tot.c, tot.h, tot.m, tot.l, tot.n, tot.f, tot.p, tot.o].forEach((v) => { const td = document.createElement("td"); td.textContent = String(v); tr.appendChild(td); });
+  tab.appendChild(tr);
+})();
+</script>
+</body>
+</html>

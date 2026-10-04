@@ -54,57 +54,73 @@
 <body>
 <div class="viz-root">
   <h1>The decision records, and whether they matched what was built</h1>
-  <p class="sub">Every record in both versions, from the day it was written to 27 September. v1 wrote its
-     decisions down first; <code>sv</code> made them in the code and wrote them down on its last day. The full
-     account is <code>ADRS.md</code>.</p>
+  <p class="sub">Every record in both versions, from the day it was written to 4 October (<code>main</code> at
+     <code>157ddc3</code>, 11:37). v1 wrote its decisions down first; <code>sv</code> made them in the code and wrote
+     each down one to seven days later, at first because an analysis of the records looked for missing ones, then
+     because a weekly review did. The full account is <code>ADRS.md</code>.</p>
 
   <div class="hero">
     <div class="stat"><b>10 of 13</b><span>v1 records written on 16 September, before the first surviving commit</span></div>
     <div class="stat"><b>2</b><span>v1 records out of date within two days, because the project did more than they said</span></div>
     <div class="stat"><b>5 days</b><span><code>main</code> did the opposite of ADR-012 before ADR-018 replaced it</span></div>
-    <div class="stat"><b>8</b><span>inconsistencies found, now in the backlog to be fixed</span></div>
+    <div class="stat"><b>8</b><span>inconsistencies found on 27 September, all resolved by 29 September</span></div>
+    <div class="stat"><b>11</b><span><code>sv</code> records by 4 October (4 on 27 September), each written after its decision</span></div>
   </div>
 
   <div class="legend" id="legend"></div>
   <div class="wrap">
     <table id="t">
       <colgroup><col style="width:30%"><col style="width:44%"><col style="width:26%"></colgroup>
-      <thead><tr><th>Record</th><th id="axis">September</th><th>What became of it in <code>sv</code></th></tr></thead>
+      <thead><tr><th>Record</th><th id="axis">September to October</th><th>What became of it in <code>sv</code></th></tr></thead>
       <tbody></tbody>
     </table>
   </div>
 
   <p class="note">Sources: the records themselves (v1's at tag <code>v1-final</code>, <code>sv</code>'s on
-     <code>main</code>) and each file's git history; the dates they went out of step are the commits named in
+     <code>main</code> at <code>157ddc3</code>) and each file's git history, at Eastern commit times; several records
+     date themselves in UTC, four hours later. The dates v1's records went out of step are the commits named in
      <code>ADRS.md</code>: <code>27b85e2</code> and <code>7ecb4c3</code> on 18 September, <code>sv</code>'s first
-     rules of its own on 23 September, and <code>2ef4149</code> on 25 September. The shaded band is the two days
-     before the surviving record; v1's first ten records survive only through the restore commit. v1 moved to its
-     own branch at 21:22 on 26 September, and its records stayed as they were. The citation fault in ADR-001 is
-     not a matter of dates and is shown only in <code>ADRS.md</code>.</p>
+     rules of its own on 23 September, and <code>2ef4149</code> on 25 September. Their corrections were recorded in
+     <code>sv</code>'s index at 22:17 on 29 September (#463); v1's records themselves stay as archived. ADR-019 is
+     shown out of step from the day it was written: one sentence was untrue until 3 October (#496), and the deep
+     review of 4 October found the fence open to the network's gateway (S2, not fixed at the cut-off). The shaded
+     band is the two days before the surviving record; v1's first ten records survive only through the restore
+     commit. v1 moved to its own branch at 21:22 on 26 September. The citation fault in ADR-001 is not a matter of
+     dates and is shown only in <code>ADRS.md</code>.</p>
 </div>
 <script>
   // Days are fractional, Eastern time: 18.4 is 18 September at about 09:30.
-  const D0 = 16, D1 = 28;
+  const D0 = 16, D1 = 35, END = 34.48;
+  // Days run on from September: 31 is 1 October, 34.48 is 11:37 on 4 October, the cut-off.
   // segments: [from, to, kind]  kind: rec = record matches practice, dec = decided, not yet written,
-  // off = record disagrees with practice.  marks: [day, kind]  kind: w written, a amended, x superseded in part.
+  // off = record disagrees with practice.  marks: [day, kind]  kind: w written, a amended, x superseded in part,
+  // c correction recorded in sv's index (v1's records are archived and not edited).
+  const C = 29.93;   // #463, 22:17 on 29 September
   const rows = [
-    ["v1", "ADR-001", "TypeScript everywhere", [[16, 28, "rec"]], [[16, "w"]], "Reversed without a record: written in Rust"],
-    ["v1", "ADR-002", "Server-rendered generated apps", [[16, 28, "rec"]], [[16, "w"]], "Not applicable: builds no apps"],
-    ["v1", "ADR-003", "No native modules", [[16, 28, "rec"]], [[16, "w"]], "Not applicable"],
-    ["v1", "ADR-004", "Hardened template; AI only extends", [[16, 28, "rec"]], [[16, "w"]], "Replaced by ADR-017"],
-    ["v1", "ADR-005", "Local UI: token, host check, CSRF", [[16, 28, "rec"]], [[16, "w"]], "Not applicable: no UI"],
-    ["v1", "ADR-006", "Evidence tiers; AI never verifies", [[16, 28, "rec"]], [[16, "w"]], "Kept, and cited"],
-    ["v1", "ADR-007", "Built-in scanners, outside tools when present", [[16, 28, "rec"]], [[16, "w"]], "Kept in spirit"],
-    ["v1", "ADR-008", "AI provider abstraction", [[16, 18.42, "rec"], [18.42, 28, "off"]], [[16, "w"]], "Not applicable: no AI calls"],
-    ["v1", "ADR-009", "AISVS Appendix C applied to itself", [[16, 28, "rec"]], [[16, "w"]], "Kept in part"],
-    ["v1", "ADR-010", "Permission model, no container, open network", [[16, 18.41, "rec"], [18.41, 28, "off"]], [[16, "w"]], "Reversed without a record: Docker"],
-    ["v1", "ADR-014", "Unscannable files are refused", [[20.53, 28, "rec"]], [[20.53, "w"], [20.6, "a"]], "Not carried"],
-    ["v1", "ADR-012", "Other languages: tiers, no rules of its own", [[20.68, 23, "rec"], [23, 27.57, "off"], [27.57, 28, "rec"]], [[20.68, "w"], [27.57, "x"]], "Superseded in part by ADR-018"],
-    ["v1", "ADR-013", "PDF reports", [[25.66, 25.67, "rec"], [25.67, 28, "off"]], [[25.66, "w"], [25.67, "a"]], "Not carried"],
-    ["sv", "ADR-015", "Owner can add requirements, never remove", [[22.9, 27.55, "dec"], [27.55, 28, "rec"]], [[26.4, "a"], [27.55, "w"]], "Written 27 Sep; narrowed 26 Sep"],
-    ["sv", "ADR-016", "OWASP data: one copy, then two", [[22.9, 27.55, "dec"], [27.55, 28, "rec"]], [[27.55, "w"], [27.6, "a"]], "Written 27 Sep; amended same day"],
-    ["sv", "ADR-017", "sv never writes the app's code", [[22.9, 27.55, "dec"], [27.55, 28, "rec"]], [[27.55, "w"]], "Written 27 Sep"],
-    ["sv", "ADR-018", "Any language, with rules of its own", [[23, 27.57, "dec"], [27.57, 28, "rec"]], [[27.57, "w"]], "Written and accepted 27 Sep"],
+    ["v1", "ADR-001", "TypeScript everywhere", [[16, END, "rec"]], [[16, "w"], [29.9, "x"], [C, "c"]], "Replaced for sv by ADR-020 (29 Sep)"],
+    ["v1", "ADR-002", "Server-rendered generated apps", [[16, END, "rec"]], [[16, "w"]], "Not applicable: builds no apps"],
+    ["v1", "ADR-003", "No native modules", [[16, END, "rec"]], [[16, "w"]], "Not applicable"],
+    ["v1", "ADR-004", "Hardened template; AI only extends", [[16, END, "rec"]], [[16, "w"]], "Replaced by ADR-017"],
+    ["v1", "ADR-005", "Local UI: token, host check, CSRF", [[16, END, "rec"]], [[16, "w"]], "Not applicable: no UI"],
+    ["v1", "ADR-006", "Evidence tiers; AI never verifies", [[16, END, "rec"]], [[16, "w"]], "Kept; extended by ADR-022"],
+    ["v1", "ADR-007", "Built-in scanners, outside tools when present", [[16, END, "rec"]], [[16, "w"]], "Kept in spirit"],
+    ["v1", "ADR-008", "AI provider abstraction", [[16, 18.42, "rec"], [18.42, END, "off"]], [[16, "w"], [C, "c"]], "Not applicable: no AI calls"],
+    ["v1", "ADR-009", "AISVS Appendix C applied to itself", [[16, END, "rec"]], [[16, "w"]], "Kept in part"],
+    ["v1", "ADR-010", "Permission model, no container, open network", [[16, 18.41, "rec"], [18.41, END, "off"]], [[16, "w"], [27.75, "x"], [C, "c"]], "Replaced for sv by ADR-019 (27 Sep)"],
+    ["v1", "ADR-014", "Unscannable files are refused", [[20.53, END, "rec"]], [[20.53, "w"], [20.6, "a"]], "Not carried"],
+    ["v1", "ADR-012", "Other languages: tiers, no rules of its own", [[20.68, 23, "rec"], [23, 27.57, "off"], [27.57, END, "rec"]], [[20.68, "w"], [27.57, "x"], [C, "c"]], "Superseded in part by ADR-018"],
+    ["v1", "ADR-013", "PDF reports", [[25.66, 25.67, "rec"], [25.67, END, "off"]], [[25.66, "w"], [25.67, "a"], [C, "c"]], "Not carried"],
+    ["sv", "ADR-015", "Owner can add requirements, never remove", [[22.9, 27.55, "dec"], [27.55, END, "rec"]], [[26.4, "a"], [27.55, "w"], [29.91, "a"]], "Written 27 Sep; a count corrected 29 Sep"],
+    ["sv", "ADR-016", "OWASP data: one copy, then two", [[22.9, 27.55, "dec"], [27.55, END, "rec"]], [[27.55, "w"], [27.6, "a"]], "Written 27 Sep; amended same day"],
+    ["sv", "ADR-017", "sv never writes the app's code", [[22.9, 27.55, "dec"], [27.55, END, "rec"]], [[27.55, "w"], [27.75, "a"]], "Written 27 Sep; sv probe named that evening"],
+    ["sv", "ADR-018", "Any language, with rules of its own", [[23, 27.57, "dec"], [27.57, END, "rec"]], [[27.57, "w"], [29.91, "a"]], "Accepted 27 Sep; a count corrected 29 Sep"],
+    ["sv", "ADR-019", "A container on a network with no way out", [[22.9, 27.75, "dec"], [27.75, END, "off"]], [[27.75, "w"], [29.91, "a"], [33.52, "a"], [33.88, "a"]], "Replaces ADR-010 for sv; fence reaches the gateway (S2)"],
+    ["sv", "ADR-020", "sv is written in Rust", [[22.9, 29.9, "dec"], [29.9, END, "rec"]], [[29.9, "w"]], "Written 29 Sep from the owner's reason"],
+    ["sv", "ADR-021", "A crash or a rate limiter is not a refusal", [[28.87, 33.88, "dec"], [33.88, END, "rec"]], [[33.88, "w"]], "Owed by the weekly review; written 3 Oct"],
+    ["sv", "ADR-022", "Whose word counts, and at which tier", [[26.71, 33.88, "dec"], [33.88, END, "rec"]], [[33.88, "w"]], "Owed; written 3 Oct"],
+    ["sv", "ADR-023", "False alarms a person records; test code apart", [[27.7, 33.88, "dec"], [33.88, END, "rec"]], [[33.88, "w"]], "Owed; written 3 Oct"],
+    ["sv", "ADR-024", "No data list answered: level 2", [[27.53, 33.88, "dec"], [33.88, END, "rec"]], [[33.88, "w"]], "Owed; written 3 Oct"],
+    ["sv", "ADR-025", "sv run has an end", [[27.99, 33.88, "dec"], [33.88, END, "rec"]], [[33.88, "w"]], "Owed; written 3 Oct"],
   ];
   const NS = "http://www.w3.org/2000/svg", H = 26;
   let W = 1000;
@@ -127,6 +143,7 @@
       if (k === "w") el(svg, "circle", { cx: x(d), cy: 13, r: 6, fill: c, stroke: "var(--surface-1)", "stroke-width": 2 });
       if (k === "a") el(svg, "path", { d: `M${x(d) + 7} 6 l6 7 l-6 7 l-6 -7 z`, fill: "var(--surface-1)", stroke: c, "stroke-width": 2 });
       if (k === "x") { el(svg, "path", { d: `M${x(d) - 6} 7 l12 12 M${x(d) + 6} 7 l-12 12`, stroke: "var(--text-primary)", "stroke-width": 2.5 }); }
+      if (k === "c") el(svg, "rect", { x: x(d) + 5, y: 1, width: 7, height: 7, fill: "var(--text-secondary)", stroke: "var(--surface-1)", "stroke-width": 1 });
     });
   };
   const tbody = document.querySelector("#t tbody");
@@ -153,9 +170,9 @@
     const ax = document.getElementById("axis");
     ax.innerHTML = '<div style="position:relative;height:14px"></div>';
     const box = ax.firstChild;
-    [16, 18, 20, 22, 24, 26, 27].forEach((d) => {
-      const s = document.createElement("span"); s.textContent = String(d);
-      s.style.cssText = `position:absolute;left:${x(d + 0.5)}px;transform:translateX(-50%)`;
+    [16, 18, 20, 22, 24, 26, 28, 30, 32, 34].forEach((d) => {
+      const s = document.createElement("span"); s.textContent = d <= 30 ? String(d) : `${d - 30} Oct`;
+      s.style.cssText = `position:absolute;left:${x(d + 0.5)}px;transform:translateX(-50%);white-space:nowrap`;
       box.appendChild(s);
     });
   };
@@ -169,7 +186,8 @@
   item('<svg width="28" height="14"><defs><pattern id="offl" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--off)" stroke-width="3"/></pattern></defs><rect x="2" y="2" width="24" height="10" rx="2" fill="url(#offl)" stroke="var(--off)"/></svg>', "record disagrees with what was built");
   item('<svg width="16" height="16"><circle cx="8" cy="8" r="5" fill="var(--text-secondary)"/></svg>', "written");
   item('<svg width="16" height="16"><path d="M8 2 l5 6 l-5 6 l-5 -6 z" fill="none" stroke="var(--text-secondary)" stroke-width="2"/></svg>', "amended");
-  item('<svg width="16" height="16"><path d="M3 3 l10 10 M13 3 l-10 10" stroke="var(--text-primary)" stroke-width="2"/></svg>', "superseded in part");
+  item('<svg width="16" height="16"><path d="M3 3 l10 10 M13 3 l-10 10" stroke="var(--text-primary)" stroke-width="2"/></svg>', "superseded in part, or replaced for sv");
+  item('<svg width="16" height="16"><rect x="4" y="4" width="8" height="8" fill="var(--text-secondary)"/></svg>', "correction recorded in sv\'s index");
   item('<span style="display:inline-block;width:12px;height:12px;background:var(--v1);border-radius:2px;margin-right:4px;vertical-align:-1px"></span>', "v1");
   item('<span style="display:inline-block;width:12px;height:12px;background:var(--sv);border-radius:2px;margin-right:4px;vertical-align:-1px"></span>', "<code>sv</code>");
 </script>

@@ -9,19 +9,19 @@
     color-scheme: light;
     --surface-1: #fcfcfb; --surface-2: #f3f2ee;
     --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
-    --grid: #e3e2dd; --work: #c9c8c1; --coord: #2a78d6; --hot: #d03b3b;
+    --grid: #e3e2dd; --work: #c9c8c1; --coord: #2a78d6; --hot: #d03b3b; --design: #e39a2c;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) .viz-root {
       color-scheme: dark;
       --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
-      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --work: #4a4944; --coord: #3987e5; --hot: #e05252;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --work: #4a4944; --coord: #3987e5; --hot: #e05252; --design: #d08a22;
     }
   }
   :root[data-theme="dark"] .viz-root {
     color-scheme: dark;
     --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
-    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --work: #4a4944; --coord: #3987e5; --hot: #e05252;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --work: #4a4944; --coord: #3987e5; --hot: #e05252; --design: #d08a22;
   }
   body { margin: 0; background: var(--surface-1); }
   .viz-root { background: var(--surface-1); color: var(--text-primary);
@@ -43,19 +43,26 @@
   svg .ink { fill: var(--text-primary); font-size: 12px; }
   svg .strong { fill: var(--text-primary); font-size: 12px; font-weight: 600; }
   .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+  table { border-collapse: collapse; width: 100%; font-size: .84rem; margin-top: 8px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; }
+  td.when { white-space: nowrap; color: var(--text-secondary); }
+  @media (max-width: 600px) { td, th { white-space: normal !important; overflow-wrap: anywhere; } }
 </style>
 </head>
 <body>
 <div class="viz-root">
   <h1>What coordinating several AI sessions cost, and what it bought</h1>
   <p class="sub">Several Claude Code sessions worked on the same repository at once. Keeping them out of each other's
-     way took a fifth of all changes, and most of the friction was in the one file they used to coordinate. Reading
-     each other's work found more faults than failing tests did. The full account is <code>COORDINATION.md</code>.</p>
+     way took a quarter of all changes, and two in five in the last week. The friction sat in whichever file every
+     change wrote to: the backlog, then the design document. Reading each other's work found more faults than failing
+     tests did, and from 28 September a session from another project sent work in as well. The full account is
+     <code>COORDINATION.md</code>.</p>
 
   <div class="hero">
-    <div class="stat"><b style="color:var(--coord)">93</b><span>of 469 changes to <code>main</code> did nothing but claim or release work</span></div>
-    <div class="stat"><b>31</b><span>of 56 conflicts resolved by hand were in the backlog alone</span></div>
-    <div class="stat"><b>28</b><span>faults found by one session reviewing another's work, against 9 by a failing test</span></div>
+    <div class="stat"><b style="color:var(--coord)">172</b><span>of 655 changes to <code>main</code> did nothing but claim or release work (93 of 469 to 28 September)</span></div>
+    <div class="stat"><b>103</b><span>conflicts resolved by hand; the backlog was in 55, the design document in 38</span></div>
+    <div class="stat"><b>40</b><span>faults found by one session reviewing another's work, against 14 by a failing test; an outside review found 56 more</span></div>
   </div>
 
   <h2>1. Changes to <code>main</code> each day</h2>
@@ -63,46 +70,69 @@
     <span><span class="sw" style="background:var(--coord)"></span>coordination only: a claim, a release, or a harness lock</span>
     <span><span class="sw" style="background:var(--work)"></span>everything else</span>
   </div>
-  <div class="chart"><svg id="days" viewBox="0 0 860 200" role="img" aria-label="Changes to main per day from 18 to 28 September, with coordination-only changes: 15 (0), 45 (0), 48 (2), 0, 10 (4), 12 (4), 37 (0), 57 (2), 118 (34), 89 (31), 38 (16)."></svg></div>
+  <div class="chart"><svg id="days" viewBox="0 0 860 200" role="img" aria-label="Changes to main per day from 18 September to 4 October, with coordination-only changes: 15 (0), 45 (0), 48 (2), 0, 10 (4), 12 (4), 37 (0), 57 (2), 118 (34), 89 (31), 83 (33), 48 (21), none from 30 September to 2 October, 76 (34), 17 (7) to 11:37 on 4 October."></svg></div>
 
   <h2>2. Conflicts resolved by hand</h2>
   <p class="lede">Merges of <code>main</code> into a working branch that needed lines matching neither side.</p>
   <div class="legend">
     <span><span class="sw" style="background:var(--hot)"></span>only in the backlog</span>
-    <span><span class="sw" style="background:var(--work)"></span>other files, with or without the backlog</span>
+    <span><span class="sw" style="background:var(--design)"></span>only in the design document</span>
+    <span><span class="sw" style="background:var(--work)"></span>other files, with or without those two</span>
   </div>
-  <div class="chart"><svg id="conf" viewBox="0 0 860 150" role="img" aria-label="Conflicts per day: 18 September 1, 24th 1, 25th 7, 26th 29, 27th 12, 28th 6; backlog only 0, 1, 2, 17, 8, 3."></svg></div>
+  <div class="chart"><svg id="conf" viewBox="0 0 860 150" role="img" aria-label="Conflicts per day: 18 September 1, 24th 1, 25th 7, 26th 29, 27th 12, 28th 8, 29th 13, 3 October 27, 4 October 5. Backlog only: 0, 1, 2, 17, 8, 4, 3, 5, 1. Design document only: 0, 0, 0, 0, 1, 1, 1, 9, 2."></svg></div>
 
-  <h2>3. How the project's 149 faults were found</h2>
-  <div class="chart"><svg id="how" viewBox="0 0 860 260" role="img" aria-label="Review by another session 28, the owner or real use 26, real input 21, building something else 19, v1's harness 14, CI tools 13, breaking a guard 10, a failing test 9, not recorded 9."></svg></div>
+  <h2>3. How the project's 255 faults were found</h2>
+  <p class="lede">From the fault ledger at the cut-off: 81 in v1 and 174 in <code>sv</code>, 196 fixed and 59 open.
+     The two reviews are the outside deep review of 4 October (55 of its 56 still open) and review by another session
+     inside the project (all 40 fixed). A failing test found 14, and only 7 of the 230 faults in the product.</p>
+  <div class="chart"><svg id="how" viewBox="0 0 860 310" role="img" aria-label="The outside deep review 56, another session's review 40, building something else 32, the owner or real use 26, running it on real input 25, a tool in CI 16, v1's harness 14, a failing test 14, another project using sv 12, breaking a guard 11, not recorded 9."></svg></div>
+
+  <h2>4. Work sent between sessions, from 28 September</h2>
+  <p class="lede">The owner's cato-pipeline project had a session that used <code>sv</code> for real. It could not
+     reach the <code>sv</code> sessions, so the owner carried each report by hand; an <code>sv</code> session checked
+     it against <code>main</code> and put it in the backlog.</p>
+  <table>
+    <thead><tr><th>When</th><th>What was sent</th><th>By the cut-off</th></tr></thead>
+    <tbody>
+      <tr><td class="when">28 Sep 16:56</td><td>The cato session worked in <code>sv</code> itself: what was examined, for programs (#388), and a false alarm (#414)</td><td>Both merged</td></tr>
+      <tr><td class="when">28 Sep 18:11</td><td>Two limits hit wiring <code>sv</code> into cato (#400)</td><td>Fixed that night (#407, #408)</td></tr>
+      <tr><td class="when">29 Sep 11:27</td><td>OSV's <code>last_affected</code> ignored (#422)</td><td>Fixed (#423)</td></tr>
+      <tr><td class="when">29 Sep 16:49</td><td>A shell variable read as a credential (#431)</td><td>Fixed (#433)</td></tr>
+      <tr><td class="when">29 Sep 18:25</td><td>Four issues from the comparison study (#441)</td><td>Fixed (#443)</td></tr>
+      <tr><td class="when">3 Oct 20:19</td><td>Three faults from the owner's family-hub (#533)</td><td>Fixed by 21:05 (#535, #537, #538)</td></tr>
+      <tr><td class="when">4 Oct 09:54</td><td>The deep review: 58 findings (#553, #556)</td><td>1 fixed, 5 claimed or in review, 52 open</td></tr>
+    </tbody>
+  </table>
 
   <p class="note">Sources: <code>coordination.csv</code>, one row per event with its commit, pull request, or backlog
-     line; <code>faults.csv</code> for section 3. The record runs from 09:32 on 18 September to 16:18 on 28 September
-     (Eastern). A change counts as coordination only when it touched nothing but the backlog and its title or branch
-     says it claims, releases, or locks. Conflicts resolved by taking one side whole leave no trace, so 56 is a floor.</p>
+     line; <code>faults.csv</code> for section 3, counting each fault the ledger counts. The record runs from 09:32 on 18 September to
+     11:37 on 4 October (Eastern), <code>main</code> at <code>157ddc3</code>; nothing reached <code>main</code> from
+     30 September to 2 October. A change counts as coordination only when it touched nothing but the backlog and its
+     title or branch says it claims, releases, or locks. Conflicts resolved by taking one side whole leave no trace,
+     so 103 is a floor.</p>
 </div>
 <script>
 (() => {
   const NS = "http://www.w3.org/2000/svg";
   const mk = (svg, tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
-  const days = [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
-  const L = 70, R = 840, step = (R - L) / days.length, cx = (i) => L + step * (i + 0.5), BW = 38;
-  const axis = (s, B) => { mk(s, "line", { x1: L, x2: R, y1: B, y2: B, stroke: "var(--text-muted)" }); days.forEach((d, i) => mk(s, "text", { x: cx(i), y: B + 18, "text-anchor": "middle", class: "muted" }, i === 0 ? "18 Sep" : String(d))); };
+  const days = ["18 Sep", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30–2", "3 Oct", "4"];
+  const L = 70, R = 840, step = (R - L) / days.length, cx = (i) => L + step * (i + 0.5), BW = 30;
+  const axis = (s, B) => { mk(s, "line", { x1: L, x2: R, y1: B, y2: B, stroke: "var(--text-muted)" }); days.forEach((d, i) => mk(s, "text", { x: cx(i), y: B + 18, "text-anchor": "middle", class: "muted" }, d)); };
   const stack = (s, B, H, M, vals, colors) => vals.forEach((v, i) => { let y = B; v.forEach((n, k) => { if (!n) return; const h = n / M * H; mk(s, "rect", { x: cx(i) - BW / 2, y: y - h + 1, width: BW, height: Math.max(1, h - 1.5), fill: colors[k], rx: 2 }); y -= h; }); const t = v.reduce((a, b) => a + b, 0); mk(s, "text", { x: cx(i), y: y - 6, "text-anchor": "middle", class: t ? "ink" : "muted" }, String(t)); });
-  const total = [15, 45, 48, 0, 10, 12, 37, 57, 118, 89, 38], coord = [0, 0, 2, 0, 4, 4, 0, 2, 34, 31, 16];
+  const total = [15, 45, 48, 0, 10, 12, 37, 57, 118, 89, 83, 48, 0, 76, 17], coord = [0, 0, 2, 0, 4, 4, 0, 2, 34, 31, 33, 21, 0, 34, 7];
   const s1 = document.getElementById("days"); axis(s1, 170);
   stack(s1, 170, 140, 125, total.map((t, i) => [coord[i], t - coord[i]]), ["var(--coord)", "var(--work)"]);
   coord.forEach((c, i) => { if (c >= 10) mk(s1, "text", { x: cx(i), y: 170 - c / 125 * 140 / 2 + 4, "text-anchor": "middle", style: "fill:#fff;font-size:11px;font-weight:600" }, String(c)); });
-  const bo = [0, 0, 0, 0, 0, 0, 1, 2, 17, 8, 3], all = [1, 0, 0, 0, 0, 0, 1, 7, 29, 12, 6];
+  const bo = [0, 0, 0, 0, 0, 0, 1, 2, 17, 8, 4, 3, 0, 5, 1], de = [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 9, 2], all = [1, 0, 0, 0, 0, 0, 1, 7, 29, 12, 8, 13, 0, 27, 5];
   const s2 = document.getElementById("conf"); axis(s2, 120);
-  stack(s2, 120, 90, 30, all.map((t, i) => [bo[i], t - bo[i]]), ["var(--hot)", "var(--work)"]);
-  const how = [["Another session's review", 28, "coord"], ["The owner, or real use", 26], ["Running it on real input", 21], ["Building something else", 19], ["v1's evaluation harness", 14], ["A tool in CI", 13], ["Breaking a guard on purpose", 10], ["A failing test", 9, "hot"], ["Not recorded", 9]];
+  stack(s2, 120, 90, 30, all.map((t, i) => [bo[i], de[i], t - bo[i] - de[i]]), ["var(--hot)", "var(--design)", "var(--work)"]);
+  const how = [["The outside deep review", 56, "coord"], ["Another session's review", 40, "coord"], ["Building something else", 32], ["The owner, or real use", 26], ["Running it on real input", 25], ["A tool in CI", 16], ["v1's evaluation harness", 14], ["A failing test", 14, "hot"], ["Another project using sv", 12], ["Breaking a guard on purpose", 11], ["Not recorded", 9]];
   const s3 = document.getElementById("how"), HX = 260, HW = 500;
   how.forEach(([name, n, k], i) => {
     const y = 6 + i * 27, cls = k ? "strong" : "ink";
     mk(s3, "text", { x: 0, y: y + 14, class: cls }, name);
-    mk(s3, "rect", { x: HX, y, width: n / 28 * HW, height: 18, rx: 2, fill: k ? `var(--${k})` : "var(--text-muted)" });
-    mk(s3, "text", { x: HX + n / 28 * HW + 8, y: y + 14, class: cls }, String(n));
+    mk(s3, "rect", { x: HX, y, width: n / 56 * HW, height: 18, rx: 2, fill: k ? `var(--${k})` : "var(--text-muted)" });
+    mk(s3, "text", { x: HX + n / 56 * HW + 8, y: y + 14, class: cls }, String(n));
   });
 })();
 </script>

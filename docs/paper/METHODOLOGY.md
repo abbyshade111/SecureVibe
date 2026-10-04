@@ -3,6 +3,11 @@
 What SecureVibe actually does, assembled from the code rather than from a description of it. Every number here
 is checkable against the repository at the commit this was written from.
 
+This describes v1, the version that built apps from a template, as it stood on 20 September 2026 (tag
+`v1-paper`). v1 is archived on the `v1` branch, and its methodology below is unchanged. It was checked again at the
+cut-off, `main` at `157ddc3` (11:37 on 4 October 2026); two numbers that were wrong are corrected in place, saying
+what they were. How the second version, `sv`, works is in `HOW-SV-WORKS.md`.
+
 ## The question
 
 > **On the project's age.** The repository's history begins on 18 September 2026 with a commit restoring the
@@ -33,8 +38,12 @@ The rest check what resulted. A run of an app SecureVibe did not build skips eve
 | | requirements in the data |
 |---|---|
 | OWASP ASVS 5.0 | 345 |
-| OWASP AISVS 1.0 | 235 |
-| OWASP Secure by Design | a checklist of controls, not numbered requirements |
+| OWASP AISVS 1.0 | 191, and 68 more in its Appendix C, kept in a file of their own |
+| OWASP Secure by Design | 36 controls in five domains: a checklist, not requirements to verify |
+
+The AISVS figure was given as 235 until 4 October. That counted every description in the file, the 44 sections'
+own descriptions included; the file holds 191 requirements, at `v1-paper` and at the cut-off alike. The data files
+are the same at both points (`data/frameworks/`), and `sv` reads the same four.
 
 Not all apply to a given app: applicability is decided from the wizard answers (a local-only app is not asked
 about TLS termination; an app with no payments is not asked about card data). The reports state the applicable
@@ -67,7 +76,9 @@ Statuses: `pass`, `ai-assessed`, `documented`, `attested`, `partial`, `fail`, `n
 
 ## What checks the checker
 
-- Server suite: 113 files, 1,075 tests.
+- Server suite: 113 files, 1,078 tests at `v1-paper`, the last count v1 stated that day (`d5d5719`). This said
+  1,075 until 4 October, the count stated at 16:57 and 17:21, before this was written at 18:12; two more statements
+  that evening gave 1,077 and 1,078.
 - Template suite: 28 security test files; every test name must begin with a requirement id, and a separate check
   compares each test's name and body against that requirement's wording.
 - Evaluation harness: five golden applications rebuilt without AI and compared against recorded baselines. A
@@ -132,10 +143,19 @@ moved.
 
 ## Limits worth stating
 
-- One app per language. The Python arm is a single Flask application; nothing here generalises to Python as such.
+- One app per language. The Python arm is a single Flask application; nothing here generalizes to Python as such.
 - Arm A was run without AI review, because for a native app SecureVibe offers an AI review only as part of a full
   rebuild. Its AI figures come from a separate full build on 19 September and are marked as such.
 - The owner answered the wizard for all three. For the Python app, which she did not write, several answers were
   "not sure", which SecureVibe treats as no evidence either way.
 - SecureVibe was under active development throughout the three days, including on the day of the comparison. The
   arms are comparable with each other and not with runs from earlier days.
+
+## What checks `sv`, at the cut-off
+
+v1's harness and suites stopped with v1. `sv` is checked by its own Rust tests, run on every pull request with its
+formatting and lint checks (`.github/workflows/rust.yml`): **1,655 tests** at `157ddc3`, counted as `#[test]`
+attributes in the code, as `TESTS-AND-FAULTS.md` counts them by day. It has no golden apps; its five example apps
+(`examples/`) and the comparison study's five AI-built apps (29 September to 3 October) are what it is run
+against. The rule that carried over from v1's methodology unchanged is the evidence rule: what an AI says is the
+weakest tier and never makes a requirement *checked* (`ADRS.md`, ADR-006 and ADR-022).

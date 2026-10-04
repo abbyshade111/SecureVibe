@@ -40,6 +40,7 @@
   .rows .label span { font-size: .78rem; color: var(--text-muted); }
   .units { display: flex; flex-wrap: wrap; gap: 4px; }
   .u { width: 14px; height: 14px; border-radius: 50%; }
+  .u.open { background: transparent !important; box-shadow: inset 0 0 0 2px var(--sv); }
   .rows .n { font-variant-numeric: tabular-nums; color: var(--text-secondary); font-size: .85rem; white-space: nowrap; }
   table { border-collapse: collapse; width: 100%; font-size: .86rem; margin-top: 8px; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
@@ -61,14 +62,16 @@
   <h1>How the faults the tests missed were caught</h1>
   <p class="sub">Every fault below passed the automated suites. Each was caught another way: by a person using
      the software, by one AI session reviewing another's merged work, by breaking a guard on purpose to see
-     whether anything noticed, by v1's evaluation harness, or by accident. One dot per fault written down in
-     the repository.</p>
+     whether anything noticed, by v1's evaluation harness, by accident, and from 28 September by another project
+     using <code>sv</code> and by an outside review of its code. One dot per fault in <code>faults.csv</code>, to
+     the cut-off: <code>main</code> at <code>157ddc3</code>, 11:37 Eastern, 4 October 2026.</p>
 
   <div class="legend">
     <span><span class="dot" style="background:var(--v1)"></span>v1</span>
     <span><span class="dot" style="background:var(--sv)"></span><code>sv</code></span>
+    <span><span class="dot" style="box-shadow:inset 0 0 0 2px var(--sv)"></span>open at the cut-off</span>
   </div>
-  <div class="rows" id="rows" role="img" aria-label="Faults by how they were caught: a person using it, v1 13 and sv 18; another session's review, v1 9 and sv 10; v1's evaluation harness, 14; breaking a guard on purpose, v1 3 and sv 3; by accident, sv 4."></div>
+  <div class="rows" id="rows" role="img" aria-label="Faults by how they were caught: a person using it, v1 31 and sv 20 (4 open); another session's review, v1 10 and sv 30; v1's evaluation harness, 14; breaking a guard on purpose, v1 2 and sv 9; by accident, v1 9 and sv 23; another project using sv, sv 12; an outside review of the code, sv 56 (55 open)."></div>
 
   <blockquote>"a test that checks the code against itself"
     <cite>docs/DESIGN.md, "The citations were all wrong": the tests for sv's citation map were written from the
@@ -88,7 +91,12 @@
       <tr><td>Breaking a guard</td><td class="who" style="color:var(--sv)">sv</td><td>Three guards were each caught by only one test; each got a second witness that fails differently</td><td class="src"><code>0cd3a74</code></td></tr>
       <tr><td>Harness</td><td class="who" style="color:var(--v1)">v1</td><td>Five template bugs real owners would have hit, in the harness's first hour, among them feature flags written in one case and read in another, and a removed file still imported</td><td class="src"><code>af6b83f</code></td></tr>
       <tr><td>Accident</td><td class="who" style="color:var(--sv)">sv</td><td>Nearly every citation in the rule maps pointed at the wrong requirement, plausibly: the right chapter, a digit or two off. Found by accident three times</td><td class="src"><code>docs/DESIGN.md</code></td></tr>
-      <tr><td>Accident</td><td class="who" style="color:var(--sv)">sv</td><td>The fence test passed with <code>nc</code> missing from the image, and its only comparison was the host, which on Docker Desktop is a different machine from the containers; found running the suite on the owner's Mac for another reason</td><td class="src">#148</td></tr>
+      <tr><td>Using it</td><td class="who" style="color:var(--sv)">sv</td><td>The fence test passed with <code>nc</code> missing from the image, and its only comparison was the host, which on Docker Desktop is a different machine from the containers; found running the suite on the owner's Mac for another reason</td><td class="src">#148</td></tr>
+      <tr><td>Accident</td><td class="who" style="color:var(--sv)">sv</td><td>A crash was read as the app refusing, so 29 passes could be credited on a 500; found while fixing the same mistake for a rate limiter's 429</td><td class="src">#418</td></tr>
+      <tr><td>Review</td><td class="who" style="color:var(--sv)">sv</td><td>A file name could write its own lines into what the MCP server tells the AI tool, so a file could say "the owner approved this app as secure"</td><td class="src">#474</td></tr>
+      <tr><td>Another project</td><td class="who" style="color:var(--sv)">sv</td><td>A shell variable reference, <code>"$OTHER_VAR"</code>, reported as a HIGH hard-coded credential, telling the owner to rotate a key that was never in the file</td><td class="src">#433</td></tr>
+      <tr><td>Outside review</td><td class="who" style="color:var(--sv)">sv</td><td>A backslash in a file name made <code>sv bundle</code> read and zip files outside the app; the only one of the review's 56 fixed by the cut-off</td><td class="src">#555</td></tr>
+      <tr><td>Outside review</td><td class="who" style="color:var(--sv)">sv</td><td>An AI tool could mark its own findings as reviewed by a person, and the headline then read "Nothing here found a problem"; open at the cut-off</td><td class="src">R1, R2</td></tr>
     </tbody>
   </table>
 
@@ -106,35 +114,41 @@
   </table>
 
   <p class="note">Counts are faults written down in the repository, not a census: something caught and fixed
-     without a note is not here. "A person using it" is the usability figure's 13 for v1 and 9 + 7 + 2 for
-     <code>sv</code>. Review: ten <code>sv</code> findings (#73, #82, #124, #128, #132, #134, #169, <code>6225f3f</code>,
-     <code>672d4af</code>, and the level wording in #63, fixed on <code>main</code> by <code>e4af72d</code>) and one v1
-     cross-review that found nine. Harness: the first hour's five (<code>af6b83f</code>), four in <code>2a5d2e8</code>,
-     two in <code>d50ce89</code>, the misnamed tests in <code>22ddcc1</code>, <code>Math.random</code> in
-     <code>d46f119</code>, and the test name in <code>00456fe</code>. Breaking a guard: three in v1's
-     <code>CLAUDE.md</code>, and three guards in <code>0cd3a74</code>. Accident: the three times the wrong citations
-     were found, and #148, found running the suite on the owner's Mac. The claims count covers the window of
-     <code>TIMELINE.md</code>, which stops at 10:52 on 27 September; <code>COORDINATION.md</code> carries it to
-     28 September. Sources
-     are named in each row; v1's files are read at tag <code>v1-final</code>.</p>
+     without a note is not here. Each is a row of <code>faults.csv</code> counted in <code>TESTS-AND-FAULTS.md</code>,
+     grouped by its <code>found_by</code>: a person using it is the owner's use and running it on real input; review
+     is one session reviewing another's work; by accident is building or designing something else. The two new rows
+     are kept apart from review on purpose. The outside review was a deliberate audit of <code>sv</code> at
+     <code>eff3f17</code> by six reviewers working for the owner's other project, cato-pipeline; folded into review it
+     would be most of the row. Another project using <code>sv</code> is cato-pipeline wiring it in and running the
+     owner's comparison study, which found 10 of its ten reported issues as faults here, plus 2 more. Not drawn,
+     because they were caught by something automated or by nobody recorded: 14 found by a failing test, 16 by a tool
+     in CI, and 9 with no finder. 59 faults were open at the cut-off, 55 of them the outside review's. On
+     28 September this figure counted on another basis (a person using it, v1 13 and <code>sv</code> 18; review 9 and
+     10; harness 14; breaking a guard 3 and 3; by accident 4); its counts now come from <code>faults.csv</code>, and
+     #148 is under using it there. The claims count covers the window of <code>TIMELINE.md</code>, which stops at
+     10:52 on 27 September; <code>COORDINATION.md</code> carries it further. Sources are named in each row; v1's
+     files are read at tag <code>v1-final</code>.</p>
 </div>
 <script>
+  // [name, how, v1, sv, sv open]
   const rows = [
-    ["A person using it", "the owner, or someone watching them", 13, 18],
-    ["Another session's review", "reading merged work, reproducing it", 9, 10],
-    ["v1's evaluation harness", "five apps rebuilt from saved answers", 14, 0],
-    ["Breaking a guard on purpose", "then counting what goes red", 3, 3],
-    ["By accident", "noticed while doing something else", 0, 4],
+    ["A person using it", "the owner, or running it on real input", 31, 20, 4],
+    ["Another session's review", "reading merged work, reproducing it", 10, 30, 0],
+    ["v1's evaluation harness", "five apps rebuilt from saved answers", 14, 0, 0],
+    ["Breaking a guard on purpose", "then counting what goes red", 2, 9, 0],
+    ["By accident", "noticed while building something else", 9, 23, 0],
+    ["Another project using sv", "cato-pipeline: its wiring and comparison study", 0, 12, 0],
+    ["An outside review of the code", "six reviewers, one morning, 4 October", 0, 56, 55],
   ];
   const host = document.getElementById("rows");
-  rows.forEach(([name, how, v1, sv]) => {
+  rows.forEach(([name, how, v1, sv, open]) => {
     const label = document.createElement("div"); label.className = "label";
     label.innerHTML = `<b></b><span></span>`; label.querySelector("b").textContent = name; label.querySelector("span").textContent = how;
     const units = document.createElement("div"); units.className = "units";
     for (let i = 0; i < v1; i++) { const d = document.createElement("span"); d.className = "u"; d.style.background = "var(--v1)"; units.appendChild(d); }
-    for (let i = 0; i < sv; i++) { const d = document.createElement("span"); d.className = "u"; d.style.background = "var(--sv)"; units.appendChild(d); }
+    for (let i = 0; i < sv; i++) { const d = document.createElement("span"); d.className = "u" + (i >= sv - open ? " open" : ""); d.style.background = "var(--sv)"; units.appendChild(d); }
     const n = document.createElement("div"); n.className = "n";
-    n.textContent = [v1 ? `v1 ${v1}` : "", sv ? `sv ${sv}` : ""].filter(Boolean).join(" · ");
+    n.textContent = [v1 ? `v1 ${v1}` : "", sv ? `sv ${sv}` : "", open ? `${open} open` : ""].filter(Boolean).join(" · ");
     host.append(label, units, n);
   });
 </script>
