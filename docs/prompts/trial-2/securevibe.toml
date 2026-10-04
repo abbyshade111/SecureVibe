@@ -1,0 +1,17 @@
+manifest-version = 1
+
+[app]
+name = "Recipe box"
+description = "Friends sign in, write recipes with a formatting toolbar, download a recipe as a PDF, and ask an AI assistant cooking questions."
+audience = "customers"
+deployment = "internet"
+
+[stack]
+languages = ["javascript"]
+
+[data]
+categories = ["contact"]
+
+[capabilities]
+auth = true
+ai = { enabled = true }

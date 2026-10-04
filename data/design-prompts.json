@@ -1,5 +1,6 @@
 {
   "_comment": "Design-time prompts: what a person asks their AI coding tool to decide before any code is written, drawn from the OWASP Secure by Design checklist 0.5.0 (data/frameworks/sbd-checklist-0.5.0.json). The companion of data/prompts.json, with the same fields and one more: `sbd_controls` names the checklist controls a prompt helps a person answer. It never meets one: every Secure by Design control is answered by a person, so no check settles it (DESIGN, 'The checklist that was named and never loaded'). `requirements` are the ASVS requirements the prompt's check speaks to. Tested as data/prompts.json's are: a prompt is `shown` only when an app built with it passed its check and the same app built without it failed (the owner's decision of 3 October 2026), and the others are offered marked not tested (4 October 2026). For a check that only ever credits, failing means not credited. Written for the backlog item 'Design-time prompts from the Secure by Design checklist'; docs/prompts/design-time.md is written from this by hand.",
+  "credit": "The design-time prompts draw on the OWASP Secure by Design Framework 0.5.0 (draft, August 2025, https://github.com/OWASP/www-project-secure-by-design-framework), licensed CC BY-SA 4.0. Each names the checklist controls it helps a person answer; a person still answers each one.",
   "prompts": [
     {
       "id": "design-who-may-do-what",
@@ -145,6 +146,9 @@
           "probe.log-timestamp-zoned",
           "probe.authorization-failure-logged"
         ],
+        "not_claimed": {
+          "V16.3.2": "The refused request was logged by the build with the prompt and by one of the two builds without it, so the prompt was not shown to change it."
+        },
         "passes_when": "probe.log-line-metadata and probe.log-timestamp-zoned credited",
         "fails_when": "either not credited (these checks only ever credit)"
       },
@@ -174,6 +178,9 @@
           "probe.session-idle-timeout",
           "probe.session-lifetime"
         ],
+        "not_claimed": {
+          "V7.3.2": "The prompt's 12 hours is longer than the 90 minutes `sv run --slow` waits, so the session's longest life was not assessed."
+        },
         "passes_when": "probe.session-idle-timeout credited",
         "fails_when": "probe.session-idle-timeout a finding"
       },
