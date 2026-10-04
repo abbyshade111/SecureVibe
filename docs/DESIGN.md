@@ -7784,7 +7784,7 @@ skipping the ordinary file after a refusal.
 ## Decide before you build: the instructions, the spec, and the design-time prompts as MCP prompts (4 October 2026)
 
 Items 1, 2, and 8 of the backlog's "Design-time help before any code", as the owner decided the same day; the decision
-is ADR-027.
+is ADR-028.
 
 **The instructions and the spec.** The MCP server's opening instructions now begin with the design: for an app with no
 code yet, write `securevibe.toml` first, for the app as it will be, deciding each answer with the person, then work

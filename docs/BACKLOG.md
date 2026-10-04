@@ -1085,7 +1085,7 @@ another session is not a claim.
   **Prompts 8 to 15 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first` (item 8 of "Design-time help before any code", below).
   **Prompts 8 to 15 done the same day** (`data/design-prompts.json`, `docs/prompts/design-time.md`, "Not tried yet,
-  and no check can show them"; ADR-027). Each is not tried and names no ASVS requirement; six name the Secure by Design
+  and no check can show them"; ADR-028). Each is not tried and names no ASVS requirement; six name the Secure by Design
   controls whose statements fit, two name none.
 
 - **Design-time help before any code: keeping what v1 did best.** Proposed on 4 October 2026 by session paper-facts,
@@ -1131,7 +1131,7 @@ another session is not a claim.
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
-  **Items 1, 2, and 8 done the same day** (ADR-027; DESIGN, "Decide before you build: the instructions, the spec, and
+  **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
   the design-time prompts as MCP prompts"). The instructions and the spec put the brief first for an app with no code,
   and the spec's third rule now keeps a planned capability true until it is dropped; the server answers `prompts/list`
   and `prompts/get` in both protocols with the design-time prompts, each marked and credited; and the eight prompts
