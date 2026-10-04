@@ -298,11 +298,17 @@ impl Listing {
     }
 }
 
-fn relative(root: &Path, path: &Path) -> String {
+/// `path` from `root`, its parts joined with `/` whatever the platform. Built from the parts rather
+/// than by turning every `\\` in the text into `/`: on macOS and Linux a `\\` is an ordinary character
+/// in a name, and `..\\outside\\key.txt` rewritten that way named a file outside the app, which
+/// `sv bundle` then read and zipped (the deep review of 4 October 2026, S1).
+pub fn relative(root: &Path, path: &Path) -> String {
     path.strip_prefix(root)
         .unwrap_or(path)
-        .to_string_lossy()
-        .replace('\\', "/")
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy())
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn walk(root: &Path, dir: &Path, in_editor: bool, out: &mut Listing) {
@@ -365,6 +371,27 @@ mod tests {
 
     fn names(entries: &[Entry]) -> Vec<&str> {
         entries.iter().map(|e| e.relative.as_str()).collect()
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_backslash_in_a_name_stays_part_of_the_name() {
+        // S1 of the deep review of 4 October 2026: the relative path is the parts joined, and joined back on
+        // to the root it is the file it came from, never one outside the app.
+        let root = scratch("backslash");
+        let app = root.join("app");
+        std::fs::create_dir_all(app.join("sub")).unwrap();
+        std::fs::create_dir_all(root.join("outside")).unwrap();
+        std::fs::write(root.join("outside/key.txt"), "outside").unwrap();
+        std::fs::write(app.join("..\\outside\\key.txt"), "inside").unwrap();
+        std::fs::write(app.join("sub/a\\b.py"), "inside").unwrap();
+        let listing = Listing::of(&app);
+        std::fs::remove_dir_all(&root).ok();
+        let names: Vec<&str> = listing.files.iter().map(|f| f.relative.as_str()).collect();
+        assert_eq!(names, vec!["..\\outside\\key.txt", "sub/a\\b.py"]);
+        for f in &listing.files {
+            assert_eq!(app.join(&f.relative), f.path, "{}", f.relative);
+        }
     }
 
     #[test]

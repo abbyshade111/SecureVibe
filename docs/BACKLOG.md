@@ -23,6 +23,11 @@ another session is not a claim.
     every zip entry name part is ordinary.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-backslash-paths`.
+    **Done the same day** (DESIGN, "A backslash in a file name"), held three ways: relative paths are built from
+    their parts (`sv_scan::files::relative`, so every check reading through the listing has it), the bundle leaves
+    such names out and lists them, and `zip` refuses any entry name that is not a plain path inside the bundle.
+    Tested with the review's own fixture; each layer broken on its own was caught, and all three broken reproduced
+    the fault.
   - **S2. High, Reproduced on Colima. The fence lets the app reach the host through the bridge's gateway.**
     `docker network create --internal` blocks the internet but not the gateway: a fenced container reached the
     Colima VM's sshd at 172.20.0.1:22. On Linux with Docker itself, the gateway is the developer's own machine.

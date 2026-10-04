@@ -564,3 +564,73 @@ fn the_data_the_owner_says_the_app_holds_is_named_and_not_pretended_away() {
     // And the honest half: nothing is left out on the strength of a category, since sv cannot tell which files.
     assert!(entries.iter().any(|(n, _)| n.ends_with("app/src/main.py")));
 }
+
+/// The deep review of 4 October 2026, S1: on macOS and Linux a `\` is an ordinary character in a file name, and
+/// turning it into `/` made `..\outside\deploy_key.txt` name a file outside the app, which the bundle read and
+/// zipped, under an entry name that climbs out of the folder it is unpacked into.
+#[cfg(unix)]
+#[test]
+fn a_backslash_in_a_file_name_never_reaches_outside_the_app() {
+    let root = scratch("backslash");
+    let dir = root.join("app");
+    std::fs::create_dir_all(dir.join("src")).unwrap();
+    std::fs::create_dir_all(root.join("outside")).unwrap();
+    let outside = "text-that-lives-outside-the-app-4417";
+    std::fs::write(root.join("outside/deploy_key.txt"), outside).unwrap();
+    std::fs::copy(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/tested-notes/securevibe.toml"),
+        dir.join("securevibe.toml"),
+    )
+    .unwrap();
+    std::fs::write(dir.join("src/main.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("..\\outside\\deploy_key.txt"),
+        "the odd name's own text\n",
+    )
+    .unwrap();
+    // The setup is real: the odd name is one file inside the app, and the outside file is there to be reached.
+    assert!(dir.join("..\\outside\\deploy_key.txt").is_file());
+    assert!(dir.join("../outside/deploy_key.txt").is_file());
+
+    let zip = root.join("out.zip");
+    let out = sv(&[
+        "bundle",
+        dir.to_str().unwrap(),
+        "--out",
+        zip.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let (entries, bad) = read_zip(&zip);
+    std::fs::remove_dir_all(&root).ok();
+    assert_eq!(bad, None);
+    assert!(
+        entries.iter().any(|(n, _)| n.ends_with("app/src/main.py")),
+        "the app's ordinary file is carried"
+    );
+    for (name, data) in &entries {
+        assert!(
+            !contains(data, outside),
+            "{name} carries the outside file's text"
+        );
+        assert!(
+            !name.split('/').any(|p| p == ".." || p.contains('\\')),
+            "{name} is not a plain path inside the bundle"
+        );
+    }
+    let listing = &entries
+        .iter()
+        .find(|(n, _)| n.ends_with("BUNDLE.json"))
+        .unwrap()
+        .1;
+    let listing = String::from_utf8_lossy(listing);
+    assert!(
+        listing.contains("backslash"),
+        "the odd name is listed as left out: {listing}"
+    );
+}

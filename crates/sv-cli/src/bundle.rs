@@ -112,6 +112,17 @@ pub fn zip(entries: &[(String, Vec<u8>)]) -> Result<Vec<u8>> {
             entries.len()
         );
     }
+    // Every name is checked part by part before anything is written: an entry whose name climbs out of
+    // the folder it is unpacked into, or starts at the top of the disk, is never put in the archive.
+    for (name, _) in entries {
+        let ordinary = !name.is_empty()
+            && name.split('/').all(|part| {
+                !part.is_empty() && part != "." && part != ".." && !part.contains(['\\', '\0'])
+            });
+        if !ordinary {
+            bail!("refusing to put {name:?} in the bundle: it is not a plain path inside it");
+        }
+    }
     let mut out: Vec<u8> = Vec::new();
     let mut central: Vec<u8> = Vec::new();
     for (name, data) in entries {
@@ -304,15 +315,25 @@ fn walk(root: &Path, dir: &Path, files: &mut Vec<String>, plan: &mut Plan) {
     };
     for entry in entries.flatten() {
         let path = entry.path();
-        let rel = path
-            .strip_prefix(root)
-            .unwrap_or(&path)
-            .to_string_lossy()
-            .replace('\\', "/");
+        let rel = sv_scan::files::relative(root, &path);
         let Ok(meta) = std::fs::symlink_metadata(&path) else {
             continue;
         };
-        if meta.file_type().is_symlink() {
+        // A name with a `\\` in it, or one that is not text, is carried as nothing: an archive's
+        // names are read on other systems, where a `\\` separates folders and `..\\` climbs out of the
+        // one being unpacked into.
+        let name_is_plain = entry
+            .file_name()
+            .to_str()
+            .is_some_and(|n| !n.contains('\\'));
+        if !name_is_plain {
+            plan.left_out.push((
+                rel,
+                "its name has a backslash, or characters that are not text, which another system \
+                 would read as a path"
+                    .to_owned(),
+            ));
+        } else if meta.file_type().is_symlink() {
             plan.left_out.push((
                 rel,
                 "it is a link, and a link can lead outside the app folder".to_owned(),
@@ -486,6 +507,30 @@ pub fn scratch_dir() -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_entry_name_that_is_not_a_plain_path_inside_the_bundle_is_refused() {
+        for name in [
+            "app/../outside/key",
+            "../key",
+            "/etc/hosts",
+            "app/./x",
+            "app//x",
+            "app/a\\b",
+            "",
+            "app/",
+        ] {
+            assert!(
+                zip(&[(name.to_owned(), b"x".to_vec())]).is_err(),
+                "{name:?}"
+            );
+        }
+        assert!(zip(&[("app/src/main.py".to_owned(), b"x".to_vec())]).is_ok());
+        assert!(
+            zip(&[("app/a:b.txt".to_owned(), b"x".to_vec())]).is_ok(),
+            "a colon is an ordinary character"
+        );
+    }
 
     #[test]
     fn sha256_matches_the_published_test_vectors() {
