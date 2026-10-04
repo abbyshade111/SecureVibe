@@ -84,7 +84,10 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   accepted in the pull request that builds it. A pull request that touches a governed file and does not change its
   record says why on a line `ADR-0NN: unchanged, because ...`; the "Decision records" check fails without it. Until
   4 October 2026 every one of `sv`'s records was written one to seven days after the decision, and only when a review
-  noticed.
+  noticed. **The owner made "Decision records" a required check on `main` on 4 October 2026**: a pull request does not
+  merge until it passes, so add the line, or change the record, before asking for the merge. A pull request opened
+  before 21:55 that day ran the check under its old name, `check`, and waits for "Decision records" until it is
+  pushed to again or its description is edited.
 - Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a message
   to another session does not count: a session that is not running never receives it, and one that is will not see it again
   after its context is summarized. On 20 September 2026 two sessions each read the backlog, each correctly saw an item
