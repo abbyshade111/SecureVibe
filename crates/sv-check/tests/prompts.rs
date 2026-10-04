@@ -49,6 +49,39 @@ fn the_shown_prompts_come_first_wherever_the_file_puts_them() {
 }
 
 #[test]
+fn every_prompt_is_marked_above_its_text_as_shown_or_not_tested() {
+    // The library has no prompt left untried, so one is made untried here, to have all three kinds.
+    let path = changed("each-kind", |d| {
+        let last = d["prompts"].as_array_mut().unwrap().last_mut().unwrap();
+        last["status"] = "untested".into();
+        last["tested"] = serde_json::Value::Null;
+    });
+    let loaded = Prompts::load(&path);
+    std::fs::remove_file(&path).ok();
+    let prompts = loaded.expect("the changed library loads");
+    for status in [Status::Shown, Status::NotShown, Status::Untested] {
+        assert!(
+            prompts.prompts.iter().any(|p| p.status == status),
+            "no {status:?} prompt to test"
+        );
+    }
+    let text = prompts.markdown(&prompts.select(None));
+    for p in &prompts.prompts {
+        let after = text
+            .split(&format!("### {}\n\n", p.title))
+            .nth(1)
+            .unwrap_or_else(|| panic!("{} is not in the text", p.title));
+        let mark = match p.status {
+            Status::Shown => "**Shown to work.**",
+            Status::NotShown => "**Not tested:** tried, and not shown to work.",
+            Status::Untested => "**Not tested:** not tried yet.",
+        };
+        assert!(after.starts_with(mark), "{} is not marked {mark}:\n{after}", p.title);
+    }
+    assert!(text.trim_end().ends_with(prompts.credit.as_str()), "{text}");
+}
+
+#[test]
 fn a_prompt_said_to_be_tried_has_to_say_what_happened() {
     let path = changed("no-result", |d| {
         let tried = d["prompts"]
