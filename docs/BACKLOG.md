@@ -78,6 +78,122 @@ another session is not a claim.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
 
+- **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
+  H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
+  H1 to H5, then H12 to H15, then H8 to H11.
+  - **H1. High, Reproduced.** `ast.sql-built-by-hand` misses the usual injection calls in five languages yet marks
+    V1.2.4 checked: sinks are a short name list and only the first argument is matched (better-sqlite3, sqlite3,
+    Prisma `$queryRawUnsafe`; `mysqli_query($conn, ...)`, PDO `prepare`; `prepareStatement`, Spring `jdbc.query*`;
+    `new SqlCommand`; Ruby `where("...#{x}")`; `pd.read_sql(f"...")`). Nine real injections gave none. Fix: sinks
+    and the SQL argument's position per language; until then name the calls in the clean claim.
+  - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
+    (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
+    or mark the page left behind.
+  - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
+    `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
+  - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
+    secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
+    `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
+  - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
+    `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
+    TypeScript coverage is claimed.
+  - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
+    or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
+    marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
+    it; skip build folders only where an ecosystem puts them.
+  - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
+    `toolConfigurationNotifications` and `executionSuccessful` are ignored.
+  - **H8. High, Reproduced.** PyPI names are not normalized (PEP 503) in the advisory comparison: `jupyter_server`
+    never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
+  - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
+    and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
+  - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
+  - **H11. High, Reproduced.** V15.2.1 is credited while the package list is incomplete (`complete_enough` ignores
+    declared-only packages). Fix: require `sbom.is_complete()`.
+  - **H12. High, Read.** A plain-HTTP redirect to plain HTTP, or to a relative path, is credited as sending the
+    browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
+  - **H13. High, Read.** HSTS is credited whatever its value, `max-age=0` included, even on error answers (V3.4.1).
+  - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
+    and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
+  - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
+    credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
+    with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
+    refusal.
+  - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
+    that includes `docker exec`'s own time.
+  - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
+    4,000 characters. Fix: search the whole answer before cutting it.
+  - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
+    1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
+  - **H19. Medium, Read.** A matching advisory clears the "could not compare" flag earlier advisories left.
+  - **H20. Medium, Reproduced.** RubyGems platform versions (`1.15.4-x86_64-linux`) are compared as semver.
+  - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
+    and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
+  - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
+    is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
+  - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
+    `.well-known/security.txt` and other spellings are not recognized.
+  - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
+  - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
+
+- **The deep review of `sv` at `eff3f17`, part 3 of 3: accuracy (A1 to A6), reviews and reports (R3 to R14), and
+  improvements.** Same sender. **Each item can be claimed on its own.** R1 and R2 are in part 1.
+  - **A1. Medium, Reproduced, and the pattern in the owner's study.** The SQL, redirect, and file-path rules cannot
+    tell constants or checked values from input: `execute(QUERY, (uid,))`, a query with bound parameters, Go's
+    `QueryContext(ctx, ...)` (the first argument is always `ctx`), `res.redirect(`/users/${id}`)`, `open(HERE /
+    "data" / ...)`. Seven of family-hub's eight SQL findings were false alarms. Fix: a shared helper that treats
+    ALL_CAPS module constants and names bound once to a literal as literals; bound parameters lower the confidence;
+    each sink's argument position; a path starting `/` and then not `/` cannot leave the site.
+  - **A2. Medium, Read.** Review fingerprints collide on identical lines, and survive a change to the line that
+    matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
+  - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
+    Fix: take `go.mod`'s `require` lines.
+  - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
+    Fix: whole words only.
+  - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
+    `sk_test_` keys graded critical.
+  - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
+    `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+  - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
+    reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
+    unknown to this version, gone.
+  - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
+    shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
+    Fix: hash the line with the value masked, or use a key kept locally.
+  - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
+    add up. Fix: every status, and a test that the rows sum to the applicable total.
+  - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
+    convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
+  - **R7. High, Reproduced.** `sv notes` and the MCP notes tool delete the owner's own text, though the tool says it
+    keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
+  - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
+  - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
+    INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
+    app text as data; offer only reports whose marker proves `sv` wrote them.
+  - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
+  - **R11. Low to medium, Reproduced.** Duplicate or conflicting reviews are each applied.
+  - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
+    requirement from applicable to "does not apply".
+  - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
+    escapes correctly.
+  - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
+    rule descriptions take one instance's text.
+  - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
+    2: clean claims that name their limits (the calls per language, the ecosystems, transitive and development
+    dependencies). 3: time limits and a clean environment for outside tools (`GOTOOLCHAIN=local`). 4: score CVSS
+    v4 (2,340 OSV records carry only v4), and count advisory files that fail to parse. 5: a random marker per run for
+    helper output, two-factor codes from the container's clock, seed secrets through standard input, control
+    characters stripped from app output, WebSockets and workers watched in the browser driver. 6: validate
+    `manifest-version`, refuse trailing text after dates, a stray `</details>` in `report.html`, let a false alarm
+    lapse when nearby lines change. 7: refuse an option value starting `--`, do not overwrite a bundle without
+    asking, one error for "outside the root" and "does not exist".
+  - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
+    not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
+    walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
+    `--`; MCP path confinement, size caps, and batch refusal; helper containers' hardening; `sv probe`'s cap and
+    TLS; the CVSS v3 arithmetic, alias grouping, withdrawn records, and version ordering; linear-time regular
+    expressions.
+
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger
