@@ -525,6 +525,15 @@ another session is not a claim.
      a sentence, and quote pairing; nine guards broken in turn, each caught, one only after a control was added.
      Found: with `--tools`, Bandit's B105 on the same line now wins the merge and the sentence note is lost (not
      changed; it is the merge's rule for all findings). The redirect half is A1's, untouched.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-7-sentence-credential`: the Bandit merge follow-up above.
+     **Done the same day** (DESIGN, the same section, "The merge keeps `sv`'s words"): `merge_same_place` keeps the
+     most severe finding's words, then `sv`'s own rule's over a tool's, then the surer. It keeps that finding's own
+     confidence, carries the redacted value, and says in one line how `sv`'s own rules rated the line when a more
+     severe tool finding is kept. It never copies a tool's text, which can quote the value (S8). A review naming a
+     merged-in rule still counts. The family-hub line under `--tools` now reads "reads like a sentence", with
+     Bandit in "also reported by", shown with a stand-in and with the real Bandit 1.9.4. Ten guards broken in turn,
+     each caught. Changed: at the same severity a less sure `sv` finding is now kept over a tool's.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed

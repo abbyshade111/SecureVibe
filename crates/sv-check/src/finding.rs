@@ -294,53 +294,120 @@ pub fn is_test_path(path: &str) -> bool {
 /// "The same kind" is a CWE they share: `sv`'s own rule and semgrep's both calling line 12 of
 /// `app.py` CWE-89 are one problem, seen twice. Two findings with no CWE in common stay apart, even on
 /// one line, because they are two problems; so do findings without a line in a file (a running app, a
-/// settings file), which are about different things. The one kept is the most severe, then the one
-/// `sv` is surest of; it takes every requirement and CWE of the others, and names their rules in
-/// `also_reported_by`, so nothing the others were evidence about is lost.
+/// settings file), which are about different things.
+///
+/// The one kept, whose words the owner reads, is the most severe, so a merge never lowers a
+/// finding. At the same severity it is `sv`'s own rule's rather than an outside tool's: `sv`'s words
+/// carry its own qualifications (such as "this reads like a sentence"), where a tool's are its
+/// rule's general text, and every tool finding is given medium confidence because `sv` did not judge
+/// it, so "surer" between the two would compare a judgment with a placeholder. Only then is it the
+/// one `sv` is surest of. The kept finding keeps its own confidence: two reports of one line do not
+/// make either more certain. It takes every requirement and CWE of the others, names their rules in
+/// `also_reported_by`, carries the redacted value if it had none, and says, in one line each, how
+/// `sv`'s own rules among the others rated the line, so nothing the others were evidence about and
+/// no reason for `sv`'s own rating is lost. A tool's text is not copied over: it can quote the value
+/// it found (S8), and it is named instead. (BACKLOG, family-hub item 7, 4 October 2026.)
 pub fn merge_same_place(findings: Vec<Finding>) -> Vec<Finding> {
     let rank = |c: Confidence| match c {
         Confidence::High => 0,
         Confidence::Medium => 1,
         Confidence::Low => 2,
     };
-    let mut out: Vec<Finding> = Vec::with_capacity(findings.len());
+    // Lower comes first: more severe, then `sv`'s own, then surer.
+    let order = |f: &Finding| (f.severity, !is_svs_own(&f.rule_id), rank(f.confidence));
+    // Each group is the findings of one place, and which of them is kept so far.
+    let mut groups: Vec<(Vec<Finding>, usize, Vec<String>)> = Vec::with_capacity(findings.len());
     for f in findings {
-        let same = out.iter().position(|kept| {
+        let same = groups.iter().position(|(members, kept, cwe)| {
+            let kept = &members[*kept];
             reads_code(kept)
                 && reads_code(&f)
                 && kept.location == f.location
                 && kept.rule_id != f.rule_id
-                && kept.cwe.iter().any(|c| f.cwe.contains(c))
+                && cwe.iter().any(|c| f.cwe.contains(c))
         });
-        let Some(i) = same else {
-            out.push(f);
-            continue;
-        };
-        let kept = &mut out[i];
-        let f_first = (f.severity, rank(f.confidence)) < (kept.severity, rank(kept.confidence));
-        let (mut keep, other) = if f_first {
-            (f, std::mem::replace(kept, placeholder()))
-        } else {
-            (std::mem::replace(kept, placeholder()), f)
-        };
-        for id in std::iter::once(other.rule_id).chain(other.also_reported_by) {
-            if id != keep.rule_id && !keep.also_reported_by.contains(&id) {
-                keep.also_reported_by.push(id);
+        match same {
+            None => {
+                let cwe = f.cwe.clone();
+                groups.push((vec![f], 0, cwe));
+            }
+            Some(i) => {
+                let (members, kept, cwe) = &mut groups[i];
+                for c in &f.cwe {
+                    if !cwe.contains(c) {
+                        cwe.push(c.clone());
+                    }
+                }
+                if order(&f) < order(&members[*kept]) {
+                    *kept = members.len();
+                }
+                members.push(f);
             }
         }
-        for r in other.requirement_ids {
-            if !keep.requirement_ids.contains(&r) {
-                keep.requirement_ids.push(r);
-            }
-        }
-        for c in other.cwe {
-            if !keep.cwe.contains(&c) {
-                keep.cwe.push(c);
-            }
-        }
-        out[i] = keep;
     }
-    out
+    groups
+        .into_iter()
+        .map(|(mut members, kept, _)| {
+            let mut keep = members.remove(kept);
+            for other in members {
+                if !other.rule_id.is_empty()
+                    && other.rule_id != keep.rule_id
+                    && is_svs_own(&other.rule_id)
+                {
+                    let said = format!(
+                        "`sv`'s own rule `{}` reported this line too, as {} and {}: {}",
+                        other.rule_id,
+                        other.severity.name(),
+                        other.certainty(),
+                        other.title
+                    );
+                    keep.description = if keep.description.is_empty() {
+                        said
+                    } else {
+                        format!("{}\n\n{said}", keep.description)
+                    };
+                }
+                if keep.secret.is_none() {
+                    keep.secret = other.secret;
+                }
+                for id in std::iter::once(other.rule_id).chain(other.also_reported_by) {
+                    if id != keep.rule_id && !keep.also_reported_by.contains(&id) {
+                        keep.also_reported_by.push(id);
+                    }
+                }
+                for r in other.requirement_ids {
+                    if !keep.requirement_ids.contains(&r) {
+                        keep.requirement_ids.push(r);
+                    }
+                }
+                for c in other.cwe {
+                    if !keep.cwe.contains(&c) {
+                        keep.cwe.push(c);
+                    }
+                }
+            }
+            keep
+        })
+        .collect()
+}
+
+/// Whether a rule is `sv`'s own rather than an outside tool's, by the start of its name. A list of
+/// `sv`'s own, not of the tools, so a tool added to `data/adapters.json` and missed here is treated
+/// as a tool: its words are not preferred over `sv`'s, which is the safe way to be wrong.
+pub fn is_svs_own(rule_id: &str) -> bool {
+    const OWN: &[&str] = &[
+        "secrets.",
+        "ast.",
+        "config.",
+        "probe.",
+        "live.",
+        "design.",
+        "hand.",
+        "advisory.",
+        "sbom.",
+        "tests.",
+    ];
+    OWN.iter().any(|p| rule_id.starts_with(p))
 }
 
 /// Whether a finding points at a line of the app's code. The running-app probes, the settings and
@@ -358,28 +425,6 @@ pub(crate) fn reads_code(f: &Finding) -> bool {
         "tests.",
     ];
     f.location.line > 0 && !ELSEWHERE.iter().any(|p| f.rule_id.starts_with(p))
-}
-
-fn placeholder() -> Finding {
-    Finding {
-        rule_id: String::new(),
-        title: String::new(),
-        severity: Severity::Info,
-        confidence: Confidence::Low,
-        location: Location {
-            file: String::new(),
-            line: 0,
-        },
-        secret: None,
-        requirement_ids: Vec::new(),
-        cwe: Vec::new(),
-        description: String::new(),
-        impact: String::new(),
-        fix: String::new(),
-        also_reported_by: Vec::new(),
-        fingerprint: String::new(),
-        marked_test_code: false,
-    }
 }
 
 #[cfg(test)]
@@ -461,6 +506,163 @@ mod tests {
         assert_eq!(merged.len(), 1);
         assert_eq!(merged[0].rule_id, "ast.x");
         assert_eq!(merged[0].also_reported_by, vec!["semgrep.y".to_owned()]);
+    }
+
+    /// `sv`'s finding on the family-hub line: low, possible, with its sentence note and the value
+    /// redacted.
+    fn svs_sentence() -> Finding {
+        let mut f = at(
+            "secrets.credential-assignment",
+            "account.py",
+            1,
+            &["CWE-798", "CWE-259"],
+            Severity::Low,
+        );
+        f.confidence = Confidence::Low;
+        f.title = "A value written under a credential's name is in the code, but it reads like a \
+                   sentence (`WRONG_PASSWORD`)"
+            .into();
+        f.fix = "This reads like a sentence, so read the line first.".into();
+        f.secret = Some(Secret::redact("Your current password isn't right."));
+        f
+    }
+
+    /// Bandit's on the same line, as the adapter makes it: medium confidence because `sv` did not
+    /// judge it, its rule's text, and a message quoting the value.
+    fn bandits_b105(severity: Severity) -> Finding {
+        let mut f = at("bandit.B105", "account.py", 1, &["CWE-259"], severity);
+        f.title = "Bandit reported B105".into();
+        f.description = "Possible hardcoded password: 'Your current password isn't right.'".into();
+        f.requirement_ids = vec!["V13.3.1".into()];
+        f
+    }
+
+    #[test]
+    fn at_the_same_severity_svs_own_words_are_kept_and_the_tool_is_named() {
+        for findings in [
+            vec![svs_sentence(), bandits_b105(Severity::Low)],
+            vec![bandits_b105(Severity::Low), svs_sentence()],
+        ] {
+            let merged = merge_same_place(findings);
+            assert_eq!(merged.len(), 1, "{merged:#?}");
+            let f = &merged[0];
+            assert_eq!(f.rule_id, "secrets.credential-assignment");
+            assert_eq!(f.also_reported_by, vec!["bandit.B105".to_owned()]);
+            assert!(f.title.contains("reads like a sentence"));
+            assert!(f.fix.contains("reads like a sentence"));
+            // Its own certainty, not raised by the tool's placeholder "medium".
+            assert_eq!(f.severity, Severity::Low);
+            assert_eq!(f.certainty(), "possible");
+            // The tool's evidence: its requirement and CWE, and its name above.
+            assert!(f.requirement_ids.contains(&"V13.3.1".to_owned()));
+            assert!(f.cwe.contains(&"CWE-259".to_owned()));
+            // Its message quotes the value; nothing of it is copied over (S8).
+            assert!(
+                !f.description.contains("current password isn"),
+                "the kept description quotes the value (rule {})",
+                f.rule_id
+            );
+            assert!(f.secret.is_some());
+        }
+    }
+
+    #[test]
+    fn a_more_severe_tool_finding_is_kept_and_says_how_svs_own_rule_rated_the_line() {
+        for findings in [
+            vec![svs_sentence(), bandits_b105(Severity::High)],
+            vec![bandits_b105(Severity::High), svs_sentence()],
+        ] {
+            let merged = merge_same_place(findings);
+            assert_eq!(merged.len(), 1, "{merged:#?}");
+            let f = &merged[0];
+            // Never lowered by the merge: the tool rated it high, and its words say why.
+            assert_eq!(f.rule_id, "bandit.B105");
+            assert_eq!(f.severity, Severity::High);
+            assert_eq!(f.certainty(), "likely");
+            assert_eq!(
+                f.also_reported_by,
+                vec!["secrets.credential-assignment".to_owned()]
+            );
+            // `sv`'s own reason for its lower rating is said, once, and its redacted value kept.
+            assert_eq!(
+                f.description
+                    .matches(
+                        "`sv`'s own rule `secrets.credential-assignment` reported this line too, \
+                         as low and possible: A value written under a credential's name is in the \
+                         code, but it reads like a sentence"
+                    )
+                    .count(),
+                1,
+                "{}",
+                f.description
+            );
+            assert_eq!(
+                f.secret.as_ref().map(Secret::as_str),
+                Some("Your… (30 more characters)")
+            );
+        }
+    }
+
+    #[test]
+    fn at_the_same_severity_svs_own_rule_is_kept_even_when_it_is_less_sure() {
+        // Changed on 4 October 2026: the tool's "medium" is a placeholder, not a judgment, and
+        // `sv`'s rule says how sure it is and why. Its "possible" stays: the merge raises nothing.
+        let mut unsure = at("ast.x", "a.py", 3, &["CWE-601"], Severity::Medium);
+        unsure.confidence = Confidence::Low;
+        let merged = merge_same_place(vec![
+            at("semgrep.y", "a.py", 3, &["CWE-601"], Severity::Medium),
+            unsure,
+        ]);
+        assert_eq!(merged.len(), 1);
+        assert_eq!(merged[0].rule_id, "ast.x");
+        assert_eq!(merged[0].confidence, Confidence::Low);
+        assert_eq!(merged[0].also_reported_by, vec!["semgrep.y".to_owned()]);
+        // A tool merged into `sv`'s finding adds no words of its own.
+        assert!(
+            merged[0].description.is_empty(),
+            "{}",
+            merged[0].description
+        );
+    }
+
+    #[test]
+    fn svs_own_rules_are_told_from_every_outside_tools() {
+        let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let read = |name: &str| -> serde_json::Value {
+            serde_json::from_str(&std::fs::read_to_string(data.join(name)).unwrap()).unwrap()
+        };
+        let adapters = read("adapters.json");
+        let tools: Vec<&str> = adapters["adapters"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| a["id"].as_str().unwrap())
+            .collect();
+        assert!(
+            tools.contains(&"bandit") && tools.contains(&"semgrep"),
+            "{tools:?}"
+        );
+        for tool in &tools {
+            assert!(!is_svs_own(&format!("{tool}.B105")), "{tool}");
+        }
+        let mut own = 0;
+        for file in ["ast-rules.json", "secret-rules.json"] {
+            for rule in read(file)["rules"].as_array().unwrap() {
+                let id = rule["id"].as_str().unwrap();
+                assert!(is_svs_own(id), "{id}");
+                own += 1;
+            }
+        }
+        assert!(own > 20, "only {own} of sv's own rules were read");
+        for id in [
+            "secrets.credential-assignment",
+            crate::suite::NAME_MISMATCH,
+            "config.debug-mode",
+            "probe.x",
+            "advisory.GHSA-x",
+        ] {
+            assert!(is_svs_own(id), "{id}");
+        }
     }
 
     #[test]

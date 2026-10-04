@@ -19,9 +19,16 @@ const APP: &str = "import sqlite3\n\ndef find(db, user_id):\n    cur = db.cursor
 /// A stand-in for Bandit that answers `--version` and writes a SARIF report of one result: the
 /// same SQL built by hand that `sv`'s own rule finds, on the same line, tagged with the same CWE.
 fn fake_bandit(bin: &Path, line: usize) {
-    let sarif = format!(
-        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"Bandit","rules":[{{"id":"B608","properties":{{"tags":["CWE-89"]}}}}]}}}},"results":[{{"ruleId":"B608","level":"warning","message":{{"text":"Possible SQL injection vector through string-based query construction."}},"properties":{{"tags":["CWE-89"]}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"app.py"}},"region":{{"startLine":{line}}}}}}}]}}]}}]}}"#
+    fake_bandit_writing(
+        bin,
+        &format!(
+            r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"Bandit","rules":[{{"id":"B608","properties":{{"tags":["CWE-89"]}}}}]}}}},"results":[{{"ruleId":"B608","level":"warning","message":{{"text":"Possible SQL injection vector through string-based query construction."}},"properties":{{"tags":["CWE-89"]}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"app.py"}},"region":{{"startLine":{line}}}}}}}]}}]}}]}}"#
+        ),
     );
+}
+
+/// A stand-in for Bandit that answers `--version` and writes `sarif` as its report.
+fn fake_bandit_writing(bin: &Path, sarif: &str) {
     let script = format!(
         "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'bandit 1.9.4'; exit 0; fi\nout=''\nwhile [ $# -gt 0 ]; do if [ \"$1\" = \"--output\" ]; then out=\"$2\"; fi; shift; done\ncat > \"$out\" <<'SARIF'\n{sarif}\nSARIF\nexit 1\n"
     );
@@ -291,4 +298,165 @@ fn every_report_says_how_sure_it_is_and_whether_it_is_test_code_and_hides_nothin
         .join("\n");
     assert!(in_test.contains("[high, likely]"), "{text}");
     assert!(in_test.contains("In test or sample code"), "{text}");
+}
+
+/// The family-hub line (BACKLOG, family-hub item 7): an error message under a name that says
+/// password, which `sv` reports low because it reads like a sentence, and Bandit reports as B105.
+const MESSAGE: &str = "Your current password isn't right.";
+
+/// An app of one file whose line `line` is the family-hub line, after `line - 1` lines of nothing.
+fn sentence_app(app: &Path, line: usize) {
+    std::fs::create_dir_all(app.join("familyhub/views")).unwrap();
+    std::fs::write(
+        app.join("familyhub/views/account.py"),
+        format!(
+            "{}WRONG_PASSWORD = \"{MESSAGE}\"\n",
+            "# account messages\n".repeat(line - 1)
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        app.join("securevibe.toml"),
+        "manifest-version = 1\n[app]\nname = \"Sentence\"\n[stack]\nlanguages = [\"python\"]\n",
+    )
+    .unwrap();
+}
+
+/// What Bandit 1.9.4 writes for that line, as it did on the owner's Mac on 4 October 2026: a `note`
+/// (low) of rule B105, CWE-259, whose message quotes the value.
+fn bandit_b105_sarif(line: usize) -> String {
+    let message = format!(
+        "Possible hardcoded password: '{}'",
+        MESSAGE.replace('\'', "\\u0027")
+    );
+    format!(
+        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"Bandit","rules":[{{"id":"B105","name":"hardcoded_password_string","properties":{{"tags":["security","external/cwe/cwe-259"],"precision":"medium"}}}}]}}}},"results":[{{"ruleId":"B105","ruleIndex":0,"level":"note","message":{{"text":"{message}"}},"properties":{{"issue_confidence":"MEDIUM","issue_severity":"LOW"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"familyhub/views/account.py"}},"region":{{"startLine":{line}}}}}}}]}}]}}]}}"#
+    )
+}
+
+/// `sv report --tools` on `app` with `bin` first on the PATH: its findings in `account.py` from
+/// `report.json`, and `security.md`.
+fn account_findings(app: &Path, bin: &Path) -> (Vec<serde_json::Value>, String) {
+    let (security, _) = report(app, bin);
+    let json: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(app.join("report/report.json")).expect("report.json is written"),
+    )
+    .unwrap();
+    let found = json["findings"]
+        .as_array()
+        .expect("report.json lists findings")
+        .iter()
+        .filter(|f| f["location"]["file"] == "familyhub/views/account.py")
+        .cloned()
+        .collect();
+    (found, security)
+}
+
+/// What the merged finding must be: `sv`'s own, low and possible, with its sentence note, naming
+/// Bandit, and holding no more of the value than its first four characters.
+fn assert_sentence_note_kept(found: &[serde_json::Value], security: &str) {
+    // Failure messages name rules and counts, never a finding or the report's text: a failure
+    // message is a log line, and findings here are built from a value under a credential's name
+    // (the same rule as `cf9f6a1`), whatever that value happens to be.
+    let rules: Vec<&str> = found
+        .iter()
+        .map(|f| f["rule_id"].as_str().unwrap_or("?"))
+        .collect();
+    assert_eq!(
+        found.len(),
+        1,
+        "listed once, but the rules found were {rules:?}"
+    );
+    let f = &found[0];
+    assert_eq!(
+        f["rule_id"], "secrets.credential-assignment",
+        "rules: {rules:?}"
+    );
+    assert_eq!(f["severity"], "low");
+    assert_eq!(f["confidence"], "low");
+    assert_eq!(f["also_reported_by"], serde_json::json!(["bandit.B105"]));
+    assert!(
+        f["title"]
+            .as_str()
+            .unwrap()
+            .contains("reads like a sentence")
+    );
+    assert!(f["fix"].as_str().unwrap().contains("reads like a sentence"));
+    assert_eq!(f["secret"]["redacted"], "Your… (30 more characters)");
+    let section = security
+        .split("### ")
+        .find(|s| s.contains("account.py` line"))
+        .unwrap_or_else(|| panic!("the line is not in security.md"));
+    assert!(
+        section.contains("reads like a sentence"),
+        "the line's section in security.md has no sentence note"
+    );
+    assert!(
+        section.contains("How sure: possible."),
+        "the line's section in security.md does not say \"possible\""
+    );
+    assert!(
+        section.contains("Also reported by: `bandit.B105`"),
+        "the line's section in security.md does not name bandit.B105"
+    );
+    // Bandit's own message quotes the value (S8); the kept words are `sv`'s, which do not.
+    assert!(!f.to_string().contains("current password isn"));
+    assert!(!section.contains("current password isn"));
+}
+
+#[cfg(unix)]
+#[test]
+fn the_family_hub_line_under_tools_keeps_its_sentence_note_and_names_bandit() {
+    let dir = scratch("sentence");
+    let bin = dir.join("bin");
+    let app = dir.join("app");
+    std::fs::create_dir_all(&bin).unwrap();
+    keep_other_tools_out(&bin);
+
+    // The control: Bandit's B105 on another line is a finding of its own, so the stand-in ran and
+    // its report was read.
+    sentence_app(&app, 2);
+    fake_bandit_writing(&bin, &bandit_b105_sarif(1));
+    let (found, _) = account_findings(&app, &bin);
+    let rules: Vec<&str> = found
+        .iter()
+        .map(|f| f["rule_id"].as_str().unwrap())
+        .collect();
+    assert!(
+        rules.contains(&"bandit.B105") && rules.contains(&"secrets.credential-assignment"),
+        "the stand-in Bandit's finding was not read, so the rest proves nothing: {rules:?}"
+    );
+
+    // On the same line, at the same severity: one finding, in `sv`'s words.
+    std::fs::remove_dir_all(&app).ok();
+    sentence_app(&app, 1);
+    fake_bandit_writing(&bin, &bandit_b105_sarif(1));
+    let (found, security) = account_findings(&app, &bin);
+    std::fs::remove_dir_all(&dir).ok();
+    assert_sentence_note_kept(&found, &security);
+}
+
+/// The same with the real Bandit, where one is installed. CI has none, and this test then says
+/// so and stops; the stand-in above writes what Bandit 1.9.4 wrote here.
+#[cfg(unix)]
+#[test]
+fn with_the_real_bandit_the_family_hub_line_keeps_its_sentence_note() {
+    let installed = Command::new("bandit")
+        .arg("--version")
+        .output()
+        .is_ok_and(|o| o.status.success());
+    if !installed {
+        eprintln!("Bandit is not installed here: the real-Bandit branch was not taken");
+        return;
+    }
+    eprintln!("Bandit is installed here: the real-Bandit branch was taken");
+    let dir = scratch("sentence-real");
+    let bin = dir.join("bin");
+    let app = dir.join("app");
+    std::fs::create_dir_all(&bin).unwrap();
+    keep_other_tools_out(&bin);
+    sentence_app(&app, 1);
+    let (found, security) = account_findings(&app, &bin);
+    std::fs::remove_dir_all(&dir).ok();
+    assert_sentence_note_kept(&found, &security);
 }
