@@ -206,7 +206,7 @@ fn allows(spec: &Spec, version: &str) -> Option<bool> {
 
 /// A Python package name as the index compares it (PEP 503): lower case, with runs of `-`, `_`,
 /// and `.` read as one `-`.
-fn python_name(name: &str) -> String {
+pub(crate) fn python_name(name: &str) -> String {
     let mut out = String::new();
     let mut gap = false;
     for c in name.trim().chars() {

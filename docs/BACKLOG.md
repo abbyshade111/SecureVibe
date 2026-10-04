@@ -206,15 +206,19 @@ another session is not a claim.
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (DESIGN, "Advisories: Python names, nested npm copies, and declared packages"):
+    PyPI names are compared through `manifest_lock::python_name`, the normalizer already there.
   - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): a lockfile v1 is read at every depth.
   - **H11. High, Reproduced.** V15.2.1 is credited while the package list is incomplete (`complete_enough` ignores
     declared-only packages). Fix: require `sbom.is_complete()`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): `complete_enough` requires `sbom.is_complete()`.
   - **H12. High, Read.** A plain-HTTP redirect to plain HTTP, or to a relative path, is credited as sending the
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
@@ -331,6 +335,12 @@ another session is not a claim.
      and `sv` could warn before waiting when the start command itself names 127.0.0.1 or `localhost`.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-1-host`.
+     **Done the same day** (DESIGN, "An app listening on 127.0.0.1 is named as the likely cause"): the example says
+     `--host 0.0.0.0` and why; "never answered" says an app listening on 127.0.0.1 or `localhost` cannot be reached,
+     and names the address as the likely cause when the start command names it; and `sv` warns before waiting when it
+     does, then starts the app anyway. Tested with a real container on 127.0.0.1 (shown to be up by answering itself)
+     and a control on 0.0.0.0; each of five guards broken on its own was caught, the warning and the message's naming
+     only by the container test.
   2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
      family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
      same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
@@ -345,6 +355,15 @@ another session is not a claim.
      so rather than replacing it quietly.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-2-report-lock`.
+     **Done the same day** (DESIGN, "One run at a time in a report folder"): `sv report` and the MCP server take a
+     lock in the report folder before the run, and a second run refuses at once, naming the first (command,
+     process, start time). The lock is the operating system's, let go when a run ends however it ends, so a run
+     killed outright does not block the next, which says it stopped before it finished. `report.json` records
+     when its run started and the SHA-256 of the `securevibe.toml` it read; a run does not replace a report from
+     a run that started later, and a file changed during the run is said. Tested with real processes of the real
+     binary (a `--run` kept going by a sleeping test command, a second run beside it, `kill -9`); breaking each
+     guard was caught, and testing found a second run calling the folder someone else's while the first wrote its
+     marker, and Ctrl-C leaving the newly made folder behind, both fixed. S6 and S10 are unchanged.
   3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
      weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
      said "the private pages did not open in the browser with the first user's cookies, though they opened for the
