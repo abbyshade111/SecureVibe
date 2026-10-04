@@ -1,4 +1,5 @@
-//! Prompts the owner gives their AI coding tool, from `data/prompts.json`.
+//! Prompts the owner gives their AI coding tool, from `data/prompts.json`, and the design-time ones
+//! from the Secure by Design checklist in `data/design-prompts.json`, which have the same shape.
 //!
 //! Each prompt asks the tool for something `sv` checks, names the requirements it targets, and names
 //! the rules whose result shows whether it worked. A prompt is *shown to work* only once an app built
@@ -66,6 +67,10 @@ pub struct Prompt {
     pub title: String,
     pub prompt: String,
     pub requirements: Vec<String>,
+    /// The Secure by Design controls a design-time prompt helps a person answer. It never meets one:
+    /// every control is answered by a person.
+    #[serde(default)]
+    pub sbd_controls: Vec<String>,
     pub check: Check,
     pub inspired_by: String,
     pub tested: Option<Tested>,
@@ -74,7 +79,9 @@ pub struct Prompt {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Prompts {
-    /// Where the prompts came from, said with every copy.
+    /// Where the prompts came from, said with every copy: one paragraph per file read. Missing from a
+    /// file, it is refused by `load_all` with a message that says so, rather than as a parse error.
+    #[serde(default)]
     pub credit: String,
     pub prompts: Vec<Prompt>,
 }
@@ -119,13 +126,48 @@ impl Prompts {
         Ok(prompts)
     }
 
-    /// The prompts for one requirement, or every prompt when `requirement` is `None`; the ones shown
-    /// to work first, then the rest, each group in the file's order.
+    /// Every file's prompts as one library, each file's credit kept. An id used in two files is
+    /// refused, so `--requirement` and the tool never answer with two prompts under one name.
+    pub fn load_all(paths: &[&Path]) -> Result<Prompts> {
+        let mut all = Prompts {
+            credit: String::new(),
+            prompts: Vec::new(),
+        };
+        for path in paths {
+            let one = Prompts::load(path)?;
+            for p in &one.prompts {
+                anyhow::ensure!(
+                    !all.prompts.iter().any(|q| q.id == p.id),
+                    "{}: the id {} is already used by another file of prompts",
+                    path.display(),
+                    p.id
+                );
+            }
+            anyhow::ensure!(
+                !one.credit.trim().is_empty(),
+                "{} does not say where its prompts came from (`credit`)",
+                path.display()
+            );
+            if !all.credit.is_empty() {
+                all.credit.push_str("\n\n");
+            }
+            all.credit.push_str(one.credit.trim());
+            all.prompts.extend(one.prompts);
+        }
+        Ok(all)
+    }
+
+    /// The prompts for one requirement or Secure by Design control, or every prompt when
+    /// `requirement` is `None`; the ones shown to work first, then the rest, each group in the
+    /// files' order.
     pub fn select(&self, requirement: Option<&str>) -> Vec<&Prompt> {
         let mut chosen: Vec<&Prompt> = self
             .prompts
             .iter()
-            .filter(|p| requirement.is_none_or(|q| p.requirements.iter().any(|r| r == q)))
+            .filter(|p| {
+                requirement
+                    .is_none_or(|q| p.requirements.iter().chain(&p.sbd_controls).any(|r| r == q))
+            })
             .collect();
         chosen.sort_by_key(|p| p.status != Status::Shown);
         chosen
@@ -155,6 +197,12 @@ impl Prompts {
             }
             if !p.requirements.is_empty() {
                 out.push_str(&format!("\nRequirements: {}.\n", p.requirements.join(", ")));
+            }
+            if !p.sbd_controls.is_empty() {
+                out.push_str(&format!(
+                    "\nSecure by Design controls it helps you answer (you still answer each): {}.\n",
+                    p.sbd_controls.join(", ")
+                ));
             }
         }
         out.push_str(&format!("\n{}\n", self.credit));

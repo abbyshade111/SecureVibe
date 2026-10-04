@@ -21,6 +21,24 @@ another session is not a claim.
   CSV, and figure recomputed to that cut-off; `STUDY.md` and `REVIEW.md` added with their figures and CSVs; `sv`'s
   self-assessment repeated on the cut-off's source (`self-assessment-v2/2026-10-04/`); and the documents checked
   against each other. `ARTIFACTS.md` lists what is where.
+
+- **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
+  reproduced against `sv` on `main`. **Each can be claimed on its own.**
+  1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
+     editors and sanitizers from the bill of materials, which holds nothing for an npm app with a `package.json` and
+     no lockfile. A recipe app listing `quill` and no sanitizer was reported as "0 packages: none is a rich-text
+     editor `sv` knows"; the same app with a `package-lock.json` was caught. AI-built apps often have no lockfile,
+     because nothing could be installed where they were written. It credits nothing, so this is a missed finding,
+     not a false pass. Read the declared dependencies too, or report the check not assessed when the bill of
+     materials is incomplete. Witnesses: the app with and without the lockfile, and a declared sanitizer that keeps
+     it quiet.
+  2. **`ast.shell-command` in Python misses `subprocess` with `shell=True`.** Its Python names are `system`,
+     `popen`, `getoutput`, and `getstatusoutput`, so `subprocess.run(f'notes-export "{title}" out.pdf', shell=True)`
+     is reported by nothing unless Bandit or Semgrep runs (`--tools`), while `os.system` with the same text is
+     caught. The same holds for `call`, `check_call`, `check_output`, and `Popen` with `shell=True`. Witnesses: each
+     of those with a built string and `shell=True` caught; each with a list and no shell, and with `shell=True` and
+     a fixed string, quiet.
+
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
   on a build of `eff3f17` or on the 45b6d71 image. Labels: *Reproduced* (a reviewer ran it), *Read* (confirmed from
@@ -48,6 +66,10 @@ another session is not a claim.
     when a fenced container can reach the gateway, and test the gateway with a positive control.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-fence-gateway`.
+    **Done the same day** (DESIGN, "The fence's gateway"): the fenced network is made without a gateway address
+    (`inhibit_ipv4`), and before the app starts a throwaway container knocks on the gateway; any answer stops the run,
+    with a control on the container's own loopback. The fence test asks the runner's check of a plain `--internal`
+    network (refused, the positive control) and of the runner's own (passes); its real run is CI's.
   - **S3. High, Reproduced. `sv notes` and `sv rules` write through a link to a file outside the app**
     (`main.rs`, AGENTS.md and security-notes.md, plain `fs::write`). The MCP route refuses a link; the command
     line does not.
@@ -60,11 +82,19 @@ another session is not a claim.
     **S3 to S5 claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
     backlog, in branch `claude/securevibe-e2-safe-writes`: one way of writing a file `sv` makes, used by every
     command.
+    **S3 to S5 done the same day** (DESIGN, "Files `sv` writes, never through a link and never over the app's
+    own"): `sv rules`, `sv notes`, and `sv bundle` refuse a link where they write and write under a new name then
+    rename; `bundle::resolve_for_writing` no longer resolves the zip's own name, which had hidden the link from any
+    check; and a report is refused in a folder holding files `sv` did not write unless `sv` marked it, and in any
+    folder holding a name that differs from one of `sv`'s only in capitals. Eleven guards broken in turn; ten caught,
+    and the eleventh (the rename after the check) closes a race no test can stage, held by its own unit test.
   - **S6. High, Reproduced. Tool reports go to fixed names in the shared temporary folder, and a planted file is
     taken as a real run** (`adapters.rs`: `temp_dir()`, `sv-<id>.sarif`, any readable file accepted, exit status
     ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at
     once read each other's. Fix: a private folder per run (0700, unpredictable name), each tool's exit codes, and
     only a report created after the tool started.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
+    in branch `claude/securevibe-e9-tool-reports`.
   - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
     reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
     gets; until then drop findings on linked files and mark the run partial.
@@ -83,6 +113,10 @@ another session is not a claim.
     reading them). Fix: list only regular files; say the rest were not read.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-pipes`.
+    **Done the same day** (DESIGN, "A named pipe is named, never opened"): the walk lists only regular files, and
+    anything else (a named pipe, a socket, a device) is named apart and never opened; `sv check` prints it, the report
+    lists it as a gap, the checks that read the app's files say they read part of it, and `sv bundle` lists it as left
+    out. Five guards broken in turn, each caught; undoing the walk's own guard hung all three commands again.
   - **S13. Low, Reproduced. `sv probe` takes internal addresses, and curl's globbing turns one address into
     several requests** (`production.rs`). Fix: `--globoff`, and refuse private, loopback, link-local, and
     unspecified addresses, names that resolve to them included.
@@ -94,6 +128,12 @@ another session is not a claim.
     entries without one counting as proposals; show the entry's git author.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-set-aside-headline`.
+    **Done the same day** (DESIGN, "The headline counts what was set aside"): the headline counts false alarms set
+    aside in securevibe.toml, says so when nothing else is open, and says where they are listed; it says "in
+    securevibe.toml", not "by a person", since who wrote the entry is R1's question. Three guards broken in turn, each
+    caught.
 
 - **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
   H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
@@ -111,6 +151,8 @@ another session is not a claim.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-comment-triggers`.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
@@ -593,6 +635,21 @@ another session is not a claim.
   `securevibe_prompts` give the library, the prompts shown to work first, each marked shown or not tested where the
   person reads it; `tools/coverage.py` holds each prompt's requirements to its rules' citations. Not done: offering
   the prompts for the requirements an app still has no evidence for, which needs a report first.
+  **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+  `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
+  in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds
+  them to their rules' citations as it does the others; (b) a second app brief, written the way a beginner might ask,
+  whose plain build takes the shortcut the four prompts not yet shown were written against (a key pasted into the
+  chat, a command built from a title, passwords with only the standard library, formatted notes), built with and
+  without each of those four prompts.
+  **Done the same day** (DESIGN, "The design-time prompts in `sv prompts`, and a second test app"). (a) `sv prompts`
+  and `securevibe_prompts` read both files; `--requirement` takes a Secure by Design control too. Holding the
+  design-time prompts to their rules' citations found two naming a rule whose requirement they had deliberately not
+  claimed (V16.3.2, V7.3.2); each now says so, with the reason, under `not_claimed`. (b) The second app did not tempt
+  the plain build: it read the pasted key from the environment, ran the program without a shell, hashed with
+  `scrypt`, and cleaned the editor's HTML with `sanitize-html`, and `sv` found nothing in any of the five builds. The
+  four prompts stay not tested. Putting each shortcut back was caught for the key and the command, and missed for
+  the sanitizer: two new items under "Next".
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library

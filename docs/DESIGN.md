@@ -6813,6 +6813,49 @@ Twenty guards were broken in turn. Nineteen were caught at first; the one that w
 percent-encoding it, went unnoticed because the fake app reads spaces and quotes in an address anyway, and the test of
 a correct app now holds that every address the check sends is encoded.
 
+## The fence's gateway (4 October 2026)
+
+The deep review of `sv` at `eff3f17` found that the network fence let the app reach the host (S2, high).
+`docker network create --internal` stops traffic leaving for the internet. It still gives the bridge an address of
+its own, the network's gateway, and that address is the host: this computer on Linux, or the virtual machine Docker
+runs in on Docker Desktop and Colima. The review's fenced container reached the Colima machine's SSH server at
+172.20.0.1:22 while 1.1.1.1 was blocked. `verify_fenced` only asked Docker whether the network was internal, and
+the fence test only tried the internet. CI confirmed it on GitHub's Linux runners: on a plain `--internal` network,
+the gateway answered.
+
+- **The network has no gateway address.** It is created with `com.docker.network.bridge.gateway_mode_ipv4=isolated`
+  (Docker 28 and later). Failing that it uses `com.docker.network.bridge.inhibit_ipv4=true`, and failing both the
+  plain internal network, leaving the check below to decide. Containers on it still reach one another.
+- **The run fails closed.** Before the app starts, a throwaway container on the fence (read-only, no capabilities)
+  knocks with busybox's netcat on every gateway Docker names, and on each IPv4 subnet's first address, where a
+  gateway would be: a network made without one names none.
+  - A connection, or a refusal, is the host's stack answering, and the run stops. The message says which way the
+    network was made.
+  - A timeout, no route, or an unreachable network is the fence holding.
+  - Anything else stops the run too.
+
+  The control is the same knock on the container's own loopback, which must read as refused. An `nc` that cannot
+  tell the two apart therefore stops the run instead of passing for a fence.
+- **The fence test asks the runner's own check of both networks.** A plain `--internal` network must be refused:
+  that is the positive control, without which a pass would prove nothing. One made as the runner makes it must pass.
+
+**What CI taught, since this environment has no Docker daemon.** Every lesson came from a run being refused, never
+from a fence passed in error, because the check fails closed:
+1. A network made without a gateway address names no gateway at all, so the subnet's first address is knocked on
+   too.
+2. Busybox's netcat says nothing about a refused connection unless asked twice to be verbose (`nc_bloaty.c`: "if
+   we're scanning at a one -v verbosity level, don't print refusals"). So it is run as `nc -vv`, without `-z`, and
+   with nothing to send. The loopback control caught the silence twice.
+3. With no gateway, Docker gives the subnet's first address to the first container on the network, which was the
+   knocking container itself. Its own refusal read as the host answering. An address that is the knocking
+   container's own is now not knocked on, and "every address was its own" is the fence holding.
+
+`tests/interrupt.rs` now says what `sv` printed and its exit status when a run ends before starting, which is how
+these were read.
+
+**Tests.** The reading of the knocks has unit tests. Two breaks were each caught: a refusal read as the fence
+holding, and the control left out. The fence tests ran for real in CI and passed.
+
 ## Design-time prompts, tried (4 October 2026)
 
 The prompt library (`docs/PROMPTS.md`) asks the AI coding tool for something `sv` checks; these ask it to decide
@@ -6882,6 +6925,36 @@ The test is the review's own fixture: a file named `..\outside\deploy_key.txt` i
 the third refused the bundle, naming the zip-slip entry. With all three broken, the test failed on the outside text in
 the zip, as the review reproduced it.
 
+## Files `sv` writes, never through a link and never over the app's own (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, S3 to S5) reproduced three ways `sv` wrote where it should not.
+The MCP tools had refused links since "Writing nothing through a link"; the command line had not.
+
+- **`sv rules` and `sv notes`** wrote `AGENTS.md` and `security-notes.md` with `std::fs::write`, which follows a
+  link: one pointing outside the app had its target read in and then written over. Both now refuse a link at that
+  name before reading it, and write through `write_without_following` (a new file, renamed into place). The check is
+  in `write_notes` itself, so `sv notes`, `securevibe_notes_file`, and `securevibe_record_answer` all have it.
+- **`sv bundle`** wrote its zip the same way, and worse, `bundle::resolve_for_writing` resolved links all the way
+  to the file, so a link at `app-securevibe-bundle.zip` beside the app was turned into its target before anything
+  could look at it. The function now resolves links in the folders on the way (why it exists: `/var` on a Mac) and
+  never the file name, and the zip is refused if that name is a link, then written under a new name and renamed.
+  This first fix missed the resolving; the test with the review's own fixture caught it.
+- **A report given `out` "."** (or `--out` at the app) was written into the app, and on a disk that does not tell
+  capitals apart its `security.md` replaced the app's `SECURITY.md`. `write_report_files` now refuses a folder that
+  holds anything but the names `sv` writes, unless it carries `sv`'s marker; and refuses, marked or not, a folder
+  holding a name that differs from one of `sv`'s only in capitals, since the marker can be planted. A folder from
+  before the marker, holding only `sv`'s names, is still written to; so are new and empty folders, and the default
+  `securevibe-report`.
+
+Eleven guards were broken in turn; ten were caught, two of them only after a test was added (a marked folder
+holding a file of the owner's, and an app holding a `README.md` a loose match would take for the marker). The
+eleventh, writing the zip by rename rather than in place, only matters in the race below, which no test can stage. A
+filter for staging files left by an interrupted run was taken out instead of tested: the marker is the first file
+written, so such a folder is always marked.
+
+What is still open: a write races with a link put at the name between the check and the rename, which
+`write_without_following` closes by renaming over it (its own test); and S6 to S13 of the same review.
+
 ## Prompts the AI tool can fetch (4 October 2026)
 
 The prompt library (`data/prompts.json`, `docs/PROMPTS.md`) is offered two more ways: `sv prompts` prints it,
@@ -6907,3 +6980,61 @@ breaking the data were tried, each caught.
 **Not evidence.** Handing the tool a prompt says nothing about what it wrote, so no requirement changes status
 because a prompt was given or read; the tool's description says so.
 
+## A named pipe is named, never opened (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, S12) found that a named pipe in the app hung `sv`:
+`sv_scan::files::Listing` listed anything that was not a folder or a link as a file, and the first check to read a
+pipe waited for something to write into it, which nothing ever does. A socket or a device would have been read the
+same way.
+
+The walk now lists only regular files. Everything else, and an entry whose kind cannot be read, goes into
+`Listing::special` and is never opened, and is said, the way links are: `sv check` prints it, the report lists it as
+a gap ("not an ordinary file"), the checks that read the app's files say they read part of it, and `sv bundle`, whose
+walk is its own, lists it as left out with the reason where before it dropped it without a word.
+
+Tested with a real pipe (`mkfifo`), in the walk's own test and end to end through `sv check`, `sv report`, and
+`sv bundle`, each run given a minute before the test fails, since the fault is a hang. Five guards broken in turn, each
+caught; undoing the walk's guard hung all three commands again.
+
+## The headline counts what was set aside (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, R2) found a report whose only finding had been set aside as a
+false alarm opening with "Nothing here found a problem". A false alarm leaves the report's findings when it is set
+aside, and `bluf::headline` counted the findings alone. With R1 (an AI tool can write `by = "owner"` on its own
+review), that line is the one a reader would take away from an app whose problem was waved off.
+
+`headline` now counts false alarms beside the findings. With nothing still open it says how many were found and set
+aside, and where they are listed, before saying that nothing being open is not the app being sound; beside open
+findings it adds how many more were set aside. It says they were set aside "in securevibe.toml", not by a person:
+`sv` cannot tell who wrote the entry, which is R1's question, not settled here. An accepted risk stays among the
+findings, so it is not counted twice. Three guards broken in turn, each caught, two of them also by the end-to-end
+review test, which now reads the headline in both `compliance.md` and the HTML page.
+
+## The design-time prompts in `sv prompts`, and a second test app (4 October 2026)
+
+**One library from two files.** `sv prompts` and `securevibe_prompts` read `data/prompts.json` and
+`data/design-prompts.json` together. A design-time prompt carries the Secure by Design controls it helps the person
+answer, shown under it as "helps you answer (you still answer each)", never as met, and `--requirement` finds it by
+one of them (`SBD-AC-03`). An id used in both files is refused, and so is a file that does not say where its
+prompts came from: each file's credit is printed with every copy.
+
+**A rule tried and not claimed is said, not hidden.** Holding the design-time prompts to their rules' citations
+(`tools/coverage.py`) at first refused two of them: their checks named a rule whose requirement the prompt did not
+claim. Both were right not to claim it: the prompt was not shown to change that rule's result (V16.3.2), or the
+rule could not be assessed in the time the test waits (V7.3.2). The guard now accepts such a rule only when the
+prompt sets its requirement aside under `not_claimed`, with the reason, so the narrower claim is visible rather
+than looking like a mistake.
+
+**The second app.** The four prompts not shown on the first app were not shown because the build without them was
+already safe. A second brief (`docs/prompts/trial-2/brief.md`, a Node.js recipe app) was written to tempt each
+shortcut the way a beginner's request might: the OpenAI key pasted into the request, a PDF made by running a
+program on the recipe's title, a formatting toolbar. Node.js was chosen because `sv`'s own rules see the pasted key,
+the command, and an editor installed from npm there; in Python a command run through `subprocess` with
+`shell=True` is seen only by the outside scanners. For passwords they see MD5, SHA-1, and PBKDF2 with too few
+rounds, not a plain SHA-256, so a build hashing that way would not have shown the prompt either. The brief
+stands for the chat, so it is removed before a build is committed, and the key in it is made up at run time in the format the secrets scan knows. The build without any prompt took none of the shortcuts, and
+`sv` found nothing in any of the five builds. Before believing that, each shortcut was put back into that build:
+the key and the command were caught; the missing sanitizer was not, because the app has no lockfile and the check
+reads only locked packages. That gap, and the `shell=True` one, are items in the backlog. The four prompts stay
+not tested. Five guards in the loader were broken in turn (controls not searched, an id in both files, a file with
+no credit, controls not shown, the design file not read), each caught.
