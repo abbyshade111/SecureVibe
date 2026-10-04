@@ -233,6 +233,9 @@ another session is not a claim.
   - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
     (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
     or mark the page left behind.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with H6, at the owner's asking to work through the
+    review's open items, in branch `claude/h6-h2`: first, a page whose template holds code no longer counts as read;
+    then, if it fits, that template code read as code.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -261,6 +264,8 @@ another session is not a claim.
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
     it; skip build folders only where an ecosystem puts them.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with H2, at the owner's asking to work through the
+    review's open items, in branch `claude/h6-h2`, for all three parts of the fix.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
     **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
