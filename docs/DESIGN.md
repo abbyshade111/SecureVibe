@@ -7272,3 +7272,54 @@ no lock (three tests), a leftover lock taken as a live one (two), no age check (
 the lock never removed (five), part-written files taken as someone else's (one), a failed run's folder left
 (two), and Ctrl-C not letting go (one). Shared tool reports and container
 names, which two runs at once also collide on, are S6 and S10, not changed here.
+
+## A credential name over a sentence is reported low, and says so (4 October 2026)
+
+On family-hub (3 October) `secrets.credential-assignment` rated `WRONG_PASSWORD = "Your current password isn't
+right."` high and advised changing the credential (BACKLOG, "What the owner hit building family-hub", item 7, the
+credential half). The rule takes a name that says "credential" with a quoted value of 8 to 200 characters that is not
+a placeholder and has enough variety of characters, and a sentence passes. The owner's decision: keep reporting such
+a value, since a real passphrase can be a sentence, but at low severity and saying "this reads like a sentence".
+
+**What reads like a sentence** (`reads_like_sentence` in `crates/sv-check/src/secrets.rs`), kept narrow because it
+lowers a finding: three or more ordinary words, one space apart, the last ending in `.`, `?`, or `!`. An ordinary
+word is letters only, with an apostrophe or hyphen between letters (`isn't`, `sign-in`), a comma after any but the
+last, written in lowercase, with a capital first letter, or all in capitals. A digit or other symbol in a word, a
+letter case mixed inside one (`pAsS`), two spaces, a leading or trailing space, or no closing mark, and it is not a
+sentence. Such a value is reported at `low` severity and low confidence (so its certainty reads "possible", which
+tells the reader to look before changing code); its title, description, impact, and advice say it reads like a
+sentence and what to do in either case: a message is a false alarm to record, a passphrase is moved out and changed.
+Everything else keeps `high` and medium confidence, as before. Two words ending in a period (`Wrong password.`)
+stay high: too short to tell from a two-word passphrase, and the decision did not ask for them.
+
+**The value now runs to the quote that opened it.** Either quote used to end the value, so the reported line was
+judged as `Your current password isn` (no closing mark, and the wrong length in the finding). The pattern now pairs
+`"…"` and `'…'`, as `redact_text` already did; without this the sentence test could not have seen the sentence.
+
+**Redaction is unchanged, on purpose.** A sentence finding still carries `Secret::redact`'s four characters and
+length, never the value, and `redact_text` still cuts any value under a credential's name whatever its shape: a
+passphrase that is a sentence is still a passphrase. A finding at `low` still makes its requirements need attention
+and still stops the scan's clean claim, since the owner chose to keep reporting it; setting it aside as a false alarm
+is the way to clear it.
+
+**Where else the shape goes.** No vendor rule in `data/secret-rules.json` matches a sentence. Bandit's B105 does
+(any string under a name like `password`), and with `--tools` it and this rule merge on the same line (both CWE-259).
+`merge_same_place` keeps the more severe, then the surer: both are now `low`, and the adapter gives every tool
+finding medium confidence, so Bandit's "Bandit reported B105" is kept, this rule's sentence note is lost, and it is
+named only in "also reported by". Seen with the real Bandit on a one-file app. Before this change this rule's `high`
+was kept. Not changed here, since it is the merge's rule for every pair of findings.
+
+`docs/REQUIREMENTS.md` used to describe this rule by its impact ("if it fails: Anyone who can read the code…"),
+which `tools/coverage.py` read as the first string literal after the rule; the impact now depends on the value, so
+the script reads the rule's `ASSIGNMENT_WHAT` instead ("looks for: A value that looks like a credential, …").
+
+**Tested** with four tests in `secrets.rs`: the family-hub line and five other messages are reported low and
+"possible", with the note in title, description, and advice, the whole value judged, and the value redacted; eleven
+controls (passphrases without a closing mark, with a digit, symbols, hyphens, or mixed case, two spaces, two words,
+key- and token-shaped values) are each shown reported and still `high`; a table of what is and is not a sentence; and
+a value with the other quote inside it read whole, and a sentence still cut by `redact_text`. `sv check` on a
+one-file app gives `[low] … reads like a sentence (WRONG_PASSWORD)`, "found: Your… (30 more characters)". Nine
+guards broken in turn, each caught: never a sentence (two tests), the closing mark alone enough (two), either quote
+ending a value (two), the sentence kept at medium confidence (one) or high severity (one), two words enough (two),
+mixed case allowed (two), digits allowed (two, after a digit-inside-a-word control was added when only the table
+caught it at first), and the sentence not redacted (one).
