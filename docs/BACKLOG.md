@@ -27,6 +27,9 @@ another session is not a claim.
      release, pre, post, dev, local ignored), and keep semver for the other ecosystems.
      **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
      session, in branch `claude/securevibe-e9-pep440`.
+     **Done the same day** (DESIGN, "Python versions compared as pip compares them"). PyPI ranges follow PEP 440's
+     order and the rest keep semver. Checked against `packaging` 24.0 on 101,481 pairs, with one deliberate
+     difference: a local label (`+cu118`) is ignored, so a local build of an affected release stays affected.
   3. **A report does not say which `sv` made it, and the published image does not know its commit.** `report.json`
      has no version or commit, and `sv --version` in the published image prints "commit unknown", because
      `SV_GIT_COMMIT` is not set when the image is built. Write `"sv": {"version", "commit"}` into `report.json` and

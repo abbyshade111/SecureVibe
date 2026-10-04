@@ -26,9 +26,11 @@
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::sbom::{Component, Sbom};
 use crate::verified::Verified;
+use regex::Regex;
 use serde::Deserialize;
 use std::collections::BTreeSet;
 use std::path::Path;
+use std::sync::LazyLock;
 use sv_manifest::FixWithinDays;
 
 /// One OSV record, cut down to the fields a match needs.
@@ -238,8 +240,86 @@ fn compare_prerelease(a: &str, b: &str) -> std::cmp::Ordering {
     }
 }
 
-/// Whether `version` falls inside an affected range.
-fn in_range(version: &str, range: &Range) -> Option<bool> {
+/// `compare`, in the way the ecosystem's own installer orders versions: PEP 440 for PyPI, which writes a
+/// pre-release with no separator (`2.0.0rc1`), and semver for the rest.
+fn compare_in(ecosystem: &str, a: &str, b: &str) -> Option<std::cmp::Ordering> {
+    if ecosystem == "PyPI" {
+        Some(pep440_key(a)?.cmp(&pep440_key(b)?))
+    } else {
+        compare(a, b)
+    }
+}
+
+/// The parts a PEP 440 version sorts by: epoch, release, pre-release, post-release, development.
+type Pep440Key = (u64, Vec<u64>, (u8, u8, u64), (u8, u64), (u8, u64));
+
+/// What a PEP 440 version sorts by, in the order pip and Python's `packaging` sort it: epoch, then
+/// the release numbers (trailing zeros ignored), then pre-release, post-release, and development
+/// release. The local label after `+` is ignored, where `packaging` would sort `2.1.0+cu118` after
+/// `2.1.0`: a local build is built from that release's source, so an advisory whose last affected
+/// version is `2.1.0` has to reach it too. So
+/// `1.0.dev0 < 1.0a1 < 1.0b1 < 1.0rc1 < 1.0 < 1.0.post1`, and `1!1.0` is after every version with
+/// no epoch. `None` for a string that is not a PEP 440 version.
+fn pep440_key(version: &str) -> Option<Pep440Key> {
+    static PEP440: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(
+            r"(?ix)^v?
+              (?:(?P<epoch>[0-9]+)!)?
+              (?P<release>[0-9]+(?:\.[0-9]+)*)
+              (?:[-_.]?(?P<pre_l>alpha|beta|preview|pre|rc|a|b|c)[-_.]?(?P<pre_n>[0-9]+)?)?
+              (?:-(?P<post_n1>[0-9]+)|[-_.]?(?P<post_l>post|rev|r)[-_.]?(?P<post_n2>[0-9]+)?)?
+              (?:[-_.]?(?P<dev_l>dev)[-_.]?(?P<dev_n>[0-9]+)?)?
+              (?:\+[a-z0-9]+(?:[-_.][a-z0-9]+)*)?$",
+        )
+        .expect("the PEP 440 pattern is valid")
+    });
+    let c = PEP440.captures(version.trim())?;
+    let number =
+        |name: &str| -> Option<u64> { c.name(name).map_or(Some(0), |m| m.as_str().parse().ok()) };
+    let epoch = number("epoch")?;
+    let mut release: Vec<u64> = c["release"]
+        .split('.')
+        .map(str::parse)
+        .collect::<Result<_, _>>()
+        .ok()?;
+    while release.len() > 1 && release.last() == Some(&0) {
+        release.pop();
+    }
+    let has_post = c.name("post_n1").is_some() || c.name("post_l").is_some();
+    let has_dev = c.name("dev_l").is_some();
+    // A development release with nothing before it comes before every pre-release of that version;
+    // a final release comes after them all.
+    let pre = match c.name("pre_l").map(|m| m.as_str().to_ascii_lowercase()) {
+        Some(letter) => {
+            let rank = match letter.as_str() {
+                "a" | "alpha" => 0,
+                "b" | "beta" => 1,
+                _ => 2,
+            };
+            (1, rank, number("pre_n")?)
+        }
+        None if has_dev && !has_post => (0, 0, 0),
+        None => (2, 0, 0),
+    };
+    let post = if has_post {
+        let n = match c.name("post_n1") {
+            Some(m) => m.as_str().parse().ok()?,
+            None => number("post_n2")?,
+        };
+        (1, n)
+    } else {
+        (0, 0)
+    };
+    let dev = if has_dev {
+        (0, number("dev_n")?)
+    } else {
+        (1, 0)
+    };
+    Some((epoch, release, pre, post, dev))
+}
+
+/// Whether `version` falls inside an affected range, compared as `ecosystem` orders its versions.
+fn in_range(ecosystem: &str, version: &str, range: &Range) -> Option<bool> {
     // Only semantic and ecosystem ranges are ordered in a way this can reason about.
     if range.kind == "GIT" {
         return None;
@@ -256,19 +336,21 @@ fn in_range(version: &str, range: &Range) -> Option<bool> {
             // OSV writes "0" for "every version from the beginning", which is not a version and would
             // not parse as one.
             let from_the_start = introduced == "0";
-            if from_the_start || compare(version, introduced)? != std::cmp::Ordering::Less {
+            if from_the_start
+                || compare_in(ecosystem, version, introduced)? != std::cmp::Ordering::Less
+            {
                 affected = true;
             }
         }
         if let Some(fixed) = &event.fixed
-            && compare(version, fixed)? != std::cmp::Ordering::Less
+            && compare_in(ecosystem, version, fixed)? != std::cmp::Ordering::Less
         {
             affected = false;
         }
         // `last_affected` is the last version still affected, where `fixed` is the first that is
         // not: past it, not affected; at it, still affected.
         if let Some(last) = &event.last_affected
-            && compare(version, last)? == std::cmp::Ordering::Greater
+            && compare_in(ecosystem, version, last)? == std::cmp::Ordering::Greater
         {
             affected = false;
         }
@@ -291,7 +373,7 @@ fn matches(component: &Component, affected: &Affected) -> Option<bool> {
     // No explicit list, or the version is not in it: fall back to the ranges.
     let mut any_comparable = affected.ranges.is_empty();
     for range in &affected.ranges {
-        match in_range(&component.version, range) {
+        match in_range(expected, &component.version, range) {
             Some(true) => return Some(true),
             Some(false) => any_comparable = true,
             None => {}
@@ -875,6 +957,123 @@ mod tests {
             let result = audit(
                 &sbom_of(vec![component("paramiko", version, "Python")]),
                 &[advisory(LAST_AFFECTED)],
+            );
+            assert_eq!(
+                result.findings.len(),
+                usize::from(affected),
+                "{version}: {result:?}"
+            );
+            assert!(result.uncomparable.is_empty(), "{version}: {result:?}");
+        }
+    }
+
+    #[test]
+    fn python_versions_are_ordered_by_pep_440() {
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        let py = |a: &str, b: &str| compare_in("PyPI", a, b);
+        // The cases the cato-pipeline session reported from family-hub.
+        for (a, b, expected) in [
+            ("3.1.9", "2.0.0rc1", Greater),
+            ("2.0.0rc1", "2.0.0", Less),
+            ("1.0a1", "1.0b1", Less),
+            ("1.0.post1", "1.0", Greater),
+            ("1.0.dev0", "1.0a1", Less),
+            ("1!1.0", "2.0", Greater),
+        ] {
+            assert_eq!(py(a, b), Some(expected), "{a} against {b}");
+            assert_eq!(py(b, a), Some(expected.reverse()), "{b} against {a}");
+        }
+        // The whole order, each one before the next: development, the pre-releases, the release,
+        // and its post-releases, with a development release of a post-release between them.
+        let chain = [
+            "1.0.dev0",
+            "1.0.dev1",
+            "1.0a1.dev0",
+            "1.0a1",
+            "1.0a2",
+            "1.0b1",
+            "1.0rc1",
+            "1.0rc2",
+            "1.0",
+            "1.0.post1.dev0",
+            "1.0.post1",
+            "1.0.post2",
+            "1.0.1",
+            "1.1.dev0",
+            "2.0",
+        ];
+        for pair in chain.windows(2) {
+            assert_eq!(
+                py(pair[0], pair[1]),
+                Some(Less),
+                "{} before {}",
+                pair[0],
+                pair[1]
+            );
+        }
+        // Other spellings of the same version, and what is ignored.
+        for (a, b) in [
+            ("1.0", "1.0.0"),
+            ("1.0alpha1", "1.0a1"),
+            ("1.0-beta.2", "1.0b2"),
+            ("1.0c1", "1.0rc1"),
+            ("1.0.preview1", "1.0rc1"),
+            ("1.0RC1", "1.0rc1"),
+            ("1.0-1", "1.0.post1"),
+            ("1.0.rev1", "1.0.post1"),
+            ("1.0+local.7", "1.0"),
+            ("v2.0", "2.0"),
+            ("1.0a", "1.0a0"),
+        ] {
+            assert_eq!(py(a, b), Some(Equal), "{a} and {b}");
+        }
+        for not_a_version in ["latest", "", "1.0-garbage", "abc123", "1.0.0.0.x"] {
+            assert_eq!(py(not_a_version, "1.0"), None, "{not_a_version}");
+        }
+        // The other ecosystems keep semver: a PEP 440 pre-release is not a semver version.
+        assert_eq!(compare_in("npm", "2.0.0rc1", "2.0.0"), None);
+        assert_eq!(compare_in("npm", "1.2.3-beta", "1.2.3"), Some(Less));
+    }
+
+    #[test]
+    fn a_local_build_of_an_affected_release_is_affected() {
+        // `packaging` puts 2.1.0+cu118 after 2.1.0, which would read it as past the last affected
+        // release. It is that release, built locally.
+        let record = LAST_AFFECTED
+            .replace("paramiko", "torch")
+            .replace("4.0.0", "2.1.0");
+        let result = audit(
+            &sbom_of(vec![component("torch", "2.1.0+cu118", "Python")]),
+            &[advisory(&record)],
+        );
+        assert_eq!(result.findings.len(), 1, "{result:?}");
+    }
+
+    /// The shape of the werkzeug records family-hub could not be compared against: one range that
+    /// begins at a pre-release.
+    const WERKZEUG: &str = r#"{
+      "id": "GHSA-q34m-jh98-gwm2",
+      "summary": "An issue in werkzeug",
+      "affected": [{
+        "package": {"ecosystem": "PyPI", "name": "werkzeug"},
+        "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "2.0.0rc1"}, {"fixed": "3.0.6"}]}]
+      }]
+    }"#;
+
+    #[test]
+    fn a_python_range_that_begins_at_a_pre_release_is_compared() {
+        for (version, affected) in [
+            ("3.1.9", false),
+            ("1.0.1", false),
+            ("2.0.0b9", false),
+            ("2.0.0rc1", true),
+            ("2.0.0", true),
+            ("3.0.6rc1", true),
+            ("3.0.6", false),
+        ] {
+            let result = audit(
+                &sbom_of(vec![component("werkzeug", version, "Python")]),
+                &[advisory(WERKZEUG)],
             );
             assert_eq!(
                 result.findings.len(),
