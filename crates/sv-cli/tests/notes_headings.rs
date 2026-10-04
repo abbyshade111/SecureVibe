@@ -114,6 +114,22 @@ fn a_heading_of_the_owners_own_does_not_answer_the_section_above_it() {
             counted.push(format!("{note:?}\n    made it: {status}"));
         }
     }
+    // The report says what it did not read, naming the heading and where it was.
+    let note = format!("## A note from me\n\n{PROSE}");
+    let report = compliance(&dir, &under_first(&notes, &ids, &note));
+    assert!(
+        report.contains("heading of your own in security-notes.md")
+            && report.contains(&format!("\"A note from me\", after {}", ids[0])),
+        "{report}"
+    );
+    // `sv notes` writes the file again and keeps the note, once, where it was.
+    std::fs::write(dir.join("security-notes.md"), under_first(&notes, &ids, &note)).unwrap();
+    let again = sv(&["notes"], &dir);
+    assert!(again.status.success(), "{}", String::from_utf8_lossy(&again.stderr));
+    let rewritten = std::fs::read_to_string(dir.join("security-notes.md")).unwrap();
+    assert_eq!(rewritten.matches(note.as_str()).count(), 1, "{rewritten}");
+    let pos = |what: &str| rewritten.find(what).unwrap();
+    assert!(pos(&format!("## {} — ", ids[0])) < pos(&note) && pos(&note) < pos(&format!("## {} — ", ids[1])));
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         counted.is_empty(),

@@ -360,6 +360,7 @@ pub fn write_template_with(
             answers.get_answer(&section.id),
             describe,
         );
+        push_loose(&mut out, answers, &section.id);
     }
     if !wrote_any {
         out.push_str(
@@ -377,8 +378,10 @@ pub fn write_template_with(
         .filter(|(id, body)| !applicable.contains(id) && !body.trim().is_empty())
         .map(|(id, _)| id)
         .collect();
+    let orphan_ids: Vec<String> = orphans.iter().map(|id| (*id).clone()).collect();
     if !orphans.is_empty() {
-        out.push_str("## Answers for requirements that no longer apply\n\n");
+        out.push_str(NO_LONGER_APPLY);
+        out.push_str("\n\n");
         out.push_str(
             "You wrote these, and the answers to the questions in securevibe.toml now say they do \
              not apply to this app. They are kept here in case the manifest is what is wrong.\n\n",
@@ -391,9 +394,30 @@ pub fn write_template_with(
             out.push_str(&format!("### {id} — {title}\n\n"));
             out.push_str(answers.get_answer(id).unwrap_or(""));
             out.push_str("\n\n");
+            push_loose(&mut out, answers, id);
         }
     }
+    // Writing that followed a section no longer written here: kept at the end, never dropped.
+    let written: BTreeSet<&str> = catalog
+        .sections
+        .iter()
+        .filter(|s| applicable.contains(&s.id))
+        .map(|s| s.id.as_str())
+        .chain(orphan_ids.iter().map(|id| id.as_str()))
+        .collect();
+    for block in answers.loose.iter().filter(|b| !written.contains(b.after.as_str())) {
+        out.push_str(&block.text);
+        out.push_str("\n\n");
+    }
     out
+}
+
+/// The writing under headings of somebody's own that followed the section `id`, as it was.
+fn push_loose(out: &mut String, answers: &Answers, id: &str) {
+    for block in answers.loose.iter().filter(|b| b.after == id) {
+        out.push_str(&block.text);
+        out.push_str("\n\n");
+    }
 }
 
 fn push_section(
@@ -440,6 +464,25 @@ fn push_section(
 pub struct Answers {
     /// Requirement id → the owner's prose, with the question, the facts, and the placeholder gone.
     pub sections: Vec<(String, String)>,
+    /// Writing under a heading of somebody's own: part of no section, credited to nothing, and
+    /// written back where it was whenever `sv` writes the file again.
+    pub loose: Vec<Loose>,
+}
+
+/// Writing under a heading that is not one of `sv`'s, after one of its sections.
+///
+/// Until 4 October 2026 such a heading ended nothing, so what followed it was read as the answer to
+/// the section above, and a section nobody answered could count as answered (BACKLOG, "A heading of
+/// the owner's own in `security-notes.md`"; ADR-029). Now it ends the section, what follows belongs
+/// to no answer, and the report says it was not read as one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Loose {
+    /// The section it followed.
+    pub after: String,
+    /// The heading's words, without its `#`s.
+    pub heading: String,
+    /// The heading line and everything under it, as written.
+    pub text: String,
 }
 
 impl Answers {
@@ -572,16 +615,56 @@ pub fn tool_answer(answer: &str) -> std::result::Result<String, String> {
 pub fn read_answers(text: &str) -> Answers {
     let mut answers = Answers::default();
     let mut current: Option<(String, Vec<String>)> = None;
+    // The section last seen, which a heading of somebody's own follows, and writing under one.
+    let mut last: Option<String> = None;
+    let mut loose: Option<Loose> = None;
+    let mut in_sv_own = false;
     let mut in_facts = false;
+    let close = |answers: &mut Answers,
+                 current: &mut Option<(String, Vec<String>)>,
+                 loose: &mut Option<Loose>| {
+        if let Some((id, body)) = current.take() {
+            answers
+                .sections
+                .push((id, body.join("\n").trim().to_owned()));
+        }
+        if let Some(mut block) = loose.take() {
+            block.text = block.text.trim_end().to_owned();
+            answers.loose.push(block);
+        }
+    };
     for line in text.lines() {
         if let Some(id) = section_id(line) {
-            if let Some((id, body)) = current.take() {
-                answers
-                    .sections
-                    .push((id, body.join("\n").trim().to_owned()));
-            }
+            close(&mut answers, &mut current, &mut loose);
+            last = Some(id.clone());
             current = Some((id, Vec::new()));
+            in_sv_own = false;
             in_facts = false;
+            continue;
+        }
+        // Headings before the first section are `sv`'s own title; after it, a heading ends the
+        // section above, and what follows belongs to no answer.
+        if let (Some(after), Some(heading)) = (last.as_ref(), other_heading(line)) {
+            close(&mut answers, &mut current, &mut loose);
+            in_facts = false;
+            if line.trim_end() == NO_LONGER_APPLY {
+                in_sv_own = true;
+            } else {
+                in_sv_own = false;
+                loose = Some(Loose {
+                    after: after.clone(),
+                    heading,
+                    text: line.to_owned(),
+                });
+            }
+            continue;
+        }
+        if in_sv_own {
+            continue;
+        }
+        if let Some(block) = loose.as_mut() {
+            block.text.push('\n');
+            block.text.push_str(line);
             continue;
         }
         let Some((id, body)) = current.as_mut() else {
@@ -611,11 +694,7 @@ pub fn read_answers(text: &str) -> Answers {
         }
         body.push(line.to_owned());
     }
-    if let Some((id, body)) = current.take() {
-        answers
-            .sections
-            .push((id, body.join("\n").trim().to_owned()));
-    }
+    close(&mut answers, &mut current, &mut loose);
     answers
 }
 
@@ -629,7 +708,7 @@ pub fn with_seal(text: &str, id: &str, seal: &str) -> Option<String> {
         .position(|l| section_id(l).as_deref() == Some(id))?;
     let end = lines[start + 1..]
         .iter()
-        .position(|l| section_id(l).is_some())
+        .position(|l| ends_section(l))
         .map_or(lines.len(), |i| start + 1 + i);
     let mut out: Vec<String> = Vec::with_capacity(lines.len() + 1);
     let mut placed = false;
@@ -654,6 +733,29 @@ pub fn with_seal(text: &str, id: &str, seal: &str) -> Option<String> {
     Some(joined)
 }
 
+/// The heading `sv` writes above the answers whose requirement no longer applies. It, and the
+/// sentence under it, are `sv`'s own; the sections under it are headed by their ids as usual.
+const NO_LONGER_APPLY: &str = "## Answers for requirements that no longer apply";
+
+/// A heading of the first three levels, the ones `sv` writes, that is not a section's: the words
+/// after its `#`s. A deeper heading (`####`) stays part of the answer it is in, so an answer can
+/// have parts of its own.
+fn other_heading(line: &str) -> Option<String> {
+    if section_id(line).is_some() {
+        return None;
+    }
+    ["# ", "## ", "### "]
+        .iter()
+        .find_map(|prefix| line.strip_prefix(prefix))
+        .map(|rest| rest.trim().to_owned())
+}
+
+/// Whether a line ends the section above it: another section's heading, or any other heading of
+/// the first three levels.
+fn ends_section(line: &str) -> bool {
+    section_id(line).is_some() || other_heading(line).is_some()
+}
+
 /// `## V6.1.1 — …` or `### V6.1.1 — …`, giving the requirement id.
 fn section_id(line: &str) -> Option<String> {
     let rest = line
@@ -675,6 +777,9 @@ pub struct Evidence {
     pub stated: Vec<Verified>,
     /// Sections whose `Written by:` line names somebody else, or disagrees with itself.
     pub unreadable: Vec<String>,
+    /// Headings of somebody's own, each with the section it followed: what is under them was not
+    /// read as an answer.
+    pub not_read: Vec<String>,
 }
 
 /// Evidence for every requirement the notes answer.
@@ -727,6 +832,11 @@ pub fn evidence(
             Writer::Unreadable => out.unreadable.push(id),
         }
     }
+    out.not_read = answers
+        .loose
+        .iter()
+        .map(|b| format!("\"{}\", after {}", b.heading, b.after))
+        .collect();
     out
 }
 
@@ -756,6 +866,7 @@ mod tests {
             }
             sealed.sections.push((id.clone(), body));
         }
+        sealed.loose = answers.loose.clone();
         super::evidence(catalog, &sealed, file, &crate::seal::Checker::Key(key()))
     }
 
@@ -765,6 +876,7 @@ mod tests {
                     for an hour.";
         let answers = Answers {
             sections: vec![("V6.1.1".into(), body.into())],
+            ..Answers::default()
         };
         let here = crate::seal::Checker::Key(key());
         // As written into the file, by anyone: the tool's word.
@@ -785,6 +897,7 @@ mod tests {
         let seal = key().seal(&crate::seal::as_strs(&fields));
         let sealed = Answers {
             sections: vec![("V6.1.1".into(), format!("{body}\n\n{SEALED_BY} {seal}"))],
+            ..Answers::default()
         };
         assert_eq!(
             sealed.prose_of("V6.1.1").as_deref(),
@@ -795,6 +908,7 @@ mod tests {
                 "V6.1.1".into(),
                 format!("Written by: owner\n\n{SEALED_BY} {seal}"),
             )],
+            ..Answers::default()
         };
         assert!(only_seal.answered().is_empty());
         // A word changed after it was sealed: the tool's word again.
@@ -803,6 +917,7 @@ mod tests {
                 "V6.1.1".into(),
                 format!("{}\n\n{SEALED_BY} {seal}", body.replace("an hour", "a day")),
             )],
+            ..Answers::default()
         };
         let out = super::evidence(&catalog(), &changed, "security-notes.md", &here);
         assert!(out.documented.is_empty());
@@ -1281,5 +1396,105 @@ mod tests {
                 answers.answered()
             );
         }
+    }
+
+    const LONG: &str = "Each of these is decided and written down here, with enough words to be an answer.";
+
+    /// The two-section template with V6.1.1 left unanswered and `extra` written under it.
+    fn first_unanswered_with(extra: &str) -> String {
+        let template = write_template(
+            &catalog(),
+            &applicable(&["V6.1.1", "V8.1.1"]),
+            &Facts::default(),
+            None,
+            &no_descriptions(),
+        );
+        template.replacen("## V8.1.1", &format!("{extra}\n\n## V8.1.1"), 1)
+    }
+
+    #[test]
+    fn a_heading_of_somebodys_own_ends_the_section_above_it() {
+        // The control: the same words, without a heading of their own, answer the section.
+        let plain = first_unanswered_with(&format!("Written by: AI coding tool\n\n{LONG}"));
+        assert!(read_answers(&plain).stated().contains("V6.1.1"));
+        for heading in ["# Mine", "## A note from me", "### Things to do later"] {
+            let text = first_unanswered_with(&format!("{heading}\n\nWritten by: AI coding tool\n\n{LONG}"));
+            let answers = read_answers(&text);
+            assert!(answers.answered().is_empty(), "{heading}: {:?}", answers.answered());
+            assert_eq!(answers.loose.len(), 1, "{heading}");
+            assert_eq!(answers.loose[0].after, "V6.1.1");
+            assert_eq!(answers.loose[0].heading, heading.trim_start_matches('#').trim());
+            assert!(answers.loose[0].text.starts_with(heading) && answers.loose[0].text.ends_with(LONG));
+        }
+    }
+
+    #[test]
+    fn a_deeper_heading_stays_part_of_the_answer_it_is_in() {
+        let text = first_unanswered_with("").replacen(
+            PLACEHOLDER,
+            &format!("Written by: AI coding tool\n\n#### First\n\n{LONG}\n\n#### Second\n\nMore."),
+            1,
+        );
+        let answers = read_answers(&text);
+        assert!(answers.loose.is_empty());
+        let prose = answers.prose_of("V6.1.1").unwrap();
+        assert!(prose.contains("#### Second") && prose.ends_with("More."), "{prose}");
+    }
+
+    #[test]
+    fn writing_the_file_again_puts_a_note_of_ones_own_back_where_it_was() {
+        let note = format!("## A note from me\n\n{LONG}");
+        let written = first_unanswered_with(&note);
+        let again = |text: &str, ids: &[&str]| {
+            write_template(&catalog(), &applicable(ids), &Facts::default(), Some(text), &no_descriptions())
+        };
+        let second = again(&written, &["V6.1.1", "V8.1.1"]);
+        assert_eq!(second.matches(note.as_str()).count(), 1, "kept once: {second}");
+        let at = |t: &str, what: &str| t.find(what).unwrap();
+        assert!(at(&second, "## V6.1.1") < at(&second, &note) && at(&second, &note) < at(&second, "## V8.1.1"));
+        assert_eq!(again(&second, &["V6.1.1", "V8.1.1"]), second, "writing it again changes nothing more");
+        assert!(read_answers(&second).answered().is_empty());
+        // After a section no longer written, it is kept at the end, never dropped.
+        let third = again(&written, &["V8.1.1"]);
+        assert_eq!(third.matches(note.as_str()).count(), 1, "{third}");
+        assert!(at(&third, "## V8.1.1") < at(&third, &note));
+    }
+
+    #[test]
+    fn the_heading_sv_writes_for_answers_that_no_longer_apply_is_nobodys_answer() {
+        // V8.1.1 answered, then no longer applying, so `sv` writes its heading and sentence after
+        // V6.1.1, which nobody answered.
+        let first = write_template(&catalog(), &applicable(&["V6.1.1", "V8.1.1"]), &Facts::default(), None, &no_descriptions());
+        let at = first.rfind(PLACEHOLDER).unwrap();
+        let written = format!(
+            "{}Written by: owner\n\n{LONG}{}",
+            &first[..at],
+            &first[at + PLACEHOLDER.len()..]
+        );
+        let second = write_template(&catalog(), &applicable(&["V6.1.1"]), &Facts::default(), Some(&written), &no_descriptions());
+        assert!(second.contains(NO_LONGER_APPLY), "the setup: {second}");
+        let answers = read_answers(&second);
+        assert!(!answers.documented().contains("V6.1.1") && !answers.stated().contains("V6.1.1"), "{:?}", answers.answered());
+        assert!(answers.loose.is_empty(), "{:?}", answers.loose);
+        assert!(answers.documented().contains("V8.1.1"), "the answer that stopped applying is still read");
+    }
+
+    #[test]
+    fn a_seal_is_never_placed_under_a_heading_of_somebodys_own() {
+        let text = first_unanswered_with(&format!("## A note from me\n\nWritten by: owner\n\n{LONG}"));
+        assert_eq!(with_seal(&text, "V6.1.1", "v1:0:0"), None, "V6.1.1 has no line of its own to seal");
+        // The control: with its own line, the seal goes under it.
+        let own = text.replacen(PLACEHOLDER, &format!("Written by: owner\n\n{LONG}"), 1);
+        let sealed = with_seal(&own, "V6.1.1", "v1:0:0").unwrap();
+        assert!(sealed.find(SEALED_BY).unwrap() < sealed.find("## A note from me").unwrap());
+        assert_eq!(sealed.matches(SEALED_BY).count(), 1);
+    }
+
+    #[test]
+    fn evidence_names_what_was_not_read_as_an_answer() {
+        let text = first_unanswered_with(&format!("## A note from me\n\n{LONG}"));
+        let out = evidence(&catalog(), &read_answers(&text), "security-notes.md");
+        assert_eq!(out.not_read, vec!["\"A note from me\", after V6.1.1".to_owned()]);
+        assert!(out.stated.is_empty() && out.documented.is_empty());
     }
 }
