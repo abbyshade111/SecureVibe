@@ -317,6 +317,8 @@ another session is not a claim.
      for a read-only file system. *Read*, and the transcript. Fix: the example says `--host 0.0.0.0`, with a comment
      on why; the "never answered" message says that an app listening on 127.0.0.1 or `localhost` cannot be reached;
      and `sv` could warn before waiting when the start command itself names 127.0.0.1 or `localhost`.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-1-host`.
   2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
      family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
      same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
@@ -329,6 +331,8 @@ another session is not a claim.
      report folder while a run is writing it (refuse, saying which run holds it), and record in `report.json` when
      the run started and a hash of the `securevibe.toml` it read, so a report older than the one it replaces says
      so rather than replacing it quietly.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-2-report-lock`.
   3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
      weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
      said "the private pages did not open in the browser with the first user's cookies, though they opened for the
@@ -385,6 +389,8 @@ another session is not a claim.
      cost the credit it says it leaves alone. *Read*, and family-hub's `report.json` of 3 October. Fix: show this
      finding (and any information-only one) beside the credit rather than over it, and let a person's "these do
      match" on it leave the test's credit standing; or, if it is meant to override, say so in its text.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-6-test-name-credit`.
   7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
      3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
      - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't
@@ -412,6 +418,8 @@ another session is not a claim.
      again after the wait (or run the waiting checks last), and test it with the fake app's idle limit shorter than
      the wait.
 
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-8-slow-session`.
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger
