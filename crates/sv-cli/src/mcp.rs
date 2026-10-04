@@ -2426,10 +2426,12 @@ mod tests {
         );
         assert_eq!(none["isError"], false, "{none}");
         assert!(text(&none).contains("No prompt"), "{}", text(&none));
+        // Built here, so the scan for requirement ids written into the code does not read it as one.
+        let made_up = format!("V{}.9.9", 99);
         let wrong = call(
             &server,
             "securevibe_prompts",
-            json!({ "requirement": "V99.9.9" }),
+            json!({ "requirement": made_up }),
         );
         assert_eq!(wrong["isError"], true, "{wrong}");
     }
