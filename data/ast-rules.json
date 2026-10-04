@@ -180,7 +180,7 @@
       "modulePatterns": {
         "shell": "^(-c|-e|--command|--execute|--query)$|\\.(db|sqlite3?)$"
       },
-      "looksFor": "a database query joined together from text and values, rather than sent with its values kept separate, in the query calls of the usual database libraries",
+      "looksFor": "a database query, sent through the usual database libraries' query calls, joined together from text and values rather than sent with its values kept separate",
       "looksForIn": {
         "shell": "psql, mysql, sqlite3, or a similar client given a query built from a variable"
       },

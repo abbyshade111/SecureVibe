@@ -7344,8 +7344,8 @@ checked. Each of the nine is now a test, beside the same call written safely.
   `re.exec(s)`, and `app.get('/notes', …)` stay quiet. What it gives up: a query held in a name without `sql` in it, such as
   `q`, `query`, or `stmt`, and sent through one of those common names is not reported; `sql` or `userSql` still is.
   Every call whose name is specific to databases is read whatever it is given.
-- **The clean claim says what it covered**: "in the query calls of the usual database libraries", not every way a
-  program can reach a database.
+- **The clean claim says what it covered**: "a database query, sent through the usual database libraries' query
+  calls, joined together…", not every way a program can reach a database.
 
 How it is held: `the_usual_query_calls_of_each_language_are_read_and_their_safe_forms_are_not_reported`
 (`crates/sv-check/src/ast.rs`). It has twenty-nine cases, and asserts that each one parses, so a pass is not a fixture
