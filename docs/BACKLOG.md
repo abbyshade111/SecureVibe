@@ -139,6 +139,12 @@ another session is not a claim.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-who-set-aside`, for the first fix only: say what is known wherever a report
     says "by a person". The interactive `sv review` stays open, for the owner to decide.
+    **First fix done the same day** (DESIGN, "Who set a finding aside: what securevibe.toml says, not "a person""):
+    the section is "Set aside in securevibe.toml", each entry reads "securevibe.toml says (name) set it aside", a
+    confirmed answer is "confirmed in securevibe.toml", and each says `sv` cannot tell who wrote the entry; the MCP
+    output tells the AI coding tool never to name the person in `by` itself. Twelve wordings put back in turn, each
+    caught. **Still open, for the owner to decide:** the interactive `sv review` with its record outside the app's
+    folder. The git author was considered and left out: an AI coding tool commits under the owner's git name.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in

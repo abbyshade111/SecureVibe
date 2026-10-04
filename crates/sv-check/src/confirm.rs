@@ -190,21 +190,14 @@ pub fn credit(stated: &Verified, check_id: &str, holds: &Holds) -> Verified {
             .map(String::as_str)
             .collect::<Vec<_>>(),
         format!(
-            "{} {} confirmed it on {}, having looked: \"{}\"",
+            "{} securevibe.toml says {} confirmed it on {}, having looked: \"{}\" (sv cannot \
+             tell who wrote that entry)",
             stated.scope.trim_end(),
-            capitalized(&holds.who),
+            holds.who,
             holds.on.show(),
             holds.how
         ),
     )
-}
-
-fn capitalized(who: &str) -> String {
-    let mut chars = who.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().chain(chars).collect(),
-        None => String::new(),
-    }
 }
 
 /// What confirming came to, for one kind of record.
@@ -458,7 +451,7 @@ mod tests {
                 .contains("your AI coding tool answered yes")
                 && out.confirmed[0]
                     .scope
-                    .contains("You confirmed it on 2026-09-27")
+                    .contains("securevibe.toml says you confirmed it on 2026-09-27")
                 && out.confirmed[0].scope.contains(HOW),
             "the tool's word first, then the person's: {}",
             out.confirmed[0].scope
