@@ -1532,7 +1532,7 @@ mod tests {
             &with_signup(),
         );
         let note = flawed.steps.join(" | ");
-        assert!(note.contains("invented: opened"), "{note}");
+        assert!(note.contains("every other cookie kept: opened"), "{note}");
         assert!(note.contains("maxlength=40: accepted"), "{note}");
         assert!(note.contains("Clear-Site-Data: yes"), "{note}");
     }

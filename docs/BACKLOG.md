@@ -250,6 +250,9 @@ another session is not a claim.
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-session-cookie`.
+    **Done the same day** (DESIGN, "A made-up session changes the session cookie, and only that"): each cookie set
+    at sign-in gets a made-up value, every other cookie is kept, and the real session is sent just before as the
+    control. Five guards broken in turn, each caught.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
     credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
     with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
