@@ -32,6 +32,7 @@ pub fn read_in(listing: &super::files::Listing) -> Vec<Declared> {
         let names = match super::ecosystems::file_name(&eco.manifest) {
             "package.json" => from_package_json(&text),
             "requirements.txt" => from_requirements(&text),
+            "Pipfile" => from_pipfile(&text),
             "pyproject.toml" | "Cargo.toml" => from_toml_manifest(&text),
             "go.mod" => from_go_mod(&text),
             "Gemfile" => from_gemfile(&text),
@@ -83,6 +84,23 @@ fn from_requirements(text: &str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .collect()
 }
+
+/// Pipenv's `Pipfile`: the names in `[packages]`, `[dev-packages]`, and any other package category
+/// a project adds. The tables that are not packages are named by Pipenv and skipped.
+pub fn from_pipfile(text: &str) -> Vec<String> {
+    let Ok(doc) = text.parse::<toml::Table>() else {
+        return Vec::new();
+    };
+    doc.iter()
+        .filter(|(table, _)| !PIPFILE_NOT_PACKAGES.contains(&table.as_str()))
+        .filter_map(|(_, value)| value.as_table())
+        .flat_map(|packages| packages.keys().cloned())
+        .collect()
+}
+
+/// The tables of a `Pipfile` that are not lists of packages. Every other table is one: Pipenv calls
+/// them categories, `[packages]` and `[dev-packages]` being the two every project has.
+pub const PIPFILE_NOT_PACKAGES: &[&str] = &["source", "requires", "scripts", "pipenv"];
 
 /// `pyproject.toml` and `Cargo.toml` both keep dependencies as table keys or PEP 508 strings.
 /// Matching is by name, so reading the keys is enough without a full TOML parse of every dialect.
@@ -225,6 +243,19 @@ mod tests {
             got.contains(&"flask".to_owned()),
             "poetry table style: {got:?}"
         );
+    }
+
+    #[test]
+    fn reads_every_package_category_of_a_pipfile() {
+        let got = from_pipfile(
+            "[[source]]\nurl = \"https://pypi.org/simple\"\nname = \"pypi\"\n\n\
+             [packages]\ndjango = \"*\"\n\n[dev-packages]\npytest = \"*\"\n\n\
+             [docs]\nsphinx = {version = \">=7\"}\n\n[requires]\npython_version = \"3.11\"\n\n\
+             [scripts]\nserve = \"python manage.py runserver\"\n",
+        );
+        let mut got = got;
+        got.sort();
+        assert_eq!(got, vec!["django", "pytest", "sphinx"]);
     }
 
     #[test]

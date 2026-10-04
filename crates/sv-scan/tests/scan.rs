@@ -1929,3 +1929,91 @@ fn a_pylock_file_pins_both_kinds_of_python_project() {
     assert_eq!(both.lockfile.as_deref(), Some("pylock.toml"));
     assert_eq!(both.passed_over, vec!["pylock.prod.toml".to_owned()]);
 }
+
+#[test]
+fn a_pipenv_project_is_found_with_its_lockfile() {
+    // Deep review H9: an app with only `Pipfile` and `Pipfile.lock` had no Python at all.
+    let dir = scratch("pipenv-detected");
+    std::fs::create_dir_all(dir.join("api")).unwrap();
+    std::fs::write(
+        dir.join("api/Pipfile"),
+        "[packages]\ndjango = \"==2.2.0\"\n",
+    )
+    .unwrap();
+    let alone = sv_scan::ecosystems::detect(&dir);
+    std::fs::write(dir.join("api/Pipfile.lock"), "{}").unwrap();
+    let locked = sv_scan::ecosystems::detect(&dir);
+    let unpinned = sv_scan::ecosystems::unpinned(&dir);
+    let names = sv_scan::deps::read(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert_eq!(alone.len(), 1, "{alone:?}");
+    assert_eq!(alone[0].name, "Python");
+    assert_eq!(alone[0].manifest, "api/Pipfile");
+    assert_eq!(alone[0].lockfile, None);
+    assert_eq!(locked[0].lockfile.as_deref(), Some("api/Pipfile.lock"));
+    assert!(unpinned.is_empty(), "the lockfile pins it: {unpinned:?}");
+    assert!(
+        names
+            .iter()
+            .any(|d| d.name == "django" && d.manifest == "api/Pipfile"),
+        "the Pipfile's packages are read for the technology scan: {names:?}"
+    );
+}
+
+#[test]
+fn python_dependency_declarations_sv_does_not_read_are_found() {
+    use sv_scan::ecosystems::DeclarationKind;
+    let dir = scratch("python-declarations");
+    let write = |path: &str, text: &str| {
+        let path = dir.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    };
+    write("requirements.txt", "flask==3.0.0\n");
+    write("requirements-dev.txt", "pytest==8.0.0\n");
+    write("dev_requirements.txt", "black==24.1.0\n");
+    write("requirements/prod.txt", "gunicorn==22.0.0\n");
+    write("requirements.in", "flask\n");
+    write(
+        "setup.py",
+        "from setuptools import setup\nsetup(install_requires=['flask'])\n",
+    );
+    write("setup.cfg", "[flake8]\nmax-line-length = 100\n");
+    write(
+        "worker/setup.cfg",
+        "[options]\ninstall_requires =\n    celery\n",
+    );
+    write("worker/Pipfile", "[packages]\ncelery = \"*\"\n");
+    write("worker/Pipfile.lock", "{}");
+    write(
+        "notebooks/environment.yml",
+        "name: lab\ndependencies:\n  - numpy\n",
+    );
+    write("notes.txt", "not a list of packages\n");
+    let listing = sv_scan::files::Listing::of(&dir);
+    let found = sv_scan::ecosystems::python_declarations_in(&listing);
+    std::fs::remove_dir_all(&dir).ok();
+
+    let got: Vec<(&str, DeclarationKind, bool)> = found
+        .iter()
+        .map(|d| (d.path.as_str(), d.kind, d.beside_lockfile))
+        .collect();
+    assert_eq!(
+        got,
+        vec![
+            ("dev_requirements.txt", DeclarationKind::Requirements, false),
+            ("notebooks/environment.yml", DeclarationKind::Conda, false),
+            ("requirements-dev.txt", DeclarationKind::Requirements, false),
+            (
+                "requirements/prod.txt",
+                DeclarationKind::Requirements,
+                false
+            ),
+            ("setup.py", DeclarationKind::Setup, false),
+            ("worker/setup.cfg", DeclarationKind::Setup, true),
+        ],
+        "a setup.cfg that only configures a tool, requirements.in, requirements.txt itself, and \
+         a text file that is not a list are not declarations"
+    );
+}
