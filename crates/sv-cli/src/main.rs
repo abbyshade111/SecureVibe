@@ -55,6 +55,7 @@ fn main() -> Result<()> {
         "notes" => cmd_notes(rest.first().map(PathBuf::from)),
         "questions" => cmd_questions(rest.first().map(PathBuf::from)),
         "rules" => cmd_rules(rest),
+        "prompts" => cmd_prompts(rest),
         "probe" => cmd_probe(rest),
         "run" => cmd_run(rest),
         "check" => cmd_check(rest.first().map(PathBuf::from)),
@@ -116,6 +117,13 @@ const COMMANDS: &[Command] = &[
         flags: &["--print"],
         valued: &[],
         help: "  sv rules [PATH] [--print]\n                     write the security rules your AI coding tool follows while it\n                     codes into AGENTS.md (--print shows them instead)\n",
+    },
+    Command {
+        name: "prompts",
+        word: None,
+        flags: &[],
+        valued: &["--requirement"],
+        help: "  sv prompts [--requirement ID]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one, such as V1.2.4\n",
     },
     Command {
         name: "probe",
@@ -942,6 +950,49 @@ pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
         given,
         withheld,
     })
+}
+
+pub(crate) fn prompts_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/prompts.json")
+}
+
+/// The library's prompts for one requirement, or all of them, as Markdown, and the ones chosen.
+///
+/// An id that is not a requirement is refused, so a mistyped one is never answered "no prompt for
+/// it" as if the library had been searched for it.
+pub(crate) fn prompts_for(
+    frameworks: &Frameworks,
+    requirement: Option<&str>,
+) -> Result<(sv_check::prompts::Prompts, Vec<String>, String)> {
+    if let Some(id) = requirement {
+        anyhow::ensure!(
+            frameworks.get(id).is_some(),
+            "{id} is not a requirement in any loaded framework"
+        );
+    }
+    let prompts = sv_check::prompts::Prompts::load(&prompts_path())?;
+    let chosen = prompts.select(requirement);
+    let ids = chosen.iter().map(|p| p.id.clone()).collect();
+    let text = match (requirement, chosen.is_empty()) {
+        (Some(id), true) => {
+            format!("No prompt in the library targets {id} yet. `sv prompts` lists all of them.\n")
+        }
+        _ => prompts.markdown(&chosen),
+    };
+    Ok((prompts, ids, text))
+}
+
+/// Prints the prompts for the AI coding tool, for one requirement or all of them.
+fn cmd_prompts(args: &[String]) -> Result<()> {
+    let requirement = args
+        .iter()
+        .position(|a| a == "--requirement")
+        .and_then(|i| args.get(i + 1))
+        .map(String::as_str);
+    let frameworks = load_frameworks(&data_dir()?)?;
+    let (_, _, text) = prompts_for(&frameworks, requirement)?;
+    print!("{text}");
+    Ok(())
 }
 
 /// Writes the coding rules into the app's `AGENTS.md`, between `sv`'s markers, or prints them.

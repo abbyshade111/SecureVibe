@@ -575,6 +575,10 @@ another session is not a claim.
   give each prompt with its status (tested or not), and can pick the prompts for one requirement; and a test that
   holds each prompt's requirements to what its check's rules cite. Prompts in other files (the design-time page)
   join when they are written in the same form.
+  **Done on 4 October 2026** (DESIGN, "Prompts the AI tool can fetch"): `sv prompts [--requirement ID]` and
+  `securevibe_prompts` give the library, the prompts shown to work first, each marked shown or not tested where the
+  person reads it; `tools/coverage.py` holds each prompt's requirements to its rules' citations. Not done: offering
+  the prompts for the requirements an app still has no evidence for, which needs a report first.
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
