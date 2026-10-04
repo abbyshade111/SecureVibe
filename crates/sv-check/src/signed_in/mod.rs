@@ -629,6 +629,52 @@ pub(crate) fn sign_in(
     })
 }
 
+/// A signed in again after the session timeouts were waited out (`sv run --slow`), shown to open
+/// `confirm` as the first sign-in did, when there is one to open. `None`, with the checks that
+/// needed A's session left not assessed and why, when the app did not answer or the new session
+/// did not open the page: the run goes no further, as when the first sign-in fails.
+fn sign_in_again(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    a: &Account,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) -> Option<SignedIn> {
+    let refused = |out: &mut Outcome, what: String| {
+        out.not_assessed.push((
+            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4".to_owned(),
+            format!(
+                "After waiting out the session timeouts, the first test user's earlier session had \
+                 sat unused for the whole wait, so it was signed in again; {what}. The checks that \
+                 needed a working session were not run, rather than run with one the app may have \
+                 ended."
+            ),
+        ));
+    };
+    let Some(fresh) = sign_in(http, users, "a-after-wait", a, &mut out.steps) else {
+        refused(out, "the app did not answer that sign-in".to_owned());
+        return None;
+    };
+    if let Some(path) = confirm {
+        let response = http.send(&get("private-a-after-wait", path, &fresh.session));
+        out.steps.push(format!(
+            "signed in as A again after the wait and opened {path} ({})",
+            status(&response)
+        ));
+        if !ok(&response) {
+            refused(
+                out,
+                format!(
+                    "the new session did not open {path} ({})",
+                    status(&response)
+                ),
+            );
+            return None;
+        }
+    }
+    Some(fresh)
+}
+
 /// Everything the signed-in probes can ask, given what securevibe.toml says.
 ///
 /// `seeded` says whether `seed` already made the accounts; when it did not, they are made through the
@@ -1212,7 +1258,7 @@ fn run_checks(
     // 2b. The session timeouts, which mean waiting. Here, while A's password is still the one it
     //     was made with — later checks change it when there is no sign-up — and with sessions of
     //     its own, so nothing below is using them.
-    session_timeout_checks(
+    let waited = session_timeout_checks(
         http,
         users,
         &accounts.a,
@@ -1221,6 +1267,23 @@ fn run_checks(
         slow,
         &mut out,
     );
+    // 2c. A's session sat unused through that wait, and an app with an idle timeout has ended it:
+    //     every check below would be asking with a session the app no longer knows, and reading
+    //     its refusals as answers. So A signs in afresh, and is shown working again as in step 2.
+    let a = if waited {
+        match sign_in_again(
+            http,
+            users,
+            &accounts.a,
+            confirm_path.as_deref().filter(|_| signed_in_works),
+            &mut out,
+        ) {
+            Some(fresh) => fresh,
+            None => return out,
+        }
+    } else {
+        a
+    };
 
     // 3. A record A owns, read as B and as nobody; then the same request from another site. First
     //    among the signed-in checks because A reading back what A made is the second way to show

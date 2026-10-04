@@ -79,6 +79,11 @@ impl Secret {
     }
 }
 
+/// The rules whose findings are shown beside a requirement's credit rather than over it, and whose
+/// review as a false alarm leaves that credit standing. Each says so in its own text; a rule goes on
+/// this list only when it does, so the report never contradicts the finding it shows.
+pub const INFORMATION_ONLY: &[&str] = &[crate::suite::NAME_MISMATCH];
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Location {
     pub file: String,
@@ -128,6 +133,20 @@ impl Finding {
             Confidence::Medium => "likely",
             Confidence::Low => "possible",
         }
+    }
+
+    /// Whether this finding keeps a requirement it names from being *checked*: true for every finding
+    /// but the few that say, in their own text, that they leave the credit alone.
+    ///
+    /// Those are listed by name in `INFORMATION_ONLY`, and must also be `Severity::Info`, so raising
+    /// one's severity makes it count again rather than quietly staying beside the credit. A finding
+    /// another rule was merged into counts whatever its own rule is. Every other finding counts,
+    /// including a tool's at `info`: a tool's lowest level is still the tool saying something is
+    /// wrong, and nothing in its text says otherwise. (BACKLOG, family-hub item 6, 4 October 2026.)
+    pub fn withholds_credit(&self) -> bool {
+        !(self.severity == Severity::Info
+            && self.also_reported_by.is_empty()
+            && INFORMATION_ONLY.contains(&self.rule_id.as_str()))
     }
 
     /// Whether the finding is in code that tests the app or shows how to use it, rather than in the
