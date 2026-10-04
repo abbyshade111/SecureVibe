@@ -1169,7 +1169,10 @@ another session is not a claim.
   question open. If it holds, text under a stray heading below an unanswered section could make it look answered, at
   the tier its `Written by:` line gives. The prompts are kept from causing it (a test holds them to `sv`'s headings);
   an owner or a tool writing a heading of their own is not. Ways out, for the owner: end a section at any heading, or
-  report a heading `sv` does not know as a gap. Not claimed.
+  report a heading `sv` does not know as a gap.
+  **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/notes-headings`. First
+  step: reproduce it end to end, with a test, before any fix; the way out is then the owner's to choose, and its
+  record is written with it.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
