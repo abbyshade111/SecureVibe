@@ -148,7 +148,7 @@
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
         "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
-        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))] @hit",
+        "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (member_access_expression name: (generic_name (identifier) @fn))\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))\n (object_creation_expression type: (identifier) @fn\n                            arguments: (argument_list . (argument (_) @arg)))] @hit",
         "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
         "rust": "(call_expression function: (field_expression field: (field_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
@@ -158,14 +158,14 @@
         "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
-        "python": "^(execute|executemany|executescript|raw)$",
-        "javascript": "^(query|execute|raw|unsafe)$",
-        "typescript": "^(query|execute|raw|unsafe)$",
+        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query)$",
+        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe)$",
+        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe)$",
         "go": "^(Query|QueryRow|Exec|QueryContext|ExecContext)$",
-        "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values)$",
-        "php": "^(query|exec|multi_query|real_query)$",
-        "java": "^(executeQuery|executeUpdate|execute|createQuery|createNativeQuery|addBatch)$",
-        "csharp": "^(ExecuteReader|ExecuteNonQuery|ExecuteScalar|FromSqlRaw|ExecuteSqlRaw|ExecuteSqlRawAsync)$",
+        "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values|where|rewhere|order|reorder|having|group|joins|from|pluck|count_by_sql)$",
+        "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query)$",
+        "java": "^(executeQuery|executeUpdate|execute|executeLargeUpdate|createQuery|createNativeQuery|addBatch|prepareStatement|prepareCall|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForStream|update|batchUpdate)$",
+        "csharp": "^(ExecuteReader|ExecuteNonQuery|ExecuteScalar|FromSqlRaw|ExecuteSqlRaw|ExecuteSqlRawAsync|SqlCommand|SqliteCommand|NpgsqlCommand|MySqlCommand|OracleCommand|OleDbCommand|OdbcCommand|Query|QueryAsync|QueryFirst|QueryFirstAsync|QueryFirstOrDefault|QueryFirstOrDefaultAsync|QuerySingle|QuerySingleAsync|QuerySingleOrDefault|QuerySingleOrDefaultAsync|QueryMultiple|QueryMultipleAsync|Execute|ExecuteAsync|ExecuteScalarAsync)$",
         "kotlin": "^(rawQuery|execSQL|executeQuery|executeUpdate|createQuery|createNativeQuery)$",
         "rust": "^(execute|query|query_row|query_map|prepare|batch_execute)$",
         "c": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$",
@@ -180,10 +180,36 @@
       "modulePatterns": {
         "shell": "^(-c|-e|--command|--execute|--query)$|\\.(db|sqlite3?)$"
       },
-      "looksFor": "a database query joined together from text and values, rather than sent with its values kept separate",
+      "looksFor": "a database query, sent through the usual database libraries' query calls, joined together from text and values rather than sent with its values kept separate",
       "looksForIn": {
         "shell": "psql, mysql, sqlite3, or a similar client given a query built from a variable"
-      }
+      },
+      "argumentPositions": {
+        "go": {
+          "Context$": 1
+        },
+        "php": {
+          "^(mysqli_(query|real_query|multi_query)|pg_(query|send_query))$": 1
+        }
+      },
+      "argumentsForCommonNames": {
+        "javascript": {
+          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+        },
+        "typescript": {
+          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+        },
+        "java": {
+          "^(query|queryFor\\w+|update|batchUpdate)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+        },
+        "csharp": {
+          "^(Query\\w*|Execute|ExecuteAsync|ExecuteScalarAsync)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+        },
+        "ruby": {
+          "^(where|rewhere|order|reorder|having|group|joins|from|pluck)$": "^(\"|'|%[qQ]?[^\\w\\s]|<<[~-]?)"
+        }
+      },
+      "boundParametersLowerConfidence": true
     },
     {
       "id": "ast.unsafe-deserialization",
@@ -693,10 +719,15 @@
         "swift": "^to\\s*:"
       },
       "safeArgumentPatterns": {
-        "python": "^(url_for|reverse|reverse_lazy|request\\.url_for)\\(",
-        "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$",
-        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(",
-        "dart": "^Uri\\.parse\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$"
+        "python": "^(url_for|reverse|reverse_lazy|request\\.url_for)\\(|^[fFrRuUbB]{0,2}[\"']/[A-Za-z0-9_.~%-]",
+        "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$|^[\"']/[A-Za-z0-9_.~%-]",
+        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(|^@?\\$?\"/[A-Za-z0-9_.~%-]",
+        "dart": "^Uri\\.parse\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$",
+        "javascript": "^[\"'`]/[A-Za-z0-9_.~%-]",
+        "typescript": "^[\"'`]/[A-Za-z0-9_.~%-]",
+        "go": "^[\"`]/[A-Za-z0-9_.~%-]",
+        "java": "^\"/[A-Za-z0-9_.~%-]",
+        "kotlin": "^\"/[A-Za-z0-9_.~%-]"
       },
       "looksFor": "a redirect to a destination built from a value",
       "looksForIn": {

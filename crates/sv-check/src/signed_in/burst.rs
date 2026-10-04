@@ -3,8 +3,11 @@
 //! The same shape as the AI feature's limit (C11.2.2): one more than `[policy] requests-per-minute`
 //! records are created through `owned` as B, inside a minute. It runs before the password questions,
 //! which can change both A's and B's passwords, and waits a minute afterwards so the limit it set
-//! off no longer refuses the checks that follow. All of them going through is the
-//! finding; the first going through and the last refused is credit for that one action. Without a
+//! off no longer refuses the checks that follow. Each record carries a marker of its own, so none is
+//! refused for repeating a value. All of them going through is the finding; the first going
+//! through and the last refused the way a limit refuses (429, or 503 with `Retry-After`) is credit
+//! for that one action. A refusal of any other kind is not assessed: a token taken once, a quota,
+//! or a value kept unique is refused the same way. Without a
 //! stated number nothing is judged: a limit kept by a proxy in production is not in the fenced run,
 //! so "no limit seen here" alone would accuse apps that have one.
 
@@ -19,6 +22,18 @@ fn still_in(http: &mut dyn Http, users: &UsersSection, when: &str, session: &Ses
         .private
         .first()
         .is_some_and(|page| ok(&http.send(&get(&format!("private-burst-{when}"), page, session))))
+}
+
+/// Whether an answer is how a limit refuses: 429 Too Many Requests, or 503 Service Unavailable with
+/// a `Retry-After` saying when to come back.
+fn limit_answer(answer: &Option<ProbeResponse>) -> bool {
+    answer.as_ref().is_some_and(|r| {
+        r.status == 429
+            || (r.status == 503
+                && r.headers
+                    .iter()
+                    .any(|(k, _)| k.eq_ignore_ascii_case("retry-after")))
+    })
 }
 
 pub(super) fn burst_check(
@@ -77,25 +92,34 @@ pub(super) fn burst_check(
     // A minute's pause first, so the records the checks above created no longer count against a
     // limit per minute.
     http.wait(61);
-    let values = Values {
-        marker: "sv-probe-burst-5e2b",
-        ..Default::default()
-    };
-    let request = prepared(
+    // Each record carries a marker of its own: one repeated would be refused by an app that keeps
+    // the value unique, and that refusal would read as a limit.
+    let values = with_token(
         http,
         "burst-create",
         &owned.create,
-        &values,
+        &Values::default(),
         &mut session,
         &users.private,
     );
+    let markers: Vec<String> = (1..=n + 1)
+        .map(|i| format!("sv-probe-burst-5e2b-{i}"))
+        .collect();
     let began = http.now();
-    let answers: Vec<Option<ProbeResponse>> = (0..=n)
-        .map(|i| {
-            http.send(&ProbeRequest {
-                id: format!("burst-{}", i + 1),
-                ..request.clone()
-            })
+    let answers: Vec<Option<ProbeResponse>> = markers
+        .iter()
+        .enumerate()
+        .map(|(i, marker)| {
+            let v = Values {
+                marker,
+                ..values.clone()
+            };
+            http.send(&request(
+                &format!("burst-{}", i + 1),
+                &owned.create,
+                &v,
+                &session,
+            ))
         })
         .collect();
     let took = http.now().saturating_sub(began);
@@ -105,7 +129,7 @@ pub(super) fn burst_check(
     let through = answers.iter().filter(|a| accepted(a)).count();
     let crashed = answers
         .iter()
-        .filter(|a| a.as_ref().is_none_or(|r| r.status >= 500))
+        .filter(|a| a.as_ref().is_none_or(|r| r.status >= 500) && !limit_answer(a))
         .count();
     let first = answers.first().is_some_and(accepted);
     let last = answers.last().is_some_and(accepted);
@@ -163,6 +187,18 @@ pub(super) fn burst_check(
             ),
             out,
         );
+    } else if !last && !answers.last().is_some_and(limit_answer) {
+        say(
+            format!(
+                "Whether creating records is limited: the last of the {sent} sent through {} was \
+                 refused with {}, which is not how a limit answers (429 Too Many Requests, or 503 \
+                 with Retry-After). A value the app keeps unique, a token used up, or a quota \
+                 reached is refused the same way.",
+                owned.create.path,
+                status(answers.last().unwrap_or(&None))
+            ),
+            out,
+        );
     } else if last {
         say(
             format!(
@@ -210,6 +246,114 @@ mod tests {
         };
         let o = super::super::run(&mut app, &users(), &acc, true, &policy);
         (o, app)
+    }
+
+    /// The scripted app, changed by `adjust`, against 10 a minute stated.
+    fn run_adjusted(adjust: impl FnOnce(&mut FakeApp)) -> Outcome {
+        let acc = accounts();
+        let mut app = FakeApp::new(Flaws::default());
+        adjust(&mut app);
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let policy = sv_manifest::PolicySection {
+            requests_per_minute: Some(10),
+            ..Default::default()
+        };
+        super::super::run(&mut app, &users(), &acc, true, &policy)
+    }
+
+    #[test]
+    fn a_refusal_that_is_not_a_limit_is_not_credited_as_one() {
+        // No limit at all, and each refuses the second record on for another reason: a value it
+        // keeps unique, or a token it takes once.
+        for (what, adjust) in [
+            (
+                "repeats",
+                (|a: &mut FakeApp| a.refuses_repeats = true) as fn(&mut FakeApp),
+            ),
+            ("single-use tokens", |a: &mut FakeApp| {
+                a.single_use_tokens = true
+            }),
+        ] {
+            let o = run_adjusted(adjust);
+            assert!(
+                !verified_ids(&o).contains(&CREATE_UNLIMITED.rule_id),
+                "{what}: credited\n{:#?}",
+                o.steps
+            );
+            if what == "repeats" {
+                // Each record its own marker: all eleven go through, and that is the finding.
+                assert!(
+                    rule_ids(&o).contains(&CREATE_UNLIMITED.rule_id),
+                    "{what}: {:#?}",
+                    o.steps
+                );
+            } else {
+                assert!(
+                    why_not(&o).contains("not how a limit answers"),
+                    "{what}: {}",
+                    why_not(&o)
+                );
+            }
+        }
+        // The control: an app that refuses repeats and keeps a limit at the stated number is
+        // credited, since every record now differs.
+        let o = run_adjusted(|a| {
+            a.refuses_repeats = true;
+            a.notes_per_minute = Some(10);
+        });
+        assert!(
+            verified_ids(&o).contains(&CREATE_UNLIMITED.rule_id),
+            "{}\n{:#?}",
+            why_not(&o),
+            o.steps
+        );
+        // A token taken once refuses the second record before a limit could: not assessed, never
+        // credited, whatever the limit.
+        let o = run_adjusted(|a| {
+            a.single_use_tokens = true;
+            a.notes_per_minute = Some(10);
+        });
+        assert!(!verified_ids(&o).contains(&CREATE_UNLIMITED.rule_id));
+        assert!(
+            why_not(&o).contains("not how a limit answers"),
+            "{}",
+            why_not(&o)
+        );
+    }
+
+    #[test]
+    fn only_429_or_503_with_retry_after_is_a_limit() {
+        for (answer, credited) in [
+            ((429, true), true),
+            ((429, false), true),
+            ((503, true), true),
+            ((503, false), false),
+            ((403, true), false),
+            ((409, false), false),
+            ((400, false), false),
+        ] {
+            let o = run_adjusted(|a| {
+                a.notes_per_minute = Some(10);
+                a.notes_limit_answer = Some(answer);
+            });
+            assert_eq!(
+                verified_ids(&o).contains(&CREATE_UNLIMITED.rule_id),
+                credited,
+                "{answer:?}: {}\n{:#?}",
+                why_not(&o),
+                o.steps
+            );
+            assert!(
+                !rule_ids(&o).contains(&CREATE_UNLIMITED.rule_id),
+                "{answer:?}"
+            );
+            if !credited {
+                assert!(!why_not(&o).is_empty(), "{answer:?}: nothing said");
+            }
+        }
     }
 
     fn why_not(o: &Outcome) -> &str {
