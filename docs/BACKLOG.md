@@ -338,6 +338,13 @@ another session is not a claim.
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r6-exit-codes`.
+    **The owner's decision, 4 October 2026:** measured first, the convention as written would have failed every
+    pipeline (every app in `examples/` and from `sv init` exited 1 or 2 on a plain static run: the low security.txt
+    finding, checks needing a Dockerfile or a git repository, and 121 to 230 requirements "not verified by
+    anything"). So: by default `sv check` and `sv report` exit 0, and 2 only when a check could not run or no file
+    was read; `--fail-on attention[:SEVERITY]`, `not-assessed`, or `any` opts in to 1 and to a wider 2, never for
+    "not verified by anything"; and any run where `sv` itself fails exits 3, everywhere, `sv audit`'s errors moving
+    from 1 to 3 (ADR-027).
   - **R7. High, Reproduced.** `sv notes` and the MCP notes tool delete the owner's own text, though the tool says it
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
