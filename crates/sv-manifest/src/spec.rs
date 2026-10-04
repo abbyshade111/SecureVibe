@@ -296,8 +296,13 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.
 
   Fill in securevibe.toml for the app in this folder. Every answer decides which OWASP ASVS
-  requirements are judged to apply, so answer for the app as it actually is, not as it is meant
-  to become.
+  requirements are judged to apply.
+
+  - If there is no code yet, write it first, before any code, for the app as it will be. It is the
+    design brief: decide each answer with the person, and what you decide here is what the app is
+    built to and checked against. Then go through the design-time prompts (`sv prompts`) for the
+    features the app will have, before writing the code for each.
+  - Once there is code, answer for the app as it actually is, not as it is meant to become.
 
   Three rules:
 
@@ -313,8 +318,10 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
      mistake that matters: it is how a real requirement gets marked "not applicable". Never write
      false to get a line out of the way.
 
-  3. Do not describe the app you were asked to build. Describe the code that is there. If the
-     payment flow was planned and never written, payments is false.
+  3. Once there is code, do not describe the app you were asked to build. Describe the code that is
+     there. If the payment flow was planned and then dropped, payments is false. Before there is
+     code, and for a feature still to be written, a capability the app is planned to have is true:
+     rule 2, applied to the plan. Change the file before you add a capability the plan does not have.
 
 `sv` does not take this file at its word. It looks for each claim in the code and reports what it
 finds: confirmed, contradicted, asserted-but-unsupported, or unverifiable. A claim of "no" never

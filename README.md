@@ -342,6 +342,12 @@ you change its `Written by:` line to `owner` yourself), and `securevibe_bundle`
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
 
+It also offers [the design-time prompts](docs/prompts/design-time.md) as MCP prompts, for you to choose from
+your tool (where it shows them, for example as slash commands): what to decide with the tool before any code is
+written, each saying whether it has been shown to work. Its instructions ask the tool, for an app with no code yet, to
+write `securevibe.toml` with you first, for the app as it will be, and to go through the prompt for each feature
+before writing it.
+
 A check that takes longer than 50 seconds is stopped waiting for, and the tool is told it did not finish and that
 nothing was assessed, rather than being left waiting. Checking this whole repository takes about six seconds.
 `--time-limit SECONDS` changes the limit, and `sv report` at a terminal has none. A tool that asks to hear how a check
