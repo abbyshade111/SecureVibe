@@ -8,8 +8,9 @@
 use serde_json::Value;
 use std::process::Command;
 
-fn sv(args: &[&str]) {
+fn sv(args: &[&str], config: &std::path::Path) {
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", config)
         .args(args)
         .output()
         .expect("sv runs");
@@ -31,7 +32,18 @@ fn a_section_holding_only_the_tools_disclaimer_is_not_verified() {
     )
     .unwrap();
     std::fs::write(dir.join("app.py"), "print('hi')\n").unwrap();
-    sv(&["notes", dir.to_str().unwrap()]);
+    let config = dir.join("config");
+    sv(&["notes", dir.to_str().unwrap()], &config);
+    // The owner's section is recorded through `sv review`, as it counts as theirs only then.
+    let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    let accountant = "Written by our accountant: only the owner may change prices or see payments.";
+    let owners = format!(
+        "{accountant}\n\nWritten by: owner\n{} {}",
+        sv_check::notes::SEALED_BY,
+        key.seal(&sv_check::seal::as_strs(&sv_check::seal::notes_fields(
+            "V8.1.1", accountant
+        )))
+    );
     let path = dir.join("security-notes.md");
     let mut text = std::fs::read_to_string(&path).unwrap();
     // Two sections: one with the disclaimer alone, one with the disclaimer over a real answer.
@@ -43,8 +55,7 @@ fn a_section_holding_only_the_tools_disclaimer_is_not_verified() {
         (
             // An answer whose first sentence begins "Written by", not in emphasis: still the answer.
             "V8.1.1",
-            "Written by our accountant: only the owner may change prices or see payments.\n\n\
-             Written by: owner",
+            owners.as_str(),
         ),
         (
             "V2.1.1",
@@ -69,12 +80,15 @@ fn a_section_holding_only_the_tools_disclaimer_is_not_verified() {
     }
     std::fs::write(&path, &text).unwrap();
     let out = dir.join("report");
-    sv(&[
-        "report",
-        dir.to_str().unwrap(),
-        "--out",
-        out.to_str().unwrap(),
-    ]);
+    sv(
+        &[
+            "report",
+            dir.to_str().unwrap(),
+            "--out",
+            out.to_str().unwrap(),
+        ],
+        &config,
+    );
     let report: Value =
         serde_json::from_str(&std::fs::read_to_string(out.join("report.json")).unwrap()).unwrap();
     let status = |id: &str| {

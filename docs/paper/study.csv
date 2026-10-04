@@ -103,111 +103,111 @@ fitness-tracker,run-11,AI-code issue categories,09 Formatting: lines checked,199
 fitness-tracker,run-11,AI-code issue categories,09 Formatting: share of lines,0.0819,results/run-11/fitness-tracker/lint/
 fitness-tracker,run-11,AI-code issue categories,10 Naming: count,0,"results/run-11/fitness-tracker/lint/ruff.json, eslint.json; results/run-11/fitness-tracker/report.json"
 fitness-tracker,run-11,AI-code issue categories,"10 Naming: per 1,000 lines",0.0,"results/run-11/fitness-tracker/lint/ruff.json, eslint.json; results/run-11/fitness-tracker/report.json"
-pain-in-the-butt,run-11,sv findings,findings in the app (all classes but method),157,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings: own,10,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings: tests,145,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings: vendored,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings: dependencies,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings: method,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,all app findings: critical,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,all app findings: high,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,all app findings: medium,9,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,all app findings: low,148,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,own code: critical,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,own code: high,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,own code: medium,7,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,own code: low,3,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,"own-code findings per 1,000 source lines",7.29,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,"own-code critical or high per 1,000 source lines",0.0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings by kind: ast,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings by kind: bandit,151,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings by kind: config,4,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,sv findings,findings by kind: sbom,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,dependency coverage,advisory check state,partly,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,dependency coverage,advisory check: why not complete,the list of packages is incomplete,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,dependency coverage,dependency findings,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,dependency coverage,dependency finding rules,config.versions-pinned sbom.incomplete,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,applicable,185,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,needs_attention,5,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,checked,9,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,not_verified,171,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,documented,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,stated,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,attested,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,by_hand,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,not_applicable,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,out_of_level,153,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,ai_process,43,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,not_verified share of applicable,0.924,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,could not be placed (undecided),258,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,tests sv suggests writing,110,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,ASVS level applied,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,threats: found,3,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,threats: not-verified,11,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,threats: checked-in-part,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,threats: cannot-place,27,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,requirements,checks that did not fully run,advisory. partly; semgrep. not-run; codeql-javascript. not-run; codeql-python. not-run; probe. not-run,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,code quality,"source lines, own code",1371,results/run-11/pain-in-the-butt/quality/scc.json
-pain-in-the-butt,run-11,code quality,own code by language,Python 1219; JavaScript 94; HTML 48; Dockerfile 9; CSS 1,results/run-11/pain-in-the-butt/quality/scc.json
-pain-in-the-butt,run-11,code quality,source lines in tests,939,results/run-11/pain-in-the-butt/quality/scc.json
-pain-in-the-butt,run-11,code quality,source lines vendored,0,results/run-11/pain-in-the-butt/quality/scc.json
-pain-in-the-butt,run-11,code quality,test_to_code,0.68,results/run-11/pain-in-the-butt/quality/scc.json
-pain-in-the-butt,run-11,code quality,comment_ratio,0.015,results/run-11/pain-in-the-butt/quality/scc.json
-pain-in-the-butt,run-11,code quality,functions,62,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,complexity_mean,4.23,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,complexity_median,3.0,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,complexity_max,15,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,complex_functions,6,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,function_length_mean,15.2,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,long_functions,3,results/run-11/pain-in-the-butt/quality/lizard.csv
-pain-in-the-butt,run-11,code quality,duplicated_lines,21,results/run-11/pain-in-the-butt/quality/jscpd
-pain-in-the-butt,run-11,code quality,duplication,0.013,results/run-11/pain-in-the-butt/quality/jscpd
-pain-in-the-butt,run-11,code quality,clones_in_own_code,1,results/run-11/pain-in-the-butt/quality/jscpd
-pain-in-the-butt,run-11,OWASP Top 10:2025,A01 Broken Access Control: all app findings,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A01 Broken Access Control: own code,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A02 Security Misconfiguration: all app findings,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A02 Security Misconfiguration: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A03 Software Supply Chain Failures: all app findings,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A03 Software Supply Chain Failures: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A04 Cryptographic Failures: all app findings,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A04 Cryptographic Failures: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A05 Injection: all app findings,5,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A05 Injection: own code,5,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A06 Insecure Design: all app findings,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A06 Insecure Design: own code,2,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A07 Authentication Failures: all app findings,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A07 Authentication Failures: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A08 Software or Data Integrity Failures: all app findings,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A08 Software or Data Integrity Failures: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A09 Security Logging & Alerting Failures: all app findings,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A09 Security Logging & Alerting Failures: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A10 Mishandling of Exceptional Conditions: all app findings,145,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,A10 Mishandling of Exceptional Conditions: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,unmapped: all app findings,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,unmapped: own code,0,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,no CWE: all app findings,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,OWASP Top 10:2025,no CWE: own code,1,results/run-11/pain-in-the-butt/report.json
-pain-in-the-butt,run-11,AI-code issue categories,01 Issues overall: count,15,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"01 Issues overall: per 1,000 lines",10.94,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,02 Critical and major issues: count,0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"02 Critical and major issues: per 1,000 lines",0.0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,03 Logic and correctness: count,0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"03 Logic and correctness: per 1,000 lines",0.0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,04 Readability: count,2,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"04 Readability: per 1,000 lines",1.46,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,05 Error handling and exception paths: count,0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"05 Error handling and exception paths: per 1,000 lines",0.0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,06 Security: count,10,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"06 Security: per 1,000 lines",7.29,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,07 Performance (excessive I/O): count,0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"07 Performance (excessive I/O): per 1,000 lines",0.0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,08 Concurrency and dependency correctness: count,3,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"08 Concurrency and dependency correctness: per 1,000 lines",2.19,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,09 Formatting: lines differing,56,results/run-11/pain-in-the-butt/lint/
-pain-in-the-butt,run-11,AI-code issue categories,09 Formatting: lines checked,1556,results/run-11/pain-in-the-butt/lint/
-pain-in-the-butt,run-11,AI-code issue categories,09 Formatting: share of lines,0.036,results/run-11/pain-in-the-butt/lint/
-pain-in-the-butt,run-11,AI-code issue categories,10 Naming: count,0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
-pain-in-the-butt,run-11,AI-code issue categories,"10 Naming: per 1,000 lines",0.0,"results/run-11/pain-in-the-butt/lint/ruff.json, eslint.json; results/run-11/pain-in-the-butt/report.json"
+health-tracker,run-11,sv findings,findings in the app (all classes but method),157,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings: own,10,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings: tests,145,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings: vendored,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings: dependencies,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings: method,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,all app findings: critical,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,all app findings: high,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,all app findings: medium,9,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,all app findings: low,148,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,own code: critical,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,own code: high,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,own code: medium,7,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,own code: low,3,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,"own-code findings per 1,000 source lines",7.29,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,"own-code critical or high per 1,000 source lines",0.0,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings by kind: ast,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings by kind: bandit,151,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings by kind: config,4,results/run-11/health-tracker/report.json
+health-tracker,run-11,sv findings,findings by kind: sbom,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,dependency coverage,advisory check state,partly,results/run-11/health-tracker/report.json
+health-tracker,run-11,dependency coverage,advisory check: why not complete,the list of packages is incomplete,results/run-11/health-tracker/report.json
+health-tracker,run-11,dependency coverage,dependency findings,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,dependency coverage,dependency finding rules,config.versions-pinned sbom.incomplete,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,applicable,185,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,needs_attention,5,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,checked,9,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,not_verified,171,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,documented,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,stated,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,attested,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,by_hand,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,not_applicable,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,out_of_level,153,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,ai_process,43,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,not_verified share of applicable,0.924,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,could not be placed (undecided),258,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,tests sv suggests writing,110,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,ASVS level applied,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,threats: found,3,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,threats: not-verified,11,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,threats: checked-in-part,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,threats: cannot-place,27,results/run-11/health-tracker/report.json
+health-tracker,run-11,requirements,checks that did not fully run,advisory. partly; semgrep. not-run; codeql-javascript. not-run; codeql-python. not-run; probe. not-run,results/run-11/health-tracker/report.json
+health-tracker,run-11,code quality,"source lines, own code",1371,results/run-11/health-tracker/quality/scc.json
+health-tracker,run-11,code quality,own code by language,Python 1219; JavaScript 94; HTML 48; Dockerfile 9; CSS 1,results/run-11/health-tracker/quality/scc.json
+health-tracker,run-11,code quality,source lines in tests,939,results/run-11/health-tracker/quality/scc.json
+health-tracker,run-11,code quality,source lines vendored,0,results/run-11/health-tracker/quality/scc.json
+health-tracker,run-11,code quality,test_to_code,0.68,results/run-11/health-tracker/quality/scc.json
+health-tracker,run-11,code quality,comment_ratio,0.015,results/run-11/health-tracker/quality/scc.json
+health-tracker,run-11,code quality,functions,62,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,complexity_mean,4.23,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,complexity_median,3.0,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,complexity_max,15,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,complex_functions,6,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,function_length_mean,15.2,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,long_functions,3,results/run-11/health-tracker/quality/lizard.csv
+health-tracker,run-11,code quality,duplicated_lines,21,results/run-11/health-tracker/quality/jscpd
+health-tracker,run-11,code quality,duplication,0.013,results/run-11/health-tracker/quality/jscpd
+health-tracker,run-11,code quality,clones_in_own_code,1,results/run-11/health-tracker/quality/jscpd
+health-tracker,run-11,OWASP Top 10:2025,A01 Broken Access Control: all app findings,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A01 Broken Access Control: own code,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A02 Security Misconfiguration: all app findings,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A02 Security Misconfiguration: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A03 Software Supply Chain Failures: all app findings,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A03 Software Supply Chain Failures: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A04 Cryptographic Failures: all app findings,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A04 Cryptographic Failures: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A05 Injection: all app findings,5,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A05 Injection: own code,5,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A06 Insecure Design: all app findings,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A06 Insecure Design: own code,2,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A07 Authentication Failures: all app findings,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A07 Authentication Failures: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A08 Software or Data Integrity Failures: all app findings,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A08 Software or Data Integrity Failures: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A09 Security Logging & Alerting Failures: all app findings,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A09 Security Logging & Alerting Failures: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A10 Mishandling of Exceptional Conditions: all app findings,145,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,A10 Mishandling of Exceptional Conditions: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,unmapped: all app findings,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,unmapped: own code,0,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,no CWE: all app findings,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,OWASP Top 10:2025,no CWE: own code,1,results/run-11/health-tracker/report.json
+health-tracker,run-11,AI-code issue categories,01 Issues overall: count,15,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"01 Issues overall: per 1,000 lines",10.94,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,02 Critical and major issues: count,0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"02 Critical and major issues: per 1,000 lines",0.0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,03 Logic and correctness: count,0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"03 Logic and correctness: per 1,000 lines",0.0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,04 Readability: count,2,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"04 Readability: per 1,000 lines",1.46,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,05 Error handling and exception paths: count,0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"05 Error handling and exception paths: per 1,000 lines",0.0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,06 Security: count,10,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"06 Security: per 1,000 lines",7.29,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,07 Performance (excessive I/O): count,0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"07 Performance (excessive I/O): per 1,000 lines",0.0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,08 Concurrency and dependency correctness: count,3,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"08 Concurrency and dependency correctness: per 1,000 lines",2.19,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,09 Formatting: lines differing,56,results/run-11/health-tracker/lint/
+health-tracker,run-11,AI-code issue categories,09 Formatting: lines checked,1556,results/run-11/health-tracker/lint/
+health-tracker,run-11,AI-code issue categories,09 Formatting: share of lines,0.036,results/run-11/health-tracker/lint/
+health-tracker,run-11,AI-code issue categories,10 Naming: count,0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
+health-tracker,run-11,AI-code issue categories,"10 Naming: per 1,000 lines",0.0,"results/run-11/health-tracker/lint/ruff.json, eslint.json; results/run-11/health-tracker/report.json"
 securefit,run-11,sv findings,findings in the app (all classes but method),20,results/run-11/securefit/report.json
 securefit,run-11,sv findings,findings: own,16,results/run-11/securefit/report.json
 securefit,run-11,sv findings,findings: tests,2,results/run-11/securefit/report.json

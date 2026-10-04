@@ -45,6 +45,13 @@
 //! holding for it as well: still a test to write, no threat settled, and `no` still a finding. An
 //! answer that does not say who gave it is counted as the tool's: the file is usually written by the
 //! tool, and crediting the owner on nobody's say-so is the direction that overstates.
+//!
+//! # The owner's answers are the ones recorded through `sv review`
+//!
+//! Since 4 October 2026 (deep review R1, the owner's decision): `by = "owner"` is one line the AI
+//! coding tool can write as easily as the owner, so an answer counts as the owner's only when
+//! `sv review` recorded it and sealed it (`crate::seal`). Any other `by = "owner"` counts as the
+//! tool's word, one tier down, and the report says why and how to make it the owner's.
 
 use crate::{Confidence, Finding, Location, Severity, Verified};
 use anyhow::{Context, Result};
@@ -109,6 +116,9 @@ pub struct Answer {
     pub location: Option<String>,
     /// `owner`, `ai-tool`, or nothing, which counts as `ai-tool`.
     pub by: Option<String>,
+    /// For an answer `by = "owner"`: whether `sv review` recorded it, as its seal is checked where
+    /// this runs, or why not. Not read for anyone else's answer.
+    pub recorded: Result<crate::seal::Sealed, String>,
 }
 
 /// What the answers came to.
@@ -148,7 +158,10 @@ pub fn evaluate(
         };
         let who = match answer.by.as_deref() {
             None | Some(AI_TOOL) => Who::AiTool,
-            Some(OWNER) => Who::Owner,
+            Some(OWNER) => match &answer.recorded {
+                Ok(sealed) => Who::Owner(sealed.clone()),
+                Err(_) => Who::OwnerUnrecorded,
+            },
             Some(_) => {
                 out.unreadable.push(question.id.clone());
                 continue;
@@ -156,10 +169,10 @@ pub fn evaluate(
         };
         match answer.answer.as_str() {
             NOT_SURE => out.unanswered.push(question.id.clone()),
-            NO => out.findings.push(said_no(question, who)),
+            NO => out.findings.push(said_no(question, &who)),
             YES => match &answer.location {
                 Some(path) if !file_exists(path) => {
-                    out.findings.push(stale_pointer(question, path, who));
+                    out.findings.push(stale_pointer(question, path, &who));
                 }
                 location => {
                     let named = match location {
@@ -167,13 +180,25 @@ pub fn evaluate(
                         None => "did not say where".to_owned(),
                     };
                     let id = [question.id.as_str()];
-                    match who {
-                        Who::Owner => out.attested.push(Verified::new(
+                    match &who {
+                        Who::Owner(sealed) => out.attested.push(Verified::new(
                             "design.attested",
                             &id,
                             format!(
-                                "securevibe.toml: you answered yes, and {named}. This is your word \
-                                 about the app, not a check of it."
+                                "securevibe.toml: you answered yes, and {named}{}. This is your \
+                                 word about the app, not a check of it.",
+                                crate::seal::recorded_where(sealed)
+                            ),
+                        )),
+                        Who::OwnerUnrecorded => out.stated.push(Verified::new(
+                            "design.stated-by-ai",
+                            &id,
+                            format!(
+                                "securevibe.toml says you answered yes, and {named}, but {}, so it \
+                                 counts as your AI coding tool's word, not a check of the code. If \
+                                 it is your answer, run `sv review` in your own terminal to record \
+                                 it as yours.",
+                                answer.recorded.as_ref().err().map_or("", String::as_str)
                             ),
                         )),
                         Who::AiTool => out.stated.push(Verified::new(
@@ -199,17 +224,21 @@ pub fn evaluate(
     out
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Who {
-    Owner,
+    /// The owner's answer, recorded through `sv review`.
+    Owner(crate::seal::Sealed),
+    /// `by = "owner"`, not recorded through `sv review`: counted as the tool's.
+    OwnerUnrecorded,
     AiTool,
 }
 
 impl Who {
     /// The start of a sentence about the answer.
-    fn answered(self) -> &'static str {
+    fn answered(&self) -> &'static str {
         match self {
-            Who::Owner => "You answered",
+            Who::Owner(_) => "You answered",
+            Who::OwnerUnrecorded => "securevibe.toml says you answered",
             Who::AiTool => "Your AI coding tool answered",
         }
     }
@@ -217,7 +246,7 @@ impl Who {
 
 /// The owner, or the tool that wrote the code, says the control is not there. For a missing control
 /// either is the best authority there is: nobody overstates an app by saying it lacks something.
-fn said_no(question: &Question, who: Who) -> Finding {
+fn said_no(question: &Question, who: &Who) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
@@ -238,7 +267,11 @@ fn said_no(question: &Question, who: Who) -> Finding {
         cwe: Vec::new(),
         description: format!(
             "In securevibe.toml {} no to this question: {}",
-            who.answered().to_lowercase(),
+            match who {
+                Who::OwnerUnrecorded => "the answer, given as yours, is",
+                Who::Owner(_) => "you answered",
+                Who::AiTool => "your AI coding tool answered",
+            },
             question.asks
         ),
         impact: format!(
@@ -246,7 +279,8 @@ fn said_no(question: &Question, who: Who) -> Finding {
              control it asks for is not there.",
             question.id,
             match who {
-                Who::Owner => "you have",
+                Who::Owner(_) => "you have",
+                Who::OwnerUnrecorded => "securevibe.toml says you have",
                 Who::AiTool => "your AI coding tool has",
             }
         ),
@@ -259,7 +293,7 @@ fn said_no(question: &Question, who: Who) -> Finding {
 }
 
 /// A pointer that leads nowhere reads as evidence and is not, which is worse than none.
-fn stale_pointer(question: &Question, path: &str, who: Who) -> Finding {
+fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
@@ -327,6 +361,7 @@ mod tests {
                         answer: (*answer).to_owned(),
                         location: location.map(|l| l.to_owned()),
                         by: Some(OWNER.to_owned()),
+                        recorded: Ok(crate::seal::Sealed::Here),
                     },
                 )
             })
@@ -548,5 +583,40 @@ mod tests {
     #[test]
     fn the_answers_are_exactly_three_words() {
         assert_eq!(ANSWERS, [YES, NO, NOT_SURE]);
+    }
+
+    #[test]
+    fn the_owners_answer_counts_as_theirs_only_when_sv_review_recorded_it() {
+        let mut a = answers(&[("V8.3.1", YES, Some("auth.py")), ("V2.2.2", NO, None)]);
+        for answer in a.values_mut() {
+            answer.recorded = Err("it was not recorded through `sv review`".into());
+        }
+        let out = evaluate(&questions(), &a, &all_apply, &everything_exists);
+        assert!(out.attested.is_empty(), "{out:?}");
+        assert_eq!(out.stated.len(), 1);
+        assert!(
+            out.stated[0]
+                .scope
+                .contains("securevibe.toml says you answered yes")
+                && out.stated[0]
+                    .scope
+                    .contains("not recorded through `sv review`")
+                && out.stated[0].scope.contains("run `sv review`"),
+            "{}",
+            out.stated[0].scope
+        );
+        // A no is still a finding, and says whose word it rests on.
+        assert_eq!(out.findings.len(), 1);
+        assert!(
+            out.findings[0]
+                .title
+                .starts_with("securevibe.toml says you answered no")
+        );
+
+        a.get_mut("V8.3.1").unwrap().recorded =
+            Ok(crate::seal::Sealed::Unchecked { key: "k".into() });
+        let out = evaluate(&questions(), &a, &all_apply, &everything_exists);
+        assert_eq!(out.attested.len(), 1);
+        assert!(out.attested[0].scope.contains("on another computer"));
     }
 }

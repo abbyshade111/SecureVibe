@@ -18,6 +18,7 @@ const COMMANDS: &[&str] = &[
     "sbom",
     "audit",
     "report",
+    "review",
     "bundle",
     "mcp",
 ];
