@@ -61,22 +61,30 @@
 <body>
 <div class="viz-root">
   <h1>What people hit that the tests did not</h1>
-  <p class="sub">Every problem below was found by a person using the software or watching it used. The automated
-     suites were green each time. In <code>sv</code>'s case the person was the owner, building a real app from an
-     empty folder with an AI coding tool, which is the use <code>sv</code> is for.</p>
+  <p class="sub">Every problem below was found by a person using the software or watching it used, or, from 28
+     September, by a session of the owner's other project using <code>sv</code> for real. The automated suites were
+     green each time. In <code>sv</code>'s case the person was mostly the owner, building a real app with an AI coding
+     tool, which is the use <code>sv</code> is for. The record runs to 11:37 on 4 October 2026 (<code>main</code> at
+     <code>157ddc3</code>).</p>
 
   <div class="hero">
-    <div class="stat"><b style="color:var(--v1)">13 · 0</b><span>v1 problems found by people, and by 1,290 automated tests (1,075 server and 215 template)</span></div>
+    <div class="stat"><b style="color:var(--v1)">13 · 0</b><span>v1 problems found by people, and by 1,293 automated tests at <code>v1-paper</code> (1,078 server and 215 template)</span></div>
     <div class="stat"><b style="color:var(--sv)">9 → 1 → 23</b><span>requirements <code>sv</code> checked on the owner's app: the fault, then the fix</span></div>
     <div class="stat"><b style="color:var(--sv)">8 of 12</b><span>"owner's" security notes that the AI tool had actually written</span></div>
+    <div class="stat"><b style="color:var(--sv)">31 · 16</b><span>problems in <code>sv</code> hit by use from 28 September to 4 October, and how many were fixed by then</span></div>
   </div>
 
-  <div class="groups" role="img" aria-label="Problems found by use: v1, 13; sv first build, 5 faults and 4 frictions; sv from an empty folder, 7 blockers; sv in VS Code, 2.">
+  <div class="groups" role="img" aria-label="Problems found by use: v1, 13; sv first build, 5 faults and 4 frictions; sv from an empty folder, 7 blockers; sv in VS Code, 2; from 28 September: wiring sv into cato-pipeline, 8; the comparison study, 7; the owner's family-hub, 10; my-first-app again, 3; sessions trying it, 3.">
     <div class="group"><h3 style="color:var(--v1)">v1, 19–20 September</h3><p>the owner and a second person, using it</p><div class="units" data-n="13" data-c="--v1"></div><div class="count">13</div></div>
     <div class="group"><h3 style="color:var(--sv)"><code>sv</code>, first build: faults</h3><p>in <code>sv</code>, found in the owner's session</p><div class="units" data-n="5" data-c="--sv"></div><div class="count">5</div></div>
     <div class="group"><h3 style="color:var(--sv)"><code>sv</code>, first build: friction</h3><p>for somebody who is not technical</p><div class="units" data-n="4" data-c="--sv"></div><div class="count">4</div></div>
     <div class="group"><h3 style="color:var(--sv)"><code>sv</code>, from an empty folder</h3><p>each one stopped the attempt</p><div class="units" data-n="7" data-c="--sv"></div><div class="count">7</div></div>
     <div class="group"><h3 style="color:var(--sv)"><code>sv</code> in VS Code</h3><p>it worked start to finish; these were the stumbles</p><div class="units" data-n="2" data-c="--sv"></div><div class="count">2</div></div>
+    <div class="group"><h3 style="color:var(--sv)">Wiring <code>sv</code> into cato-pipeline</h3><p>28–29 September; all fixed</p><div class="units" data-n="8" data-c="--sv"></div><div class="count">8</div></div>
+    <div class="group"><h3 style="color:var(--sv)">The comparison study</h3><p>29 September to 3 October; all fixed</p><div class="units" data-n="7" data-c="--sv"></div><div class="count">7</div></div>
+    <div class="group"><h3 style="color:var(--sv)">The owner's family-hub</h3><p>3 October; none fixed by 4 October</p><div class="units" data-n="10" data-c="--sv"></div><div class="count">10</div></div>
+    <div class="group"><h3 style="color:var(--sv)">my-first-app, again</h3><p>28 September and 4 October; open</p><div class="units" data-n="3" data-c="--sv"></div><div class="count">3</div></div>
+    <div class="group"><h3 style="color:var(--sv)">Sessions trying it</h3><p>3–4 October; one fixed</p><div class="units" data-n="3" data-c="--sv"></div><div class="count">3</div></div>
   </div>
 
   <blockquote>"With an AI in the loop a false alarm is not noise: it changes the code."
@@ -145,12 +153,93 @@
     itself. They run and pass, "but it is the author vouching for its own work through the name."
     <cite>docs/BACKLOG.md, the owner's first build: recorded "to keep in mind rather than fix".</cite></blockquote>
 
+  <h2><code>sv</code> in use elsewhere: wiring it into cato-pipeline (8)</h2>
+  <p class="lede">28 and 29 September. A session on the owner's cato-pipeline project put <code>sv</code> into that
+     project's pipeline and its CI. It could not reach the <code>sv</code> sessions, so the owner carried each report
+     to them by hand. Every one was fixed within a day.</p>
+  <table>
+    <thead><tr><th>What went wrong</th><th>Fixed in</th></tr></thead>
+    <tbody>
+      <tr><td>A download piped into <code>python3 -c '…'</code> was a high finding, the same as piping it into a shell</td><td class="src">#414</td></tr>
+      <tr><td>What was not examined was said only in sentences, so a program could close an item that was never fixed</td><td class="src">#388</td></tr>
+      <tr><td>A <code>requirements.lock</code> beside <code>pyproject.toml</code> was not read: an empty bill of materials and a false "no lockfile"</td><td class="src">#408</td></tr>
+      <tr><td>One 10 MB data file left the credential scan partial and the MCP check unable to run, for the whole app</td><td class="src">#407</td></tr>
+      <tr><td>The MCP check still did not run, because that file's prose used the word "command"</td><td class="src">#436</td></tr>
+      <tr><td><code>export X="$OTHER"</code> was a high hard-coded credential, telling the owner to rotate a key that was never there</td><td class="src">#433</td></tr>
+      <tr><td>OSV's <code>last_affected</code> was ignored, so a fixed version of paramiko was reported vulnerable</td><td class="src">#423</td></tr>
+      <tr><td>A rate limiter's 429 was read as the app refusing access, and credited (reported by "another project"; cato is likely)</td><td class="src">#412</td></tr>
+    </tbody>
+  </table>
+
+  <h2><code>sv</code>: the comparison study (7)</h2>
+  <p class="lede">29 September to 3 October. The cato-pipeline session ran <code>sv</code> on the owner's own apps,
+     built with several AI coding tools, for the paper. Every one was fixed by the cut-off.</p>
+  <blockquote>"The owner did exactly what sv asks for, and the report says the opposite."
+    <cite>The comparison study's report of 3 October, on a lockfile <code>sv</code> did not read in family-hub.</cite></blockquote>
+  <table>
+    <thead><tr><th>What went wrong</th><th>Fixed in</th></tr></thead>
+    <tbody>
+      <tr><td><code>sv init</code>'s own blank template tripped its credential check: a false high</td><td class="src">#443</td></tr>
+      <tr><td>Under emulation, a tool that was not installed was reported as installed and failing to start</td><td class="src">#443</td></tr>
+      <tr><td>A folder given as <code>app/.</code> left Bandit's paths absolute, changing 151 fingerprints</td><td class="src">#443</td></tr>
+      <tr><td>An app in a subfolder of a git repository was reported as "not a git repository"</td><td class="src">#443</td></tr>
+      <tr><td>A fully hash-pinned <code>requirements.txt</code>, and a <code>pylock.toml</code>, were not read as lockfiles</td><td class="src">#537</td></tr>
+      <tr><td>Python pre-release versions could not be compared, so whole advisories went unanswered</td><td class="src">#535</td></tr>
+      <tr><td>A report did not say which <code>sv</code> made it, and the published image did not know its own commit</td><td class="src">#538</td></tr>
+    </tbody>
+  </table>
+
+  <h2><code>sv</code>: the owner's second build, family-hub (10)</h2>
+  <p class="lede">3 October: a Python and Flask app for a family, built from an empty folder in Claude Code (the
+     desktop app), with <code>sv</code> connected over MCP from its published image. None of these was fixed by the
+     cut-off; two are covered in part by open items of the deep review (A1, R3), and the rest are recorded nowhere else.</p>
+  <table>
+    <thead><tr><th>What went wrong</th><th>Where it stands</th></tr></thead>
+    <tbody>
+      <tr><td>The MCP tools ran from the image, but <code>sv report --run</code> needs <code>sv</code> on the Mac: "command not found", and the owner built it from source</td><td>Open: the download is still "later". The first build's "install Rust" again</td></tr>
+      <tr><td>The first <code>--run</code> failed: the app "never answered on its health path within 60s". The cause was the template's own example, which listens on <code>127.0.0.1</code></td><td>Open; the template still says so</td></tr>
+      <tr><td>Two runs at once wrote to the same report folder, and a failed run replaced a good report</td><td>Open</td></tr>
+      <tr><td>The browser checks could not stay signed in to an app whose cookies need HTTPS; the AI tool weakened the app's cookies for the run</td><td>Open</td></tr>
+      <tr><td>Five logging requirements were not assessed, because the app's privacy rules stripped what <code>sv</code> looks for</td><td>Open</td></tr>
+      <tr><td>The admin checks said nothing: the app needs an authenticator for admins, and <code>sv</code> signs in with a password alone</td><td>Open</td></tr>
+      <tr><td>A rule matching test names to requirements turned three backed requirements to "needs attention"; the owner signed 25 reviews, 7 of which a newer <code>sv</code> then did not recognize</td><td>Partly: reports now name the <code>sv</code> that made them (#538); the rest is review item R3, open</td></tr>
+      <tr><td><code>sv</code>'s own false alarms: SQL "built by joining text" from fixed lists, an error message read as a password, an open redirect that led to code being removed</td><td>Open; the pattern is review item A1</td></tr>
+      <tr><td>Under <code>--tools</code>: 139 Bandit findings in vendored Flask, and about 50 from a Django-only rule</td><td>Open</td></tr>
+      <tr><td><code>--slow</code> waited out the session and then reused its old form token, so later checks were not assessed</td><td>Open</td></tr>
+    </tbody>
+  </table>
+
+  <h2><code>sv</code>: my-first-app again (3), and sessions trying it (3)</h2>
+  <p class="lede">The owner came back to the first build on 28 September and 4 October. Sessions of
+     <code>sv</code> found the last three while testing prompts and examples.</p>
+  <table>
+    <thead><tr><th>What went wrong</th><th>Where it stands</th></tr></thead>
+    <tbody>
+      <tr><td><code>sv</code> vanished: the folder it had been built in was deleted, so "sv not found", and the MCP connection failed until the owner pointed it at another build</td><td>Open; a new form of "a built <code>sv</code> cannot be moved"</td></tr>
+      <tr><td>A false alarm from an outside tool (a pattern built from escaped digits) led the AI tool to rewrite working price matching</td><td>Open</td></tr>
+      <tr><td>A Finder <code>.DS_Store</code> file was reported as a file not read for credentials, and the AI tool chased it</td><td>Open</td></tr>
+      <tr><td>Three false alarms on code that does the safe thing, in the prompt-library test builds</td><td>Open, in the backlog</td></tr>
+      <tr><td>The double-booking check counted one booking as twenty, on an app that was correctly safe to repeat</td><td>Open, in the backlog</td></tr>
+      <tr><td>An example's manifest and lockfile disagreed for ten days after an automated update: "Nothing noticed until a person asked"</td><td class="src">#511</td></tr>
+    </tbody>
+  </table>
+
+  <blockquote>"If a finding looks wrong, tell me instead of rewriting working code to make it go away."
+    <cite>The owner's instruction to the AI tool in family-hub, pasted from <code>docs/GETTING-STARTED.md</code>. Two of
+    the new week's false alarms still ended with working code changed.</cite></blockquote>
+
+
   <p class="note">Sources: <code>docs/paper/figure-how-found.html</code> and v1 commit <code>ae25cdc</code> for v1.
      For <code>sv</code>: <code>docs/BACKLOG.md</code>, the entries "What the owner's first build from scratch found
      in <code>sv</code>" and the walk-through, plus <code>docs/GETTING-STARTED.md</code> and the pull requests named.
      The backlog dates some of these 27 September, a day later than the git merge times, which are Eastern. The
-     v1 list is a selection: <code>ae25cdc</code> also records a missing "copy this app" and mixed spelling. None
-     of the sources says a test caught any of these.</p>
+     v1 list is a selection: <code>ae25cdc</code> also records a missing "copy this app" and mixed spelling. From 28
+     September: the transcripts of the owner's builds (my-first-app and family-hub, on this machine), the comparison
+     study's issue reports (<code>sv-issues-2026-09-29.md</code>, <code>sv-issues-2026-10-03.md</code>),
+     <code>docs/BACKLOG.md</code>, and the pull requests named; family-hub's and my-first-app's items each rest on one
+     transcript, and most are recorded nowhere else. Two confusions in my-first-app that were <code>sv</code> working as
+     designed are left out, and so are the 58 findings of the deep review of 4 October, which read the code rather
+     than using it. None of the sources says a test caught any of these.</p>
 </div>
 <script>
   document.querySelectorAll(".units").forEach((u) => {

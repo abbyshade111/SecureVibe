@@ -29,7 +29,7 @@
   body { margin: 0; background: var(--surface-1); }
   .viz-root { background: var(--surface-1); color: var(--text-primary);
     font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    padding: 24px 16px; max-width: 1100px; margin: 0 auto; }
+    padding: 24px 16px; max-width: 1240px; margin: 0 auto; }
   h1 { font-size: 1.25rem; margin: 0 0 4px; }
   .sub { color: var(--text-secondary); margin: 0 0 18px; font-size: .9rem; }
   .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 18px; }
@@ -40,7 +40,7 @@
   .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: -1px; }
   .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
   .wrap { overflow-x: auto; }
-  table { border-collapse: collapse; width: 100%; font-size: .84rem; min-width: 900px; table-layout: fixed; }
+  table { border-collapse: collapse; width: 100%; font-size: .84rem; min-width: 1040px; table-layout: fixed; }
   th, td { text-align: left; padding: 8px 8px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
   th { color: var(--text-muted); font-weight: 600; font-size: .74rem; text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
   td.cat { display: flex; align-items: baseline; }
@@ -61,14 +61,16 @@
 <div class="viz-root">
   <h1>The project's security faults against the OWASP Top 10:2025</h1>
   <p class="sub">Four kinds of evidence, kept apart: weaknesses in SecureVibe's own code; places where a check
-     reported "clean" when it had not looked; what v1 flagged when it checked itself; and what SecureVibe found in the
-     apps it checked. Each item is placed through a CWE on the category's official 2025 list. The full account, with
-     a source for every item, is <code>TOP10.md</code>.</p>
+     reported "clean" when it had not looked; what each version flagged when it checked itself; and what SecureVibe
+     found in the apps it checked, in two studies. Each item is placed through a CWE on the category's official 2025
+     list. 16 September to 4 October 2026, to <code>main</code> at <code>157ddc3</code>. The full account, with a
+     source for every item, is <code>TOP10.md</code>.</p>
 
   <div class="hero">
-    <div class="stat"><b>18</b><span>weaknesses found in SecureVibe's own code; the largest groups are A05 Injection (4) and A01 Access Control (3)</span></div>
-    <div class="stat"><b style="color:var(--sv)">8</b><span>verdicts that failed open, all A10, in both versions, and none caught by a failing test</span></div>
-    <div class="stat"><b>160 · 191</b><span>false alarms when each version checked itself (of 195 and 252); v1 had 2 real findings, <code>sv</code> none</span></div>
+    <div class="stat"><b>49</b><span>weaknesses found in SecureVibe's own code to 4 October (18 of them to 27 September); the largest group is A01 Access Control (17), mostly links and paths</span></div>
+    <div class="stat"><b style="color:var(--sv)">43</b><span>verdicts that failed open, all A10, to 4 October (8 of them to 27 September); 30 from the deep review of 4 October, and none caught by a failing test</span></div>
+    <div class="stat"><b>160 · 191</b><span>false alarms when each version checked itself (of 195 and 252); v1 had 2 real findings, <code>sv</code> 0 as triaged on 27 September, 4 in hindsight. On 4 October: 413 of 479, and 6 real, all deep-review items</span></div>
+    <div class="stat"><b style="color:var(--sv)">62</b><span>findings <code>sv</code> made in the own code of five apps (29 Sep–3 Oct); half are A01, and most an owner reviewed were false alarms</span></div>
   </div>
 
   <div class="legend">
@@ -80,43 +82,58 @@
   </div>
   <div class="wrap">
     <table id="map">
-      <colgroup><col style="width:22%"><col style="width:13%"><col style="width:12%"><col style="width:18%"><col style="width:18%"><col style="width:17%"></colgroup>
+      <colgroup><col style="width:17%"><col style="width:15%"><col style="width:16%"><col style="width:13%"><col style="width:13%"><col style="width:12%"><col style="width:14%"></colgroup>
       <thead><tr>
         <th>OWASP Top 10:2025</th>
         <th>Weaknesses in SecureVibe's own code</th>
         <th>Verdicts that failed open</th>
         <th>v1 checking itself: 195 flags</th>
         <th><code>sv</code> checking itself: 252 flags</th>
-        <th>Found in the apps checked (arms A · B · C)</th>
+        <th>v1 in the apps checked, 20 Sep (arms A · B · C)</th>
+        <th><code>sv</code> in five apps' own code, 29 Sep–3 Oct</th>
       </tr></thead>
       <tbody></tbody>
     </table>
   </div>
 
   <p class="note">Sources: <code>TOP10.md</code> for every item. Category lists are from
-     <code>top10.owasp.org/2025</code>, read 27 September 2026. v1's self-check CWEs are its own
-     (<code>artifacts/self-assessment/security-report.json</code> at <code>v1-final</code>). The CWEs for the other
-     columns were chosen from what each source says happened, and <code>TOP10.md</code> marks each one. Findings in
-     the apps are from the comparison of 20 September (<code>findings.csv</code>). Arm A is SecureFit built by v1, B
-     is the same code uploaded, and C is a Python app uploaded; their non-security findings (documentation, missing
-     example files) are left out. <code>sv</code>'s self-check is its product code only, with every finding triaged in <code>self-assessment-v2/product-only/triage.json</code>; see <code>SELF-ASSESSMENT-V2.md</code>. The fence test (#148) is counted in both of the first two columns, as a weakness in <code>sv</code>'s own code and as a verdict that failed open. v1's self-check row "no category" is mostly missing documentation (CWE-1059) and
-     slow regular expressions (CWE-1333), which are on no 2025 list.</p>
+     <code>top10.owasp.org/2025</code>, read 27 September 2026, and checked again against OWASP's own repository
+     (<code>OWASP/Top10</code> at <code>57db8ec</code>). v1's self-check CWEs are its own
+     (<code>artifacts/self-assessment/security-report.json</code> at <code>v1-final</code>). The CWEs for the first two
+     columns were chosen from what each source says happened, unless the source records one, and <code>TOP10.md</code>
+     marks each choice. From 27 September the first two columns add what reviews of <code>sv</code> found, including
+     the deep review of <code>sv</code> at <code>eff3f17</code> (4 October): 19 of the 31 weaknesses and 30 of the 35
+     verdicts added are from it, and at the cut-off only one of them, S1, was fixed. The 43 are the incidents <code>TOP10.md</code> names; <code>TESTS-AND-FAULTS.md</code>, which classes every fault in its ledger by one kind, counts 52 verdicts that failed open (28 fixed, 24 of the review's). Findings in the apps on
+     20 September are from that comparison (<code>findings.csv</code>): arm A is SecureFit built by v1, B is the same
+     code uploaded, and C is a Python app uploaded; their non-security findings are left out. The last column is the
+     comparison study's own mapping by CWE, reused unchanged (<code>sv-study/results/run-11</code>), for each app's
+     own code only, in the order Fitness Tracker · Pain in the Butt · SecureFit · my-first-app · family-hub; its two
+     findings with no CWE (no security contact) are left out, and nothing was confirmed by running an app.
+     <code>sv</code>'s self-check is its product code only, with every finding triaged in
+     <code>self-assessment-v2/product-only/triage.json</code>; see <code>SELF-ASSESSMENT-V2.md</code>. That column is the
+     27 September run as triaged that day; four of its 53 accepted A01 findings were real in hindsight (deep-review S3
+     twice, S4, S6). The repeat on 4 October (479 flags: 413 false alarms, 60 accepted, 6 real, all A01 by the rule's
+     CWE and all deep-review items already in the first column) is in <code>TOP10.md</code>. The fence test
+     (#148) and a planted tool report (S6) are each counted in both of the first two columns. v1's self-check row "no
+     category" is mostly missing documentation (CWE-1059) and slow regular expressions (CWE-1333), and <code>sv</code>'s
+     own-code row is unbounded use of memory or time (CWE-400, CWE-770) and a name clash (CWE-694): none is on a 2025
+     list.</p>
 </div>
 <script>
   const V1 = "var(--v1)", SV = "var(--sv)";
-  // [code, name, ownCode [v1, sv], failOpen [v1, sv], v1 selfCheck [falseAlarm, accepted, open], apps [A, B, C], sv selfCheck [falseAlarm, accepted, open]]
+  // [code, name, ownCode [v1, sv], failOpen [v1, sv], v1 selfCheck [falseAlarm, accepted, open], apps [A, B, C], sv selfCheck [falseAlarm, accepted, open], study own code [FT, PitB, SF, MFA, FH]]
   const rows = [
-    ["A01", "Broken Access Control",               [2, 1], [0, 0], [95, 0, 0], [3, 1, 1], [159, 53, 0]],
-    ["A02", "Security Misconfiguration",           [0, 0], [0, 0], [0, 0, 0],  [0, 0, 0], [0, 0, 0]],
-    ["A03", "Software Supply Chain Failures",      [0, 2], [0, 0], [1, 2, 0],  [0, 0, 2], [0, 0, 0]],
-    ["A04", "Cryptographic Failures",              [2, 0], [0, 0], [0, 3, 0],  [0, 1, 0], [19, 1, 0]],
-    ["A05", "Injection",                           [4, 0], [0, 0], [33, 13, 2], [0, 2, 8], [0, 4, 0]],
-    ["A06", "Insecure Design",                     [1, 1], [0, 0], [2, 0, 0],  [2, 1, 1], [0, 0, 0]],
-    ["A07", "Authentication Failures",             [0, 0], [0, 0], [10, 3, 1], [1, 0, 0], [13, 3, 0]],
-    ["A08", "Software or Data Integrity Failures", [0, 0], [0, 0], [0, 0, 3],  [0, 1, 0], [0, 0, 0]],
-    ["A09", "Security Logging and Alerting Failures", [1, 1], [0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
-    ["A10", "Mishandling of Exceptional Conditions", [0, 0], [3, 5], [1, 0, 0], [0, 0, 0], [0, 0, 0]],
-    ["—",   "No category on the 2025 lists",       [2, 1], [0, 0], [18, 0, 8], [0, 0, 0], [0, 0, 0]],
+    ["A01", "Broken Access Control",               [2, 15], [0, 0],  [95, 0, 0], [3, 1, 1], [159, 53, 0], [2, 2, 13, 8, 6]],
+    ["A02", "Security Misconfiguration",           [0, 0],  [0, 0],  [0, 0, 0],  [0, 0, 0], [0, 0, 0],    [0, 0, 0, 0, 0]],
+    ["A03", "Software Supply Chain Failures",      [0, 2],  [0, 0],  [1, 2, 0],  [0, 0, 2], [0, 0, 0],    [0, 0, 0, 0, 0]],
+    ["A04", "Cryptographic Failures",              [2, 1],  [0, 0],  [0, 3, 0],  [0, 1, 0], [19, 1, 0],   [0, 0, 0, 0, 0]],
+    ["A05", "Injection",                           [4, 3],  [0, 0],  [33, 13, 2], [0, 2, 8], [0, 4, 0],   [1, 5, 0, 0, 11]],
+    ["A06", "Insecure Design",                     [1, 6],  [0, 0],  [2, 0, 0],  [2, 1, 1], [0, 0, 0],    [0, 2, 1, 0, 0]],
+    ["A07", "Authentication Failures",             [0, 1],  [0, 0],  [10, 3, 1], [1, 0, 0], [13, 3, 0],  [0, 0, 2, 0, 7]],
+    ["A08", "Software or Data Integrity Failures", [0, 0],  [0, 0],  [0, 0, 3],  [0, 1, 0], [0, 0, 0],    [0, 0, 0, 0, 0]],
+    ["A09", "Security Logging and Alerting Failures", [1, 1], [0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0],    [0, 0, 0, 0, 0]],
+    ["A10", "Mishandling of Exceptional Conditions", [0, 2], [3, 40], [1, 0, 0], [0, 0, 0], [0, 0, 0],    [0, 0, 0, 0, 0]],
+    ["—",   "No category on the 2025 lists",       [2, 6],  [0, 0],  [18, 0, 8], [0, 0, 0], [0, 0, 0],    [0, 0, 0, 0, 0]],
   ];
   const MAXSELF = 212;
   const dots = (pairs) => {
@@ -142,7 +159,7 @@
     lab.textContent = `${total}` + (self[1] || self[2] ? ` (${[self[1] ? self[1] + " accepted" : "", self[2] ? self[2] + " open" : ""].filter(Boolean).join(", ")})` : " · all false alarms");
     wrap.append(bar, lab); td.appendChild(wrap); return td;
   };
-  rows.forEach(([code, name, own, fail, self, apps, selfV2]) => {
+  rows.forEach(([code, name, own, fail, self, apps, selfV2, study]) => {
     const tr = document.createElement("tr"); if (code === "A10") tr.className = "a10";
     const c0 = document.createElement("td"); c0.className = "cat"; c0.innerHTML = `<b></b><span></span>`;
     c0.querySelector("b").textContent = code; c0.querySelector("span").textContent = name;
@@ -156,7 +173,13 @@
     else {
       const box = dots([[t, V1]]); box.querySelector(".n").textContent = `${apps[0]} · ${apps[1]} · ${apps[2]}`; c4.appendChild(box);
     }
-    tr.append(c0, c1, c2, c3, c3b, c4); tbody.appendChild(tr);
+    const c5 = document.createElement("td");
+    const ts = study.reduce((a, b) => a + b, 0);
+    if (!ts) c5.innerHTML = '<span class="none">—</span>';
+    else {
+      const box = dots([[ts, SV]]); box.querySelector(".n").textContent = `${ts}: ${study.join(" · ")}`; c5.appendChild(box);
+    }
+    tr.append(c0, c1, c2, c3, c3b, c4, c5); tbody.appendChild(tr);
   });
 </script>
 </body>

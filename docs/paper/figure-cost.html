@@ -100,9 +100,9 @@
     </tbody>
   </table>
 
-  <h2>4. Both versions: what made the work faster</h2>
+  <h2>4. Both versions: what made the work faster, to 4 October</h2>
   <p class="lede">Each bar is the time after, as a share of the time before. Units differ, so every row is on its own scale.</p>
-  <div class="chart"><svg id="speed" viewBox="0 0 870 210" role="img" aria-label="Four speed-ups: signed-in checks 12 to 4.3 seconds; five golden apps 25 to 13 minutes; one golden app 14 to 4.5 minutes; a sandbox question 13 minutes to 2 seconds."></svg></div>
+  <div class="chart"><svg id="speed" viewBox="0 0 870 400" role="img" aria-label="Eight speed-ups: for sv, signed-in checks 12 to 4.3 seconds, the AI checks over 20,000 lines of output 16.7 to 0.05 seconds, sv check on an empty app 957 to 30 milliseconds, the credential scan of 2,000 small files 3.4 to 0.04 seconds, and a clean release build 41 to 30 seconds; for v1, five golden apps 25 to 13 minutes, one golden app 14 to 4.5 minutes, and a sandbox question 13 minutes to 2 seconds."></svg></div>
   <div class="legend">
     <span><span class="swatch" style="background:var(--v1)"></span>v1</span>
     <span><span class="swatch" style="background:var(--sv)"></span><code>sv</code></span>
@@ -111,11 +111,14 @@
 
   <p class="note">Sources: <code>docs/paper/OPTIMIZATION.md</code> (from v1's <code>workspace/llm-audit.jsonl</code>
      and the runs' own start and finish times) for sections 1–3 and the v1 rows of section 4. The <code>sv</code>
-     row is from commit <code>f9be70c</code>: one sidecar container instead of 26 throwaway ones, three runs each
-     way on <code>examples/notes-with-users</code>. The sandbox row is v1's <code>CLAUDE.md</code> rule to ask a
+     rows are from the pull requests that measured them, on release builds with the same inputs before and after:
+     commit <code>f9be70c</code> of 25 September (one sidecar container instead of 26 throwaway ones, three runs
+     each way on <code>examples/notes-with-users</code>), and #325, #326 (median of seven), and #330 (median of
+     seven), all merged 27 September. <code>sv check</code> on this whole repository went from 2.33 s to 1.93 s (#326), not drawn. The sandbox row is v1's <code>CLAUDE.md</code> rule to ask a
      four-line script rather than run a golden app. v1's $63.46 is what building SecureVibe cost over three days,
-     not what an owner pays. <code>sv</code> makes no AI calls (it has no HTTP client among its dependencies), so its
-     cost is the owner's own AI coding tool, which <code>sv</code> does not see.</p>
+     not what an owner pays. <code>sv</code> makes no AI calls (it has no HTTP client among its dependencies at
+     <code>157ddc3</code>, 4 October), so its cost is the owner's own AI coding tool, which <code>sv</code> does not
+     see. What the sessions that built <code>sv</code> spent is not recorded in any source the paper can read.</p>
 </div>
 
 <script>
@@ -170,6 +173,10 @@
   const speed = document.getElementById("speed");
   const sp = [
     ["sv", "Signed-in checks on a running app", "11–13 s", "4.3 s", 4.3 / 12, "one sidecar, not 26 containers"],
+    ["sv", "AI checks over 20,000 lines of output", "16.7 s", "0.05 s", 0.05 / 16.7, "each pattern compiled once (#325)"],
+    ["sv", "sv check on an empty app", "957 ms", "30 ms", 30 / 957, "queries compiled when a language is met (#326)"],
+    ["sv", "Credential scan, 2,000 small files", "3.4 s", "0.04 s", 0.04 / 3.4, "each pattern compiled once (#325)"],
+    ["sv", "A clean release build", "41 s", "30 s", 30 / 41, "strip only; link-time optimization not adopted (#330)"],
     ["v1", "Five golden apps rebuilt", "25 min", "13 min", 13 / 25, "two at a time, one compile cache"],
     ["v1", "One golden app, when one answers", "14 min", "4.5 min", 4.5 / 14, "--only <name>"],
     ["v1", "\"What does the sandbox do?\"", "13 min", "2 s", 2 / 780, "a four-line script under the same flags"],

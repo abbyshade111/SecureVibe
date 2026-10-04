@@ -17,6 +17,10 @@ another session is not a claim.
   `findings.csv`) is a fixed record and stays as it is.
   **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
   `claude/paper-refresh`. Other sessions: please leave `docs/paper/` to it until this entry says done.
+  **Done the same day**, in branch `claude/paper-refresh`, to `main` at `157ddc3` (11:37 Eastern): every analysis,
+  CSV, and figure recomputed to that cut-off; `STUDY.md` and `REVIEW.md` added with their figures and CSVs; `sv`'s
+  self-assessment repeated on the cut-off's source (`self-assessment-v2/2026-10-04/`); and the documents checked
+  against each other. `ARTIFACTS.md` lists what is where.
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
   on a build of `eff3f17` or on the 45b6d71 image. Labels: *Reproduced* (a reviewer ran it), *Read* (confirmed from
