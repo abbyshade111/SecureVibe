@@ -31,6 +31,18 @@ pub(super) struct FakeApp {
     /// Every request's id and the clock just after it was answered, in order, so a test can find
     /// when one check began.
     pub(super) clock_log: Vec<(String, u64)>,
+    /// What the app writes to its output, when a test asks it to log at all, in the order it
+    /// handled the requests: the input to `logs::evaluate`.
+    pub(super) log_style: Option<LogStyle>,
+    pub(super) log: Vec<String>,
+    /// The user ids a `LogStyle::Private` log writes in place of email addresses.
+    log_ids: BTreeMap<String, usize>,
+    /// Everything under `/account/` is refused to somebody not signed in, as `/account` is, the
+    /// way an app guarding a whole section does. Off, such an address is "no such page".
+    pub(super) guards_under_private: bool,
+    /// `/account` answers somebody not signed in with 404, as an app hiding its private pages
+    /// does, rather than sending them to sign in.
+    pub(super) hides_private: bool,
     /// Signing in ends every other session of the same user.
     pub(super) one_session_per_user: bool,
     /// Two-factor secrets, by user.
@@ -437,6 +449,17 @@ pub(super) struct Flaws {
 }
 
 pub(super) const CSRF: &str = "tok-123";
+/// How the fake app logs, when it does.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum LogStyle {
+    /// Email addresses and full addresses, query strings and all, as text lines.
+    Full,
+    /// The privacy-minded log of the 3 October 2026 report: JSON lines with the path only (no
+    /// query string), the status, and a user id and event name for sign-ins, never an email
+    /// address.
+    Private,
+}
+
 /// The largest file this fake app takes, matching the max-bytes the tests state.
 pub(super) const UPLOAD_LIMIT: usize = 4096;
 
@@ -749,7 +772,9 @@ impl Http for FakeApp {
 
     fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
         let answer = self.answer(r)?;
-        Some(self.follow_next(r, answer))
+        let answer = self.follow_next(r, answer);
+        self.write_log(r, &answer);
+        Some(answer)
     }
 
     fn send_at_once(
@@ -765,6 +790,46 @@ impl Http for FakeApp {
 }
 
 impl FakeApp {
+    /// One request's lines, the sign-in event (if any) first and the request after it, as a
+    /// handler logs and then the server does.
+    fn write_log(&mut self, r: &ProbeRequest, answer: &ProbeResponse) {
+        let Some(style) = self.log_style else {
+            return;
+        };
+        let ts = format!(
+            "2026-10-04T10:{:02}:{:02}Z",
+            (self.clock / 60) % 60,
+            self.clock % 60
+        );
+        let path = r.path.split('?').next().unwrap_or_default().to_owned();
+        let status = answer.status;
+        if r.method == "POST" && path == "/login" {
+            let email = form(r).get("email").cloned().unwrap_or_default();
+            let worked = (300..400).contains(&status) && self.users.contains_key(&email);
+            let next = self.log_ids.len() + 1;
+            let id = *self.log_ids.entry(email.clone()).or_insert(next);
+            self.log.push(match (style, worked) {
+                (LogStyle::Full, true) => format!("{ts} signed in {email} from 127.0.0.1"),
+                (LogStyle::Full, false) => {
+                    format!("{ts} sign-in failed for {email} from 127.0.0.1")
+                }
+                (LogStyle::Private, true) => {
+                    format!(r#"{{"ts":"{ts}","event":"login","user_id":{id},"path":"{path}"}}"#)
+                }
+                (LogStyle::Private, false) => {
+                    format!(r#"{{"ts":"{ts}","event":"login_failed","path":"{path}"}}"#)
+                }
+            });
+        }
+        self.log.push(match style {
+            LogStyle::Full => format!("{ts} {} {} {status}", r.method, r.path),
+            LogStyle::Private => format!(
+                r#"{{"ts":"{ts}","method":"{}","path":"{path}","status":{status}}}"#,
+                r.method
+            ),
+        });
+    }
+
     /// Sign-in and sign-out send the browser on to `next` when they redirect, as most apps do,
     /// but only to one of the app's own pages unless a flaw says otherwise.
     fn follow_next(&self, r: &ProbeRequest, mut answer: ProbeResponse) -> ProbeResponse {
@@ -1438,6 +1503,8 @@ impl FakeApp {
                         )
                     };
                     Self::respond(200, headers, &body)
+                } else if self.hides_private {
+                    Self::respond(404, vec![], "none")
                 } else {
                     Self::respond(302, vec![("Location", "/login".into())], "")
                 }
@@ -1939,6 +2006,13 @@ impl FakeApp {
                     return Some(Self::respond(200, vec![], "something went wrong"));
                 }
                 Self::respond(303, vec![("Location", "/orders/7".into())], "Order placed")
+            }
+            ("GET", under)
+                if self.guards_under_private
+                    && under.starts_with("/account/")
+                    && user.is_none() =>
+            {
+                Self::respond(302, vec![("Location", "/login".into())], "")
             }
             ("GET", _) if self.flaws.answers_every_path => Self::respond(
                 200,
