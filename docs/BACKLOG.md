@@ -367,6 +367,14 @@ another session is not a claim.
      match" on it leave the test's credit standing; or, if it is meant to override, say so in its text.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-6-test-name-credit`.
+     **Done the same day** (DESIGN, "A finding that says it leaves the credit alone does"): `Finding::withholds_credit`
+     is false only for a rule listed in `INFORMATION_ONLY` (today the test-name rule alone) at `info` severity with
+     nothing merged into it. Such a finding is shown beside the requirement's status ("also noted, for information,
+     and not counted against it") instead of deciding it, and setting it aside as a false alarm leaves the test's
+     credit standing; every other finding, a tool's at `info` included, still makes its requirement need attention.
+     Tested with three report tests (beside the credit, the real-finding control in four forms, and the false-alarm
+     review) and an assertion in the suite's own test; seven guards broken in turn, each caught, and letting no
+     finding withhold credit turned twelve tests red.
   7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
      3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
      - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't

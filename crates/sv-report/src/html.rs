@@ -354,7 +354,8 @@ pub fn page(report: &Report) -> String {
                 "<tr><td><code>{}</code></td><td class=\"{class}\">{}{}</td><td>{}</td></tr>\n",
                 escape(&line.id),
                 escape(line.shown_label()),
-                escape(&detail),
+                // Information-only findings sit beside the status, never in place of it.
+                escape(&format!("{detail}{}", line.information_note())),
                 escape(&line.description)
             ));
         }

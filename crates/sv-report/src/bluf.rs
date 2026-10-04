@@ -614,6 +614,7 @@ mod tests {
             level: 1,
             status: Status::NotVerified,
             findings: Vec::new(),
+            information: Vec::new(),
             checked_by: Vec::new(),
             supported_by: Vec::new(),
             documented_by: Vec::new(),

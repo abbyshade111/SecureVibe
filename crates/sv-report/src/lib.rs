@@ -118,6 +118,18 @@ impl RequirementLine {
         }
     }
 
+    /// The words shown after the status when an information-only finding names this requirement,
+    /// so it is seen beside the credit rather than lost. Empty when none does.
+    pub fn information_note(&self) -> String {
+        if self.information.is_empty() {
+            return String::new();
+        }
+        format!(
+            "; also noted, for information, and not counted against it: {}",
+            self.information.join(", ")
+        )
+    }
+
     /// Whose word the status rests on, for the line after the label.
     pub fn whose_word(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
@@ -138,8 +150,11 @@ pub struct RequirementLine {
     /// Secure by Design control or an AISVS appendix entry, which have no ASVS level.
     pub level: u8,
     pub status: Status,
-    /// Rule ids of the findings that cite this requirement.
+    /// Rule ids of the findings that cite this requirement and make it need attention.
     pub findings: Vec<String>,
+    /// Rule ids of the information-only findings that cite it (`Finding::withholds_credit` false):
+    /// shown beside whatever the status is, never deciding it.
+    pub information: Vec<String>,
     /// The checks that looked at this requirement and were satisfied, each with what it covered.
     pub checked_by: Vec<CheckedBy>,
     /// Checks that were satisfied about part of a requirement no check can settle.
@@ -949,12 +964,17 @@ pub fn build(inputs: Inputs<'_>) -> Report {
 
     let mut requirements = Vec::new();
     for id in &inputs.buckets.applicable {
-        let findings: Vec<String> = inputs
+        // A finding whose own text says it leaves the credit alone is shown beside the status, not
+        // made into it (BACKLOG, family-hub item 6). Every other finding still decides it.
+        let (findings, information): (Vec<&Finding>, Vec<&Finding>) = inputs
             .findings
             .iter()
             .filter(|f| f.requirement_ids.iter().any(|r| r == id))
-            .map(|f| f.rule_id.clone())
-            .collect();
+            .partition(|f| f.withholds_credit());
+        let findings: Vec<String> = findings.iter().map(|f| f.rule_id.clone()).collect();
+        let mut information: Vec<String> = information.iter().map(|f| f.rule_id.clone()).collect();
+        information.sort();
+        information.dedup();
         let satisfied: Vec<CheckedBy> = inputs
             .verified
             .iter()
@@ -1024,9 +1044,13 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         // rather than anything read from it.
         // A finding set aside as a false alarm stops counting, and says nothing for the requirement
         // either: the rule saw something there, and a person's word that it was wrong does not show
-        // the protection is in place. So no other check's clean run can make it *checked*.
+        // the protection is in place. So no other check's clean run can make it *checked*. The
+        // exception is a finding that never withheld the credit: a person's word that the test does
+        // match its requirement is the advice that finding gives, and following it must not cost
+        // the credit the finding said it left alone.
         let set_aside_here = inputs.set_aside.iter().any(|s| {
             s.verdict == sv_check::review::FALSE_ALARM
+                && s.finding.withholds_credit()
                 && s.finding.requirement_ids.iter().any(|r| r == id)
         });
         let status = if !findings.is_empty() {
@@ -1059,6 +1083,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 .unwrap_or(0),
             status,
             findings,
+            information,
             checked_by,
             supported_by,
             documented_by,
