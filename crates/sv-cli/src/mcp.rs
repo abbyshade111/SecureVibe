@@ -1490,7 +1490,7 @@ fn tool_list() -> Value {
                 "type": "object",
                 "properties": {
                     "path": path,
-                    "out": { "type": "string", "description": "Folder inside the app to write to. No `..`." }
+                    "out": { "type": "string", "description": "Folder inside the app to write to: a new or empty one, or one sv wrote before. No `..`." }
                 }
             },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": false }
