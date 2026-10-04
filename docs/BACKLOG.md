@@ -131,6 +131,9 @@ another session is not a claim.
     ("marked by = owner in securevibe.toml; sv cannot tell who wrote it"); better, record reviews only through an
     interactive `sv review` that refuses input that is not a terminal and keeps its record outside the app folder,
     entries without one counting as proposals; show the entry's git author.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
+    in branch `claude/securevibe-e9-who-set-aside`, for the first fix only: say what is known wherever a report
+    says "by a person". The interactive `sv review` stays open, for the owner to decide.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
