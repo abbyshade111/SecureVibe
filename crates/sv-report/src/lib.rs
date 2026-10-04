@@ -496,6 +496,17 @@ impl MadeBy {
     }
 }
 
+/// When a run started and what it read. See `Report::run_record`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RunRecord {
+    /// `2026-10-04T18:55:02Z`, for a person.
+    pub started: String,
+    /// The same moment in milliseconds since 1970, for a program comparing two reports.
+    pub started_unix_ms: u64,
+    /// The SHA-256 of `securevibe.toml`'s bytes as this run read them, in lowercase hex.
+    pub securevibe_toml_sha256: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
     pub app_name: String,
@@ -505,6 +516,16 @@ pub struct Report {
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
     /// review naming a rule the reader's `sv` does not have could not be explained.
     pub sv: MadeBy,
+    /// When the run that made this report started, and which `securevibe.toml` it read. Only in
+    /// `report.json`, and only when a run filled it in, so a report built without one is unchanged.
+    ///
+    /// Two runs at once on family-hub (3 October 2026) wrote the same folder, and the one that
+    /// finished last, a failed run, replaced the good report with nothing to say it was older (BACKLOG,
+    /// "What the owner hit building family-hub", item 2). With this, a run can tell that the report
+    /// it would replace came from a run that started after it, and a reader can tell two reports of
+    /// different files apart.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub run_record: Option<RunRecord>,
     /// One sentence about the app having been started, and under which fence.
     ///
     /// Absent when it was not started, in which case the gap list says so. Present and prominent
@@ -1398,6 +1419,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         target_level: inputs.target_level,
         generated: inputs.generated,
         sv: inputs.made_by,
+        run_record: None,
         run_note: inputs.run_note,
         run_steps: inputs.run_steps,
         test_output: inputs.test_output,

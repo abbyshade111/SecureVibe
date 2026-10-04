@@ -140,6 +140,7 @@ mod tests {
             target_level: 1,
             generated: None,
             sv: Default::default(),
+            run_record: None,
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,

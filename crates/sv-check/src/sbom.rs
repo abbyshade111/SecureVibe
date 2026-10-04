@@ -412,13 +412,25 @@ fn from_package_lock(text: &str) -> Vec<(String, String)> {
     if out.is_empty()
         && let Some(map) = v.get("dependencies").and_then(|p| p.as_object())
     {
-        for (name, entry) in map {
-            if let Some(version) = entry.get("version").and_then(|x| x.as_str()) {
-                out.push((name.clone(), version.to_owned()));
-            }
-        }
+        package_lock_v1(map, &mut out);
     }
     out
+}
+
+/// Lockfile v1 nests a package's own copy of another under that package's `dependencies`, when it
+/// needs a version the top level does not have. Those copies are installed too, so each is listed.
+fn package_lock_v1(
+    map: &serde_json::Map<String, serde_json::Value>,
+    out: &mut Vec<(String, String)>,
+) {
+    for (name, entry) in map {
+        if let Some(version) = entry.get("version").and_then(|x| x.as_str()) {
+            out.push((name.clone(), version.to_owned()));
+        }
+        if let Some(nested) = entry.get("dependencies").and_then(|d| d.as_object()) {
+            package_lock_v1(nested, out);
+        }
+    }
 }
 
 /// TOML lockfiles built from `[[package]]` tables: Cargo, Poetry, PDM and uv all use this shape.
@@ -1001,6 +1013,39 @@ mod tests {
         assert_eq!(sbom.components[0].purl(), "pkg:npm/express@4.18.2");
         assert!(sbom.is_complete());
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_npm_v1_lockfile_lists_the_copies_installed_under_other_packages() {
+        // Lockfile v1 keeps a second version of a package under the one that needs it. That copy is
+        // installed, and an advisory against it is about this app, so it is listed by its own name.
+        let dir = scratch("npm-v1");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("package-lock.json"),
+            r#"{"name":"app","lockfileVersion":1,"dependencies":{
+                "express":{"version":"4.18.2","dependencies":{
+                    "debug":{"version":"2.6.9","dependencies":{
+                        "ms":{"version":"2.0.0"}}}}},
+                "debug":{"version":"4.3.4"},
+                "ms":{"version":"2.1.2"}}}"#,
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(
+            purls,
+            vec![
+                "pkg:npm/debug@2.6.9",
+                "pkg:npm/debug@4.3.4",
+                "pkg:npm/express@4.18.2",
+                "pkg:npm/ms@2.0.0",
+                "pkg:npm/ms@2.1.2",
+            ],
+            "{sbom:?}"
+        );
+        assert!(sbom.is_complete(), "{sbom:?}");
     }
 
     #[test]

@@ -7155,6 +7155,34 @@ and makes the hard path a deliberate act. Entries made before this change count 
 
 Twenty-one guards undone in turn; see the pull request for what caught each.
 
+## An app listening on 127.0.0.1 is named as the likely cause (4 October 2026)
+
+family-hub's first `sv report --run` waited a minute and said only that the app never answered on its health path.
+The AI tool had copied the starter file's own example, `uvicorn app:app --host 127.0.0.1 --port $PORT`. Inside its
+container an app listening on 127.0.0.1 answers only itself, and `sv` asks it from a second container on the fenced
+network (BACKLOG, "What the owner hit building family-hub", item 1).
+
+**The example.** The starter file now says `--host 0.0.0.0`, with a comment saying why. No other place `sv` tells an
+app or an AI tool where to listen named 127.0.0.1 or `localhost`: `data/`, `docs/prompts/`, the MCP server's text, and
+the example apps already say 0.0.0.0 or say nothing. A test reads the example out of the starter file and runs it
+through the same test as the warning.
+
+**The message.** "Never answered" now says that an app listening on 127.0.0.1 or `localhost` cannot be reached, and to
+have it listen on 0.0.0.0 at the port in `$PORT`. When the start command itself names 127.0.0.1, `localhost`, or `::1`
+(`sv_run::loopback_named_in`), the message names it as the likely cause; otherwise it is "one common cause". When the
+app's own output already says why (a read-only file system), that is said instead of the guess.
+
+**The warning, not a refusal.** Before waiting, `sv run` and `sv report --run` print a warning when the start command
+names one of those addresses, and start the app anyway: the command line is not where the app really listens, and an
+app may bind elsewhere than its command suggests, in either direction. Only the name as a whole counts, so
+`127.0.0.10`, `notlocalhost`, and `fe80::1` are not taken for it. A command that names 127.0.0.1 for another reason
+(a self-check with `wget`, say) is warned about too; the warning says it may be wrong.
+
+Tested with a real container: a busybox app listening on 127.0.0.1, which first shows it is up by answering itself,
+is warned about, never answers `sv`, and is named as the likely cause; the same app on 0.0.0.0 answers and is not
+warned about. Five guards broken in turn, each caught: the example put back (the starter test), the general sentence
+removed (the message test), the detector made to find nothing (the detector test and the container test), the warning
+not printed, and the address not passed into the message (the container test each).
 ## A fresh sign-in after the `--slow` wait (4 October 2026)
 
 On family-hub, 3 October, `sv run --slow` waited out the 15-minute idle timeout (and credited V7.3.1), then went on
@@ -7217,3 +7245,70 @@ the one the report treats as information. Seven guards broken in turn, each caug
 each, the control), no finding withholding credit (twelve, across the report and threat tests), and the note left out
 of either table (one each).
 
+## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
+could miss a known vulnerability and still credit V15.2.1, the requirement that the app contains no component past its
+fix time frame.
+
+- **H8, Python names.** PyPI reads `jupyter_server`, `Jupyter.Server`, and `jupyter-server` as one package (PEP 503).
+  The comparison matched names letter for letter, ignoring only case, so a lockfile and an advisory that spelled one
+  name two ways never met. Python names are now compared through `manifest_lock::python_name`, the normalizer the
+  manifest-and-lockfile comparison already used. Other ecosystems are compared as before: in npm, `lodash_x` and
+  `lodash-x` are two packages, and a test holds that.
+- **H10, nested npm copies.** A `package-lock.json` of version 1 keeps a second version of a package under the package
+  that needs it. Only the top level was read, so an old copy installed underneath, the kind an advisory is usually
+  about, was never compared. Every level is read now, and each copy is listed by its own name and version.
+- **H11, packages known only from a manifest.** The clean claim required every lockfile to be read, but not every
+  package to come from one. A package listed only by the version its manifest asks for is not known to be what is
+  installed. The claim now requires the package list to be complete (`Sbom::is_complete`), the same test the SBOM
+  uses before calling itself complete. A comparison that finds something still reports it, with medium confidence,
+  as before.
+
+Each fix was broken in turn and the new test for it went red: comparing Python names without normalizing them,
+checking only for unread lockfiles, and not reading below the top level. In each case one test caught it, the one
+written for it; no earlier test did, which is how the three got through. A first version had its own normalizer, and
+breaking its joining of separator runs or its lowercasing was caught by the same test; it was replaced by the shared
+one, which `manifest_lock`'s own test holds.
+
+## One run at a time in a report folder (4 October 2026)
+
+On family-hub (3 October) the owner and their AI coding tool each ran `sv report --run --tools` at about the same
+time. Both wrote `securevibe-report`; the good run finished first, and the owner's, which failed, replaced its
+report two minutes later with nothing to say so (BACKLOG, "What the owner hit building family-hub", item 2).
+
+**A lock, taken before the run and held until its report is written** (`crates/sv-cli/src/report_lock.rs`).
+`sv report` and the MCP server's `securevibe_write_report` both take `.securevibe-report.lock` in the report folder
+before reading the app. A second run refuses at once, naming the run that holds the folder: its command, process
+number, and when it started. It refuses rather than waits: a run takes minutes, and a command that sits silent
+because of another run nobody remembers starting looks stuck. The folder checks that used to come at the end
+(a link, someone else's files) now come first too, so a refusal comes before the wait rather than after it.
+
+**A lock a killed run left does not block.** The lock is the operating system's own (`File::try_lock`), which it
+lets go when the process ends, however it ends. The backlog suggested checking whether the holder's process number
+is still running; the operating system's answer is better, since a process number can be reused, or belong to
+another machine or container. The lock file still says who held it, so the next run says that run stopped before
+it finished and that its report may be part-written. A disk that will not lock is said, and the run goes on.
+
+**A report records when its run started and the hash of the `securevibe.toml` it read** (`run_record` in
+`report.json` only; the pages for people stay the same from run to run). Before writing, a run reads the report it
+would replace: if that came from a run that started later, it keeps the newer report, says so, and says whether the
+two read the same file. With the lock this happens only where the lock could not hold: a disk without locks, or an
+`sv` from before this. A `securevibe.toml` that changed while the run went on (family-hub's own start-command fix)
+is said on the terminal and as a gap in the report.
+
+**Found while testing:** a second run started as the first was writing its marker found the folder unmarked, with
+the marker's part-written file in it, and called the folder someone else's. `sv`'s own part-written files
+(`.report.json.sv-4321`) now count as `sv`'s, and the run holding the folder clears ones a stopped run left. And
+taking the folder before the run made it, and marked it, before there was a report to put in it, so Ctrl-C during
+`sv report --run` left an empty folder where it used to leave nothing (`interrupt.rs` caught it). A run that ends
+without a report now takes away the marker it wrote and the folder it made, if nothing else is in it; Ctrl-C, which
+leaves through `std::process::exit`, lets go first.
+
+Tested with real processes of the real binary (`crates/sv-cli/tests/report_lock.rs`): a run kept going by `--run`
+and a test command that sleeps, a second run at the same time, a `kill -9`, and an older report put beside a newer
+one. These need a container backend; without one, the two-run tests say so. Each guard broken in turn was caught:
+no lock (three tests), a leftover lock taken as a live one (two), no age check (one), no changed-file check (one),
+the lock never removed (five), part-written files taken as someone else's (one), a failed run's folder left
+(two), and Ctrl-C not letting go (one). Shared tool reports and container
+names, which two runs at once also collide on, are S6 and S10, not changed here.

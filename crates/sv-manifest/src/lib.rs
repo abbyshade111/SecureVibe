@@ -1153,7 +1153,13 @@ impl Manifest {
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-        toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))
+        Self::parse(&text, path)
+    }
+
+    /// The manifest in `text`, read from `path`, which only names it in an error. For a caller that
+    /// needs the bytes it parsed as well, such as `sv report` recording their hash.
+    pub fn parse(text: &str, path: &Path) -> Result<Self> {
+        toml::from_str(text).with_context(|| format!("parsing {}", path.display()))
     }
 
     /// The ASVS target level. Sensitive data or a public audience means level 2, as in v1.
