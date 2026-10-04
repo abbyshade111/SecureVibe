@@ -1058,6 +1058,52 @@ another session is not a claim.
   recorded nowhere. Three were not: 1 and 4, because both builds without them already passed; and 2, because `sv`'s
   check accused the build made with it of booking twenty times when it booked once (its own item below). Prompt 6
   was reworded once, after both builds with its first wording left the query string and status out of their log lines.
+  **Prompts 8 to 15 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
+  `claude/design-time-first` (item 8 of "Design-time help before any code", below).
+
+- **Design-time help before any code: keeping what v1 did best.** Proposed on 4 October 2026 by session paper-facts,
+  at the owner's asking, after comparing v1 and `sv` for the paper. v1 made the decisions first (the wizard, the design
+  freeze, plan → approve → build, eight decision records per app) and then held the build to them. `sv` has the
+  pieces (the design questions, the design-time prompts, the coding rules, the manifest spec), but its MCP
+  server's instructions and the spec are written for an app that already exists, and nothing puts the decisions in
+  front of the AI tool before it writes code. The prompts trial showed the lever: when `securevibe.toml` already held
+  the limits, builds with no prompt enforced them, so a decision written down first steers any tool. None of these
+  changes credits anything: a plan, a brief, or a decision is still checked only through what the running app shows.
+  **The owner's decision, 4 October 2026: all eight, yes.** Each numbered item can be claimed on its own.
+  1. **Design first, in the MCP server's instructions and the spec.** The instructions name the spec, the rules, and
+     the check, in that order, and never the design-time prompts; the spec says to describe "what the app really
+     does". For a folder with no code yet, they should say to write the design brief first, and to fetch the
+     design-time prompt for a feature before building it; and the spec should have wording for an app not yet
+     written ("what the app will do"), with a claim the code later contradicts still reported.
+  2. **The design-time prompts as MCP prompts.** The server answers `prompts/list` with "method not found" (a test
+     holds it). MCP prompts are what a client shows a person to choose (in Claude Code, as slash commands), so offering
+     the design-time prompts there keeps the choice with the person and works with any client that supports them;
+     `sv prompts` stays for the rest. Which clients show MCP prompts is to be tried before it is written down, as for
+     `AGENTS.md`.
+  3. **A plan before any code (`sv plan`, and `securevibe_plan`).** From the manifest alone: the requirements that
+     will apply, the threat model, the tests worth writing named by requirement id, the decisions to make for the
+     app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
+     Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
+     the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+  4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
+     (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
+     brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
+     by requirement id. `securevibe_guidance` takes topics of process (secrets, dependencies, CI), not features.
+  5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
+     which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
+     design-time prompts above, made a check; and a per-app record of decisions like v1's.
+  6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
+     form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
+     tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
+     protocol may change it, so it is to be tried first; `sv review` at a terminal stays the sure path.
+  7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
+     at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
+     with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
+     Spends the owner's AI credit: ask before each run.
+  8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
+     checklist" above, which the owner approved on 4 October and nobody has claimed.
+  **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
+  `claude/design-time-first`.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
