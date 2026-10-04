@@ -117,6 +117,7 @@ RUST_CHECKS = {
     "probe.development-console-open": ("running", ["V15.2.3", "V13.4.2"]),
     "probe.version-disclosed": ("running", ["V13.4.6"]),
     "probe.reflected-unencoded": ("running", ["V1.2.1"]),
+    "probe.sql-injection": ("signed-in", ["V1.2.4"]),
     "probe.reflected-json-unescaped": ("running", ["V1.2.3"]),
     "probe.opener-policy-missing": ("running", ["V3.4.8"]),
     "probe.csp-no-report": ("running", ["V3.4.7"]),
@@ -268,6 +269,8 @@ RUST_FINDINGS_ONLY = {
     # One value on three pages is not every place the app writes out what it was sent.
     "probe.reflected-unencoded",
     "probe.reflected-json-unescaped",
+    # A few values in a few addresses, told apart or not, is not every query the app builds.
+    "probe.sql-injection",
     # One note each and one question is not every way an app searches.
     "probe.ai-retrieval-ignores-user",
     "probe.ai-reply-carries-others-data",

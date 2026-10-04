@@ -136,6 +136,11 @@ another session is not a claim.
      condition can never reach a request that changes data. Only ever a finding, as above.
      **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
      `claude/securevibe-e2-sql-injection`.
+     **Done the same day** (DESIGN, "SQL injection on the app's own reads"): `probe.sql-injection`, only ever a
+     finding, asks the last part of the address of A's record and each query-string value of each private page,
+     with an always-true and an always-false condition as a number, as quoted text, and as quoted text either-or,
+     each sent twice. Twenty guards broken in turn, each caught (one only after a test was added). Not done:
+     requests that change data, JSON bodies, and conditions read by timing or by error messages.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
