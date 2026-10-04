@@ -12,6 +12,7 @@ const PLACEHOLDER: &str = "_Nobody has written this yet._";
 
 fn sv(args: &[&str], dir: &Path) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", dir.join("config"))
         .args(args)
         .arg(dir)
         .output()
@@ -61,8 +62,17 @@ fn the_report_credits_only_what_the_owner_wrote_to_the_owner() {
 
     let prose =
         "Each of these is decided and written down here, with enough words to be an answer.";
+    // The owner's, recorded through `sv review`, as it counts as theirs only then.
+    let (key, _) =
+        sv_check::seal::Key::load_or_make_in(&dir.join("config").join("securevibe")).unwrap();
+    let seal = key.seal(&sv_check::seal::as_strs(&sv_check::seal::notes_fields(
+        &ids[0], prose,
+    )));
     let answers = [
-        format!("Written by: owner\n\n{prose}"),
+        format!(
+            "Written by: owner\n{} {seal}\n\n{prose}",
+            sv_check::notes::SEALED_BY
+        ),
         format!(
             "*Written by the AI coding tool from the code; review before relying on it.*\n\n{prose}"
         ),
@@ -77,6 +87,7 @@ fn the_report_credits_only_what_the_owner_wrote_to_the_owner() {
 
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", dir.join("config"))
         .arg("report")
         .arg(&dir)
         .arg("--out")

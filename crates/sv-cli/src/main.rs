@@ -18,6 +18,7 @@ use sv_scan::{Evidence, Signatures};
 mod bundle;
 mod mcp;
 mod report_lock;
+mod review;
 
 fn main() -> Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -63,6 +64,7 @@ fn main() -> Result<()> {
         "sbom" => cmd_sbom(rest.first().map(PathBuf::from)),
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
+        "review" => review::cmd_review(rest.first().map(PathBuf::from)),
         "bundle" => cmd_bundle(rest),
         "mcp" => mcp::cmd_mcp(rest),
         other => unreachable!("{other} is in COMMANDS and has no arm"),
@@ -167,6 +169,13 @@ const COMMANDS: &[Command] = &[
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories"],
         help: "  sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     write the reports: what applies, what was found, what nobody has answered\n",
+    },
+    Command {
+        name: "review",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv review [PATH]   record, in your own terminal, the findings you set aside and the\n                     answers you confirm; only what you record here counts\n",
     },
     Command {
         name: "bundle",
@@ -3573,11 +3582,15 @@ fn assemble_report_saying(
     // `sv notes`, which is the common case and not a gap: the report then says the file exists to
     // be written.
     let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
+    // What this computer can check `sv review`'s seals with (`sv_check::seal`): the owner's own
+    // answers, here and below, count as theirs only when `sv review` recorded them.
+    let seals = sv_check::seal::Checker::this_computer();
     let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
             &sv_check::notes::read_answers(&text),
             &notes_catalog.file,
+            &seals,
         ),
         Err(_) => {
             let asked = notes_catalog
@@ -3645,6 +3658,11 @@ fn assemble_report_saying(
                     answer: a.answer.clone(),
                     location: a.r#where.clone(),
                     by: a.by.clone(),
+                    recorded: sv_check::seal::owner_recorded(
+                        &seals,
+                        a.seal.as_deref(),
+                        &sv_check::seal::design_answer_fields(id, a),
+                    ),
                 },
             )
         })
@@ -3714,6 +3732,11 @@ fn assemble_report_saying(
                     on: a.on.clone(),
                     by: a.by.clone(),
                     how: a.how.clone(),
+                    recorded: sv_check::seal::owner_recorded(
+                        &seals,
+                        a.seal.as_deref(),
+                        &sv_check::seal::hand_check_fields(id, a),
+                    ),
                 },
             )
         })
@@ -3785,6 +3808,7 @@ fn assemble_report_saying(
         answer: c.answer.clone(),
         location: c.r#where.clone(),
         result: c.result.clone(),
+        seal: c.seal.clone(),
     };
     let design_confirmations: std::collections::BTreeMap<
         String,
@@ -3834,6 +3858,7 @@ fn assemble_report_saying(
                     ))
                 },
                 today,
+                &seals,
             ),
             sv_check::confirm::apply(
                 &mut hand.stated,
@@ -3843,6 +3868,7 @@ fn assemble_report_saying(
                     Some((c, sv_check::confirm::Current::Hand { result }))
                 },
                 today,
+                &seals,
             ),
         ),
         None => Default::default(),
@@ -3928,6 +3954,7 @@ fn assemble_report_saying(
         &manifest.finding_review,
         findings,
         sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
+        &seals,
     );
     let findings = reviewed.findings;
     examined.push(match &run_status {

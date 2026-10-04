@@ -19,7 +19,7 @@ way the study was run? The same pipeline also measured code quality, placed each
 | App | What it is | Commit | Commits in its history | Scanned |
 |---|---|---|---|---|
 | Fitness Tracker | Python and JavaScript | `b49ed8f` | 1 | whole repository |
-| Pain in the Butt | Python (FastAPI) and JavaScript | `e9481dc` | 65 | whole repository |
+| Health tracker (built for a friend) | Python (FastAPI) and JavaScript | `e9481dc` | 65 | whole repository |
 | SecureFit | TypeScript | `b5a2230` | 1 | `app/` only |
 | my-first-app | JavaScript (Node.js) | `1a964c4` | 1 | whole repository |
 | family-hub | Python (Flask) | `4577a8e` | 5 | whole repository |
@@ -33,7 +33,7 @@ app built with `sv` in the loop, by the owner, on 3 October.
 - **A blank manifest for every app.** `sv` needs a `securevibe.toml` that says what the app is. Each app got `sv`'s
   own blank template, exactly as `sv init` printed it at `982f97e` (SHA-256 `d47b2776…`), with only the name and
   languages filled in. Everything else was left unanswered, or at the template's defaults (audience `customers`,
-  deployment `internet`). Three apps had a manifest of their own (Pain in the Butt, my-first-app, family-hub); it was
+  deployment `internet`). Three apps had a manifest of their own (the health tracker, my-first-app, family-hub); it was
   replaced in the scanned copy only. family-hub's also carried 25 false-alarm reviews signed by the owner, which the
   blank template drops; they come back in the as-built comparison below.
 - **`sv` and Bandit, offline.** `sv report --tools --advisories` from SecureVibe's published image at `982f97e`, with
@@ -45,7 +45,7 @@ app built with `sv` in the loop, by the owner, on 3 October.
 - **A control.** The pipeline ran eleven times as it was built up. Its `same.py` compares two runs on every finding's
   fingerprint, the checks' states, the requirement counts, the undecided requirements, and the threats. Recomputed
   for this document: runs 4 to 10 each agree with run 11 on every app they contain, and run 10 and run 11 agree on all
-  five. Runs 2 and 3 differ from run 11 for Pain in the Butt only, because of a fault in `sv` the study found (item 4
+  five. Runs 2 and 3 differ from run 11 for the health tracker only, because of a fault in `sv` the study found (item 4
   below): a folder given as `…/app/.` left Bandit's 151 file paths absolute and changed their fingerprints. The study
   also records a direct run of `sv` on the owner's Mac, independent of the pipeline, agreeing with run 4 fingerprint
   for fingerprint. That run's output is not among the files kept, so this document relies on the study's account of
@@ -75,7 +75,7 @@ Severity is written critical / high / medium / low. Rates are per 1,000 lines of
 
 ### `sv`'s findings
 
-| | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub |
+| | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub |
 |---|---|---|---|---|---|
 | Findings in the app | 6 | 157 | 20 | 19 | 220 |
 | … in own code | 4 | 10 | 16 | 8 | 24 |
@@ -90,7 +90,7 @@ Across the five apps, 422 findings: 62 in own code, 210 in tests, 142 in vendore
 Each app also had one finding in the study's manifest (a commented example password in `sv`'s own template), left
 out. None of the findings is critical.
 
-- **Raw totals mislead.** Pain in the Butt's 157 are 145 uses of Python's `assert` in its tests (Bandit B101).
+- **Raw totals mislead.** The health tracker's 157 are 145 uses of Python's `assert` in its tests (Bandit B101).
   family-hub's 220 are mostly its committed copy of Flask (142) and its tests (52).
 - **Own code, high.** The Fitness Tracker's two look real on their face: a database query built by joining text,
   and nothing stopping the environment file being committed. SecureFit's two are text that looks like a credential
@@ -102,20 +102,20 @@ out. None of the findings is critical.
 
 ### Dependency coverage
 
-| | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub |
+| | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub |
 |---|---|---|---|---|---|
 | Known-vulnerability check | partly | partly | partly | ran | partly |
 | Why not complete | package list incomplete | package list incomplete | package list incomplete | — | package list incomplete; 1 version could not be compared |
 
 Only my-first-app, with a full `package-lock.json`, was compared package by package; nothing was found. Each of the
-others fell short for its own reason: the Fitness Tracker's `requirements.txt` gives ranges, Pain in the Butt has no
+others fell short for its own reason: the Fitness Tracker's `requirements.txt` gives ranges, the health tracker has no
 lockfile, and SecureFit's `tests/package.json` is unpinned. family-hub's shortfall was `sv`'s: its fully
 hash-pinned `requirements.txt` and its `pylock.toml` were not read as lockfiles, and `sv` could not compare werkzeug
 3.1.9 with three advisories whose ranges begin at a Python pre-release (items 8 and 9 below).
 
 ### Requirements not verified
 
-| | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub |
+| | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub |
 |---|---|---|---|---|---|
 | Requirements that apply | 196 | 185 | 254 | 207 | 217 |
 | … need attention | 5 | 5 | 6 | 3 | 10 |
@@ -134,7 +134,7 @@ requirement passed, because nothing here can establish that."
 
 ### Code quality (own code)
 
-| | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub |
+| | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub |
 |---|---|---|---|---|---|
 | Source lines | 2,169 | 1,371 | 6,973 | 1,185 | 3,173 |
 | Lines in tests / vendored | 0 / 582 | 939 / 0 | 5,402 / 0 | 632 / 0 | 1,714 / 33,270 |
@@ -155,7 +155,7 @@ these measures with the most security findings under this method.
 All app findings, with own code in brackets. Categories with no finding in any app (A02 Security Misconfiguration,
 A09 Security Logging and Alerting Failures) are left out of the table.
 
-| Category | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub |
+| Category | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub |
 |---|---|---|---|---|---|
 | A01 Broken Access Control | 2 (2) | 2 (2) | 13 (13) | 19 (8) | 9 (6) |
 | A03 Software Supply Chain Failures | 2 (0) | 2 (0) | 2 (0) | 0 | 2 (0) |
@@ -177,7 +177,7 @@ the app, a scan sees little of A01, almost nothing of A06 beyond configuration, 
 
 Own code, per 1,000 lines, with counts in brackets.
 
-| Category | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub |
+| Category | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub |
 |---|---|---|---|---|---|
 | 01 Issues overall | 8.76 (19) | 10.94 (15) | 13.05 (91) | 29.54 (35) | 10.40 (33) |
 | 02 Critical and major issues | 0.92 (2) | 0 (0) | 0.29 (2) | 0 (0) | 2.84 (9) |
@@ -280,7 +280,7 @@ Recomputing turned up five places where the report is wrong. The numbers above a
 5. **family-hub's rate as built.** The report calls 0.32 critical or high findings per 1,000 lines "the lowest but
    one". Of the five apps, only the Fitness Tracker (0.92) is higher; it is the second highest.
 
-The report's threat counts leave out "checked in part" (one each for the Fitness Tracker and Pain in the Butt, two
+The report's threat counts leave out "checked in part" (one each for the Fitness Tracker and the health tracker, two
 for my-first-app), so its rows do not add up to each app's 42 or 40 threats. They are included above.
 
 ## Limits

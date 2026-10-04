@@ -345,7 +345,7 @@ from elsewhere ("vendored"), or its dependencies.
 
 **Own code only**, from run 11, the final one:
 
-| Category | Fitness Tracker | Pain in the Butt | SecureFit | my-first-app | family-hub | Total |
+| Category | Fitness Tracker | Health tracker | SecureFit | my-first-app | family-hub | Total |
 |---|---|---|---|---|---|---|
 | A01 Broken Access Control | 2 | 2 | 13 | 8 | 6 | 31 |
 | A05 Injection | 1 | 5 | — | — | 11 | 17 |
@@ -359,12 +359,12 @@ What the rows are, by rule and the CWE `sv` or Bandit records:
   destination built from a value (601) and one in family-hub; `.env` not ignored by git (540) in the Fitness Tracker;
   Bandit's fixed temporary-file path (377, family-hub ×3) and URL opened without a scheme check (22, two apps).
 - **A05:** SQL built by joining text (89: Fitness Tracker 1, family-hub 8); XML parsed with the standard library
-  (20, Pain in the Butt ×5); subprocess use in a tool script (78, family-hub ×3).
+  (20, health tracker ×5); subprocess use in a tool script (78, family-hub ×3).
 - **A06:** a CI checkout that keeps its access token (522), the same finding `sv` made of its own workflows.
 - **A07:** credential-like values (798) and Bandit's "string that looks like a password" (259).
 
 **Every app finding, not only own code**, by the same mapping: 422 findings. 209 are A10 through CWE-703, Bandit's
-`assert` and empty `except` blocks: 145 in Pain in the Butt's tests and 64 in family-hub's tests and its vendored copy
+`assert` and empty `except` blocks: 145 in the health tracker's tests and 64 in family-hub's tests and its vendored copy
 of Flask. family-hub's tests and vendored code add 60 more under A05, 47 under A07, 15 under A04, and 3 under A08
 (CWE-502, loading pickled data); 11 of my-first-app's file-path findings are in its tests; and 8 are dependency
 findings under A03 (versions not pinned, an incomplete list of packages, CWE-1104), two in each app but
