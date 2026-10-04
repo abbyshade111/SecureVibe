@@ -108,10 +108,11 @@
       ],
       "check": {
         "kind": "static",
-        "how": "The rule for a shell command built from a value.",
+        "how": "The rules for a shell command built from a value, including Python's subprocess with shell=True.",
         "rules": [
           "ast.shell-command",
-          "ast.shell-command-backticks"
+          "ast.shell-command-backticks",
+          "ast.shell-command-shell-true"
         ],
         "passes_when": "no finding, and the build does run the other program",
         "fails_when": "a finding"

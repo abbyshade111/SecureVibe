@@ -79,6 +79,14 @@ pub struct AstRule {
     /// either beside the real thing is how a rule teaches people to skip it.
     #[serde(default)]
     pub safe_argument_patterns: BTreeMap<String, String>,
+    /// Per language, what the `@kw` capture's text must match for the call to be reported: the name
+    /// of a keyword argument the danger depends on.
+    ///
+    /// `subprocess.run(cmd, shell=True)` hands `cmd` to a shell and `subprocess.run(cmd, check=True)`
+    /// does not, and a query cannot tell `shell` from `check` without a text predicate, which the
+    /// Rust binding does not apply. A match with no `@kw` capture is not reported.
+    #[serde(default)]
+    pub keyword_patterns: BTreeMap<String, String>,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
@@ -157,6 +165,7 @@ struct Compiled {
     module: BTreeMap<String, regex::Regex>,
     argument: BTreeMap<String, regex::Regex>,
     safe_argument: BTreeMap<String, regex::Regex>,
+    keyword: BTreeMap<String, regex::Regex>,
 }
 
 pub struct AstRules {
@@ -762,6 +771,7 @@ impl AstRules {
             let argument = compile_patterns(&rule.argument_patterns, "argumentPattern")?;
             let safe_argument =
                 compile_patterns(&rule.safe_argument_patterns, "safeArgumentPattern")?;
+            let keyword = compile_patterns(&rule.keyword_patterns, "keywordPattern")?;
             // A pattern for a language the rule has no query in is a pattern that never runs, and
             // the rule reads as if it had been taught that language.
             for (what, patterns) in [
@@ -769,6 +779,7 @@ impl AstRules {
                 ("modulePattern", &rule.module_patterns),
                 ("argumentPattern", &rule.argument_patterns),
                 ("safeArgumentPattern", &rule.safe_argument_patterns),
+                ("keywordPattern", &rule.keyword_patterns),
             ] {
                 if let Some(language) = patterns.keys().find(|l| !queries.contains_key(*l)) {
                     anyhow::bail!(
@@ -814,6 +825,7 @@ impl AstRules {
                 module,
                 argument,
                 safe_argument,
+                keyword,
             });
         }
         Ok(AstRules { compiled })
@@ -1109,6 +1121,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         let hit_index = query.capture_index_for_name("hit");
         let fn_index = query.capture_index_for_name("fn");
         let mod_index = query.capture_index_for_name("mod");
+        let kw_index = query.capture_index_for_name("kw");
         let text_of = |m: &tree_sitter::QueryMatch, index: Option<u32>| -> Option<String> {
             let index = index?;
             let capture = m.captures().iter().find(|c| c.index == index)?;
@@ -1137,6 +1150,12 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             if let Some(pattern) = compiled.argument.get(language) {
                 match text_of(m, arg_index) {
                     Some(text) if pattern.is_match(&text) => {}
+                    _ => continue,
+                }
+            }
+            if let Some(pattern) = compiled.keyword.get(language) {
+                match text_of(m, kw_index) {
+                    Some(name) if pattern.is_match(&name) => {}
                     _ => continue,
                 }
             }
@@ -2277,6 +2296,35 @@ mod tests {
         ("ast.dynamic-code-execution", "csharp", "class A { async void F() { await CSharpScript.EvaluateAsync(\"1 + 1\"); } }", false),
         ("ast.dynamic-code-execution", "kotlin", "fun f(code: String) { engine.eval(code) }", true),
         ("ast.dynamic-code-execution", "kotlin", "fun f() { engine.eval(\"1 + 1\") }", false),
+        // Python's subprocess handed a built command with shell=True, which `ast.shell-command`'s
+        // names never reached (found testing the prompt library, 4 October 2026). Every function the
+        // rule names, then the safe forms: a list and no shell, a fixed string, and shell=True with
+        // the keyword it must be.
+        ("ast.shell-command-shell-true", "python", "subprocess.run(f'notes-export \"{title}\" out.pdf', shell=True)", true),
+        ("ast.shell-command-shell-true", "python", "subprocess.call('ls ' + folder, shell=True)", true),
+        ("ast.shell-command-shell-true", "python", "subprocess.check_call(cmd, shell=True)", true),
+        ("ast.shell-command-shell-true", "python", "out = subprocess.check_output('grep %s log' % word, shell=True)", true),
+        ("ast.shell-command-shell-true", "python", "p = subprocess.Popen(command, shell=True, stdout=PIPE)", true),
+        ("ast.shell-command-shell-true", "python", "run(f'convert {name}', check=True, shell=True)", true),
+        ("ast.shell-command-shell-true", "python", "subprocess.run(['notes-export', title, 'out.pdf'])", false),
+        ("ast.shell-command-shell-true", "python", "subprocess.run(['notes-export', title, 'out.pdf'], check=True)", false),
+        ("ast.shell-command-shell-true", "python", "subprocess.run(cmd, check=True)", false),
+        ("ast.shell-command-shell-true", "python", "subprocess.run('ls -la', shell=True)", false),
+        ("ast.shell-command-shell-true", "python", "subprocess.run(cmd, shell=False)", false),
+        ("ast.shell-command-shell-true", "python", "pool.map(cmd, shell=True)", false),
+        ("ast.shell-command-shell-true", "javascript", "spawn(`recipe-pdf \"${title}\" out.pdf`, { shell: true })", true),
+        ("ast.shell-command-shell-true", "javascript", "cp.execFile('recipe-pdf', [title, file], { shell: true }, done)", true),
+        ("ast.shell-command-shell-true", "javascript", "child_process.spawnSync(cmd, { cwd: dir, shell: true })", true),
+        ("ast.shell-command-shell-true", "javascript", "execFile('recipe-pdf', [title, file], done)", false),
+        ("ast.shell-command-shell-true", "javascript", "spawn('ls -la', { shell: true })", false),
+        ("ast.shell-command-shell-true", "javascript", "spawn(cmd, { shell: false })", false),
+        ("ast.shell-command-shell-true", "javascript", "spawn(cmd, { detached: true })", false),
+        ("ast.shell-command-shell-true", "typescript", "spawn(`convert ${name}`, { shell: true })", true),
+        ("ast.shell-command-shell-true", "typescript", "execFile('convert', [name], { timeout: 5000 })", false),
+        ("ast.shell-command-shell-true", "dart", "void f(String dir) { Process.run('ls', [dir], runInShell: true); }", true),
+        ("ast.shell-command-shell-true", "dart", "void f() { Process.run('ls', ['-la'], runInShell: true); }", false),
+        ("ast.shell-command-shell-true", "dart", "void f(String dir) { Process.run('ls', [dir]); }", false),
+        ("ast.shell-command-shell-true", "dart", "void f(String dir) { Process.run('ls', [dir], includeParentEnvironment: true); }", false),
         ("ast.shell-command", "dart", "void f(String cmd) { Process.run('sh', ['-c', cmd]); }", true),
         ("ast.shell-command", "dart", "void f(String dir) { Process.run(\"/bin/bash\", [\"-c\", \"ls $dir\"]); }", true),
         ("ast.shell-command", "dart", "void f(String exe) { Process.start(exe, []); }", true),
