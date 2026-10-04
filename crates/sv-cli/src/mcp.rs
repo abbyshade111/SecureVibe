@@ -891,17 +891,27 @@ impl Server {
                 "text": format!(
                     "Wrote {}, keeping every answer already in it. {} question{} apply, {} already \
                      answered. Write the person's decisions under the questions, headed by their \
-                     ids; securevibe_questions says how.",
+                     ids; securevibe_questions says how.{}",
                     written.path.display(),
                     written.asked,
                     if written.asked == 1 { "" } else { "s" },
-                    written.already
+                    written.already,
+                    if written.kept {
+                        format!(
+                            " Some text in the file is not under any question; it is kept as it \
+                             was, near the top under \"{}\", and not read as an answer.",
+                            sv_check::notes::KEPT_HEADING.trim_start_matches("## ")
+                        )
+                    } else {
+                        String::new()
+                    }
                 ),
             }],
             "structuredContent": {
                 "file": written.path.display().to_string(),
                 "asked": written.asked,
                 "alreadyAnswered": written.already,
+                "keptOutsideQuestions": written.kept,
             },
             "isError": false,
         }))
@@ -1454,8 +1464,11 @@ fn output_schema(tool: &str) -> Option<Value> {
             &["prompts", "credit"],
         ),
         "securevibe_notes_file" => object(
-            json!({ "file": string, "asked": count, "alreadyAnswered": count }),
-            &["file", "asked", "alreadyAnswered"],
+            json!({
+                "file": string, "asked": count, "alreadyAnswered": count,
+                "keptOutsideQuestions": { "type": "boolean" },
+            }),
+            &["file", "asked", "alreadyAnswered", "keptOutsideQuestions"],
         ),
         "securevibe_record_answer" => object(
             json!({ "file": string, "id": string, "writtenBy": string }),
@@ -1543,7 +1556,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_notes_file",
             "title": "Make the security notes file",
-            "description": "Make or refresh security-notes.md in the app's folder, where the person's written decisions go. Keeps everything already written in it.",
+            "description": "Make or refresh security-notes.md in the app's folder, where the person's written decisions go. Keeps everything already written in it: answers stay under their questions, and any other text is kept word for word in a section of its own near the top. Refuses, writing nothing, when the file is not UTF-8 text or has two sections for one question.",
             "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
         },
@@ -2966,14 +2979,16 @@ mod tests {
     fn the_shape_check_itself_refuses_what_it_should() {
         // The validator is a few lines written here, so it is held to account too.
         let schema = output_schema("securevibe_notes_file").unwrap();
-        let good = json!({ "file": "x", "asked": 1, "alreadyAnswered": 0 });
+        let good =
+            json!({ "file": "x", "asked": 1, "alreadyAnswered": 0, "keptOutsideQuestions": false });
         assert!(conforms(&good, &schema, "t").is_ok());
         for bad in [
             json!({ "file": "x", "asked": 1 }),
-            json!({ "file": "x", "asked": 1, "alreadyAnswered": 0, "extra": 1 }),
-            json!({ "file": 1, "asked": 1, "alreadyAnswered": 0 }),
-            json!({ "file": "x", "asked": -1, "alreadyAnswered": 0 }),
-            json!({ "file": "x", "asked": 1.5, "alreadyAnswered": 0 }),
+            json!({ "file": "x", "asked": 1, "alreadyAnswered": 0, "keptOutsideQuestions": 1 }),
+            json!({ "file": "x", "asked": 1, "alreadyAnswered": 0, "keptOutsideQuestions": false, "extra": 1 }),
+            json!({ "file": 1, "asked": 1, "alreadyAnswered": 0, "keptOutsideQuestions": false }),
+            json!({ "file": "x", "asked": -1, "alreadyAnswered": 0, "keptOutsideQuestions": false }),
+            json!({ "file": "x", "asked": 1.5, "alreadyAnswered": 0, "keptOutsideQuestions": false }),
             json!(["x"]),
         ] {
             assert!(conforms(&bad, &schema, "t").is_err(), "{bad} passed");
@@ -3915,6 +3930,78 @@ mod tests {
         id.expect("the app has a written-decision question to answer")
     }
 
+    /// Deep review R7: both tools that write the notes file keep the owner's text that is not
+    /// under a question, and refuse, writing nothing, a file they could not keep.
+    #[test]
+    fn the_notes_tools_keep_the_owners_own_text_or_write_nothing() {
+        let root = scratch_app("notes-keep", "flask-booking");
+        let app = root.join("app");
+        let server = Server::new(&root).unwrap();
+        let id = first_question(&app);
+        let notes = app.join("security-notes.md");
+        let made = std::fs::read_to_string(&notes).unwrap();
+        let preface = "OUR PREFACE: we went through these with Sam on 1 October.";
+        let quote = "> QUOTE: what our lawyer said, word for word.";
+        let at = made.find(sv_check::notes::PLACEHOLDER).unwrap();
+        let edited = format!(
+            "{}{preface}\n\n{}{quote}\n\nWritten by: owner\n\nOur own decision, in our own words, long enough.{}",
+            &made[..made.find("The questions about").unwrap()],
+            &made[made.find("The questions about").unwrap()..at],
+            &made[at + sv_check::notes::PLACEHOLDER.len()..]
+        );
+        std::fs::write(&notes, &edited).unwrap();
+
+        let refreshed = call(&server, "securevibe_notes_file", json!({ "path": "app" }));
+        assert_eq!(refreshed["isError"], false, "{}", text(&refreshed));
+        assert_eq!(refreshed["structuredContent"]["keptOutsideQuestions"], true);
+        let after = std::fs::read_to_string(&notes).unwrap();
+        assert!(after.contains(&format!("\n{preface}\n")), "{after}");
+        assert!(after.contains(&format!("\n{quote}\n")), "{after}");
+
+        // Recording the tool's answer to another question keeps them too (it is the same writer).
+        let other = after
+            .lines()
+            .filter_map(|l| l.strip_prefix("## V"))
+            .filter_map(|rest| rest.split_whitespace().next())
+            .map(|id| format!("V{id}"))
+            .find(|other| *other != id)
+            .expect("a second question");
+        let recorded = call(
+            &server,
+            "securevibe_record_answer",
+            json!({ "path": "app", "id": other, "answer": "The app keeps orders for seven years, as the tax office asks." }),
+        );
+        assert_eq!(recorded["isError"], false, "{}", text(&recorded));
+        let after = std::fs::read_to_string(&notes).unwrap();
+        assert!(after.contains(preface) && after.contains(quote), "{after}");
+
+        // A file that is not UTF-8 text is refused by both, and left as it was.
+        let mut bytes = after.into_bytes();
+        bytes.extend_from_slice(b"\nOur caf\xE9 notes.\n");
+        std::fs::write(&notes, &bytes).unwrap();
+        for (tool, args) in [
+            ("securevibe_notes_file", json!({ "path": "app" })),
+            (
+                "securevibe_record_answer",
+                json!({ "path": "app", "id": other, "answer": "Another answer from the tool, long enough to count." }),
+            ),
+        ] {
+            let refused = call(&server, tool, args);
+            assert_eq!(refused["isError"], true, "{tool}: {}", text(&refused));
+            assert!(
+                text(&refused).contains("UTF-8"),
+                "{tool}: {}",
+                text(&refused)
+            );
+            assert_eq!(
+                std::fs::read(&notes).unwrap(),
+                bytes,
+                "{tool} changed the file"
+            );
+        }
+        std::fs::remove_dir_all(&root).ok();
+    }
+
     #[test]
     fn an_answer_the_tool_records_is_always_the_tools() {
         let root = scratch_app("record-answer", "flask-booking");
@@ -3922,7 +4009,8 @@ mod tests {
         let server = Server::new(&root).unwrap();
         let id = first_question(&app);
         let notes = || std::fs::read_to_string(app.join("security-notes.md")).unwrap();
-        let answers = || sv_check::notes::read_answers(&notes());
+        let catalog = sv_check::notes::Catalog::load(&crate::notes_path()).unwrap();
+        let answers = || sv_check::notes::read_answers(&catalog, &notes());
 
         // The questions tell the tool to record through this, and never to mark an answer the owner's.
         let asked = call(&server, "securevibe_questions", json!({ "path": "app" }));
