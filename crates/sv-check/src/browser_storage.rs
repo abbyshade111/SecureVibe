@@ -285,7 +285,6 @@ pub(crate) fn storage_check(
         return;
     }
     let job = Job {
-        cookies: Vec::new(),
         actions: vec![
             Action::Goto(login.path.clone()),
             Action::Eval(STORAGE_VALUES.to_owned()),
@@ -588,7 +587,9 @@ mod tests {
         assert!(o.verified.is_empty(), "never credited");
         let job = &jobs[0];
         assert!(
-            job.cookies.is_empty(),
+            !job.actions
+                .iter()
+                .any(|a| matches!(a, Action::SetCookies(_))),
             "no cookies handed over: the form signs it in"
         );
         let Action::Act(sign_in) = &job.actions[2] else {
