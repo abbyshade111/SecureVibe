@@ -303,6 +303,7 @@ fn a_person_saying_the_test_does_match_leaves_its_credit_standing() {
         why: "the test and the requirement were read side by side and they match".to_owned(),
         by: "owner".to_owned(),
         on: "2026-10-03".to_owned(),
+        sealed: sv_check::seal::Sealed::Here,
     };
     let mut i = inputs(&f, &buckets, vec![], &passed);
     i.set_aside = vec![
