@@ -167,6 +167,10 @@ another session is not a claim.
     `by = "owner"` still counts as the owner's own word ("attested by the owner", "checked by hand by the owner")
     without a seal. `sv review` could record those too; it changes how the owner answers every question, so it is the
     owner's decision.
+    **The owner decided on 4 October 2026 to close it, and it was claimed the same day by session securevibe-e9**,
+    in branch `claude/securevibe-e9-owner-answers`: `[design]` answers and `[checked-by-hand]` results written
+    `by = "owner"`, and security-notes.md sections marked `Written by: owner`, count as the owner's word only when
+    recorded through `sv review`; otherwise they count as the AI coding tool's.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
