@@ -24,6 +24,12 @@
 //! - **One host.** A redirect to a different host is reported and not followed. Otherwise the
 //!   owner's own address could hand the probe to somewhere they never named, which is both a way to
 //!   make `sv` fetch a stranger and a way to get a wrong answer about the owner's own site.
+//! - **Public addresses only, and only the one checked.** An address on this computer, a private
+//!   network, or a link-local range is refused, whether it is typed or a name looks it up there
+//!   (the deep review of 4 October 2026, S13): pointed at `10.0.0.1` or at a name that resolves to
+//!   it, `sv` would be a way to reach the owner's own network. The name is looked up once, here,
+//!   and curl is held to the addresses that were checked (`--resolve`), so a second lookup cannot
+//!   give it a different one. Curl's own globbing is off, so one address is one request.
 //! - **No path guessing.** It asks for the address it was given. It does not go looking for
 //!   `/admin` or `/.git`, which is what distinguishes this from a scanner.
 //!
@@ -157,18 +163,39 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
             "take the username out of the address: this never sends credentials".to_owned(),
         );
     }
+    // Curl reads `{a,b}` and `[1-9]` in an address as a list of addresses; it is told not to
+    // (`--globoff`), and an address holding them is refused here as well, since no host has them.
+    if host.contains(['{', '}', '\\', ' ']) {
+        return Err("that address has characters no host name has".to_owned());
+    }
+    // An IPv6 address is written in brackets, and its colons are not a port.
+    let name = match host.strip_prefix('[') {
+        Some(rest) => rest.split(']').next().unwrap_or_default(),
+        None => host.split(':').next().unwrap_or_default(),
+    };
+    if let Ok(ip) = name.parse::<std::net::IpAddr>() {
+        if let Some(what) = not_public(ip) {
+            return Err(refused_address(name, ip, what));
+        }
+    } else if host.contains(['[', ']']) {
+        return Err("that address has characters no host name has".to_owned());
+    }
     // A bare name with no dot is a machine on the local network, and `localhost` and friends are
     // this machine. Neither is a production address, and a typo that resolves to something on an
     // internal network is exactly the request nobody meant to make.
-    let name = host.split(':').next().unwrap_or_default();
-    if name.eq_ignore_ascii_case("localhost") || name.starts_with("127.") || name == "::1" {
+    let name = name.trim_end_matches('.');
+    if name.eq_ignore_ascii_case("localhost")
+        || name.to_ascii_lowercase().ends_with(".localhost")
+        || name.starts_with("127.")
+        || name == "::1"
+    {
         return Err(
             "that is this machine. `sv report --run` checks the app locally; this is for \
                     the address your app is served from"
                 .to_owned(),
         );
     }
-    if !name.contains('.') {
+    if !name.contains('.') && name.parse::<std::net::IpAddr>().is_err() {
         return Err(
             "that is not a public address: give the host your app is served from".to_owned(),
         );
@@ -178,6 +205,175 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
         https: format!("https://{host}/"),
         http: format!("http://{host}/"),
     })
+}
+
+/// Why `ip` is not an address on the public internet, or `None` when it is.
+///
+/// What is refused is what would turn `sv probe` into a way to reach the owner's own computer or
+/// network: this computer, private and shared networks, link-local addresses (where cloud machines
+/// keep their credentials), and the ranges nothing on the internet is reached at. An IPv6 address
+/// that carries an IPv4 one is judged by the IPv4 one inside it.
+pub fn not_public(ip: std::net::IpAddr) -> Option<&'static str> {
+    use std::net::IpAddr;
+    match ip {
+        IpAddr::V4(v4) => {
+            let [a, b, ..] = v4.octets();
+            if v4.is_loopback() {
+                Some("this computer")
+            } else if v4.is_unspecified() || a == 0 {
+                Some("an address that means no particular computer")
+            } else if v4.is_private() {
+                Some("a private network")
+            } else if a == 100 && (64..128).contains(&b) {
+                Some("a network shared behind a provider's address translation")
+            } else if v4.is_link_local() {
+                Some("a link-local address, which only reaches this computer's own network")
+            } else if v4.is_multicast() || v4.is_broadcast() || a >= 240 {
+                Some("an address that does not reach one computer on the internet")
+            } else if a == 192 && b == 0 && v4.octets()[2] == 0 {
+                Some("an address kept for the network's own use")
+            } else if a == 198 && (b == 18 || b == 19) {
+                Some("an address kept for testing networks")
+            } else {
+                None
+            }
+        }
+        IpAddr::V6(v6) => {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return not_public(IpAddr::V4(v4));
+            }
+            let first = v6.segments()[0];
+            if v6.is_loopback() {
+                Some("this computer")
+            } else if v6.is_unspecified() {
+                Some("an address that means no particular computer")
+            } else if first & 0xfe00 == 0xfc00 {
+                Some("a private network")
+            } else if first & 0xffc0 == 0xfe80 {
+                Some("a link-local address, which only reaches this computer's own network")
+            } else if v6.is_multicast() {
+                Some("an address that does not reach one computer on the internet")
+            } else if v6.segments()[..6] == [0; 6] {
+                // `::a.b.c.d`, the old way of writing an IPv4 address in IPv6.
+                let [_, _, _, _, _, _, hi, lo] = v6.segments();
+                let v4 =
+                    std::net::Ipv4Addr::new((hi >> 8) as u8, hi as u8, (lo >> 8) as u8, lo as u8);
+                not_public(IpAddr::V4(v4))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+fn refused_address(name: &str, ip: std::net::IpAddr, what: &str) -> String {
+    let via = if name == ip.to_string() {
+        String::new()
+    } else {
+        format!(" ({name} looks up to {ip})")
+    };
+    format!(
+        "that is {what}{via}, not an address on the public internet. `sv probe` asks only the \
+         address your app is served from to the public, so it cannot be used to reach this computer \
+         or the network it is on. To check the app locally, use `sv report --run`."
+    )
+}
+
+/// Looks a name up. Separate so the check of what comes back can be tested without a network.
+pub trait Resolve {
+    /// Every address `host` looks up to, or why it could not be looked up.
+    fn addresses(&mut self, host: &str) -> Result<Vec<std::net::IpAddr>, String>;
+}
+
+/// This computer's own resolver, as every other program on it asks.
+pub struct SystemResolver;
+
+impl Resolve for SystemResolver {
+    fn addresses(&mut self, host: &str) -> Result<Vec<std::net::IpAddr>, String> {
+        use std::net::ToSocketAddrs;
+        let found = (host, 443)
+            .to_socket_addrs()
+            .map_err(|e| format!("{host} could not be looked up ({e})"))?;
+        let mut out: Vec<std::net::IpAddr> = Vec::new();
+        for a in found {
+            if !out.contains(&a.ip()) {
+                out.push(a.ip());
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// The addresses the probe may connect to for `target`: what its name looks up to, once, when every
+/// one of them is public. A name that looks up to any address that is not is refused outright, since
+/// which one curl would have used is not this check's to guess.
+pub fn addresses(
+    target: &Target,
+    resolve: &mut dyn Resolve,
+) -> Result<Vec<std::net::IpAddr>, String> {
+    let name = target_name(target);
+    if let Ok(ip) = name.parse::<std::net::IpAddr>() {
+        // `read_target` refused it already if it was not public; asked again so this function
+        // holds by itself.
+        if let Some(what) = not_public(ip) {
+            return Err(refused_address(name, ip, what));
+        }
+        return Ok(vec![ip]);
+    }
+    let found = resolve.addresses(name)?;
+    if found.is_empty() {
+        return Err(format!("{name} looks up to no address"));
+    }
+    for ip in &found {
+        if let Some(what) = not_public(*ip) {
+            return Err(refused_address(name, *ip, what));
+        }
+    }
+    Ok(found)
+}
+
+/// The host's name, without a port or an IPv6 address's brackets.
+fn target_name(target: &Target) -> &str {
+    match target.host.strip_prefix('[') {
+        Some(rest) => rest.split(']').next().unwrap_or_default(),
+        None => target.host.split(':').next().unwrap_or_default(),
+    }
+}
+
+/// The port written in the address, if one was.
+fn target_port(target: &Target) -> Option<&str> {
+    let after = match target.host.strip_prefix('[') {
+        Some(rest) => rest.split_once(']').map(|(_, after)| after)?,
+        None => &target.host[target_name(target).len()..],
+    };
+    after.strip_prefix(':').filter(|p| !p.is_empty())
+}
+
+/// What holds curl to the checked addresses: `--resolve` for each port the probe may use. Without it
+/// curl would look the name up again, and a name can answer differently the second time.
+fn resolve_args(target: &Target, addresses: &[std::net::IpAddr]) -> Vec<String> {
+    let name = target_name(target);
+    // An address typed as numbers is not looked up by curl at all.
+    if name.parse::<std::net::IpAddr>().is_ok() {
+        return Vec::new();
+    }
+    let list: Vec<String> = addresses
+        .iter()
+        .map(|ip| match ip {
+            std::net::IpAddr::V6(v6) => format!("[{v6}]"),
+            std::net::IpAddr::V4(v4) => v4.to_string(),
+        })
+        .collect();
+    let ports: Vec<&str> = match target_port(target) {
+        Some(port) => vec![port],
+        None => vec!["443", "80"],
+    };
+    let mut out = Vec::new();
+    for port in ports {
+        out.push("--resolve".to_owned());
+        out.push(format!("{name}:{port}:{}", list.join(",")));
+    }
+    out
 }
 
 /// A redirect's destination, when it names one.
@@ -1687,17 +1883,28 @@ mod tests {
 pub struct Curl {
     /// Counted here rather than trusted to the caller, so the cap is a property of the fetcher.
     made: usize,
-}
-
-impl Default for Curl {
-    fn default() -> Self {
-        Self::new()
-    }
+    /// What holds every request to the addresses that were checked (`resolve_args`).
+    held: Vec<String>,
 }
 
 impl Curl {
-    pub fn new() -> Self {
-        Curl { made: 0 }
+    /// A fetcher for `target` that connects only to `addresses`, which `addresses` checked.
+    pub fn held_to(target: &Target, addresses: &[std::net::IpAddr]) -> Self {
+        Curl {
+            made: 0,
+            held: resolve_args(target, addresses),
+        }
+    }
+
+    /// Every curl this fetcher runs: `--disable` first, the only place curl reads it, so no
+    /// `.curlrc` on this computer can add anything to the request; globbing off, so one address is
+    /// one request; plain web addresses only; and held to the addresses that were checked. Then the
+    /// request's own flags.
+    fn args<'a>(&'a self, own: &[&'a str]) -> Vec<&'a str> {
+        let mut args = vec!["--disable", "--globoff", "--proto", "=http,https"];
+        args.extend(self.held.iter().map(String::as_str));
+        args.extend(own.iter().copied());
+        args
     }
 
     /// Whether `curl` is on this machine at all.
@@ -1744,7 +1951,6 @@ impl Fetch for Curl {
             // Written out rather than left to a default, so a change to curl's defaults cannot
             // quietly start sending something.
             "--no-alpn",
-            "--disable",
         ];
         if verify {
             // The certificate's details, after the headers and marked off from them, so whether it
@@ -1756,7 +1962,10 @@ impl Fetch for Curl {
         }
         args.push(url);
 
-        let out = match std::process::Command::new("curl").args(&args).output() {
+        let out = match std::process::Command::new("curl")
+            .args(self.args(&args))
+            .output()
+        {
             Ok(out) => out,
             Err(e) => {
                 return Answer {
@@ -1791,7 +2000,7 @@ impl Fetch for Curl {
         }
         self.made += 1;
         let out = match std::process::Command::new("curl")
-            .args([
+            .args(self.args(&[
                 // curl refuses the handshake when no stapled status comes back, with its own exit
                 // code, 91; any other failure is not an answer to this question.
                 "--cert-status",
@@ -1805,11 +2014,10 @@ impl Fetch for Curl {
                 "--user-agent",
                 "sv-probe (OWASP ASVS check, read-only)",
                 "--no-alpn",
-                "--disable",
                 "--output",
                 "/dev/null",
                 url,
-            ])
+            ]))
             .output()
         {
             Ok(out) => out,
@@ -1845,13 +2053,15 @@ impl Fetch for Curl {
             "--user-agent",
             "sv-probe (OWASP ASVS check, read-only)",
             "--no-alpn",
-            "--disable",
             "--output",
             "/dev/null",
         ];
         args.extend(old_tls_library_args(&library));
         args.push(url);
-        match std::process::Command::new("curl").args(&args).output() {
+        match std::process::Command::new("curl")
+            .args(self.args(&args))
+            .output()
+        {
             Ok(out) => old_tls_from(out.status.code(), &String::from_utf8_lossy(&out.stderr)),
             Err(e) => OldTls::CannotTell(format!("curl could not be run: {e}")),
         }
@@ -1994,12 +2204,139 @@ fn parse_head(text: &str) -> Answer {
 #[cfg(test)]
 mod curl_tests {
     use super::*;
+    use std::net::IpAddr;
+
+    struct Answers(Vec<&'static str>, usize);
+
+    impl Resolve for Answers {
+        fn addresses(&mut self, _host: &str) -> Result<Vec<IpAddr>, String> {
+            self.1 += 1;
+            Ok(self.0.iter().map(|a| a.parse().unwrap()).collect())
+        }
+    }
+
+    #[test]
+    fn an_address_on_this_computer_or_its_network_is_refused_however_it_is_written() {
+        for (typed, says) in [
+            ("https://10.0.0.1", "private network"),
+            ("https://172.16.5.4:8443/x", "private network"),
+            ("https://192.168.1.1", "private network"),
+            ("https://169.254.169.254/latest/meta-data", "link-local"),
+            ("https://100.64.0.1", "address translation"),
+            ("https://0.0.0.0", "no particular computer"),
+            ("https://127.0.0.2", "this computer"),
+            ("https://[::1]", "this computer"),
+            ("https://[::]", "no particular computer"),
+            ("https://[fd00::1]", "private network"),
+            ("https://[fe80::1]:443", "link-local"),
+            ("https://[::ffff:10.1.2.3]", "private network"),
+            ("https://[::ffff:127.0.0.1]", "this computer"),
+            ("https://224.0.0.1", "does not reach one computer"),
+            ("https://255.255.255.255", "does not reach one computer"),
+            ("https://app.localhost", "this machine"),
+            ("https://localhost.", "this machine"),
+        ] {
+            let refused = read_target(typed).expect_err(typed);
+            assert!(refused.contains(says), "{typed}: {refused}");
+        }
+        // The control: public addresses, typed as numbers, are still accepted.
+        for typed in [
+            "https://93.184.215.14",
+            "https://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:8443",
+        ] {
+            let target = read_target(typed).expect(typed);
+            assert!(
+                addresses(&target, &mut Answers(vec![], 0)).is_ok(),
+                "{typed}"
+            );
+        }
+        // Globs and brackets that are not an address are refused rather than handed to curl.
+        for typed in [
+            "https://app{1,2}.example.test",
+            "https://a[1-9].example.test",
+            "https://a.example.test]",
+        ] {
+            assert!(read_target(typed).is_err(), "{typed}");
+        }
+    }
+
+    #[test]
+    fn a_name_that_looks_up_to_an_internal_address_is_refused_and_curl_is_held_to_what_was_checked()
+    {
+        let target = read_target("https://app.example.test").unwrap();
+        // Any internal address among the answers refuses the whole name, and says which.
+        for answers in [
+            vec!["10.0.0.7"],
+            vec!["93.184.215.14", "127.0.0.1"],
+            vec!["::ffff:192.168.0.9"],
+        ] {
+            let mut dns = Answers(answers.clone(), 0);
+            let refused = addresses(&target, &mut dns).expect_err("refused");
+            assert!(
+                refused.contains("app.example.test looks up to"),
+                "{refused}"
+            );
+            assert_eq!(dns.1, 1, "looked up once");
+        }
+        let mut dns = Answers(vec![], 0);
+        assert!(
+            addresses(&target, &mut dns)
+                .unwrap_err()
+                .contains("no address")
+        );
+        // Public answers are kept, and curl is told to use exactly those, on both ports it uses.
+        let mut dns = Answers(
+            vec!["93.184.215.14", "2606:2800:21f:cb07:6820:80da:af6b:8b2c"],
+            0,
+        );
+        let found = addresses(&target, &mut dns).unwrap();
+        assert_eq!(found.len(), 2);
+        let curl = Curl::held_to(&target, &found);
+        let args = curl.args(&["--head", "https://app.example.test/"]);
+        let held = "app.example.test:443:93.184.215.14,[2606:2800:21f:cb07:6820:80da:af6b:8b2c]";
+        assert!(
+            args.windows(2).any(|w| w == ["--resolve", held]),
+            "{args:?}"
+        );
+        assert!(
+            args.iter().any(|a| a.starts_with("app.example.test:80:")),
+            "{args:?}"
+        );
+        // A port in the address is the one held.
+        let with_port = read_target("https://app.example.test:8443/").unwrap();
+        let curl = Curl::held_to(&with_port, &found);
+        let args = curl.args(&[]);
+        assert!(
+            args.iter().any(|a| a.starts_with("app.example.test:8443:")),
+            "{args:?}"
+        );
+        assert!(
+            !args.iter().any(|a| a.starts_with("app.example.test:443:")),
+            "{args:?}"
+        );
+    }
+
+    #[test]
+    fn every_curl_reads_no_config_globs_nothing_and_speaks_only_http() {
+        let target = read_target("https://app.example.test").unwrap();
+        let curl = Curl::held_to(&target, &["93.184.215.14".parse().unwrap()]);
+        let args = curl.args(&["--head", "https://app.example.test/"]);
+        // `--disable` counts only as curl's very first argument.
+        assert_eq!(args[0], "--disable");
+        assert!(args.contains(&"--globoff"), "{args:?}");
+        assert!(
+            args.windows(2).any(|w| w == ["--proto", "=http,https"]),
+            "{args:?}"
+        );
+        assert_eq!(args.iter().filter(|a| **a == "--disable").count(), 1);
+        assert_eq!(args.last(), Some(&"https://app.example.test/"));
+    }
 
     #[test]
     fn the_cap_is_a_property_of_the_fetcher_not_of_the_caller() {
         // A caller that loops must not be able to turn this into a scan, so the count lives with
         // the thing that makes the requests.
-        let mut c = Curl::new();
+        let mut c = Curl::held_to(&tests_support::target(), &[]);
         c.made = MOST_REQUESTS;
         let answer = c.get("https://example.test/", true);
         assert!(!answer.reached());

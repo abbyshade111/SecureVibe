@@ -165,6 +165,11 @@ another session is not a claim.
     unspecified addresses, names that resolve to them included.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-s13`.
+    **Done the same day** (DESIGN, "`sv probe` asks only public addresses"; ADR-027): private, shared, link-local,
+    loopback, unspecified, and other non-public addresses are refused, typed or looked up; the name is looked up
+    once and curl is held to the checked addresses with `--resolve`; every curl starts `--disable --globoff --proto
+    =http,https`. Found while building it: `--disable` had been ignored, because curl reads it only as the first
+    argument. Seven guards broken in turn, each caught.
   - **R1. High, Reproduced. An AI tool can mark its own findings as reviewed by a person** (`review.rs`,
     `confirm.rs`): only an empty `by`, "ai-tool", and "AI coding tool" are refused, so `by = "owner"` cleared a
     finding, shown as "SET ASIDE BY A PERSON"; `confirmed.by` has the same gap. Fix: at least say what is known
@@ -307,8 +312,14 @@ another session is not a claim.
     4,000 characters. Fix: search the whole answer before cutting it.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H19. Medium, Read.** A matching advisory clears the "could not compare" flag earlier advisories left.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H20. Medium, Reproduced.** RubyGems platform versions (`1.15.4-x86_64-linux`) are compared as semver.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
@@ -1402,6 +1413,10 @@ another session is not a claim.
     **The owner decided on 28 September 2026 to patch `v1`: merging `claude/ci-hang` into the `v1` branch is
     claimed on 28 September 2026 by session admiring-murdock-875699.** The tags `v1-paper` and `v1-final` stay
     where they are.
+    **Done on 28 September 2026** (#396, `5ddffb8`, merged 20:51 Eastern): `claude/ci-hang` was merged into `v1` by
+    way of `claude/v1-ci-hang`, which also says so in `ARCHIVED.md`, and `v1`'s
+    `server/tests/llm/safety.test.ts` no longer asks for `/proc/definitely/not/writable`. `TOP10.md` already said
+    so. Recorded here on 4 October 2026 by session securevibe-e9, which found the claim still open.
   Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
   (28 against 26).
 
@@ -5448,6 +5463,10 @@ another session is not a claim.
   6 to 11 of 92. Redirects and HSTS stay open: inside the fence the app is reached over plain HTTP, so
   whether it redirects to HTTPS, or sends HSTS there, is `sv probe`'s to ask of the live site. See
   DESIGN, "Six more questions for anybody".
+  **Closed on 4 October 2026 by session securevibe-e9, which held the claim:** nothing in this entry is left. Redirects
+  and HSTS are `sv probe`'s (and since #595 are credited only when they hold); method handling per route and
+  anything that sends data need the app's routes or a session, which this entry already said are their own items.
+  A new probe is an entry of its own.
 
 - ~~**Seeded users.**~~ Done on 25 September 2026. `[stack.run.users]` in securevibe.toml says how
   accounts are made (`seed`, run in the app's container with the accounts in its environment, or the
