@@ -48,6 +48,12 @@ another session is not a claim.
     **S3 to S5 claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
     backlog, in branch `claude/securevibe-e2-safe-writes`: one way of writing a file `sv` makes, used by every
     command.
+    **S3 to S5 done the same day** (DESIGN, "Files `sv` writes, never through a link and never over the app's
+    own"): `sv rules`, `sv notes`, and `sv bundle` refuse a link where they write and write under a new name then
+    rename; `bundle::resolve_for_writing` no longer resolves the zip's own name, which had hidden the link from any
+    check; and a report is refused in a folder holding files `sv` did not write unless `sv` marked it, and in any
+    folder holding a name that differs from one of `sv`'s only in capitals. Eleven guards broken in turn; ten caught,
+    and the eleventh (the rename after the check) closes a race no test can stage, held by its own unit test.
   - **S6. High, Reproduced. Tool reports go to fixed names in the shared temporary folder, and a planted file is
     taken as a real run** (`adapters.rs`: `temp_dir()`, `sv-<id>.sarif`, any readable file accepted, exit status
     ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at

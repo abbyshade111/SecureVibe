@@ -1016,6 +1016,9 @@ fn cmd_rules(args: &[String]) -> Result<()> {
         return Ok(());
     }
     let path = app_dir.join("AGENTS.md");
+    // Before reading, too: an AGENTS.md that is a link would have the file it points at read in and
+    // then written over (deep review S3).
+    refuse_link(&path, FILE_LINK)?;
     let existing = match std::fs::read_to_string(&path) {
         Ok(text) => Some(text),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
@@ -1025,7 +1028,7 @@ fn cmd_rules(args: &[String]) -> Result<()> {
         .rules
         .into_agents_file(existing.as_deref(), &section)
         .with_context(|| format!("{} was left as it was", path.display()))?;
-    std::fs::write(&path, text).with_context(|| format!("writing {}", path.display()))?;
+    write_without_following(&app_dir, "AGENTS.md", text.as_bytes())?;
     println!(
         "Wrote {} security rule{} for your AI coding tool into {}{}.",
         found.given.len(),
@@ -1154,6 +1157,9 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
     let applicable: std::collections::BTreeSet<String> =
         buckets.applicable.iter().cloned().collect();
     let out_path = app_dir.join(&catalog.file);
+    // Before reading: a notes file that is a link would have what it points at read in as answers and
+    // then written over, from `sv notes` as from the MCP tools (deep review S3).
+    refuse_link(&out_path, FILE_LINK)?;
     let existing = std::fs::read_to_string(&out_path).ok();
     let already = existing
         .as_deref()
@@ -1174,8 +1180,7 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
             existing.as_deref(),
             &describe,
         );
-        std::fs::write(&out_path, &text)
-            .with_context(|| format!("writing {}", out_path.display()))?;
+        write_without_following(app_dir, &catalog.file, text.as_bytes())?;
         let asked = catalog
             .sections
             .iter()
@@ -1206,13 +1211,6 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
     answers.set(id, body);
     let text =
         sv_check::notes::write_template_with(&catalog, &applicable, &facts, &answers, &describe);
-    if let Ok(meta) = std::fs::symlink_metadata(&out_path) {
-        anyhow::ensure!(
-            !meta.file_type().is_symlink(),
-            "{} is a link to somewhere else, so it is not written",
-            out_path.display()
-        );
-    }
     write_without_following(app_dir, &catalog.file, text.as_bytes())?;
 
     let asked = catalog
@@ -2345,7 +2343,16 @@ fn write_bundle(
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating {}", parent.display()))?;
     }
-    std::fs::write(zip_abs, &bytes).with_context(|| format!("writing {}", zip_abs.display()))?;
+    // Not through a link: a bundle name in the folder beside the app that is a link to another file had
+    // that file overwritten (deep review S4).
+    refuse_link(zip_abs, FILE_LINK)?;
+    let (Some(parent), Some(file_name)) = (zip_abs.parent(), zip_abs.file_name()) else {
+        bail!("{} is not a file name", zip_abs.display());
+    };
+    let Some(file_name) = file_name.to_str() else {
+        bail!("{} is not a file name sv can write", zip_abs.display());
+    };
+    write_without_following(parent, file_name, &bytes)?;
     Ok(BundleOutcome {
         zip: zip_abs.to_path_buf(),
         kilobytes: bytes.len() / 1024,
@@ -2370,7 +2377,7 @@ fn write_bundle(
 /// replaced by the report (BACKLOG, "Hardening the MCP server", item 1).
 fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<&'static str>> {
     // Before the folder is created: creating it would follow a link to a folder that does not exist yet.
-    refuse_link(out_dir)?;
+    refuse_link(out_dir, REPORT_LINK)?;
     std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
     // Marks the folder as `sv`'s own output, so the next check of the app does not read the report
     // as the app's code, whatever the folder is called (`sv_scan::ecosystems::REPORT_MARKER`).
@@ -2388,8 +2395,13 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
     ];
     // Every name is looked at before any is written, so a refusal leaves the folder as it was.
     for (name, _) in std::iter::once(&marker).chain(&written) {
-        refuse_link(&out_dir.join(name))?;
+        refuse_link(&out_dir.join(name), REPORT_LINK)?;
     }
+    let ours: Vec<&str> = std::iter::once(&marker)
+        .chain(&written)
+        .map(|(name, _)| *name)
+        .collect();
+    refuse_someone_elses_folder(out_dir, &ours)?;
     for (name, contents) in std::iter::once(&marker).chain(&written) {
         write_without_following(out_dir, name, contents.as_bytes())
             .with_context(|| format!("writing {name}"))?;
@@ -2397,18 +2409,80 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
     Ok(written.iter().map(|(name, _)| *name).collect())
 }
 
-/// Refuses a path that is a link, whatever it points to, saying so in the owner's terms.
-fn refuse_link(path: &Path) -> Result<()> {
+/// Refuses to write a report into a folder that holds anything but `sv`'s own files, unless `sv` marked
+/// it as its own; and, marked or not, one holding a file whose name differs from one of `sv`'s only in
+/// capitals.
+///
+/// A report written with `out` "." landed in the app itself, and on a disk that does not tell capitals
+/// apart (macOS and Windows, by default) its `security.md` replaced the app's own `SECURITY.md` (deep
+/// review S5). A folder holding only names `sv` writes, as a report from before the marker had, is
+/// taken as `sv`'s; the marker itself is checked by its exact name, so the app's files are never
+/// mistaken for it.
+fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
+    let Ok(entries) = std::fs::read_dir(out_dir) else {
+        return Ok(());
+    };
+    let names: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    let like_ours: Vec<&String> = names
+        .iter()
+        .filter(|name| {
+            !ours.contains(&name.as_str()) && ours.iter().any(|o| o.eq_ignore_ascii_case(name))
+        })
+        .collect();
+    anyhow::ensure!(
+        like_ours.is_empty(),
+        "{} holds {}, which a report file would replace on a disk that does not tell capitals apart, \
+         so sv does not write its report there. Give a folder of its own with --out.",
+        out_dir.display(),
+        like_ours
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    let marked = names
+        .iter()
+        .any(|name| name == sv_scan::ecosystems::REPORT_MARKER);
+    let others: Vec<&String> = names
+        .iter()
+        .filter(|name| !ours.contains(&name.as_str()))
+        .collect();
+    anyhow::ensure!(
+        marked || others.is_empty(),
+        "{} already holds files sv did not write ({}{}), so sv does not write its report there. Give \
+         an empty folder, or a new one, with --out.",
+        out_dir.display(),
+        others
+            .iter()
+            .take(3)
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", "),
+        if others.len() > 3 { ", and more" } else { "" }
+    );
+    Ok(())
+}
+
+/// Refuses a path that is a link, whatever it points to, saying so in the owner's terms and saying
+/// what to do instead.
+fn refuse_link(path: &Path, what_to_do: &str) -> Result<()> {
     if let Ok(meta) = std::fs::symlink_metadata(path) {
         anyhow::ensure!(
             !meta.file_type().is_symlink(),
-            "{} is a link to somewhere else, so sv does not write through it. Remove the link, or \
-             give a folder of your own with --out.",
+            "{} is a link to somewhere else, so sv does not read or write through it. {what_to_do}",
             path.display()
         );
     }
     Ok(())
 }
+
+/// What to do about a link where a report file or folder goes.
+const REPORT_LINK: &str = "Remove the link, or give a folder of your own with --out.";
+/// What to do about a link where `sv` writes one of its own files into the app.
+const FILE_LINK: &str = "Remove the link, and run it again.";
 
 /// Writes `name` in `dir` without following a link at that name: the bytes go to a file that did not
 /// exist before (`create_new` refuses a link as it refuses anything already there), which is then

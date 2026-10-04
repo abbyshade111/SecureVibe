@@ -451,9 +451,21 @@ pub fn readme(
     text
 }
 
-/// `path` with every link on the way to it resolved, including for a file that does not exist yet: the deepest part that
-/// does exist is looked up on disk, and the rest is added back unchanged.
+/// `path` with every link in the folders on the way to it resolved, including for a file that does not exist yet: the
+/// deepest folder that does exist is looked up on disk, and the rest is added back unchanged. The file name itself is
+/// never resolved: a link there is the place the bundle would be written through, and resolving it would hide it from
+/// the check that refuses it (deep review S4).
 pub fn resolve_for_writing(path: &Path) -> PathBuf {
+    match (path.parent(), path.file_name()) {
+        (Some(parent), Some(name)) if !parent.as_os_str().is_empty() => {
+            resolve_existing(parent).join(name)
+        }
+        _ => resolve_existing(path),
+    }
+}
+
+/// `path` with every link on the way to it resolved, the parts that do not exist yet added back unchanged.
+fn resolve_existing(path: &Path) -> PathBuf {
     let mut existing = path.to_path_buf();
     let mut rest: Vec<std::ffi::OsString> = Vec::new();
     while !existing.exists() {
@@ -600,6 +612,20 @@ mod tests {
             real.join("new").join("out.zip")
         );
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_at_the_file_name_itself_is_left_for_the_writer_to_refuse() {
+        let dir = std::env::temp_dir().join(format!("sv-resolve-link-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("precious.txt"), "keep me\n").unwrap();
+        std::os::unix::fs::symlink(dir.join("precious.txt"), dir.join("out.zip")).unwrap();
+        let real = std::fs::canonicalize(&dir).unwrap();
+        let resolved = resolve_for_writing(&dir.join("out.zip"));
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(resolved, real.join("out.zip"));
     }
 
     #[test]
