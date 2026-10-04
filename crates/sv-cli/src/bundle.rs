@@ -346,6 +346,12 @@ fn walk(root: &Path, dir: &Path, files: &mut Vec<String>, plan: &mut Plan) {
             }
         } else if meta.is_file() {
             files.push(rel);
+        } else {
+            plan.left_out.push((
+                rel,
+                "it is not an ordinary file (a named pipe, a socket, or a device), so it was not read"
+                    .to_owned(),
+            ));
         }
     }
 }
