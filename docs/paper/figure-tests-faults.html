@@ -9,21 +9,21 @@
     color-scheme: light;
     --surface-1: #fcfcfb; --surface-2: #f3f2ee;
     --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
-    --grid: #e3e2dd; --other: #a3a29b; --hot: #d03b3b; --v1: #2a78d6; --sv: #eb6834; --learn: #184f95;
+    --grid: #e3e2dd; --other: #a3a29b; --hot: #d03b3b; --v1: #2a78d6; --sv: #eb6834; --learn: #184f95; --outside: #7a5cc0;
   }
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) .viz-root {
       color-scheme: dark;
       --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
       --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --other: #77766f; --hot: #e05252;
-      --v1: #3987e5; --sv: #d95926; --learn: #86b6ef;
+      --v1: #3987e5; --sv: #d95926; --learn: #86b6ef; --outside: #a58fe0;
     }
   }
   :root[data-theme="dark"] .viz-root {
     color-scheme: dark;
     --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
     --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --other: #77766f; --hot: #e05252;
-    --v1: #3987e5; --sv: #d95926; --learn: #86b6ef;
+    --v1: #3987e5; --sv: #d95926; --learn: #86b6ef; --outside: #a58fe0;
   }
   body { margin: 0; background: var(--surface-1); }
   .viz-root { background: var(--surface-1); color: var(--text-primary);
@@ -53,14 +53,15 @@
 <body>
 <div class="viz-root">
   <h1>More tests, fewer surprises?</h1>
-  <p class="sub">Both suites grew fast, and faults kept arriving at the same rate per line of new code. Almost none
-     were caught by a failing test; they were caught by people and processes looking at the whole. Nearly every one
-     left a test behind. The full account is <code>TESTS-AND-FAULTS.md</code>.</p>
+  <p class="sub">Both suites grew fast, and faults kept arriving; after 28 September, faster per line of new code.
+     Almost none were caught by a failing test; they were caught by people and processes looking at the whole, and
+     on 4 October by one outside review. Nearly every fault that was fixed left a test behind. The full account is
+     <code>TESTS-AND-FAULTS.md</code>. Cut-off: <code>main</code> at <code>157ddc3</code>, 11:37 Eastern, 4 October 2026.</p>
 
   <div class="hero">
-    <div class="stat"><b>149</b><span>faults found in SecureVibe's own code: 81 in v1, 68 in <code>sv</code></span></div>
-    <div class="stat"><b style="color:var(--hot)">5</b><span>of the 129 faults in the product were caught by a failing test</span></div>
-    <div class="stat"><b>87%</b><span>of the faults the tests missed got a test when they were fixed (104 of 119)</span></div>
+    <div class="stat"><b>255</b><span>faults found in SecureVibe's own code: 81 in v1, 174 in <code>sv</code>; 196 fixed, 59 open at the cut-off</span></div>
+    <div class="stat"><b style="color:var(--hot)">7</b><span>of the 230 faults in the product were caught by a failing test</span></div>
+    <div class="stat"><b>89%</b><span>of the fixed faults the tests missed got a test when they were fixed (141 of 159)</span></div>
   </div>
 
   <h2>1. Tests at the end of each day</h2>
@@ -68,53 +69,59 @@
     <span><span class="sw" style="background:var(--v1)"></span>v1</span>
     <span><span class="sw" style="background:var(--sv)"></span><code>sv</code></span>
   </div>
-  <div class="chart"><svg id="tests" viewBox="0 0 860 170" role="img" aria-label="Tests: v1 810, 949, 1,002, 1,078 from 17 to 20 September; sv 54, 54, 320, 687, 1,126, 1,306, 1,341 from 22 to 28 September."></svg></div>
+  <div class="chart"><svg id="tests" viewBox="0 0 860 170" role="img" aria-label="Tests: v1 810, 949, 1,002, 1,078 from 17 to 20 September; sv 54, 54, 320, 687, 1,126, 1,306, 1,417, 1,491 from 22 to 29 September, no commits 30 September to 2 October, then 1,645 on 3 October and 1,655 on 4 October to 11:37."></svg></div>
 
   <h2>2. Faults found each day</h2>
-  <p class="lede">The same days, on a separate scale. Above each bar: the faults found, and above that, in grey, faults per 1,000 lines of code changed that day.</p>
+  <p class="lede">The same days, on a separate scale. Above each bar: the faults found, and above that, in gray, faults per 1,000 lines of code changed that day. 4 October runs to 11:37, and its rate is left out: 56 of its 57 faults came from a review of all the code.</p>
   <div class="legend">
     <span><span class="sw" style="background:var(--hot)"></span>found by a failing test</span>
+    <span><span class="sw" style="background:var(--outside)"></span>the outside review (55 still open)</span>
     <span><span class="sw" style="background:var(--other)"></span>found any other way</span>
   </div>
-  <div class="chart"><svg id="faults" viewBox="0 0 860 190" role="img" aria-label="Faults found per day: v1 5, 7, 36, 19 from 17 to 20 September; sv 1, 0, 12, 15, 17, 17, 6 from 22 to 28 September; by a failing test sv 2 on the 24th, 1 on the 26th, 2 on the 27th, 3 on the 28th."></svg></div>
+  <div class="chart"><svg id="faults" viewBox="0 0 860 210" role="img" aria-label="Faults found per day: v1 5, 7, 36, 19 from 17 to 20 September; sv 1, 0, 12, 15, 17, 17, 24, 12 from 22 to 29 September, 19 on 3 October, and 57 on 4 October, 56 of them from the outside review; by a failing test sv 2 on the 24th, 1 on the 26th, 2 on the 27th, 7 on the 28th, 1 on the 29th."></svg></div>
 
   <h2>3. Did the suite learn from each surprise?</h2>
-  <p class="lede">Each square is a fault in the product that the tests missed and whose fix can be checked.</p>
-  <div class="dots" id="dots" role="img" aria-label="104 of 119 fixes added or changed a test."></div>
+  <p class="lede">Each square is a fault in the product that the tests missed, that was fixed by the cut-off, and whose fix can be checked.</p>
+  <div class="dots" id="dots" role="img" aria-label="141 of 159 fixes added or changed a test."></div>
   <div class="legend">
-    <span><span class="sw" style="background:var(--learn)"></span>the fix added or changed a test: 104 (v1 56 of 69, <code>sv</code> 48 of 50)</span>
-    <span><span class="sw" style="box-shadow:inset 0 0 0 2px var(--text-muted)"></span>no test: 15</span>
+    <span><span class="sw" style="background:var(--learn)"></span>the fix added or changed a test: 141 (v1 56 of 69, <code>sv</code> 85 of 90)</span>
+    <span><span class="sw" style="box-shadow:inset 0 0 0 2px var(--text-muted)"></span>no test: 18</span>
   </div>
 
-  <p class="note">Sources: <code>faults.csv</code>, one row per fault with its commit or pull request, and
-     <code>tests_by_day.csv</code>. v1's test counts are those stated in its commits; <code>sv</code>'s are the tests on
-     <code>main</code> at the last change of each day. Lines changed leave out documents, data, lockfiles, and the two
-     large moves of files. v1's 14 faults from 23 to 26 September, in maintenance after <code>sv</code> began, are in
-     the files but not drawn. How each fault was found is a judgment from its commit message.</p>
+  <p class="note">Sources: <code>faults.csv</code>, one row per fault with its commit, pull request, or report, and
+     <code>tests_by_day.csv</code>. v1's test counts are those stated in its commits; <code>sv</code>'s are the
+     <code>#[test]</code> lines on <code>main</code> at the last change of each day. Lines changed leave out documents,
+     data, lockfiles, and large moves of files, among them the split of <code>signed_in.rs</code> on 28 September.
+     Nothing was committed from 30 September to 2 October. v1's 14 faults from 23 to 26 September, in maintenance after
+     <code>sv</code> began, are in the files but not drawn. On 28 September the figure stopped at 16:18, with 149 faults,
+     5 of 129 caught by a failing test, and 104 of 119 fixes leaving a test. How each fault was found is a judgment from
+     its commit message, pull request, and backlog entry; from 28 September there are no session transcripts on this
+     machine to check it against.</p>
 </div>
 <script>
 (() => {
   const NS = "http://www.w3.org/2000/svg";
   const mk = (svg, tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
-  const days = [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28];
-  const L = 60, R = 850, step = (R - L) / days.length, cx = (i) => L + step * (i + 0.5), BW = 36;
-  const axis = (s, B) => { mk(s, "line", { x1: L, x2: R, y1: B, y2: B, stroke: "var(--text-muted)" }); days.forEach((d, i) => mk(s, "text", { x: cx(i), y: B + 18, "text-anchor": "middle", class: "muted" }, i === 0 ? "17 Sep" : String(d))); };
-  const v1 = { 17: 810, 18: 949, 19: 1002, 20: 1078 }, sv = { 22: 54, 23: 54, 24: 320, 25: 687, 26: 1126, 27: 1306, 28: 1341 };
+  const days = ["17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "1", "2", "3", "4"];
+  const lab = { "17": "17 Sep", "1": "1 Oct" };
+  const L = 60, R = 850, step = (R - L) / days.length, cx = (i) => L + step * (i + 0.5), BW = 32;
+  const axis = (s, B) => { mk(s, "line", { x1: L, x2: R, y1: B, y2: B, stroke: "var(--text-muted)" }); days.forEach((d, i) => mk(s, "text", { x: cx(i), y: B + 18, "text-anchor": "middle", class: "muted" }, lab[d] || d)); };
+  const v1 = { "17": 810, "18": 949, "19": 1002, "20": 1078 }, sv = { "22": 54, "23": 54, "24": 320, "25": 687, "26": 1126, "27": 1306, "28": 1417, "29": 1491, "3": 1645, "4": 1655 };
   const s1 = document.getElementById("tests"); axis(s1, 140);
-  days.forEach((d, i) => { const n = v1[d] || sv[d]; if (!n) return; const h = n / 1341 * 110;
+  days.forEach((d, i) => { const n = v1[d] || sv[d]; if (!n) return; const h = n / 1655 * 110;
     mk(s1, "rect", { x: cx(i) - BW / 2, y: 140 - h, width: BW, height: h, rx: 2, fill: v1[d] ? "var(--v1)" : "var(--sv)" });
     mk(s1, "text", { x: cx(i), y: 140 - h - 6, "text-anchor": "middle", class: "ink" }, n.toLocaleString("en-US")); });
-  // [by a failing test, other, per 1,000 lines]
-  const f = { 17: [0, 5, null], 18: [0, 7, 0.6], 19: [0, 36, 6.0], 20: [0, 19, 4.0], 22: [0, 1, 0.2], 23: [0, 0, 0], 24: [2, 10, 1.1], 25: [0, 15, 0.5], 26: [1, 16, 0.5], 27: [2, 15, 1.2], 28: [3, 3, 0.5] };
-  const s2 = document.getElementById("faults"), B = 160, H = 130, M = 38; axis(s2, B);
+  // [by a failing test, the outside review, other, per 1,000 lines]
+  const f = { "17": [0, 0, 5, null], "18": [0, 0, 7, 0.6], "19": [0, 0, 36, 6.0], "20": [0, 0, 19, 4.0], "22": [0, 0, 1, 0.2], "23": [0, 0, 0, 0], "24": [2, 0, 10, 1.1], "25": [0, 0, 15, 0.5], "26": [1, 0, 16, 0.5], "27": [2, 0, 15, 1.2], "28": [7, 0, 17, 2.1], "29": [1, 0, 11, 1.9], "3": [0, 0, 19, 1.3], "4": [0, 56, 1, null] };
+  const s2 = document.getElementById("faults"), B = 180, H = 145, M = 60; axis(s2, B);
   days.forEach((d, i) => { const v = f[d]; if (!v) return; let y = B;
-    [[v[0], "var(--hot)"], [v[1], "var(--other)"]].forEach(([n, c]) => { if (!n) return; const h = n / M * H; mk(s2, "rect", { x: cx(i) - BW / 2, y: y - h + 1, width: BW, height: Math.max(1, h - 1.5), rx: 2, fill: c }); y -= h; });
-    mk(s2, "text", { x: cx(i), y: y - 6, "text-anchor": "middle", class: "ink" }, String(v[0] + v[1]));
-    if (v[2] != null) mk(s2, "text", { x: cx(i), y: y - 20, "text-anchor": "middle", class: "muted" }, v[2].toFixed(1)); });
+    [[v[0], "var(--hot)"], [v[1], "var(--outside)"], [v[2], "var(--other)"]].forEach(([n, c]) => { if (!n) return; const h = n / M * H; mk(s2, "rect", { x: cx(i) - BW / 2, y: y - h + 1, width: BW, height: Math.max(1, h - 1.5), rx: 2, fill: c }); y -= h; });
+    mk(s2, "text", { x: cx(i), y: y - 6, "text-anchor": "middle", class: "ink" }, String(v[0] + v[1] + v[2]));
+    if (v[3] != null) mk(s2, "text", { x: cx(i), y: y - 20, "text-anchor": "middle", class: "muted" }, v[3].toFixed(1)); });
   mk(s2, "text", { x: cx(1.5), y: 12, "text-anchor": "middle", class: "muted" }, "v1");
-  mk(s2, "text", { x: cx(8), y: 12, "text-anchor": "middle", class: "muted" }, "sv");
+  mk(s2, "text", { x: cx(9), y: 12, "text-anchor": "middle", class: "muted" }, "sv");
   const dots = document.getElementById("dots");
-  for (let i = 0; i < 119; i++) { const e = document.createElement("span"); e.className = "dot " + (i < 104 ? "t" : "o"); dots.appendChild(e); }
+  for (let i = 0; i < 159; i++) { const e = document.createElement("span"); e.className = "dot " + (i < 141 ? "t" : "o"); dots.appendChild(e); }
 })();
 </script>
 </body>

@@ -17,9 +17,10 @@ claim a check the code does not have:
   requirements a check can support but never settle;
 - `data/sbd-asvs-crosswalk.json`, for the checklist controls with an ASVS counterpart.
 
-It also holds `data/prompts.json` to the same citations: each prompt names the requirements it
+It also holds `data/prompts.json` and `data/design-prompts.json` to the same citations: each prompt names the requirements it
 targets and the rules whose result shows whether it worked, and every one of those requirements has
-to be cited by one of those rules, and every rule has to cite one of them (`check_prompts`).
+to be cited by one of those rules, and every rule has to cite one of them, or one the prompt sets aside with its reason
+(`check_prompts`).
 
 A test (`crates/sv-check/tests/coverage_doc.rs`) runs `--check`, so a change to the checks that is not
 followed by regenerating this document fails the build.
@@ -530,7 +531,10 @@ def evidence():
 PROMPT_STATUSES = {"shown", "not-shown", "untested"}
 
 
-def check_prompts(known_requirements):
+PROMPT_FILES = ("prompts.json", "design-prompts.json")
+
+
+def check_prompts(known_requirements, sbd_controls):
     """Holds each prompt in `data/prompts.json` to the rules it names as its check.
 
     A prompt claims requirements, and names the rules whose result shows whether it worked. A claim
@@ -545,11 +549,20 @@ def check_prompts(known_requirements):
     for check, (_, ids) in RUST_CHECKS.items():
         cites[check] = set(ids)
     faults = []
-    prompts = load(ROOT / "data/prompts.json")["prompts"]
-    if not prompts:
-        faults.append("data/prompts.json holds no prompts")
+    prompts = []
+    for name in PROMPT_FILES:
+        held = load(ROOT / "data" / name)["prompts"]
+        if not held:
+            faults.append(f"data/{name} holds no prompts")
+        prompts += held
+    seen = Counter(p["id"] for p in prompts)
+    faults += [f"{pid}: the id is used {n} times across {', '.join(PROMPT_FILES)}"
+               for pid, n in seen.items() if n > 1]
     for p in prompts:
         pid = p["id"]
+        for c in p.get("sbd_controls", []):
+            if c not in sbd_controls:
+                faults.append(f"{pid}: {c} is not a control in the Secure by Design checklist")
         wanted = set(p["requirements"])
         if p.get("status") not in PROMPT_STATUSES:
             faults.append(f"{pid}: status {p.get('status')!r} is not one of {sorted(PROMPT_STATUSES)}")
@@ -558,6 +571,14 @@ def check_prompts(known_requirements):
         for q in sorted(wanted - known_requirements):
             faults.append(f"{pid}: {q} is not a requirement in ASVS 5.0 or AISVS 1.0")
         rules = p["check"].get("rules", [])
+        # A rule that ran and did not show the prompt working stays listed, with the requirement it
+        # cites set aside and the reason said, rather than claimed.
+        set_aside = p["check"].get("not_claimed", {})
+        for q, why in set_aside.items():
+            if q in wanted:
+                faults.append(f"{pid}: {q} is both claimed and set aside")
+            if len(why.strip()) < 30:
+                faults.append(f"{pid}: {q} is set aside without saying why")
         if wanted and not rules:
             faults.append(f"{pid}: names requirements and no rule that could show the prompt working")
         covered = set()
@@ -567,10 +588,12 @@ def check_prompts(known_requirements):
             if not matched:
                 faults.append(f"{pid}: the rule {rule} is not one sv has")
             for r in matched:
-                if not cites[r] & wanted:
+                if not cites[r] & (wanted | set(set_aside)):
                     faults.append(f"{pid}: the rule {r} cites {', '.join(sorted(cites[r]))}, "
                                   f"none of the prompt's {', '.join(sorted(wanted)) or 'requirements (it names none)'}")
                 covered |= cites[r]
+        for q in sorted(set(set_aside) - covered):
+            faults.append(f"{pid}: sets aside {q}, which none of its rules cites")
         for q in sorted(wanted - covered):
             faults.append(f"{pid}: names {q}, which none of its rules cites")
     return faults
@@ -599,9 +622,11 @@ def main():
 
     asvs = framework(ROOT / "data/frameworks/asvs-5.0.0.json")
     aisvs = framework(ROOT / "data/frameworks/aisvs-1.0.json")
-    faults = check_prompts(set(asvs) | set(aisvs))
+    sbd_controls = {f"SBD-{c['id']}" for d in load(ROOT / "data/frameworks/sbd-checklist-0.5.0.json")["checklistDomains"]
+                    for c in d["controls"]}
+    faults = check_prompts(set(asvs) | set(aisvs), sbd_controls)
     if faults:
-        sys.exit("data/prompts.json claims what its checks do not cite:\n  " + "\n  ".join(faults))
+        sys.exit("the prompt library claims what its checks do not cite:\n  " + "\n  ".join(faults))
     appendix = appendix_c(ROOT / "data/frameworks/aisvs-1.0-appendix-c.json")
     sbd = load(ROOT / "data/frameworks/sbd-checklist-0.5.0.json")
     crosswalk = load(ROOT / "data/sbd-asvs-crosswalk.json")["controls"]

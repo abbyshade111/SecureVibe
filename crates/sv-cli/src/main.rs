@@ -123,7 +123,7 @@ const COMMANDS: &[Command] = &[
         word: None,
         flags: &[],
         valued: &["--requirement"],
-        help: "  sv prompts [--requirement ID]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one, such as V1.2.4\n",
+        help: "  sv prompts [--requirement ID]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03\n",
     },
     Command {
         name: "probe",
@@ -952,8 +952,10 @@ pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
     })
 }
 
-pub(crate) fn prompts_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/prompts.json")
+/// The prompt library's files: the prompts for the coding, then the design-time ones.
+pub(crate) fn prompts_paths() -> [PathBuf; 2] {
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    [data.join("prompts.json"), data.join("design-prompts.json")]
 }
 
 /// The library's prompts for one requirement, or all of them, as Markdown, and the ones chosen.
@@ -967,10 +969,11 @@ pub(crate) fn prompts_for(
     if let Some(id) = requirement {
         anyhow::ensure!(
             frameworks.get(id).is_some(),
-            "{id} is not a requirement in any loaded framework"
+            "{id} is not a requirement or a Secure by Design control in any loaded framework"
         );
     }
-    let prompts = sv_check::prompts::Prompts::load(&prompts_path())?;
+    let paths = prompts_paths();
+    let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
     let chosen = prompts.select(requirement);
     let ids = chosen.iter().map(|p| p.id.clone()).collect();
     let text = match (requirement, chosen.is_empty()) {

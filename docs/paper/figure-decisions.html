@@ -56,24 +56,28 @@
 <body>
 <div class="viz-root">
   <h1>Who proposed, and who chose</h1>
-  <p class="sub">The 23 decisions that shaped SecureVibe, placed by who first put each one forward and who made the
-     final call. The owner made 19 of the final calls. The AI supplied most of the options, and the owner usually took
-     the one it recommended. The full table, with a quotation for every entry, is <code>DECISIONS.md</code>.</p>
+  <p class="sub">The 36 decisions that shaped SecureVibe to 4 October 2026, placed by who first put each one forward
+     and who made the final call. The owner made 32 of the final calls, including all 13 of the last week. The AI
+     supplied most of the options, and the owner usually took the one it recommended. The full table, with a quotation
+     or a backlog source for every entry, is <code>DECISIONS.md</code>.</p>
 
-  <div class="wrap"><div class="matrix" id="matrix" role="img" aria-label="Proposed by the owner: 7, all chosen by the owner. Proposed by both: 10, 9 chosen by the owner and 1 by the AI. Proposed by the AI: 6, 3 chosen by the owner, 2 by the AI, 1 split."></div></div>
+  <div class="wrap"><div class="matrix" id="matrix" role="img" aria-label="Proposed by the owner: 8, all chosen by the owner. Proposed by both: 14, 13 chosen by the owner and 1 by the AI. Proposed by the AI: 14, 11 chosen by the owner, 2 by the AI, 1 split."></div></div>
 
   <h2>How often the owner took the recommended option</h2>
-  <p class="lede">Each square is one question from Claude that marked an option "Recommended".</p>
-  <div class="dots" id="dots" role="img" aria-label="24 of 29 recommendations taken."></div>
+  <p class="lede">Each square is one question from Claude that marked an option "Recommended", in SecureVibe's own
+     sessions whose transcripts survive. After 28 September only securevibe-e10's six are here.</p>
+  <div class="dots" id="dots" role="img" aria-label="28 of 35 recommendations taken."></div>
   <div class="legend">
-    <span><span class="sw" style="background:var(--took)"></span>took it: 24</span>
-    <span><span class="sw" style="box-shadow:inset 0 0 0 2px var(--text-muted)"></span>did not: 5 (another option twice, own answer once, dismissed twice)</span>
+    <span><span class="sw" style="background:var(--took)"></span>took it: 28</span>
+    <span><span class="sw" style="box-shadow:inset 0 0 0 2px var(--text-muted)"></span>did not: 7 (another option four times, own answer once, dismissed twice)</span>
   </div>
 
-  <p class="note">Sources: the Claude Code session transcripts on the owner's machine, and the repository. Every
-     quotation in <code>DECISIONS.md</code> was checked against its transcript. "Chosen by the AI" means no question or
-     approval from the owner was found. "Both" means the owner named the need and the AI named the answer. The
-     recommendation count covers every recorded answer to a question with a recommended option.</p>
+  <p class="note">Sources: the Claude Code session transcripts on the owner's machine, and the repository, to
+     <code>main</code> at <code>157ddc3</code> (11:37 on 4 October, Eastern). Every quotation in
+     <code>DECISIONS.md</code> was checked against its source. From 28 September securevibe-e2's and securevibe-e9's
+     transcripts are not on this machine, so decisions 33, 34, and 36 rest on the backlog and pull requests those
+     sessions wrote, and their questions to the owner cannot be counted. "Chosen by the AI" means no question or
+     approval from the owner was found. "Both" means the owner named the need and the AI named the answer.</p>
 </div>
 <script>
   const D = {
@@ -82,12 +86,15 @@
     10: "Git pre-approval", 11: "Claim work in the backlog", 12: "“Break your own rule”", 13: "Refuse unscanned uploads",
     14: "No rules of its own (ADR-012)", 15: "Start sv, in Rust", 16: "Rules after all (ADR-018)", 17: "Promote sv, archive v1",
     18: "Semgrep's license", 19: "PDF reports", 20: "The paper's thesis", 21: "sv's self-check", 22: "Three-arm study",
-    23: "Public, MIT license",
+    23: "Public, MIT license", 24: "sv in cato-pipeline", 25: "report.json says what was examined",
+    26: "A claim made twice", 27: "The comparison study", 28: "A fifth probe request (undone)", 29: "Semgrep, Opengrep as stand-in",
+    30: "Read-only app container", 31: "Archive bombs, owner's limits", 32: "The prompt library", 33: "Checks that attack the app",
+    34: "Answers marked as the AI's", 35: "The deep review", 36: "Design-time prompts",
   };
   const rows = [
-    ["The owner", "", [[1, 5, 15, 17, 20, 21, 10], [], []]],
-    ["Both", "the owner named the need, the AI the answer", [[6, 7, 8, 12, 13, 14, 19, 22, 23], [4], []]],
-    ["An AI session", "", [[11, 16, 18], [2, 3], [9]]],
+    ["The owner", "", [[1, 5, 15, 17, 20, 21, 10, 35], [], []]],
+    ["Both", "the owner named the need, the AI the answer", [[6, 7, 8, 12, 13, 14, 19, 22, 23, 24, 27, 32, 36], [4], []]],
+    ["An AI session", "", [[11, 16, 18, 25, 26, 28, 29, 30, 31, 33, 34], [2, 3], [9]]],
   ];
   const shade = (n) => n === 0 ? "transparent" : n <= 2 ? "var(--s1)" : n <= 5 ? "var(--s2)" : "var(--s3)";
   const m = document.getElementById("matrix");
@@ -108,7 +115,7 @@
     });
   });
   const dots = document.getElementById("dots");
-  for (let i = 0; i < 29; i++) { const d = document.createElement("span"); d.className = "dot " + (i < 24 ? "t" : "o"); dots.appendChild(d); }
+  for (let i = 0; i < 35; i++) { const d = document.createElement("span"); d.className = "dot " + (i < 28 ? "t" : "o"); dots.appendChild(d); }
 </script>
 </body>
 </html>

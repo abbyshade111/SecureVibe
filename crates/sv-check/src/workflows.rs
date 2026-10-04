@@ -1,9 +1,10 @@
 //! The app's GitHub Actions workflows, read for what AISVS Appendix C warns about.
 //!
 //! A workflow is code that runs with the repository's credentials, and the dangerous shapes are few
-//! and well known. A workflow started by `pull_request_target` or `workflow_run` runs with the
-//! repository's secrets and a token that can write, even when a stranger's pull request started it,
-//! so checking out that pull request's code there hands the stranger both (AC.12.1, AC.12.3). A
+//! and well known. A workflow started by `pull_request_target`, `workflow_run`, `issue_comment`, or
+//! `discussion_comment` runs with the repository's secrets and a token that can write, even when a
+//! stranger's pull request or comment started it, so checking out a pull request's code there hands
+//! the stranger both (AC.12.1, AC.12.3). A
 //! checkout that keeps its token on disk leaves it for whatever runs next in the job (AC.12.2).
 //!
 //! What a file cannot show is left alone rather than guessed at. Whether a job needs a person's
@@ -46,9 +47,34 @@ const OTHER_PIPELINES: &[&str] = &[
     ".buildkite/pipeline.yml",
 ];
 
-/// Triggers that run with the repository's secrets and a writable token when a pull request from a
-/// fork starts them.
-const PRIVILEGED_TRIGGERS: &[&str] = &["pull_request_target", "workflow_run"];
+/// Triggers that run with the repository's secrets and a writable token when a stranger starts them:
+/// a pull request from a fork, or a comment anyone can write on a public repository. The comment
+/// triggers were missing, so a workflow started by `issue_comment` that checked out the pull request
+/// was credited AC.12.1 (deep review H4).
+///
+/// Left out: `workflow_dispatch` and `repository_dispatch`, which only somebody with write access or a
+/// token can start, so "a stranger started it" does not hold. Also left out, and not settled:
+/// `pull_request_review_comment` and `pull_request_review`, which the review proposed adding. Whether
+/// GitHub gives them the secrets when the pull request comes from a fork could not be checked against
+/// GitHub's documentation when this was written (BACKLOG, deep review H4).
+const PRIVILEGED_TRIGGERS: &[&str] = &[
+    "pull_request_target",
+    "workflow_run",
+    "issue_comment",
+    "discussion_comment",
+];
+
+/// The privileged triggers, as a sentence names them: "`a`, `b`, or `c`".
+fn privileged_trigger_names() -> String {
+    let names: Vec<String> = PRIVILEGED_TRIGGERS
+        .iter()
+        .map(|t| format!("`{t}`"))
+        .collect();
+    match names.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{}, or {last}", rest.join(", ")),
+        _ => names.concat(),
+    }
+}
 
 /// Ways a workflow names the pull request's own code rather than the repository's. Compared with the
 /// text lowered and its spaces taken out, so `${{ github.head_ref }}` and `${{github.head_ref}}` match
@@ -490,7 +516,8 @@ pub fn check(app_dir: &Path) -> WorkflowReport {
                     format!(
                         "`{name}` is started by `{trigger}`, which runs with this repository's \
                          secrets and a token that can write to it even when a stranger's pull request \
-                         started it, and on line {line} it brings in that pull request's code."
+                         or comment started it, and on line {line} it brings in a pull request's \
+                         code."
                     ),
                     "Anybody who opens a pull request can change what runs here, and what runs \
                      here can push to the repository, publish a release, or send the secrets \
@@ -597,24 +624,26 @@ pub fn check(app_dir: &Path) -> WorkflowReport {
             None if !privileged.is_empty() => report.not_assessed.push((
                 FORK_CODE.into(),
                 format!(
-                    "{} {} started by `pull_request_target` or `workflow_run`, and `sv` found no \
-                     step bringing in the pull request's code. That is not the same as none: a \
-                     workflow can also run what it downloads from the pull request's own run, \
-                     which `sv` does not follow.",
+                    "{} {} started by one of {}, and `sv` found no step bringing in a pull request's code. \
+                     That is not the same as none: a workflow can also run what it downloads from \
+                     the pull request's own run, or a commit it looks up itself, which `sv` does \
+                     not follow.",
                     privileged
                         .iter()
                         .map(|p| format!("`{p}`"))
                         .collect::<Vec<_>>()
                         .join(", "),
-                    if privileged.len() == 1 { "is" } else { "are" }
+                    if privileged.len() == 1 { "is" } else { "are" },
+                    privileged_trigger_names()
                 ),
             )),
             None => report.passed.push(Verified::new(
                 FORK_CODE,
                 &["AC.12.1"],
                 format!(
-                    "{scope}, none started by `pull_request_target` or `workflow_run`; a setting \
-                     that sends secrets to pull requests from forks is not in any file"
+                    "{scope}, none started by {}; a setting that sends secrets to pull requests \
+                     from forks is not in any file",
+                    privileged_trigger_names()
                 ),
             )),
         }
@@ -850,6 +879,9 @@ jobs:
             "on: { pull_request_target: { types: [opened] } }\n",
             "on:\n  workflow_run:\n    workflows: [CI]\n    types: [completed]\n",
             "on:  # a comment\n  pull_request_target:\n",
+            "on: issue_comment\n",
+            "on:\n  issue_comment:\n    types: [created]\n",
+            "on: [discussion_comment]\n",
         ] {
             let report = run("triggers", &[("pr.yml", &format!("{on}{body}"))], &[]);
             assert!(
@@ -861,6 +893,82 @@ jobs:
                 vec![FORK_CODE],
                 "{on:?}: {:?}",
                 report.findings
+            );
+        }
+    }
+
+    #[test]
+    fn a_comment_that_checks_out_the_pull_request_with_the_secrets_is_found() {
+        // Deep review H4: the bot that runs the tests when somebody comments "/test" on a pull
+        // request. Anybody can comment, the workflow has the secrets, and it checks out the pull
+        // request's code; it was credited AC.12.1.
+        let text = "\
+on:
+  issue_comment:
+    types: [created]
+jobs:
+  test:
+    if: github.event.issue.pull_request && contains(github.event.comment.body, '/test')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ github.event.issue.number }}/head
+      - run: npm ci && npm test
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+";
+        let report = run("comment", &[("test-on-comment.yml", text)], &[]);
+        let ids = found(&report);
+        for rule in [FORK_CODE, FORK_SECRETS] {
+            assert!(ids.contains(&rule), "{rule} missing from {ids:?}");
+        }
+        let fork = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == FORK_CODE)
+            .unwrap();
+        assert!(fork.title.contains("`issue_comment`"), "{}", fork.title);
+        assert!(
+            !credited(&report).contains(&"AC.12.1"),
+            "{:?}",
+            report.passed
+        );
+    }
+
+    #[test]
+    fn a_comment_bot_that_checks_out_nothing_is_not_called_clean() {
+        let text = "\
+on: issue_comment
+permissions:
+  issues: write
+jobs:
+  thank:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo thanks
+";
+        let report = run("comment-bot", &[("thank.yml", text)], &[]);
+        assert!(report.findings.is_empty(), "{:?}", report.findings);
+        assert_eq!(unassessed(&report), vec![FORK_CODE]);
+        let why = &report.not_assessed[0].1;
+        assert!(why.contains("`issue_comment`"), "{why}");
+    }
+
+    #[test]
+    fn a_dispatch_is_not_privileged() {
+        // Only somebody with write access, or a token, can dispatch a workflow.
+        for on in ["on: workflow_dispatch\n", "on: repository_dispatch\n"] {
+            let text = format!(
+                "{on}permissions:\n  contents: read\njobs:\n  t:\n    runs-on: ubuntu-latest\n    \
+                 steps:\n      - run: echo hi\n"
+            );
+            let report = run("not-privileged", &[("t.yml", &text)], &[]);
+            assert!(
+                credited(&report).contains(&"AC.12.1"),
+                "{on:?}: {:?} {:?}",
+                report.passed,
+                report.not_assessed
             );
         }
     }
