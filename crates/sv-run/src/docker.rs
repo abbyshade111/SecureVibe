@@ -1238,14 +1238,15 @@ impl DockerBackend {
             ));
         }
         let gateway = targets.join(", ");
-        // `-v`, and not `-z`: busybox's netcat says why it could not connect only when asked to be
-        // verbose, and a refusal it kept quiet about would read as silence, which must never pass for a
-        // fence. With nothing to send, a connection that opens ends at once.
+        // `-vv`, and not `-z`: busybox's netcat (`nc_bloaty.c`, 1.36) reports a refused connection only
+        // at the second level of verbosity ("if we're scanning at a one -v verbosity level, don't print
+        // refusals"), and a refusal kept quiet would read as silence, which must never pass for a fence.
+        // CI found the first two tries silent. With nothing to send, a connection that opens ends at once.
         let mut script =
-            format!("nc -v -w 3 127.0.0.1 {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-self=$?\"");
+            format!("nc -vv -w 3 127.0.0.1 {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-self=$?\"");
         for target in &targets {
             script.push_str(&format!(
-                "; nc -v -w 3 {target} {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-gateway=$?\""
+                "; nc -vv -w 3 {target} {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-gateway=$?\""
             ));
         }
         let out = match self.docker(&[
