@@ -377,6 +377,16 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** fix the cookie handling as above, and also warn in the report when the start command looks like it weakens the app for the run (an environment variable naming `INSECURE`, `DISABLE_`, or the like): a warning, not a refusal.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-3-cookies`.
+     **Done the same day** (DESIGN, "The browser is handed each cookie as the app set it"): each cookie reaches the
+     browser with the `Secure`, `HttpOnly`, `Path`, and `SameSite` the app set (`Secure` always for a `__Host-` or
+     `__Secure-` name, and path `/` for `__Host-`); the browser's answer to each is read, and a refused cookie is
+     named in the not-assessed reason, or in the step when the pages opened anyway. A start command with a setting
+     that looks like it weakens the app (`INSECURE`; `DISABLE`, `SKIP`, `BYPASS`, or `NO` beside a security word;
+     a security word set to 0, false, no, or off) is warned about on the terminal and in the report's note about the
+     run, and the run goes on. Tested in sv's own Chromium 151, which refused `__Host-sid` handed over the old way
+     ("Sanitizing cookie failed"), and end to end with a `__Host-` copy of `examples/notes-with-users` started with
+     `FAMILY_HUB_INSECURE_COOKIES=1`. Each of eight guards broken was caught; parsing `Secure` was caught by nothing
+     at first, until a test cookie with `Secure` and no prefix was added.
   4. **The log checks need the test account's email address in the log, and an app that keeps personal data out of
      its log cannot be checked.** family-hub, 3 October: V16.3.1, V16.3.2, V16.2.1, V16.2.2, and V16.2.4 were not
      assessed ("Neither sign-in was named in the app's output", and "no such line was found"). The owner's

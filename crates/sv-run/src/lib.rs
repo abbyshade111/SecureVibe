@@ -202,6 +202,130 @@ pub fn loopback_warning(start: &str) -> Option<String> {
     })
 }
 
+/// Names in a setting that speak to security, for `weakening_named_in`.
+const SECURITY_WORDS: &[&str] = &[
+    "auth",
+    "csrf",
+    "xsrf",
+    "secure",
+    "security",
+    "ssl",
+    "tls",
+    "https",
+    "hsts",
+    "csp",
+    "verify",
+    "captcha",
+    "mfa",
+    "2fa",
+    "totp",
+    "ratelimit",
+];
+
+/// The settings in a start command that look like they make the app weaker for the run, as written
+/// there (family-hub, 3 October 2026: `FAMILY_HUB_INSECURE_COOKIES=1`, added so the browser checks
+/// could sign in, made them pass against a copy of the app with weaker cookies than the real one).
+///
+/// A setting is an environment variable (`NAME=value`) or a flag (`--name`, `--name=value`). Its
+/// name is split into words at `_`, `-`, and `.`, in any case, and it is listed when:
+/// 1. one of the words is `insecure` (`FAMILY_HUB_INSECURE_COOKIES=1`, `--insecure`);
+/// 2. one word is `disable`, `disabled`, `skip`, `bypass`, or `no`, and another is one of
+///    `SECURITY_WORDS` (`DISABLE_CSRF=1`, `AUTH_DISABLED=true`, `--no-verify`, `SKIP_AUTH=1`);
+/// 3. one of the words is one of `SECURITY_WORDS` and the value is `0`, `false`, `no`, or `off`
+///    (`SESSION_COOKIE_SECURE=False`, `CSRF_ENABLED=0`, `NODE_TLS_REJECT_UNAUTHORIZED=0`).
+///
+/// `rate_limit` and `rate-limit` count as `ratelimit`. Nothing else is listed: `DISABLE_TELEMETRY`
+/// and `--no-cache-dir` name nothing about security, and `DEBUG=1` is left alone, though it may
+/// matter. Only the command line is read, so this is a reason to warn, never to refuse. A value is
+/// shown only when it is one of the short words above, never anything that could be a key.
+pub fn weakening_named_in(start: &str) -> Vec<String> {
+    const OFF: &[&str] = &["0", "false", "no", "off"];
+    const SHOWN: &[&str] = &["0", "1", "false", "true", "no", "yes", "off", "on"];
+    let unquoted: String = start.chars().filter(|c| !matches!(c, '"' | '\'')).collect();
+    let mut out: Vec<String> = Vec::new();
+    for word in unquoted.split(|c: char| c.is_whitespace() || ";&|()`".contains(c)) {
+        let (name, value) = match word.split_once('=') {
+            Some((n, v)) => (n, Some(v)),
+            None => (word, None),
+        };
+        let bare = name.trim_start_matches('-');
+        if bare.is_empty()
+            || !bare
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "_-.".contains(c))
+        {
+            continue;
+        }
+        let lower = bare.to_ascii_lowercase();
+        let mut words: Vec<String> = lower
+            .split(['_', '-', '.'])
+            .filter(|w| !w.is_empty())
+            .map(str::to_owned)
+            .collect();
+        if lower.replace(['_', '-', '.'], "").contains("ratelimit") {
+            words.push("ratelimit".to_owned());
+        }
+        let has = |list: &[&str]| words.iter().any(|w| list.contains(&w.as_str()));
+        let value_lower = value.map(str::to_ascii_lowercase);
+        let off = value_lower.as_deref().is_some_and(|v| OFF.contains(&v));
+        let security = has(SECURITY_WORDS);
+        let weakens = has(&["insecure"])
+            || (security && has(&["disable", "disabled", "skip", "bypass", "no"]))
+            || (security && off);
+        if !weakens {
+            continue;
+        }
+        let shown = match (value, value_lower.as_deref()) {
+            (Some(v), Some(l)) if SHOWN.contains(&l) => format!("{name}={v}"),
+            _ => name.to_owned(),
+        };
+        if !out.contains(&shown) {
+            out.push(shown);
+        }
+    }
+    out
+}
+
+/// The settings `weakening_named_in` lists, joined for a sentence: "A", "A and B", "A, B, and C".
+fn joined(names: &[String]) -> String {
+    let quoted: Vec<String> = names.iter().map(|n| format!("`{n}`")).collect();
+    match quoted.as_slice() {
+        [] => String::new(),
+        [one] => one.clone(),
+        [a, b] => format!("{a} and {b}"),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
+}
+
+/// What to say before starting an app whose start command looks like it weakens it for the run. A
+/// warning, not a refusal (the owner's decision, 4 October 2026): the setting may be harmless, or
+/// needed for the app to run here at all.
+pub fn weakening_warning(start: &str) -> Option<String> {
+    let names = weakening_named_in(start);
+    (!names.is_empty()).then(|| {
+        format!(
+            "Warning: the start command in securevibe.toml sets {}, which looks like it makes the \
+             app less secure for this run. What `sv` finds is then about that weaker copy, and a \
+             check that passes may not pass for the app as it really runs. If it is not needed, \
+             take it out of the start command. Starting it anyway.",
+            joined(&names)
+        )
+    })
+}
+
+/// The same, as one sentence for the report's note about the run.
+pub fn weakening_note(start: &str) -> Option<String> {
+    let names = weakening_named_in(start);
+    (!names.is_empty()).then(|| {
+        format!(
+            "Warning: its start command sets {}, which looks like it makes the app less secure \
+             for the run, so what was found by running it is about that weaker copy and may not \
+             hold for the app as it really runs.",
+            joined(&names)
+        )
+    })
+}
+
 /// How to build, start and test the app, taken from the manifest and checked over.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RunPlan {
@@ -786,6 +910,77 @@ mod tests {
             sv_manifest::spec::STARTER_MANIFEST.contains("not 127.0.0.1 or localhost"),
             "the starter file says why"
         );
+    }
+
+    #[test]
+    fn a_start_command_that_weakens_the_app_is_warned_about_and_nothing_else_is() {
+        // Each rule, and what is shown for it: the name, and the value only when it is a short
+        // on-or-off word.
+        for (start, named) in [
+            // family-hub's, 3 October 2026.
+            (
+                "FAMILY_HUB_INSECURE_COOKIES=1 python app.py",
+                vec!["FAMILY_HUB_INSECURE_COOKIES=1"],
+            ),
+            ("node server.js --insecure", vec!["--insecure"]),
+            ("DISABLE_CSRF=true npm start", vec!["DISABLE_CSRF=true"]),
+            ("AUTH_DISABLED=1 ./run", vec!["AUTH_DISABLED=1"]),
+            ("SKIP_AUTH=yes uvicorn app:app", vec!["SKIP_AUTH=yes"]),
+            ("app --no-verify", vec!["--no-verify"]),
+            ("app --disable-rate-limit", vec!["--disable-rate-limit"]),
+            (
+                "SESSION_COOKIE_SECURE=False gunicorn app:app",
+                vec!["SESSION_COOKIE_SECURE=False"],
+            ),
+            ("export CSRF_ENABLED=0; node .", vec!["CSRF_ENABLED=0"]),
+            (
+                "NODE_TLS_REJECT_UNAUTHORIZED='0' node .",
+                vec!["NODE_TLS_REJECT_UNAUTHORIZED=0"],
+            ),
+            ("RATELIMIT_ENABLED=off app", vec!["RATELIMIT_ENABLED=off"]),
+            // A value that is not a short on-or-off word is never shown: it could be a key.
+            ("ALLOW_INSECURE=s3cr3tvalue app", vec!["ALLOW_INSECURE"]),
+            // Several, each once, in the order written.
+            (
+                "INSECURE=1 DISABLE_AUTH=1 app --insecure && INSECURE=1 app",
+                vec!["INSECURE=1", "DISABLE_AUTH=1", "--insecure"],
+            ),
+        ] {
+            assert_eq!(weakening_named_in(start), named, "{start}");
+            let warning = weakening_warning(start).expect("a warning");
+            assert!(warning.contains(&format!("`{}`", named[0])), "{warning}");
+            assert!(warning.contains("Starting it anyway"), "{warning}");
+            assert!(weakening_note(start).is_some(), "{start}");
+        }
+        assert!(
+            weakening_warning("INSECURE=1 DISABLE_AUTH=1 app --insecure")
+                .unwrap()
+                .contains("`INSECURE=1`, `DISABLE_AUTH=1`, and `--insecure`")
+        );
+        assert!(
+            !weakening_warning("ALLOW_INSECURE=s3cr3tvalue app")
+                .unwrap()
+                .contains("s3cr3t")
+        );
+        // Nothing about security switched off: no warning.
+        for start in [
+            "python app.py",
+            "uvicorn app:app --host 0.0.0.0 --port $PORT",
+            "NEXT_TELEMETRY_DISABLED=1 npm start",
+            "pip install --no-cache-dir -r requirements.txt && python app.py",
+            "node --disable-warning=ExperimentalWarning server.js",
+            "AUTH_SECRET=abc123 SECURE_COOKIES=1 node .",
+            "CSRF_ENABLED=true SESSION_COOKIE_SECURE=True gunicorn app:app",
+            "DEBUG=1 flask run --host 0.0.0.0",
+            "npm ci --no-audit && npm start",
+            "RATE=0 LIMIT=0 app",
+            "./secure-start.sh",
+            "",
+        ] {
+            assert_eq!(weakening_named_in(start), Vec::<String>::new(), "{start}");
+            assert_eq!(weakening_warning(start), None, "{start}");
+            assert_eq!(weakening_note(start), None, "{start}");
+        }
     }
 
     fn sh(script: &str) -> Command {

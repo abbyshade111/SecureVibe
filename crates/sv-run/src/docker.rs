@@ -783,7 +783,6 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
         let container = self.browser?;
         let job = serde_json::json!({
             "app": format!("http://localhost:{}", self.port),
-            "cookies": job.cookies,
             "actions": job.actions.iter().map(|a| a.to_json()).collect::<Vec<_>>(),
         });
         let env = format!("SV_JOB={}", base64(job.to_string().as_bytes()));
@@ -2492,11 +2491,11 @@ http.createServer((q, s) => {
                 browser: Some(&browser),
                 model: None,
             };
-            use sv_check::browser::{Action, Job};
+            use sv_check::browser::{Action, BrowserCookie, Job};
             use sv_check::signed_in::Http;
             http.browser(&Job {
-                cookies: vec![("sid".to_owned(), "abc".to_owned())],
                 actions: vec![
+                    Action::SetCookies(vec![BrowserCookie::plain("sid", "abc")]),
                     Action::Goto("/private".into()),
                     Action::Eval("document.title".into()),
                     Action::Fill {
@@ -2504,7 +2503,7 @@ http.createServer((q, s) => {
                         text: "hi <b>".into(),
                     },
                     Action::Eval("document.body.innerText".into()),
-                    Action::SetCookies(vec![("later".to_owned(), "1".to_owned())]),
+                    Action::SetCookies(vec![BrowserCookie::plain("later", "1")]),
                     Action::Goto("/private".into()),
                     Action::Eval("document.cookie".into()),
                     Action::Act("document.getElementById('bye').click(); true".into()),
@@ -2517,8 +2516,9 @@ http.createServer((q, s) => {
             ready,
             "the app, the browser, or the forwarder did not start: {started:?}"
         );
-        let answers = answers.flatten().expect("the driver gave no answer");
-        assert_eq!(answers.len(), 8, "{answers:?}");
+        let mut answers = answers.flatten().expect("the driver gave no answer");
+        assert_eq!(answers.len(), 9, "{answers:?}");
+        assert_eq!(answers.remove(0), serde_json::json!({ "refused": [] }));
         assert_eq!(answers[0]["status"], 200, "{answers:?}");
         assert_eq!(answers[0]["path"], "/private", "{answers:?}");
         assert_eq!(answers[1]["value"], "ran", "{answers:?}");
@@ -2535,6 +2535,134 @@ http.createServer((q, s) => {
         );
         assert_eq!(answers[7]["found"], true, "{answers:?}");
         assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
+    }
+
+    #[test]
+    fn a_host_prefixed_cookie_signs_the_browser_in_and_a_refused_one_is_named() {
+        // family-hub (3 October 2026): its session cookie was `__Host-fh_session`, `Secure`, and
+        // the browser refused it when handed its name and value alone, so the browser checks said
+        // the browser was not signed in. Here an app that opens /private only for `__Host-sid`,
+        // in sv's own Chromium, through the real driver. Needs a container backend; with one, a
+        // failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-hostcookie-{}", std::process::id());
+        let server = format!("{network}-app");
+        let browser = format!("{network}-browser");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let app = r#"
+const http = require('http');
+http.createServer((q, s) => {
+  s.setHeader('content-type', 'text/html');
+  const cookies = q.headers.cookie || '';
+  const signed = cookies.split('; ').includes('__Host-sid=abc');
+  if (q.url === '/private' && !signed) { s.writeHead(302, { location: '/login' }); return s.end(); }
+  if (q.url === '/private') return s.end('<p>mine</p>');
+  if (q.url === '/sent') return s.end('<pre id=c>' + cookies.replace(/</g, '') + '</pre>');
+  s.end('<p>login</p>');
+}).listen(8080);"#;
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            app,
+        ]);
+        let ready = matches!(started, Ok((0, _))) && backend.start_browser(&network, &browser) && {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            backend.forward_browser(&browser, &server, 8080)
+        };
+        use sv_check::browser::{Action, BrowserCookie, Job};
+        use sv_check::signed_in::Http;
+        // As family-hub set it: `Secure`, `HttpOnly`, `SameSite=Lax`, path `/`.
+        let session = BrowserCookie {
+            name: "__Host-sid".into(),
+            value: "abc".into(),
+            secure: true,
+            http_only: true,
+            path: Some("/".into()),
+            same_site: Some("lax".into()),
+        };
+        // Larger than the 4,096 bytes a browser keeps of a cookie's name and value: plain
+        // requests carry it, a browser does not.
+        let big = BrowserCookie::plain("big", &"x".repeat(5000));
+        let jobs = [
+            // The session cookie and one the browser will refuse; the page opens, the refused one
+            // is named, and what the browser sends back shows the one it kept.
+            Job {
+                actions: vec![
+                    Action::SetCookies(vec![session.clone(), big]),
+                    Action::Goto("/private".into()),
+                    Action::Goto("/sent".into()),
+                    Action::Eval("document.getElementById('c').textContent".into()),
+                    // `HttpOnly` was carried: the page's own scripts cannot read it.
+                    Action::Eval("document.cookie".into()),
+                ],
+            },
+            // The prefix alone makes the cookie `Secure`, so an app that left `Secure` out of its
+            // header still signs the browser in, as the owner decided on 4 October 2026.
+            Job {
+                actions: vec![
+                    Action::SetCookies(vec![BrowserCookie::plain("__Host-sid", "abc")]),
+                    Action::Goto("/private".into()),
+                ],
+            },
+        ];
+        let answers: Vec<Option<Vec<serde_json::Value>>> = if ready {
+            let via = Via::FreshContainer(&network);
+            let mut http = DockerHttp {
+                backend: &backend,
+                via: &via,
+                app: &server,
+                port: 8080,
+                mail: None,
+                provider: None,
+                browser: Some(&browser),
+                model: None,
+            };
+            jobs.iter().map(|job| http.browser(job)).collect()
+        } else {
+            Vec::new()
+        };
+        let _ = backend.docker(&["rm", "-f", &server, &browser]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(
+            ready,
+            "the app, the browser, or the forwarder did not start: {started:?}"
+        );
+        let first = answers[0].clone().expect("the driver gave no answer");
+        assert_eq!(first.len(), 5, "{first:?}");
+        let refused = first[0]["refused"]
+            .as_array()
+            .expect("an answer about refusals");
+        assert_eq!(refused.len(), 1, "{first:?}");
+        assert_eq!(refused[0]["name"], "big", "{first:?}");
+        assert!(
+            refused[0]["why"].as_str().is_some_and(|w| !w.is_empty()),
+            "{first:?}"
+        );
+        assert_eq!(first[1]["path"], "/private", "signed in: {first:?}");
+        assert_eq!(first[1]["status"], 200, "{first:?}");
+        // The setup worked: the app saw the cookie the browser kept, and not the refused one.
+        assert_eq!(first[3]["value"], "__Host-sid=abc", "{first:?}");
+        assert_eq!(first[4]["value"], "", "{first:?}");
+
+        let second = answers[1].clone().expect("the driver gave no answer");
+        assert_eq!(
+            second[0],
+            serde_json::json!({ "refused": [] }),
+            "{second:?}"
+        );
+        assert_eq!(second[1]["path"], "/private", "signed in: {second:?}");
     }
 
     #[test]
