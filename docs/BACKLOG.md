@@ -9,6 +9,14 @@ another session is not a claim.
 
 ## Next
 
+- **Bring `docs/paper/` up to 4 October 2026, and add the comparison study and the deep review.** Asked for on
+  4 October 2026 by the owner through the cato-pipeline session. Recompute every analysis, CSV and figure in
+  `docs/paper/` that stops at 26 to 29 September from the record as it stands at `main` on 4 October, and add two new
+  ones: the comparison study of five AI-built apps (cato-pipeline's `sv-study`, 29 September to 3 October) and the deep
+  review of `sv` at `eff3f17` (58 findings). v1's three-arm experiment (`figure-three-arms.html`, `requirements.csv`,
+  `findings.csv`) is a fixed record and stays as it is.
+  **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+  `claude/paper-refresh`. Other sessions: please leave `docs/paper/` to it until this entry says done.
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
   on a build of `eff3f17` or on the 45b6d71 image. Labels: *Reproduced* (a reviewer ran it), *Read* (confirmed from
@@ -36,6 +44,10 @@ another session is not a claim.
     when a fenced container can reach the gateway, and test the gateway with a positive control.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-fence-gateway`.
+    **Done the same day** (DESIGN, "The fence's gateway"): the fenced network is made without a gateway address
+    (`inhibit_ipv4`), and before the app starts a throwaway container knocks on the gateway; any answer stops the run,
+    with a control on the container's own loopback. The fence test asks the runner's check of a plain `--internal`
+    network (refused, the positive control) and of the runner's own (passes); its real run is CI's.
   - **S3. High, Reproduced. `sv notes` and `sv rules` write through a link to a file outside the app**
     (`main.rs`, AGENTS.md and security-notes.md, plain `fs::write`). The MCP route refuses a link; the command
     line does not.
@@ -92,6 +104,8 @@ another session is not a claim.
     entries without one counting as proposals; show the entry's git author.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-set-aside-headline`.
 
 - **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
   H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
@@ -109,6 +123,8 @@ another session is not a claim.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-comment-triggers`.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.

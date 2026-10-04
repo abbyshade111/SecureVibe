@@ -90,10 +90,19 @@ fn interrupt(command: &[&str]) {
     // The setup worked: the run has really started containers, and is still going.
     let deadline = Instant::now() + Duration::from_secs(180);
     while made_by(pid).len() < 2 {
-        assert!(
-            sv.try_wait().unwrap().is_none(),
-            "sv ended before starting anything"
-        );
+        if sv.try_wait().unwrap().is_some() {
+            // Say why: without what sv said, a run refused for a reason of its own read the same as
+            // a test that went wrong.
+            let out = sv.wait_with_output().unwrap();
+            let said = |b: &[u8]| String::from_utf8_lossy(b).replace('\n', " / ");
+            let stdout = said(&out.stdout);
+            panic!(
+                "sv ended before starting anything ({}): {} {}",
+                out.status,
+                said(&out.stderr),
+                &stdout[stdout.len().saturating_sub(600)..]
+            );
+        }
         assert!(
             Instant::now() < deadline,
             "the run never started its containers"
