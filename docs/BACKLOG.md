@@ -873,6 +873,13 @@ another session is not a claim.
   branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
   open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
   (`docs/prompts/trial/brief.md`), with and without the prompt.
+  **Done the same day** (`data/prompts.json`, `docs/PROMPTS.md`). All four were tried and not shown: both builds
+  without a prompt already passed `probe.security-headers`, `probe.cors-any-origin`, `probe.error-detail-leak`,
+  and the four access checks, every run signed in and answering all 40 requests. A copy of one of those builds with
+  each fault put back (headers removed, `Access-Control-Allow-Origin: *`, a stack trace on errors, the admin page
+  open to members) was caught on every one, so the clean results are passes and not blind spots. The guide has no
+  item on headers; that prompt cites ASVS V3.4 instead. The runs needed the builds under the home folder, which is
+  all Colima shares with containers: `sv` said so and reported the first attempt not assessed.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
