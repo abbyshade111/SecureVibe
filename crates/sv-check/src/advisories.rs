@@ -1511,6 +1511,9 @@ mod tests {
             ("1.0.0.rc1", "1.0.0", Some(Less)),
             ("1.0.0.pre", "1.0.0.rc1", Some(Less)),
             ("1.0", "1.0.0", Some(Equal)),
+            // Zeros before the letters do not count: RubyGems holds these to be one version.
+            ("2.0.0.rc1", "2.0.rc1", Some(Equal)),
+            ("1.0.0.a", "1.a", Some(Equal)),
             ("1.15.4", "1.15.10", Some(Less)),
             ("2.0.0.beta2", "2.0.0.beta10", Some(Less)),
             ("1.0.0-1", "1.0.0", Some(Less)),
@@ -1520,6 +1523,38 @@ mod tests {
             ("abc", "1.0", None),
         ] {
             assert_eq!(compare_gem(a, b), want, "{a} against {b}");
+        }
+    }
+
+    #[test]
+    fn a_gem_pre_release_is_held_to_an_advisory_by_rubygems_rules() {
+        // `2.0.0.rc1` is not a semver version at all: compared as one, it could not be compared,
+        // and a pre-release of the fixed release would go unreported.
+        let fixed_in = r#"{
+          "id": "GHSA-test-rails",
+          "affected": [{
+            "package": {"ecosystem": "RubyGems", "name": "rails"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}]
+          }]
+        }"#;
+        for (version, affected) in [
+            ("2.0.0.rc1", true),
+            ("2.0.0.beta3", true),
+            ("1.9", true),
+            ("2.0.0", false),
+            ("2.0", false),
+            ("2.0.1", false),
+        ] {
+            let result = audit(
+                &sbom_of(vec![component("rails", version, "Ruby")]),
+                &[advisory(fixed_in)],
+            );
+            assert!(result.uncomparable.is_empty(), "{version}: {result:?}");
+            assert_eq!(
+                result.findings.len(),
+                usize::from(affected),
+                "{version}: {result:?}"
+            );
         }
     }
 
