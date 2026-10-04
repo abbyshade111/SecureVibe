@@ -651,11 +651,13 @@ pub fn security(report: &Report) -> String {
 
     let set_aside = crate::false_alarm_entries(report);
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
-        out.push_str("## Set aside by a person\n\n");
+        out.push_str("## Set aside in securevibe.toml\n\n");
         if !set_aside.is_empty() {
             out.push_str(
-                "Found by a check, and looked at by a person who decided each is a false alarm. \
-                 They are not counted below. A requirement one of them was about is not credited \
+                "Found by a check, and set aside as a false alarm in securevibe.toml. Each entry \
+                 names who decided; `sv` reads that name and cannot tell who really wrote the entry, \
+                 and an AI coding tool can write one as easily as a person, so read each reason \
+                 before relying on it. They are not counted below. A requirement one of them was about is not credited \
                  for it: it is shown by whatever else is known about it, never as checked.\n\n",
             );
             for (line, report_it) in &set_aside {

@@ -112,8 +112,10 @@ impl RequirementLine {
     /// The status as a person reads it: the tier's label, or the confirmed version of it.
     pub fn shown_label(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
-            (Status::Attested, true) => "stated by the AI coding tool, confirmed by a person",
-            (Status::ByHand, true) => "checked by the AI coding tool, confirmed by a person",
+            (Status::Attested, true) => {
+                "stated by the AI coding tool, confirmed in securevibe.toml"
+            }
+            (Status::ByHand, true) => "checked by the AI coding tool, confirmed in securevibe.toml",
             (status, _) => status.label(),
         }
     }
@@ -121,7 +123,9 @@ impl RequirementLine {
     /// Whose word the status rests on, for the line after the label.
     pub fn whose_word(&self) -> &'static str {
         match (self.status, self.confirmed_only()) {
-            (Status::Attested | Status::ByHand, true) => "the word of the person who confirmed it",
+            (Status::Attested | Status::ByHand, true) => {
+                "the word of whoever securevibe.toml says confirmed it, which sv cannot check"
+            }
             (Status::Attested, false) => "your word",
             (Status::ByHand, false) => "your word, from a check you made by hand",
             _ => "your AI coding tool's word",
@@ -786,9 +790,12 @@ pub fn accepted_note(report: &Report, f: &sv_check::Finding) -> Option<String> {
         })
         .map(|s| {
             format!(
-                "Known and accepted as a risk by {} on {}, for now: \"{}\". It still needs \
-                 attention; the acceptance lapses after 90 days.",
-                s.by, s.on, s.why
+                "Known and accepted as a risk for now: securevibe.toml says {} accepted it on {}: \
+                 \"{}\". sv cannot tell who wrote that entry. It still needs attention; the \
+                 acceptance lapses after 90 days.",
+                sv_check::review::who_said(&s.by),
+                s.on,
+                s.why
             )
         })
 }
@@ -859,13 +866,14 @@ pub fn false_alarm_lines(report: &Report) -> Vec<String> {
         .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
         .map(|s| {
             format!(
-                "[{}] {} ({}, line {}; `{}`). Set aside as a false alarm by {} on {}: \"{}\"",
+                "[{}] {} ({}, line {}; `{}`). securevibe.toml says {} set it aside as a false \
+                 alarm on {}: \"{}\"",
                 s.finding.severity.name(),
                 s.finding.title,
                 s.finding.location.file,
                 s.finding.location.line,
                 s.finding.rule_id,
-                s.by,
+                sv_check::review::who_said(&s.by),
                 s.on,
                 s.why
             )

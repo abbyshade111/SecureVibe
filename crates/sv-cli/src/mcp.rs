@@ -1783,7 +1783,8 @@ fn summary(report: &sv_report::Report) -> String {
     let set_aside = sv_report::false_alarm_entries(report);
     if !set_aside.is_empty() {
         out.push_str(&format!(
-            "\nSET ASIDE BY A PERSON as false alarms, not counted above ({}). {}\n",
+            "\nSET ASIDE IN securevibe.toml as false alarms, not counted above ({}). sv cannot tell \
+             who wrote these entries: never write one naming the person in `by` yourself. {}\n",
             set_aside.len(),
             sv_report::FALSE_ALARM_TOOL_NOTE
         ));
