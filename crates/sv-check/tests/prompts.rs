@@ -89,6 +89,59 @@ fn every_prompt_is_marked_above_its_text_as_shown_or_not_tested() {
     assert!(text.trim_end().ends_with(prompts.credit.as_str()), "{text}");
 }
 
+fn design_library() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-prompts.json")
+}
+
+#[test]
+fn the_design_time_prompts_join_the_library_with_their_own_credit() {
+    let one = Prompts::load(&library()).unwrap();
+    let both = Prompts::load_all(&[&library(), &design_library()]).expect("both files load");
+    assert!(both.prompts.len() > one.prompts.len());
+    assert!(
+        both.credit.contains("Cloud Security Alliance"),
+        "{}",
+        both.credit
+    );
+    assert!(both.credit.contains("Secure by Design"), "{}", both.credit);
+    let found: Vec<&str> = both
+        .select(Some("SBD-AC-03"))
+        .iter()
+        .map(|p| p.id.as_str())
+        .collect();
+    assert_eq!(found, ["design-who-may-do-what"]);
+    let text = both.markdown(&both.select(Some("SBD-AC-03")));
+    assert!(
+        text.contains("helps you answer (you still answer each): SBD-AC-03."),
+        "{text}"
+    );
+}
+
+#[test]
+fn an_id_in_both_files_is_refused() {
+    let path = changed("across", |d| {
+        d["prompts"][0]["id"] = "design-limits".into();
+    });
+    let refused = Prompts::load_all(&[&path, &design_library()]);
+    std::fs::remove_file(&path).ok();
+    let why = format!("{:#}", refused.expect_err("refused"));
+    assert!(why.contains("already used by another file"), "{why}");
+}
+
+#[test]
+fn a_file_that_does_not_say_where_its_prompts_came_from_is_refused() {
+    let path = changed("no-credit", |d| {
+        d.as_object_mut().unwrap().remove("credit");
+    });
+    let refused = Prompts::load_all(&[&path, &design_library()]);
+    std::fs::remove_file(&path).ok();
+    let why = format!("{:#}", refused.expect_err("refused"));
+    assert!(
+        why.contains("does not say where its prompts came from"),
+        "{why}"
+    );
+}
+
 #[test]
 fn a_prompt_said_to_be_tried_has_to_say_what_happened() {
     let path = changed("no-result", |d| {

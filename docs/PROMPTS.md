@@ -21,6 +21,14 @@ back after signing in, and a welcome email that needs an API key. Fresh helper a
 built it once with no prompt, and once for each prompt, each in a folder of its own. One build each is a small
 sample: a prompt that showed nothing here may still help on another app or with another tool.
 
+**A second test app (4 October 2026).** Four of the prompts below changed nothing on the first app, because the
+build without them already did the safe thing. So a second app was written to tempt the shortcut each one guards
+against ([its brief](prompts/trial-2/brief.md)): a recipe app in Node.js where the request pastes the OpenAI key
+straight in, asks for a PDF made by running a program on the recipe's title, and asks for a formatting toolbar.
+The build without any prompt still read the key from the environment, ran the program without a shell, stored
+passwords with a proper hash, and cleaned the formatted text. So these four stay **not tested**: with this AI model,
+on these two apps, the safe choice was made with or without them. They may matter more with another tool.
+
 ## Shown to work
 
 ### Describe the app to SecureVibe before writing code
@@ -112,4 +120,6 @@ The same prompts, with the checks behind them, are in `data/prompts.json`.
 
 Prompts for what to decide **before** any code is written (who may do what, limits, logging, sign-in), drawn from the
 OWASP Secure by Design checklist and tested the same way, are on a page of their own:
-[Prompts to give your AI coding tool before it writes any code](prompts/design-time.md).
+[Prompts to give your AI coding tool before it writes any code](prompts/design-time.md). `sv prompts` and
+`securevibe_prompts` give those too; `sv prompts --requirement SBD-AC-03` finds them by the checklist control they
+help you answer.

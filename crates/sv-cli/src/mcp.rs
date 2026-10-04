@@ -851,7 +851,8 @@ impl Server {
             .map(|p| {
                 json!({
                     "id": p.id, "title": p.title, "prompt": p.prompt,
-                    "requirements": p.requirements, "status": p.status.as_str(),
+                    "requirements": p.requirements, "sbdControls": p.sbd_controls,
+                    "status": p.status.as_str(),
                     "result": p.tested.as_ref().map(|t| t.result.as_str()),
                 })
             })
@@ -1422,10 +1423,11 @@ fn output_schema(tool: &str) -> Option<Value> {
                 "prompts": { "type": "array", "items": object(
                     json!({
                         "id": string, "title": string, "prompt": string, "requirements": strings,
+                        "sbdControls": strings,
                         "status": { "type": "string", "enum": ["shown", "not-shown", "untested"] },
                         "result": { "type": ["string", "null"] },
                     }),
-                    &["id", "title", "prompt", "requirements", "status", "result"],
+                    &["id", "title", "prompt", "requirements", "sbdControls", "status", "result"],
                 ) },
                 "credit": string,
             }),
@@ -1560,13 +1562,13 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_prompts",
             "title": "Prompts for the person to give you",
-            "description": "Prompts from SecureVibe's library that ask an AI coding tool for something SecureVibe checks, such as keeping the app in git from the first file or building every database query with placeholders, each with the requirements it targets. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others are marked not tested. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
+            "description": "Prompts from SecureVibe's library that ask an AI coding tool for something SecureVibe checks, such as keeping the app in git from the first file or building every database query with placeholders, and design-time prompts for what to decide before any code is written (who may do what, limits, logging, sign-in), each with the requirements it targets and, for a design-time prompt, the Secure by Design controls it helps the person answer. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others are marked not tested. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "requirement": {
                         "type": "string",
-                        "description": "Only the prompts for this requirement, such as V1.2.4. Leave it out for all of them."
+                        "description": "Only the prompts for this requirement or Secure by Design control, such as V1.2.4 or SBD-AC-03. Leave it out for all of them."
                     }
                 }
             },
@@ -2417,6 +2419,21 @@ mod tests {
             .map(|p| p["id"].as_str().unwrap())
             .collect();
         assert_eq!(ids, ["database-placeholders"], "{one}");
+
+        // The design-time prompts are in the library too, found by the control they help answer.
+        let design = call(
+            &server,
+            "securevibe_prompts",
+            json!({ "requirement": "SBD-AC-03" }),
+        );
+        let found = &design["structuredContent"]["prompts"];
+        assert_eq!(found[0]["id"], "design-who-may-do-what", "{design}");
+        assert_eq!(found[0]["sbdControls"], json!(["SBD-AC-03"]), "{design}");
+        assert!(
+            text(&design).contains("Secure by Design"),
+            "{}",
+            text(&design)
+        );
 
         // A requirement no prompt targets is said plainly; one that does not exist is refused.
         let none = call(
