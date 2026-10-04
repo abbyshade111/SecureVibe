@@ -1,7 +1,7 @@
 use super::*;
 
 /// The most `sv run --slow` waits, in all. A lifetime stated longer is not waited out.
-const MOST_WAIT_MINUTES: u32 = 90;
+pub(super) const MOST_WAIT_MINUTES: u32 = 90;
 
 /// Whether sessions end when the owner says they should (V7.3.1, V7.3.2), which means waiting.
 ///

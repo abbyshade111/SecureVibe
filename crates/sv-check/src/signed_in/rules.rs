@@ -267,6 +267,39 @@ pub(super) const SESSION_TOKEN_UNVERIFIED: Rule = Rule {
           verifying the token's signature \u{2014} and refuse it when it is not found.",
 };
 
+pub(super) const APP_TOKEN_UNSIGNED: Rule = Rule {
+    rule_id: "probe.app-token-signature-not-checked",
+    requirement_ids: &["V9.1.1"],
+    cwe: &["CWE-347"],
+    impact: "The app's own sign-in token, with something added to what it says and the signature \
+             left as it was, opened a private page. The app is reading the token without checking \
+             its signature, so anybody can write one that says they are somebody else.",
+    fix: "Check the token's signature with the app's key before reading anything in it, on every \
+          request, and refuse it when the signature does not match. Most token libraries do this \
+          in their `verify` function; `decode` alone usually does not.",
+};
+
+pub(super) const APP_TOKEN_ALG_NONE: Rule = Rule {
+    rule_id: "probe.app-token-alg-none",
+    requirement_ids: &["V9.1.2"],
+    cwe: &["CWE-347"],
+    impact: "The app's own sign-in token, marked as needing no signature (`alg: none`) and sent \
+             with none, opened a private page. Anybody can write such a token.",
+    fix: "Tell the token library which signing method the app uses (for example `algorithms: \
+          ['HS256']`), so it refuses every other, `none` included.",
+};
+
+pub(super) const APP_TOKEN_EXPIRED: Rule = Rule {
+    rule_id: "probe.app-token-expired-accepted",
+    requirement_ids: &["V9.2.1"],
+    cwe: &["CWE-613"],
+    impact: "The app's own sign-in token still opened a private page more than a minute after the \
+             time written in it as its expiry (`exp`). A token copied or stolen once keeps working \
+             after it should have run out.",
+    fix: "Check the token's `exp` time on every request, as token libraries do by default, and do \
+          not switch that check off.",
+};
+
 pub(super) const WS_WITHOUT_SESSION: Rule = Rule {
     rule_id: "probe.websocket-without-session",
     requirement_ids: &["V4.4.4"],

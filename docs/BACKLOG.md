@@ -104,6 +104,12 @@ another session is not a claim.
      controls (`jku`, `kid`), which would need a key server inside the fence.
      **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
      `claude/securevibe-e2-app-tokens`.
+     **Done the same day** (DESIGN, "The sign-in token the app issues itself"): `probe.app-token-signature-not-checked`
+     (V9.1.1), `probe.app-token-alg-none` (V9.1.2), and `probe.app-token-expired-accepted` (V9.2.1), each with the
+     real token alone as the control. Expiry is asked only of a token due to run out within a minute, or within 90
+     minutes with `sv run --slow`; a longer-lived token leaves V9.2.1 not assessed, saying so. Twenty-four guards
+     broken in turn, each caught (one only after a test was added). V9.1.3 and the `jku`/`kid` forms not done, at
+     the owner's word.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
