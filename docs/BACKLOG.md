@@ -239,9 +239,13 @@ another session is not a claim.
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
+    **Done on 4 October 2026** (DESIGN, "HTTPS redirects and HSTS, held to what they say"): only a redirect to an
+    absolute `https://` address on the same host is credited; any other redirect is not assessed.
   - **H13. High, Read.** HSTS is credited whatever its value, `max-age=0` included, even on error answers (V3.4.1).
     **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
+    **Done on 4 October 2026** (same DESIGN section): credited only for a max-age of a year or more with
+    includeSubDomains, read as a browser reads it, and only on an ordinary answer.
   - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -868,6 +872,10 @@ another session is not a claim.
   prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt
   (now an item under "Next"). Still to do: the rest of the batch (access control, headers, CORS, error pages), a
   second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
+  **The rest of the first batch claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
+  branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
+  open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
+  (`docs/prompts/trial/brief.md`), with and without the prompt.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
