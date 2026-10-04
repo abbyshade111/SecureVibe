@@ -6813,6 +6813,75 @@ Twenty guards were broken in turn. Nineteen were caught at first; the one that w
 percent-encoding it, went unnoticed because the fake app reads spaces and quotes in an address anyway, and the test of
 a correct app now holds that every address the check sends is encoded.
 
+## Design-time prompts, tried (4 October 2026)
+
+The prompt library (`docs/PROMPTS.md`) asks the AI coding tool for something `sv` checks; these ask it to decide
+something with the owner first and write it down. They come from the OWASP Secure by Design checklist, whose controls
+are all design review: no check settles one (see "The checklist that was named and never loaded"). So each prompt
+names the controls it *helps answer* in `sbd_controls` (`data/design-prompts.json`) and is held to an ASVS requirement
+`data/sbd-asvs-crosswalk.json` pairs with them and a check of `sv`'s speaks to. Six were tried, under the library's
+rule (the owner's decision of 3 October 2026): shown only when a build with the prompt passed and the builds without
+it failed.
+
+**The trial.** One brief (`docs/prompts/trial/brief.md`): a club site in Python's standard library with sign-in,
+private notes, one seat to book, an assistant calling an OpenAI-compatible service, and an admin page. Fresh helper
+agents built it in folders of their own, twice without a prompt and once with each; `tools/prompt_trial.py` ran
+`sv report --run` on each behind the fence (Docker started by hand in this container) and read the targeted rules out
+of `report.json`. Where a build wrote [policy] numbers it was held to them; where it wrote none, the numbers in
+`docs/prompts/trial/policy.toml` stood in for the owner's.
+
+**What the first round got wrong, twice.** It gave every build a `securevibe.toml` that already held the [policy]
+numbers. The builds without a prompt read them and enforced them, so the settings file was acting as the prompt and
+prompts 3 and 7 could not fail without. And builds that read "10 requests a minute" applied it to sign-in by address;
+`sv` sends everything from one address and signs in dozens of times, so the limiter stopped it and the run credited
+almost nothing (ADR-021 working as meant). The second round took the numbers out and added a plain line to the brief
+that a tester signs in many times from one address.
+
+**What it showed.** Shown: 3 (limits; V2.4.1 and V6.3.1), 6 (logging; V16.2.1 and V16.2.2), and 7 (sign-in; V7.3.1).
+For 7, and 3's password limit, the builds without the prompt had a timeout or lockout of their own choosing, written
+down nowhere, so `sv` held them to the stand-in numbers: what the prompt changed is that the decision was recorded
+where it can be held to. That is worth having, and it is not the same as making sessions end, so the page says so.
+Not shown: 1 (who may do what) and 4 (when things fail), which both builds without a prompt already passed, and 2
+(actions once), where `sv` raised `probe.action-done-twice` against the build made with it: it took the seat in one
+conditional UPDATE and answered the holder's repeats with "Booked", which is what the prompt asks for and which the
+check counts as twenty bookings. That is a false alarm in `sv`, recorded in the backlog. Prompt 6's first wording
+asked for "the path"; both builds with it logged the path without its query string and without the status, so
+`probe.authorization-failure-logged` (which plants its marker in the query string and wants the status on the same
+line) could not credit them. It was reworded to ask for both and built again, and V16.3.2 is still not claimed,
+because one build without the prompt logged the refusal too.
+
+Not done: the eight design-time prompts no check can show working (backlog items 8 to 15), a second build per
+prompt, another brief, and another AI tool. One build each is a small sample, and every builder was the same model.
+
+## A backslash in a file name (4 October 2026)
+
+The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
+outside the app (S1, critical). On macOS and Linux a `\` is an ordinary character in a file name. The bundle's walk,
+and the shared file listing, built each relative path by turning every `\` in its text into `/`. So a file in the app
+named `..\outside\deploy_key.txt` became `../outside/deploy_key.txt`:
+- the bundle read that path, a file beside the app folder;
+- it put the file in the zip under a name that climbs out of whatever folder the zip is unpacked into;
+- enough `..\` parts reached `/etc/hosts`.
+
+The same paths fed Semgrep's list of files, the compose reader, and the Gradle catalog reader.
+
+It is held three ways now, each tested on its own:
+1. **Paths are built from their parts.** A relative path is the path's own parts joined with `/`, so a name with a
+   `\` stays one name, and joined back on to the app folder it is the file it came from. On Windows, where `\` is
+   the separator, the parts are the same as before. This is in `sv_scan::files::relative`, which the listing and the
+   bundle both use, so every check reading through the listing gets it.
+2. **The bundle carries no such name.** A name with a `\`, or bytes that are not text, is left out and listed with
+   the reason: an archive's names are read on other systems, where `\` separates folders.
+3. **The archive refuses a name that is not a plain path inside it.** Before anything is written, `zip` checks every
+   entry name part by part: no empty part, no `.` or `..`, no `\`, no NUL, and no leading `/`. A colon is allowed,
+   since it is an ordinary character in a name on macOS and Linux, and the first part is always the bundle's own
+   folder.
+
+The test is the review's own fixture: a file named `..\outside\deploy_key.txt` in the app, beside a real
+`outside/deploy_key.txt` holding a marker. Each layer was broken on its own and caught. With the first two broken,
+the third refused the bundle, naming the zip-slip entry. With all three broken, the test failed on the outside text in
+the zip, as the review reproduced it.
+
 ## Prompts the AI tool can fetch (4 October 2026)
 
 The prompt library (`data/prompts.json`, `docs/PROMPTS.md`) is offered two more ways: `sv prompts` prints it,

@@ -22,7 +22,7 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   `SV_DATA_DIR` overrides the OWASP part. The Docker image keeps `crates/` at the same path for that reason.
 - `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `codeql_suites.py`,
-  `atlas_references.py`, `image_smoke.py`), each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
+  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`), each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands
 

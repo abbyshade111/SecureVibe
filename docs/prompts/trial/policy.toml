@@ -1,0 +1,6 @@
+[policy]
+failed-sign-ins = 5
+within-minutes = 15
+requests-per-minute = 10
+idle-timeout-minutes = 2
+session-lifetime-minutes = 4
