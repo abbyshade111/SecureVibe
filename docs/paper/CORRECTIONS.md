@@ -8,7 +8,8 @@ commit or pull request. The figure is `figure-corrections.html`.
 
 **The record runs to the cut-off: `main` at `157ddc3`, 11:37 Eastern on 4 October 2026.** The first version ran to
 28 September, with 48 corrections, the last on 27 September. From 28 September the sessions that did most of the work
-left no transcript on this machine, so from then on the record is git, the pull requests, and `docs/BACKLOG.md`.
+(securevibe-e2 and securevibe-e9) left no transcript on this machine, so from then on the record is git, the pull
+requests, and `docs/BACKLOG.md`. Three other sessions' transcripts are here, as `COORDINATION.md` says.
 
 ## The count
 
@@ -36,7 +37,11 @@ was wired into another project for the first time.
 **What was found on 4 October and not yet fixed is not here.** A deep review of `sv`'s code that morning reported 58
 findings, and 24 of them are checks that say *checked* where they should not (`TESTS-AND-FAULTS.md`). None had been
 corrected by the cut-off, so none is a correction yet. When they are fixed, most will be rows here, and nearly all
-of those will go down.
+of those will go down. Several were fixed that afternoon, each a claim made weaker: the headline now counts findings set
+aside (R2); "set aside by a person" became what the file says, and then only what the owner recorded through
+`sv review` (R1); V15.2.1 is no longer credited from an incomplete list of packages (H11); an HTTPS redirect and HSTS are
+credited only when they hold (H12, H13); and a credential name over a sentence is reported low. They are not yet rows
+in `corrections.csv`; `SINCE-THE-CUTOFF.md` lists them.
 
 ## How each was found
 

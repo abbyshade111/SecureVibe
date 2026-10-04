@@ -227,6 +227,115 @@
         "result": "The build without escaped everything first and then allowed only bold, italics, and web links, which is safe; the build with used bleach. `config.rich-text-without-sanitizer` reads the app's declared libraries and saw no formatting in the build without at all, so its silence there was not a judgment. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again cleaned the editor's HTML with `sanitize-html` when saving it, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Since fixed (DESIGN, \"Two blind spots\"): the check now reads a manifest's declared names when there is no lockfile, and the same build with its sanitizer removed is caught."
       },
       "status": "not-shown"
+    },
+    {
+      "id": "security-headers",
+      "title": "Send the security headers on every page",
+      "prompt": "Send these headers on every response the app gives, error pages and the home page included: a Content-Security-Policy that starts from `default-src 'self'` and includes `frame-ancestors 'none'` (or `'self'` if the app frames its own pages), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` or stricter. Set them in one place that every response passes through, so a new page cannot leave them out.",
+      "requirements": [
+        "V3.4.3",
+        "V3.4.4",
+        "V3.4.5",
+        "V3.4.6"
+      ],
+      "check": {
+        "kind": "running",
+        "how": "`sv report --run` starts the app behind the network fence and reads the headers on its home page and its health path.",
+        "rules": [
+          "probe.security-headers"
+        ],
+        "passes_when": "the app answered and probe.security-headers is not a finding",
+        "fails_when": "probe.security-headers is a finding"
+      },
+      "inspired_by": "not the guide, which has no item on headers: OWASP ASVS 5.0 section V3.4, which sv checks on the running app",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
+        "result": "Both builds without the prompt already sent a Content-Security-Policy with frame-ancestors, X-Content-Type-Options, and a Referrer-Policy from the one function every answer passes through, and probe.security-headers credited all six builds. The same build with those headers taken out was caught, so the check can see them missing on this app."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "cross-site-access",
+      "title": "Let other sites read the app only by name",
+      "prompt": "Do not turn on cross-site access (CORS) unless a page served from another address really has to read this app's answers. If one does, write the exact addresses that may, and compare each request's Origin with that list. Never answer `Access-Control-Allow-Origin: *`, and never copy back whatever Origin the request sent, least of all together with `Access-Control-Allow-Credentials: true`.",
+      "requirements": [
+        "V3.4.2"
+      ],
+      "check": {
+        "kind": "running",
+        "how": "`sv report --run` asks the running app with the Origin of a site that does not exist, and reads what it allows.",
+        "rules": [
+          "probe.cors-any-origin"
+        ],
+        "passes_when": "the app answered and probe.cors-any-origin is not a finding",
+        "fails_when": "probe.cors-any-origin is a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: configure CORS",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
+        "result": "No build turned on cross-site access, with the prompt or without it, and probe.cors-any-origin found nothing in any of the six. The same build with `Access-Control-Allow-Origin: *` added was caught."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "plain-error-pages",
+      "title": "Show plain error pages, and keep the details in the log",
+      "prompt": "When something goes wrong, show the person a short, plain error page with nothing technical on it: no stack trace, no file paths, no query text, no library names or versions. Write those details to the app's log instead. Debug mode, and anything else that shows errors in the browser, must be off unless a setting meant only for your own computer turns it on.",
+      "requirements": [
+        "V13.4.2",
+        "V16.5.1"
+      ],
+      "check": {
+        "kind": "running",
+        "how": "`sv report --run` sends the running app requests that commonly make an app fail, and reads the answers for a stack trace or a debug page.",
+        "rules": [
+          "probe.error-detail-leak"
+        ],
+        "passes_when": "the app answered and probe.error-detail-leak is not a finding",
+        "fails_when": "probe.error-detail-leak is a finding"
+      },
+      "inspired_by": "the guide's Application security: hide system errors",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
+        "result": "Every build answered an error with a plain page, and probe.error-detail-leak credited all six. The same build changed to show a stack trace was caught."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "check-every-request",
+      "title": "Check on the server who may open each page and record",
+      "prompt": "For every page and every action, check on the server, before doing anything: that the person is signed in if the page is private, that the record they asked for is their own, and that only admins reach admin pages and admin actions. Closed is the default: a new page or action is refused until a rule says who may use it. Never rely on hiding a link or a button, and never on an id in the address being hard to guess.",
+      "requirements": [
+        "V8.2.1",
+        "V8.2.2",
+        "V8.3.1"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "`sv report --run` signs in as two ordinary members and an admin, and asks for private pages signed out, for one member's note as the other, and for the admin page and action as a member.",
+        "rules": [
+          "probe.private-page-anonymous",
+          "probe.admin-page-ordinary-user",
+          "probe.admin-action-ordinary-user",
+          "probe.other-users-data"
+        ],
+        "passes_when": "each check ran and none is a finding",
+        "fails_when": "any of them is a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: secure API endpoints",
+      "tested": {
+        "date": "2026-10-04",
+        "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
+        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
+        "result": "Both builds without the prompt already refused private pages to a visitor, one member's note to another, and the admin page and action to a member, and all four checks credited all six builds. The same build with the admin page opened to members was caught."
+      },
+      "status": "not-shown"
     }
   ]
 }

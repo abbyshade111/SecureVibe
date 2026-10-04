@@ -15,8 +15,8 @@ the 655, those from the evening of 20 September on.
 ## The cost
 
 **172 of the 655 changes to `main` (26%) did nothing but coordinate** (93 of 469, 20%, to 28 September). Each
-touched only the backlog: 166 claimed work, 4 took or released the evaluation harness, and 10 released a claim,
-withdrew one, or noted a duplicate. Fourteen more claims were made inside a change that also did work (8 to 28
+touched only the backlog: 158 claimed work, 4 took or released the evaluation harness, and 10 released a claim,
+withdrew one, or noted a duplicate (the first figure said 166 until 4 October, which did not add up to 172). Fourteen more claims were made inside a change that also did work (8 to 28
 September).
 
 | Day | Changes to `main` | Coordination only | Conflicts resolved by hand |
@@ -89,7 +89,8 @@ The 11 closed unmerged are:
 - **3 that were work thrown away because another session had done the same thing** (#63, #331, #342). None was added
   after 28 September.
 
-The 2 open at the cut-off, #558 and #562, are fixes for the deep review (below), still in review.
+The 2 open at the cut-off, #558 and #562, are fixes for the deep review (below), still in review then; both merged
+within 35 minutes of it (`SINCE-THE-CUTOFF.md`).
 
 **Duplicated work and collisions, 16 recorded (14 to 28 September):**
 
@@ -150,7 +151,7 @@ a commit of its own, and usually claimed it in the next. Seven deliveries are re
 | 29 Sep 16:49 | A shell variable read as a credential, and the MCP check's word test (#431) | Fixed (#433), and narrowed |
 | 29 Sep 18:25 | Four issues from the comparison study (#441) | Fixed the same evening (#443) |
 | 3 Oct 20:19 | Three faults from scanning the owner's family-hub (#533) | All three fixed by 21:05 (#535, #537, #538) |
-| 4 Oct 09:54 | The deep review of `sv` at `eff3f17`: 58 findings, in three parts (#553, #556) | S1, the critical one, fixed (#555); S2 to S5 in open pull requests (#558, #562); S12 claimed; 52 neither fixed nor claimed |
+| 4 Oct 09:54 | The deep review of `sv` at `eff3f17`: 58 findings, in three parts (#553, #556) | S1, the critical one, fixed (#555); S2 to S5 in open pull requests (#558, #562); S12 claimed; 52 neither fixed nor claimed. By 16:30, 14 fixed (`SINCE-THE-CUTOFF.md`) |
 
 Twelve faults found by using `sv` came in this way before the deep review, and all twelve were fixed within a day of
 arriving. The channel had costs of its own: the owner was the only courier, a session could not ask the sender a
@@ -228,8 +229,8 @@ are lower bounds.
 | 26 September | at least 7 |
 | 27 September | 7 |
 | 28 September, to 16:18 | 6 |
-| 29 September | 4: securevibe-e2, e9, e10, and the cato-pipeline session |
-| 30 September | 2 in the backlog (securevibe-e2, e9); no change reached `main` |
+| 29 September | 4: securevibe-e2, e9, e10, and the cato-pipeline session (securevibe-e2's and e9's last backlog changes were that evening, Eastern; until 4 October this table gave them a row of 30 September, their UTC date) |
+| 30 September | none |
 | 1 to 2 October | none |
 | 3 October | 5: securevibe-e2, e9, e10, practical-banach-b1faa1, and the cato-pipeline session |
 | 4 October, to 11:37 | 4: securevibe-e2, e9, e10, and the cato-pipeline session |
@@ -262,7 +263,10 @@ are lower bounds.
   `main` and the branches on the remote at the cut-off; branches already deleted are missed. A few `COVERAGE.md`
   conflicts may have been the file being regenerated rather than a real clash.
 - **Messages between sessions are not in the repository.** They carried the early agreements and claims, some of
-  the collisions, and, from 28 September, the work sent from cato-pipeline, which the owner carried by hand.
+  the collisions, and, from 28 September, the work sent from cato-pipeline, which the owner carried by hand. One cost of
+  that showed after the cut-off: the rule that the friend's health app is anonymous lived in one session's memory, so
+  the session writing the comparison study put the name back into the paper that morning. It was taken out again
+  (#591, #606), and the rule is now in `CLAUDE.md`, where every session reads it.
 - **Transcripts.** Securevibe-e10's transcript is on this machine (the `loadonce` worktree), and so are the
   cato-pipeline and practical-banach sessions'. Securevibe-e2's and securevibe-e9's are not, so for them the record
   is git, the pull requests, and the backlog only.

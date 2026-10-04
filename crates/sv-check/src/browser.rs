@@ -14,11 +14,101 @@ use crate::signed_in::{Account, Http, Outcome, Rule, Session, finding};
 use serde_json::{Value, json};
 use sv_manifest::{BrowserSection, UsersSection};
 
-/// One visit to the browser: the cookies it starts with, and what it is asked to do, in order.
+/// One visit to the browser: what it is asked to do, in order. It starts with no cookies; a job
+/// that needs some sets them with `Action::SetCookies`, whose answer says which the browser refused.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Job {
-    pub cookies: Vec<(String, String)>,
     pub actions: Vec<Action>,
+}
+
+/// A cookie as the browser is handed it, with the attributes the app set it with, so the browser
+/// keeps it as it would have kept it from the app. Handing over the name and value alone was not
+/// enough: a browser refuses a `__Host-` cookie that is not `Secure`, and the browser checks then
+/// said the browser was not signed in (family-hub, 3 October 2026). No `Domain` is carried: the
+/// browser reaches the app at `localhost`, and the cookie is set for that.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct BrowserCookie {
+    pub name: String,
+    pub value: String,
+    pub secure: bool,
+    pub http_only: bool,
+    /// The `Path` the app gave, or `/` when it gave none.
+    pub path: Option<String>,
+    /// `SameSite`, lower case, as the app wrote it.
+    pub same_site: Option<String>,
+}
+
+impl BrowserCookie {
+    /// A cookie with no attributes but its name and value.
+    pub fn plain(name: &str, value: &str) -> Self {
+        BrowserCookie {
+            name: name.to_owned(),
+            value: value.to_owned(),
+            ..Default::default()
+        }
+    }
+
+    /// As the driver hands it to the browser (DevTools' `Network.setCookie`, less the address).
+    ///
+    /// A name starting `__Secure-` or `__Host-` is a promise the browser holds the app to: it keeps
+    /// such a cookie only when it is `Secure`, and a `__Host-` one only with the path `/`. Those are
+    /// set here whatever the app said, as the owner decided on 4 October 2026, so the prefix itself
+    /// never stops the browser being signed in. Browsers match the prefixes in any case.
+    pub fn to_json(&self) -> Value {
+        let lower = self.name.to_ascii_lowercase();
+        let host = lower.starts_with("__host-");
+        let secure = self.secure || host || lower.starts_with("__secure-");
+        let path = if host {
+            "/"
+        } else {
+            self.path.as_deref().unwrap_or("/")
+        };
+        let mut out = json!({
+            "name": self.name,
+            "value": self.value,
+            "path": path,
+            "secure": secure,
+            "httpOnly": self.http_only,
+        });
+        let same_site = match self.same_site.as_deref() {
+            Some("strict") => Some("Strict"),
+            Some("lax") => Some("Lax"),
+            Some("none") => Some("None"),
+            _ => None,
+        };
+        if let Some(same_site) = same_site {
+            out["sameSite"] = json!(same_site);
+        }
+        out
+    }
+}
+
+/// The cookies the browser refused, from a `SetCookies` answer, each as "name (the browser's
+/// reason)". Empty when it kept them all.
+pub(crate) fn refused_cookies(answer: &Value) -> Vec<String> {
+    field(answer, "refused")
+        .as_array()
+        .map(|list| {
+            list.iter()
+                .filter_map(|r| {
+                    let name = r.get("name")?.as_str()?;
+                    Some(match r.get("why").and_then(Value::as_str) {
+                        Some(why) if !why.is_empty() => format!("{name} ({why})"),
+                        _ => name.to_owned(),
+                    })
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// "The browser refused the cookie a (why)" or "the cookies a (why) and b (why)", for a sentence.
+pub(crate) fn refused_sentence(refused: &[String]) -> String {
+    format!(
+        "the browser refused the cookie{} {}",
+        if refused.len() == 1 { "" } else { "s" },
+        refused.join(" and ")
+    )
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -36,8 +126,9 @@ pub enum Action {
     /// found what to do; when it did, waits for where that leads: answers
     /// `{"found", "after": {"status", "path"}}`.
     Act(String),
-    /// Sets cookies for the app partway through, as the job's own are set at its start: `{}`.
-    SetCookies(Vec<(String, String)>),
+    /// Sets cookies for the app, with their attributes: answers `{"refused": [{"name", "why"}]}`,
+    /// each cookie the browser would not keep and the reason it gave.
+    SetCookies(Vec<BrowserCookie>),
     /// Every request the tab tried to send to a host other than the app's since the job began:
     /// answers `{"requests": [{"url", "method", "type", "page", "body", "headers"}]}`.
     Outside,
@@ -52,7 +143,9 @@ impl Action {
             Action::Eval(expression) => json!({ "eval": expression }),
             Action::Wait(ms) => json!({ "wait": ms }),
             Action::Act(expression) => json!({ "act": expression }),
-            Action::SetCookies(cookies) => json!({ "cookies": cookies }),
+            Action::SetCookies(cookies) => {
+                json!({ "cookies": cookies.iter().map(BrowserCookie::to_json).collect::<Vec<_>>() })
+            }
             Action::Outside => json!({ "outside": true }),
         }
     }
@@ -259,8 +352,9 @@ pub(crate) fn checks(
         return;
     }
 
-    // Every private page, and after them the form and the page that shows what was typed.
-    let mut actions: Vec<Action> = Vec::new();
+    // The cookies first, then every private page, and after them the form and the page that shows
+    // what was typed.
+    let mut actions: Vec<Action> = vec![Action::SetCookies(session.browser_cookies())];
     for page in &users.private {
         actions.push(Action::Goto(page.clone()));
         actions.push(Action::Eval(sign_out_question(
@@ -283,10 +377,7 @@ pub(crate) fn checks(
     // page settles.
     actions.push(Action::Wait(500));
     actions.push(Action::Outside);
-    let job = Job {
-        cookies: session.cookies().to_vec(),
-        actions,
-    };
+    let job = Job { actions };
     let Some(answers) = http.browser(&job).filter(|a| a.len() == job.actions.len()) else {
         not_made(
             out,
@@ -302,6 +393,7 @@ pub(crate) fn checks(
     let sent = answers.pop().unwrap_or(Value::Null);
     let _wait = answers.pop();
     let mut answers = answers.into_iter();
+    let refused = refused_cookies(&answers.next().unwrap_or(Value::Null));
     let mut signed_in = true;
     let mut visits = Vec::new();
     for page in pages {
@@ -313,11 +405,20 @@ pub(crate) fn checks(
         visits.push((page.as_str(), field(&asked, "value").clone()));
     }
     if !signed_in {
+        // A cookie the browser would not keep is the likeliest reason, and said by name.
+        let because = if refused.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " Handed the first user's cookies, {}, which may be why.",
+                refused_sentence(&refused)
+            )
+        };
         not_made(
             out,
             &format!(
                 "the private page{} did not open in the browser with the first user's cookies, \
-                 though {} for the plain requests, so the browser was not really signed in.",
+                 though {} for the plain requests, so the browser was not really signed in.{because}",
                 if pages.len() == 1 { "" } else { "s" },
                 if pages.len() == 1 {
                     "it opened"
@@ -329,9 +430,14 @@ pub(crate) fn checks(
         return;
     }
     out.steps.push(format!(
-        "signed in a real browser with the first user's cookies: {} private page{} opened in it",
+        "signed in a real browser with the first user's cookies: {} private page{} opened in it{}",
         pages.len(),
-        if pages.len() == 1 { "" } else { "s" }
+        if pages.len() == 1 { "" } else { "s" },
+        if refused.is_empty() {
+            String::new()
+        } else {
+            format!(", though {}", refused_sentence(&refused))
+        }
     ));
 
     sign_out_visible(users, &visits, out);
@@ -819,11 +925,10 @@ pub(crate) fn sign_out_check(
         return;
     };
     let job = Job {
-        cookies: Vec::new(),
         actions: vec![
             Action::Goto(login.path.clone()),
             Action::Eval(STORAGE_QUESTION.to_owned()),
-            Action::SetCookies(session.cookies().to_vec()),
+            Action::SetCookies(session.browser_cookies()),
             Action::Goto(private.clone()),
             Action::Eval(STORAGE_QUESTION.to_owned()),
             Action::Act(sign_out_click(&logout.path)),
@@ -840,11 +945,20 @@ pub(crate) fn sign_out_check(
         return;
     };
     if !opened(&a[3], private) {
+        let refused = refused_cookies(&a[2]);
+        let because = if refused.is_empty() {
+            String::new()
+        } else {
+            format!(
+                " Handed the cookies, {}, which may be why.",
+                refused_sentence(&refused)
+            )
+        };
         not_assessed(
             out,
             &format!(
                 "{private} did not open in the browser after signing in, so it was never signed \
-                 in and there was nothing to sign out of."
+                 in and there was nothing to sign out of.{because}"
             ),
         );
         return;
@@ -967,6 +1081,9 @@ mod tests {
         storage: &'static str,
         /// What the pages try to send to other sites: see `outside_requests`.
         sends: &'static str,
+        /// A cookie the browser refuses, as Chromium answers: by name, with its reason. When it is
+        /// the session cookie, `sid`, the browser is not signed in.
+        refuses: Option<&'static str>,
     }
 
     impl Default for App {
@@ -979,7 +1096,18 @@ mod tests {
                 gives_up_after: None,
                 storage: "cleared",
                 sends: "nothing",
+                refuses: None,
             }
+        }
+    }
+
+    /// The fake browser's answer to handing it cookies.
+    fn cookies_answer(a: App) -> Value {
+        match a.refuses {
+            Some(name) => {
+                json!({ "refused": [{ "name": name, "why": "Sanitizing cookie failed" }] })
+            }
+            None => json!({ "refused": [] }),
         }
     }
 
@@ -1089,7 +1217,7 @@ mod tests {
                 .actions
                 .iter()
                 .map(|action| match action {
-                    Action::Goto(path) if a.signed_out => {
+                    Action::Goto(_) if a.signed_out || a.refuses == Some("sid") => {
                         json!({ "status": 200, "path": "/login" })
                     }
                     Action::Goto(path) => json!({ "status": 200, "path": path }),
@@ -1130,7 +1258,8 @@ mod tests {
                         json!({ "value": { "ran": ran, "element": element,
                                            "as_text": as_text, "present": present } })
                     }
-                    Action::Wait(_) | Action::Act(_) | Action::SetCookies(_) => json!({}),
+                    Action::SetCookies(_) => cookies_answer(a),
+                    Action::Wait(_) | Action::Act(_) => json!({}),
                     Action::Outside => outside_requests(a.sends),
                 })
                 .collect();
@@ -1150,8 +1279,8 @@ mod tests {
             .iter()
             .map(|action| match action {
                 Action::SetCookies(c) => {
-                    signed = !c.is_empty() && !a.signed_out;
-                    json!({})
+                    signed = !c.is_empty() && !a.signed_out && a.refuses != Some("sid");
+                    cookies_answer(a)
                 }
                 Action::Goto(path) => {
                     let open = signed && !(clicked && a.storage != "still-in");
@@ -1201,8 +1330,12 @@ mod tests {
         assert!(o.findings.is_empty(), "{:?}", o.findings);
         assert_eq!(credited(&o), vec![KEPT_AFTER_SIGN_OUT.rule_id]);
         // The anonymous look comes before any cookie, and the job starts with none.
-        assert!(jobs[0].cookies.is_empty());
         assert_eq!(jobs[0].actions[0], Action::Goto("/login".into()));
+        assert!(
+            !jobs[0].actions[..2]
+                .iter()
+                .any(|a| matches!(a, Action::SetCookies(_)))
+        );
         assert!(matches!(jobs[0].actions[2], Action::SetCookies(_)));
     }
 
@@ -1510,7 +1643,7 @@ mod tests {
 
     #[test]
     fn a_browser_that_stops_part_of_the_way_is_not_taken_at_its_word_on_anything() {
-        // Both private pages answered, then nothing: the sign-out answers are there, but a list
+        // The cookies and both private pages answered, then nothing: the sign-out answers are there, but a list
         // shorter than the job means the browser did not finish, and nothing it said is used.
         let o = run(App {
             gives_up_after: Some(5),
@@ -1519,6 +1652,125 @@ mod tests {
         assert!(o.verified.is_empty(), "{:?}", o.verified);
         assert!(o.findings.is_empty());
         assert!(unassessed(&o, "V7.4.4").unwrap().contains("did not finish"));
+    }
+
+    #[test]
+    fn each_cookie_reaches_the_browser_with_the_attributes_the_app_set_it_with() {
+        // family-hub's cookies (3 October 2026): a browser refuses a `__Host-` cookie that is not
+        // `Secure`, and the driver used to hand over the name and value alone.
+        let mut s = Session::default();
+        s.absorb(&ProbeResponse {
+            id: String::new(),
+            status: 200,
+            headers: vec![
+                (
+                    "set-cookie".into(),
+                    "__Host-fh_session=v1; Path=/; Secure; HttpOnly; SameSite=Lax".into(),
+                ),
+                (
+                    "set-cookie".into(),
+                    "pref=dark; path=/app; samesite=Strict".into(),
+                ),
+                // Prefixed, but the app left out what the prefix needs: the browser is handed
+                // what the prefix asks for, whatever the app said.
+                ("set-cookie".into(), "__Secure-csrf=t".into()),
+                ("set-cookie".into(), "__host-lower=1; Path=/app".into()),
+                // A path a browser would not take is no path.
+                ("set-cookie".into(), "odd=1; Path=app".into()),
+                // `Secure` with no prefix to imply it: carried from the header alone.
+                ("set-cookie".into(), "tracked=1; secure".into()),
+            ],
+            body: String::new(),
+        });
+        let handed: Vec<Value> = s
+            .browser_cookies()
+            .iter()
+            .map(BrowserCookie::to_json)
+            .collect();
+        assert_eq!(handed.len(), 6, "{handed:?}");
+        assert_eq!(
+            handed[0],
+            json!({ "name": "__Host-fh_session", "value": "v1", "path": "/", "secure": true,
+                    "httpOnly": true, "sameSite": "Lax" })
+        );
+        assert_eq!(
+            handed[1],
+            json!({ "name": "pref", "value": "dark", "path": "/app", "secure": false,
+                    "httpOnly": false, "sameSite": "Strict" })
+        );
+        assert_eq!(handed[2]["secure"], true, "{handed:?}");
+        assert_eq!(handed[3]["secure"], true, "{handed:?}");
+        assert_eq!(handed[3]["path"], "/", "{handed:?}");
+        assert_eq!(handed[4]["path"], "/", "{handed:?}");
+        assert_eq!(handed[5]["secure"], true, "{handed:?}");
+        // No Domain is ever carried: the browser reaches the app at localhost.
+        assert!(handed.iter().all(|c| c.get("domain").is_none()));
+
+        // A cookie set again keeps only its newest attributes, and one emptied is gone.
+        s.absorb(&ProbeResponse {
+            id: String::new(),
+            status: 200,
+            headers: vec![
+                ("set-cookie".into(), "pref=light".into()),
+                ("set-cookie".into(), "odd=; Max-Age=0".into()),
+            ],
+            body: String::new(),
+        });
+        let pref = s
+            .browser_cookies()
+            .into_iter()
+            .find(|c| c.name == "pref")
+            .unwrap();
+        assert_eq!(pref, BrowserCookie::plain("pref", "light"));
+        assert!(!s.browser_cookies().iter().any(|c| c.name == "odd"));
+        assert_eq!(s.browser_cookies().len(), s.cookies().len());
+    }
+
+    #[test]
+    fn a_cookie_the_browser_refuses_is_named_in_the_report() {
+        // The session cookie refused: the browser is not signed in, and the reason is said.
+        let o = run(App {
+            refuses: Some("sid"),
+            ..Default::default()
+        });
+        assert!(o.verified.is_empty() && o.findings.is_empty(), "{o:?}");
+        let why = unassessed(&o, "V7.4.4").unwrap();
+        assert!(why.contains("not really signed in"), "{why}");
+        assert!(
+            why.contains("the browser refused the cookie sid (Sanitizing cookie failed)"),
+            "{why}"
+        );
+
+        // Another cookie refused: the pages still opened, so the checks are made, and the step
+        // says which cookie the browser would not keep.
+        let o = run(App {
+            refuses: Some("big"),
+            ..Default::default()
+        });
+        assert_eq!(
+            credited(&o),
+            vec![HIDDEN_SIGN_OUT.rule_id, TEXT_AS_MARKUP.rule_id]
+        );
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("signed in a real browser")
+                    && s.contains("the browser refused the cookie big")),
+            "{:?}",
+            o.steps
+        );
+        // Nothing refused, nothing said about refusing.
+        let o = run(App::default());
+        assert!(!o.steps.iter().any(|s| s.contains("refused the cookie")));
+
+        // The sign-out check says it too.
+        let (o, _) = run_sign_out(App {
+            refuses: Some("sid"),
+            ..Default::default()
+        });
+        let why = unassessed(&o, "V14.3.1").unwrap();
+        assert!(why.contains("never signed in"), "{why}");
+        assert!(why.contains("the browser refused the cookie sid"), "{why}");
     }
 
     #[test]
@@ -1538,11 +1790,21 @@ mod tests {
         assert_eq!(credited(&o), vec![HIDDEN_SIGN_OUT.rule_id]);
         assert!(unassessed(&o, "V3.2.2").is_none());
         let actions = &jobs[0].actions;
-        // Two pages, each opened and asked about; then what they tried to send elsewhere.
-        assert_eq!(actions.len(), 6);
-        assert_eq!(actions[4..], [Action::Wait(500), Action::Outside]);
+        // The cookies, with what the app set them with; two pages, each opened and asked about;
+        // then what they tried to send elsewhere.
+        assert_eq!(actions.len(), 7);
+        assert_eq!(
+            actions[0],
+            Action::SetCookies(vec![BrowserCookie {
+                name: "sid".into(),
+                value: "abc".into(),
+                http_only: true,
+                path: Some("/".into()),
+                ..Default::default()
+            }])
+        );
+        assert_eq!(actions[5..], [Action::Wait(500), Action::Outside]);
         assert!(!actions.iter().any(|a| matches!(a, Action::Fill { .. })));
-        assert_eq!(jobs[0].cookies, vec![("sid".to_owned(), "abc".to_owned())]);
 
         // With `shows`, the text is looked for there, and the report says so.
         let (o, jobs) = run_on(App::default(), &users(Some("/notes/new"), Some("/notes")));

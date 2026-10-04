@@ -138,7 +138,7 @@
 
   // own-code rate per 1,000 lines: [high, medium, low] as counts, and own-code lines
   const sev = [[2, 1, 1], [0, 7, 3], [2, 14, 0], [0, 8, 0], [9, 6, 9]], lines = [2169, 1371, 6973, 1185, 3173];
-  const short = ["Fitness", "Pain", "SecureFit", "my-first", "family-hub"];
+  const short = ["Fitness", "Health", "SecureFit", "my-first", "family-hub"];
   const s2 = document.getElementById("rates"), B = 165, TOP = 20, M = 8, step = 420 / 5, cx = (i) => 30 + step * (i + 0.5), BW = 40;
   mk(s2, "line", { x1: 20, x2: 450, y1: B, y2: B, stroke: "var(--text-muted)" });
   sev.forEach((r, i) => {

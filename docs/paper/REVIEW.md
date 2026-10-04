@@ -30,7 +30,8 @@ and it was run by the same session.
   high"), it counts the lower, by its own rule, and so does this document.
 
 The review was sent to the SecureVibe sessions in three parts, which the backlog took in as three entries: part 1
-(S1 to S13, R1, R2) in PR #553 at 10:04 Eastern, and parts 2 and 3 in PR #556 at 10:23.
+(S1 to S13, R1, R2) in PR #553 at 10:04 Eastern, and parts 2 and 3 in PR #556 at 10:23. These are the times the pull
+requests merged; `TESTS-AND-FAULTS.md` and `faults.csv` date the same parts by their commits, at 09:54 and 10:06.
 
 ## The 58 findings
 
@@ -115,6 +116,12 @@ the fix for S3 to S5 (write `sv`'s own files never through a link and never over
 at the cut-off; S12 was claimed. All six are in part 1, the order the review asked for: S1, then S2, then S3 to S6,
 then R1 and R2.
 
+**Since the cut-off.** By 16:30 the same day (`4c3c5e0`), 14 of the 58 were fixed: S1, then S3 to S5 (#562, 11:40),
+S12 (#566, 11:56), S2 (#558, 12:10), R2 (#570), S6 (#574), R1 (#578, #588, #598, ending with `sv review` and ADR-026),
+H8, H10, and H11 (#584), and H12 and H13 (#595). H4 was fixed in part (#572), and H3, H14, and H15 were claimed.
+`SINCE-THE-CUTOFF.md` gives the times and what each fix does. The table above and `review.csv` keep the status at the
+cut-off.
+
 **Fixed before the review.** The review lists six earlier issues as already fixed at `eff3f17`: PEP 440 pre-release
 versions, a hash-pinned `requirements.txt` read as a lock, the trailing `/.` path, a missing tool reported as "would
 not start", the blank template's `{new_password}`, and `last_affected` (with H18 still open). All six are among the
@@ -130,8 +137,8 @@ part 3.
   *Read* or *Plausible* was not shown to happen.
 - **Fixtures, not apps.** Reproductions used made-up folders. Whether any of the 58 affected the five apps in the
   comparison study has not been re-checked; a re-run of the study on a fixed `sv` would show it.
-- **A two-and-a-half-hour window.** The cut-off fell the morning the review arrived. The status above says what was
-  done by then, not what will be.
+- **A two-and-a-half-hour window.** The cut-off fell the morning the review arrived. The table says what was done by
+  then; what was done that afternoon is in `SINCE-THE-CUTOFF.md`.
 - **The record.** The sessions that took the review in (`securevibe-e2`, `securevibe-e9`) are not on this machine,
   so from 28 September the record is git, pull requests, and the backlog only. Claims and fixes here are from those.
 

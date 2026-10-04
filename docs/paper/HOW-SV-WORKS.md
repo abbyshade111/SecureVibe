@@ -84,6 +84,24 @@ The evidence ranking, the five stages, and the fence's design did not change. Wh
 found and the cut-off had not yet fixed is not in the figure: in particular, finding S2, that a fenced container
 could reach the network's gateway, which on Linux is the owner's own computer.
 
+## Since the cut-off
+
+The description and the figure are `sv` at `157ddc3`. By 16:30 the same day (`4c3c5e0`), four things in them had
+changed; `SINCE-THE-CUTOFF.md` has the rest.
+
+- **The owner's tiers need `sv review`** (ADR-026). *Documented by the owner*, *checked by hand by the owner*, and
+  *attested by the owner* now count only when the owner recorded the answer through `sv review`, a new command that runs
+  only in a terminal and seals what it records with a key kept outside the app's folder. Written into
+  `securevibe.toml` or `security-notes.md` any other way, the answer is *stated by the AI coding tool*. So are findings
+  set aside and confirmations: without a seal they are proposals. On a computer with no key, such as CI, a sealed entry
+  counts and says its seal could not be checked. The order of the tiers is unchanged.
+- **A finding no longer outranks everything.** One that says it leaves a requirement's credit alone, such as a warning
+  about a test's name, now sits beside the credit (#581).
+- **Fifteen commands**, with `sv review`; it is not an MCP tool, so there are still ten. **Twenty code rules**, with a
+  shell command run with `shell=True` (#587).
+- **The fence has no gateway.** S2 is fixed (#558): the network is made with no gateway address where Docker allows it,
+  and before the app starts a throwaway container checks that nothing answers where a gateway would be.
+
 ## Caption
 
 **Figure: How `sv` works.** The owner and their AI coding tool supply the app, its manifest, the owner's notes,

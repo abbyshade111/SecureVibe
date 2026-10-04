@@ -111,7 +111,7 @@ See the last section.)*
 | False alarms | 160 (82%) | 191 (76%) | 413 (86%) |
 | Accepted, by design | 21 | 61 | 60 |
 | Left open | 14 | 0 | 6 |
-| Real vulnerabilities | 2 (links drawn from data, fixed that evening in `9dc8140`) | 0 found then; 4 in hindsight | 6, all already in the backlog from the deep review, none fixed at the cut-off |
+| Real vulnerabilities | 2 (links drawn from data, fixed that evening in `9dc8140`) | 0 found then; 4 in hindsight | 6, all already in the backlog from the deep review, none fixed at the cut-off; all six fixed that afternoon |
 | Largest source of false alarms | rules that assume an app built from v1's own template (90 of the 95 under A01) | test code inside `sv`'s own source files (189) | test code inside `sv`'s own source files (413), 404 of them now marked by `sv` and listed apart |
 | What the whole repository adds | not run on v1's tests separately | 547 findings from tests, fixtures, examples, and scripts, and 19 manifest answers overruled by fixture code | 683 findings from tests, fixtures, examples, scripts, and the bill of materials, all listed apart but 1, and no manifest answer overruled by those folders |
 | Known-vulnerable dependencies | none recorded; 3 open install-script findings | none of 68 packages | not checked: no advisory data was given |
@@ -204,7 +204,8 @@ and reason.
 | **Total** | **479** | **413 false alarms, 60 accepted, 6 real** | |
 
 **The six real findings.** None is new to the record: each is a weakness the deep review of 4 October
-(`sv-review-2026-10-04.md`, at `eff3f17`) had already reproduced, and each was still open at the cut-off.
+(`sv-review-2026-10-04.md`, at `eff3f17`) had already reproduced, and each was still open at the cut-off. All six
+were fixed that afternoon, after the cut-off: S3 and S4 by #562, S6 by #574, and S12 by #566 (`SINCE-THE-CUTOFF.md`).
 
 | Finding | Where | What is wrong | Review item |
 |---|---|---|---|

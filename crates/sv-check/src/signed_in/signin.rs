@@ -349,6 +349,11 @@ pub(super) fn brute_force_check(
 /// None of this asserts anything on its own: `logs::evaluate` reads what the app wrote. The point
 /// of planting rather than searching for ordinary words is that "the log mentions `admin`" says
 /// nothing at all — every log mentions `admin`.
+///
+/// Every marker is also put somewhere an app that keeps personal data out of its log still writes
+/// down: a request's path. The two sign-ins are each bracketed by a request for a page nobody has
+/// (`/sv-log-before-…`, `/sv-log-after-…`), and the refused request is asked a second time with
+/// the marker as the last part of its path. `logs.rs` says why each keeps its meaning.
 pub(super) fn plant_log_markers(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -364,9 +369,24 @@ pub(super) fn plant_log_markers(
         .filter(|c| c.is_ascii_alphanumeric())
         .take(16)
         .collect();
+    // A request for a page nobody has, carrying a marker and nothing else: nobody's session, no
+    // form, no personal data. Whatever the app answers, it is only ever read as a place in the log.
+    let mark = |http: &mut dyn Http, marker: &str| {
+        http.send(&get(
+            &format!("log-marker-{marker}"),
+            &format!("/{marker}"),
+            &Session::default(),
+        ));
+    };
+    let window = |login: &RequestTemplate, which: &str| crate::logs::Window {
+        open: format!("sv-log-before-{which}-{tag}"),
+        close: format!("sv-log-after-{which}-{tag}"),
+        login_path: login.path.split('?').next().unwrap_or_default().to_owned(),
+    };
 
     // 1. A sign-in for an account that does not exist. Its name can only reach the log because a
-    //    failed authentication was written down.
+    //    failed authentication was written down; and a sign-in event written between the two
+    //    marked requests around it can only be this one.
     if let Some(login) = &users.login {
         let nobody = Account {
             user: format!("sv-log-nobody-{tag}@example.test"),
@@ -384,19 +404,40 @@ pub(super) fn plant_log_markers(
             csrf,
             ..Default::default()
         };
+        let around = window(login, "failed");
+        mark(http, &around.open);
         send_template(http, "log-marker-failed", login, &values, &mut session, &[]);
+        mark(http, &around.close);
         out.log_markers.failed_sign_in = Some(nobody.user);
+        out.log_markers.failed_window = Some(around);
     }
 
     // 2. A sign-in that works, by an account used for nothing else. Needs `signup`: A and B sign in
     //    and fail elsewhere in the run, so neither of their names could tell the two apart.
-    if let Some(signup) = &users.signup {
+    if let (Some(signup), Some(login)) = (&users.signup, &users.login) {
         let only = Account {
             user: format!("sv-log-ok-{tag}@example.test"),
             password: format!("Sv-Log-{tag}-aZ9!"),
         };
         sign_up(http, users, signup, "log-marker", &only);
-        if sign_in(http, users, "log-marker-ok", &only, &mut Vec::new()).is_some() {
+        let around = window(login, "ok");
+        mark(http, &around.open);
+        let signed = sign_in(http, users, "log-marker-ok", &only, &mut Vec::new());
+        mark(http, &around.close);
+        // The window is read for a sign-in event that does not say it failed, so the sign-in has
+        // to be shown to have worked, by the private page opening with its session: an app that
+        // logs `{"event":"login","ok":false}` would otherwise be credited with a success.
+        let worked = signed_in_works
+            && signed.as_ref().is_some_and(|s| {
+                users
+                    .private
+                    .first()
+                    .is_some_and(|p| ok(&http.send(&get("log-marker-ok-confirm", p, &s.session))))
+            });
+        if worked {
+            out.log_markers.successful_window = Some(around);
+        }
+        if worked || (!signed_in_works && signed.is_some()) {
             out.log_markers.successful_sign_in = Some(only.user);
         }
     }
@@ -404,15 +445,43 @@ pub(super) fn plant_log_markers(
     // 3. A private page asked for by nobody, with a marker in the address, which the app should
     //    refuse. Only planted once the page is known to be private at all.
     if signed_in_works && let Some(path) = users.private.first() {
+        let (bare, query) = match path.split_once('?') {
+            Some((bare, query)) => (bare, Some(query)),
+            None => (path.as_str(), None),
+        };
+        // a. After `?`, on the private page itself, so the request means exactly what it did.
         let marker = format!("sv-log-refused-{tag}");
-        let joiner = if path.contains('?') { '&' } else { '?' };
-        let asked = format!("{path}{joiner}{marker}=1");
-        let response = http.send(&get("log-marker-refused", &asked, &Session::default()));
+        let asked = match query {
+            Some(q) => format!("{bare}?{q}&{marker}=1"),
+            None => format!("{bare}?{marker}=1"),
+        };
+        let refused = http
+            .send(&get("log-marker-refused", &asked, &Session::default()))
+            .map(|r| r.status);
         // Only a marker the app actually refused is evidence about a refusal being recorded, and
         // the status it refused with travels with it: a redirect to the sign-in page is a refusal
         // too, and no fixed list of "refused" codes would have contained it.
-        if let Some(status) = response.map(|r| r.status).filter(|s| *s >= 300) {
-            out.log_markers.refused_request = Some((marker, status));
+        if let Some(status) = refused.filter(|s| *s >= 300) {
+            out.log_markers.refused_requests.push((marker, status));
+        }
+        // b. As the last part of the path, which an app that strips query strings still logs.
+        //    That address is not the private page, so its answer only counts as an authorization
+        //    refusal when it is the very refusal the private page got, and not a 404: "no such
+        //    page" answers a different question, and so does an app that hides private pages
+        //    behind a 404 (then the two cannot be told apart, and only `a` is planted).
+        let marker = format!("sv-log-denied-{tag}");
+        let asked = format!(
+            "{}/{marker}{}",
+            bare.trim_end_matches('/'),
+            query.map(|q| format!("?{q}")).unwrap_or_default()
+        );
+        let answered = http
+            .send(&get("log-marker-denied", &asked, &Session::default()))
+            .map(|r| r.status);
+        if let Some(status) = refused.filter(|s| *s >= 300 && *s != 404)
+            && answered == Some(status)
+        {
+            out.log_markers.refused_requests.push((marker, status));
         }
     }
 }
@@ -1136,5 +1205,200 @@ mod tests {
             !finding_ids(&out).contains(&FORWARDED_TRUSTED.rule_id),
             "{steps:?}"
         );
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // The log markers, end to end: planted against the fake app, read back from what it wrote
+
+    /// The suite run against the fake app with sign-up, writing its log in `style`; the outcome
+    /// and the log as one string, as `docker logs` would give it.
+    fn logged_run(style: LogStyle, guards_under_private: bool) -> (Outcome, String) {
+        let mut app = FakeApp::new(Flaws::default());
+        app.log_style = Some(style);
+        app.guards_under_private = guards_under_private;
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        let out = run(
+            &mut app,
+            &super::super::tests::with_signup(),
+            &acc,
+            false,
+            &Default::default(),
+        );
+        let log = app.log.join("\n");
+        (out, log)
+    }
+
+    fn logged_ids(o: &crate::logs::LogOutcome) -> Vec<&str> {
+        o.verified.iter().map(|v| v.check_id.as_str()).collect()
+    }
+
+    #[test]
+    fn an_app_that_logs_only_paths_and_user_ids_is_assessed() {
+        // The family-hub log of 3 October 2026: JSON lines, the path without its query string, a
+        // user id and an event name for each sign-in, and never an email address.
+        let (out, log) = logged_run(LogStyle::Private, true);
+        let m = &out.log_markers;
+        // The setup, shown to have worked before anything is read from it: every marker planted,
+        // the log really free of email addresses and query strings, and the markers in it.
+        let (failed, ok) = (
+            m.failed_window
+                .clone()
+                .expect("the refused sign-in was bracketed"),
+            m.successful_window
+                .clone()
+                .expect("the accepted sign-in was bracketed and shown to work"),
+        );
+        assert_eq!(
+            m.refused_requests
+                .iter()
+                .map(|(_, s)| *s)
+                .collect::<Vec<_>>(),
+            vec![302, 302],
+            "{:?}",
+            m.refused_requests
+        );
+        assert!(!log.is_empty());
+        assert!(!log.contains('@'), "the log holds an email address");
+        assert!(!log.contains('?'), "the log holds a query string");
+        for marker in [&failed.open, &failed.close, &ok.open, &ok.close] {
+            assert!(log.contains(marker.as_str()), "{marker} is not in the log");
+        }
+        assert!(log.contains("sv-log-denied-"), "{log}");
+
+        let o = crate::logs::evaluate(m, &log);
+        for id in [
+            "probe.authentication-logged",
+            "probe.authorization-failure-logged",
+            "probe.log-timestamp-zoned",
+            "probe.log-common-format",
+        ] {
+            assert!(logged_ids(&o).contains(&id), "{id}: {:?}", o.not_assessed);
+        }
+        let assessed: Vec<&str> = o.not_assessed.iter().map(|(id, _)| id.as_str()).collect();
+        // Who made the refused attempt is the one thing such a line cannot be shown to say.
+        assert_eq!(assessed, vec!["V16.2.1"], "{:?}", o.not_assessed);
+        assert!(o.not_assessed[0].1.contains("who"), "{:?}", o.not_assessed);
+        assert!(o.findings.is_empty(), "{:?}", o.findings);
+    }
+
+    #[test]
+    fn a_marked_path_the_app_calls_no_such_page_is_not_counted_as_a_refusal() {
+        // The fake app guards `/account` but answers 404 for anything under it. That 404 is not an
+        // authorization decision, so only the marker after `?` is planted; the private log strips
+        // it, and the refused request is then not assessed, with privacy named as a reason.
+        let (out, log) = logged_run(LogStyle::Private, false);
+        let m = &out.log_markers;
+        assert_eq!(m.refused_requests.len(), 1, "{:?}", m.refused_requests);
+        assert!(m.refused_requests[0].0.starts_with("sv-log-refused-"));
+        // The marked path was asked for, and answered 404.
+        assert!(log.contains("sv-log-denied-"), "{log}");
+        assert!(
+            log.lines()
+                .any(|l| l.contains("sv-log-denied-") && l.contains(r#""status":404"#)),
+            "{log}"
+        );
+        let o = crate::logs::evaluate(m, &log);
+        assert!(!logged_ids(&o).contains(&"probe.authorization-failure-logged"));
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V16.3.2" && why.contains("privacy rules")),
+            "{:?}",
+            o.not_assessed
+        );
+        // The sign-ins do not depend on it.
+        assert!(logged_ids(&o).contains(&"probe.authentication-logged"));
+    }
+
+    #[test]
+    fn a_private_page_hidden_behind_a_404_gets_no_marker_in_its_path() {
+        // When the private page itself answers 404, a 404 under it cannot be told from "no such
+        // page", so only the marker after `?` (on the page itself) is planted.
+        let mut app = FakeApp::new(Flaws::default());
+        app.log_style = Some(LogStyle::Full);
+        app.hides_private = true;
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        let mut out = Outcome::default();
+        plant_log_markers(
+            &mut app,
+            &super::super::tests::with_signup(),
+            &acc,
+            true,
+            &mut out,
+        );
+        let log = app.log.join("\n");
+        // Both were asked, and both answered 404.
+        for marker in ["sv-log-refused-", "sv-log-denied-"] {
+            assert!(
+                log.lines()
+                    .any(|l| l.contains(marker) && l.ends_with(" 404")),
+                "{marker}: {log}"
+            );
+        }
+        let planted: Vec<&str> = out
+            .log_markers
+            .refused_requests
+            .iter()
+            .map(|(m, _)| m.as_str())
+            .collect();
+        assert_eq!(planted.len(), 1, "{planted:?}");
+        assert!(planted[0].starts_with("sv-log-refused-"), "{planted:?}");
+    }
+
+    #[test]
+    fn an_app_that_logs_email_addresses_and_query_strings_is_still_read_by_them() {
+        // The old way in still works, and, being by the account's name, still speaks to who.
+        let (out, log) = logged_run(LogStyle::Full, false);
+        let m = &out.log_markers;
+        let failed = m
+            .failed_sign_in
+            .clone()
+            .expect("the refused sign-in was planted");
+        assert!(log.contains(failed.as_str()), "{log}");
+        assert!(log.contains("?sv-log-refused-"), "{log}");
+        let o = crate::logs::evaluate(m, &log);
+        for id in [
+            "probe.authentication-logged",
+            "probe.authorization-failure-logged",
+            "probe.log-line-metadata",
+            "probe.log-timestamp-zoned",
+        ] {
+            assert!(logged_ids(&o).contains(&id), "{id}: {:?}", o.not_assessed);
+        }
+        let named = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == "probe.authentication-logged")
+            .unwrap();
+        assert!(named.scope.contains("both named"), "{}", named.scope);
+    }
+
+    #[test]
+    fn the_accepted_sign_in_is_bracketed_only_when_it_worked() {
+        // A sign-in event that does not say it failed is read as a success, so the success has to
+        // be shown, not assumed: with sign-up broken, the window is not planted.
+        let mut app = FakeApp::new(Flaws {
+            broken_login: true,
+            ..Default::default()
+        });
+        app.log_style = Some(LogStyle::Private);
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        let mut out = Outcome::default();
+        plant_log_markers(
+            &mut app,
+            &super::super::tests::with_signup(),
+            &acc,
+            true,
+            &mut out,
+        );
+        assert!(out.log_markers.failed_window.is_some());
+        assert!(out.log_markers.successful_window.is_none());
+        assert!(out.log_markers.successful_sign_in.is_none());
     }
 }

@@ -82,7 +82,8 @@ Statuses: `pass`, `ai-assessed`, `documented`, `attested`, `partial`, `fail`, `n
 - Template suite: 28 security test files; every test name must begin with a requirement id, and a separate check
   compares each test's name and body against that requirement's wording.
 - Evaluation harness: five golden applications rebuilt without AI and compared against recorded baselines. A
-  template or pipeline change is not finished until they pass.
+  template or pipeline change is not finished until they pass. (Four at the first run quoted below; the fifth was added
+  at 15:41 on 19 September.)
 
 ## What the harness is for, and what it caught
 
@@ -159,3 +160,16 @@ attributes in the code, as `TESTS-AND-FAULTS.md` counts them by day. It has no g
 (`examples/`) and the comparison study's five AI-built apps (29 September to 3 October) are what it is run
 against. The rule that carried over from v1's methodology unchanged is the evidence rule: what an AI says is the
 weakest tier and never makes a requirement *checked* (`ADRS.md`, ADR-006 and ADR-022).
+
+## Since the cut-off
+
+`SINCE-THE-CUTOFF.md` records what changed in `sv` after `157ddc3`; two changes bear on the method.
+
+- **The owner's word now needs the owner's own record.** Since the afternoon of 4 October (ADR-026), an answer counts
+  at the owner's tiers (*documented*, *attested*, *checked by hand*), and a finding counts as set aside, only when the
+  owner recorded it through `sv review`, a command that runs only in a terminal and seals what it records. Written
+  into a file any other way, `by = "owner"` included, it counts as the AI coding tool's word. The evidence rule above is
+  unchanged; what changed is how the owner's tier is earned.
+- **The comparison study reproduces on its own commit.** It ran on `45b6d71`. On `sv` after the cut-off, its owner's
+  18 findings set aside and 26 owner answers are unsealed, so they would count as the tool's word, and the advisory
+  matching differs (deep review H8, H10, H11). `sv` had 1,761 tests at `4c3c5e0` (16:30 on 4 October).

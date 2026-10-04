@@ -4,7 +4,7 @@
 // on 127.0.0.1 and the app by its name on the fenced network, and nothing else. It reads one job
 // from the environment and prints one line of JSON: the result of each action, in order.
 //
-// SV_JOB = base64 of {"app": "http://app:8080", "cookies": [[name, value]], "actions": [...]}
+// SV_JOB = base64 of {"app": "http://localhost:8080", "actions": [...]}
 // Actions:
 //   {"goto": "/path"}                     -> {"status": 200, "path": "/where/it/ended"}
 //   {"fill": "/path", "text": "..."}      -> {"status", "found": bool, "after": {"status", "path"}}
@@ -13,7 +13,10 @@
 //       runs an expression that does something in the page, such as clicking, and answers
 //       whether it found what to do; when it did, waits for wherever that leads.
 //   {"wait": 500}                         -> {}
-//   {"cookies": [[name, value]]}          -> {} (sets them for the app, as the job's own do)
+//   {"cookies": [{"name", "value", "path", "secure", "httpOnly", "sameSite"}]}
+//                                         -> {"refused": [{"name", "why"}]}
+//       sets them for the app, with the attributes given, and answers which the browser would not
+//       keep and why. A browser refuses a `__Host-` cookie that is not `Secure`, for one.
 //   {"outside": true}                     -> {"requests": [{"url", "method", "type", "page", "body", "headers"}]}
 //       every request the tab tried to send to a host other than the app's, since the job began.
 //       The fence stops each one leaving; the browser records it before it tries.
@@ -75,8 +78,20 @@ const page = (method, params) => send(method, params, sessionId);
 await page('Page.enable');
 await page('Network.enable');
 
-for (const [name, value] of job.cookies || []) {
-  await page('Network.setCookie', { name, value, url: job.app, path: '/' });
+// Each cookie set for the app's address, with its attributes, and the browser's answer read: an
+// error, or `success: false` from an older browser, is a cookie it did not keep.
+async function setCookies(cookies) {
+  const refused = [];
+  for (const cookie of cookies || []) {
+    const { name, value, path, secure, httpOnly, sameSite } = cookie;
+    const params = { name, value, url: job.app, path: path || '/', secure: !!secure, httpOnly: !!httpOnly };
+    if (sameSite) params.sameSite = sameSite;
+    const r = await page('Network.setCookie', params);
+    if (r.error || r.result?.success === false) {
+      refused.push({ name, why: String(r.error?.message || 'refused').slice(0, 200) });
+    }
+  }
+  return refused;
 }
 
 // The status of the last page the tab loaded, and whether its load has finished.
@@ -189,10 +204,7 @@ for (const action of job.actions || []) {
       const r = await page('Runtime.evaluate', { expression: action.eval, returnByValue: true, awaitPromise: true });
       results.push({ value: r.result?.result?.value ?? null });
     } else if ('cookies' in action) {
-      for (const [name, value] of action.cookies) {
-        await page('Network.setCookie', { name, value, url: job.app, path: '/' });
-      }
-      results.push({});
+      results.push({ refused: await setCookies(action.cookies) });
     } else if ('outside' in action) {
       results.push({ requests: outside });
     } else if ('wait' in action) {

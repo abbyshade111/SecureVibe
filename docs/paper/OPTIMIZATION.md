@@ -19,7 +19,8 @@ and cost, and from the runs' own `startedAt`/`finishedAt`.
 | Check only, no AI | 28 | **0.6 min** | $0.00 | — |
 
 The free check-only run takes about **36 seconds** and is the one an owner will do most often. The expensive
-path is eleven times slower and is the only one that writes code.
+path is the only one that writes code: eleven times slower than a full build without AI, and about 75 times slower
+than a check-only run (this compared it only with the first until 4 October).
 
 **The result this bears on**: SecureFit verified 104 of 159 applicable ASVS requirements on a **free, 4-minute,
 no-AI check**. The uploaded copy of the same code spent $2.38 on an AI review and verified nothing. Cost did not

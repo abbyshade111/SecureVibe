@@ -8,10 +8,11 @@ files are the record and the reader can recompute anything in them.
 The documents run to the cut-off, `main` at `157ddc3` (Merge PR #564, 11:37 Eastern on 4 October 2026); each says so,
 and where a number has changed since its first version (mostly 27 to 29 September), it gives both. The v1 comparison
 files (`figure-three-arms.html`, `requirements.csv`, `findings.csv`) are v1's fixed record of 20 September and are not
-updated.
+updated. What changed in `sv` after the cut-off is in one file, `SINCE-THE-CUTOFF.md`, which the others point to.
 
 | file | what it is |
 |---|---|
+| `SINCE-THE-CUTOFF.md` | What changed in `sv` after the cut-off, to `main` at `4c3c5e0` (16:30 on 4 October): 41 more pull requests, 14 of the deep review's 58 findings fixed, `sv review` and ADR-026 (the owner's word counts only when the owner recorded it), 1,761 tests, and what that means for re-running the comparison study. |
 | `TIMELINE.md` | The surviving record, 18 September to 4 October 2026, by day: 1,784 commits in all; the 116 to 17:32 on 20 September, then each of the 569 changes that reached `main` (528 of them pull requests), with times and subjects. |
 | `figure-timeline.html` | The whole project on one page: v1 and `sv` as two lanes, twelve numbered milestones, and commits per day, with the same numbers as tables beneath. |
 | `HOW-SV-WORKS.md` | A short account of how `sv` works, drawn from `main` on 29 September and redrawn at the cut-off, with what changed between the two. |
@@ -41,18 +42,18 @@ updated.
 | `coordination.csv` | 359 rows, one per event: claims, unmerged pull requests, conflicts, duplicates, collisions, work sent between sessions, and faults found in review, each with its source. |
 | `figure-coordination.html` | The same, as three charts: changes to `main` per day with the coordination share, conflicts per day, and how the project's 255 faults were found. |
 | `TESTS-AND-FAULTS.md` | Test growth against fault discovery: 255 faults in SecureVibe's own code (149 to 28 September), 196 fixed and 59 open at the cut-off, how each was found (7 of the 230 in the product by a failing test), the rate per 1,000 lines changed as the suites grew (`sv` 1,655 tests at the cut-off), and whether each fix added a test (141 of 159). |
-| `faults.csv` | 254 rows covering the 255 faults, and 5 rows not counted (2 the review marked plausible, a limit, and 2 that name no fault in `sv`): when and how each was found, when fixed, whether the fix added a test, and the commit or pull request. |
+| `faults.csv` | 254 rows: 249 counted, which stand for the 255 faults, and 5 not counted (2 the review marked plausible, a limit, and 2 that name no fault in `sv`): when and how each was found, when fixed, whether the fix added a test, and the commit or pull request. |
 | `tests_by_day.csv` | Tests, tests added, faults found, and lines changed, per day and version, to 4 October. |
 | `figure-tests-faults.html` | The same, as tests per day, faults per day with the rate per 1,000 lines, and the 159 fixes that did or did not leave a test behind. |
 | `STUDY.md` | The comparison study, 29 September to 3 October: `sv` run on five AI-built apps under identical conditions, recomputed from the study's raw output. 422 findings, 62 of them in the apps' own code; the ten `sv` issues it raised, all fixed on `main`. |
 | `study.csv` | 606 rows, one per app, run, and measure, each with its source. |
 | `figure-study.html` | The same, as charts per app: where the findings were, own-code findings per 1,000 lines, what the requirements came to, and family-hub as built. |
-| `REVIEW.md` | The deep review of `sv` at `eff3f17` on 4 October: 58 findings (1 critical, 26 high, 22 medium, 9 low), how they were found, and what was done by the cut-off: S1 fixed (#555), S2 to S5 and S12 claimed, S2 to S5 in open pull requests #558 and #562. |
+| `REVIEW.md` | The deep review of `sv` at `eff3f17` on 4 October: 58 findings (1 critical, 26 high, 22 medium, 9 low), how they were found, and what was done by the cut-off: S1 fixed (#555), S2 to S5 and S12 claimed, S2 to S5 in open pull requests #558 and #562 (both merged shortly after; `SINCE-THE-CUTOFF.md`). |
 | `review.csv` | 58 rows, one per finding: part, severity, how it was confirmed, its state at the cut-off, and its backlog entry. |
 | `figure-review.html` | The same, one square per finding, by part and severity, marked by its state at the cut-off. |
 | `METHODOLOGY.md` | What a v1 run does, the frameworks and their counts (AISVS 191, and 68 in Appendix C), the evidence model, the comparison design, what checks the checker (v1: 1,078 server tests at `v1-paper`; `sv`: 1,655 at the cut-off), and stated limits. |
 | `figure-three-arms.html` | The outcome figure: requirements by evidence strength across the three arms, with the table beneath it. |
-| `requirements.csv` | 1,035 rows — every ASVS and AISVS requirement, per arm, with its status, the evidence types behind it and how many pieces. |
+| `requirements.csv` | 1,035 rows — every ASVS requirement (345 for each of the three arms), with its status, the evidence types behind it and how many pieces. (Until 4 October this said "every ASVS and AISVS requirement"; it holds no AISVS rows.) |
 | `findings.csv` | 38 rows — every finding raised across the three arms, with rule id, severity, file and which scanner raised it. |
 
 ## Outside the repository (on the owner's machine)
@@ -72,10 +73,16 @@ report, and the deep review, are in the owner's other project at `~/code/sv-stud
 | `2026-09-20_FitnessTracker_uploaded/` | The *first* Python run, before the day's reporting fixes — the one that said "0 of 106 verified". Kept deliberately as the before-state, with a README explaining why its numbers are wrong. |
 | `SecureFit-app-2026-09-20/` | The exact source uploaded for Arm B, 200 files, secrets removed. Byte-identical to Arm A's code. |
 
+## Citation tags
+
+The paper cites v1 by the tags `v1-paper` (the comparison of 20 September), `v1-paper-doi`, and `v1-final` (v1 as
+archived), and by its Zenodo version DOI, 10.5281/zenodo.22984709. All three tags are in this repository.
+
 ## The evidence breakdown
 
-The single table most worth reproducing, computed from `requirements.csv`. Counts are pieces of evidence
-gathered, not requirements:
+The single table most worth reproducing, computed from `requirements.csv`. Counts are requirements carrying each type
+of evidence; one requirement can carry several. (Until 4 October this said they were pieces of evidence; the file's
+`evidence_count` column, which counts pieces, sums to 505, 81, and 19.)
 
 | evidence type | tier | Arm A (native) | Arm B (same code, uploaded) | Arm C (Python, uploaded) |
 |---|---|---|---|---|
@@ -87,7 +94,8 @@ gathered, not requirements:
 | AI review | weak | 0 | 55 | 0 |
 | **total** | | **289** | **80** | **19** |
 
-Arm A gathered 140 pieces of strong evidence. Arms B and C gathered none, and no amount of scanning or AI review
+In Arm A, 101 requirements had strong evidence (82 from a test, 58 from a runtime probe, some from both). Arms B and C
+had none, and no amount of scanning or AI review
 can produce any, because strong evidence in this model means the app was *run* — a test executed, a live request
 refused. That is the whole of the 104-to-0 difference, and it is a property of the method rather than of the code.
 

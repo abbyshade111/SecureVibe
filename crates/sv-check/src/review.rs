@@ -125,7 +125,14 @@ pub fn fill_fingerprints(app_dir: &Path, findings: &mut [Finding]) {
 }
 
 /// Applies the entries to the findings, which must already have their fingerprints.
+///
+/// An entry may name a rule that was merged into a finding rather than the one kept (see
+/// `merge_same_place`): the rule kept on a line can change when a tool is added or `sv`'s choice
+/// of words changes, and a person's review of that line should not be lost with it. Such an entry
+/// counts when its fingerprint is the one the finding would have had under the rule it names
+/// (its line read from `app_dir`).
 pub fn apply(
+    app_dir: &Path,
     entries: &[FindingReview],
     findings: Vec<Finding>,
     today: Day,
@@ -138,9 +145,17 @@ pub fn apply(
     for entry in entries {
         let named = format!("`{}` in {} ({})", entry.rule, entry.file, entry.fingerprint);
         let Some(i) = out.findings.iter().position(|f| {
-            f.fingerprint == entry.fingerprint
-                && f.location.file == entry.file
-                && (f.rule_id == entry.rule || f.also_reported_by.contains(&entry.rule))
+            f.location.file == entry.file
+                && ((f.fingerprint == entry.fingerprint
+                    && (f.rule_id == entry.rule || f.also_reported_by.contains(&entry.rule)))
+                    || (f.also_reported_by.contains(&entry.rule)
+                        && fingerprint(
+                            app_dir,
+                            &Finding {
+                                rule_id: entry.rule.clone(),
+                                ..f.clone()
+                            },
+                        ) == entry.fingerprint))
         }) else {
             out.not_counted.push(format!(
                 "{named}: no finding matches it any more. The flagged line changed, so the \
@@ -319,6 +334,16 @@ mod tests {
 
     /// `apply` as on the computer whose key sealed the entries.
     fn apply(entries: &[FindingReview], findings: Vec<Finding>, today: Day) -> Outcome {
+        apply_in(Path::new("/no/app/folder"), entries, findings, today)
+    }
+
+    /// `apply`, with the app's lines read from `app_dir`.
+    fn apply_in(
+        app_dir: &Path,
+        entries: &[FindingReview],
+        findings: Vec<Finding>,
+        today: Day,
+    ) -> Outcome {
         let sealed: Vec<FindingReview> = entries
             .iter()
             .map(|e| {
@@ -330,7 +355,7 @@ mod tests {
                 e
             })
             .collect();
-        super::apply(&sealed, findings, today, &Checker::Key(key()))
+        super::apply(app_dir, &sealed, findings, today, &Checker::Key(key()))
     }
 
     fn today() -> Day {
@@ -374,6 +399,54 @@ mod tests {
     }
 
     #[test]
+    fn a_review_of_the_rule_that_used_to_be_kept_still_counts_when_another_is_kept() {
+        // Bandit's B105 was kept on the family-hub line until 4 October 2026, and `sv`'s own rule
+        // is now; a review written against Bandit's fingerprint must still find its line.
+        let dir = std::env::temp_dir().join(format!("sv-review-merged-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("app.py"),
+            "WRONG_PASSWORD = \"Your current password isn't right.\"\nOTHER = 1\n",
+        )
+        .unwrap();
+        let kept = || {
+            let mut f = finding("secrets.credential-assignment", "app.py", 1);
+            f.also_reported_by = vec!["bandit.B105".into()];
+            f.fingerprint = fingerprint(&dir, &f);
+            f
+        };
+        let reviewed = |rule: &str, line: &str| {
+            let mut e = entry(rule, FALSE_ALARM, Some("owner"), "2026-09-27", SECRET_WHY);
+            e.fingerprint = named(rule, "app.py", line);
+            e
+        };
+        let line = "WRONG_PASSWORD = \"Your current password isn't right.\"";
+        // The setup: the kept finding's own fingerprint is not the one the entry holds.
+        assert_ne!(kept().fingerprint, named("bandit.B105", "app.py", line));
+        let out = apply_in(
+            &dir,
+            &[reviewed("bandit.B105", line)],
+            vec![kept()],
+            today(),
+        );
+        assert!(out.findings.is_empty(), "{:?}", out.not_counted);
+        // The controls: another line under the same rule, and a rule not merged into this finding.
+        for e in [
+            reviewed("bandit.B105", "OTHER = 1"),
+            reviewed("semgrep.hardcoded-password", line),
+        ] {
+            let out = apply_in(&dir, &[e], vec![kept()], today());
+            assert_eq!(
+                out.findings.len(),
+                1,
+                "an entry for another finding counted"
+            );
+            assert_eq!(out.not_counted.len(), 1);
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
     fn an_entry_counts_only_as_sv_review_sealed_it() {
         let finding = || vec![finding("ast.a", "app.py", 5)];
         let sealed =
@@ -392,6 +465,7 @@ mod tests {
             WHY,
         ));
         let here = super::apply(
+            Path::new("/no/app/folder"),
             std::slice::from_ref(&good),
             finding(),
             today(),
@@ -430,6 +504,7 @@ mod tests {
             (&elsewhere, "not this computer's"),
         ] {
             let out = super::apply(
+                Path::new("/no/app/folder"),
                 std::slice::from_ref(e),
                 finding(),
                 today(),
@@ -449,6 +524,7 @@ mod tests {
         // Where there is no key to check with, a sealed entry counts and says so; an unsealed one
         // is still a proposal.
         let no_key = super::apply(
+            Path::new("/no/app/folder"),
             std::slice::from_ref(&elsewhere),
             finding(),
             today(),
@@ -459,7 +535,13 @@ mod tests {
             no_key.set_aside[0].sealed,
             Sealed::Unchecked { key: other.id() }
         );
-        let no_key = super::apply(&[unsealed], finding(), today(), &Checker::NoKey);
+        let no_key = super::apply(
+            Path::new("/no/app/folder"),
+            &[unsealed],
+            finding(),
+            today(),
+            &Checker::NoKey,
+        );
         assert_eq!(no_key.findings.len(), 1);
     }
 

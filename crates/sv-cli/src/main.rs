@@ -1256,6 +1256,11 @@ fn probe_the_running_app(
     if let Some(warning) = sv_run::loopback_warning(&plan.start) {
         eprintln!("{warning}");
     }
+    // A start command that switches something off for the run (family-hub, 3 October 2026, item 3):
+    // said here, before the run, and again in the report's note about the run.
+    if let Some(warning) = sv_run::weakening_warning(&plan.start) {
+        eprintln!("{warning}");
+    }
     let requests = anonymous_requests(&plan);
     let outcome = backend.run(&plan, &requests);
     // Stopped with Ctrl-C: the run has removed its containers and network on the way out. What it
@@ -3153,6 +3158,11 @@ fn assemble_report_saying(
                 ) {
                     note.push_str(&format!(" {removed}"));
                 }
+                if let (Some(note), Some(weaker)) =
+                    (run_note.as_mut(), sv_run::weakening_note(&plan.start))
+                {
+                    note.push_str(&format!(" {weaker}"));
+                }
                 for (requirements, why) in signed_in_not_assessed {
                     // AISVS ids are the AI feature's, asked through the test model, which may not
                     // have involved signing in at all.
@@ -3941,6 +3951,7 @@ fn assemble_report_saying(
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let reviewed = sv_check::review::apply(
+        app_dir,
         &manifest.finding_review,
         findings,
         sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
