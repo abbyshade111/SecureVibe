@@ -76,8 +76,14 @@ const REPORT_SEARCH_DEPTH: usize = 6;
 const MAX_REPORT_FOLDERS: usize = 100;
 
 const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AISVS 1.0 and the \
-    Secure by Design checklist. Call securevibe_spec first if the app has no securevibe.toml, and \
-    write one from it. Call securevibe_guidance once before you start writing code, and again \
+    Secure by Design checklist. Decide before you build. If the app has no code yet, call \
+    securevibe_spec and write securevibe.toml first, for the app as it will be, deciding each \
+    answer with the person; then, before you build sign-in, anything people create or take, \
+    logging, or a call to anything outside the app, get the design-time prompt for it from \
+    securevibe_prompts, work through it with the person, and write down what was decided where it \
+    says, before the code. The person can choose those prompts from this server's prompts too. If \
+    the app already has code and no securevibe.toml, call securevibe_spec and write one from the \
+    code that is there. Call securevibe_guidance once before you start writing code, and again \
     with a topic before work in that area (adding a package, a CI workflow, anything with keys), \
     and follow the rules it gives while you code. securevibe_check never says a requirement passed: read what it says was not \
     examined before anything else, and do not tell the person the app is secure. Some questions \
@@ -421,6 +427,14 @@ impl Server {
                 Err(Unreadable::Malformed(why)) => error_reply(id, -32602, &why),
                 Err(Unreadable::NotFound(why)) => error_reply(id, RESOURCE_NOT_FOUND, &why),
             },
+            "prompts/list" => match prompt_list() {
+                Ok(result) => ok_reply(id, result),
+                Err((code, why)) => error_reply(id, code, &why),
+            },
+            "prompts/get" => match get_prompt(&params) {
+                Ok(result) => ok_reply(id, result),
+                Err((code, why)) => error_reply(id, code, &why),
+            },
             other => error_reply(id, -32601, &format!("no method called {other}")),
         })
     }
@@ -456,7 +470,7 @@ impl Server {
         let mut result = match method {
             "server/discover" => json!({
                 "supportedVersions": STATELESS_VERSIONS.iter().chain(PROTOCOL_VERSIONS).collect::<Vec<_>>(),
-                "capabilities": { "tools": {}, "resources": {} },
+                "capabilities": { "tools": {}, "resources": {}, "prompts": {} },
                 "instructions": self.instructions(),
                 "ttlMs": CACHE_MS,
                 // The instructions name where this `sv` is on this computer, which is the person's own.
@@ -490,6 +504,22 @@ impl Server {
                     return error_reply(id, -32602, &why);
                 }
             },
+            // The same for everyone who runs this version of `sv`, as the tools are.
+            "prompts/list" | "prompts/get" => {
+                let answer = if method == "prompts/list" {
+                    prompt_list()
+                } else {
+                    get_prompt(params)
+                };
+                match answer {
+                    Ok(mut result) => {
+                        result["ttlMs"] = json!(CACHE_MS);
+                        result["cacheScope"] = json!("public");
+                        result
+                    }
+                    Err((code, why)) => return error_reply(id, code, &why),
+                }
+            }
             // `initialize` and `ping` are gone from this version, and nothing else is offered.
             other => return error_reply(id, -32601, &format!("no method called {other}")),
         };
@@ -518,6 +548,7 @@ impl Server {
             "capabilities": {
                 "tools": { "listChanged": false },
                 "resources": { "listChanged": false },
+                "prompts": { "listChanged": false },
             },
             "serverInfo": { "name": "securevibe", "version": env!("CARGO_PKG_VERSION") },
             "instructions": self.instructions(),
@@ -1489,6 +1520,70 @@ fn output_schema(tool: &str) -> Option<Value> {
     Some(schema)
 }
 
+/// The design-time prompts, offered as MCP prompts: what a client shows a person to choose from (in
+/// Claude Code, as slash commands), rather than what the model decides to call. Only the design-time
+/// file, because these are what to decide before any code, and choosing one is the person's
+/// decision; the prompts for the coding stay with `securevibe_prompts` (BACKLOG, "Design-time help
+/// before any code", item 2).
+fn design_prompts() -> Result<sv_check::prompts::Prompts, (i64, String)> {
+    let paths = crate::prompts_paths();
+    sv_check::prompts::Prompts::load_all(&[&paths[1]]).map_err(|e| (-32603, format!("{e:#}")))
+}
+
+/// What the person reads beside a prompt before choosing it: whether it has been shown to work, and
+/// which Secure by Design controls it helps them answer. Every copy of a prompt says this, so "not
+/// tested" and "shown" never read the same.
+fn prompt_description(p: &sv_check::prompts::Prompt) -> String {
+    use sv_check::prompts::Status;
+    let status = match p.status {
+        Status::Shown => "Shown to work.",
+        Status::NotShown => "Not tested: tried, and not shown to work.",
+        Status::Untested => "Not tested: not tried yet.",
+    };
+    if p.sbd_controls.is_empty() {
+        status.to_owned()
+    } else {
+        format!(
+            "{status} Helps you answer Secure by Design {} (you still answer each).",
+            p.sbd_controls.join(", ")
+        )
+    }
+}
+
+fn prompt_list() -> Result<Value, (i64, String)> {
+    let prompts = design_prompts()?;
+    let listed: Vec<Value> = prompts
+        .prompts
+        .iter()
+        .map(|p| json!({ "name": p.id, "title": p.title, "description": prompt_description(p) }))
+        .collect();
+    Ok(json!({ "prompts": listed }))
+}
+
+/// One prompt, as the message the person sends: its text, then whether it was shown to work, that it
+/// is an instruction and not evidence, and the credit its license asks for on every copy.
+fn get_prompt(params: &Value) -> Result<Value, (i64, String)> {
+    let name = params.get("name").and_then(Value::as_str).ok_or((
+        -32602,
+        "prompts/get needs a name, as prompts/list gives".to_owned(),
+    ))?;
+    let prompts = design_prompts()?;
+    let Some(p) = prompts.prompts.iter().find(|p| p.id == name) else {
+        return Err((-32602, format!("there is no prompt called {name}")));
+    };
+    let description = prompt_description(p);
+    let text = format!(
+        "{}\n\n---\n{description} A prompt is an instruction, not evidence: check the app with \
+         SecureVibe afterwards, whichever prompt you use.\n\n{}",
+        p.prompt.trim_end(),
+        prompts.credit.trim()
+    );
+    Ok(json!({
+        "description": description,
+        "messages": [{ "role": "user", "content": { "type": "text", "text": text } }],
+    }))
+}
+
 fn tool_list() -> Value {
     let path = json!({
         "type": "string",
@@ -1597,7 +1692,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_spec",
             "title": "How to describe the app",
-            "description": "The securevibe.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder from what the app really does; a claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
+            "description": "The securevibe.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder: before any code, for the app as it will be, decided with the person; once there is code, from what the app really does. A claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
             "inputSchema": { "type": "object", "properties": {} },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         }
@@ -4115,7 +4210,7 @@ mod tests {
             ]
         );
         let unknown = server
-            .handle(&json!({"jsonrpc":"2.0","id":4,"method":"prompts/list"}))
+            .handle(&json!({"jsonrpc":"2.0","id":4,"method":"completion/complete"}))
             .unwrap();
         assert_eq!(unknown["error"]["code"], -32601);
         assert_eq!(
@@ -4288,5 +4383,132 @@ mod tests {
             );
             assert_eq!(result["isError"], true, "{}", text(&result));
         }
+    }
+
+    /// The design-time prompts as the data file holds them, read apart from the server, so the tests
+    /// below compare the server with the file rather than with itself.
+    fn design_file() -> Vec<Value> {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-prompts.json");
+        let file: Value = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        file["prompts"].as_array().unwrap().clone()
+    }
+
+    #[test]
+    fn the_design_time_prompts_are_offered_as_prompts_each_saying_whether_it_was_shown_to_work() {
+        let server = Server::new(&examples()).unwrap();
+        let init = server
+            .handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize",
+                "params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}))
+            .unwrap();
+        assert!(init["result"]["capabilities"]["prompts"].is_object(), "{init}");
+        let list = server
+            .handle(&json!({"jsonrpc":"2.0","id":2,"method":"prompts/list"}))
+            .unwrap();
+        let listed = list["result"]["prompts"].as_array().expect("a list of prompts");
+        let file = design_file();
+        let names: Vec<&str> = listed.iter().map(|p| p["name"].as_str().unwrap()).collect();
+        let ids: Vec<&str> = file.iter().map(|p| p["id"].as_str().unwrap()).collect();
+        assert_eq!(names, ids, "every design-time prompt, in the file's order, and nothing else");
+        // The control: the file holds prompts of both kinds, so each mark below is tested.
+        assert!(file.iter().any(|p| p["status"] == "shown"));
+        assert!(file.iter().any(|p| p["status"] != "shown"));
+        for (offered, held) in listed.iter().zip(&file) {
+            assert_eq!(offered["title"], held["title"]);
+            let description = offered["description"].as_str().unwrap();
+            let mark = if held["status"] == "shown" { "Shown to work." } else { "Not tested:" };
+            assert!(description.starts_with(mark), "{}: {description}", held["id"]);
+            for control in held["sbd_controls"].as_array().unwrap() {
+                assert!(description.contains(control.as_str().unwrap()), "{description}");
+            }
+        }
+    }
+
+    #[test]
+    fn a_prompt_comes_back_as_the_persons_message_with_its_mark_and_its_credit() {
+        let server = Server::new(&examples()).unwrap();
+        for held in design_file() {
+            let got = server
+                .handle(&json!({"jsonrpc":"2.0","id":3,"method":"prompts/get","params":{"name": held["id"]}}))
+                .unwrap();
+            let message = &got["result"]["messages"][0];
+            assert_eq!(message["role"], "user", "{got}");
+            assert_eq!(message["content"]["type"], "text");
+            let text = message["content"]["text"].as_str().unwrap();
+            let prompt = held["prompt"].as_str().unwrap().trim_end();
+            assert!(text.starts_with(prompt), "{}: the prompt's own words come first", held["id"]);
+            let mark = if held["status"] == "shown" { "Shown to work." } else { "Not tested:" };
+            assert!(text[prompt.len()..].contains(mark), "{}: {text}", held["id"]);
+            assert!(text.contains("an instruction, not evidence"), "{text}");
+            assert!(text.contains("CC BY-SA 4.0") && text.contains("Secure by Design"), "{text}");
+            assert_eq!(got["result"]["description"].as_str().unwrap().starts_with(mark), true);
+        }
+    }
+
+    #[test]
+    fn a_prompt_that_is_not_offered_or_not_named_is_refused() {
+        let server = Server::new(&examples()).unwrap();
+        let get = |params: Value| {
+            server
+                .handle(&json!({"jsonrpc":"2.0","id":4,"method":"prompts/get","params": params}))
+                .unwrap()
+        };
+        // The control: a prompt that is offered comes back.
+        let first = design_file()[0]["id"].clone();
+        assert!(get(json!({ "name": first }))["result"]["messages"].is_array());
+        for refused in [
+            json!({ "name": "no-such-prompt" }),
+            json!({}),
+            json!({ "name": 7 }),
+            // A prompt for the coding, from the other file: only the design-time ones are offered.
+            json!({ "name": "git-from-the-start" }),
+        ] {
+            let answer = get(refused.clone());
+            assert_eq!(answer["error"]["code"], -32602, "{refused}: {answer}");
+            assert!(answer.get("result").is_none());
+        }
+    }
+
+    #[test]
+    fn the_prompts_are_offered_in_the_stateless_protocol_too() {
+        let server = Server::new(&examples()).unwrap();
+        let discover = server
+            .handle(&json!({"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}))
+            .unwrap();
+        assert!(discover["result"]["capabilities"]["prompts"].is_object(), "{discover}");
+        let list = server
+            .handle(&stateless(2, "prompts/list", "2026-07-28", json!({})))
+            .unwrap();
+        assert_eq!(list["result"]["resultType"], "complete", "{list}");
+        assert_eq!(list["result"]["cacheScope"], "public");
+        let listed = list["result"]["prompts"].as_array().unwrap();
+        assert_eq!(listed.len(), design_file().len());
+        let name = listed[0]["name"].clone();
+        let got = server
+            .handle(&stateless(3, "prompts/get", "2026-07-28", json!({ "name": name })))
+            .unwrap();
+        assert_eq!(got["result"]["resultType"], "complete", "{got}");
+        assert_eq!(got["result"]["messages"][0]["role"], "user");
+        let refused = server
+            .handle(&stateless(4, "prompts/get", "2026-07-28", json!({ "name": "no-such-prompt" })))
+            .unwrap();
+        assert_eq!(refused["error"]["code"], -32602, "{refused}");
+    }
+
+    #[test]
+    fn the_instructions_put_the_decisions_before_the_code() {
+        let at = |phrase: &str| {
+            INSTRUCTIONS
+                .find(phrase)
+                .unwrap_or_else(|| panic!("the instructions do not say {phrase:?}"))
+        };
+        // Before any code: the brief, for the app as it will be, then a design-time prompt per feature.
+        let first = at("If the app has no code yet");
+        assert!(first < at("securevibe_guidance"), "design comes before the rules for coding");
+        assert!(at("for the app as it will be") > first);
+        assert!(at("securevibe_prompts") > first);
+        assert!(at("before the code") > at("securevibe_prompts"));
+        assert!(at("this server's prompts") > first, "the person can choose them too");
+        // An app that already has code is still described from its code.
+        assert!(at("from the code that is there") > first);
     }
 }
