@@ -102,6 +102,8 @@ another session is not a claim.
      **The owner's decision, 4 October 2026: yes**, the altered contents under the same signature, `alg: none`, and
      past its expiry, with the real token as the control. Not the two forms that point the app at a key the probe
      controls (`jku`, `kid`), which would need a key server inside the fence.
+     **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
+     `claude/securevibe-e2-app-tokens`.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
