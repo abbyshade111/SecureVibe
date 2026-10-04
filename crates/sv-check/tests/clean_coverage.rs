@@ -210,25 +210,21 @@ fn clean_tsx_lets_the_rules_say_so() {
 }
 
 #[test]
-fn a_file_that_does_not_parse_silences_every_rule_and_keeps_its_findings() {
-    // Whatever the grammar, a parse that comes back with an error in it has not read part of the
-    // file, and says nothing about how much. The clean Python beside it is not enough: what the
-    // broken file hid could be anything.
+fn a_file_that_does_not_parse_holds_back_the_rules_whose_call_it_names_and_keeps_its_findings() {
+    // A parse that comes back with an error in it has not read part of the file, and says nothing
+    // about how much. A rule whose call is named anywhere in it cannot say it found nothing; a rule
+    // whose call is named nowhere in it could not have found it there, whatever the parser made of it
+    // (H25 of the deep review: until 4 October 2026 one such file held back every rule).
     let dir = scratch("ast-broken");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
         dir.join("worker.py"),
-        "def run(q):\n    return eval(q)\n\ndef broken(:\n    pass\n",
+        "def work(q):\n    return eval(q)\n\ndef broken(:\n    pass\n",
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     std::fs::remove_dir_all(&dir).ok();
     assert_eq!(scan.unparsed_files, vec!["worker.py".to_owned()]);
-    assert!(
-        scan.verified.is_empty(),
-        "no rule may claim a clean result while a file did not parse: {:?}",
-        verified_ids(&scan.verified)
-    );
     assert!(
         scan.findings
             .iter()
@@ -236,29 +232,132 @@ fn a_file_that_does_not_parse_silences_every_rule_and_keeps_its_findings() {
         "what was found in the readable part still stands: {:?}",
         scan.findings
     );
+    assert_eq!(
+        scan.held_back
+            .get("ast.dynamic-code-execution")
+            .map(String::as_str),
+        Some("worker.py"),
+        "`eval` is named in the broken file: {:?}",
+        scan.held_back
+    );
+    let verified = verified_ids(&scan.verified);
+    assert!(
+        !verified.contains(&"ast.dynamic-code-execution"),
+        "{verified:?}"
+    );
+    // Nothing in the broken file is named like a query call, so the query rule read everything it
+    // could have found anything in.
+    assert!(
+        !scan.held_back.contains_key("ast.sql-built-by-hand"),
+        "{:?}",
+        scan.held_back
+    );
+    assert!(verified.contains(&"ast.sql-built-by-hand"), "{verified:?}");
 }
 
 #[test]
-fn a_broken_file_in_one_language_silences_the_rules_about_another() {
-    // The second witness, for a different reason than the first: the Go here is clean and fully
-    // read, and the Go-reading rules still may not say so, because the injection they look for
-    // could be in the JavaScript that did not parse. Same rule as a language with no grammar.
-    let dir = scratch("ast-broken-other");
-    std::fs::write(
-        dir.join("main.go"),
+fn a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call() {
+    // The Go is clean and fully read. The JavaScript beside it did not parse. The first time, it
+    // names no call any rule looks for, and the rules may say what they found; the second time it
+    // names `eval`, and the rule that looks for `eval` may not, in Go or anywhere else.
+    let go = (
+        "main.go",
         "package main\n\nfunc main() { println(\"hi\") }\n",
+    );
+    let quiet = scan_files(
+        "ast-broken-quiet",
+        &[go, ("widget.js", "export function f( {\n  return 1;\n")],
+    );
+    assert!(quiet.findings.is_empty(), "{:?}", quiet.findings);
+    assert_eq!(quiet.unparsed_files, vec!["widget.js".to_owned()]);
+    let verified = verified_ids(&quiet.verified);
+    assert!(
+        verified.contains(&"ast.dynamic-code-execution")
+            && verified.contains(&"ast.sql-built-by-hand"),
+        "nothing in widget.js is named like a call these rules look for: {verified:?} {:?}",
+        quiet.held_back
+    );
+    let named = scan_files(
+        "ast-broken-named",
+        &[
+            go,
+            ("widget.js", "export function f( {\n  return eval(x);\n"),
+        ],
+    );
+    assert_eq!(named.unparsed_files, vec!["widget.js".to_owned()]);
+    assert!(
+        named.held_back.contains_key("ast.dynamic-code-execution"),
+        "{:?}",
+        named.held_back
+    );
+    let verified = verified_ids(&named.verified);
+    assert!(
+        !verified.contains(&"ast.dynamic-code-execution"),
+        "{verified:?}"
+    );
+    assert!(verified.contains(&"ast.sql-built-by-hand"), "{verified:?}");
+}
+
+#[test]
+fn a_file_not_opened_holds_back_every_rule_that_reads_its_language() {
+    // Nothing is known about what a file that was not opened names, so every rule that reads its
+    // language is held back, and the rules about other languages only are not.
+    let scan = scan_files("ast-unopened", &[("app.py", "print('hello')\n")]);
+    assert!(
+        scan.held_back.is_empty(),
+        "the control: {:?}",
+        scan.held_back
+    );
+    let dir = scratch("ast-unopened-2");
+    std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("worker.py"),
+        [0xffu8, 0xfe, 0x00, 0x9f, 0x92, 0x96],
     )
     .unwrap();
-    std::fs::write(dir.join("widget.js"), "export function f( {\n  return 1;\n").unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     std::fs::remove_dir_all(&dir).ok();
-    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
-    assert_eq!(scan.unparsed_files, vec!["widget.js".to_owned()]);
+    assert_eq!(scan.unread_files.len(), 1, "{:?}", scan.unread_files);
+    let rules = ast_rules();
+    for (rule, languages, _) in rules.coverage() {
+        if languages.contains(&"python") {
+            assert!(
+                scan.held_back.contains_key(rule),
+                "{rule}: {:?}",
+                scan.held_back
+            );
+        }
+    }
     assert!(
         scan.verified.is_empty(),
         "{:?}",
         verified_ids(&scan.verified)
     );
+}
+
+#[test]
+fn a_script_in_a_page_that_does_not_parse_is_part_of_the_page_nobody_read() {
+    // Until 4 October 2026 a page whose script did not parse still counted as read in full.
+    let scan = scan_files(
+        "ast-page-broken",
+        &[
+            ("app.py", "print('hello')\n"),
+            (
+                "index.html",
+                "<html><body><script>function f( { return eval(x);</script></body></html>\n",
+            ),
+        ],
+    );
+    assert_eq!(scan.unparsed_files, vec!["index.html".to_owned()]);
+    assert_eq!(
+        scan.held_back
+            .get("ast.dynamic-code-execution")
+            .map(String::as_str),
+        Some("index.html"),
+        "{:?}",
+        scan.held_back
+    );
+    assert!(!verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"));
 }
 
 #[test]
