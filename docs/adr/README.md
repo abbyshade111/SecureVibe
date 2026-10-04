@@ -70,6 +70,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-024](ADR-024.md) | An unanswered data list holds the app to ASVS level 2 |
 | [ADR-025](ADR-025.md) | `sv run` has an end: time limits, Ctrl-C that cleans up, and leftovers removed by the next run |
 | [ADR-026](ADR-026.md) | The owner's word counts only when `sv review` recorded it (changes part of ADR-022 and ADR-023) |
+| [ADR-027](ADR-027.md) | `sv probe` asks only public addresses, and only the ones it checked |
 | [ADR-028](ADR-028.md) | Decide before you build: the design comes first, and nothing is credited for it |
 
 ## Where v1's records disagree with what v1 built
