@@ -229,8 +229,9 @@ another session is not a claim.
   for by the owner on 3 October 2026, after a review of `sv` against the Cloud Security Alliance's
   *Secure Vibe Coding Guide* (K. Huang, 9 April 2025): of its 53 checklist items, `sv` checks 12 and
   part of 21, at commit `93b7bfa`. The review is the shared page
-  https://claude.ai/code/artifact/90a78da2-3fb3-4f12-96b0-b89c8e754fc1. **Not claimed.** Three
-  things to settle before any prompt is written:
+  https://claude.ai/code/artifact/90a78da2-3fb3-4f12-96b0-b89c8e754fc1. **Claimed on 3 October 2026 by session
+  securevibe-e10**, at the owner's asking, in branch `claude/prompt-library`. Three things to settle before any
+  prompt is written:
 
   1. **The guide's prompts are not copied as they stand.** Two reasons:
      - **Some are weak in ways that hurt a beginner.** "Generate a function that sanitizes user input
