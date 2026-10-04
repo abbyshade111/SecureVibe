@@ -1060,6 +1060,9 @@ another session is not a claim.
   was reworded once, after both builds with its first wording left the query string and status out of their log lines.
   **Prompts 8 to 15 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first` (item 8 of "Design-time help before any code", below).
+  **Prompts 8 to 15 done the same day** (`data/design-prompts.json`, `docs/prompts/design-time.md`, "Not tried yet,
+  and no check can show them"; ADR-027). Each is not tried and names no ASVS requirement; six name the Secure by Design
+  controls whose statements fit, two name none.
 
 - **Design-time help before any code: keeping what v1 did best.** Proposed on 4 October 2026 by session paper-facts,
   at the owner's asking, after comparing v1 and `sv` for the paper. v1 made the decisions first (the wizard, the design
@@ -1104,6 +1107,22 @@ another session is not a claim.
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
+  **Items 1, 2, and 8 done the same day** (ADR-027; DESIGN, "Decide before you build: the instructions, the spec, and
+  the design-time prompts as MCP prompts"). The instructions and the spec put the brief first for an app with no code,
+  and the spec's third rule now keeps a planned capability true until it is dropped; the server answers `prompts/list`
+  and `prompts/get` in both protocols with the design-time prompts, each marked and credited; and the eight prompts
+  below are written, each not tried and naming no requirement. Which clients list MCP prompts is not yet tried.
+  Fourteen guards broken in turn, each caught.
+
+- **A heading of the owner's own in `security-notes.md` is read as part of the answer above it.** Found on 4 October
+  2026 by session paper-facts, writing the design-time prompts. `read_answers` (`crates/sv-check/src/notes.rs`) ends a
+  section only at a heading that starts with a requirement id (`section_id`), so `## A note from me` and what follows
+  it become part of the section above. Read in the code; **not reproduced end to end**: tried on a copy of
+  `examples/flask-booking`, where even a properly written answer was not counted, so the setup was wrong and the
+  question open. If it holds, text under a stray heading below an unanswered section could make it look answered, at
+  the tier its `Written by:` line gives. The prompts are kept from causing it (a test holds them to `sv`'s headings);
+  an owner or a tool writing a heading of their own is not. Ways out, for the owner: end a section at any heading, or
+  report a heading `sv` does not know as a gap. Not claimed.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same

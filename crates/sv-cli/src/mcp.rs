@@ -4400,25 +4400,44 @@ mod tests {
             .handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize",
                 "params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}))
             .unwrap();
-        assert!(init["result"]["capabilities"]["prompts"].is_object(), "{init}");
+        assert!(
+            init["result"]["capabilities"]["prompts"].is_object(),
+            "{init}"
+        );
         let list = server
             .handle(&json!({"jsonrpc":"2.0","id":2,"method":"prompts/list"}))
             .unwrap();
-        let listed = list["result"]["prompts"].as_array().expect("a list of prompts");
+        let listed = list["result"]["prompts"]
+            .as_array()
+            .expect("a list of prompts");
         let file = design_file();
         let names: Vec<&str> = listed.iter().map(|p| p["name"].as_str().unwrap()).collect();
         let ids: Vec<&str> = file.iter().map(|p| p["id"].as_str().unwrap()).collect();
-        assert_eq!(names, ids, "every design-time prompt, in the file's order, and nothing else");
+        assert_eq!(
+            names, ids,
+            "every design-time prompt, in the file's order, and nothing else"
+        );
         // The control: the file holds prompts of both kinds, so each mark below is tested.
         assert!(file.iter().any(|p| p["status"] == "shown"));
         assert!(file.iter().any(|p| p["status"] != "shown"));
         for (offered, held) in listed.iter().zip(&file) {
             assert_eq!(offered["title"], held["title"]);
             let description = offered["description"].as_str().unwrap();
-            let mark = if held["status"] == "shown" { "Shown to work." } else { "Not tested:" };
-            assert!(description.starts_with(mark), "{}: {description}", held["id"]);
+            let mark = if held["status"] == "shown" {
+                "Shown to work."
+            } else {
+                "Not tested:"
+            };
+            assert!(
+                description.starts_with(mark),
+                "{}: {description}",
+                held["id"]
+            );
             for control in held["sbd_controls"].as_array().unwrap() {
-                assert!(description.contains(control.as_str().unwrap()), "{description}");
+                assert!(
+                    description.contains(control.as_str().unwrap()),
+                    "{description}"
+                );
             }
         }
     }
@@ -4435,12 +4454,32 @@ mod tests {
             assert_eq!(message["content"]["type"], "text");
             let text = message["content"]["text"].as_str().unwrap();
             let prompt = held["prompt"].as_str().unwrap().trim_end();
-            assert!(text.starts_with(prompt), "{}: the prompt's own words come first", held["id"]);
-            let mark = if held["status"] == "shown" { "Shown to work." } else { "Not tested:" };
-            assert!(text[prompt.len()..].contains(mark), "{}: {text}", held["id"]);
+            assert!(
+                text.starts_with(prompt),
+                "{}: the prompt's own words come first",
+                held["id"]
+            );
+            let mark = if held["status"] == "shown" {
+                "Shown to work."
+            } else {
+                "Not tested:"
+            };
+            assert!(
+                text[prompt.len()..].contains(mark),
+                "{}: {text}",
+                held["id"]
+            );
             assert!(text.contains("an instruction, not evidence"), "{text}");
-            assert!(text.contains("CC BY-SA 4.0") && text.contains("Secure by Design"), "{text}");
-            assert_eq!(got["result"]["description"].as_str().unwrap().starts_with(mark), true);
+            assert!(
+                text.contains("CC BY-SA 4.0") && text.contains("Secure by Design"),
+                "{text}"
+            );
+            assert!(
+                got["result"]["description"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with(mark)
+            );
         }
     }
 
@@ -4474,7 +4513,10 @@ mod tests {
         let discover = server
             .handle(&json!({"jsonrpc":"2.0","id":1,"method":"server/discover","params":{}}))
             .unwrap();
-        assert!(discover["result"]["capabilities"]["prompts"].is_object(), "{discover}");
+        assert!(
+            discover["result"]["capabilities"]["prompts"].is_object(),
+            "{discover}"
+        );
         let list = server
             .handle(&stateless(2, "prompts/list", "2026-07-28", json!({})))
             .unwrap();
@@ -4484,12 +4526,22 @@ mod tests {
         assert_eq!(listed.len(), design_file().len());
         let name = listed[0]["name"].clone();
         let got = server
-            .handle(&stateless(3, "prompts/get", "2026-07-28", json!({ "name": name })))
+            .handle(&stateless(
+                3,
+                "prompts/get",
+                "2026-07-28",
+                json!({ "name": name }),
+            ))
             .unwrap();
         assert_eq!(got["result"]["resultType"], "complete", "{got}");
         assert_eq!(got["result"]["messages"][0]["role"], "user");
         let refused = server
-            .handle(&stateless(4, "prompts/get", "2026-07-28", json!({ "name": "no-such-prompt" })))
+            .handle(&stateless(
+                4,
+                "prompts/get",
+                "2026-07-28",
+                json!({ "name": "no-such-prompt" }),
+            ))
             .unwrap();
         assert_eq!(refused["error"]["code"], -32602, "{refused}");
     }
@@ -4503,11 +4555,17 @@ mod tests {
         };
         // Before any code: the brief, for the app as it will be, then a design-time prompt per feature.
         let first = at("If the app has no code yet");
-        assert!(first < at("securevibe_guidance"), "design comes before the rules for coding");
+        assert!(
+            first < at("securevibe_guidance"),
+            "design comes before the rules for coding"
+        );
         assert!(at("for the app as it will be") > first);
         assert!(at("securevibe_prompts") > first);
         assert!(at("before the code") > at("securevibe_prompts"));
-        assert!(at("this server's prompts") > first, "the person can choose them too");
+        assert!(
+            at("this server's prompts") > first,
+            "the person can choose them too"
+        );
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
     }
