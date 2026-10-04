@@ -71,6 +71,10 @@ another session is not a claim.
     reading them). Fix: list only regular files; say the rest were not read.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-pipes`.
+    **Done the same day** (DESIGN, "A named pipe is named, never opened"): the walk lists only regular files, and
+    anything else (a named pipe, a socket, a device) is named apart and never opened; `sv check` prints it, the report
+    lists it as a gap, the checks that read the app's files say they read part of it, and `sv bundle` lists it as left
+    out. Five guards broken in turn, each caught; undoing the walk's own guard hung all three commands again.
   - **S13. Low, Reproduced. `sv probe` takes internal addresses, and curl's globbing turns one address into
     several requests** (`production.rs`). Fix: `--globoff`, and refuse private, loopback, link-local, and
     unspecified addresses, names that resolve to them included.
