@@ -388,7 +388,7 @@ fn the_fence_closes_the_way_to_this_computer_through_the_gateway() {
     let closed = "sv-gateway-closed-net";
     make(
         closed,
-        &["-o", "com.docker.network.bridge.inhibit_ipv4=true"],
+        &["-o", "com.docker.network.bridge.gateway_mode_ipv4=isolated"],
     );
     let verdict = backend.verify_gateway_closed(closed);
     remove(closed);

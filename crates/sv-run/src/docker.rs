@@ -25,11 +25,16 @@ const PROBE_IMAGE: &str = "busybox:1.36";
 /// The one place a container that talks to the app may write: in memory, where nothing written can
 /// be run, and only big enough for the request it is about to send.
 const PROBE_TMPFS: &str = "/tmp:rw,noexec,nosuid,size=16m";
-/// Gives the fenced network's bridge no address of its own on the host. `--internal` stops traffic
-/// leaving for the internet, but the bridge's gateway address is the host itself (on Docker Desktop
-/// and Colima, the virtual machine), so without this the app could reach anything listening there
-/// (the deep review of 4 October 2026, S2). Containers on the network still reach one another.
-const NO_GATEWAY: &str = "com.docker.network.bridge.inhibit_ipv4=true";
+/// Ways of giving the fenced network's bridge no address of its own on the host, tried in order.
+/// `--internal` stops traffic leaving for the internet, but the bridge's gateway address is the host
+/// itself (on Docker Desktop and Colima, the virtual machine), so without one of these the app could
+/// reach anything listening there (the deep review of 4 October 2026, S2). Containers on the network
+/// still reach one another. The first is Docker's own option for an internal network with no gateway
+/// (Docker 28 and later); the second is the older one. Which was used is said if the check fails.
+const NO_GATEWAY: &[&str] = &[
+    "com.docker.network.bridge.gateway_mode_ipv4=isolated",
+    "com.docker.network.bridge.inhibit_ipv4=true",
+];
 /// A port the gateway check knocks on: whatever answers there, open or refused, is the host's stack
 /// answering, which is what the fence must not allow.
 const GATEWAY_PORT: &str = "9";
@@ -214,21 +219,20 @@ impl DockerBackend {
             ],
         };
 
-        // 1. The fence. Without a gateway address when the daemon allows it; a daemon that refuses the
-        //    option gets the plain internal network, and the gateway check below decides.
-        let created = self
-            .docker(&[
-                "network",
-                "create",
-                "--internal",
-                "-o",
-                NO_GATEWAY,
-                &network,
-            ])
-            .ok()
-            .filter(|(code, _)| *code == 0);
-        let created = match created {
-            Some(done) => Ok(done),
+        // 1. The fence. Without a gateway address when the daemon allows one of the ways; a daemon that
+        //    refuses both gets the plain internal network, and the gateway check below decides.
+        let mut made_with = None;
+        for option in NO_GATEWAY {
+            if self
+                .docker(&["network", "create", "--internal", "-o", option, &network])
+                .is_ok_and(|(code, _)| code == 0)
+            {
+                made_with = Some(*option);
+                break;
+            }
+        }
+        let created = match made_with {
+            Some(_) => Ok((0, String::new())),
             None => self.docker(&["network", "create", "--internal", &network]),
         };
         created
@@ -250,7 +254,19 @@ impl DockerBackend {
         self.verify_fenced(&network)?;
         // 1b'. And that nothing on it can reach the host through the bridge's gateway, which
         //      `--internal` alone leaves open.
-        self.verify_gateway_closed(&network)?;
+        self.verify_gateway_closed(&network).map_err(|e| match e {
+            CannotRun::BackendFailed { detail } => CannotRun::BackendFailed {
+                detail: format!(
+                    "{detail} (the network was made {})",
+                    made_with.map_or(
+                        "plain internal: Docker refused both ways of leaving out a gateway"
+                            .to_owned(),
+                        |o| format!("with `{o}`")
+                    )
+                ),
+            },
+            other => other,
+        })?;
 
         // 1c. A mail server, when a check needs to read what the app emails. Started before the app so
         //     it is there to be sent to, on the same fenced network, and nowhere else: mail sent to it

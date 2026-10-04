@@ -57,7 +57,7 @@ jobs:
         # where there is none they assert the honest-absence path instead and say which branch they took.
         run: |
           set -o pipefail
-          cargo test --workspace 2>&1 | tee test.log || { awk '/panicked at/{l=$0; getline a; getline b; print "::error::" l " | " a " | " b}' test.log | head -8; exit 1; }
+          cargo test --workspace --no-fail-fast 2>&1 | tee test.log || { awk '/panicked at/{l=$0; getline a; getline b; print "::error::" l " | " a " | " b}' test.log | head -8; exit 1; }
 
   image:
     # The container for somebody who is not going to install Rust (the Dockerfile). Built from
