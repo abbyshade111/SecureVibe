@@ -423,6 +423,17 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** plant markers that are not personal data (in the address's path, not after `?`), and make the not-assessed message name an app's privacy rules as a likely reason. A `securevibe.toml` setting naming the log's user-id field can follow later.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-4-log-markers`.
+     **Done the same day** (DESIGN, "Log markers an app that keeps personal data out of its log still writes"):
+     each of the two sign-ins is bracketed by requests for pages nobody has (`/sv-log-before-…`, `/sv-log-after-…`),
+     and a sign-in event written between them (`login_failed`, with the sign-in's own address taken out first) is
+     its record, so no personal data is needed; the refused request is also asked with the marker as the last part
+     of the path under the private page, counted only when the app refused it exactly as it refused the page and not
+     with a 404. Emails and the `?` marker are still read first. A line found by the window is not credited with
+     *who* (V16.2.1 not assessed, saying why). The not-assessed message names privacy rules (no emails, no query
+     strings in the log) as a likely reason. Tested against the fake app writing a family-hub-style log (JSON, path,
+     user id, no `@` or `?`, asserted): V16.3.1, V16.3.2, V16.2.2, and V16.2.4 are now assessed. Each of nine guards
+     broken on its own was caught by its own test; the 404 guard was caught by nothing until a fixture was added.
+     No `securevibe.toml` setting.
   5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
      authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
      admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
