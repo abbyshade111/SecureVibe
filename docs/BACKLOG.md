@@ -94,6 +94,10 @@ another session is not a claim.
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-set-aside-headline`.
+    **Done the same day** (DESIGN, "The headline counts what was set aside"): the headline counts false alarms set
+    aside in securevibe.toml, says so when nothing else is open, and says where they are listed; it says "in
+    securevibe.toml", not "by a person", since who wrote the entry is R1's question. Three guards broken in turn, each
+    caught.
 
 - **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
   H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
