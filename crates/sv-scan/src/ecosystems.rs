@@ -15,7 +15,8 @@ pub struct EcosystemDef {
     /// The file whose presence says this ecosystem is in use.
     pub manifest: &'static str,
     /// Files that pin exact versions. An ecosystem in use with none of these present means nobody
-    /// can say what is actually installed — worth reporting in its own right, in any language.
+    /// can say what is actually installed — worth reporting in its own right, in any language. A
+    /// `*` stands for a part of the name that varies (`pylock.*.toml`), and is never empty.
     pub lockfiles: &'static [&'static str],
 }
 
@@ -37,7 +38,16 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
     EcosystemDef {
         name: "Python",
         manifest: "requirements.txt",
-        lockfiles: &["poetry.lock", "Pipfile.lock", "requirements.lock"],
+        // `pylock.toml` is PEP 751's lockfile, which pip writes (`pip lock`); a project may name one
+        // per environment, `pylock.<name>.toml`. A `requirements.txt` with every package pinned and
+        // hashed is a lock in its own right; `detect_in` says so when nothing here is present.
+        lockfiles: &[
+            "poetry.lock",
+            "Pipfile.lock",
+            "pylock.toml",
+            "pylock.*.toml",
+            "requirements.lock",
+        ],
     },
     EcosystemDef {
         name: "Python",
@@ -45,7 +55,14 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
         // `requirements.lock` is what `uv pip compile pyproject.toml -o requirements.lock` writes, and
         // the name Rye uses. Left out, such a project was told it had no lockfile and listed no
         // packages. It comes last: when a tool's own lockfile is there too, that one is read.
-        lockfiles: &["poetry.lock", "pdm.lock", "uv.lock", "requirements.lock"],
+        lockfiles: &[
+            "poetry.lock",
+            "pdm.lock",
+            "uv.lock",
+            "pylock.toml",
+            "pylock.*.toml",
+            "requirements.lock",
+        ],
     },
     EcosystemDef {
         name: "Go",
@@ -169,7 +186,14 @@ pub fn detect_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
             if !dir.join(eco.manifest).exists() {
                 continue;
             }
-            let lockfile = find_lockfile(app_dir, rel_dir, eco.lockfiles);
+            let lockfile = find_lockfile(app_dir, rel_dir, eco.lockfiles).or_else(|| {
+                // A requirements.txt that pins and hashes every package lists everything pip will
+                // install: under `--require-hashes` it refuses anything else.
+                (eco.manifest == "requirements.txt"
+                    && std::fs::read_to_string(dir.join(eco.manifest))
+                        .is_ok_and(|text| fully_hash_pinned(&text)))
+                .then(|| join(rel_dir, eco.manifest))
+            });
             let passed_over = lockfile
                 .as_deref()
                 .map(|found| others_beside(app_dir, found, eco.lockfiles))
@@ -205,8 +229,8 @@ fn join(rel_dir: &str, name: &str) -> String {
 fn find_lockfile(app_dir: &Path, rel_dir: &str, lockfiles: &[&str]) -> Option<String> {
     let beside = lockfiles
         .iter()
-        .find(|f| app_dir.join(rel_dir).join(f).exists())
-        .map(|f| join(rel_dir, f));
+        .find_map(|f| present(&app_dir.join(rel_dir), f).into_iter().next())
+        .map(|f| join(rel_dir, &f));
     if beside.is_some() {
         return beside;
     }
@@ -226,9 +250,11 @@ fn find_lockfile(app_dir: &Path, rel_dir: &str, lockfiles: &[&str]) -> Option<St
             .trim_start_matches('/');
         if workspace_members(&root)
             .is_some_and(|members| members.iter().any(|m| glob_matches(m, below)))
-            && let Some(found) = lockfiles.iter().find(|f| root.join(f).exists())
+            && let Some(found) = lockfiles
+                .iter()
+                .find_map(|f| present(&root, f).into_iter().next())
         {
-            return Some(join(&parent, found));
+            return Some(join(&parent, &found));
         }
         rel = parent;
     }
@@ -238,11 +264,110 @@ fn find_lockfile(app_dir: &Path, rel_dir: &str, lockfiles: &[&str]) -> Option<St
 /// The lockfiles of the same kind that sit in the same folder as `found` and were not read.
 fn others_beside(app_dir: &Path, found: &str, lockfiles: &[&str]) -> Vec<String> {
     let dir = found.rsplit_once('/').map_or("", |(head, _)| head);
-    lockfiles
+    let mut out: Vec<String> = lockfiles
         .iter()
-        .map(|f| join(dir, f))
-        .filter(|path| path != found && app_dir.join(path).exists())
-        .collect()
+        .flat_map(|f| present(&app_dir.join(dir), f))
+        .map(|f| join(dir, &f))
+        .filter(|path| path != found)
+        .collect();
+    out.dedup();
+    out
+}
+
+/// The files in `dir` a lockfile name stands for, sorted: the name itself when it is there, or,
+/// for a name with a `*`, every file it matches, with something in the place of the `*`.
+fn present(dir: &Path, name: &str) -> Vec<String> {
+    let Some((before, after)) = name.split_once('*') else {
+        return if dir.join(name).is_file() {
+            vec![name.to_owned()]
+        } else {
+            Vec::new()
+        };
+    };
+    let mut found: Vec<String> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_file()))
+        .filter_map(|e| e.file_name().into_string().ok())
+        .filter(|f| {
+            f.len() > before.len() + after.len() && f.starts_with(before) && f.ends_with(after)
+        })
+        .collect();
+    found.sort();
+    found
+}
+
+/// Whether a requirements file pins and hashes every package it installs, so it can stand as a
+/// lockfile: every requirement `name==version` (no wildcard) with at least one `--hash`, at least
+/// one requirement, and nothing that installs from elsewhere (`-r`, `-e`, a path, or an address).
+/// Lines that only set where pip looks, or that ask for hashes, are allowed beside them.
+pub fn fully_hash_pinned(text: &str) -> bool {
+    const SETTINGS: &[&str] = &[
+        "--require-hashes",
+        "--index-url",
+        "--extra-index-url",
+        "-i",
+        "--trusted-host",
+        "--find-links",
+        "-f",
+        "--no-index",
+        "--prefer-binary",
+        "--only-binary",
+        "--no-binary",
+        "--pre",
+    ];
+    // One requirement per logical line: a `\` at the end joins the next one on.
+    let mut logical = Vec::new();
+    let mut current = String::new();
+    for line in text.lines() {
+        let line = line.split_once(" #").map_or(line, |(code, _)| code);
+        let line = if line.trim_start().starts_with('#') {
+            ""
+        } else {
+            line
+        };
+        match line.trim_end().strip_suffix('\\') {
+            Some(head) => {
+                current.push_str(head);
+                current.push(' ');
+            }
+            None => {
+                current.push_str(line);
+                logical.push(std::mem::take(&mut current));
+            }
+        }
+    }
+    logical.push(current);
+    let mut requirements = 0;
+    for line in logical.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
+        if line.starts_with('-') {
+            let option = line.split([' ', '=']).next().unwrap_or(line);
+            if SETTINGS.contains(&option) {
+                continue;
+            }
+            return false;
+        }
+        let (requirement, rest) = line.split_once(char::is_whitespace).unwrap_or((line, ""));
+        let requirement = requirement.split(';').next().unwrap_or(requirement);
+        let Some((name, version)) = requirement.split_once("==") else {
+            return false;
+        };
+        let version = version.trim_start_matches('=');
+        let name_ok = !name.is_empty()
+            && name
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || "._-[],".contains(c));
+        let version_ok = !version.is_empty() && !version.contains('*');
+        let hashed = rest
+            .split_whitespace()
+            .any(|t| t.starts_with("--hash=") || t == "--hash");
+        if !(name_ok && version_ok && hashed) {
+            return false;
+        }
+        requirements += 1;
+    }
+    requirements > 0
 }
 
 /// The member patterns a workspace root declares, when the folder is one.
