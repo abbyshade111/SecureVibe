@@ -22,7 +22,9 @@ languages = []            # e.g. ["python", "typescript"]
 # Leave blank and every check that needs a running app reports "not assessed".
 image = ""                # container image, e.g. "python:3.12-slim"
 build = ""                # e.g. "pip install -r requirements.txt"
-start = ""                # e.g. "uvicorn app:app --host 127.0.0.1 --port $PORT"
+start = ""                # e.g. "uvicorn app:app --host 0.0.0.0 --port $PORT"
+#   Listen on 0.0.0.0, not 127.0.0.1 or localhost: `sv` runs the app in a container and asks it
+#   from a second one, and an app listening on 127.0.0.1 answers only from inside its own.
 test = ""                 # e.g. "pytest -q". Name requirement ids in your test names — see below.
 test-report = ""          # where `test` writes JUnit XML, e.g. "junit.xml". See below.
 # test-time-limit = 600     # seconds the tests may run before `sv` stops them; ten minutes if left out

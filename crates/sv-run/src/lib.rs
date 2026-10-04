@@ -53,8 +53,13 @@ pub enum CannotRun {
     NoRunCommand { missing: Vec<String> },
     /// The backend is there but refused.
     BackendFailed { detail: String },
-    /// The app was started and never became healthy.
-    NeverReady { waited_seconds: u64, detail: String },
+    /// The app was started and never became healthy. `loopback` is the loopback address its start
+    /// command names, when it names one (`loopback_named_in`): the likeliest cause, said by name.
+    NeverReady {
+        waited_seconds: u64,
+        detail: String,
+        loopback: Option<&'static str>,
+    },
     /// The app's folder has files on this computer and arrived empty in the container: the
     /// container backend cannot see it. Colima shares only the home folder by default, and Docker
     /// mounts a folder it cannot see as a new, empty one without complaint.
@@ -81,15 +86,29 @@ impl CannotRun {
             CannotRun::NeverReady {
                 waited_seconds,
                 detail,
+                loopback,
             } => format!(
                 "The app started but never answered on its health path within {waited_seconds}s. \
-                 {detail}{} This is reported as not assessed rather than as a failure: an app that \
+                 {detail} {} This is reported as not assessed rather than as a failure: an app that \
                  will not start under `sv` has not been shown to be insecure.",
                 if detail.contains("Read-only file system") {
-                    " The app tried to write outside the places it may: while `sv` runs it, its \
+                    "The app tried to write outside the places it may: while `sv` runs it, its \
                      file system is read-only apart from /tmp, so keep its data under /tmp."
+                        .to_owned()
                 } else {
-                    ""
+                    match loopback {
+                        Some(name) => format!(
+                            "Its start command names {name}, which is the likely cause: an app \
+                             listening on {name} answers only from inside its own container, and \
+                             `sv` asks it from a second container on the fenced network. Have it \
+                             listen on 0.0.0.0 (every address) at the port in $PORT."
+                        ),
+                        None => "One common cause: an app listening on 127.0.0.1 or localhost \
+                                 answers only from inside its own container, and `sv` asks it from \
+                                 a second container on the fenced network. Have it listen on \
+                                 0.0.0.0 (every address) at the port in $PORT."
+                            .to_owned(),
+                    }
                 }
             ),
             CannotRun::AppFolderUnseen { folder } => format!(
@@ -135,6 +154,51 @@ pub fn unseen_folder(app_dir: &Path, inside: Option<&str>) -> Option<CannotRun> 
     let has_files = std::fs::read_dir(app_dir).is_ok_and(|mut entries| entries.next().is_some());
     (empty_inside && has_files).then(|| CannotRun::AppFolderUnseen {
         folder: app_dir.display().to_string(),
+    })
+}
+
+/// The loopback address a start command names, if it names one: `127.0.0.1`, `localhost`, or
+/// `::1`. An app told to listen there answers only from inside its own container, and `sv` asks it
+/// from a second one (`docker`, the sidecar), so it never hears the question. Only the command line
+/// is read: an app may listen somewhere other than its command suggests, in either direction, so
+/// this is a reason to warn, never a reason to refuse.
+pub fn loopback_named_in(start: &str) -> Option<&'static str> {
+    let text = start.to_ascii_lowercase();
+    // What may sit on either side of the name for it to be the name, and not part of a longer one:
+    // `127.0.0.10` is not 127.0.0.1, `notlocalhost` is not localhost, and `fe80::1` is not ::1.
+    let word = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    let hex = |c: char| c.is_ascii_hexdigit() || c == ':';
+    let dotted = |c: char| word(c) || c == '.';
+    let digit = |c: char| c.is_ascii_digit();
+    type Joined<'a> = &'a dyn Fn(char) -> bool;
+    let names: [(&'static str, Joined, Joined); 3] = [
+        ("127.0.0.1", &dotted, &digit),
+        ("localhost", &word, &word),
+        ("::1", &hex, &hex),
+    ];
+    for (name, joined_before, joined_after) in names {
+        for (at, _) in text.match_indices(name) {
+            let before = text[..at].chars().next_back();
+            let after = text[at + name.len()..].chars().next();
+            if !before.is_some_and(joined_before) && !after.is_some_and(joined_after) {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
+/// What to say before waiting for an app whose start command names a loopback address. A warning,
+/// not a refusal: the app may listen elsewhere than its command line suggests, and the run goes on.
+pub fn loopback_warning(start: &str) -> Option<String> {
+    loopback_named_in(start).map(|name| {
+        format!(
+            "Warning: the start command in securevibe.toml names {name}. An app listening on \
+             {name} answers only from inside its own container, and `sv` asks it from a second \
+             one, so it may never answer. If this run waits and gives up, have the app listen on \
+             0.0.0.0 (every address) at the port in $PORT. Starting it anyway: an app may listen \
+             somewhere other than its command line suggests."
+        )
     })
 }
 
@@ -617,6 +681,7 @@ mod tests {
             waited_seconds: 60,
             detail: "Its last output was: OSError: [Errno 30] Read-only file system: '/data'"
                 .to_owned(),
+            loopback: None,
         }
         .explain();
         assert!(refused.contains("keep its data under /tmp"), "{refused}");
@@ -624,9 +689,103 @@ mod tests {
         let other = CannotRun::NeverReady {
             waited_seconds: 60,
             detail: "Its last output was: ModuleNotFoundError: No module named 'flask'".to_owned(),
+            loopback: None,
         }
         .explain();
         assert!(!other.contains("/tmp"), "{other}");
+    }
+
+    #[test]
+    fn an_app_that_never_answers_is_told_about_listening_on_loopback() {
+        // family-hub, 3 October 2026: the app listened on 127.0.0.1 and the message gave no hint.
+        let unnamed = CannotRun::NeverReady {
+            waited_seconds: 60,
+            detail: "Its last output was: WARNING: This is a development server.".to_owned(),
+            loopback: None,
+        }
+        .explain();
+        assert!(unnamed.contains("127.0.0.1 or localhost"), "{unnamed}");
+        assert!(unnamed.contains("0.0.0.0"), "{unnamed}");
+        assert!(unnamed.contains("One common cause"), "{unnamed}");
+        // When the start command names the address, the message names it as the likely cause.
+        let named = CannotRun::NeverReady {
+            waited_seconds: 60,
+            detail: "Its last output was: WARNING: This is a development server.".to_owned(),
+            loopback: Some("127.0.0.1"),
+        }
+        .explain();
+        assert!(
+            named.contains("Its start command names 127.0.0.1, which is the likely cause"),
+            "{named}"
+        );
+        assert!(named.contains("0.0.0.0"), "{named}");
+        // A cause already known from the app's own output is not crowded by a guess.
+        let read_only = CannotRun::NeverReady {
+            waited_seconds: 60,
+            detail: "Its last output was: OSError: [Errno 30] Read-only file system: '/data'"
+                .to_owned(),
+            loopback: None,
+        }
+        .explain();
+        assert!(!read_only.contains("0.0.0.0"), "{read_only}");
+    }
+
+    #[test]
+    fn a_start_command_naming_loopback_is_recognized_and_nothing_else_is() {
+        for (start, named) in [
+            ("uvicorn app:app --host 127.0.0.1 --port $PORT", "127.0.0.1"),
+            ("flask run --host=127.0.0.1 --port=$PORT", "127.0.0.1"),
+            ("gunicorn -b 127.0.0.1:$PORT app:app", "127.0.0.1"),
+            ("httpd -f -h /app -p 127.0.0.1:$PORT", "127.0.0.1"),
+            ("next start -H localhost -p $PORT", "localhost"),
+            ("HOST=LocalHost node server.js", "localhost"),
+            ("php -S localhost:$PORT -t public", "localhost"),
+            ("hypercorn app:app --bind [::1]:$PORT", "::1"),
+        ] {
+            assert_eq!(loopback_named_in(start), Some(named), "{start}");
+            let warning = loopback_warning(start).expect("a warning for a named loopback address");
+            assert!(
+                warning.contains(named) && warning.contains("0.0.0.0"),
+                "{warning}"
+            );
+            assert!(warning.contains("Starting it anyway"), "{warning}");
+        }
+        for start in [
+            "uvicorn app:app --host 0.0.0.0 --port $PORT",
+            "httpd -f -h /app -p $PORT",
+            "python app.py",
+            "gunicorn -b 127.0.0.10:$PORT app:app",
+            "gunicorn -b 10.127.0.0.1:$PORT app:app",
+            "node server.js --name notlocalhost",
+            "LOCALHOST_ONLY=0 node server.js",
+            "hypercorn app:app --bind [fe80::1]:$PORT",
+            "hypercorn app:app --bind [::]:$PORT",
+        ] {
+            assert_eq!(loopback_named_in(start), None, "{start}");
+            assert_eq!(loopback_warning(start), None, "{start}");
+        }
+    }
+
+    #[test]
+    fn the_starter_files_example_start_command_is_one_sv_can_reach() {
+        // The example an AI tool copies (family-hub did). Read through the same test `sv` warns with,
+        // after checking the example is really there to read.
+        let line = sv_manifest::spec::STARTER_MANIFEST
+            .lines()
+            .find(|l| l.starts_with("start = "))
+            .expect("the starter file has a start line");
+        let example = line
+            .split_once("e.g. \"")
+            .and_then(|(_, rest)| rest.split_once('"'))
+            .map(|(example, _)| example)
+            .expect("the start line gives an example command");
+        assert!(example.contains("$PORT"), "{example}");
+        assert!(example.contains("0.0.0.0"), "{example}");
+        assert_eq!(loopback_named_in(example), None, "{example}");
+        assert!(
+            sv_manifest::spec::STARTER_MANIFEST.contains("not 127.0.0.1 or localhost"),
+            "the starter file says why"
+        );
     }
 
     fn sh(script: &str) -> Command {
@@ -897,6 +1056,12 @@ mod tests {
             CannotRun::NeverReady {
                 waited_seconds: 30,
                 detail: "no reply".into(),
+                loopback: None,
+            },
+            CannotRun::NeverReady {
+                waited_seconds: 30,
+                detail: "no reply".into(),
+                loopback: Some("localhost"),
             },
         ] {
             let text = reason.explain();

@@ -295,6 +295,12 @@ another session is not a claim.
      and `sv` could warn before waiting when the start command itself names 127.0.0.1 or `localhost`.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-1-host`.
+     **Done the same day** (DESIGN, "An app listening on 127.0.0.1 is named as the likely cause"): the example says
+     `--host 0.0.0.0` and why; "never answered" says an app listening on 127.0.0.1 or `localhost` cannot be reached,
+     and names the address as the likely cause when the start command names it; and `sv` warns before waiting when it
+     does, then starts the app anyway. Tested with a real container on 127.0.0.1 (shown to be up by answering itself)
+     and a control on 0.0.0.0; each of five guards broken on its own was caught, the warning and the message's naming
+     only by the container test.
   2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
      family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
      same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
