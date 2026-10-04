@@ -296,8 +296,14 @@ another session is not a claim.
     4,000 characters. Fix: search the whole answer before cutting it.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H19. Medium, Read.** A matching advisory clears the "could not compare" flag earlier advisories left.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H20. Medium, Reproduced.** RubyGems platform versions (`1.15.4-x86_64-linux`) are compared as semver.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
