@@ -2724,6 +2724,7 @@ mod tests {
         ("ast.sql-built-by-hand", "python", "def f(db, names):\n    for sql in names:\n        db.execute(sql)\nsql = \"SELECT 1\"\n", true),
         ("ast.sql-built-by-hand", "python", "QUERY = \"SELECT * FROM t WHERE n = \"\ndef f(db, request):\n    db.execute(QUERY + request.args[\"n\"])\n", true),
         ("ast.sql-built-by-hand", "python", "TABLE = {**OTHER, \"a\": \"SELECT 1\"}\ndef f(db, k):\n    db.execute(TABLE[k])\n", true),
+        ("ast.sql-built-by-hand", "python", "SORT_ORDERS = {\"newest\": \"SELECT 1\"}\ndef f(db, key, request):\n    db.execute(SORT_ORDERS.get(key, request.args[\"sql\"]))\n", true),
         ("ast.sql-built-by-hand", "javascript", "const LIST = 'SELECT * FROM notes WHERE user_id = ?';\nfunction f(db, uid) { return db.query(LIST, [uid]); }", false),
         ("ast.sql-built-by-hand", "javascript", "let sql = 'SELECT 1';\nfunction f(db, x) { sql = sql + x; return db.query(sql); }", true),
         ("ast.sql-built-by-hand", "go", "package main\nconst q = \"SELECT * FROM notes WHERE user_id = $1\"\nfunc f(ctx context.Context, db *sql.DB, uid int) { db.QueryContext(ctx, q, uid) }", false),
