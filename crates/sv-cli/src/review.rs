@@ -1003,9 +1003,12 @@ mod tests {
         let notes = "# Security notes\n\n## V6.1.1 — Sign-in\n\n> How is sign-in protected?\n\n\
                      Written by: owner\n\nFive failed sign-ins in fifteen minutes lock the account for \
                      an hour.\n\n## V8.1.1 — Who may do what\n\nWritten by: AI coding tool\n\n\
-                     Administrators may open every page; everyone else only their own.\n";
+                     Administrators may open every page; everyone else only their own.\n\n\
+                     ## V2.1.1 — Valid input\n\nWritten by: owner\nSealed by sv review: v1:0000000000000000:\
+                     0000000000000000000000000000000000000000000000000000000000000000\n\nNames are at \
+                     most eighty letters, and dates are never in the future.\n";
         std::fs::write(s.app().join("security-notes.md"), notes).unwrap();
-        let (result, out) = s.run("owner\nSam Lee\nowner\nowner\n");
+        let (result, out) = s.run("owner\nSam Lee\nowner\nowner\nowner\n");
         result.unwrap();
         // The tool's own answers are not offered as the owner's.
         assert!(!out.contains("V2.2.2") && !out.contains("V8.1.1"), "{out}");
@@ -1014,7 +1017,7 @@ mod tests {
             "{out}"
         );
         assert!(out.contains("Five failed sign-ins"), "{out}");
-        assert!(out.contains("Recorded 3 of 3"), "{out}");
+        assert!(out.contains("Recorded 4 of 4"), "{out}");
         let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
         for which in [
             Waiting::DesignAnswer("V8.3.1".into()),
@@ -1028,13 +1031,24 @@ mod tests {
         let answers = sv_check::notes::read_answers(&after);
         assert!(answers.recorded("V6.1.1", &s.checker()).is_ok(), "{after}");
         assert!(answers.recorded("V8.1.1", &s.checker()).is_err());
-        // Only the seal line was added.
+        // A seal that did not hold was replaced, not added to.
+        assert!(answers.recorded("V2.1.1", &s.checker()).is_ok(), "{after}");
+        assert_eq!(
+            after.matches(sv_check::notes::SEALED_BY).count(),
+            2,
+            "{after}"
+        );
+        // Only the seal lines changed.
         let added: Vec<&str> = after
             .lines()
             .filter(|l| !notes.lines().any(|n| n == *l))
             .collect();
-        assert_eq!(added.len(), 1, "{after}");
-        assert!(added[0].starts_with(sv_check::notes::SEALED_BY));
+        assert_eq!(added.len(), 2, "{after}");
+        assert!(
+            added
+                .iter()
+                .all(|l| l.starts_with(sv_check::notes::SEALED_BY))
+        );
         // Nothing waits the second time.
         let (result, out) = s.run("");
         result.unwrap();
