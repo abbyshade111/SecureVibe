@@ -42,7 +42,7 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 56 | 10 | 1 | 6 | 35 | 21 | 3 |
+| L1 | 70 | 56 | 10 | 1 | 6 | 36 | 21 | 3 |
 | L2 | 183 | 86 | 8 | 0 | 19 | 45 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
@@ -82,7 +82,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `probe.sql-injection`) |
 | V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
@@ -104,12 +104,13 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (109)
+### Settled by asking the running app (110)
 
 | Requirement | Level | Checks |
 |---|---|---|
 | V1.2.1 | L1 | The running app: `probe.reflected-unencoded`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.reflected-unencoded`) |
 | V1.2.3 | L1 | The running app: `probe.reflected-json-unescaped`; Outside tools: `brakeman` (sv only ever as a finding: `probe.reflected-json-unescaped`) |
+| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `probe.sql-injection`) |
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V1.3.6 | L2 | The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |

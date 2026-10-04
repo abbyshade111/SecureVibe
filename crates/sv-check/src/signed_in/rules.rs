@@ -267,6 +267,19 @@ pub(super) const SESSION_TOKEN_UNVERIFIED: Rule = Rule {
           verifying the token's signature \u{2014} and refuse it when it is not found.",
 };
 
+pub(super) const SQL_INJECTION: Rule = Rule {
+    rule_id: "probe.sql-injection",
+    requirement_ids: &["V1.2.4"],
+    cwe: &["CWE-89"],
+    impact: "Part of a web address the app reads changed what its database did: the same request \
+             with an always-true condition added was answered differently from one with an \
+             always-false condition. The app is joining what it was sent into a database query, \
+             so anybody can rewrite that query: read other people's records, or worse.",
+    fix: "Pass what the request sends to the database as a parameter (a placeholder such as `?` \
+          or `$1`, or the query builder of the app's database library), never by joining it into \
+          the text of the query.",
+};
+
 pub(super) const APP_TOKEN_UNSIGNED: Rule = Rule {
     rule_id: "probe.app-token-signature-not-checked",
     requirement_ids: &["V9.1.1"],
