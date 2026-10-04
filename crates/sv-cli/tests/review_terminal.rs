@@ -163,12 +163,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     );
     // On a computer with another key, it is a proposal: a made-up seal would look the same.
     let other = s.0.join("other");
-    std::fs::create_dir_all(other.join("securevibe")).unwrap();
-    std::fs::write(
-        other.join("securevibe").join("review-key"),
-        format!("{}\n", "ab".repeat(32)),
-    )
-    .unwrap();
+    sv_check::seal::Key::load_or_make_in(&other.join("securevibe")).unwrap();
     let elsewhere = report(&app, &other);
     assert!(elsewhere.contains("not this computer's"), "{elsewhere}");
     assert!(!elsewhere.contains("set it aside as a false alarm on"));

@@ -310,8 +310,11 @@ mod tests {
     /// can change a field after making the entry.
     const RESEAL: &str = "reseal";
 
+    /// This computer's key in these tests, from the system's randomness.
     fn key() -> crate::seal::Key {
-        crate::seal::Key::from_bytes([9; 32])
+        static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
+        KEY.get_or_init(|| crate::seal::Key::random().unwrap())
+            .clone()
     }
 
     /// `apply` as on the computer whose key sealed the entries.
@@ -408,15 +411,16 @@ mod tests {
             ..good.clone()
         };
         // Sealed with another computer's key.
+        let other = crate::seal::Key::random().unwrap();
         let elsewhere = sealed(&FindingReview {
             seal: None,
             ..good.clone()
         });
         let elsewhere = FindingReview {
             seal: Some(
-                crate::seal::Key::from_bytes([4; 32]).seal(&crate::seal::as_strs(
-                    &crate::seal::finding_review_fields(&elsewhere),
-                )),
+                other.seal(&crate::seal::as_strs(&crate::seal::finding_review_fields(
+                    &elsewhere,
+                ))),
             ),
             ..elsewhere
         };
@@ -453,9 +457,7 @@ mod tests {
         assert!(no_key.findings.is_empty(), "{:?}", no_key.not_counted);
         assert_eq!(
             no_key.set_aside[0].sealed,
-            Sealed::Unchecked {
-                key: crate::seal::Key::from_bytes([4; 32]).id()
-            }
+            Sealed::Unchecked { key: other.id() }
         );
         let no_key = super::apply(&[unsealed], finding(), today(), &Checker::NoKey);
         assert_eq!(no_key.findings.len(), 1);

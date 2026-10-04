@@ -315,8 +315,11 @@ mod tests {
         }
     }
 
+    /// This computer's key in these tests, from the system's randomness.
     fn key() -> crate::seal::Key {
-        crate::seal::Key::from_bytes([5; 32])
+        static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
+        KEY.get_or_init(|| crate::seal::Key::random().unwrap())
+            .clone()
     }
 
     /// The confirmation as `sv review` would have sealed it on the computer `key` belongs to.
@@ -586,7 +589,7 @@ mod tests {
             assert!(out.confirmed.is_empty(), "{says}");
             assert!(out.not_counted[0].1.contains(says), "{:?}", out.not_counted);
         }
-        let elsewhere = run(&good, &Checker::Key(crate::seal::Key::from_bytes([6; 32])));
+        let elsewhere = run(&good, &Checker::Key(crate::seal::Key::random().unwrap()));
         assert!(elsewhere.confirmed.is_empty());
         // No key here: it counts, and says its seal could not be checked.
         let unchecked = run(&good, &Checker::NoKey);

@@ -45,8 +45,19 @@ impl std::fmt::Debug for Key {
 }
 
 impl Key {
-    pub fn from_bytes(bytes: [u8; 32]) -> Key {
-        Key { bytes }
+    /// A new key from the system's randomness.
+    pub fn random() -> Result<Key, String> {
+        use std::io::Read;
+        let mut read = Vec::with_capacity(32);
+        std::fs::File::open("/dev/urandom")
+            .and_then(|f| f.take(32).read_to_end(&mut read))
+            .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
+        let bytes = <[u8; 32]>::try_from(read)
+            .map_err(|_| "the system's randomness gave too little".to_owned())?;
+        if bytes.iter().all(|b| *b == 0) {
+            return Err("the system's randomness gave only zeros".to_owned());
+        }
+        Ok(Key { bytes })
     }
 
     /// Where the key is kept: `$XDG_CONFIG_HOME/securevibe`, or `~/.config/securevibe`. `None`
@@ -94,16 +105,7 @@ impl Key {
         if let Some(key) = Key::load_from(folder)? {
             return Ok((key, false));
         }
-        let mut bytes = [0u8; 32];
-        {
-            use std::io::Read;
-            std::fs::File::open("/dev/urandom")
-                .and_then(|mut f| f.read_exact(&mut bytes))
-                .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
-        }
-        if bytes.iter().all(|b| *b == 0) {
-            return Err("the system's randomness gave only zeros".to_owned());
-        }
+        let key = Key::random()?;
         let mut make = std::fs::DirBuilder::new();
         make.recursive(true);
         #[cfg(unix)]
@@ -126,11 +128,11 @@ impl Key {
             let mut file = open
                 .open(&path)
                 .map_err(|e| format!("{} could not be made ({e})", path.display()))?;
-            file.write_all(format!("{}\n", hex(&bytes)).as_bytes())
+            file.write_all(format!("{}\n", hex(&key.bytes)).as_bytes())
                 .and_then(|()| file.sync_all())
                 .map_err(|e| format!("{} could not be written ({e})", path.display()))?;
         }
-        Ok((Key { bytes }, true))
+        Ok((key, true))
     }
 
     /// Sixteen hex characters naming the key, safe to print and to write beside a seal.
@@ -332,15 +334,17 @@ pub fn as_strs(fields: &[String]) -> Vec<&str> {
 mod tests {
     use super::*;
 
-    fn key(n: u8) -> Key {
-        Key::from_bytes([n; 32])
+    /// Four keys from the system's randomness, the same ones throughout the run.
+    fn key(n: usize) -> Key {
+        static KEYS: std::sync::OnceLock<Vec<Key>> = std::sync::OnceLock::new();
+        KEYS.get_or_init(|| (0..4).map(|_| Key::random().unwrap()).collect())[n].clone()
     }
 
     const FIELDS: &[&str] = &["finding-review", "ast.open-redirect", "app.py", "owner"];
 
     #[test]
     fn a_seal_holds_on_the_computer_that_made_it_and_nowhere_it_was_changed() {
-        let k = key(7);
+        let k = key(0);
         let seal = k.seal(FIELDS);
         let here = Checker::Key(k.clone());
         assert_eq!(here.check(Some(&seal), FIELDS), Ok(Sealed::Here));
@@ -410,7 +414,7 @@ mod tests {
         let (again, new) = Key::load_or_make_in(&folder).unwrap();
         assert!(!new);
         assert_eq!(made.id(), again.id());
-        assert_ne!(made.bytes, [0u8; 32]);
+        assert!(made.bytes.iter().any(|b| *b != 0));
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;

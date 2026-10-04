@@ -22,6 +22,7 @@ fn status_of<'a>(compliance: &'a str, id: &str) -> &'a str {
 /// below is about what the confirmation says, so each is recorded the way a person would.
 #[allow(clippy::too_many_arguments)]
 fn sealed(
+    key: &sv_check::seal::Key,
     section: &str,
     id: &str,
     by: &str,
@@ -41,7 +42,7 @@ fn sealed(
         seal: None,
     };
     let fields = sv_check::seal::manifest_confirmation_fields(section, id, &c);
-    let seal = sv_check::seal::Key::from_bytes([8; 32]).seal(&sv_check::seal::as_strs(&fields));
+    let seal = key.seal(&sv_check::seal::as_strs(&fields));
     let mut parts = vec![format!("by = \"{by}\""), format!("on = \"{on}\"")];
     for (name, value) in [
         ("answer", answer),
@@ -77,10 +78,22 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
         !manifest.contains("[design]") && !manifest.contains("[checked-by-hand]"),
         "the example grew answers of its own; this test would be adding to them"
     );
+    let config = dir.join("config");
+    let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
     let how = "Sent a POST to the site and got 405; only GET and HEAD work.";
     let d =
         |id: &str, by: &str, on: &str, answer: &str, location: Option<&str>, how: Option<&str>| {
-            sealed("design", id, by, on, Some(answer), location, None, how)
+            sealed(
+                &key,
+                "design",
+                id,
+                by,
+                on,
+                Some(answer),
+                location,
+                None,
+                how,
+            )
         };
     let hand_how = "Opened the live site; the padlock shows a trusted certificate.";
     manifest.push_str(&format!(
@@ -101,16 +114,9 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
         d("V1.1.1", "owner", &yesterday, "yes", Some("app.py"), Some(how)),
         d("V4.1.3", "ai-tool", &today, "yes", None, Some(how)),
         d("V4.2.1", "owner", &today, "yes", None, None),
-        sealed("checked-by-hand", "V12.2.2", "Sam Lee", &today, None, None, Some("done"), Some(hand_how)),
+        sealed(&key, "checked-by-hand", "V12.2.2", "Sam Lee", &today, None, None, Some("done"), Some(hand_how)),
     ));
     std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
-    let config = dir.join("config");
-    std::fs::create_dir_all(config.join("securevibe")).unwrap();
-    std::fs::write(
-        config.join("securevibe").join(sv_check::seal::KEY_FILE),
-        format!("{}\n", "08".repeat(32)),
-    )
-    .unwrap();
 
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))

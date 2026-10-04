@@ -85,13 +85,14 @@ fn status(run: &Run, id: &str) -> String {
 /// entry can be sealed the way `sv review` seals it.
 fn config() -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sv-finding-review-config-{}", std::process::id()));
-    std::fs::create_dir_all(dir.join("securevibe")).unwrap();
-    std::fs::write(
-        dir.join("securevibe").join(sv_check::seal::KEY_FILE),
-        format!("{}\n", "07".repeat(32)),
-    )
-    .unwrap();
+    sv_check::seal::Key::load_or_make_in(&dir.join("securevibe")).unwrap();
     dir
+}
+
+fn key() -> sv_check::seal::Key {
+    sv_check::seal::Key::load_or_make_in(&config().join("securevibe"))
+        .unwrap()
+        .0
 }
 
 /// An entry; a person's is sealed as `sv review` seals it, the AI coding tool's is not.
@@ -113,7 +114,7 @@ fn entry(rule: &str, file: &str, fingerprint: &str, verdict: &str, by: &str, why
         let fields = sv_check::seal::finding_review_fields(&review);
         format!(
             "seal = \"{}\"\n",
-            sv_check::seal::Key::from_bytes([7; 32]).seal(&sv_check::seal::as_strs(&fields))
+            key().seal(&sv_check::seal::as_strs(&fields))
         )
     };
     format!(
