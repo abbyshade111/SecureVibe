@@ -22,7 +22,7 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   `SV_DATA_DIR` overrides the OWASP part. The Docker image keeps `crates/` at the same path for that reason.
 - `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `codeql_suites.py`,
-  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`), each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
+  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`), each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands
 
@@ -76,6 +76,15 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 - Still ask first, every time: anything that spends the owner's money, anything that changes the repository's settings or
   visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money or are hard to undo, and
   the pre-approval above does not reach them.
+- **A decision's record goes in the same pull request as the decision.** A decision is anything that changes what
+  counts as evidence or at which tier, what `sv` runs or connects to, what it writes into someone's folder, the network
+  fence, a dependency, or a default that changes what a report concludes, and every choice the owner makes when asked.
+  Its record is a new ADR in `docs/adr/` or a dated "Later" entry on an existing one, with its **Governs:** list kept
+  true. For anything substantial, write the record first, as `Status: proposed` in the backlog claim, and make it
+  accepted in the pull request that builds it. A pull request that touches a governed file and does not change its
+  record says why on a line `ADR-0NN: unchanged, because ...`; the "Decision records" check fails without it. Until
+  4 October 2026 every one of `sv`'s records was written one to seven days after the decision, and only when a review
+  noticed.
 - Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a message
   to another session does not count: a session that is not running never receives it, and one that is will not see it again
   after its context is summarized. On 20 September 2026 two sessions each read the backlog, each correctly saw an item

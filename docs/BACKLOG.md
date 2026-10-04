@@ -133,6 +133,8 @@ another session is not a claim.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/s8-bundle-tool-messages`.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
@@ -246,6 +248,8 @@ another session is not a claim.
     PyPI names are compared through `manifest_lock::python_name`, the normalizer already there.
   - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h9-pipenv`.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -332,8 +336,12 @@ another session is not a claim.
     add up. Fix: every status, and a test that the rows sum to the applicable total.
   - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r6-exit-codes`.
   - **R7. High, Reproduced.** `sv notes` and the MCP notes tool delete the owner's own text, though the tool says it
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r7-notes-keep-owner-text`.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
@@ -2496,6 +2504,14 @@ another session is not a claim.
   that record or says `ADR-0NN: unchanged, because …`; and a test that every test, file, and ADR number a record
   names exists. The weekly review below becomes a scheduled task. **Claimed the same day by session securevibe-e9**,
   in branch `claude/securevibe-e9-adr-upkeep`. Other sessions: please leave `docs/adr/` to it until this says done.
+  **Done the same day.** The rule is in `CLAUDE.md` and `docs/adr/README.md` ("When a record is written, and how it
+  stays true"), and the pull-request template has a "Decision record" section. ADR-015 to ADR-026 each have a
+  **Governs:** list; `tools/adr_check.py`, run by `.github/workflows/decision-records.yml`, fails a pull request that
+  touches a governed file without changing the record or giving an `ADR-0NN: unchanged, because ...` line. Replayed
+  on earlier pull requests, it would have caught #558 (ADR-019, the fence's gateway) and #588 (ADR-020 for the new
+  dependency, ADR-022, ADR-023, and ADR-026). `crates/sv-cli/tests/decision_records.rs` checks the records' tests,
+  files, patterns, cited numbers, and index; five references broken in turn, each caught, and the script's own
+  self-test caught two of its guards broken (a third guard was redundant and was removed).
 
 - **A weekly review of the decision records, so they stop falling behind what is built.** Asked for by the owner
   on 27 September 2026, after the ADR analysis (`docs/paper/ADRS.md`) found records out of date within two days
@@ -2510,6 +2526,10 @@ another session is not a claim.
      without their reasons, such as a language, a runtime, a fence, or a rule about evidence.
   4. Checks each record's cited requirement ids against `data/frameworks`, as the ADR analysis did.
   5. Records the review itself in this backlog, with the date and what changed, so a skipped week is visible.
+
+  **Scheduled on 4 October 2026**, at the owner's asking: the routine "Weekly decision-record review" runs every
+  Monday at 8:45 Eastern in a fresh session, claims the week's review here first, and also reports how many days each
+  new record came after its decision and how the week's `ADR-0NN: unchanged, because ...` lines were used.
 
   v1's records on the `v1` branch are archived and are out of scope. A correction to one of them is made as the
   "records that disagree with what was built" entry above describes.
