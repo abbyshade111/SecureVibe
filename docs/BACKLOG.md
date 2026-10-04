@@ -4503,6 +4503,21 @@ another session is not a claim.
   which three keys got wrong and are corrected. It also found that the pack loads only 225 of the
   map's rules; that is its own entry, "Semgrep's pack reaches 31 of the 50 requirements its map
   names", below. See DESIGN, "Semgrep: a thousand rules". `staticcheck` and `phpcs-security-audit` are each a data entry.
+  **Looked at on 4 October 2026 by session securevibe-e9, at the owner's asking, and not added: neither is a data
+  entry.** Both were installed and run here.
+  - **staticcheck** 2026.2.1 writes SARIF 2.1.0 (`-f sarif`, though its help lists only `stylish`, `text`, and
+    `json`). It writes the report to standard output, which adapters discard, so it would need a code change. It is
+    a correctness checker. Of its 162 checks, the only one that speaks to a requirement is SA2000 (`WaitGroup.Add`
+    inside the goroutine, a race), and only loosely, to V15.4.1, a level 3 requirement. SA1019 (a deprecated
+    function) does not fit V15.2.1, which is about update time frames. On a small app with a format string taken
+    from the command line, `md5`, and `math/rand`, it reported nothing. Not worth a code change for one loose,
+    level 3 citation.
+  - **phpcs-security-audit** 2.0.1 runs under PHP_CodeSniffer 4.0.4. It found a query built from `$_GET`,
+    `system()` on input, and `eval` on input in a three-line file. But it has had no release since 5 August 2019,
+    and PHP_CodeSniffer has no SARIF report (`full`, `xml`, `checkstyle`, `csv`, `json`, `junit`, and others). This
+    file's rule is SARIF only, so adding it means either a second report reader or a SARIF report class shipped
+    with `sv` for PHP_CodeSniffer to load. Either is the owner's decision, made knowing that the package is no
+    longer maintained. Semgrep already runs on a PHP app, with 45 PHP rules mapped to requirements.
   `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
   already include its rules under their own names (`detect-child-process`,
   `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,
