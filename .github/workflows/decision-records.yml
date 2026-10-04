@@ -23,7 +23,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  check:
+  # The name is what `main`'s branch protection requires, so it says what it is and is unlike any other job's.
+  decision-records:
+    name: Decision records
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
