@@ -144,6 +144,13 @@ another session is not a claim.
     `claude/s8-bundle-tool-messages`.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s9`.
+    **Done the same day** (DESIGN, "Limits on what the app may use"; ADR-019, Later): every container a run starts
+    gets 2 GB of memory with no swap beyond it, 512 processes, and up to two processors, added where every `docker
+    run` is labeled, so none is missed; the browser's and mail server's in-memory folders have a size; `sv` keeps at
+    most 32 MB of what any command prints, reads and drops the rest, and never hands a cut answer to a check.
+    `--user` was weighed and left out, with the reason in ADR-019. Five guards broken in turn, each caught.
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
     two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
     what this run made.
@@ -161,6 +168,13 @@ another session is not a claim.
   - **S13. Low, Reproduced. `sv probe` takes internal addresses, and curl's globbing turns one address into
     several requests** (`production.rs`). Fix: `--globoff`, and refuse private, loopback, link-local, and
     unspecified addresses, names that resolve to them included.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s13`.
+    **Done the same day** (DESIGN, "`sv probe` asks only public addresses"; ADR-027): private, shared, link-local,
+    loopback, unspecified, and other non-public addresses are refused, typed or looked up; the name is looked up
+    once and curl is held to the checked addresses with `--resolve`; every curl starts `--disable --globoff --proto
+    =http,https`. Found while building it: `--disable` had been ignored, because curl reads it only as the first
+    argument. Seven guards broken in turn, each caught.
   - **R1. High, Reproduced. An AI tool can mark its own findings as reviewed by a person** (`review.rs`,
     `confirm.rs`): only an empty `by`, "ai-tool", and "AI coding tool" are refused, so `by = "owner"` cleared a
     finding, shown as "SET ASIDE BY A PERSON"; `confirmed.by` has the same gap. Fix: at least say what is known
@@ -214,6 +228,13 @@ another session is not a claim.
     Prisma `$queryRawUnsafe`; `mysqli_query($conn, ...)`, PDO `prepare`; `prepareStatement`, Spring `jdbc.query*`;
     `new SqlCommand`; Ruby `where("...#{x}")`; `pd.read_sql(f"...")`). Nine real injections gave none. Fix: sinks
     and the SQL argument's position per language; until then name the calls in the clean claim.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h1`.
+    **Done the same day** (DESIGN, "The query calls each language really uses"): the review's nine injections, through
+    better-sqlite3, node-sqlite3, Prisma, mysqli, PDO, JDBC, Spring, `new SqlCommand`, Dapper, Active Record, and
+    pandas, are each found, and each one's safe form is not. `argumentPositions` reaches past PHP's and C#'s argument
+    wrappers, and a new `argumentsForCommonNames` reports `get`, `all`, `run`, `update`, and their like only when what
+    they are given looks like SQL. The clean claim now says it covers the usual libraries' query calls.
   - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
     (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
     or mark the page left behind.
@@ -294,14 +315,24 @@ another session is not a claim.
     refusal.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-refusals-that-count`.
+    **Done the same day** (DESIGN, "A refusal is credited only for the reason it is about"): the burst gives each
+    record its own marker and credits only a 429, or a 503 with `Retry-After`; each upload has a fresh token and its
+    own marker, and a refusal is credited only when an ordinary file is accepted straight after it. Seven guards
+    broken in turn, each caught.
   - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
     that includes `docker exec`'s own time.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H19. Medium, Read.** A matching advisory clears the "could not compare" flag earlier advisories left.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H20. Medium, Reproduced.** RubyGems platform versions (`1.15.4-x86_64-linux`) are compared as semver.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
@@ -316,6 +347,8 @@ another session is not a claim.
     `.well-known/security.txt` and other spellings are not recognized.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h25`.
 
 - **The deep review of `sv` at `eff3f17`, part 3 of 3: accuracy (A1 to A6), reviews and reports (R3 to R14), and
   improvements.** Same sender. **Each item can be claimed on its own.** R1 and R2 are in part 1.
@@ -1082,6 +1115,9 @@ another session is not a claim.
   was reworded once, after both builds with its first wording left the query string and status out of their log lines.
   **Prompts 8 to 15 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first` (item 8 of "Design-time help before any code", below).
+  **Prompts 8 to 15 done the same day** (`data/design-prompts.json`, `docs/prompts/design-time.md`, "Not tried yet,
+  and no check can show them"; ADR-028). Each is not tried and names no ASVS requirement; six name the Secure by Design
+  controls whose statements fit, two name none.
 
 - **Design-time help before any code: keeping what v1 did best.** Proposed on 4 October 2026 by session paper-facts,
   at the owner's asking, after comparing v1 and `sv` for the paper. v1 made the decisions first (the wizard, the design
@@ -1126,6 +1162,22 @@ another session is not a claim.
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
+  **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
+  the design-time prompts as MCP prompts"). The instructions and the spec put the brief first for an app with no code,
+  and the spec's third rule now keeps a planned capability true until it is dropped; the server answers `prompts/list`
+  and `prompts/get` in both protocols with the design-time prompts, each marked and credited; and the eight prompts
+  below are written, each not tried and naming no requirement. Which clients list MCP prompts is not yet tried.
+  Fourteen guards broken in turn, each caught.
+
+- **A heading of the owner's own in `security-notes.md` is read as part of the answer above it.** Found on 4 October
+  2026 by session paper-facts, writing the design-time prompts. `read_answers` (`crates/sv-check/src/notes.rs`) ends a
+  section only at a heading that starts with a requirement id (`section_id`), so `## A note from me` and what follows
+  it become part of the section above. Read in the code; **not reproduced end to end**: tried on a copy of
+  `examples/flask-booking`, where even a properly written answer was not counted, so the setup was wrong and the
+  question open. If it holds, text under a stray heading below an unanswered section could make it look answered, at
+  the tier its `Written by:` line gives. The prompts are kept from causing it (a test holds them to `sv`'s headings);
+  an owner or a tool writing a heading of their own is not. Ways out, for the owner: end a section at any heading, or
+  report a heading `sv` does not know as a gap. Not claimed.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
@@ -1393,6 +1445,10 @@ another session is not a claim.
     **The owner decided on 28 September 2026 to patch `v1`: merging `claude/ci-hang` into the `v1` branch is
     claimed on 28 September 2026 by session admiring-murdock-875699.** The tags `v1-paper` and `v1-final` stay
     where they are.
+    **Done on 28 September 2026** (#396, `5ddffb8`, merged 20:51 Eastern): `claude/ci-hang` was merged into `v1` by
+    way of `claude/v1-ci-hang`, which also says so in `ARCHIVED.md`, and `v1`'s
+    `server/tests/llm/safety.test.ts` no longer asks for `/proc/definitely/not/writable`. `TOP10.md` already said
+    so. Recorded here on 4 October 2026 by session securevibe-e9, which found the claim still open.
   Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
   (28 against 26).
 
@@ -5439,6 +5495,10 @@ another session is not a claim.
   6 to 11 of 92. Redirects and HSTS stay open: inside the fence the app is reached over plain HTTP, so
   whether it redirects to HTTPS, or sends HSTS there, is `sv probe`'s to ask of the live site. See
   DESIGN, "Six more questions for anybody".
+  **Closed on 4 October 2026 by session securevibe-e9, which held the claim:** nothing in this entry is left. Redirects
+  and HSTS are `sv probe`'s (and since #595 are credited only when they hold); method handling per route and
+  anything that sends data need the app's routes or a session, which this entry already said are their own items.
+  A new probe is an entry of its own.
 
 - ~~**Seeded users.**~~ Done on 25 September 2026. `[stack.run.users]` in securevibe.toml says how
   accounts are made (`seed`, run in the app's container with the accounts in its environment, or the

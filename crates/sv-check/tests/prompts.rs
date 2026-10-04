@@ -181,3 +181,52 @@ fn an_id_used_twice_is_refused() {
     let why = format!("{:#}", refused.expect_err("refused"));
     assert!(why.contains("used twice"), "{why}");
 }
+
+/// The headings a prompt asks the AI coding tool to write under in security-notes.md: every quoted
+/// phrase after a mention of the file, up to the end of that sentence.
+fn notes_headings_named(prompt: &str) -> Vec<String> {
+    let text = prompt.split_whitespace().collect::<Vec<_>>().join(" ");
+    let quoted = regex::Regex::new(r#""([^"]+)""#).unwrap();
+    let mut out = Vec::new();
+    for (at, _) in text.match_indices("security-notes.md") {
+        let rest = &text[at + "security-notes.md".len()..];
+        let sentence = rest.split(['.', ':']).next().unwrap_or("");
+        out.extend(quoted.captures_iter(sentence).map(|c| c[1].to_owned()));
+    }
+    out
+}
+
+/// A heading in security-notes.md that is not one of `sv`'s own does not end the section above it:
+/// the notes reader takes what follows as part of that section's answer. So a prompt may only ask
+/// for the headings `sv` writes, and anything else goes in a file of its own.
+#[test]
+fn every_heading_a_prompt_names_in_the_security_notes_is_one_sv_writes() {
+    let catalog: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/security-notes.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let titles: Vec<&str> = catalog["sections"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|q| q["title"].as_str().unwrap())
+        .collect();
+    let both = Prompts::load_all(&[&library(), &design_library()]).unwrap();
+    let mut named = 0;
+    for p in &both.prompts {
+        for heading in notes_headings_named(&p.prompt) {
+            named += 1;
+            assert!(
+                titles.contains(&heading.as_str()),
+                "{} asks for \"{heading}\" in security-notes.md, which is not a heading sv writes \
+                 there; the notes reader would take it as part of the section above",
+                p.id
+            );
+        }
+    }
+    // The control: the prompts do name headings, so the loop above checked something.
+    assert!(named >= 8, "only {named} headings found");
+}

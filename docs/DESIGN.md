@@ -6856,6 +6856,57 @@ these were read.
 **Tests.** The reading of the knocks has unit tests. Two breaks were each caught: a refusal read as the fence
 holding, and the control left out. The fence tests ran for real in CI and passed.
 
+## Limits on what the app may use (4 October 2026)
+
+The deep review of `sv` at `eff3f17` found that the app ran with no limit on memory, processes, or processors, and
+that `sv` kept everything a command printed (S9, medium). The app is code `sv` was asked to check, not code it trusts:
+one that leaks memory, starts processes without end, or answers a request with gigabytes could take the owner's
+computer down with it. Recorded under ADR-019.
+
+- **Every container is limited, in one place.** `DockerBackend::prepared` is the one place every `docker run` and
+  `docker create` passes through, where they are already labeled for cleanup, and it adds the limits there: 2 GB of
+  memory with no swap beyond it, 512 processes, and two processors. When Docker has fewer than two it gets all of
+  them, since Docker refuses to start a container asking for more than it has, and when Docker will not say how many
+  it has, no processor limit is set and the others still are. A helper added later cannot be missed. The app's
+  in-memory folders count against its memory, and the browser's and the mail server's now have a size, as the app's
+  did.
+- **`sv` keeps at most 32 MB of what a command prints**, on each of its two streams. The rest is still read, and
+  thrown away, so the command never waits on a full pipe. Output that was cut ends with a line saying so.
+- **A cut answer is never judged.** Every Docker call ends in `finished`, which refuses output that was cut, so a
+  check never reads the first 32 MB of a page as the whole of it; the check reports that it could not ask. A test
+  suite's own output is shown cut, with the line, and its exit code still counts.
+- **Not `--user`.** The review asked for that too. With every capability dropped and `no-new-privileges`, root in the
+  container cannot read others' files, change ownership, or gain anything back, while a fixed other user would stop
+  many images from starting at all (ADR-019).
+
+How it is held: `every_container_is_started_with_limits_and_nothing_else_is_changed` and
+`the_processor_limit_never_asks_for_more_than_docker_has` (`crates/sv-run/src/docker.rs`), and
+`output_past_the_limit_is_read_and_not_kept` (`crates/sv-run/src/lib.rs`). Each guard was undone in turn and its
+test went red: the limits, the size of the browser's folder, the processor count, the cap, and the refusal of cut
+output.
+
+## `sv probe` asks only public addresses (4 October 2026)
+
+The deep review of `sv` at `eff3f17` found that `sv probe` would ask any address that was not `localhost` or
+`127.*`, and that curl's globbing could turn one address into several requests (S13). Recorded as ADR-027.
+
+- **Public addresses only.** `not_public` refuses this computer, private and shared networks, link-local ranges
+  (169.254.169.254 is where cloud machines keep their credentials), the unspecified address, multicast, broadcast,
+  and the ranges kept for testing and for the network's own use. An IPv6 address that carries an IPv4 one is judged
+  by the IPv4 one inside it. The message names what the address is and points at `sv report --run`.
+- **Looked up once, and held to.** `addresses` looks the name up through this computer's resolver; one internal
+  address among the answers refuses the whole name. `Curl::held_to` then gives every curl `--resolve` for each port
+  it may use (443 and 80, or the one written in the address), so curl connects only to what was checked and a
+  second lookup cannot answer differently.
+- **Every curl starts the same way**, in `Curl::args`: `--disable` first, the only place curl reads it, so no
+  `.curlrc` adds anything; `--globoff`, so one address is one request; and `--proto =http,https`. `--disable` used
+  to come after other flags, where curl ignores it; that was found while building this.
+- **Not the proxy.** A proxy set on this computer is still used, so the probe keeps working on networks that need
+  one. Through a proxy, `--resolve` does not apply, and that is said in ADR-027.
+
+How it is held: three tests in `crates/sv-check/src/production.rs` and two in `crates/sv-cli/tests/probe_addresses.rs`,
+which put a `curl` of the test's own on the path and read what it was asked. Seven guards undone in turn, each caught.
+
 ## Design-time prompts, tried (4 October 2026)
 
 The prompt library (`docs/PROMPTS.md`) asks the AI coding tool for something `sv` checks; these ask it to decide
@@ -7319,6 +7370,38 @@ since the first left the spread refused for another reason. Not done, and still 
 the app's own database, a redirect through the app's own checking function, and family-hub's redirect through a
 parameter, which need a judgment about the app's own functions.
 
+## The query calls each language really uses (4 October 2026)
+
+H1 of the deep review: `ast.sql-built-by-hand` named a short list of calls per language and judged only the first
+argument, so nine real injections through the libraries people use gave no finding, while the report marked V1.2.4
+checked. Each of the nine is now a test, beside the same call written safely.
+
+- **More calls, per language.** JavaScript and TypeScript: better-sqlite3's and node-sqlite3's `prepare`, `exec`,
+  `all`, `get`, `run`, and `each`, and Prisma's `$queryRawUnsafe` and `$executeRawUnsafe` (its tagged `$queryRaw` is
+  safe, and is not a call this reads). Python: pandas' `read_sql` and `read_sql_query`. PHP: PDO's `prepare`, and
+  `mysqli_query`, `mysqli_real_query`, `mysqli_multi_query`, `pg_query`, and `pg_send_query`, which take the
+  connection first. Java: `prepareStatement`, `prepareCall`, and Spring's `JdbcTemplate` (`query`, `queryFor…`,
+  `update`, `batchUpdate`). C#: `new SqlCommand(…)` and its siblings for SQLite, PostgreSQL, MySQL, Oracle, OLE DB, and
+  ODBC, and Dapper's `Query…` and `Execute…`, including `Query<T>`. Ruby: Active Record's `where`, `order`, `having`,
+  `group`, `joins`, `from`, `pluck`, and their kin, and `count_by_sql`.
+- **The argument that matters, in every grammar.** `argumentPositions` now reaches past the wrapper PHP, C#, and Kotlin
+  put round each argument, so `mysqli_query($conn, $sql)` is judged on `$sql`. Before, it found no second argument and
+  skipped the call.
+- **A common name is reported only for a query.** `get`, `all`, `run`, `exec`, `update`, `Query`, and `Execute` are
+  also the names of a cache, a regular expression, a route, and a hundred other things. `argumentsForCommonNames`
+  gives, per language, a pattern over such names and what their argument must look like before the call is reported:
+  SQL (`SELECT … FROM`, `INSERT INTO`, `UPDATE … SET`, `DELETE FROM`, and the rest), or a name containing `sql`. For
+  Active Record's methods it must be a string, since `where(name: n)` is the safe form. So `cache.get(key)`,
+  `re.exec(s)`, and `app.get('/notes', …)` stay quiet. What it gives up: a query held in a name without `sql` in it, such as
+  `q`, `query`, or `stmt`, and sent through one of those common names is not reported; `sql` or `userSql` still is.
+  Every call whose name is specific to databases is read whatever it is given.
+- **The clean claim says what it covered**: "a database query, sent through the usual database libraries' query
+  calls, joined together…", not every way a program can reach a database.
+
+How it is held: `the_usual_query_calls_of_each_language_are_read_and_their_safe_forms_are_not_reported`
+(`crates/sv-check/src/ast.rs`). It has twenty-nine cases, and asserts that each one parses, so a pass is not a fixture
+the grammar could not read.
+
 ## Bandit handed the app's own Python files, and a run that did not finish (4 October 2026)
 
 S7 and H7 of the deep review, both about what `sv` takes from an outside tool as having been read.
@@ -7781,3 +7864,71 @@ ways. Five guards broken in turn, each caught: altering the first cookie instead
 other cookies were each caught by both new tests; skipping the control, ignoring a token, and staying silent when
 sign-in set no cookie were caught by the test that drives the check directly, since the in-memory app never gives
 those cases.
+
+## A refusal is credited only for the reason it is about (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H15) found two checks crediting any refusal as the one they ask
+about. The burst behind V2.4.1 sent the same record again and again with one anti-forgery token, and read any refusal
+of the last as a limit: an app that keeps a value unique, or takes each token once, refused the second record on and
+was credited with a limit it does not have. The upload checks (V5.2.1, V5.2.2, V1.3.4, V5.4.3, V5.3.2) sent every file
+with one token and the same form values, and credited a refusal of the bad file whatever the reason, a quota reached
+included.
+
+- **The burst.** Each record now carries a marker of its own, and the last refusal is credited only when it is how a
+  limit answers: 429 Too Many Requests, or 503 with `Retry-After` (which no longer counts as a crash). A refusal of any
+  other kind is not assessed, with its status and the reasons it may have had. The token is still fetched once: an app
+  that takes each token once is not assessed rather than credited, and fetching a page between the records would
+  stretch the burst past the minute it counts over.
+- **The uploads.** Each upload fetches a fresh token when the form takes one and carries its own id as `{marker}`.
+  A refusal is credited only when an ordinary GIF, with its own token and marker, is accepted straight after it;
+  otherwise the requirement is not assessed and the report says both were refused. The review suggested a control just
+  before each refusal; it is after, because a quota the refused file would have reached shows only in what comes next,
+  and for a spent token or a repeated value either order shows the same.
+
+The in-memory app gained four options to put these to the test: a token taken once, a refusal (409) of a repeated note
+or upload title, an upload quota, and the status its notes limit answers with. Seven guards broken in turn, each caught
+by a test written for it: the burst repeating its marker, crediting any refusal, taking a 503 without `Retry-After` as
+a limit, and taking a 503 with it as a crash; an upload repeating its marker, reusing the first upload's token, and
+skipping the ordinary file after a refusal.
+
+## Decide before you build: the instructions, the spec, and the design-time prompts as MCP prompts (4 October 2026)
+
+Items 1, 2, and 8 of the backlog's "Design-time help before any code", as the owner decided the same day; the decision
+is ADR-028.
+
+**The instructions and the spec.** The MCP server's opening instructions now begin with the design: for an app with no
+code yet, write `securevibe.toml` first, for the app as it will be, deciding each answer with the person, then work
+through the design-time prompt for each feature before writing its code. The spec (`sv init`, `securevibe_spec`) says
+the same, and its third rule now has two cases. Before any code, a capability the app is planned to have is true;
+once there is code, the file describes the code, and a capability planned and then dropped is false. The rule as it
+was made every capability false for an empty folder, which is how a real requirement gets switched off.
+
+**The design-time prompts as MCP prompts.** The server now answers `prompts/list` and `prompts/get`, in the initializing
+protocol and the stateless one (with `ttlMs` and a public `cacheScope`, as for the tools), and declares `prompts` among
+its capabilities in both. It offers every prompt in `data/design-prompts.json`, and only those. A prompt comes back as
+the person's message: its text, then the line saying whether it was shown to work, that a prompt is an instruction and
+not evidence, and the file's credit. An unknown name, a missing one, and a coding prompt's id are refused as invalid
+parameters. Which clients list MCP prompts for the person has not been tried.
+
+**Eight more design-time prompts.** Items 8 to 15 of "Design-time prompts from the Secure by Design checklist", each
+`untested`, with a check of kind `none` that says why no check in `sv` can show it working. None names an ASVS
+requirement. Six name the Secure by Design controls whose statements fit: MT-03, DM-01 and DM-05, AS-01 and AC-01,
+MT-06, AC-06, and MT-05. Two name none, because they draw on the checklist's escalation triggers and principles, which
+are not controls.
+
+**A heading in the notes is a section, or it is part of one.** The notes reader (`read_answers`) ends a section only
+at a heading that starts with a requirement id; any other heading, and what follows it, is read as part of the
+answer above. So the new prompts write under the notes' own headings where one fits ("How each kind of sensitive data
+is protected", "Everything the app talks to"), and otherwise into `design-decisions.md`, which `sv` does not read. A
+test reads every prompt in both files for the headings it asks for in `security-notes.md`, and refuses one `sv` does
+not write. Whether a stray heading can make an unanswered section count as answered was tried on
+`examples/flask-booking` and not settled: in that setup even a properly written answer was not counted, so the
+reproduction is in the backlog rather than here.
+
+**Broken in turn.** Twelve guards in the server and the instructions: the "not tried yet" and "tried, not shown"
+marks each made "shown", the credit and the mark each left off the message, the coding prompts offered too, an
+unknown name answered with the first prompt, the capability left out at `initialize` and at `server/discover`, the
+stateless methods not answered, and two phrases of the instructions changed. Each was caught. The first run found
+the "not tried yet" mark caught by nothing, because every design-time prompt then had been tried; with the eight new
+ones it is caught by two tests. The headings guard was broken twice (the incident plan written into the notes, and a
+heading misspelled), and each was caught.
