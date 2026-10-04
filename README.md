@@ -40,9 +40,19 @@ rule and the language. A script written into a web page —
 in a <script> block, an event handler or a javascript: link — is taken out and read as JavaScript, and anything found in it is reported against the page and the line it
 is really on. A page counts as unreadable only when something in it could not be taken out that way.
 
-`sv audit` ends with a status a CI job can act on: 0 when every package was compared and none matched a
-known vulnerability, 1 when one did, and 2 when the comparison did not cover the whole app (no database,
-an ecosystem the database holds nothing about, or a list of packages `sv` could not complete). Packages
+`sv check`, `sv report` and `sv audit` end with a status a CI job can act on. 3 always means `sv` itself
+failed and there is no result: no `securevibe.toml`, one it cannot read, a folder that is not there, an option
+it does not know (every other command uses 3 for this too). `sv audit` exits 0 when every package was compared
+and none matched a known vulnerability, 1 when one did, and 2 when the comparison did not cover the whole app (no
+database, an ecosystem the database holds nothing about, or a list of packages `sv` could not complete).
+`sv check` and `sv report` exit 0 when they finished, and 2 when a check could not run: a file that could not be
+read, a file the parser could not make sense of, a language nothing here reads, a code rule that would not
+compile, no file of the app read at all, or (`sv report --run`) an app that could not be started. What a static
+run cannot see by its nature, such as requirements nothing verified or a check that needs a Dockerfile the app
+lacks, does not count, or every run would exit 2. Add `--fail-on attention` to exit 1 for any finding (or
+`attention:high` for high and critical only), `--fail-on not-assessed` to exit 2 also for a symbolic link not
+followed, a `--tools` tool that did not run, or an `--advisories` comparison that did not cover the app, or
+`--fail-on any` for both; 1 outranks 2. Packages
 in folders `securevibe.toml` says are not the app, such as example apps and test fixtures, are listed apart
 and still count: that file is written by your AI coding tool, and naming a folder there must never hide a
 vulnerability. `sv` holds itself to this every week, auditing the Rust files it is built from

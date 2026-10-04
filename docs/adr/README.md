@@ -45,6 +45,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-024](ADR-024.md) | An unanswered data list holds the app to ASVS level 2 |
 | [ADR-025](ADR-025.md) | `sv run` has an end: time limits, Ctrl-C that cleans up, and leftovers removed by the next run |
 | [ADR-026](ADR-026.md) | The owner's word counts only when `sv review` recorded it (changes part of ADR-022 and ADR-023) |
+| [ADR-027](ADR-027.md) | Exit codes: 2 only when a check could not run, 1 only when asked, 3 when `sv` failed |
 
 ## Where v1's records disagree with what v1 built
 

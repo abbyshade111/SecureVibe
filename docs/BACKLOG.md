@@ -345,6 +345,13 @@ another session is not a claim.
     was read; `--fail-on attention[:SEVERITY]`, `not-assessed`, or `any` opts in to 1 and to a wider 2, never for
     "not verified by anything"; and any run where `sv` itself fails exits 3, everywhere, `sv audit`'s errors moving
     from 1 to 3 (ADR-027).
+    **Done the same day** (DESIGN, "Exit codes for CI"; ADR-027): `crates/sv-cli/src/exit.rs` holds the codes, the
+    exact list of what is a check that could not run, and `--fail-on`; `main` ends every error with 3; `sv audit`
+    shares the constants. Each command's `--help`, `sv --help`, the README, and GETTING-STARTED say what each code
+    means. Tested through the binary (`tests/exit_codes.rs`): 0, 1, 2, and 3 reached on purpose for `sv check`,
+    `sv report`, and `sv audit`. Seven guards broken in turn, each caught by one to seven tests. On the examples,
+    every default run exits 0; on five real apps with a manifest, four exit 0 and one exits 2 for a web page whose
+    script could not be read.
   - **R7. High, Reproduced.** `sv notes` and the MCP notes tool delete the owner's own text, though the tool says it
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
