@@ -1632,6 +1632,30 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
             println!("  … and {} more", listing.special.len() - 10);
         }
     }
+    if !listing.skipped.is_empty() {
+        println!(
+            "\nLeft out as installed or built code, so nothing read {}:",
+            if listing.skipped.len() == 1 {
+                "it"
+            } else {
+                "them"
+            }
+        );
+        for (dir, why) in listing.skipped.iter().take(10) {
+            println!("  {dir}/ ({why})");
+        }
+        if listing.skipped.len() > 10 {
+            println!("  … and {} more", listing.skipped.len() - 10);
+        }
+    }
+    if !listing.refused_markers.is_empty() {
+        println!(
+            "\nMarked as a report of `sv`'s but holding other files, so read as the app's own code:"
+        );
+        for dir in listing.refused_markers.iter().take(10) {
+            println!("  {dir}/");
+        }
+    }
 
     if !code.unread_files.is_empty() {
         println!(
@@ -2419,16 +2443,9 @@ fn write_bundle(
 }
 
 /// Every name `sv` writes in a report folder: the marker, the lock, and the five reports. A test
-/// holds this to what `write_report_files` writes.
-const REPORT_FOLDER_NAMES: &[&str] = &[
-    sv_scan::ecosystems::REPORT_MARKER,
-    report_lock::LOCK_NAME,
-    "report.html",
-    "compliance.md",
-    "security.md",
-    "findings.sarif",
-    "report.json",
-];
+/// holds this to what `write_report_files` writes. Kept in `sv-scan`, whose walk leaves a report
+/// folder out only while it holds nothing but these (deep review H6).
+const REPORT_FOLDER_NAMES: &[&str] = sv_scan::ecosystems::REPORT_FOLDER_NAMES;
 
 /// Makes `out_dir` ready for a report and takes it for this run, before the run starts: the checks
 /// `write_report_files` makes on the folder, made early so a refusal comes before the wait rather
@@ -3374,6 +3391,32 @@ fn assemble_report_saying(
                 shown.join(", "),
                 if listing.links.len() > 5 {
                     format!(", and {} more", listing.links.len() - 5)
+                } else {
+                    String::new()
+                }
+            ),
+        });
+    }
+    if !listing.skipped.is_empty() {
+        let shown: Vec<String> = listing
+            .skipped
+            .iter()
+            .take(5)
+            .map(|(dir, why)| format!("`{dir}/` ({why})"))
+            .collect();
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} folder{} left out as installed or built code",
+                listing.skipped.len(),
+                if listing.skipped.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "a folder named like an ecosystem's output, beside the file that makes it so, holds \
+                 code the app installed or built rather than wrote, and no check read it: {}{}. If \
+                 one holds the app's own code, move it or rename the folder.",
+                shown.join(", "),
+                if listing.skipped.len() > 5 {
+                    format!(", and {} more", listing.skipped.len() - 5)
                 } else {
                     String::new()
                 }

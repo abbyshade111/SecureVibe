@@ -10,7 +10,8 @@
 //! level. One walk refused a file over 2 MB and said so; two read anything and one kept it all in
 //! memory. Here the questions are answered once, and the walks are one.
 //!
-//! - A folder in `SKIP_DIRS`, or one carrying `sv`'s own report marker, is not entered.
+//! - A folder in `SKIP_DIRS` is not entered; nor is one of `OUTPUT_DIRS` beside the manifest that
+//!   explains it, which is listed in `skipped`; nor a report `sv` wrote, holding nothing else.
 //! - A symbolic link is not followed, whether to a file or a folder, and is listed once in `links`.
 //!   The report names them, so a linked `vendor/` is a gap with a name rather than a silence. The
 //!   kind comes from the directory entry itself, before anything resolves the link.
@@ -23,7 +24,7 @@
 //! Every check keeps a function that takes the app folder and walks it, for a caller that has only
 //! one thing to ask; `sv report` and `sv check` build the listing once and hand it to each.
 
-use crate::ecosystems::{EDITOR_DIRS, language_of, skip_dir};
+use crate::ecosystems::{EDITOR_DIRS, Skip, language_of, marker_refused, skip_reason};
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
@@ -219,6 +220,14 @@ pub struct Listing {
     /// one whose kind could not be read. Never opened: opening a named pipe waits for something to
     /// write into it, which hung `sv` (deep review S12).
     pub special: Vec<String>,
+    /// Folders with an ordinary name left out as an ecosystem's output (`dist/` beside a
+    /// `package.json`), each with the manifest that explains it. Every check leaves them out, and the
+    /// report names them, so a skip is never silent (deep review H6). The folders every app has
+    /// (`.git`, `node_modules`) and `sv`'s own reports are not listed.
+    pub skipped: Vec<(String, String)>,
+    /// Folders carrying `sv`'s report marker, or named as its report folder, that hold something `sv`
+    /// does not write. They were read as the app's own code, since the marker proves nothing there.
+    pub refused_markers: Vec<String>,
 }
 
 impl Listing {
@@ -233,6 +242,8 @@ impl Listing {
         listing.links.sort();
         listing.unopened.sort();
         listing.special.sort();
+        listing.skipped.sort();
+        listing.refused_markers.sort();
         listing
     }
 
@@ -335,8 +346,19 @@ fn walk(root: &Path, dir: &Path, in_editor: bool, out: &mut Listing) {
                 || path
                     .file_name()
                     .is_some_and(|n| EDITOR_DIRS.contains(&n.to_string_lossy().as_ref()));
-            if skip_dir(&path) && !editor {
-                continue;
+            if !editor {
+                match skip_reason(&path) {
+                    Some(Skip::Output { beside }) => {
+                        out.skipped
+                            .push((relative(root, &path), format!("output beside its {beside}")));
+                        continue;
+                    }
+                    Some(_) => continue,
+                    None if marker_refused(&path) => {
+                        out.refused_markers.push(relative(root, &path));
+                    }
+                    None => {}
+                }
             }
             if !editor {
                 out.dirs.push(relative(root, &path));
@@ -490,6 +512,83 @@ mod tests {
             all.contains("Dockerfile") && all.contains(".github"),
             "{all:?}"
         );
+    }
+
+    #[test]
+    fn an_ordinary_folder_name_is_left_out_only_beside_the_manifest_that_explains_it() {
+        // H6 of the deep review: `build`, `dist`, `vendor`, and the rest were skipped at any depth.
+        let root = scratch("output-dirs");
+        let write = |path: &str, text: &str| {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        };
+        // Explained: a web app's `dist/` beside its package.json, Go's `vendor/` beside go.mod.
+        write("web/package.json", "{}\n");
+        write("web/dist/bundle.js", "eval(a)\n");
+        write("api/go.mod", "module x\n");
+        write("api/vendor/lib/lib.go", "package lib\n");
+        // Not explained: the app's own `src/build/` and `tools/out/`, and a `target/` with no Cargo.toml.
+        write("src/build/steps.py", "print(1)\n");
+        write("tools/out/report.js", "console.log(1)\n");
+        write("target/main.py", "print(2)\n");
+
+        let listing = Listing::of(&root);
+        std::fs::remove_dir_all(&root).ok();
+
+        let files = names(&listing.files);
+        for read in [
+            "src/build/steps.py",
+            "tools/out/report.js",
+            "target/main.py",
+        ] {
+            assert!(files.contains(&read), "{read} is the app's own: {files:?}");
+        }
+        for left in ["web/dist/bundle.js", "api/vendor/lib/lib.go"] {
+            assert!(!files.contains(&left), "{left} is output: {files:?}");
+        }
+        assert_eq!(
+            listing.skipped,
+            [
+                (
+                    "api/vendor".to_owned(),
+                    "output beside its go.mod".to_owned()
+                ),
+                (
+                    "web/dist".to_owned(),
+                    "output beside its package.json".to_owned()
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_report_marker_counts_only_where_the_folder_holds_nothing_else() {
+        // H6 of the deep review: the marker left out every folder it was put in, and an AI tool could
+        // put it there. Now a marked folder holding anything `sv` does not write is read as the app's.
+        let root = scratch("markers");
+        let write = |path: &str, text: &str| {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        };
+        let marker = crate::ecosystems::REPORT_MARKER;
+        write(&format!("reports/{marker}"), "sv\n");
+        write("reports/Report.JSON", "{}\n");
+        write(&format!("hidden/{marker}"), "sv\n");
+        write("hidden/admin.py", "eval(x)\n");
+        write("securevibe-report/report.html", "<html>\n");
+        write("securevibe-report/notes.py", "print(1)\n");
+
+        let listing = Listing::of(&root);
+        std::fs::remove_dir_all(&root).ok();
+
+        let files = names(&listing.files);
+        assert!(!files.contains(&"reports/Report.JSON"), "{files:?}");
+        assert!(files.contains(&"hidden/admin.py"), "{files:?}");
+        assert!(files.contains(&"securevibe-report/notes.py"), "{files:?}");
+        assert_eq!(listing.refused_markers, ["hidden", "securevibe-report"]);
+        assert!(listing.skipped.is_empty(), "{:?}", listing.skipped);
     }
 
     #[test]
