@@ -6812,3 +6812,27 @@ number form or the quoted form fail a test.
 Twenty guards were broken in turn. Nineteen were caught at first; the one that was not, sending the condition without
 percent-encoding it, went unnoticed because the fake app reads spaces and quotes in an address anyway, and the test of
 a correct app now holds that every address the check sends is encoded.
+
+## Prompts the AI tool can fetch (4 October 2026)
+
+The prompt library (`data/prompts.json`, `docs/PROMPTS.md`) is offered two more ways: `sv prompts` prints it,
+and the MCP tool `securevibe_prompts` hands it to the AI coding tool, which can offer it to the person. Either
+can be narrowed to one requirement (`--requirement V1.2.4`, or `"requirement": "V1.2.4"`). An id that is no
+requirement at all is refused, so a mistyped one is never answered "no prompt targets it" as if it had been
+looked up.
+
+**Whether a prompt was shown to work travels with it.** A prompt is *shown to work* only when an app built
+with it passed its check and the same app built without it failed; the owner asked on 4 October 2026 for the
+rest to be offered too, marked. So every copy, in the terminal, the tool's text, and its structured result,
+says `shown`, `not-shown` (tried, with what happened), or `untested`, right above the prompt's text, and the
+ones shown to work come first. The loader refuses a prompt said to be tried that does not say what happened,
+and one not tried that carries a result, so the two cannot read alike.
+
+**A prompt's requirements are a citation, held like the others.** `tools/coverage.py`, which a test runs, already
+knows what every rule cites. It now refuses a prompt that names a requirement none of its rules cites, a rule
+that cites none of the prompt's requirements, a rule `sv` does not have, and an unknown status. Eight ways of
+breaking the data were tried, each caught.
+
+**Not evidence.** Handing the tool a prompt says nothing about what it wrote, so no requirement changes status
+because a prompt was given or read; the tool's description says so.
+
