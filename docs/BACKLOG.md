@@ -38,6 +38,8 @@ another session is not a claim.
      caught. The same holds for `call`, `check_call`, `check_output`, and `Popen` with `shell=True`. Witnesses: each
      of those with a built string and `shell=True` caught; each with a list and no shell, and with `shell=True` and
      a fixed string, quiet.
+  **Items 1 and 2 claimed on 4 October 2026 by session securevibe-e10**, at the owner's word ("keep going"), in
+  branch `claude/blind-spots`.
 
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
@@ -95,6 +97,11 @@ another session is not a claim.
     only a report created after the tool started.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-tool-reports`.
+    **Done the same day** (DESIGN, "Tools' reports in a folder of the run's own"): each run makes a new folder,
+    mode 700 with a random name, for the tools' reports and removes it afterwards; each adapter lists the exit codes
+    that mean it finished, from its own source, and any other ending is not run; and only a plain file the tool
+    wrote in this run is read. Seven guards undone in turn, each caught by its own test. Gosec ends with 1 both on
+    finding and on failing, so for it the report still decides.
   - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
     reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
     gets; until then drop findings on linked files and mark the run partial.
@@ -134,6 +141,17 @@ another session is not a claim.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-who-set-aside`, for the first fix only: say what is known wherever a report
     says "by a person". The interactive `sv review` stays open, for the owner to decide.
+    **First fix done the same day** (DESIGN, "Who set a finding aside: what securevibe.toml says, not "a person""):
+    the section is "Set aside in securevibe.toml", each entry reads "securevibe.toml says (name) set it aside", a
+    confirmed answer is "confirmed in securevibe.toml", and each says `sv` cannot tell who wrote the entry; the MCP
+    output tells the AI coding tool never to name the person in `by` itself. Twelve wordings put back in turn, each
+    caught. **Still open, for the owner to decide:** the interactive `sv review` with its record outside the app's
+    folder. The git author was considered and left out: an AI coding tool commits under the owner's git name.
+    **The owner decided on 4 October 2026**: build `sv review`, a command that runs only in a terminal and seals each
+    entry it records with a key kept outside the app's folder; the entries stay in securevibe.toml, and an entry
+    without a valid seal counts only as a proposal. A seal that cannot be checked where `sv` runs (CI, another
+    computer) still counts, saying it could not be checked there. **Claimed the same day by session securevibe-e9**,
+    in branch `claude/securevibe-e9-sv-review`.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -156,6 +174,8 @@ another session is not a claim.
     or mark the page left behind.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
+    **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
+    branch `claude/h3-credential-shapes`.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
@@ -178,14 +198,28 @@ another session is not a claim.
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
   - **H8. High, Reproduced.** PyPI names are not normalized (PEP 503) in the advisory comparison: `jupyter_server`
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (DESIGN, "Advisories: Python names, nested npm copies, and declared packages"):
+    PyPI names are compared through `manifest_lock::python_name`, the normalizer already there.
   - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): a lockfile v1 is read at every depth.
   - **H11. High, Reproduced.** V15.2.1 is credited while the package list is incomplete (`complete_enough` ignores
     declared-only packages). Fix: require `sbom.is_complete()`.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-match`.
+    **Done on 4 October 2026** (same DESIGN section): `complete_enough` requires `sbom.is_complete()`.
   - **H12. High, Read.** A plain-HTTP redirect to plain HTTP, or to a relative path, is credited as sending the
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
   - **H13. High, Read.** HSTS is credited whatever its value, `max-age=0` included, even on error answers (V3.4.1).
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
   - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
@@ -376,6 +410,14 @@ another session is not a claim.
      match" on it leave the test's credit standing; or, if it is meant to override, say so in its text.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-6-test-name-credit`.
+     **Done the same day** (DESIGN, "A finding that says it leaves the credit alone does"): `Finding::withholds_credit`
+     is false only for a rule listed in `INFORMATION_ONLY` (today the test-name rule alone) at `info` severity with
+     nothing merged into it. Such a finding is shown beside the requirement's status ("also noted, for information,
+     and not counted against it") instead of deciding it, and setting it aside as a false alarm leaves the test's
+     credit standing; every other finding, a tool's at `info` included, still makes its requirement need attention.
+     Tested with three report tests (beside the credit, the real-finding control in four forms, and the false-alarm
+     review) and an assertion in the suite's own test; seven guards broken in turn, each caught, and letting no
+     finding withhold credit turned twelve tests red.
   7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
      3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
      - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't
@@ -405,6 +447,14 @@ another session is not a claim.
 
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-8-slow-session`.
+     **Done the same day** (DESIGN, "A fresh sign-in after the `--slow` wait"): when the timeout check has waited,
+     A signs in again through the sign-in page (so a form token comes with the new session) and is shown opening
+     the private page before any later check uses the session; when that fails the run stops and says why, as it
+     does when the first sign-in fails. The timeout check keeps the two sessions of its own it always had. Tested on
+     the fake app's clock with sessions that end after 15 idle minutes: a correct app earns every credit with
+     `--slow` that it earns without, seeded and through sign-up, and sign-ins refused during the wait leave the rest
+     not assessed with the reason. With the fresh sign-in turned off, both tests failed: six credits lost, and the
+     sign-out credited with a dead session. No test caught it before.
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger

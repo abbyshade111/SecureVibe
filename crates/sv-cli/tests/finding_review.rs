@@ -162,8 +162,24 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
         .nth(1)
         .unwrap_or_else(|| panic!("no list of things to fix:\n{}", after.security));
     assert!(!to_fix.contains("app.py` line 6"), "{}", after.security);
-    assert!(after.security.contains("## Set aside by a person"));
+    assert!(after.security.contains("## Set aside in securevibe.toml"));
     assert!(after.security.contains(why));
+    // Who set it aside is only what the entry says: `by = "owner"` is not shown as a person's
+    // decision, because an AI coding tool can write the same line (deep review R1).
+    for page in [&after.security, &after.html] {
+        assert!(
+            !page.to_lowercase().contains("set aside by a person"),
+            "{page}"
+        );
+        assert!(page.contains("cannot tell who really wrote"), "{page}");
+    }
+    assert!(
+        after
+            .security
+            .contains("securevibe.toml says the owner set it aside as a false alarm on"),
+        "{}",
+        after.security
+    );
     // Reported against the rule, with only the rule's name in the link; the accepted risk is not.
     assert!(
         after.security.contains("[Report it against the rule](https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml&title=False%20alarm%3A%20ast.open-redirect&rule=ast.open-redirect&"),
@@ -196,7 +212,8 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
 
     // The accepted risk: still on the list, labeled, still needing attention.
     assert!(
-        to_fix.contains("Known and accepted as a risk by Sam Lee"),
+        to_fix.contains("securevibe.toml says Sam Lee accepted it on")
+            && to_fix.contains("sv cannot tell who wrote that entry"),
         "{to_fix}"
     );
     assert!(status(&after, "V1.2.4").starts_with("needs attention"));
@@ -236,11 +253,13 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
             .all(|r| r["partialFingerprints"]["svFingerprint/v1"].is_string())
     );
 
-    // What the AI coding tool is told: what a person set aside, and that its own proposal does
+    // What the AI coding tool is told: what was set aside in securevibe.toml, and that its own proposal does
     // not count and is never to be signed with a person's name.
     let tool = mcp_check(&dir);
     assert!(
-        tool.contains("SET ASIDE BY A PERSON") && tool.contains(why),
+        tool.contains("SET ASIDE IN securevibe.toml")
+            && tool.contains("never write one naming the person in `by` yourself")
+            && tool.contains(why),
         "{tool}"
     );
     assert!(

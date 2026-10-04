@@ -363,7 +363,7 @@ fn matches(component: &Component, affected: &Affected) -> Option<bool> {
         return Some(false);
     };
     if affected.package.ecosystem != expected
-        || !affected.package.name.eq_ignore_ascii_case(&component.name)
+        || !same_package(expected, &affected.package.name, &component.name)
     {
         return Some(false);
     }
@@ -380,6 +380,19 @@ fn matches(component: &Component, affected: &Affected) -> Option<bool> {
         }
     }
     if any_comparable { Some(false) } else { None }
+}
+
+/// Whether an advisory's package name and a component's name are the same package.
+///
+/// PyPI treats `jupyter_server`, `Jupyter-Server` and `jupyter.server` as one name (PEP 503: case
+/// folded, and every run of `-`, `_` and `.` read as one `-`). A lockfile and an advisory may each
+/// spell it either way, so comparing the spellings would quietly miss the advisory.
+fn same_package(ecosystem: &str, advisory: &str, ours: &str) -> bool {
+    if ecosystem == "PyPI" {
+        crate::manifest_lock::python_name(advisory) == crate::manifest_lock::python_name(ours)
+    } else {
+        advisory.eq_ignore_ascii_case(ours)
+    }
 }
 
 /// The requirement a clean comparison is evidence about: the app contains only components that have
@@ -504,7 +517,9 @@ pub fn audit_against(
     //
     // A manifest that asks for other versions than its lockfile has is the same again: the list
     // describes the lockfile, and whoever installs from the manifest runs something else.
-    let complete_enough = sbom.unread.is_empty()
+    // A package listed only by what the manifest asks for is not known to be what is installed, so
+    // a clean comparison of it is a clean comparison of the request, not of the app.
+    let complete_enough = sbom.is_complete()
         && sbom.passed_over.is_empty()
         && !sbom
             .disagreements
@@ -1218,6 +1233,91 @@ mod tests {
             &[advisory(LODASH)],
         );
         assert!(result.findings.is_empty(), "{result:?}");
+    }
+
+    const JUPYTER_SERVER: &str = r#"{
+      "id": "GHSA-test-jupyter",
+      "summary": "An issue in jupyter-server",
+      "affected": [{
+        "package": {"ecosystem": "PyPI", "name": "jupyter-server"},
+        "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.0.0"}]}]
+      }]
+    }"#;
+
+    #[test]
+    fn a_python_name_spelled_another_way_is_the_same_package() {
+        // PyPI reads `jupyter_server`, `Jupyter.Server` and `jupyter--server` as `jupyter-server`.
+        for spelled in [
+            "jupyter-server",
+            "jupyter_server",
+            "Jupyter.Server",
+            "jupyter__server",
+            "jupyter-_.server",
+        ] {
+            let result = audit(
+                &sbom_of(vec![component(spelled, "1.0.0", "Python")]),
+                &[advisory(JUPYTER_SERVER)],
+            );
+            assert_eq!(result.findings.len(), 1, "{spelled}: {result:?}");
+        }
+        // The other way round: an advisory spelled with an underscore finds a hyphenated lockfile.
+        let underscored = JUPYTER_SERVER.replace("\"jupyter-server\"}", "\"jupyter_server\"}");
+        assert_ne!(underscored, JUPYTER_SERVER, "the advisory was respelled");
+        let result = audit(
+            &sbom_of(vec![component("jupyter-server", "1.0.0", "Python")]),
+            &[advisory(&underscored)],
+        );
+        assert_eq!(result.findings.len(), 1, "{result:?}");
+        // Normalizing joins separators; it does not drop them or merge different names.
+        for different in ["jupyterserver", "jupyter-server-x", "jupyter"] {
+            let result = audit(
+                &sbom_of(vec![component(different, "1.0.0", "Python")]),
+                &[advisory(JUPYTER_SERVER)],
+            );
+            assert!(result.findings.is_empty(), "{different}: {result:?}");
+        }
+    }
+
+    #[test]
+    fn only_python_names_are_normalized() {
+        // npm names `lodash_x` and `lodash-x` are two packages; reading them as one invents findings.
+        let other = LODASH.replace("\"lodash\"}", "\"lodash-x\"}");
+        assert_ne!(other, LODASH, "the advisory was renamed");
+        let result = audit(
+            &sbom_of(vec![component("lodash_x", "4.17.15", "npm")]),
+            &[advisory(&other)],
+        );
+        assert!(result.findings.is_empty(), "{result:?}");
+        let control = audit(
+            &sbom_of(vec![component("lodash-x", "4.17.15", "npm")]),
+            &[advisory(&other)],
+        );
+        assert_eq!(control.findings.len(), 1, "the control: {control:?}");
+    }
+
+    #[test]
+    fn a_package_known_only_from_its_manifest_stops_the_clean_claim() {
+        // lodash 4.17.21 is past the fix. Read from a lockfile, that is what is installed and the
+        // comparison can be credited. Read from a manifest asking for exactly 4.17.21, it is only
+        // what was asked for: nothing says that is what the app runs.
+        let locked = audit(
+            &sbom_of(vec![component("lodash", "4.17.21", "npm")]),
+            &[advisory(LODASH)],
+        );
+        assert_eq!(locked.verified.len(), 1, "the control: {locked:?}");
+
+        let mut declared = component("left-pad", "1.3.0", "npm");
+        declared.source = VersionSource::Declared;
+        let result = audit(
+            &sbom_of(vec![component("lodash", "4.17.21", "npm"), declared]),
+            &[advisory(LODASH)],
+        );
+        assert!(result.findings.is_empty(), "{result:?}");
+        assert!(result.uncomparable.is_empty(), "{result:?}");
+        assert!(
+            result.verified.is_empty(),
+            "no clean claim while a package is only declared: {result:?}"
+        );
     }
 
     #[test]

@@ -82,17 +82,17 @@ pub fn headline(report: &Report) -> String {
     let set_aside_said = match set_aside {
         0 => String::new(),
         1 => " 1 more was found and set aside as a false alarm in securevibe.toml; it is listed \
-              under \"Set aside by a person\"."
+              under \"Set aside in securevibe.toml\"."
             .to_owned(),
         k => format!(
             " {k} more were found and set aside as false alarms in securevibe.toml; they are \
-             listed under \"Set aside by a person\"."
+             listed under \"Set aside in securevibe.toml\"."
         ),
     };
     if n == 0 && set_aside > 0 {
         return format!(
             "Nothing found is still open, but {} found and set aside as {} in securevibe.toml, \
-             listed under \"Set aside by a person\". That is not the same as this app being \
+             listed under \"Set aside in securevibe.toml\". That is not the same as this app being \
              sound: {} of the {} requirements that apply have had nothing look at them at all.",
             if set_aside == 1 {
                 "1 thing was".to_owned()
@@ -379,7 +379,7 @@ mod tests {
             "{line}"
         );
         assert!(
-            line.contains("Set aside by a person") && line.contains("190"),
+            line.contains("Set aside in securevibe.toml") && line.contains("190"),
             "{line}"
         );
         // It says where the setting aside is recorded, not that a person did it: sv cannot tell.
@@ -615,6 +615,7 @@ mod tests {
             level: 1,
             status: Status::NotVerified,
             findings: Vec::new(),
+            information: Vec::new(),
             checked_by: Vec::new(),
             supported_by: Vec::new(),
             documented_by: Vec::new(),

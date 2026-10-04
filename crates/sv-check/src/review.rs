@@ -19,6 +19,17 @@ use crate::finding::Finding;
 use std::path::Path;
 use sv_manifest::FindingReview;
 
+/// Who an entry says made the decision, as a sentence reads it: "the owner" for `owner`, otherwise
+/// the name as written. Only what securevibe.toml says: `sv` cannot tell who wrote the entry
+/// (deep review R1), so every report puts it as "securevibe.toml says".
+pub fn who_said(by: &str) -> String {
+    if by.trim().eq_ignore_ascii_case("owner") {
+        "the owner".to_owned()
+    } else {
+        by.trim().to_owned()
+    }
+}
+
 /// How long a verdict holds when nothing else ends it.
 pub const CURRENT_FOR_DAYS: u32 = 90;
 /// The shortest reason that can say what was looked at and what it showed.

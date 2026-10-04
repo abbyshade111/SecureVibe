@@ -232,7 +232,8 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # owner gave. Run `sv report` to see the questions that apply to this app; there are at most sixteen.
 #
 # A person can confirm what the AI tool answered, after looking for themselves, and it then counts as
-# much as their own word, shown as "stated by the AI coding tool, confirmed by a person":
+# much as their own word, shown as "stated by the AI coding tool, confirmed in securevibe.toml" (sv
+# cannot tell who wrote the entry, so the report says where it is, not who):
 #   confirmed = { by = "owner" (or their name), on = "YYYY-MM-DD", how = "what they looked at and saw",
 #                 answer and where = the answer confirmed, repeated so a later change is noticed }
 # It stops counting after 90 days, when the answer changes, or when the `where` file changes after `on`.
