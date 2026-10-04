@@ -87,6 +87,19 @@ pub struct AstRule {
     /// Rust binding does not apply. A match with no `@kw` capture is not reported.
     #[serde(default)]
     pub keyword_patterns: BTreeMap<String, String>,
+    /// Per language, calls whose argument that matters is not the first: a pattern over `@fn`, and
+    /// the position (from 0) of the argument to judge in its place.
+    ///
+    /// Go's `db.QueryContext(ctx, query)` takes the query second; judging the first argument judged
+    /// `ctx`, a name, which is never fixed text, so every such call was reported (A1 of the deep review).
+    #[serde(default)]
+    pub argument_positions: BTreeMap<String, BTreeMap<String, usize>>,
+    /// When the argument judged is a plain name, not text visibly built in the call, and the call
+    /// passes values after it, the finding's confidence is lowered and it says why: values passed
+    /// beside a query are how placeholders work, so the query may already be safe. Text built in the
+    /// call itself (an f-string, a `+`, a template) keeps the rule's confidence.
+    #[serde(default)]
+    pub bound_parameters_lower_confidence: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
@@ -166,6 +179,7 @@ struct Compiled {
     argument: BTreeMap<String, regex::Regex>,
     safe_argument: BTreeMap<String, regex::Regex>,
     keyword: BTreeMap<String, regex::Regex>,
+    positions: BTreeMap<String, Vec<(regex::Regex, usize)>>,
 }
 
 pub struct AstRules {
@@ -772,6 +786,25 @@ impl AstRules {
             let safe_argument =
                 compile_patterns(&rule.safe_argument_patterns, "safeArgumentPattern")?;
             let keyword = compile_patterns(&rule.keyword_patterns, "keywordPattern")?;
+            let mut positions = BTreeMap::new();
+            for (language, by_name) in &rule.argument_positions {
+                anyhow::ensure!(
+                    queries.contains_key(language),
+                    "rule {} has an argumentPosition for {language} but no {language} query",
+                    rule.id
+                );
+                let mut compiled_positions = Vec::new();
+                for (pattern, position) in by_name {
+                    let re = regex::Regex::new(pattern).with_context(|| {
+                        format!(
+                            "rule {} has an unusable argumentPosition for {language}",
+                            rule.id
+                        )
+                    })?;
+                    compiled_positions.push((re, *position));
+                }
+                positions.insert(language.clone(), compiled_positions);
+            }
             // A pattern for a language the rule has no query in is a pattern that never runs, and
             // the rule reads as if it had been taught that language.
             for (what, patterns) in [
@@ -826,6 +859,7 @@ impl AstRules {
                 argument,
                 safe_argument,
                 keyword,
+                positions,
             });
         }
         Ok(AstRules { compiled })
@@ -879,7 +913,13 @@ impl AstRules {
 ///
 /// A template string is only a literal when nothing is interpolated, which is exactly the distinction
 /// that matters: `` `SELECT 1` `` is a constant and `` `SELECT ${id}` `` is the bug this looks for.
-fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
+///
+/// `fixed` holds the names in the same file whose value is fixed text (`Fixed::of`), so `QUERY`,
+/// `SCHEMA`, and `SORT_ORDERS[key]` are judged as the text they stand for.
+fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
+    if fixed.holds(node, source) {
+        return true;
+    }
     const LITERAL_KINDS: &[&str] = &[
         "string",
         "string_literal",
@@ -920,7 +960,7 @@ fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
     if node.kind() == "value_argument" {
         return node
             .child_by_field_name("value")
-            .is_some_and(|value| is_literal(value, source));
+            .is_some_and(|value| is_literal(value, source, fixed));
     }
     // `["-c", "ls"]` is as fixed as the strings in it, and `["-c", cmd]` is not: a command handed to
     // a shell as the second element of a list is the Dart, Swift, and Rust way to write `sh -c`.
@@ -932,18 +972,26 @@ fn is_literal(node: tree_sitter::Node, source: &[u8]) -> bool {
         return node
             .named_children(&mut cursor)
             .filter(|c| c.kind() != "type_arguments")
-            .all(|c| is_literal(c, source));
+            .all(|c| is_literal(c, source, fixed));
     }
 
-    // `"a" + "b"` is still a constant; `"a" + name` is not.
+    // `"a" + "b"` is still a constant; `"a" + name` is not. Python's `a or b` and a bracketed
+    // expression are fixed when what is inside them is.
     if matches!(
         node.kind(),
-        "binary_operator" | "binary_expression" | "additive_expression" | "concatenation"
+        "binary_operator"
+            | "binary_expression"
+            | "additive_expression"
+            | "concatenation"
+            | "boolean_operator"
+            | "parenthesized_expression"
     ) {
         let mut cursor = node.walk();
-        return node
-            .named_children(&mut cursor)
-            .all(|c| is_literal(c, source));
+        return node.named_child_count() > 0
+            && node
+                .named_children(&mut cursor)
+                .filter(|c| c.kind() != "comment")
+                .all(|c| is_literal(c, source, fixed));
     }
     if !LITERAL_KINDS.contains(&node.kind()) {
         return false;
@@ -1001,6 +1049,316 @@ fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
                 | "arithmetic_expansion"
         ) || has_interpolation(child, source)
     })
+}
+
+/// The names in one file that stand for fixed text, worked out once before any rule runs.
+///
+/// A1 of the deep review: seven of family-hub's eight SQL findings were a query held in a constant,
+/// `execute(QUERY, (uid,))`, which the rules read as a name and so as something built. A name counts
+/// as fixed when the file binds it exactly once and that binding is fixed text, or names fixed text, or
+/// it is an ALL_CAPS name bound once at the top of the module, whatever it holds (a module's
+/// constants are written once, before any request exists). A name bound twice, reassigned with `+=`,
+/// taken as a function's parameter, or used as a loop variable anywhere in the file is not fixed:
+/// which binding reaches the call cannot be told without following the code, so none is trusted.
+///
+/// A table is a name bound once to a dictionary (or a JavaScript object) whose values are all fixed:
+/// `SORT_ORDERS[key]`, `SORT_ORDERS.get(key, SORT_ORDERS["newest"])` give fixed text, whatever the key.
+///
+/// Read for Python, JavaScript, TypeScript, and Go. Other languages get no fixed names, which only
+/// keeps the rules as they were.
+#[derive(Debug, Default)]
+pub(crate) struct Fixed {
+    names: BTreeSet<String>,
+    tables: BTreeSet<String>,
+}
+
+/// One binding of a name: the value it was given, when the code says, and whether it sits at the top
+/// of the module.
+struct Binding<'a> {
+    value: Option<tree_sitter::Node<'a>>,
+    top: bool,
+}
+
+impl Fixed {
+    pub(crate) fn of(root: tree_sitter::Node, source: &[u8]) -> Fixed {
+        let mut bindings: BTreeMap<String, Vec<Binding>> = BTreeMap::new();
+        collect_bindings(root, source, &mut bindings);
+        let mut fixed = Fixed::default();
+        // A name may stand for another (`SQL = BASE + " WHERE id = ?"`), so this runs until nothing
+        // more is found; each round adds at least one name or stops.
+        loop {
+            let mut found = false;
+            for (name, binds) in &bindings {
+                let [only] = binds.as_slice() else { continue };
+                if fixed.names.contains(name) || fixed.tables.contains(name) {
+                    continue;
+                }
+                let Some(value) = only.value else { continue };
+                if matches!(value.kind(), "dictionary" | "object") {
+                    if table_is_fixed(value, source, &fixed) {
+                        fixed.tables.insert(name.clone());
+                        found = true;
+                    }
+                } else if is_literal(value, source, &fixed) || (only.top && is_constant_name(name))
+                {
+                    fixed.names.insert(name.clone());
+                    found = true;
+                }
+            }
+            if !found {
+                break;
+            }
+        }
+        fixed
+    }
+
+    /// Whether this node is a fixed name, or a lookup in a fixed table.
+    fn holds(&self, node: tree_sitter::Node, source: &[u8]) -> bool {
+        if self.names.is_empty() && self.tables.is_empty() {
+            return false;
+        }
+        let text = |n: tree_sitter::Node| n.utf8_text(source).unwrap_or("");
+        let table = |n: Option<tree_sitter::Node>| {
+            n.is_some_and(|n| n.kind() == "identifier" && self.tables.contains(text(n)))
+        };
+        match node.kind() {
+            "identifier" => self.names.contains(text(node)),
+            // `TABLE[key]`, Python's and JavaScript's.
+            "subscript" => table(node.child_by_field_name("value")),
+            "subscript_expression" => table(node.child_by_field_name("object")),
+            // Python's `TABLE.get(key)` and `TABLE.get(key, <fixed>)`.
+            "call" => {
+                let Some(function) = node.child_by_field_name("function") else {
+                    return false;
+                };
+                if function.kind() != "attribute"
+                    || !table(function.child_by_field_name("object"))
+                    || function.child_by_field_name("attribute").map(text) != Some("get")
+                {
+                    return false;
+                }
+                let Some(arguments) = node.child_by_field_name("arguments") else {
+                    return false;
+                };
+                let mut cursor = arguments.walk();
+                arguments
+                    .named_children(&mut cursor)
+                    .filter(|c| c.kind() != "comment")
+                    .skip(1)
+                    .all(|c| is_literal(c, source, self))
+            }
+            _ => false,
+        }
+    }
+}
+
+/// `QUERY`, `UPLOAD_DIR`: the way a module's constants are named.
+fn is_constant_name(name: &str) -> bool {
+    name.len() > 1
+        && name.starts_with(|c: char| c.is_ascii_uppercase())
+        && name
+            .chars()
+            .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+}
+
+/// A dictionary or object whose every value is fixed. A spread (`**base`, `...base`) is not.
+fn table_is_fixed(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
+    let mut cursor = node.walk();
+    let entries: Vec<_> = node
+        .named_children(&mut cursor)
+        .filter(|c| c.kind() != "comment")
+        .collect();
+    !entries.is_empty()
+        && entries.iter().all(|entry| {
+            entry.kind() == "pair"
+                && entry
+                    .child_by_field_name("value")
+                    .is_some_and(|v| is_literal(v, source, fixed))
+        })
+}
+
+/// Whether a binding sits at the top of the module: its statement's parent is the file itself.
+fn at_top(node: tree_sitter::Node) -> bool {
+    let mut current = node;
+    for _ in 0..4 {
+        let Some(parent) = current.parent() else {
+            return false;
+        };
+        match parent.kind() {
+            "module" | "program" | "source_file" => return true,
+            "expression_statement"
+            | "lexical_declaration"
+            | "variable_declaration"
+            | "export_statement"
+            | "const_declaration"
+            | "var_declaration"
+            | "assignment" => {
+                current = parent;
+            }
+            _ => return false,
+        }
+    }
+    false
+}
+
+/// Every place in the file that binds a name, with the value when the code gives one.
+fn collect_bindings<'a>(
+    node: tree_sitter::Node<'a>,
+    source: &[u8],
+    out: &mut BTreeMap<String, Vec<Binding<'a>>>,
+) {
+    let mut add = |name: tree_sitter::Node<'a>, value: Option<tree_sitter::Node<'a>>, top: bool| {
+        if let Ok(text) = name.utf8_text(source) {
+            out.entry(text.to_owned())
+                .or_default()
+                .push(Binding { value, top });
+        }
+    };
+    // Every identifier under a node, each as a binding with no known value: tuple unpacking, loop
+    // variables, parameters.
+    fn names_under<'a>(node: tree_sitter::Node<'a>, found: &mut Vec<tree_sitter::Node<'a>>) {
+        if node.kind() == "identifier" {
+            found.push(node);
+            return;
+        }
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            names_under(child, found);
+        }
+    }
+    let field = |name: &str| node.child_by_field_name(name);
+    match node.kind() {
+        // Python `x = v`, JavaScript `x = v`.
+        "assignment" | "assignment_expression" => {
+            if let Some(left) = field("left") {
+                if left.kind() == "identifier" {
+                    add(left, field("right"), at_top(node));
+                } else {
+                    let mut names = Vec::new();
+                    if matches!(
+                        left.kind(),
+                        "pattern_list" | "tuple_pattern" | "list_pattern"
+                    ) {
+                        names_under(left, &mut names);
+                    }
+                    for name in names {
+                        add(name, None, false);
+                    }
+                }
+            }
+        }
+        // JavaScript `const x = v`, `let x`.
+        "variable_declarator" => {
+            if let Some(name) = field("name") {
+                if name.kind() == "identifier" {
+                    add(name, field("value"), at_top(node));
+                } else {
+                    let mut names = Vec::new();
+                    names_under(name, &mut names);
+                    for n in names {
+                        add(n, None, false);
+                    }
+                }
+            }
+        }
+        // `x += v`, Python's `(x := v)`: a second binding, or one whose value is not plain text.
+        "augmented_assignment" | "augmented_assignment_expression" | "update_expression" => {
+            if let Some(left) = field("left").or_else(|| field("argument"))
+                && left.kind() == "identifier"
+            {
+                add(left, None, false);
+            }
+        }
+        "named_expression" => {
+            if let Some(name) = field("name") {
+                add(name, None, false);
+            }
+        }
+        // Loop variables, in statements and comprehensions.
+        "for_statement" | "for_in_statement" | "for_in_clause" => {
+            if let Some(left) = field("left") {
+                let mut names = Vec::new();
+                names_under(left, &mut names);
+                for n in names {
+                    add(n, None, false);
+                }
+            }
+        }
+        // Parameters, in every function and lambda: their names only, never what their defaults name.
+        "parameters" | "formal_parameters" | "lambda_parameters" | "parameter_list" => {
+            let mut cursor = node.walk();
+            for param in node.named_children(&mut cursor) {
+                let name = match param.kind() {
+                    "identifier" => Some(param),
+                    "default_parameter" | "typed_default_parameter" => {
+                        param.child_by_field_name("name")
+                    }
+                    "assignment_pattern" => param.child_by_field_name("left"),
+                    "required_parameter" | "optional_parameter" => {
+                        param.child_by_field_name("pattern")
+                    }
+                    "typed_parameter" => {
+                        let mut c = param.walk();
+                        param
+                            .named_children(&mut c)
+                            .find(|n| n.kind() == "identifier")
+                    }
+                    "parameter_declaration" | "variadic_parameter_declaration" => {
+                        let mut c = param.walk();
+                        let names: Vec<_> = param.children_by_field_name("name", &mut c).collect();
+                        for n in names {
+                            add(n, None, false);
+                        }
+                        None
+                    }
+                    _ => None,
+                };
+                if let Some(name) = name
+                    && name.kind() == "identifier"
+                {
+                    add(name, None, false);
+                }
+            }
+        }
+        // Go: `const Q = "..."`, `var q = "..."`, `q := "..."`, `q = "..."`.
+        "const_spec" | "var_spec" => {
+            let mut c = node.walk();
+            let names: Vec<_> = node.children_by_field_name("name", &mut c).collect();
+            let values: Vec<_> = field("value")
+                .map(|list| {
+                    let mut c = list.walk();
+                    list.named_children(&mut c).collect()
+                })
+                .unwrap_or_default();
+            let top = at_top(node);
+            for (i, name) in names.into_iter().enumerate() {
+                let value = (values.len() == 1 && i == 0).then(|| values[0]);
+                add(name, value, top);
+            }
+        }
+        "short_var_declaration" | "assignment_statement" => {
+            let list = |f: &str| -> Vec<tree_sitter::Node<'a>> {
+                node.child_by_field_name(f)
+                    .map(|l| {
+                        let mut c = l.walk();
+                        l.named_children(&mut c).collect()
+                    })
+                    .unwrap_or_default()
+            };
+            let (left, right) = (list("left"), list("right"));
+            for (i, name) in left.iter().enumerate() {
+                if name.kind() == "identifier" {
+                    let value = (left.len() == right.len()).then(|| right[i]);
+                    add(*name, value, false);
+                }
+            }
+        }
+        _ => {}
+    }
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        collect_bindings(child, source, out);
+    }
 }
 
 #[derive(Debug, Default)]
@@ -1094,6 +1452,12 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
     let Some(tree) = parser.parse(source, None) else {
         return unread;
     };
+    // The names that stand for fixed text, in the languages whose bindings `Fixed` reads.
+    let fixed = if matches!(language, "python" | "javascript" | "typescript" | "go") {
+        Fixed::of(tree.root_node(), source.as_bytes())
+    } else {
+        Fixed::default()
+    };
 
     let mut out = Vec::new();
     for compiled in &rules.compiled {
@@ -1147,9 +1511,31 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     _ => continue,
                 }
             }
+            // The argument to judge: the `@arg` capture, or for a call named in `argumentPositions`,
+            // the argument at that position in the same call.
+            let mut arg_node = arg_index
+                .and_then(|index| m.captures().iter().find(|c| c.index == index))
+                .map(|c| c.node);
+            if let Some(positions) = compiled.positions.get(language)
+                && let Some(name) = text_of(m, fn_index)
+                && let Some((_, position)) = positions.iter().find(|(re, _)| re.is_match(&name))
+            {
+                let list = arg_node.and_then(|n| n.parent());
+                arg_node = list.and_then(|list| {
+                    let mut cursor = list.walk();
+                    list.named_children(&mut cursor)
+                        .filter(|c| c.kind() != "comment")
+                        .nth(*position)
+                });
+                // A call without that many arguments is not the call the position was written for.
+                if arg_node.is_none() {
+                    continue;
+                }
+            }
+            let arg_text = arg_node.and_then(|n| n.utf8_text(source.as_bytes()).ok());
             if let Some(pattern) = compiled.argument.get(language) {
-                match text_of(m, arg_index) {
-                    Some(text) if pattern.is_match(&text) => {}
+                match arg_text {
+                    Some(text) if pattern.is_match(text) => {}
                     _ => continue,
                 }
             }
@@ -1160,19 +1546,33 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 }
             }
             if let Some(pattern) = compiled.safe_argument.get(language)
-                && let Some(text) = text_of(m, arg_index)
-                && pattern.is_match(&text)
+                && let Some(text) = arg_text
+                && pattern.is_match(text)
             {
                 continue;
             }
-            // A literal argument means the call cannot be made to do anything the author did not write.
+            // A literal argument means the call cannot be made to do anything the author did not
+            // write, and so does a name the same file binds once to fixed text.
             if compiled.rule.literal_argument_is_safe
-                && let Some(index) = arg_index
-                && let Some(capture) = m.captures().iter().find(|c| c.index == index)
-                && is_literal(capture.node, source.as_bytes())
+                && let Some(arg) = arg_node
+                && is_literal(arg, source.as_bytes(), &fixed)
             {
                 continue;
             }
+            // A plain name handed over with values beside it is how placeholders are used.
+            let bound_parameters = compiled.rule.bound_parameters_lower_confidence
+                && arg_node.is_some_and(|arg| {
+                    matches!(
+                        arg.kind(),
+                        "identifier" | "attribute" | "member_expression" | "selector_expression"
+                    ) && arg.parent().is_some_and(|list| {
+                        let mut cursor = list.walk();
+                        list.named_children(&mut cursor)
+                            .filter(|c| c.kind() != "comment")
+                            .count()
+                            > 1
+                    })
+                });
             let node = hit_index
                 .and_then(|index| m.captures().iter().find(|c| c.index == index))
                 .map(|c| c.node)
@@ -1185,7 +1585,11 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 rule_id: compiled.rule.id.clone(),
                 title: compiled.rule.title.clone(),
                 severity: compiled.rule.severity,
-                confidence: compiled.rule.confidence,
+                confidence: if bound_parameters {
+                    Confidence::Low
+                } else {
+                    compiled.rule.confidence
+                },
                 location: Location {
                     file: relative.to_owned(),
                     line: node.start_position().row + 1,
@@ -1193,7 +1597,16 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 secret: None,
                 requirement_ids: compiled.rule.requirement_ids.clone(),
                 cwe: compiled.rule.cwe.clone(),
-                description: compiled.rule.description.clone(),
+                description: if bound_parameters {
+                    format!(
+                        "{} The query here is a name, handed over with values beside it, which is \
+                         how placeholders are used, so it may already be safe: read where the \
+                         name is given its text before changing anything.",
+                        compiled.rule.description
+                    )
+                } else {
+                    compiled.rule.description.clone()
+                },
                 impact: compiled.rule.impact.clone(),
                 fix: compiled.rule.fix.clone(),
             });
@@ -2296,6 +2709,35 @@ mod tests {
         ("ast.dynamic-code-execution", "csharp", "class A { async void F() { await CSharpScript.EvaluateAsync(\"1 + 1\"); } }", false),
         ("ast.dynamic-code-execution", "kotlin", "fun f(code: String) { engine.eval(code) }", true),
         ("ast.dynamic-code-execution", "kotlin", "fun f() { engine.eval(\"1 + 1\") }", false),
+        // A1 of the deep review: a name the file binds once to fixed text is that text. Quiet: a
+        // module constant, the prompt test's SCHEMA and its table of fixed queries, a name bound once,
+        // a chain of constants. Still reported: the name reassigned, built with `+=`, taken as a
+        // parameter, used as a loop variable, a constant joined with a value, a table with a spread.
+        ("ast.sql-built-by-hand", "python", "QUERY = \"SELECT * FROM notes WHERE user_id = ?\"\ndef f(db, uid):\n    db.execute(QUERY, (uid,))\n", false),
+        ("ast.sql-built-by-hand", "python", "SCHEMA = \"\"\"CREATE TABLE notes (id INTEGER)\"\"\"\ndef f(db):\n    db.executescript(SCHEMA)\n", false),
+        ("ast.sql-built-by-hand", "python", "SORT_ORDERS = {\"newest\": \"SELECT * FROM n ORDER BY t DESC\", \"oldest\": \"SELECT * FROM n ORDER BY t\"}\ndef f(db, key, uid):\n    sql = SORT_ORDERS.get(key, SORT_ORDERS[\"newest\"])\n    db.execute(sql, (uid,))\n", false),
+        ("ast.sql-built-by-hand", "python", "def f(db, key):\n    sql = \"SELECT 1\"\n    db.execute(sql)\n", false),
+        ("ast.sql-built-by-hand", "python", "BASE = \"SELECT * FROM n\"\nWHERE = BASE + \" WHERE id = ?\"\ndef f(db, i):\n    db.execute(WHERE, (i,))\n", false),
+        ("ast.sql-built-by-hand", "python", "def f(db, name):\n    sql = \"SELECT 1\"\n    sql = \"SELECT * FROM t WHERE n = '\" + name + \"'\"\n    db.execute(sql)\n", true),
+        ("ast.sql-built-by-hand", "python", "def f(db, name):\n    sql = \"SELECT * FROM t WHERE n = \"\n    sql += name\n    db.execute(sql)\n", true),
+        ("ast.sql-built-by-hand", "python", "def f(db, sql):\n    db.execute(sql)\ndef g(db):\n    sql = \"SELECT 1\"\n", true),
+        ("ast.sql-built-by-hand", "python", "def f(db, names):\n    for sql in names:\n        db.execute(sql)\nsql = \"SELECT 1\"\n", true),
+        ("ast.sql-built-by-hand", "python", "QUERY = \"SELECT * FROM t WHERE n = \"\ndef f(db, request):\n    db.execute(QUERY + request.args[\"n\"])\n", true),
+        ("ast.sql-built-by-hand", "python", "TABLE = {**OTHER, \"a\": \"SELECT 1\"}\ndef f(db, k):\n    db.execute(TABLE[k])\n", true),
+        ("ast.sql-built-by-hand", "javascript", "const LIST = 'SELECT * FROM notes WHERE user_id = ?';\nfunction f(db, uid) { return db.query(LIST, [uid]); }", false),
+        ("ast.sql-built-by-hand", "javascript", "let sql = 'SELECT 1';\nfunction f(db, x) { sql = sql + x; return db.query(sql); }", true),
+        ("ast.sql-built-by-hand", "go", "package main\nconst q = \"SELECT * FROM notes WHERE user_id = $1\"\nfunc f(ctx context.Context, db *sql.DB, uid int) { db.QueryContext(ctx, q, uid) }", false),
+        ("ast.sql-built-by-hand", "go", "package main\nfunc f(ctx context.Context, db *sql.DB, name string) { db.QueryContext(ctx, \"SELECT * FROM t WHERE n = '\"+name+\"'\") }", true),
+        ("ast.sql-built-by-hand", "go", "package main\nfunc f(db *sql.DB) { db.Query(\"SELECT 1\") }", false),
+        // Same-site paths: one slash and then an ordinary path character cannot leave the site.
+        ("ast.open-redirect", "python", "return redirect(f\"/notes/{note_id}\")", false),
+        ("ast.open-redirect", "python", "return redirect(\"/notes/\" + str(note_id))", false),
+        ("ast.open-redirect", "python", "return redirect(\"/\" + next_url)", true),
+        ("ast.open-redirect", "python", "return redirect(f\"/{next_url}\")", true),
+        ("ast.open-redirect", "python", "return redirect(\"//\" + host)", true),
+        ("ast.open-redirect", "javascript", "res.redirect(`/users/${id}`)", false),
+        ("ast.open-redirect", "javascript", "res.redirect(`/${req.query.next}`)", true),
+        ("ast.open-redirect", "javascript", "res.redirect('/\\t/' + host)", true),
         // Python's subprocess handed a built command with shell=True, which `ast.shell-command`'s
         // names never reached (found testing the prompt library, 4 October 2026). Every function the
         // rule names, then the safe forms: a list and no shell, a fixed string, and shell=True with
@@ -2849,6 +3291,73 @@ mod tests {
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { v := provider.Verifier(&oidc.Config{ClientID: \"my-api\", SkipClientIDCheck: false}) }", false),
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithAudience(\"my-api\")) }", false),
     ];
+
+    #[test]
+    fn a_query_name_handed_over_with_values_is_reported_with_low_confidence() {
+        // A1 of the deep review: values passed beside a query are how placeholders are used, so a
+        // query that is only a name the file does not settle is reported, but as possible.
+        let rules = rules();
+        let sql = |source: &str| -> Vec<Finding> {
+            scan_file(&rules, "python", "src/app.py", source)
+                .into_iter()
+                .filter(|f| f.rule_id == "ast.sql-built-by-hand")
+                .collect()
+        };
+        let named = sql("def f(db, sql, uid):\n    db.execute(sql, (uid,))\n");
+        assert_eq!(named.len(), 1, "{named:?}");
+        assert_eq!(named[0].confidence, Confidence::Low);
+        assert!(
+            named[0].description.contains("how placeholders are used"),
+            "{}",
+            named[0].description
+        );
+
+        // The control: the same name with nothing beside it, and text built in the call itself even
+        // with values beside it, keep the rule's own confidence.
+        let alone = sql("def f(db, sql):\n    db.execute(sql)\n");
+        assert_eq!(alone.len(), 1, "{alone:?}");
+        assert_eq!(alone[0].confidence, Confidence::Medium);
+        let built = sql(
+            "def f(db, name, uid):\n    db.execute(f\"SELECT * FROM t WHERE n = '{name}'\", (uid,))\n",
+        );
+        assert_eq!(built.len(), 1, "{built:?}");
+        assert_eq!(built[0].confidence, Confidence::Medium);
+        assert!(!built[0].description.contains("placeholders are used"));
+    }
+
+    #[test]
+    fn a_name_is_fixed_only_where_the_file_binds_it_once_to_fixed_text() {
+        // `Fixed` read directly, so a rule's own filters cannot hide what it decided.
+        let fixed_names = |language: &str, source: &str| -> (Vec<String>, Vec<String>) {
+            let mut parser = Parser::new();
+            parser.set_language(&grammar(language).unwrap()).unwrap();
+            let tree = parser.parse(source, None).unwrap();
+            let fixed = Fixed::of(tree.root_node(), source.as_bytes());
+            (
+                fixed.names.into_iter().collect(),
+                fixed.tables.into_iter().collect(),
+            )
+        };
+        let (names, tables) = fixed_names(
+            "python",
+            "UPLOAD_DIR = os.environ[\"DIR\"]\nQ = \"SELECT 1\"\nT = {\"a\": \"x\", \"b\": Q}\ndef f(p, q2=Q):\n    once = \"text\"\n    twice = \"a\"\n    twice = \"b\"\n    for loop in p:\n        pass\n    up = 1\n    up += 1\ndef g():\n    lower_top = request.x\n",
+        );
+        assert_eq!(names, ["Q", "UPLOAD_DIR", "once"], "{names:?}");
+        assert_eq!(tables, ["T"], "{tables:?}");
+        // A parameter's default names a constant without binding it: Q stays fixed above, and q2,
+        // the parameter, is not.
+        let (names, _) = fixed_names(
+            "go",
+            "package main\nconst q = \"SELECT 1\"\nvar v = \"x\"\nfunc f(ctx context.Context, p string) { w := \"y\"; w = p }\n",
+        );
+        assert_eq!(names, ["q", "v"], "{names:?}");
+        let (names, tables) = fixed_names(
+            "javascript",
+            "const A = 'x';\nlet b = 'y';\nb = b + z;\nconst T = { k: A, l: 'm' };\nfunction f(c = A) { const d = `t`; }\n",
+        );
+        assert_eq!(names, ["A", "d"], "{names:?}");
+        assert_eq!(tables, ["T"], "{tables:?}");
+    }
 
     #[test]
     fn the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one() {
