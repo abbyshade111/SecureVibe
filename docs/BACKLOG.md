@@ -2431,6 +2431,16 @@ another session is not a claim.
 
      Both are candidates for records of their own, the way ADR-018 replaced ADR-012's ruling.
 
+- **Decision records written with the change, not after it.** Asked for by the owner on 4 October 2026, after the
+  appendix review showed every one of `sv`'s first eleven records was written one to seven days after its decision,
+  and only when a review noticed (`docs/paper/ADRS.md`). Four parts: a rule in `CLAUDE.md` saying what counts as a
+  decision and that its record (a new ADR, or a dated "Later" entry) goes in the same pull request, written first as
+  "proposed" for anything substantial; a "Decision record" section in the pull-request template; a "Governs:" list of
+  paths on every `sv` record, and a CI check that fails a pull request touching a governed path unless it changes
+  that record or says `ADR-0NN: unchanged, because …`; and a test that every test, file, and ADR number a record
+  names exists. The weekly review below becomes a scheduled task. **Claimed the same day by session securevibe-e9**,
+  in branch `claude/securevibe-e9-adr-upkeep`. Other sessions: please leave `docs/adr/` to it until this says done.
+
 - **A weekly review of the decision records, so they stop falling behind what is built.** Asked for by the owner
   on 27 September 2026, after the ADR analysis (`docs/paper/ADRS.md`) found records out of date within two days
   (ADR-008, ADR-010), `main` contradicting a record for five days (ADR-012), and `sv`'s two largest choices, Rust
