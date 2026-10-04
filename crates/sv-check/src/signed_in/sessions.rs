@@ -1449,6 +1449,8 @@ mod tests {
                     value: String::new(),
                     http_only: true,
                     same_site: None,
+                    secure: false,
+                    path: None,
                 })
                 .collect(),
             before_login: Vec::new(),
