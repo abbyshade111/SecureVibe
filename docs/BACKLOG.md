@@ -20,6 +20,8 @@ another session is not a claim.
      only. Read `pylock.toml` and `pylock.*.toml` as a Python lockfile, for `requirements.txt` and `pyproject.toml`.
      Treat a `requirements.txt` in which every requirement is `name==version` with at least one `--hash` as a lock:
      pip refuses anything else under `--require-hashes`. One line without either means it is not.
+     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
+     session, in branch `claude/securevibe-e9-python-locks`.
   2. **Python pre-release versions (PEP 440) cannot be compared.** `compare` in `crates/sv-check/src/advisories.rs`
      follows semver, where a pre-release comes after `-`. PyPI writes `2.0.0rc1`, `1.0a1`, `3.0.0.dev0`, and
      `1.0.post1`, which do not parse, so an advisory whose range starts at `2.0.0rc1` goes unanswered. family-hub's
@@ -34,6 +36,8 @@ another session is not a claim.
      has no version or commit, and `sv --version` in the published image prints "commit unknown", because
      `SV_GIT_COMMIT` is not set when the image is built. Write `"sv": {"version", "commit"}` into `report.json` and
      the SARIF's `tool.driver`, show it in `report.html`, and pass the commit to the image build.
+     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
+     session, in branch `claude/securevibe-e9-report-provenance`.
 
 - **The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add.** By session
   securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
