@@ -446,7 +446,8 @@ fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
 }
 
 /// Whether a value a newer shape found is text or a name rather than a credential: words with a
-/// space between them, a relative path (`./lib/tokenize.js`), or an identifier in lower case
+/// space between them, text with a letter outside ASCII (Japanese and Chinese put no space between
+/// words, and a generated key or token is ASCII), a relative path (`./lib/tokenize.js`), or an identifier in lower case
 /// (`config.workflow-fork-secrets`), as the upper-case one is already passed over. Reading JSON and
 /// dict keys brought in every message catalog and schema whose key holds "token" or "password"
 /// (TypeScript's "Unexpected token…" in thirteen languages, CycloneDX's "A secret word, phrase…"):
@@ -455,6 +456,7 @@ fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
 /// JSON value is the cost: it was not found before the newer shapes, and is not found now.
 fn reads_as_text_or_a_name(value: &str) -> bool {
     value.chars().any(char::is_whitespace)
+        || value.chars().any(|c| !c.is_ascii())
         || value.starts_with("./")
         || value.starts_with("../")
         || value
@@ -1608,6 +1610,11 @@ mod tests {
                 "a message catalog",
                 "diagnosticMessages.generated.json",
                 r#""Unexpected_token_1012": "Unexpected token. A constructor, method, accessor, or property was expected.","#,
+            ),
+            (
+                "a message catalog with no spaces between words",
+                "diagnosticMessages.generated.json",
+                "\"Unexpected_token_1012\": \"\u{4e88}\u{671f}\u{3057}\u{306a}\u{3044}\u{30c8}\u{30fc}\u{30af}\u{30f3}\u{3067}\u{3059}\u{3002}\",",
             ),
             (
                 "a package's export map",
