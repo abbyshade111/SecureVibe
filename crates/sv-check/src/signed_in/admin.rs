@@ -1,5 +1,168 @@
 use super::*;
 
+/// The admin, signed in, and when the session could not be shown signed in, why: in words for a
+/// not-assessed reason, naming where the sign-in stopped.
+pub(super) struct AdminSignIn {
+    pub(super) signed: Option<SignedIn>,
+    /// `None` when the private page opened for the admin, or there is no private page to tell by.
+    pub(super) stopped: Option<String>,
+}
+
+/// Signs the admin in, and finishes a two-factor sign-in when the app asks for one.
+///
+/// The admin is signed in with its password, as A and B are. When `totp` is set, the private page
+/// is asked first: open, and the password was enough. Shut, and the sign-in may be waiting at the
+/// code step, so the code for this moment is worked out from the admin's secret
+/// (`SV_ADMIN_TOTP_SECRET`) and given through `totp`, and the private page asked again. A code is
+/// refused when an earlier sign-in in the run used the same one — most apps take a code once — so
+/// a refused code is tried once more, from a new sign-in, after the next 30-second step begins.
+///
+/// When the admin is still not shown signed in, `stopped` says where it stopped, so a page the
+/// admin could not open is not blamed on securevibe.toml naming the wrong page.
+pub(super) fn sign_in_admin(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    who: &str,
+    steps: &mut Vec<String>,
+) -> AdminSignIn {
+    let Some(account) = accounts.admin.as_ref() else {
+        return AdminSignIn {
+            signed: None,
+            stopped: Some("there is no admin account; `seed` makes one, from SV_ADMIN".to_owned()),
+        };
+    };
+    let Some(signed) = sign_in(http, users, who, account, steps) else {
+        return AdminSignIn {
+            signed: None,
+            stopped: Some("the app did not answer the admin's sign-in".to_owned()),
+        };
+    };
+    let secret = accounts.admin_totp_secret.as_deref();
+    let Some(confirm) = users.private.first() else {
+        // Nothing to tell the sign-in by. A code is still given when there is one to give: an app
+        // that did not ask for it refuses it, and the session is as it was.
+        let mut signed = signed;
+        if let (Some(entry), Some(secret)) = (&users.totp, secret) {
+            give_admin_code(http, users, entry, account, secret, who, &mut signed);
+        }
+        return AdminSignIn {
+            signed: Some(signed),
+            stopped: None,
+        };
+    };
+    let opened = |http: &mut dyn Http, signed: &SignedIn, id: &str| {
+        let answer = http.send(&get(id, confirm, &signed.session));
+        (ok(&answer), status(&answer))
+    };
+    let (open, answered) = opened(http, &signed, &format!("admin-private-{who}"));
+    if open {
+        return AdminSignIn {
+            signed: Some(signed),
+            stopped: None,
+        };
+    }
+    let Some(entry) = &users.totp else {
+        let stopped = format!(
+            "after its password, the admin's sign-in {} and {confirm} then answered {answered}. \
+             If the app asks admins for a further step, such as a code from an authenticator app, \
+             add it to securevibe.toml as `totp` and have `seed` enroll the admin with \
+             SV_ADMIN_TOTP_SECRET",
+            signed.landed
+        );
+        return AdminSignIn {
+            signed: Some(signed),
+            stopped: Some(stopped),
+        };
+    };
+    let Some(secret) = secret else {
+        let stopped = format!(
+            "after its password, the admin's sign-in {} and {confirm} then answered {answered}: it \
+             most likely stopped at the authenticator-code step ({}), and there was no secret to \
+             work out the admin's code from. `sv` makes one, SV_ADMIN_TOTP_SECRET, when `seed` \
+             makes the admin; have `seed` enroll the admin with it",
+            signed.landed, entry.path
+        );
+        return AdminSignIn {
+            signed: Some(signed),
+            stopped: Some(stopped),
+        };
+    };
+    let mut signed = signed;
+    let mut given = 0;
+    for round in 0..2 {
+        if round > 0 {
+            // A refused code may be one an earlier sign-in used in this same step.
+            let into_next = crate::totp::STEP - http.now() % crate::totp::STEP + 1;
+            http.wait(into_next);
+            let again = format!("{who}-again");
+            let Some(fresh) = sign_in(http, users, &again, account, steps) else {
+                break;
+            };
+            signed = fresh;
+        }
+        give_admin_code(http, users, entry, account, secret, who, &mut signed);
+        given += 1;
+        let (open, _) = opened(http, &signed, &format!("admin-private-{who}-code-{round}"));
+        steps.push(format!(
+            "gave the admin's authenticator code at {}; {confirm} then {}",
+            entry.path,
+            if open { "opened" } else { "stayed shut" }
+        ));
+        if open {
+            return AdminSignIn {
+                signed: Some(signed),
+                stopped: None,
+            };
+        }
+    }
+    let stopped = format!(
+        "after its password, the admin's sign-in {}; the authenticator code worked out from \
+         SV_ADMIN_TOTP_SECRET was then given at {}{}, and {confirm} still did not open, so the \
+         sign-in stopped at the code step. Check that `seed` enrolls the admin in two-factor \
+         sign-in with SV_ADMIN_TOTP_SECRET, and `totp` in securevibe.toml",
+        signed.landed,
+        entry.path,
+        if given > 1 {
+            ", twice, 30 seconds apart"
+        } else {
+            ""
+        }
+    );
+    AdminSignIn {
+        signed: Some(signed),
+        stopped: Some(stopped),
+    }
+}
+
+/// Gives the admin's current two-factor code through `entry`, in the session the password began.
+/// The code is never written into the run's steps: it is worked out from a secret.
+fn give_admin_code(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    entry: &RequestTemplate,
+    account: &Account,
+    secret: &[u8],
+    who: &str,
+    signed: &mut SignedIn,
+) {
+    let code = crate::totp::code_at_step(secret, http.now() / crate::totp::STEP);
+    let values = Values {
+        user: &account.user,
+        password: &account.password,
+        code: &code,
+        ..Default::default()
+    };
+    send_template(
+        http,
+        &format!("admin-code-{who}"),
+        entry,
+        &values,
+        &mut signed.session,
+        &users.private,
+    );
+}
+
 pub(super) fn admin_checks(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -14,10 +177,10 @@ pub(super) fn admin_checks(
         ));
         return;
     }
-    let admin = accounts
-        .admin
-        .as_ref()
-        .and_then(|account| sign_in(http, users, "admin", account, &mut out.steps));
+    let AdminSignIn {
+        signed: admin,
+        stopped,
+    } = sign_in_admin(http, users, accounts, "admin", &mut out.steps);
     let mut refused_and_confirmed = 0;
     let mut opened_by_ordinary = Vec::new();
     let mut unconfirmed = Vec::new();
@@ -48,13 +211,29 @@ pub(super) fn admin_checks(
         ));
     }
     if !unconfirmed.is_empty() {
+        let pages = unconfirmed.join(", ");
         out.not_assessed.push((
             "V8.2.1".to_owned(),
-            format!(
-                "The admin account did not open {} either, so the ordinary user being refused says \
-                 nothing: the page may not be where securevibe.toml says.",
-                unconfirmed.join(", ")
-            ),
+            match (&stopped, users.private.first()) {
+                // The admin was never shown signed in: say where its sign-in stopped, not that the
+                // page is in the wrong place. family-hub's was where the file said; its admin's
+                // sign-in had stopped at the authenticator-code step.
+                (Some(stopped), _) => format!(
+                    "The admin account was not shown signed in, so it not opening {pages}, and the \
+                     ordinary user being refused it, say nothing: {stopped}."
+                ),
+                (None, Some(private)) => format!(
+                    "The admin account was signed in (it opened {private}) but did not open \
+                     {pages} either, so the ordinary user being refused says nothing: the page may \
+                     not be where securevibe.toml says, or the account `seed` made from SV_ADMIN \
+                     may not be an admin."
+                ),
+                (None, None) => format!(
+                    "The admin account did not open {pages} either, so the ordinary user being \
+                     refused says nothing. No private page is listed to show the admin's sign-in \
+                     worked, so it may not have, or the page may not be where securevibe.toml says."
+                ),
+            },
         ));
     }
     if refused_and_confirmed > 0 && opened_by_ordinary.is_empty() {
@@ -255,16 +434,20 @@ pub(super) fn admin_action_checks(
         ));
         return;
     }
-    let Some(admin_account) = accounts.admin.as_ref() else {
+    if accounts.admin.is_none() {
         out.not_assessed.push((
             "V8.3.1".to_owned(),
             "Admin actions: there is no admin account to confirm them with; an admin is made by `seed`."
                 .to_owned(),
         ));
         return;
-    };
+    }
     let a = sign_in(http, users, "a-actions", &accounts.a, &mut out.steps);
-    let admin = sign_in(http, users, "admin-actions", admin_account, &mut out.steps);
+    let AdminSignIn {
+        signed: admin,
+        stopped,
+    } = sign_in_admin(http, users, accounts, "admin-actions", &mut out.steps);
+    let why_admin = stopped.map_or(String::new(), |s| format!(" For the admin, {s}."));
     // Both sessions have to be shown signed in before anything they are refused means anything: a
     // request refused because nobody was signed in looks, from here, exactly like one refused
     // because the user was not an admin. Found building this: a sign-in that quietly failed made a
@@ -275,8 +458,10 @@ pub(super) fn admin_action_checks(
     let (Some(mut a), Some(mut admin)) = (a, admin) else {
         out.not_assessed.push((
             "V8.3.1".to_owned(),
-            "Admin actions: the first user and the admin could not both sign in, so none was sent."
-                .to_owned(),
+            format!(
+                "Admin actions: the first user and the admin could not both sign in, so none was \
+                 sent.{why_admin}"
+            ),
         ));
         return;
     };
@@ -285,9 +470,11 @@ pub(super) fn admin_action_checks(
     {
         out.not_assessed.push((
             "V8.3.1".to_owned(),
-            "Admin actions: the first user and the admin could not both be shown signed in (a \
-             private page did not open for each), so a refusal would say nothing and none was sent."
-                .to_owned(),
+            format!(
+                "Admin actions: the first user and the admin could not both be shown signed in (a \
+                 private page did not open for each), so a refusal would say nothing and none was \
+                 sent.{why_admin}"
+            ),
         ));
         return;
     }
@@ -607,7 +794,7 @@ pub(super) fn record_id(
     from_json.or(from_location)
 }
 
-fn strip_origin(location: &str) -> &str {
+pub(super) fn strip_origin(location: &str) -> &str {
     match location.find("://") {
         Some(i) => {
             let rest = &location[i + 3..];
@@ -1085,5 +1272,234 @@ mod tests {
         );
         assert!(rule_ids(&o).contains(&ADMIN_PAGE.rule_id));
         assert!(role_findings(&o).is_empty(), "{:#?}", o.findings);
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // An admin the app asks for a code (family-hub, 3 October 2026)
+
+    /// The suite against the fake app seeded as `seed` would seed it, with the admin enrolled in
+    /// two-factor sign-in with `enrolled`, after `change` has had the accounts.
+    fn run_with_admin_code(
+        enrolled: Vec<u8>,
+        users: &UsersSection,
+        change: impl FnOnce(&mut Accounts),
+    ) -> Outcome {
+        let mut app = FakeApp::new(Flaws::default());
+        let mut acc = accounts();
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let admin = acc.admin.clone().unwrap();
+        app.users
+            .insert(admin.user.clone(), (admin.password.clone(), true));
+        app.totp.insert(admin.user.clone(), enrolled);
+        let totp = acc.totp.clone().unwrap();
+        app.users.insert(
+            totp.account.user.clone(),
+            (totp.account.password.clone(), false),
+        );
+        app.totp.insert(totp.account.user, totp.secret);
+        // The setup: with the password alone, the admin does not get in. Without this, the credit
+        // below could be an app that never asked for a code.
+        let mut quiet = Vec::new();
+        let password_only = sign_in(&mut app, users, "setup", &admin, &mut quiet).unwrap();
+        assert!(
+            !ok(&app.send(&get("setup-private", "/account", &password_only.session))),
+            "the fake app let the admin in without a code, so this proves nothing"
+        );
+        change(&mut acc);
+        run(&mut app, users, &acc, true, &Default::default())
+    }
+
+    fn admin_page_reasons(o: &Outcome, id: &str) -> Vec<String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, why)| ids == id && why.contains("dmin"))
+            .map(|(_, why)| why.clone())
+            .collect()
+    }
+
+    #[test]
+    fn an_admin_who_needs_a_code_is_signed_in_with_its_secret_and_the_admin_checks_are_assessed() {
+        let o = run_with_admin_code(admin_secret(), &users(), |_| {});
+        assert!(
+            verified_ids(&o).contains(&ADMIN_PAGE.rule_id),
+            "{:#?}",
+            o.not_assessed
+        );
+        assert!(action_credited(&o), "{:#?}", o.not_assessed);
+        assert!(
+            o.steps.iter().any(|s| s
+                .starts_with("gave the admin's authenticator code at /login/2fa")
+                && s.ends_with("opened")),
+            "{:#?}",
+            o.steps
+        );
+        // The second sign-in (the admin actions') came in the same 30-second step as the first,
+        // and the fake app takes a code once, as most apps do: it got in with the next step's.
+        assert!(
+            o.steps.iter().any(|s| s.contains("ADMIN-ACTIONS-AGAIN")),
+            "{:#?}",
+            o.steps
+        );
+        // And a wrong ordinary user is still found: the admin being in is what makes it evidence.
+        assert!(
+            admin_page_reasons(&o, "V8.2.1").is_empty(),
+            "{:#?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn an_admin_page_open_to_everybody_is_still_found_when_the_admin_needs_a_code() {
+        let mut app = FakeApp::new(Flaws {
+            admin_open: true,
+            ..Default::default()
+        });
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user.clone(), (admin.password, true));
+        app.totp.insert(admin.user, admin_secret());
+        let mut acc = acc;
+        acc.totp = None;
+        let o = run(&mut app, &users(), &acc, true, &Default::default());
+        assert!(rule_ids(&o).contains(&ADMIN_PAGE.rule_id));
+    }
+
+    #[test]
+    fn without_the_secret_the_message_names_the_authenticator_step() {
+        let o = run_with_admin_code(admin_secret(), &users(), |acc| {
+            acc.admin_totp_secret = None;
+        });
+        assert!(!verified_ids(&o).contains(&ADMIN_PAGE.rule_id));
+        assert!(!action_credited(&o));
+        for id in ["V8.2.1", "V8.3.1"] {
+            let reasons = admin_page_reasons(&o, id);
+            assert!(
+                reasons
+                    .iter()
+                    .any(|why| why.contains("authenticator-code step (/login/2fa)")
+                        && why.contains("SV_ADMIN_TOTP_SECRET")),
+                "{id}: {reasons:#?}"
+            );
+            assert!(
+                reasons.iter().all(|why| !why.contains("may not be where")),
+                "{id}: the page is where the file says: {reasons:#?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_code_the_app_refuses_says_the_sign_in_stopped_at_the_code_step() {
+        // `seed` enrolled the admin with a secret of its own, not SV_ADMIN_TOTP_SECRET.
+        let other: Vec<u8> = admin_secret().iter().map(|b| b ^ 0x5a).collect();
+        let o = run_with_admin_code(other, &users(), |_| {});
+        assert!(!verified_ids(&o).contains(&ADMIN_PAGE.rule_id));
+        let reasons = admin_page_reasons(&o, "V8.2.1");
+        assert!(
+            reasons
+                .iter()
+                .any(|why| why.contains("stopped at the code step")
+                    && why.contains(
+                        "enrolls the admin in two-factor sign-in with SV_ADMIN_TOTP_SECRET"
+                    )),
+            "{reasons:#?}"
+        );
+        assert!(reasons.iter().all(|why| !why.contains("may not be where")));
+    }
+
+    #[test]
+    fn an_admin_stopped_by_a_step_the_manifest_does_not_name_is_told_apart_from_a_wrong_page() {
+        let mut u = users();
+        u.totp = None;
+        let o = run_with_admin_code(admin_secret(), &u, |acc| acc.totp = None);
+        let reasons = admin_page_reasons(&o, "V8.2.1");
+        assert!(
+            reasons.iter().any(|why| why.contains("not shown signed in")
+                && why.contains("answered 200")
+                && why.contains("as `totp`")),
+            "{reasons:#?}"
+        );
+        assert!(reasons.iter().all(|why| !why.contains("may not be where")));
+        // The control: an admin who is in, and a page that really is not there, keeps that reason.
+        let mut wrong = users();
+        wrong.admin = vec!["/not-the-admin-page".into()];
+        let o = run_with_admin_code(admin_secret(), &wrong, |_| {});
+        let reasons = admin_page_reasons(&o, "V8.2.1");
+        assert!(
+            reasons.iter().any(|why| why.contains("it opened /account")
+                && why.contains("may not be where securevibe.toml says")),
+            "{reasons:#?}"
+        );
+    }
+
+    /// The forms a secret could be written in, by name: base32 as `seed` is given it, in either
+    /// case, and hex. Its raw bytes are not text, and are only ever handed on as base32.
+    fn forms_of(secret: &[u8]) -> Vec<(&'static str, String)> {
+        let encoded = crate::totp::base32(secret);
+        vec![
+            ("base32", encoded.clone()),
+            ("base32, lowercase", encoded.to_lowercase()),
+            (
+                "hex",
+                secret
+                    .iter()
+                    .map(|b| format!("{b:02x}"))
+                    .collect::<String>(),
+            ),
+        ]
+    }
+
+    /// Which form of `secret` is anywhere in what the run hands the report: every finding,
+    /// credit, reason and step, and the log markers. Named, never printed.
+    fn leaked(o: &Outcome, secret: &[u8]) -> Option<&'static str> {
+        let everything = format!("{o:?}");
+        forms_of(secret)
+            .into_iter()
+            .find(|(_, form)| everything.contains(form.as_str()))
+            .map(|(name, _)| name)
+    }
+
+    #[test]
+    fn the_admins_secret_never_reaches_the_report() {
+        let secret = admin_secret();
+        // The search can find it: a run note that did carry it is caught, in each form.
+        for (name, form) in forms_of(&secret) {
+            let mut planted = Outcome::default();
+            planted.steps.push(format!("seed said {form}"));
+            assert_eq!(leaked(&planted, &secret), Some(name));
+        }
+        // Signed in with it; refused it; and without it. Each run is shown to have used the
+        // secret, or to have stopped where it says, before its silence is believed.
+        let used = run_with_admin_code(secret.clone(), &users(), |_| {});
+        assert!(verified_ids(&used).contains(&ADMIN_PAGE.rule_id));
+        let other: Vec<u8> = secret.iter().map(|b| b ^ 0x5a).collect();
+        let refused = run_with_admin_code(other.clone(), &users(), |_| {});
+        assert!(!admin_page_reasons(&refused, "V8.2.1").is_empty());
+        let without = run_with_admin_code(secret.clone(), &users(), |acc| {
+            acc.admin_totp_secret = None;
+        });
+        assert!(!admin_page_reasons(&without, "V8.2.1").is_empty());
+        for (what, o) in [
+            ("used", &used),
+            ("refused", &refused),
+            ("without", &without),
+        ] {
+            assert_eq!(leaked(o, &secret), None, "{what}: the admin's secret");
+            assert_eq!(
+                leaked(o, &other),
+                None,
+                "{what}: the secret the app enrolled"
+            );
+            let user_secret = &accounts().totp.unwrap().secret;
+            assert_eq!(
+                leaked(o, user_secret),
+                None,
+                "{what}: the two-factor account's"
+            );
+        }
     }
 }

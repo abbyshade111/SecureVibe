@@ -507,7 +507,8 @@ pub struct UsersSection {
     /// given `SV_USER_A`, `SV_PASSWORD_A`, `SV_USER_B`, `SV_PASSWORD_B` and, when `admin` pages are
     /// listed, `SV_ADMIN` and `SV_ADMIN_PASSWORD`; when `totp` is set, `SV_USER_TOTP`,
     /// `SV_PASSWORD_TOTP`, and `SV_TOTP_SECRET` (base32) for an account to enroll in two-factor
-    /// sign-in with that secret.
+    /// sign-in with that secret, and, when there is an admin too, `SV_ADMIN_TOTP_SECRET` (base32)
+    /// to enroll the admin with, for an app that asks admins for a code.
     #[serde(default)]
     pub seed: Option<String>,
     /// Or the app's own sign-up request, used for both ordinary users when there is no `seed`.
@@ -569,7 +570,9 @@ pub struct UsersSection {
     pub flow: Option<FlowSection>,
     /// The second step of a two-factor sign-in: `{code}` for the six-digit code, sent in the
     /// session the password step began. Needs `seed`, which is given a third account and its
-    /// secret (`SV_USER_TOTP`, `SV_PASSWORD_TOTP`, `SV_TOTP_SECRET`) to enroll.
+    /// secret (`SV_USER_TOTP`, `SV_PASSWORD_TOTP`, `SV_TOTP_SECRET`) to enroll, and a secret for the
+    /// admin (`SV_ADMIN_TOTP_SECRET`) when admin pages are listed; the admin's sign-in is finished
+    /// with its code when the password alone does not open the private page.
     #[serde(default)]
     pub totp: Option<RequestTemplate>,
     /// Checks made in a real browser, signed in as the first user. Present, even empty, it starts
