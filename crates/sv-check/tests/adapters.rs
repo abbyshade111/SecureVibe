@@ -77,6 +77,9 @@ fn a_tool_that_writes_no_report_is_not_run_either() {
     std::fs::write(&path, doctored).unwrap();
     let adapters = Adapters::load(&path).unwrap();
     let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
+    // Bandit is handed the app's Python files by name, so the app needs one for it to run at all;
+    // with none it is not run for that reason, and the missing report is never reached.
+    std::fs::write(dir.join("app.py"), "print(1)\n").unwrap();
 
     let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
     std::fs::remove_dir_all(&dir).ok();

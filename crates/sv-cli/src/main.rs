@@ -1664,8 +1664,8 @@ fn cmd_check(args: &[String]) -> Result<i32> {
 
     if !code.unread_files.is_empty() {
         println!(
-            "\nNot read — {} in a language the rules read {} not opened, so no rule can say it found\n\
-             nothing wrong:",
+            "\nNot read — {} in a language the rules read {} not opened, so no rule that reads that\n\
+             language can say it found nothing wrong:",
             if code.unread_files.len() == 1 {
                 "a file".to_owned()
             } else {
@@ -1723,12 +1723,18 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     if !code.unparsed_files.is_empty() {
         println!(
             "\nPartly read — the parser could not make sense of part of {}. Anything found in\n\
-             {} still counts, but while part of the app went unread, no rule can say it found\n\
-             nothing wrong.",
+             {} still counts. A rule whose call is named anywhere in {} cannot say it found\n\
+             nothing wrong; a rule whose call is not named there could not have found it there,\n\
+             and still can.",
             if code.unparsed_files.len() == 1 {
                 "this file".to_owned()
             } else {
                 format!("these {} files", code.unparsed_files.len())
+            },
+            if code.unparsed_files.len() == 1 {
+                "it"
+            } else {
+                "them"
             },
             if code.unparsed_files.len() == 1 {
                 "it"
@@ -2040,6 +2046,11 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
             "\nAnd the list itself is incomplete, so this comparison covered less than the whole app.\n\
              `sv sbom` says what is missing."
         );
+        // What was not read, said here as well: an owner told only that something is missing
+        // has to run a second command to learn which file, and why.
+        for (ecosystem, why) in &sbom.unread {
+            println!("\nNot assessed — {ecosystem}: {why}.");
+        }
     }
     for passed in &sbom.passed_over {
         println!(
@@ -2694,14 +2705,28 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
     // Ecosystems that produced no components at all. The bill of materials already words each
     // reason for its own case — no lockfile, a lockfile format `sv` cannot read, a lockfile that
     // parsed and yielded nothing — so the reason is passed through rather than flattened.
+    // When the same ecosystem did list packages (a lockfile read in one folder, a `setup.py` not
+    // read in another; a `Pipfile.lock` with one package installed from a repository), the list is
+    // not empty, and calling it empty would be as wrong as calling an empty one approximate.
     for (ecosystem, why) in &sbom.unread {
-        gaps.push(sv_report::Gap {
-            what: format!("everything {ecosystem} installs"),
-            why: format!(
-                "{why}. This is not an approximate list of this app's {ecosystem} dependencies, \
-                 it is an empty one: nothing here can say whether a package with a known \
-                 vulnerability is among them"
-            ),
+        let some_listed = sbom.components.iter().any(|c| &c.ecosystem == ecosystem);
+        gaps.push(if some_listed {
+            sv_report::Gap {
+                what: format!("part of what {ecosystem} installs"),
+                why: format!(
+                    "{why}. The list of this app's {ecosystem} dependencies leaves these out, so \
+                     nothing here can say whether a package with a known vulnerability is among them"
+                ),
+            }
+        } else {
+            sv_report::Gap {
+                what: format!("everything {ecosystem} installs"),
+                why: format!(
+                    "{why}. This is not an approximate list of this app's {ecosystem} \
+                     dependencies, it is an empty one: nothing here can say whether a package \
+                     with a known vulnerability is among them"
+                ),
+            }
         });
     }
 
@@ -3430,8 +3455,8 @@ fn assemble_report_saying(
                 }
             ),
             why: format!(
-                "{}{}. While part of the app went unread, no rule that reads code can say it found \
-                 nothing wrong.",
+                "{}{}. While part of the app went unread, no rule that reads these files' language \
+                 can say it found nothing wrong.",
                 shown.join("; "),
                 if code.unread_files.len() > 5 {
                     format!("; and {} more", code.unread_files.len() - 5)
@@ -3512,8 +3537,10 @@ fn assemble_report_saying(
                 if n == 1 { "" } else { "s" },
                 shown.join(", ")
             ),
-            why: "whatever sat where the parser gave up was not read, so no rule that reads code \
-                  can say it found nothing wrong anywhere in this app; what it did find stands"
+            why: "whatever sat where the parser gave up was not read, so a rule whose call is named \
+                  anywhere in these files cannot say it found nothing wrong anywhere in this app; a \
+                  rule whose call is named nowhere in them could not have found it there. What was \
+                  found stands"
                 .to_owned(),
         });
     }

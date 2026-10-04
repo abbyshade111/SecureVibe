@@ -96,6 +96,7 @@ pub fn compare(
     let (wanted, key, version_of): Read = match manifest_name {
         "requirements.txt" => (python_wants(manifest), python_name, str::to_owned),
         "pyproject.toml" => (pyproject_wants(manifest)?, python_name, str::to_owned),
+        "Pipfile" => (pipfile_wants(manifest)?, python_name, str::to_owned),
         "package.json" => (npm_wants(manifest)?, str::to_owned, str::to_owned),
         "Cargo.toml" => (cargo_wants(manifest)?, cargo_name, str::to_owned),
         "composer.json" => (composer_wants(manifest)?, str::to_lowercase, str::to_owned),
@@ -152,6 +153,7 @@ pub fn declared_names(manifest_name: &str, manifest: &str) -> Option<Vec<String>
     let wanted = match manifest_name {
         "requirements.txt" => python_wants(manifest),
         "pyproject.toml" => pyproject_wants(manifest)?,
+        "Pipfile" => pipfile_wants(manifest)?,
         "package.json" => npm_wants(manifest)?,
         "Cargo.toml" => cargo_wants(manifest)?,
         "composer.json" => composer_wants(manifest)?,
@@ -622,6 +624,65 @@ fn pyproject_wants(text: &str) -> Option<Vec<Wanted>> {
                     .and_then(poetry_spec)
                     .map_or(Spec::Unread, Spec::Python),
                 conditional: conditional || in_group,
+            });
+        }
+    }
+    Some(out)
+}
+
+/// Pipenv's `Pipfile`: each package category (`[packages]`, `[dev-packages]`, and any other a
+/// project adds) maps a name to `"*"`, PEP 440 clauses, or a table with a `version` among other
+/// keys. `pipenv lock` locks every category, so none is optional; a platform condition makes a
+/// package one that may rightly be missing, and one installed from a repository, a folder, or an
+/// address has no version to hold it to.
+fn pipfile_wants(text: &str) -> Option<Vec<Wanted>> {
+    let doc: toml::Table = toml::from_str(text).ok()?;
+    let mut out = Vec::new();
+    for (category, packages) in &doc {
+        if sv_scan::deps::PIPFILE_NOT_PACKAGES.contains(&category.as_str()) {
+            continue;
+        }
+        let Some(packages) = packages.as_table() else {
+            continue;
+        };
+        for (name, value) in packages {
+            let (constraint, conditional) = match value {
+                toml::Value::String(c) => (Some(c.as_str()), false),
+                toml::Value::Table(t) => {
+                    let elsewhere = ["git", "path", "file", "url", "hg", "svn", "bzr"]
+                        .iter()
+                        .any(|k| t.contains_key(*k));
+                    let conditional = t.keys().any(|k| {
+                        k == "markers"
+                            || k == "sys_platform"
+                            || k == "os_name"
+                            || k == "python_version"
+                            || k.starts_with("platform_")
+                    });
+                    let version = t.get("version").and_then(toml::Value::as_str);
+                    // One from a repository or a folder is locked with no version, or is the app
+                    // itself, so it is not in the lockfile's list to be held to.
+                    (
+                        if elsewhere {
+                            None
+                        } else {
+                            Some(version.unwrap_or("*"))
+                        },
+                        conditional || elsewhere,
+                    )
+                }
+                _ => (None, false),
+            };
+            let spec = match constraint.map(str::trim) {
+                None => Spec::Unread,
+                Some("*") | Some("") => Spec::Python(Vec::new()),
+                Some(c) => python_spec(c).map_or(Spec::Unread, Spec::Python),
+            };
+            out.push(Wanted {
+                key: python_name(name),
+                asked: format!("{name} {}", constraint.unwrap_or("(not a version)")),
+                spec,
+                conditional,
             });
         }
     }
@@ -1189,6 +1250,47 @@ mod tests {
             &python_spec(spec).map_or(Spec::Unread, Spec::Python),
             version,
         )
+    }
+
+    #[test]
+    fn a_pipfile_is_held_to_its_lockfile() {
+        let manifest = "[packages]\ndjango = \"==2.2.0\"\nrequests = \"*\"\n\
+                        flask = {version = \">=3,<4\", extras = [\"async\"]}\n\
+                        colorama = {version = \"*\", sys_platform = \"== 'win32'\"}\n\
+                        myapp = {path = \".\", editable = true}\n\n\
+                        [dev-packages]\nPyTest = \">=8\"\n\n[requires]\npython_version = \"3.11\"\n";
+        let lock = locked(&[
+            ("django", "2.2.0"),
+            ("requests", "2.31.0"),
+            ("flask", "3.0.0"),
+            ("pytest", "8.0.0"),
+        ]);
+        let agree = compare("Pipfile", manifest, &lock).unwrap();
+        assert!(agree.differs.is_empty(), "{agree:?}");
+        let mut not_compared = agree.not_compared.clone();
+        not_compared.sort();
+        assert_eq!(
+            not_compared,
+            ["colorama *", "myapp (not a version)"],
+            "a platform condition, and the app's own folder, may rightly be missing"
+        );
+
+        let older = locked(&[
+            ("django", "2.2.0"),
+            ("requests", "2.31.0"),
+            ("flask", "2.3.0"),
+        ]);
+        let found = compare("Pipfile", manifest, &older).unwrap();
+        let mut asked: Vec<&str> = found.differs.iter().map(|d| d.asked.as_str()).collect();
+        asked.sort();
+        assert_eq!(asked, ["PyTest >=8", "flask >=3,<4"]);
+        let mut names = declared_names("Pipfile", manifest).unwrap();
+        names.sort();
+        assert_eq!(
+            names,
+            ["colorama", "django", "flask", "myapp", "pytest", "requests"]
+        );
+        assert_eq!(compare("Pipfile", "not = [toml", &[]), None);
     }
 
     #[test]
