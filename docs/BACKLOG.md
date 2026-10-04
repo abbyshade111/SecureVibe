@@ -38,6 +38,8 @@ another session is not a claim.
      caught. The same holds for `call`, `check_call`, `check_output`, and `Popen` with `shell=True`. Witnesses: each
      of those with a built string and `shell=True` caught; each with a list and no shell, and with `shell=True` and
      a fixed string, quiet.
+  **Items 1 and 2 claimed on 4 October 2026 by session securevibe-e10**, at the owner's word ("keep going"), in
+  branch `claude/blind-spots`.
 
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
