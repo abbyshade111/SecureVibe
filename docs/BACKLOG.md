@@ -861,6 +861,10 @@ another session is not a claim.
   prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt
   (now an item under "Next"). Still to do: the rest of the batch (access control, headers, CORS, error pages), a
   second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
+  **The rest of the first batch claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
+  branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
+  open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
+  (`docs/prompts/trial/brief.md`), with and without the prompt.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
