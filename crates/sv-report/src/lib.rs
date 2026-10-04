@@ -459,12 +459,35 @@ impl AiProcess {
     }
 }
 
+/// The `sv` that made a report: its version, and the commit it was built from. The commit is
+/// `unknown` for a build made outside a checkout with none given (see `crates/sv-cli/build.rs`).
+#[derive(Debug, Clone, Default, Serialize, PartialEq, Eq)]
+pub struct MadeBy {
+    pub version: String,
+    pub commit: String,
+}
+
+impl MadeBy {
+    /// `0.1.0 (commit 9573c0d1a2b3)`: the commit cut to twelve characters, which is plenty to find
+    /// it by and short enough to read.
+    pub fn describe(&self) -> String {
+        let commit = match self.commit.get(..12) {
+            Some(short) if self.commit.chars().all(|c| c.is_ascii_hexdigit()) => short,
+            _ => self.commit.as_str(),
+        };
+        format!("{} (commit {commit})", self.version)
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Report {
     pub app_name: String,
     pub target_level: u8,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
+    /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
+    /// review naming a rule the reader's `sv` does not have could not be explained.
+    pub sv: MadeBy,
     /// One sentence about the app having been started, and under which fence.
     ///
     /// Absent when it was not started, in which case the gap list says so. Present and prominent
@@ -855,6 +878,8 @@ pub struct Inputs<'a> {
     pub app_name: &'a str,
     pub target_level: u8,
     pub generated: Option<String>,
+    /// See `Report::sv`.
+    pub made_by: MadeBy,
     pub run_note: Option<String>,
     /// One entry per thing the checks did while the app ran. See `Report::run_steps`.
     pub run_steps: Vec<String>,
@@ -1322,6 +1347,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,
+        sv: inputs.made_by,
         run_note: inputs.run_note,
         run_steps: inputs.run_steps,
         test_output: inputs.test_output,
