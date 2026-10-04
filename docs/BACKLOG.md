@@ -41,6 +41,9 @@ another session is not a claim.
      the SARIF's `tool.driver`, show it in `report.html`, and pass the commit to the image build.
      **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
      session, in branch `claude/securevibe-e9-report-provenance`.
+     **Done the same day** (DESIGN, "A report names the `sv` that made it"). Every form of the report names the
+     version and commit, and the image is built with its commit (`--build-arg SV_GIT_COMMIT`), which the CI image
+     job's smoke test checks.
 
 - **The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add.** By session
   securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
