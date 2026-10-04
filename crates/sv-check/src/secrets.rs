@@ -318,6 +318,91 @@ fn scan_piece(
     out
 }
 
+/// The shapes a name given a quoted value takes across languages, each with a `name` and a `value`
+/// group. Separate patterns rather than one, because the typed shapes read a word between the name and
+/// the `=`: in one pattern, Java's `String password = "…"` would be read as the name `String` with the
+/// type `password`, and the line passed over.
+///
+/// Until 4 October 2026 only the first shape's `:` and `=` were read, so a JSON or dict key, PHP's and
+/// Ruby's `=>`, Go's `:=`, a typed declaration, and a default given to an environment variable in the
+/// code were reported by nothing (the deep review's H3).
+static QUOTED_SHAPES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+    const VALUE: &str = r#"["'](?P<value>[^"'\n]{8,200})["']"#;
+    const NAME: &str = r"(?P<name>[A-Za-z_][A-Za-z0-9_.\-]*)";
+    [
+        // name = "v", name: "v", "name": "v", 'name' => 'v', name := "v".
+        format!(r#"["']?{NAME}["']?\s*(?:=>|:=|:|=)\s*{VALUE}"#),
+        // TypeScript, Kotlin, Swift, and Rust: `apiKey: string = "v"`, `API_KEY: &'static str = "v"`.
+        format!(r#"{NAME}\s*:\s*&?(?:'[a-z]+\s+)?[A-Za-z_][A-Za-z0-9_.<>\[\]?]*\s*=\s*{VALUE}"#),
+        // Go: `var password string = "v"`.
+        format!(r#"{NAME}[ \t]+[A-Za-z_][A-Za-z0-9_.\[\]*]*[ \t]*=\s*{VALUE}"#),
+        // A default given in the code to a setting read from the environment, which is the
+        // credential itself whenever the setting is not there: `os.getenv("X", "v")`,
+        // `os.environ.get("X", "v")`, `ENV.fetch("X", "v")`, `env('X', 'v')`.
+        format!(
+            r#"(?:getenv|environ\.get|environ\.setdefault|ENV\.fetch|getOrDefault|\benv)\s*\(\s*["']{NAME}["']\s*,\s*{VALUE}"#
+        ),
+        // The same default after the read: `process.env.X || "v"`, `process.env["X"] ?? "v"`,
+        // `ENV["X"] || "v"`, `getenv('X') ?: 'v'`, `os.environ.get("X") or "v"`.
+        format!(
+            r#"(?:process\.env\.{NAME}|(?:process\.env|ENV)\[\s*["']{NAME2}["']\s*\]|(?:getenv|environ\.get)\(\s*["']{NAME3}["']\s*\))\s*(?:\|\||\?\?|\?:|\bor\b)\s*{VALUE}"#,
+            NAME2 = r"(?P<name2>[A-Za-z_][A-Za-z0-9_.\-]*)",
+            NAME3 = r"(?P<name3>[A-Za-z_][A-Za-z0-9_.\-]*)",
+        ),
+    ]
+    .iter()
+    .map(|p| Regex::new(p).expect("static pattern"))
+    .collect()
+});
+
+/// A name given a value with no quotes, read only in configuration files, where that is how a value
+/// is written: YAML's `password: v`, and `password=v` in `.properties` and `.ini`. In code the same
+/// shape is a call or another variable (`password = read_password()`), so it is not read there.
+static UNQUOTED: LazyLock<Regex> = LazyLock::new(|| {
+    // The value's first character leaves out YAML's other meanings: an anchor or alias (`&`, `*`),
+    // a tag (`!secret db_password`), a block (`|`, `>`), a flow collection, and a quote.
+    Regex::new(
+        r#"(?m)^[ \t]*(?:-[ \t]+)?["']?(?P<name>[A-Za-z_][A-Za-z0-9_.\-]*)["']?[ \t]*[:=][ \t]*(?P<value>[^\s"'&*!|>{\[%@`#][^\s]{7,199})[ \t]*(?:[ \t]#.*)?\r?$"#,
+    )
+    .expect("static pattern")
+});
+
+/// The files whose values are written without quotes: see `UNQUOTED`.
+fn writes_values_unquoted(relative: &str) -> bool {
+    let name = relative
+        .rsplit('/')
+        .next()
+        .unwrap_or(relative)
+        .to_lowercase();
+    [".yml", ".yaml", ".properties", ".ini", ".cfg", ".conf"]
+        .iter()
+        .any(|ext| name.ends_with(ext))
+}
+
+/// Every name given a value in `text`, in the shapes above, as (name, value), in the order the values
+/// come. One value can come with more than one name: in `var password string = "v"` the first shape
+/// reads the type, `string`, as the name, and the Go shape reads `password`. Both are kept, so the
+/// caller can judge each name and report the value once.
+fn named_values<'t>(relative: &str, text: &'t str) -> Vec<(regex::Match<'t>, regex::Match<'t>)> {
+    let unquoted = writes_values_unquoted(relative).then_some(&*UNQUOTED);
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    for shape in QUOTED_SHAPES.iter().chain(unquoted) {
+        for caps in shape.captures_iter(text) {
+            let name = ["name", "name2", "name3"]
+                .iter()
+                .find_map(|g| caps.name(g))
+                .expect("every shape names its name");
+            let value = caps.name("value").expect("every shape names its value");
+            if seen.insert((name.start(), value.start())) {
+                out.push((name, value));
+            }
+        }
+    }
+    out.sort_by_key(|(name, value)| (value.start(), name.start()));
+    out
+}
+
 /// A name that says "credential" assigned a value that looks like one.
 ///
 /// This is the rule that earns its keep and the rule most able to cry wolf, so it asks for three things at
@@ -329,33 +414,31 @@ fn assignment_findings(
     first_line: usize,
     keep: &std::ops::Range<usize>,
 ) -> Vec<Finding> {
-    // name = "value" / name: 'value' / NAME=value — the shapes an assignment takes across languages.
-    static ASSIGNMENT: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r#"(?m)([A-Za-z_][A-Za-z0-9_.\-]*)\s*[:=]\s*["']([^"'\n]{8,200})["']"#)
-            .expect("static pattern")
-    });
     let mut out = Vec::new();
-    for caps in ASSIGNMENT.captures_iter(text) {
-        if !keep.contains(&caps.get(0).expect("group 0 is the match").start()) {
+    let mut reported = std::collections::HashSet::new();
+    for (name_match, value_match) in named_values(relative, text) {
+        if !keep.contains(&name_match.start()) || reported.contains(&value_match.start()) {
             continue;
         }
-        let name = caps.get(1).map(|m| m.as_str()).unwrap_or_default();
-        let value_match = caps.get(2).expect("group 2 is not optional");
+        let name = name_match.as_str();
         let value = value_match.as_str();
         if !is_secret_name(name) || looks_like_placeholder(value) {
             continue;
         }
-        // A reference to another variable, a path or a URL is not a credential.
+        // A reference to another variable, a path or a URL is not a credential, and nor is a value
+        // kept encrypted in the file, as SOPS writes one (`ENC[AES256_GCM,data:…]`).
         if value.starts_with('/')
             || value.contains("://")
             || value.chars().all(|c| c.is_ascii_uppercase() || c == '_')
             || is_whole_reference(value)
+            || value.starts_with("ENC[")
         {
             continue;
         }
         if shannon_entropy(value) < 3.5 {
             continue;
         }
+        reported.insert(value_match.start());
         out.push(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
@@ -414,7 +497,19 @@ pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
         let Some(value) = caps.get(2).or(caps.get(3)).or(caps.get(4)) else {
             continue;
         };
-        if is_secret_name(name) && !looks_like_placeholder(value.as_str()) {
+        // Not a value of punctuation alone: in `password := "v"` and `password => "v"` this
+        // pattern reads the `=` or `>` as the value, and the shapes below cut the real one.
+        if is_secret_name(name)
+            && !looks_like_placeholder(value.as_str())
+            && value.as_str().chars().any(char::is_alphanumeric)
+        {
+            spans.push((value.start(), value.end()));
+        }
+    }
+    // And every shape the assignment rule reads (`:=`, `=>`, a typed declaration, a default given to
+    // an environment variable), which the pattern above cuts short or misses.
+    for (name, value) in named_values("", text) {
+        if is_secret_name(name.as_str()) && !looks_like_placeholder(value.as_str()) {
             spans.push((value.start(), value.end()));
         }
     }
@@ -1131,6 +1226,230 @@ mod tests {
         let found = scan_text(&rules(), "src/config.py", text);
         assert_eq!(found.len(), 1, "{found:?}");
         assert_eq!(found[0].rule_id, "secrets.credential-assignment");
+    }
+
+    /// The deep review's H3: the shapes a credential is written in that only `name = "v"` and
+    /// `name: "v"` were read in until 4 October 2026. `{v}` is replaced by a made-up value built at
+    /// run time; findings are named, never printed, on failure.
+    const SHAPES_CAUGHT: &[(&str, &str, &str)] = &[
+        ("a JSON key", "config.json", r#"{ "password": "{v}" }"#),
+        (
+            "a Python dict key",
+            "app.py",
+            r#"CONFIG = {"api_key": "{v}"}"#,
+        ),
+        ("PHP's =>", "config.php", r#"'password' => '{v}',"#),
+        ("Ruby's =>", "config.rb", r#"{ :secret_key => "{v}" }"#),
+        ("Go's :=", "main.go", r#"	dbPassword := "{v}""#),
+        (
+            "Go's var with a type",
+            "main.go",
+            r#"var dbPassword string = "{v}""#,
+        ),
+        (
+            "TypeScript's typed const",
+            "app.ts",
+            r#"const apiKey: string = "{v}";"#,
+        ),
+        (
+            "Kotlin's typed val",
+            "App.kt",
+            r#"val password: String = "{v}""#,
+        ),
+        (
+            "Rust's typed const",
+            "main.rs",
+            r#"const API_KEY: &'static str = "{v}";"#,
+        ),
+        (
+            "Java's typed field",
+            "App.java",
+            r#"private static final String DB_PASSWORD = "{v}";"#,
+        ),
+        (
+            "unquoted YAML",
+            "config.yml",
+            "database:\n  password: {v}\n",
+        ),
+        (
+            "unquoted YAML in a list",
+            "compose.yaml",
+            "  - token: {v}  # prod\n",
+        ),
+        ("a .properties line", "app.properties", "db.password={v}\n"),
+        (
+            "Python's getenv default",
+            "app.py",
+            r#"os.getenv("DB_PASSWORD", "{v}")"#,
+        ),
+        (
+            "Python's environ.get default",
+            "app.py",
+            r#"os.environ.get('SECRET_KEY', '{v}')"#,
+        ),
+        (
+            "Python's or default",
+            "app.py",
+            r#"os.environ.get("SECRET_KEY") or "{v}""#,
+        ),
+        (
+            "Ruby's ENV.fetch default",
+            "app.rb",
+            r#"ENV.fetch("API_KEY", "{v}")"#,
+        ),
+        (
+            "Ruby's ENV[] || default",
+            "app.rb",
+            r#"ENV["API_KEY"] || "{v}""#,
+        ),
+        (
+            "Node's || default",
+            "app.js",
+            r#"const s = process.env.JWT_SECRET || "{v}";"#,
+        ),
+        (
+            "Node's ?? default",
+            "app.ts",
+            r#"process.env["JWT_SECRET"] ?? '{v}'"#,
+        ),
+        (
+            "Laravel's env default",
+            "config.php",
+            r#"'password' => env('DB_PASSWORD', '{v}'),"#,
+        ),
+        (
+            "PHP's getenv ?: default",
+            "db.php",
+            r#"$p = getenv('DB_PASSWORD') ?: '{v}';"#,
+        ),
+    ];
+
+    /// A made-up credential: mixed case and digits, no quote, `#`, or space, so every shape can hold it.
+    fn made_up_value() -> String {
+        ["Xk7mQ92v", "LpR4sTzW"].concat()
+    }
+
+    #[test]
+    fn a_credential_is_found_in_every_shape_it_is_commonly_written_in() {
+        let value = made_up_value();
+        let mut missed = Vec::new();
+        for (case, file, template) in SHAPES_CAUGHT {
+            let text = template.replace("{v}", &value);
+            let found = scan_text(&rules(), file, &format!("{text}\n"));
+            let assigned: Vec<&Finding> = found
+                .iter()
+                .filter(|f| f.rule_id == "secrets.credential-assignment")
+                .collect();
+            if assigned.len() != 1 {
+                missed.push(format!("{case}: {} findings", assigned.len()));
+                continue;
+            }
+            let rendered = serde_json::to_string(&found).unwrap();
+            assert!(
+                !rendered.contains(&value),
+                "{case}: the value reached the finding"
+            );
+        }
+        assert!(missed.is_empty(), "not found exactly once: {missed:?}");
+    }
+
+    #[test]
+    fn the_new_shapes_pass_over_what_is_not_a_credential_in_the_clear() {
+        let value = made_up_value();
+        // The setup: the made-up value is one the rule reports, so each line below is passed over for
+        // what it is and not for the value.
+        assert!(!scan_text(&rules(), "app.py", &format!("password = \"{value}\"\n")).is_empty());
+        for (case, file, text) in [
+            (
+                "a getenv with no default",
+                "app.py",
+                r#"os.getenv("DB_PASSWORD")"#.to_owned(),
+            ),
+            (
+                "a getenv default that is a placeholder",
+                "app.py",
+                r#"os.getenv("DB_PASSWORD", "changeme-please")"#.to_owned(),
+            ),
+            (
+                "a default under a harmless name",
+                "app.py",
+                format!(r#"os.getenv("LOG_LEVEL", "{value}")"#),
+            ),
+            (
+                "a typed value under a harmless name",
+                "app.ts",
+                format!(r#"const greeting: string = "{value}";"#),
+            ),
+            (
+                "a Go value under a harmless name",
+                "main.go",
+                format!(r#"var greeting string = "{value}""#),
+            ),
+            (
+                "a JSON key with a harmless name",
+                "package.json",
+                format!(r#"{{ "version": "{value}" }}"#),
+            ),
+            (
+                "YAML read from a reference",
+                "config.yml",
+                "password: ${DB_PASSWORD}\n".to_owned(),
+            ),
+            (
+                "a Home Assistant secret",
+                "configuration.yaml",
+                "password: !secret db_password\n".to_owned(),
+            ),
+            (
+                "a YAML alias",
+                "config.yml",
+                "password: *db_password_value\n".to_owned(),
+            ),
+            (
+                "a SOPS-encrypted value",
+                "secrets.yaml",
+                format!("password: ENC[AES256_GCM,data:{value},iv:{value},type:str]\n"),
+            ),
+            (
+                "an unquoted value in code, which is a call",
+                "app.py",
+                "password = read_password_from_vault()\n".to_owned(),
+            ),
+            (
+                "an unquoted value in a file that is not configuration",
+                "notes.md",
+                format!("password: {value}\n"),
+            ),
+        ] {
+            let found = scan_text(&rules(), file, &format!("{text}\n"));
+            assert!(
+                found.is_empty(),
+                "reported {case}: {} findings",
+                found.len()
+            );
+        }
+    }
+
+    #[test]
+    fn redacting_cuts_a_value_in_the_new_shapes_too() {
+        let value = made_up_value();
+        for template in [
+            r#"dbPassword := "{v}""#,
+            r#"'password' => '{v}'"#,
+            r#"os.getenv("DB_PASSWORD", "{v}")"#,
+            r#"const apiKey: string = "{v}";"#,
+        ] {
+            let (out, n) = redact_text(&rules(), &template.replace("{v}", &value));
+            // No message prints `out`: were a cut missed, it would hold the value.
+            assert!(!out.contains(&value), "not cut: {template}");
+            assert!(n >= 1, "{template}: nothing cut");
+            // The older pattern reads the `=` of `:=` and the `>` of `=>` as a value; cutting those
+            // tells the reader nothing.
+            assert!(
+                !out.contains("[redacted: =") && !out.contains("[redacted: >"),
+                "{template}: punctuation cut as a value"
+            );
+        }
     }
 
     #[test]
