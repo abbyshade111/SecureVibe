@@ -7886,8 +7886,9 @@ stays (`verified.rs`): what changes is which claims it touches. Recorded under A
   cannot say it found nothing, and a rule whose call is named nowhere in it could not have found it there.
 
 How it is held: `a_file_that_does_not_parse_holds_back_the_rules_whose_call_it_names_and_keeps_its_findings`,
-`a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call`, and
-`a_file_not_opened_holds_back_every_rule_that_reads_its_language` (`crates/sv-check/tests/clean_coverage.rs`),
+`a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call`,
+`a_file_not_opened_holds_back_every_rule_that_reads_its_language`, and
+`a_rule_whose_name_pattern_is_more_than_a_word_is_always_held_back` (`crates/sv-check/tests/clean_coverage.rs`),
 and `the_words_in_a_file_rule_out_only_what_a_name_pattern_can_match` (`crates/sv-check/src/ast.rs`).
 
 ## Decide before you build: the instructions, the spec, and the design-time prompts as MCP prompts (4 October 2026)

@@ -299,6 +299,30 @@ fn a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call() {
 }
 
 #[test]
+fn a_rule_whose_name_pattern_is_more_than_a_word_is_always_held_back() {
+    // The shell rule's pattern names a path (`/bin/sh`), which is not a word, so the words in a
+    // broken shell script cannot rule it out, even when none of them is a shell's name.
+    let scan = scan_files(
+        "ast-broken-shell",
+        &[
+            ("app.py", "print('hello')\n"),
+            ("deploy.sh", "echo start\nif [ -n \"$X\" ; then\n  echo x\n"),
+        ],
+    );
+    assert_eq!(
+        scan.unparsed_files,
+        vec!["deploy.sh".to_owned()],
+        "the setup: the script must not parse"
+    );
+    assert!(
+        scan.held_back.contains_key("ast.shell-command"),
+        "{:?}",
+        scan.held_back
+    );
+    assert!(!verified_ids(&scan.verified).contains(&"ast.shell-command"));
+}
+
+#[test]
 fn a_file_not_opened_holds_back_every_rule_that_reads_its_language() {
     // Nothing is known about what a file that was not opened names, so every rule that reads its
     // language is held back, and the rules about other languages only are not.
