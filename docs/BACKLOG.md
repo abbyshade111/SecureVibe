@@ -160,6 +160,11 @@ another session is not a claim.
     unspecified addresses, names that resolve to them included.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-s13`.
+    **Done the same day** (DESIGN, "`sv probe` asks only public addresses"; ADR-027): private, shared, link-local,
+    loopback, unspecified, and other non-public addresses are refused, typed or looked up; the name is looked up
+    once and curl is held to the checked addresses with `--resolve`; every curl starts `--disable --globoff --proto
+    =http,https`. Found while building it: `--disable` had been ignored, because curl reads it only as the first
+    argument. Seven guards broken in turn, each caught.
   - **R1. High, Reproduced. An AI tool can mark its own findings as reviewed by a person** (`review.rs`,
     `confirm.rs`): only an empty `by`, "ai-tool", and "AI coding tool" are refused, so `by = "owner"` cleared a
     finding, shown as "SET ASIDE BY A PERSON"; `confirmed.by` has the same gap. Fix: at least say what is known

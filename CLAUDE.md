@@ -54,8 +54,8 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   the file holds none and GitHub's push protection has nothing to refuse.
 - `sv` opens no network connection of its own, with one deliberate exception: `sv probe <address>` makes at most four
   read-only requests through `curl` to the address the owner types, and one DNS query to this computer's resolver
-  (`crates/sv-check/src/production.rs`, `live_tls.rs`). Advisory data is something the user downloads and points it at.
-  Keep it that way.
+  (`crates/sv-check/src/production.rs`, `live_tls.rs`). It asks only a public address, looked up once and held to
+  (ADR-027). Advisory data is something the user downloads and points it at. Keep it that way.
 - A citation is a claim: cite a requirement only when the check really speaks to it.
 
 ## Working style the owner expects
