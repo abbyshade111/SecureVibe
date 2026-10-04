@@ -2504,6 +2504,14 @@ another session is not a claim.
   that record or says `ADR-0NN: unchanged, because …`; and a test that every test, file, and ADR number a record
   names exists. The weekly review below becomes a scheduled task. **Claimed the same day by session securevibe-e9**,
   in branch `claude/securevibe-e9-adr-upkeep`. Other sessions: please leave `docs/adr/` to it until this says done.
+  **Done the same day.** The rule is in `CLAUDE.md` and `docs/adr/README.md` ("When a record is written, and how it
+  stays true"), and the pull-request template has a "Decision record" section. ADR-015 to ADR-026 each have a
+  **Governs:** list; `tools/adr_check.py`, run by `.github/workflows/decision-records.yml`, fails a pull request that
+  touches a governed file without changing the record or giving an `ADR-0NN: unchanged, because ...` line. Replayed
+  on earlier pull requests, it would have caught #558 (ADR-019, the fence's gateway) and #588 (ADR-020 for the new
+  dependency, ADR-022, ADR-023, and ADR-026). `crates/sv-cli/tests/decision_records.rs` checks the records' tests,
+  files, patterns, cited numbers, and index; five references broken in turn, each caught, and the script's own
+  self-test caught two of its guards broken (a third guard was redundant and was removed).
 
 - **A weekly review of the decision records, so they stop falling behind what is built.** Asked for by the owner
   on 27 September 2026, after the ADR analysis (`docs/paper/ADRS.md`) found records out of date within two days
@@ -2518,6 +2526,10 @@ another session is not a claim.
      without their reasons, such as a language, a runtime, a fence, or a rule about evidence.
   4. Checks each record's cited requirement ids against `data/frameworks`, as the ADR analysis did.
   5. Records the review itself in this backlog, with the date and what changed, so a skipped week is visible.
+
+  **Scheduled on 4 October 2026**, at the owner's asking: the routine "Weekly decision-record review" runs every
+  Monday at 8:45 Eastern in a fresh session, claims the week's review here first, and also reports how many days each
+  new record came after its decision and how the week's `ADR-0NN: unchanged, because ...` lines were used.
 
   v1's records on the `v1` branch are archived and are out of scope. A correction to one of them is made as the
   "records that disagree with what was built" entry above describes.
