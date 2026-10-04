@@ -396,6 +396,14 @@ another session is not a claim.
 
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-8-slow-session`.
+     **Done the same day** (DESIGN, "A fresh sign-in after the `--slow` wait"): when the timeout check has waited,
+     A signs in again through the sign-in page (so a form token comes with the new session) and is shown opening
+     the private page before any later check uses the session; when that fails the run stops and says why, as it
+     does when the first sign-in fails. The timeout check keeps the two sessions of its own it always had. Tested on
+     the fake app's clock with sessions that end after 15 idle minutes: a correct app earns every credit with
+     `--slow` that it earns without, seeded and through sign-up, and sign-ins refused during the wait leave the rest
+     not assessed with the reason. With the fresh sign-in turned off, both tests failed: six credits lost, and the
+     sign-out credited with a dead session. No test caught it before.
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger
