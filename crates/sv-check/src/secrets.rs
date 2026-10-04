@@ -456,7 +456,7 @@ fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
 /// JSON value is the cost: it was not found before the newer shapes, and is not found now.
 fn reads_as_text_or_a_name(value: &str) -> bool {
     value.chars().any(char::is_whitespace)
-        || value.chars().any(|c| !c.is_ascii())
+        || !value.is_ascii()
         || value.starts_with("./")
         || value.starts_with("../")
         || value
