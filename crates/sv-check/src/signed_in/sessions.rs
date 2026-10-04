@@ -1452,6 +1452,7 @@ mod tests {
                 })
                 .collect(),
             before_login: Vec::new(),
+            landed: String::new(),
         }
     }
 
