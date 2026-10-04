@@ -40,6 +40,12 @@ another session is not a claim.
      a fixed string, quiet.
   **Items 1 and 2 claimed on 4 October 2026 by session securevibe-e10**, at the owner's word ("keep going"), in
   branch `claude/blind-spots`.
+  **Both done the same day** (DESIGN, "Two blind spots: a manifest with no lockfile, and a shell the call asked
+  for"). 1: the check reads the names a manifest declares where the bill of materials could read nothing, and says
+  not assessed, never "none is an editor", when it cannot read those either. 2: a new findings-only rule,
+  `ast.shell-command-shell-true`, for Python's `subprocess` with `shell=True`, Node's `spawn` and `execFile` with
+  `shell: true`, and Dart's `Process` with `runInShell: true`. Seven guards broken in turn, each caught; the recipe
+  app and the Python file that showed the gaps are now caught, and their safe forms are not.
 
 - **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
   2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
@@ -152,6 +158,19 @@ another session is not a claim.
     without a valid seal counts only as a proposal. A seal that cannot be checked where `sv` runs (CI, another
     computer) still counts, saying it could not be checked there. **Claimed the same day by session securevibe-e9**,
     in branch `claude/securevibe-e9-sv-review`.
+    **Done the same day** (DESIGN, "`sv review`: what a person records is sealed"): `sv review [PATH]` runs only in a
+    terminal, shows each entry that does not count on this computer, and writes the person's name, the date, and an
+    HMAC seal back into securevibe.toml, keyed by `~/.config/securevibe/review-key`. Unsealed entries, `by = "owner"`
+    included, are proposals; on the computer holding the key a changed entry or another key's seal is too; with no key
+    (CI) a sealed entry counts and says it was not checked. Twenty-one guards undone in turn, each caught.
+    **Still open, the same gap one step over:** an answer under `[design]` or `[checked-by-hand]` written with
+    `by = "owner"` still counts as the owner's own word ("attested by the owner", "checked by hand by the owner")
+    without a seal. `sv review` could record those too; it changes how the owner answers every question, so it is the
+    owner's decision.
+    **The owner decided on 4 October 2026 to close it, and it was claimed the same day by session securevibe-e9**,
+    in branch `claude/securevibe-e9-owner-answers`: `[design]` answers and `[checked-by-hand]` results written
+    `by = "owner"`, and security-notes.md sections marked `Written by: owner`, count as the owner's word only when
+    recorded through `sv review`; otherwise they count as the AI coding tool's.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -217,11 +236,17 @@ another session is not a claim.
     browser to HTTPS (V12.2.1). Fix: only an absolute `https://` on the same host.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
+    **Done on 4 October 2026** (DESIGN, "HTTPS redirects and HSTS, held to what they say"): only a redirect to an
+    absolute `https://` address on the same host is credited; any other redirect is not assessed.
   - **H13. High, Read.** HSTS is credited whatever its value, `max-age=0` included, even on error answers (V3.4.1).
     **Claimed on 4 October 2026 by session securevibe-e2**, with H12 and H13, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-https-redirect-hsts`.
+    **Done on 4 October 2026** (same DESIGN section): credited only for a max-age of a year or more with
+    includeSubDomains, read as a browser reads it, and only on an ordinary answer.
   - **H14. High, Read.** The invented-session check alters whichever cookie came first, often the anti-forgery one,
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-session-cookie`.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
     credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
     with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
@@ -853,6 +878,10 @@ another session is not a claim.
   prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt
   (now an item under "Next"). Still to do: the rest of the batch (access control, headers, CORS, error pages), a
   second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
+  **The rest of the first batch claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in
+  branch `claude/prompts-batch1-rest`: four prompts (security headers, cross-site access, error pages, and who may
+  open what), each tried with `sv report --run` on the club app the design-time prompts were tried on
+  (`docs/prompts/trial/brief.md`), with and without the prompt.
   **The owner's decision, 4 October 2026:** prompts not shown to work stay in the library, in full, marked as not
   tested, rather than set aside. Done the same day in `docs/PROMPTS.md` and `data/prompts.json`.
   **`sv prompts` and its MCP tool claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in

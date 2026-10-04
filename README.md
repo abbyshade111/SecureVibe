@@ -165,6 +165,36 @@ the reports say exactly that rather than counting them as things that were looke
 The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
 thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
 
+## Setting a finding aside, or confirming an answer: `sv review`
+
+When a finding is a false alarm, or a risk you choose to live with for now, it can be set aside under
+`[[finding-review]]` in `securevibe.toml`, with a reason. When your AI coding tool answered a question
+and you have looked for yourself, you can confirm its answer. Either counts only once **you** record it,
+by running this in your own terminal:
+
+```bash
+sv review ./my-app
+```
+
+It goes through every entry that is not yet yours, shows the finding's line of code (never a line that
+may hold a key), and asks for your name, or `owner`. What you record is written back into
+`securevibe.toml` with the date and a *seal*. Your AI coding tool may write entries too, as proposals
+(`by = "ai-tool"`), and the report lists them, but a proposal counts for nothing.
+
+Why the extra step: the tool rewrites code until a warning stops, and writing `by = "owner"` into the
+file is the easiest way to stop one. `sv review` runs only in a terminal someone is typing in, which an
+AI coding tool does not have, and seals each entry with a key kept in your own settings folder
+(`~/.config/securevibe/review-key`), outside the app. On your computer the report checks each seal: an
+entry that was changed afterwards, or was never sealed, is a proposal again. On a computer with no key,
+such as CI, the seal cannot be checked; the entry still counts, and the report says so. A seal shows how
+an entry was recorded, not who was at the keyboard, and a tool set on faking one could; it stops the easy
+way, not every way. Keep the key file private, and copy it to another computer of yours to record from there.
+
+With the container, give it a terminal and somewhere to keep the key, made first so that it is yours
+(`mkdir -p ~/.config/securevibe && chmod 700 ~/.config/securevibe`; on Linux, add `--user` as below):
+`docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/securevibe":/sv-config/securevibe -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .`
+Pass the same `-v` and `-e` to the container that writes your reports, or it has no key to check with.
+
 ## Signing in
 
 `sv run` asks the running app questions as somebody who has not signed in — and, when

@@ -83,7 +83,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | Requirement | Level | Checks |
 |---|---|---|
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `probe.sql-injection`) |
-| V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
+| V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`, `ast.shell-command-shell-true`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `ast.shell-command-shell-true`) |
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |

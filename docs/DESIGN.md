@@ -7115,6 +7115,46 @@ reads only locked packages. That gap, and the `shell=True` one, are items in the
 not tested. Five guards in the loader were broken in turn (controls not searched, an id in both files, a file with
 no credit, controls not shown, the design file not read), each caught.
 
+## `sv review`: what a person records is sealed (4 October 2026)
+
+The deep review's R1, second fix, as the owner decided the same day. Until now an entry in securevibe.toml that set a
+finding aside (`[[finding-review]]`), or confirmed what the AI coding tool said (`confirmed` under `[design]` or
+`[checked-by-hand]`), counted whenever its `by` named someone other than the tool. The first fix made the reports say so
+honestly. This one makes the difference count: **an entry counts only when `sv review` recorded it.**
+
+- **`sv review [PATH]`** runs only when what it reads and what it writes are both a terminal, which an AI coding tool
+  running a command does not have. It goes through every entry that does not count on this computer, shows what is being
+  decided (the finding's rule, file, and line of code, found by its fingerprint; the answer or result being confirmed),
+  and asks for the person's name or `owner`. They can type `edit` to put the reason, or what they looked at, in their own
+  words. It refuses the AI coding tool's name, a reason under the length the report requires, and a confirmation that
+  says nothing about what was looked at.
+- **What it records is written back into securevibe.toml**, through `toml_edit`, so comments and layout stay: `by`, `on`,
+  the reason, and a `seal`. A confirmation records the answer and `where` (or the result) that were shown, not what the
+  proposal said. After each write the file is read back, and if the entry would not count the file is put back as it was.
+- **The seal** (`sv-check/src/seal.rs`) is HMAC-SHA-256 over every field of the entry, each prefixed by its length, under
+  a 32-byte key from `/dev/urandom` kept at `~/.config/securevibe/review-key` (or under `XDG_CONFIG_HOME`), outside the
+  app's folder. The folder is made readable by its owner only, the file with a call that fails on anything already there.
+  A seal is `v1:<key id>:<mac>`; the key id is 16 hex characters of a hash of the key, so the key is never shown.
+- **Where it is checked.** On the computer that holds the key, a seal that does not match (anything in the entry changed
+  afterwards, or the seal made up) is a proposal, and so is a seal made with another key: this computer cannot check it,
+  and a made-up seal naming a key that is not here would look the same. On a computer with no key at all, such as CI, a
+  sealed entry counts, as the owner decided, and the report says the seal was sealed on another computer and could not
+  be checked. Something in the key's place that cannot be used makes every entry a proposal.
+- **The reports** say "Recorded through `sv review` on this computer: the owner set it aside as a false alarm on (date)",
+  or, where unchecked, "securevibe.toml says … through `sv review`, sealed on another computer; this one has no key to
+  check the seal with". The section opens by saying what a seal shows (how an entry was recorded, and that it has not
+  changed) and what it cannot (who was at the keyboard). Entries that do not count say how to make them count: run
+  `sv review` in your own terminal. The MCP output tells the AI coding tool to write proposals with `by = "ai-tool"`,
+  never to run `sv review` for the person, and never to write a `seal` or a person's name.
+- **What it shows is kept safe.** A line is never shown for a rule about keys or passwords, or when the secrets scanner
+  finds anything in it; a file named with `..` or an absolute path is never read.
+
+What it does not do, said in the code and the README: the AI coding tool runs as the person, so a tool set on faking
+it could read the key or fake a terminal. The seal stops the easy path, one line in a file the tool is already editing,
+and makes the hard path a deliberate act. Entries made before this change count only once recorded through `sv review`.
+
+Twenty-one guards undone in turn; see the pull request for what caught each.
+
 ## An app listening on 127.0.0.1 is named as the likely cause (4 October 2026)
 
 family-hub's first `sv report --run` waited a minute and said only that the app never answered on its health path.
@@ -7205,6 +7245,42 @@ the one the report treats as information. Seven guards broken in turn, each caug
 each, the control), no finding withholding credit (twelve, across the report and threat tests), and the note left out
 of either table (one each).
 
+## Two blind spots: a manifest with no lockfile, and a shell the call asked for (4 October 2026)
+
+Both were found testing the prompt library: each shortcut was put back into an app built without it, and two were
+reported by nothing.
+
+**A rich-text editor declared, with no lockfile.** `config.rich-text-without-sanitizer` (V1.3.1) took its editors
+and sanitizers from the bill of materials, which lists an npm app's packages only from its lockfile. An app an AI
+tool wrote where nothing could be installed has a `package.json` and no lockfile, so a recipe app listing `quill`
+and no sanitizer was reported as "0 packages: none is a rich-text editor `sv` knows", while the same app with a
+lockfile was caught. The check needs which packages an app uses, not which versions, and the manifest says that:
+where the bill of materials could read nothing for an ecosystem, the check now reads the names the manifest
+declares, through the readers `manifest_lock.rs` already has for nine manifests (`declared_names`). Where it cannot
+read those either, it says the check was not assessed and why, rather than "none is an editor", which it had been
+saying for any app whose packages it could not read. It still credits nothing either way.
+
+**A command handed to a shell the call asked for.** `ast.shell-command` knows the calls that always use a shell
+(`os.system`, `exec` in Node, `system` in Ruby). Python's `subprocess` uses one only when told to, with
+`shell=True`, and so does Node's `spawn` and `execFile` with `shell: true` and Dart's `Process` with
+`runInShell: true`: `subprocess.run(f'notes-export "{title}" out.pdf', shell=True)` was reported by nothing unless
+Bandit or Semgrep ran. A new rule, `ast.shell-command-shell-true`, reports those calls when what reaches the shell
+was built: in Python and Node the command, unless it is a fixed string; in Node and Dart a list of arguments too,
+since with the shell option they are joined into one line for it. A fixed Node list (`['-la']`) is reported as well,
+because the grammar's arrays are not counted as fixed; that is a false alarm the rule accepts rather than missing a
+list with a value in it.
+
+A query cannot tell `shell=True` from `check=True` (the text predicates that would are parsed by the Rust binding
+and not applied), so the rule engine gains `keywordPatterns`: a pattern the `@kw` capture, the keyword's name, must
+match. The rule is findings-only: it reads Python, JavaScript, TypeScript, and Dart, and says for the other eleven
+languages why there is nothing to find (each either always uses a shell, which is `ast.shell-command`'s, or has no
+shell option at all). A clean run credits nothing, so no app's credit for V1.2.5 changed.
+
+Seven guards broken in turn, each caught: the manifest names not read, "none is an editor" said with a manifest
+unread, a sanitizer assumed where a manifest was unread, the keyword filter, the function names, a fixed command
+counted as built, and Node without its keyword pattern. The recipe app with its sanitizer removed, and a Python file
+with `shell=True`, are now caught; the app as built, and the list form with no shell, are not.
+
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
@@ -7272,6 +7348,32 @@ no lock (three tests), a leftover lock taken as a live one (two), no age check (
 the lock never removed (five), part-written files taken as someone else's (one), a failed run's folder left
 (two), and Ctrl-C not letting go (one). Shared tool reports and container
 names, which two runs at once also collide on, are S6 and S10, not changed here.
+
+## HTTPS redirects and HSTS, held to what they say (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H12 and H13) found `sv probe` crediting two things on their form
+alone.
+
+- **H12, the redirect from plain HTTP (V12.2.1).** A 301 or 308 was credited as "sent the browser to HTTPS" wherever
+  it pointed: to `http://` again, or to a relative address such as `/login`, which keeps the browser on plain HTTP.
+  Now only a redirect to an absolute `https://` address on the host the owner named is credited, and a temporary one
+  of that kind is still the finding it was. Any other redirect is not assessed, permanent or temporary, with the
+  address it named: where the browser ends up would take following it, and `sv probe` asks only the addresses the
+  owner gave, never one an answer points to. The scheme and the host are compared without regard to case, as browsers
+  compare them.
+- **H13, Strict-Transport-Security (V3.4.1).** Any value was credited, `max-age=0` included, which tells a browser to
+  forget the site's policy, and it was credited on error answers too, whose headers the code had already set aside as
+  not the site's own. V3.4.1 asks for a max-age of at least a year, and from level 2 for the policy to cover every
+  subdomain. The header is now read the way a browser reads it (RFC 6797): directive names in any case, a quoted
+  number allowed, and a header with no readable max-age, or a directive given twice, ignored. Less than a year, `0`,
+  or a header browsers ignore is a finding that says which. A year or more with includeSubDomains is credited. A year
+  or more without it is not assessed: it is what level 1 asks and not what level 2 asks, and `sv probe` is not told
+  which level applies. An error answer's header is neither credited nor found.
+
+Eight guards were broken in turn: accepting any max-age above zero, ignoring includeSubDomains, reading error answers,
+accepting a directive given twice, accepting a max-age that is not a number, crediting any redirect, crediting any
+scheme, and comparing hosts letter for letter. Each was caught by the test written for it, and reading error answers
+by an earlier test as well.
 
 ## A credential name over a sentence is reported low, and says so (4 October 2026)
 

@@ -356,6 +356,7 @@ mod tests {
             why: "the value is a placeholder read from the environment at start-up".into(),
             by: "owner".into(),
             on: "2026-10-04".into(),
+            sealed: sv_check::seal::Sealed::Here,
         }
     }
 
