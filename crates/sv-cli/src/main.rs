@@ -1585,6 +1585,28 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
             println!("  … and {} more", listing.links.len() - 10);
         }
     }
+    if !listing.special.is_empty() {
+        println!(
+            "\n{} {} not an ordinary file (a named pipe, a socket, or a device), so nothing read {}:",
+            listing.special.len(),
+            if listing.special.len() == 1 {
+                "entry is"
+            } else {
+                "entries are"
+            },
+            if listing.special.len() == 1 {
+                "it"
+            } else {
+                "them"
+            }
+        );
+        for name in listing.special.iter().take(10) {
+            println!("  {name}");
+        }
+        if listing.special.len() > 10 {
+            println!("  … and {} more", listing.special.len() - 10);
+        }
+    }
 
     if !code.unread_files.is_empty() {
         println!(
@@ -3228,6 +3250,40 @@ fn assemble_report_saying(
             ),
         });
     }
+    if !listing.special.is_empty() {
+        let shown: Vec<&str> = listing.special.iter().take(5).map(String::as_str).collect();
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} {} in the app that {} not an ordinary file",
+                listing.special.len(),
+                if listing.special.len() == 1 {
+                    "entry"
+                } else {
+                    "entries"
+                },
+                if listing.special.len() == 1 {
+                    "is"
+                } else {
+                    "are"
+                }
+            ),
+            why: format!(
+                "a named pipe, a socket, or a device is not opened, since opening a pipe waits for \
+                 something to write into it: {}{}. No check read {}.",
+                shown.join(", "),
+                if listing.special.len() > 5 {
+                    format!(", and {} more", listing.special.len() - 5)
+                } else {
+                    String::new()
+                },
+                if listing.special.len() == 1 {
+                    "it"
+                } else {
+                    "them"
+                }
+            ),
+        });
+    }
     if !code.unread_files.is_empty() {
         let shown: Vec<String> = code
             .unread_files
@@ -4115,7 +4171,7 @@ fn file_checks_examined(
             sv_report::Examined::partly(rules, short.join("; "))
         }
     };
-    let links: Vec<String> = if listing.links.is_empty() {
+    let mut links: Vec<String> = if listing.links.is_empty() {
         Vec::new()
     } else {
         vec![format!(
@@ -4123,6 +4179,12 @@ fn file_checks_examined(
             listing.links.len()
         )]
     };
+    if !listing.special.is_empty() {
+        links.push(format!(
+            "{} entry(s) in the app that are not ordinary files were not opened",
+            listing.special.len()
+        ));
+    }
 
     let mut code_short = links.clone();
     if !code.unread_files.is_empty() {
