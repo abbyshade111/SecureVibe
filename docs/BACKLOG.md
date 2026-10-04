@@ -581,6 +581,13 @@ another session is not a claim.
   `securevibe_prompts` give the library, the prompts shown to work first, each marked shown or not tested where the
   person reads it; `tools/coverage.py` holds each prompt's requirements to its rules' citations. Not done: offering
   the prompts for the requirements an app still has no evidence for, which needs a report first.
+  **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+  `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
+  in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds
+  them to their rules' citations as it does the others; (b) a second app brief, written the way a beginner might ask,
+  whose plain build takes the shortcut the four prompts not yet shown were written against (a key pasted into the
+  chat, a command built from a title, passwords with only the standard library, formatted notes), built with and
+  without each of those four prompts.
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
