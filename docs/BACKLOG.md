@@ -29,6 +29,8 @@ another session is not a claim.
     `verify_fenced` only checks the network is internal, and `tests/fence.rs` only tries the internet. Fix: create
     the network with `com.docker.network.bridge.inhibit_ipv4=true` or block the gateway another way, refuse to run
     when a fenced container can reach the gateway, and test the gateway with a positive control.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
+    in branch `claude/securevibe-e9-fence-gateway`.
   - **S3. High, Reproduced. `sv notes` and `sv rules` write through a link to a file outside the app**
     (`main.rs`, AGENTS.md and security-notes.md, plain `fs::write`). The MCP route refuses a link; the command
     line does not.
