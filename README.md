@@ -283,13 +283,15 @@ or, for a tool configured with JSON:
 { "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers eight tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_guidance` (the
+It offers nine tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
 `securevibe_check` (what
 applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
 its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),
 `securevibe_questions` (the questions only you can answer, for the tool to ask you one at a time), and
-`securevibe_notes_file` (the `security-notes.md` your written decisions go in), and `securevibe_bundle`
+`securevibe_notes_file` (the `security-notes.md` your written decisions go in), `securevibe_record_answer`
+(an answer written under one of those questions, always marked as the tool's own: once you have read it and agree,
+you change its `Written by:` line to `owner` yourself), and `securevibe_bundle`
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
 

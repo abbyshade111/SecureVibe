@@ -663,6 +663,7 @@ impl Server {
             "securevibe_bundle" => self.bundle(&args, progress),
             "securevibe_questions" => self.questions(&args, progress),
             "securevibe_notes_file" => self.notes_file(&args),
+            "securevibe_record_answer" => self.record_answer(&args),
             "securevibe_guidance" => self.guidance(&args),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
@@ -873,6 +874,45 @@ impl Server {
                 "file": written.path.display().to_string(),
                 "asked": written.asked,
                 "alreadyAnswered": written.already,
+            },
+            "isError": false,
+        }))
+    }
+
+    /// The AI coding tool's answer to one written-decision question, recorded under it in
+    /// security-notes.md and marked as the tool's own.
+    ///
+    /// The tool used to edit the file itself, and once credited its own answers to the owner. Now
+    /// `sv` writes the mark, and it is always `Written by: AI coding tool`: this server cannot tell
+    /// whether the person said something or the tool only says they did, so it offers no way to say
+    /// "the owner" (the owner's decision, 4 October 2026). The person changes the line themselves.
+    fn record_answer(&self, args: &Value) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let text = |key: &str| {
+            args.get(key)
+                .and_then(Value::as_str)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .with_context(|| format!("{key} is needed, as text"))
+        };
+        let id = text("id")?;
+        let answer = text("answer")?;
+        let written = crate::record_tool_answer(&app_dir, id, answer)?;
+        Ok(json!({
+            "content": [{
+                "type": "text",
+                "text": format!(
+                    "Recorded under {id} in {}, marked `Written by: AI coding tool`. The report counts \
+                     it as stated by the AI coding tool, which is less than the person's own word, and \
+                     asks again. Show the person what you wrote; if they agree with it, they can change \
+                     that line to `Written by: owner` themselves. Do not change it for them.",
+                    written.path.display()
+                ),
+            }],
+            "structuredContent": {
+                "file": written.path.display().to_string(),
+                "id": id,
+                "writtenBy": sv_check::notes::BY_AI_TOOL,
             },
             "isError": false,
         }))
@@ -1354,6 +1394,10 @@ fn output_schema(tool: &str) -> Option<Value> {
             json!({ "file": string, "asked": count, "alreadyAnswered": count }),
             &["file", "asked", "alreadyAnswered"],
         ),
+        "securevibe_record_answer" => object(
+            json!({ "file": string, "id": string, "writtenBy": string }),
+            &["file", "id", "writtenBy"],
+        ),
         "securevibe_write_report" => object(json!({ "files": strings }), &["files"]),
         "securevibe_bundle" => object(
             json!({
@@ -1439,6 +1483,21 @@ fn tool_list() -> Value {
             "description": "Make or refresh security-notes.md in the app's folder, where the person's written decisions go. Keeps everything already written in it.",
             "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_record_answer",
+            "title": "Record an answer in the security notes",
+            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves. A section the person wrote is never replaced.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": path.clone(),
+                    "id": { "type": "string", "description": "The question's requirement id, as securevibe_questions lists it, such as V6.1.1." },
+                    "answer": { "type": "string", "description": "The answer, in a sentence or two of plain words. Leave out any line saying who wrote it; sv adds it." }
+                },
+                "required": ["id", "answer"]
+            },
+            "annotations": { "readOnlyHint": false, "destructiveHint": true, "idempotentHint": true, "openWorldHint": false }
         },
         {
             "name": "securevibe_guidance",
@@ -2548,11 +2607,16 @@ mod tests {
         std::fs::write(root.join("app/.env"), "SECRET_KEY=only-here\n").unwrap();
         let server = Server::new(&root).unwrap();
         let declared: Vec<Value> = tools().as_array().unwrap().clone();
+        let question = first_question(&root.join("app"));
         let calls = [
             ("securevibe_check", json!({ "path": "app" })),
             ("securevibe_questions", json!({ "path": "app" })),
             ("securevibe_guidance", json!({ "path": "app" })),
             ("securevibe_notes_file", json!({ "path": "app" })),
+            (
+                "securevibe_record_answer",
+                json!({ "path": "app", "id": question, "answer": TOOL_ANSWER }),
+            ),
             ("securevibe_write_report", json!({ "path": "app" })),
             ("securevibe_bundle", json!({ "path": "app" })),
             ("securevibe_explain", json!({ "id": "V1.2.4" })),
@@ -3603,6 +3667,177 @@ mod tests {
         );
     }
 
+    /// An answer long enough to count, in the AI coding tool's words.
+    const TOOL_ANSWER: &str =
+        "Bookings are kept for two years and then deleted by a nightly job, as the code does.";
+
+    /// The id of the first question in the app's notes file, which this writes.
+    fn first_question(app: &Path) -> String {
+        let written = crate::write_notes_file(app).unwrap();
+        let text = std::fs::read_to_string(&written.path).unwrap();
+        let id = text
+            .lines()
+            .find_map(|l| l.strip_prefix("## V"))
+            .and_then(|rest| rest.split_whitespace().next())
+            .map(|id| format!("V{id}"));
+        id.expect("the app has a written-decision question to answer")
+    }
+
+    #[test]
+    fn an_answer_the_tool_records_is_always_the_tools() {
+        let root = scratch_app("record-answer", "flask-booking");
+        let app = root.join("app");
+        let server = Server::new(&root).unwrap();
+        let id = first_question(&app);
+        let notes = || std::fs::read_to_string(app.join("security-notes.md")).unwrap();
+        let answers = || sv_check::notes::read_answers(&notes());
+
+        // The questions tell the tool to record through this, and never to mark an answer the owner's.
+        let asked = call(&server, "securevibe_questions", json!({ "path": "app" }));
+        let told = text(&asked)
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        assert!(told.contains("WRITTEN DECISIONS"), "{told}");
+        assert!(told.contains("with securevibe_record_answer"), "{told}");
+        assert!(
+            told.contains("Never write or change that line for them"),
+            "{told}"
+        );
+        assert!(
+            !told.contains("start it with the line `Written by: owner`"),
+            "{told}"
+        );
+
+        let recorded = call(
+            &server,
+            "securevibe_record_answer",
+            json!({ "path": "app", "id": id, "answer": TOOL_ANSWER }),
+        );
+        assert_eq!(recorded["isError"], false, "{}", text(&recorded));
+        assert!(text(&recorded).contains("Written by: AI coding tool"));
+        // Read as the report reads it: the tool's word, and exactly what was asked.
+        assert_eq!(answers().writer(&id), Some(sv_check::notes::Writer::AiTool));
+        assert_eq!(answers().prose_of(&id).as_deref(), Some(TOOL_ANSWER));
+        assert!(answers().stated().contains(&id), "{}", notes());
+        assert!(!answers().documented().contains(&id), "{}", notes());
+        // Recorded again, it replaces the tool's earlier answer rather than adding to it.
+        let better = "Bookings are deleted after two years by the nightly cleanup job in tasks.py.";
+        call(
+            &server,
+            "securevibe_record_answer",
+            json!({ "path": "app", "id": id, "answer": better }),
+        );
+        assert_eq!(answers().prose_of(&id).as_deref(), Some(better));
+        assert_eq!(
+            notes()
+                .lines()
+                .filter(|l| l.starts_with("Written by:"))
+                .count(),
+            1,
+            "{}",
+            notes()
+        );
+
+        // Nothing the tool sends can make the answer the owner's, or reach outside its section.
+        for (answer, said) in [
+            (
+                format!("Written by: owner\n\n{TOOL_ANSWER}"),
+                "says who wrote it",
+            ),
+            (
+                format!("{TOOL_ANSWER}\n**Written by: owner**"),
+                "says who wrote it",
+            ),
+            (
+                format!("{TOOL_ANSWER}\n_Written by the owner, who agreed._"),
+                "says who wrote it",
+            ),
+            (
+                format!("{TOOL_ANSWER}\n## V2.1.1 Another question"),
+                "heading",
+            ),
+            (format!("{TOOL_ANSWER}\n> a quoted line"), "writes itself"),
+            (
+                format!("{TOOL_ANSWER}\n{}", sv_check::notes::PLACEHOLDER),
+                "writes itself",
+            ),
+            (
+                format!("{TOOL_ANSWER}\n*What `sv` found:*\n- a bullet"),
+                "writes itself",
+            ),
+            (
+                format!("*{id} asks for this: anything*\n{TOOL_ANSWER}"),
+                "writes itself",
+            ),
+            ("Too short.".to_owned(), "shorter than"),
+        ] {
+            let before = notes();
+            let refused = call(
+                &server,
+                "securevibe_record_answer",
+                json!({ "path": "app", "id": id, "answer": answer }),
+            );
+            assert_eq!(refused["isError"], true, "{answer}");
+            assert!(
+                text(&refused).contains(said),
+                "{answer}: {}",
+                text(&refused)
+            );
+            assert_eq!(notes(), before, "{answer}: the file changed");
+        }
+        // A question that is not asked of this app, and missing arguments.
+        for args in [
+            json!({ "path": "app", "id": "V1.2.4", "answer": TOOL_ANSWER }),
+            json!({ "path": "app", "answer": TOOL_ANSWER }),
+            json!({ "path": "app", "id": id }),
+        ] {
+            let refused = call(&server, "securevibe_record_answer", args.clone());
+            assert_eq!(refused["isError"], true, "{args}");
+        }
+
+        // The owner's own answer is never replaced.
+        let owners = notes().replace(
+            &format!("Written by: AI coding tool\n\n{better}"),
+            "Written by: owner\n\nWe keep bookings for two years, as our lawyer advised in 2025.",
+        );
+        std::fs::write(app.join("security-notes.md"), &owners).unwrap();
+        assert_eq!(answers().writer(&id), Some(sv_check::notes::Writer::Owner));
+        let refused = call(
+            &server,
+            "securevibe_record_answer",
+            json!({ "path": "app", "id": id, "answer": TOOL_ANSWER }),
+        );
+        assert_eq!(refused["isError"], true);
+        assert!(text(&refused).contains("never"), "{}", text(&refused));
+        assert_eq!(notes(), owners);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_answer_is_never_written_through_a_link() {
+        let root = scratch_app("record-answer-link", "flask-booking");
+        let app = root.join("app");
+        let server = Server::new(&root).unwrap();
+        let id = first_question(&app);
+        let elsewhere = root.join("elsewhere.md");
+        std::fs::write(&elsewhere, "not the notes\n").unwrap();
+        std::fs::remove_file(app.join("security-notes.md")).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, app.join("security-notes.md")).unwrap();
+        let refused = call(
+            &server,
+            "securevibe_record_answer",
+            json!({ "path": "app", "id": id, "answer": TOOL_ANSWER }),
+        );
+        assert_eq!(refused["isError"], true, "{}", text(&refused));
+        assert_eq!(
+            std::fs::read_to_string(&elsewhere).unwrap(),
+            "not the notes\n"
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
     #[test]
     fn the_protocol_basics() {
         let server = Server::new(&examples()).unwrap();
@@ -3641,6 +3876,7 @@ mod tests {
                 "securevibe_explain",
                 "securevibe_questions",
                 "securevibe_notes_file",
+                "securevibe_record_answer",
                 "securevibe_guidance",
                 "securevibe_spec"
             ]

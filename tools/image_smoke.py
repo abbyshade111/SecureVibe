@@ -10,7 +10,7 @@ It makes a small app in a temporary folder, a copy of `examples/tested-notes` wi
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
 <folder>:<folder> <image> mcp --root <folder>`). Then, over MCP:
 
-- the eight tools are offered, and `securevibe_spec` answers;
+- the nine tools are offered, and `securevibe_spec` answers;
 - `securevibe_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
 - `securevibe_check` ran the committed-secrets check and found the `.env`. **This is asserted before
   anything is compared.** The first local test compared the image with the native `sv` on an app with
@@ -49,6 +49,7 @@ TOOLS = [
     "securevibe_explain",
     "securevibe_questions",
     "securevibe_notes_file",
+    "securevibe_record_answer",
     "securevibe_guidance",
     "securevibe_spec",
 ]
@@ -127,7 +128,7 @@ def main():
             ("tools/call", {"name": "securevibe_guidance", "arguments": {"path": "app"}}),
         ])
         names = [t["name"] for t in replies[0]["result"]["tools"]]
-        check(names == TOOLS, f"eight tools offered: {names}")
+        check(names == TOOLS, f"nine tools offered: {names}")
         guidance = replies[5]["result"]
         rules_text = guidance["content"][0]["text"]
         check(guidance["isError"] is False and "CC BY-SA 4.0" in rules_text and "OWASP AISVS" in rules_text,

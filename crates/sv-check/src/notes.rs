@@ -297,6 +297,17 @@ pub fn write_template(
     describe: &dyn Fn(&str) -> Option<String>,
 ) -> String {
     let answers = existing.map(read_answers).unwrap_or_default();
+    write_template_with(catalog, applicable, facts, &answers, describe)
+}
+
+/// `write_template`, from answers already read, so one of them can be changed first.
+pub fn write_template_with(
+    catalog: &Catalog,
+    applicable: &BTreeSet<String>,
+    facts: &Facts,
+    answers: &Answers,
+    describe: &dyn Fn(&str) -> Option<String>,
+) -> String {
     let mut out = String::new();
     out.push_str("# Security notes\n\n");
     out.push_str(
@@ -452,6 +463,71 @@ impl Answers {
     pub fn unreadable(&self) -> BTreeSet<String> {
         self.answered_by(|who| *who == Writer::Unreadable)
     }
+
+    /// Who wrote a section, however short what is under it: `None` when there is no such section.
+    pub fn writer(&self, id: &str) -> Option<Writer> {
+        self.get_answer(id).map(writer_of)
+    }
+
+    /// The prose of a section, without the line that says who wrote it.
+    pub fn prose_of(&self, id: &str) -> Option<String> {
+        self.get_answer(id).map(prose)
+    }
+
+    /// Puts `body` under the section, in place of whatever was there.
+    pub fn set(&mut self, id: &str, body: String) {
+        match self.sections.iter_mut().find(|(section, _)| section == id) {
+            Some((_, old)) => *old = body,
+            None => self.sections.push((id.to_owned(), body)),
+        }
+    }
+}
+
+/// An answer the AI coding tool asked `sv` to record, as the section's body: marked as the tool's,
+/// and refused when the report would not read it back as exactly that. Each refusal below is one
+/// way it would not; a test sends each, and one that read the file back after writing it was taken
+/// out when no answer these let through could fail it.
+///
+/// `sv` cannot tell whether the person said something or the tool only says they did, so what the
+/// tool records is always the tool's word (the owner's decision, 4 October 2026); it becomes the
+/// owner's only when the owner changes the line themselves. Refused: an answer too short to count,
+/// one that says who wrote it (a second `Written by:` line would make the section unreadable, or,
+/// with the tool's own line taken away, the owner's), and one holding a heading or a line `sv`
+/// writes itself, which would end the section or be read as `sv`'s own words.
+pub fn tool_answer(answer: &str) -> std::result::Result<String, String> {
+    let answer = answer.trim();
+    for line in answer.lines() {
+        let t = line.trim();
+        if written_by(line).is_some() || byline(line) {
+            return Err(format!(
+                "the answer says who wrote it (\"{t}\"); `sv` marks every answer it records as \
+                 the AI coding tool's, so leave that line out"
+            ));
+        }
+        if t.starts_with('#') {
+            return Err(format!(
+                "the answer has a heading (\"{t}\"), which would end its section; write it as \
+                 plain sentences"
+            ));
+        }
+        if t.starts_with('>')
+            || t == PLACEHOLDER
+            || t == FACTS_LINE
+            || t.contains(" asks for this: ")
+        {
+            return Err(format!(
+                "the answer has a line `sv` writes itself (\"{t}\"), which the report would not \
+                 read as part of the answer"
+            ));
+        }
+    }
+    if prose(answer).chars().count() < LEAST_ANSWER_CHARS {
+        return Err(format!(
+            "the answer is shorter than {LEAST_ANSWER_CHARS} characters, which the report does not \
+             count as an answer; write the decision in a sentence or two"
+        ));
+    }
+    Ok(format!("{WRITTEN_BY} {BY_AI_TOOL}\n\n{answer}"))
 }
 
 /// Reads a notes file, keeping only what the owner wrote.
