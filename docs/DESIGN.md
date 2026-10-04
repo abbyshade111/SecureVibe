@@ -7402,6 +7402,33 @@ How it is held: `the_usual_query_calls_of_each_language_are_read_and_their_safe_
 (`crates/sv-check/src/ast.rs`). It has twenty-nine cases, and asserts that each one parses, so a pass is not a fixture
 the grammar could not read.
 
+## Bandit handed the app's own Python files, and a run that did not finish (4 October 2026)
+
+S7 and H7 of the deep review, both about what `sv` takes from an outside tool as having been read.
+
+**What Bandit is handed.** Bandit was given the app folder (`--recursive {dir}`), and read what it found there in
+its own way: it followed a link out of the app and read the file the link pointed at, which `sv`'s own reading
+refuses, and it read `vendor/` and the other folders of installed code `sv` leaves out (139 of family-hub's Bandit
+findings were Flask's own code). It is now handed the app's Python files by name, from `sv`'s own listing, as
+Semgrep already is (`-- {files}`, run in the app folder). `{files}` now gives a tool that reads one language only
+the files of that language (`code_files_for`), so Bandit is never handed JavaScript to fail on; Semgrep, which reads
+many, is still given every code file. An app with no Python is not handed to Bandit at all, and the report says
+so. Brakeman still takes the folder: it reads a Rails application as a whole, not files one by one.
+
+**A run its own report says did not finish.** A tool's SARIF can say that part of its run failed:
+`executionSuccessful: false` on an invocation, or a notification at level `error` in `toolExecutionNotifications`
+or `toolConfigurationNotifications`, usually naming the file. Bandit writes both when it skips a file it cannot
+parse, and nothing read them, so a run that had skipped the file was credited as clean. Now any such report keeps
+the run from counting as clean, for every outside tool: its findings still stand, the run is listed as partial,
+and the report names what it could not get past (up to five, then a count). A warning does not count; a run marked
+unsuccessful with nothing said does. The message for a partial run now says the tool did not look at all of the
+app, which covers this and Semgrep's unread files, where it used to say the tool was told not to look.
+
+Five guards broken in turn, each caught: every language's files handed over, the report's own word ignored,
+warnings counted as errors, an unsuccessful run believed, and Bandit handed the folder again. Tested with stand-in
+programs that write the reports and record what they were handed; Bandit itself was not installed where this was
+written, so the first run of the real program on the new arguments is CI's or the owner's.
+
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
@@ -7906,6 +7933,68 @@ the "not tried yet" mark caught by nothing, because every design-time prompt the
 ones it is caught by two tests. The headings guard was broken twice (the incident plan written into the notes, and a
 heading misspelled), and each was caught.
 
+## Pipenv apps, and Python dependency files `sv` does not read (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H9) found that a Python app with only `Pipfile` and
+`Pipfile.lock` had no Python at all as far as `sv` could tell. Only `requirements.txt` and `pyproject.toml` counted as
+Python manifests (`crates/sv-scan/src/ecosystems.rs`), so a `Pipfile.lock` was read only when one of those sat beside
+it. Django 2.2.0 in the lockfile was never compared with its advisory, and the comparison of the rest of the app was
+credited as V15.2.1. A `setup.py`, a `setup.cfg`, or a `requirements-dev.txt` went the same way: what they install was
+neither listed nor named as left out.
+
+**`Pipfile` is a manifest, with `Pipfile.lock` its lockfile.** The lockfile is read as before, from every section
+rather than `default` and `develop` only, since a `Pipfile` may add package categories of its own and `pipenv lock`
+locks them all; `_meta` is the one key that holds no packages. Development packages are listed, as they are from every
+other ecosystem's lockfile. `Pipfile` is held to its lockfile like the other manifests (`manifest_lock::compare`), so
+a `Pipfile` that asks for another Django than the lockfile has is named, and its names are read for the technology
+scan (`deps::from_pipfile`).
+
+**Nothing in a `Pipfile.lock` is dropped without a word.** A package Pipenv installs from a repository or a folder is
+locked by its commit or path, with no version. It is named, as `pylock.toml`'s are, and the list counts as incomplete.
+The one entry left out is the app's own folder (`"path": "."`, written by `pipenv install -e .`), which is the app and
+not something it depends on. This is H21 for this reader only; pnpm and Yarn are still as H21 describes.
+
+**A `Pipfile` without its lockfile is read as other manifests are.** A package pinned to one version (`"==2.2.0"`) is
+listed at that version, marked as asked for rather than installed, so the list is incomplete. A package asking for a
+range or for any version (`"*"`) is named and not listed, since no version in the file is the one installed.
+
+**Python dependency files `sv` does not read are found and named** (`ecosystems::python_declarations_in`):
+
+- A requirements file under another name (`requirements-dev.txt`, `dev-requirements.txt`, any `.txt` in a
+  `requirements/` folder). One that pins and hashes every package is a lockfile in its own right, as
+  `requirements.txt` is, and is read as one; any other is named. A lockfile beside it says nothing about it, since
+  `requirements-dev.txt` is usually the very list a lockfile beside it leaves out. `requirements.in` is not named: it
+  is what `pip-compile` turns into the requirements file beside it.
+- `setup.py` and `setup.cfg` that name packages to install (`install_requires`, `extras_require`; one that could not
+  be read counts as naming them). They are named unless a Python lockfile in the same folder was found, which is made
+  from what the project asks for, `setup.py` included (`pipenv install -e .`, `pip-compile setup.py`), and so stands
+  for it. A `setup.cfg` that only configures a tool is not a declaration.
+- A Conda `environment.yml`, always: its packages come from Conda's channels, which nothing here reads and PyPI's
+  advisories do not describe.
+
+Each named file leaves the bill of materials incomplete, so the advisory comparison is not credited (V15.2.1) and
+`sv audit` exits "not assessed". `sv audit` now prints each reason the list is incomplete, beside "the list itself is
+incomplete", rather than sending the owner to `sv sbom` to learn which file. The report's gap row says "part of what
+Python installs" when other Python packages were listed, rather than calling a list with Django in it empty; before,
+every unread reason was worded as an empty list, which was already wrong for `pylock.toml`'s packages with no version.
+
+What is still not done: a `requirements.txt` read without a lockfile still lists its exact pins and leaves a range
+(`flask>=2`) out without naming it (the list is marked incomplete by its declared versions, but the range is not
+named); an app whose only Python file is a `setup.py` is not reported by the pinning check as pinning nothing; and a
+`Pipfile.lock` with no `Pipfile` beside it is not found.
+
+**Tested.** Unit tests in `sbom.rs`, `manifest_lock.rs`, and `deps.rs`, detection tests in
+`crates/sv-scan/tests/scan.rs`, and end to end (`crates/sv-cli/tests/pipenv.rs`): a locked npm app whose clean
+comparison is credited (the control) gains a `Pipfile` and `Pipfile.lock` with Django 2.2.0, and `sv audit` and
+`sv report` find the advisory; with Django past the fix, both credit V15.2.1; and each of `worker/setup.py`,
+`worker/setup.cfg`, `requirements-dev.txt`, a `Pipfile` alone, and a `Pipfile.lock` with a package from a repository
+makes the audit "not assessed", leaves V15.2.1 not verified, and names the file in both. Eleven guards broken in turn,
+each caught: `Pipfile` not a manifest (eleven tests), the other declarations not read (four), a package with no
+version in `Pipfile.lock` dropped (two), a `Pipfile`'s ranges dropped (two), the gap always called empty (one), a
+`setup.py` named beside a lockfile (one), a `Pipfile` package from a folder held to the lockfile (one), only `default`
+and `develop` read (one), the app's own folder named (one), a hashed `requirements-dev.txt` not read (one), and every
+`setup.cfg` counted (one).
+
 ## Advisory versions: in order, gaps kept, gems as gems (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H18 to H20) found three ways the advisory comparison could call
@@ -7929,4 +8018,3 @@ as semver, because the RubyGems test called the comparison directly and the lock
 two agree; and keeping the zeros before the letters, because the case tested (`1.0` and `1.0.0`) comes out equal
 either way. A test of a gem pre-release held to an advisory, and the cases `2.0.0.rc1` and `2.0.rc1`, were added, and
 both were then caught.
-

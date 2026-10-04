@@ -64,6 +64,14 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
             "requirements.lock",
         ],
     },
+    // Pipenv's own pair. Left out, an app with only `Pipfile` and `Pipfile.lock` had no Python at
+    // all as far as `sv` could tell: its packages were never compared with an advisory, and the
+    // comparison of everything else was credited as covering the app (deep review H9).
+    EcosystemDef {
+        name: "Python",
+        manifest: "Pipfile",
+        lockfiles: &["Pipfile.lock"],
+    },
     EcosystemDef {
         name: "Go",
         manifest: "go.mod",
@@ -206,6 +214,93 @@ pub fn detect_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
                 pins_with_lockfile: !eco.lockfiles.is_empty(),
             });
         }
+    }
+    out
+}
+
+/// A file beside the manifests above that says which Python packages an app installs, in a form
+/// the bill of materials does not read as a manifest: `setup.py`, `setup.cfg`, a requirements file
+/// under another name (`requirements-dev.txt`, `requirements/prod.txt`), or a Conda
+/// `environment.yml`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PythonDeclaration {
+    /// The file's path from the app folder, with `/` separators.
+    pub path: String,
+    /// What kind of file it is, which decides how the bill of materials treats it.
+    pub kind: DeclarationKind,
+    /// Whether a Python lockfile in the same folder was found by `detect_in`, which then stands
+    /// for what this file asks for.
+    pub beside_lockfile: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeclarationKind {
+    /// `setup.py` or `setup.cfg` that names packages to install (`install_requires`,
+    /// `extras_require`).
+    Setup,
+    /// A requirements file with another name than `requirements.txt`.
+    Requirements,
+    /// A Conda environment file, whose packages come from Conda's channels rather than PyPI.
+    Conda,
+}
+
+/// Every Python dependency declaration in the app that is not one of `ECOSYSTEMS`' manifests.
+///
+/// Found so that the bill of materials can say they were not read, rather than leave a list that
+/// looks whole (deep review H9). A `setup.cfg` that only configures tools, and a `setup.py` that
+/// names no packages, declare nothing and are not listed. `requirements.in` is not either: it is
+/// the input `pip-compile` turns into the requirements file beside it, which is what is installed.
+pub fn python_declarations_in(listing: &crate::files::Listing) -> Vec<PythonDeclaration> {
+    let locked_dirs: BTreeSet<String> = detect_in(listing)
+        .into_iter()
+        .filter(|e| e.name == "Python" && e.lockfile.is_some())
+        .map(|e| {
+            e.manifest
+                .rsplit_once('/')
+                .map_or(String::new(), |(dir, _)| dir.to_owned())
+        })
+        .collect();
+    let mut out = Vec::new();
+    for file in listing.app_files() {
+        let name = file.file_name();
+        let dir = file
+            .relative
+            .rsplit_once('/')
+            .map_or("", |(dir, _)| dir)
+            .to_owned();
+        let in_requirements_dir = dir == "requirements" || dir.ends_with("/requirements");
+        // A file that could not be read is listed: whether it names packages is not known, and
+        // leaving it out would be deciding that it does not.
+        let mentions_packages = || {
+            file.read_text().map_or(true, |text| {
+                text.contains("install_requires") || text.contains("extras_require")
+            })
+        };
+        let kind = match name {
+            "requirements.txt" => continue,
+            "setup.py" | "setup.cfg" if mentions_packages() => DeclarationKind::Setup,
+            "environment.yml" | "environment.yaml"
+                if file.read_text().map_or(true, |text| {
+                    text.lines().any(|l| l.starts_with("dependencies:"))
+                }) =>
+            {
+                DeclarationKind::Conda
+            }
+            _ if name.ends_with(".txt")
+                && (name.starts_with("requirements")
+                    || name.ends_with("-requirements.txt")
+                    || name.ends_with("_requirements.txt")
+                    || in_requirements_dir) =>
+            {
+                DeclarationKind::Requirements
+            }
+            _ => continue,
+        };
+        out.push(PythonDeclaration {
+            path: file.relative.clone(),
+            kind,
+            beside_lockfile: locked_dirs.contains(&dir),
+        });
     }
     out
 }

@@ -207,6 +207,9 @@ pub fn build_in(listing: &sv_scan::files::Listing) -> Sbom {
     for eco in sv_scan::ecosystems::detect_in(listing) {
         read_ecosystem(app_dir, &eco, &mut sbom);
     }
+    for declaration in sv_scan::ecosystems::python_declarations_in(listing) {
+        read_declaration(app_dir, &declaration, &mut sbom);
+    }
     sbom.components.sort_by(|a, b| {
         a.ecosystem
             .cmp(&b.ecosystem)
@@ -253,7 +256,29 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("poetry.lock") => read("poetry.lock").as_deref().map(from_package_table_toml),
         Some("pdm.lock") => read("pdm.lock").as_deref().map(from_package_table_toml),
         Some("uv.lock") => read("uv.lock").as_deref().map(from_package_table_toml),
-        Some("Pipfile.lock") => read("Pipfile.lock").as_deref().map(from_pipfile_lock),
+        Some("Pipfile.lock") => {
+            let text = read("Pipfile.lock");
+            let (pairs, unversioned) = text.as_deref().map(from_pipfile_lock).unwrap_or_default();
+            if !unversioned.is_empty() {
+                // A package Pipenv installs from a repository or a folder is locked by its commit or
+                // its path, with no version. It is installed all the same, so the list is not the
+                // whole of what is, and dropping it without a word would read as if it were.
+                sbom.unread.push((
+                    eco.name.clone(),
+                    format!(
+                        "{} package(s) in `{lockfile_path}` give no version, because they are \
+                         installed from a repository, a folder, or an address ({}), so they are \
+                         not listed; the rest are",
+                        unversioned.len(),
+                        unversioned.join(", ")
+                    ),
+                ));
+                if pairs.is_empty() {
+                    return;
+                }
+            }
+            text.map(|_| pairs)
+        }
         Some("yarn.lock") => read("yarn.lock").as_deref().map(from_yarn_lock),
         Some("bun.lock") => read("bun.lock").as_deref().map(from_bun_lock),
         Some("bun.lockb") => {
@@ -357,6 +382,33 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         "requirements.txt" => read("requirements.txt")
             .as_deref()
             .map(from_pinned_requirements),
+        "Pipfile" => {
+            let pipfile = read("Pipfile").as_deref().and_then(from_pipfile);
+            if let Some((_, unpinned)) = &pipfile
+                && !unpinned.is_empty()
+            {
+                // `"*"` and `">=2"` say which versions would do, not which one is there: such a
+                // package is named here rather than listed at a version nobody installed.
+                sbom.unread.push((
+                    eco.name.clone(),
+                    format!(
+                        "`{}` has no `Pipfile.lock` beside it, and {} of its packages ask for a \
+                         range or any version rather than one version ({}), so they are not listed; \
+                         `pipenv lock` writes the lockfile `sv` reads",
+                        eco.manifest,
+                        unpinned.len(),
+                        unpinned.join(", ")
+                    ),
+                ));
+                if pipfile
+                    .as_ref()
+                    .is_some_and(|(pinned, _)| pinned.is_empty())
+                {
+                    return;
+                }
+            }
+            pipfile.map(|(pinned, _)| pinned)
+        }
         _ => None,
     };
     match declared {
@@ -377,6 +429,70 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
             ),
         )),
     }
+}
+
+/// A Python dependency declaration that is not one of the manifests above (deep review H9).
+///
+/// Before these were looked for, an app whose packages were named only in `setup.py` or
+/// `requirements-dev.txt` had a list that looked whole without them, and a comparison of that list
+/// with advisories was credited as covering the app. Each is now read where it can be and named
+/// where it cannot:
+///
+/// - A requirements file under another name that pins and hashes every package is a lockfile in
+///   its own right, as `requirements.txt` is (`fully_hash_pinned`), and is read as one. Any other
+///   is named: what it installs is not known, and a lockfile beside it says nothing about it,
+///   since `requirements-dev.txt` is usually the very list a lockfile beside it leaves out.
+/// - `setup.py` and `setup.cfg` are named unless a Python lockfile in the same folder was read: a
+///   lockfile is made from what the project asks for, `setup.py` included (`pipenv install -e .`,
+///   `pip-compile setup.py`), so it stands for the file. Their own contents are code or
+///   configuration `sv` does not evaluate.
+/// - A Conda `environment.yml` is always named: its packages come from Conda's channels, which no
+///   reader here understands and PyPI's advisories do not describe.
+fn read_declaration(
+    app_dir: &Path,
+    declaration: &sv_scan::ecosystems::PythonDeclaration,
+    sbom: &mut Sbom,
+) {
+    use sv_scan::ecosystems::DeclarationKind;
+    let path = &declaration.path;
+    let why = match declaration.kind {
+        DeclarationKind::Requirements => {
+            let text = std::fs::read_to_string(app_dir.join(path)).ok();
+            if let Some(text) = text.as_deref()
+                && sv_scan::ecosystems::fully_hash_pinned(text)
+            {
+                sbom.components
+                    .extend(
+                        from_pinned_requirements(text)
+                            .into_iter()
+                            .map(|(name, version)| Component {
+                                name,
+                                version,
+                                ecosystem: "Python".into(),
+                                source: VersionSource::Locked,
+                            }),
+                    );
+                return;
+            }
+            format!(
+                "`{path}` lists Python packages to install and does not pin and hash every one of \
+                 them, so what it installs is not known and none of it is listed; `pip-compile \
+                 --generate-hashes` writes one that `sv` reads"
+            )
+        }
+        DeclarationKind::Setup if declaration.beside_lockfile => return,
+        DeclarationKind::Setup => format!(
+            "`{path}` names Python packages to install, which `sv` does not read, and no Python \
+             lockfile beside it says which versions are installed, so they are not listed; a \
+             lockfile made from it (`pip-compile --generate-hashes {path}`, `pipenv lock`, or \
+             `uv lock`) is read"
+        ),
+        DeclarationKind::Conda => format!(
+            "`{path}` is a Conda environment, whose packages come from Conda's channels; `sv` \
+             does not read it, so none of them is listed"
+        ),
+    };
+    sbom.unread.push(("Python".into(), why));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -458,22 +574,72 @@ fn from_package_table_toml(text: &str) -> Vec<(String, String)> {
 }
 
 /// `Pipfile.lock` is JSON, and its versions carry the `==` with them.
-fn from_pipfile_lock(text: &str) -> Vec<(String, String)> {
+///
+/// Every section is read: `default`, `develop` (development packages are listed, as every other
+/// ecosystem's are), and any other package category the `Pipfile` adds; `_meta` is the only key
+/// that is not packages. Gives the pairs, and the names of the packages with no version: those
+/// installed from a repository, a folder, or an address, which Pipenv locks by commit or path.
+/// The app's own folder (`"path": "."`, what `pipenv install -e .` writes) is the app, not a
+/// package it depends on, and is left out of both.
+fn from_pipfile_lock(text: &str) -> (Vec<(String, String)>, Vec<String>) {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(text) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
-    let mut out = Vec::new();
-    for section in ["default", "develop"] {
-        if let Some(map) = v.get(section).and_then(|p| p.as_object()) {
-            for (name, entry) in map {
-                if let Some(version) = entry.get("version").and_then(|x| x.as_str()) {
-                    // "==3.0.0" is a pin written as a specifier; the version is what follows it.
-                    out.push((name.clone(), version.trim_start_matches("==").to_owned()));
+    let (mut pairs, mut unversioned) = (Vec::new(), Vec::new());
+    for (section, packages) in v.as_object().into_iter().flatten() {
+        if section == "_meta" {
+            continue;
+        }
+        for (name, entry) in packages.as_object().into_iter().flatten() {
+            match entry.get("version").and_then(|x| x.as_str()) {
+                // "==3.0.0" is a pin written as a specifier; the version is what follows it.
+                Some(version) => {
+                    pairs.push((name.clone(), version.trim_start_matches("==").to_owned()))
                 }
+                None if entry.get("path").and_then(|p| p.as_str()) == Some(".") => {}
+                None => unversioned.push(name.clone()),
             }
         }
     }
-    out
+    unversioned.sort();
+    unversioned.dedup();
+    (pairs, unversioned)
+}
+
+/// The packages a manifest pins to one version, and the names of the rest.
+type Pinned = (Vec<(String, String)>, Vec<String>);
+
+/// A `Pipfile` read as a manifest, for when there is no `Pipfile.lock`: the packages pinned to one
+/// version (`"==2.2.0"`, or a table whose `version` is that), and the names of the rest, which
+/// ask for a range, for any version (`"*"`), or for a repository or a folder. `None` when it is
+/// not TOML.
+fn from_pipfile(text: &str) -> Option<Pinned> {
+    let doc: toml::Table = text.parse().ok()?;
+    let (mut pinned, mut rest) = (Vec::new(), Vec::new());
+    for (category, packages) in &doc {
+        if sv_scan::deps::PIPFILE_NOT_PACKAGES.contains(&category.as_str()) {
+            continue;
+        }
+        for (name, value) in packages.as_table().into_iter().flatten() {
+            let asked = match value {
+                toml::Value::String(v) => Some(v.as_str()),
+                toml::Value::Table(t) => t.get("version").and_then(|v| v.as_str()),
+                _ => None,
+            };
+            let exact = asked
+                .map(str::trim)
+                .and_then(|v| v.strip_prefix("===").or_else(|| v.strip_prefix("==")))
+                .map(str::trim)
+                .filter(|v| !v.is_empty() && !v.contains([',', '*', ' ', ';']));
+            match exact {
+                Some(version) => pinned.push((name.clone(), version.to_owned())),
+                None => rest.push(name.clone()),
+            }
+        }
+    }
+    rest.sort();
+    rest.dedup();
+    Some((pinned, rest))
 }
 
 /// Yarn's lockfile, classic or Berry: a header line naming one or more ranges, then an indented
@@ -1489,6 +1655,263 @@ hashes = { sha256 = "0000" }
         fs::remove_dir_all(&dir).ok();
     }
 
+    /// A `Pipfile.lock` as `pipenv lock` writes it, cut down: `_meta`, then each category.
+    const PIPFILE_LOCK: &str = r#"{
+        "_meta": {"hash": {"sha256": "x"}, "pipfile-spec": 6, "requires": {"python_version": "3.11"},
+                  "sources": [{"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": true}]},
+        "default": {
+            "django": {"hashes": ["sha256:y"], "index": "pypi", "version": "==2.2.0"},
+            "sqlparse": {"hashes": ["sha256:z"], "markers": "python_version >= '3.5'", "version": "==0.4.4"}
+        },
+        "develop": {"pytest": {"hashes": ["sha256:w"], "version": "==8.0.0"}},
+        "docs": {"sphinx": {"version": "==7.2.6"}}
+    }"#;
+
+    #[test]
+    fn a_pipenv_app_alone_is_read_from_its_lockfile() {
+        // Deep review H9: with only `Pipfile` and `Pipfile.lock`, nothing at all was listed.
+        let dir = scratch("pipenv-alone");
+        fs::write(
+            dir.join("Pipfile"),
+            "[[source]]\nurl = \"https://pypi.org/simple\"\nname = \"pypi\"\n\n\
+             [packages]\ndjango = \"==2.2.0\"\n\n[dev-packages]\npytest = \"*\"\n\n\
+             [docs]\nsphinx = \"*\"\n\n[requires]\npython_version = \"3.11\"\n",
+        )
+        .unwrap();
+        fs::write(dir.join("Pipfile.lock"), PIPFILE_LOCK).unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+
+        let listed: Vec<String> = sbom
+            .components
+            .iter()
+            .map(|c| format!("{} {} {:?}", c.name, c.version, c.source))
+            .collect();
+        assert_eq!(
+            listed,
+            [
+                "django 2.2.0 Locked",
+                "pytest 8.0.0 Locked",
+                "sphinx 7.2.6 Locked",
+                "sqlparse 0.4.4 Locked",
+            ],
+            "every section is read, development packages and other categories too"
+        );
+        assert!(sbom.is_complete(), "{sbom:?}");
+        assert!(
+            sbom.disagreements.is_empty(),
+            "the Pipfile agrees with its lockfile: {:?}",
+            sbom.disagreements
+        );
+    }
+
+    #[test]
+    fn a_pipfile_that_asks_for_another_version_than_its_lockfile_is_named() {
+        let dir = scratch("pipenv-disagrees");
+        fs::write(dir.join("Pipfile"), "[packages]\ndjango = \"==2.2.28\"\n").unwrap();
+        fs::write(dir.join("Pipfile.lock"), PIPFILE_LOCK).unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let disagreement = sbom.disagreements.first().expect("named");
+        assert!(disagreement.differs(), "{disagreement:?}");
+        assert!(
+            disagreement
+                .explain()
+                .contains("`django ==2.2.28` (the lockfile has 2.2.0)"),
+            "{}",
+            disagreement.explain()
+        );
+    }
+
+    #[test]
+    fn a_pipfile_lock_package_with_no_version_is_named_not_dropped() {
+        // Pipenv locks a package from a repository by its commit, and one from a folder by its
+        // path: no version. Installed all the same, so the list is not the whole of what is
+        // (deep review H21, for this reader). The app's own folder is the app, not a package.
+        let dir = scratch("pipenv-unversioned");
+        fs::write(dir.join("Pipfile"), "[packages]\ndjango = \"*\"\n").unwrap();
+        fs::write(
+            dir.join("Pipfile.lock"),
+            r#"{"_meta": {},
+                "default": {
+                    "django": {"version": "==4.2.11"},
+                    "myapp": {"editable": true, "path": "."},
+                    "toolkit": {"git": "https://example.com/toolkit.git", "ref": "abc123"},
+                    "shared": {"editable": true, "path": "./libs/shared"}
+                },
+                "develop": {}}"#,
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(sbom.components.len(), 1, "{sbom:?}");
+        assert_eq!(sbom.unread.len(), 1, "{:?}", sbom.unread);
+        let (eco, why) = &sbom.unread[0];
+        assert_eq!(eco, "Python");
+        assert!(
+            why.contains("2 package(s) in `Pipfile.lock` give no version")
+                && why.contains("shared, toolkit"),
+            "{why}"
+        );
+        assert!(
+            !why.contains("myapp"),
+            "the app itself is not a package: {why}"
+        );
+        assert!(!sbom.is_complete());
+    }
+
+    #[test]
+    fn a_pipfile_without_its_lockfile_lists_only_its_pins_and_names_the_rest() {
+        let dir = scratch("pipfile-alone");
+        fs::write(
+            dir.join("Pipfile"),
+            "[packages]\ndjango = \"==2.2.0\"\nrequests = \"*\"\n\
+             flask = {version = \"==3.0.0\", extras = [\"async\"]}\n\
+             toolkit = {git = \"https://example.com/toolkit.git\"}\n\n\
+             [dev-packages]\npytest = \">=8\"\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::write(dir.join("Pipfile"), "[packages]\nrequests = \"*\"\n").unwrap();
+        let none_pinned = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+
+        let listed: Vec<String> = sbom
+            .components
+            .iter()
+            .map(|c| format!("{} {} {:?}", c.name, c.version, c.source))
+            .collect();
+        assert_eq!(listed, ["django 2.2.0 Declared", "flask 3.0.0 Declared"]);
+        assert_eq!(sbom.unread.len(), 1, "{:?}", sbom.unread);
+        assert!(
+            sbom.unread[0].1.contains("3 of its packages")
+                && sbom.unread[0].1.contains("pytest, requests, toolkit"),
+            "{:?}",
+            sbom.unread
+        );
+        assert!(!sbom.is_complete());
+
+        assert!(none_pinned.components.is_empty());
+        assert_eq!(
+            none_pinned.unread.len(),
+            1,
+            "one reason, not that one and the general one too: {:?}",
+            none_pinned.unread
+        );
+        assert!(none_pinned.unread[0].1.contains("requests"));
+    }
+
+    #[test]
+    fn python_declarations_sv_does_not_read_leave_the_list_incomplete_and_say_which() {
+        // Beside a locked npm app, so the list is not empty and a clean comparison of it would
+        // otherwise have been credited (deep review H9).
+        let dir = scratch("python-declarations");
+        fs::write(dir.join("package.json"), r#"{"name":"web"}"#).unwrap();
+        fs::write(
+            dir.join("package-lock.json"),
+            r#"{"lockfileVersion":3,"packages":{"node_modules/lodash":{"version":"4.17.21"}}}"#,
+        )
+        .unwrap();
+        let control = build(&dir);
+        assert!(control.is_complete(), "the control: {control:?}");
+
+        let cases: &[(&str, &str, &str)] = &[
+            (
+                "worker/setup.py",
+                "from setuptools import setup\nsetup(name='w', install_requires=['celery'])\n",
+                "`worker/setup.py` names Python packages",
+            ),
+            (
+                "worker/setup.cfg",
+                "[options]\ninstall_requires =\n    celery\n",
+                "`worker/setup.cfg` names Python packages",
+            ),
+            (
+                "requirements-dev.txt",
+                "pytest==8.0.0\n",
+                "`requirements-dev.txt` lists Python packages",
+            ),
+            (
+                "requirements/prod.txt",
+                "gunicorn>=22\n",
+                "`requirements/prod.txt` lists Python packages",
+            ),
+            (
+                "environment.yml",
+                "name: lab\ndependencies:\n  - numpy\n",
+                "`environment.yml` is a Conda environment",
+            ),
+        ];
+        for (path, text, said) in cases {
+            let file = dir.join(path);
+            fs::create_dir_all(file.parent().unwrap()).unwrap();
+            fs::write(&file, text).unwrap();
+            let sbom = build(&dir);
+            fs::remove_file(&file).ok();
+            assert!(!sbom.is_complete(), "{path}: {sbom:?}");
+            assert!(
+                sbom.unread
+                    .iter()
+                    .any(|(eco, why)| eco == "Python" && why.contains(said)),
+                "{path}: {:?}",
+                sbom.unread
+            );
+        }
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_setup_py_beside_a_python_lockfile_is_stood_for_by_it() {
+        let dir = scratch("setup-beside-lock");
+        fs::write(
+            dir.join("setup.py"),
+            "from setuptools import setup\nsetup(install_requires=['django'])\n",
+        )
+        .unwrap();
+        let alone = build(&dir);
+        fs::write(
+            dir.join("Pipfile"),
+            "[packages]\nmyapp = {path = \".\", editable = true}\n",
+        )
+        .unwrap();
+        fs::write(dir.join("Pipfile.lock"), PIPFILE_LOCK).unwrap();
+        let locked = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+
+        assert!(
+            alone
+                .unread
+                .iter()
+                .any(|(_, why)| why.contains("`setup.py`")),
+            "the control: {alone:?}"
+        );
+        assert!(locked.is_complete(), "{locked:?}");
+    }
+
+    #[test]
+    fn a_requirements_file_under_another_name_that_pins_and_hashes_is_read() {
+        let dir = scratch("requirements-dev-hashed");
+        let hash = format!("sha256:{}", "a".repeat(64));
+        fs::write(
+            dir.join("requirements-dev.txt"),
+            format!("pytest==8.0.0 \\\n    --hash={hash}\n"),
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert!(sbom.unread.is_empty(), "{:?}", sbom.unread);
+        assert_eq!(
+            sbom.components,
+            [Component {
+                name: "pytest".into(),
+                version: "8.0.0".into(),
+                ecosystem: "Python".into(),
+                source: VersionSource::Locked,
+            }]
+        );
+    }
+
     #[test]
     fn yarn_lock_reads_one_package_from_several_ranges() {
         // The header is the range that was asked for, not the name, and one package can have several
@@ -1835,6 +2258,12 @@ __metadata:
                 "GEM\n  specs:\n    rake (13.0.6)\n",
             ),
             ("requirements.txt", "", "flask>=2\n"),
+            ("Pipfile", "", "[packages]\nflask = \"*\"\n"),
+            (
+                "Pipfile",
+                "Pipfile.lock",
+                r#"{"default":{"flask":{"git":"https://example.com/flask.git"}}}"#,
+            ),
             ("go.mod", "go.sum", "example.com/m v1.0.0 h1:x=\n"),
         ];
         for (manifest, lock, contents) in cases {
