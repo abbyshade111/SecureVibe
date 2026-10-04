@@ -80,23 +80,31 @@ template wanting.**
 
 ## The surviving record
 
-Assembled from the repository's own history, 18–27 September 2026. Days 1–3 list every commit, 116 of them,
-to 17:32 on 20 September. From the evening of the 20th each row is one change as it reached `main`: a pull
-request, shown by its title and number, or a commit made directly on `main`. The commits inside each pull
-request are not listed; the commit id is the merge. Times are Eastern time (the owner's) and are commit times,
-so they record when a change was finished rather than when it was begun; for a pull request that is when it
-was merged. Subjects and pull-request titles are reproduced as written: they were written to say what changed
-and why, and several of them are the primary record of a decision.
+Assembled from the repository's own history, 18 September to 4 October 2026, with `main` at `157ddc3` (11:37 on 4
+October) as the cut-off. Days 1–3 list every commit, 116 of them, to 17:32 on 20 September. From the evening of the
+20th each row is one change as it reached `main`: a pull request, shown by its title and number, or a commit made
+directly on `main`. The commits inside each pull request are not listed; the commit id is the merge. Times are
+Eastern time (the owner's) and are commit times, so they record when a change was finished rather than when it was
+begun; for a pull request that is when it was merged. Subjects and pull-request titles are reproduced as written:
+they were written to say what changed and why, and several of them are the primary record of a decision.
 
-The whole record comes to 882 commits, of which 267 reached `main` as the changes listed from the evening of
-20 September to 10:52 on 27 September, where this record stops, 226 of them as pull requests. Twelve of those,
-on 26 September, were rebased onto `main` rather than merged, so their commit is the change itself.
-`COORDINATION.md` counts every change to `main` up to 16:18 on 28 September. A summary figure is in `figure-timeline.html`.
+The whole record comes to 1,784 commits to the cut-off (882 when this record stopped at 10:52 on 27 September),
+of which 569 reached `main` as the changes listed from the evening of 20 September onward (267 to 27 September),
+528 of them as pull requests (226). Seventeen of those were rebased onto `main` rather than merged, twelve on
+26 September and five on 3 October, so their commit is the change itself. Two more pull requests that GitHub
+shows as merged into `main`, #308 and #383, both claims, have no change of their own: their commits reached `main`
+inside other pull requests. No commit at all is dated 30 September to 2 October. `COORDINATION.md` counts over a longer window and on a
+different basis: all 655 changes to `main` from 09:32 on 18 September (86 of them before the evening of the 20th),
+and pull requests from GitHub's record rather than git, 551 merged, 548 of them into `main`. The 548 are these 528,
+4 merged before the evening of 20 September (#1 to #4), #308 and #383, and 14 from 19 to 23 September (#5, #7 to #18, and #20)
+whose commits reached `main` under other hashes. A summary figure is in `figure-timeline.html`.
 
 The project was built by an owner who is not a programmer, working with AI agents, against a fixed template and
 the OWASP Secure by Design, ASVS 5.0 and AISVS 1.0 checklists. Two people other than the owner used it, both on
 19–20 September. From 22 September a second version, `sv`, was built beside it, and on 26 September `sv`
-replaced it at the top of the repository.
+replaced it at the top of the repository. From 29 September to 3 October a comparison study, run by another
+session outside this repository, used `sv` on five AI-built apps, and on 4 October the same session reviewed
+`sv`'s code in depth.
 
 
 ## Day 1 — 18 September
@@ -586,14 +594,27 @@ v1 moved to the `v1` branch, and `sv` moved to the top of the repository. Histor
 | 23:36 | `7dc9dfb` | #240 | A rate limiter is not evidence of a public API |
 | 23:44 | `e4054fe` | #241 | sv bundle: the app, its report and a SHA-256 for every file in one zip, with secrets left out |
 
-## Day 9 — 27 September, to 10:52
+## Day 9 — 27 September: the paper, the first records, and a review
 
-11 changes reached `main`, 00:02 to 10:52: 11 pull requests out of 30 commits in all. This record stops at
-`c5ae4f9`, the newest commit when this section was written.
+89 changes reached `main`, 00:02 to 23:44, all of them pull requests, out of 270 commits in all. (An earlier
+version of this record stopped at 10:52, after 11 of them, and counted 30 commits to that time; recounted at the
+cut-off, 28 commits of the day are dated before 10:52.)
 
 A person can now confirm what the AI coding tool wrote on their behalf, and it counts at their own tier
 (#242). GitHub's community-standards files went in (#245). Three things the owner tripped over in their first
 build from scratch were fixed (#248), and three more items from that build followed (#249–#251).
+
+From late morning the paper was written into the repository: this timeline and its figure (#257), figures on
+security, cost, usability, and how faults were caught (#264), the two OWASP Top 10 analyses (#283, #287), the
+v2 self-assessment (#292), and the analysis of the decision records (#300). `sv` wrote down its first decision
+records the same day (#271, #274, #312). It gained rules for the AI coding tool to follow while it codes, from
+AISVS Appendix C (#268, #276), a reader for an app's GitHub Actions workflows (#282), and a grammar for C++
+(#259). After the owner's decisions on false alarms (#294), the report learned to hold one finding per weakness
+and line, a person's record that a finding is a false alarm or an accepted risk, and findings in test code
+listed apart (#297, #303, #316, #321). At 18:56 a session's review of `sv` added thirteen items to the backlog
+(#315), and most of the evening went on them: one walk of the app (#320), options read as options (#324),
+patterns compiled once (#325, #326), a release profile (#330), time limits and a Ctrl-C that cleans up (#332),
+and the container image run as a user of its own (#333).
 
 | time | commit | pull request | change |
 |---|---|---|---|
@@ -608,3 +629,390 @@ build from scratch were fixed (#248), and three more items from that build follo
 | 01:12 | `e71bae1` | #250 | Order the interview's questions by what is most at stake (claim, then the work) |
 | 01:27 | `0013da9` | #251 | Two services built from the app, read from its compose file (claim, then the work) |
 | 10:52 | `c5ae4f9` | #253 | Claim: a section holding only the tool's disclaimer is not an answer (securevibe-e9) |
+| 11:01 | `e56a2b3` | #252 | A generates-media question for C7.4.4, and starter capabilities that start unanswered (claim, then the work) |
+| 11:08 | `18d16f4` | #254 | Claim the paper timeline update |
+| 11:10 | `09f41b0` | #255 | A section holding only the tool's own byline is not an answer |
+| 11:15 | `d9d0911` | #256 | Take Dependabot's three updates, with the fixes they need |
+| 11:18 | `bc65b3c` | #257 | Paper: the timeline through 27 September, and a figure of the whole project |
+| 11:39 | `6c7f152` | #258 | Claim the paper figures on security, usability and cost |
+| 11:47 | `50eca0e` | #259 | A grammar for C++: all twelve code rules taught, or say why not |
+| 11:56 | `74d2b2c` | #260 | Claim AISVS Appendix C as coding-time rules for the AI tool (securevibe-e9) |
+| 12:06 | `988343f` | #261 | Say beside the code why CodeQL's four open alerts are deliberate |
+| 12:08 | `ae72003` | #262 | Claim: script in a page written the way a browser reads it |
+| 12:13 | `c20597e` | #264 | Paper: figures on security across both versions, cost and speed, usability, and how faults were caught |
+| 12:38 | `e40a485` | #265 | An unanswered data list no longer counts as "no personal data" |
+| 12:47 | `c468649` | #267 | Read a page's tags the way a browser does |
+| 13:05 | `41634b7` | #268 | Give the AI coding tool rules to follow while it codes, from AISVS Appendix C |
+| 13:17 | `169bc5d` | #269 | Claim: Appendix C in a section of its own in the report (securevibe-e9) |
+| 13:18 | `7f262e3` | #270 | Claim: the decisions not yet written down as ADRs |
+| 13:20 | `9e291ad` | #266 | The owner's three decisions, and V8.3.1 supported (not settled) by the admin-page probe |
+| 13:26 | `57bc16d` | #271 | sv's first decision records, and ADR-012 named as v1's |
+| 13:33 | `bbd81f1` | #263 | Poll: should CodeQL scan v1, and should sv keep v1's sample answer sets? |
+| 13:45 | `1c2e4ce` | #273 | Claim: a record superseding ADR-012's ruling on other languages |
+| 13:52 | `5b2a78a` | #274 | ADR-018: sv checks any language, with rules of its own |
+| 13:57 | `c2b962e` | #275 | data/README.md: what each data file is and what reads it |
+| 13:59 | `9a3fda5` | #276 | Count Appendix C apart from the app's own requirements, in a section of its own |
+| 14:07 | `26fcb6e` | #277 | Claim: read the app's GitHub Actions workflows |
+| 14:25 | `31e0b1c` | #278 | Remove the eight v1 files in data/knowledge that nothing on main reads |
+| 14:25 | `dd49d56` | #279 | Claim V14.2.3: account details sent to other hosts (securevibe-e2) |
+| 14:40 | `2483b4d` | #281 | Claim the OWASP Top 10 analysis for the paper |
+| 14:41 | `cf7cff9` | #280 | V14.2.3: account details a signed-in page sends to another site, seen from the real browser |
+| 14:44 | `139ad42` | #282 | Read the app's GitHub Actions workflows for what Appendix C warns about |
+| 14:47 | `0e3a343` | #283 | Paper: the project's security faults against the OWASP Top 10:2025 |
+| 14:50 | `38ccc78` | #284 | Claim the OWASP agentic Top 10 analysis for the paper |
+| 14:53 | `75f7fde` | #286 | Keep the checkout token out of the job in sv's own workflows |
+| 14:55 | `2a88696` | #285 | Claim reading Yarn Berry and Bun lockfiles (securevibe-e2) |
+| 15:12 | `a40ca6f` | #288 | Read Yarn Berry and Bun lockfiles |
+| 15:17 | `c98651d` | #289 | Claim the sv self-assessment for the paper |
+| 15:27 | `96a2167` | #290 | Backlog: strike four finished entries, and record a V15.1.2 false credit |
+| 15:29 | `189a942` | #287 | Paper: the project against the OWASP Top 10 for Agentic Applications |
+| 15:39 | `1ffe7ac` | #291 | Claim: the report credits V15.1.2 for a lockfile it could not read |
+| 15:40 | `accd67e` | #292 | The v2 self-assessment: sv checking itself, compared with v1 and added to both Top 10 analyses |
+| 15:57 | `1a1ebb4` | #293 | Credit V15.1.2 only for an inventory someone has seen |
+| 16:14 | `f49197d` | #295 | Backlog: send admin actions straight to the app as an ordinary user (V8.3.1) |
+| 16:26 | `9683a99` | #296 | Claim: send admin actions straight to the app as an ordinary user |
+| 16:31 | `100c7ad` | #294 | Backlog: false alarms, parts 1 to 3, with the owner's decisions (claims parts 1 and 2) |
+| 16:42 | `7125cac` | #298 | Claim the ADR analysis for the paper |
+| 16:45 | `e40d29b` | #299 | Backlog: six records that disagree with what was built, and three gaps from the v2 self-assessment |
+| 16:53 | `29184ca` | #297 | False alarms, part 1: one finding per weakness and line, how sure, and test code named |
+| 16:53 | `b93ed2e` | #300 | Paper: the decision records of both versions |
+| 17:02 | `e75da68` | #301 | Send admin actions straight to the app as an ordinary user (V8.3.1) |
+| 17:02 | `5504124` | #302 | Backlog: a weekly review of the decision records, and the harness's first run as the transcript shows it |
+| 17:07 | `dd81d54` | #303 | False alarms, part 2: a person's record that a finding is a false alarm or an accepted risk |
+| 17:14 | `1f2443d` | #304 | Claim: the role-field probe |
+| 17:22 | `3b3dd7a` | #305 | Backlog: claim reporting test-code findings apart from the app's |
+| 17:33 | `3f59285` | #306 | A role written into the sign-up form (V8.3.1, V15.3.3) |
+| 17:41 | `9a6b8a4` | #307 | Claim: drop the coding rules' AC.7.4 citation (securevibe-e9) |
+| 17:51 | `44bc2b3` | #309 | Drop the coding rules' AC.7.4 citation |
+| 18:01 | `447300b` | #310 | The false-alarms test keeps every other scanner out, and shows it did |
+| 18:13 | `1a5864b` | #311 | Claim: records items 5, 6, and the Docker half of 8 |
+| 18:16 | `4bee715` | #312 | Records items 5, 6, and the Docker half of 8 |
+| 18:27 | `3fa01d5` | #313 | Backlog: claim naming fixture and example folders in the manifest |
+| 18:42 | `747a2eb` | #314 | Claim: say an app is an MCP server, and split AISVS C10 by side (securevibe-e9) |
+| 18:56 | `4da6ee3` | #315 | Backlog: a review of sv on 27 September 2026, thirteen items |
+| 19:10 | `5f24f51` | #316 | List findings in test code after the app's own, including Rust's test modules |
+| 19:12 | `6715138` | #317 | Claim: review items 7, 1, and 3, one walk of the app |
+| 19:40 | `84c730b` | #318 | Let a manifest say the app serves tools over MCP, and split AISVS C10 by side |
+| 19:51 | `659f7b3` | #319 | Claim false alarms, part 3 (securevibe-e9) |
+| 20:36 | `fadc9db` | #320 | One walk of the app, and no more following links or reading files of any size |
+| 20:43 | `5d527dd` | #321 | Report each false alarm against its rule |
+| 21:02 | `4e20065` | #322 | Claim: review items 4, 5, and 8 (securevibe-e9) |
+| 21:14 | `14a05bb` | #323 | A broken breached-password record leaves V6.2.12 not assessed, not a panic |
+| 21:20 | `30b749f` | #324 | Read options as options: --help after any command, sv --version, unknown options refused |
+| 21:32 | `4b36011` | #325 | Compile each fixed pattern once, and match the AI log's words by hand |
+| 22:21 | `1d84147` | #326 | Compile a code rule's queries when its language is met, and load once for the MCP server |
+| 22:37 | `79bd9bb` | #327 | Let the manifest name folders that are not the app |
+| 23:17 | `d73432f` | #329 | Claim: review items 2 and 11 (securevibe-e9) |
+| 23:30 | `abbdb32` | #330 | A release profile: strip only, because the binary is grammars, not code |
+| 23:35 | `08b8e0b` | #328 | Backlog: review item 2 was claimed twice; say where the finished work is |
+| 23:41 | `5af904e` | #332 | Give sv run an end: time limits on Docker calls and tests, and Ctrl-C that cleans up |
+| 23:44 | `400bdae` | #333 | Run the image as a user of its own, not root |
+
+## Day 10 — 28 September: one file split across sessions
+
+83 changes reached `main`, 09:53 to 23:55, all of them pull requests, out of 229 commits in all.
+
+From this day the sessions that did most of the work (named in the backlog as `securevibe-e2`, `securevibe-e9`,
+and similar) left no transcript on this machine. Their record is the commits, the pull requests, and the
+backlog, and nothing below depends on more.
+
+The largest file of checks, `signed_in.rs`, was split into eight files by several sessions at once, one slice
+each, under a freeze planned in the backlog (#335, #358 to #405). Partial checks, for requirements no check had
+spoken to, arrived in four parts (#377, #387, #394, #397), and every ASVS and AISVS requirement was listed
+with the checks that speak to it (#349). Paper analyses of corrected claims, decisions, coordination cost, and
+tests against faults went in (#372, #385), and eight places where the paper's earlier files disagreed with the
+record were fixed (#392). At 18:15 the backlog recorded two limits that cato-pipeline, the session that would run
+the comparison study, hit while wiring `sv` in (#400). In the evening a rate limiter's answer stopped being read
+as the app's (#412, #416), and so did a crash's (#418, #420): the decision later written down as ADR-021.
+
+| time | commit | pull request | change |
+|---|---|---|---|
+| 09:53 | `d77e3d2` | #335 | Backlog: plan the signed_in.rs split across sessions, and claim review item 12 |
+| 09:55 | `54aec7e` | #334 | Backlog: item 2 as it ended, and claim porting its two extras |
+| 10:04 | `def3c0c` | #337 | Hold sv to V15.2.1: a weekly audit of its own crates, and sv audit that respects not-the-app |
+| 10:09 | `e266691` | #338 | Claim: an ecosystem counted as covered by a passing mention (securevibe-e9) |
+| 10:15 | `f1c327c` | #339 | Count an ecosystem as covered only by a record about it alone |
+| 10:16 | `fa4d724` | #336 | sv run: a test limit securevibe.toml can set, and cleanup after a run killed outright |
+| 12:41 | `d87f070` | #341 | Claim: counting a vulnerability once, and the report's bill of materials (securevibe-e9) |
+| 12:53 | `1db48c4` | #340 | Backlog: item 3 was claimed twice; say where the finished work is, and leave item 2 |
+| 13:03 | `5f7e781` | #343 | Backlog: the two sessions review each other's work on the known-vulnerability entry |
+| 13:10 | `3e75829` | #345 | Count a vulnerability once, however many names it goes by |
+| 13:18 | `9879a6a` | #344 | Count what is set apart in sv audit again, and audit only what sv is built from |
+| 14:10 | `15e2546` | #346 | Backlog: how item 3 ended, and the reviews of items 1 and 2 |
+| 14:45 | `4e981f5` | #347 | Backlog: claim the test that failed once on CI, now named |
+| 14:53 | `5b1dda8` | #348 | Claim: every ASVS and AISVS requirement in one list (securevibe-e9) |
+| 14:58 | `c361bd1` | #349 | List every ASVS and AISVS requirement with the checks that speak to it |
+| 15:08 | `be5d9a2` | #350 | Claim the harness-origin timeline fix |
+| 15:11 | `52e4d43` | #351 | Make the leftovers tests take turns, so one cannot remove the other's fake leftover |
+| 15:11 | `2025c87` | #352 | Timeline: where the evaluation harness came from, and Day 0 at its recorded times |
+| 15:22 | `7184368` | #353 | Claim step 0 of splitting signed_in.rs |
+| 15:23 | `1f83dee` | #354 | Backlog: partial checks for the requirements no check speaks to |
+| 15:25 | `943a3b4` | #355 | The report's shape: each requirement's text once in report.json, and the compliance page by chapter |
+| 15:35 | `6aac023` | #356 | Count outside-tool rules that already run against the requirements they find failing |
+| 15:37 | `8a291fc` | #357 | Paper: a figure setting the two self-checks side by side |
+| 15:38 | `2fdd11d` | #358 | Split signed_in.rs, step 0: a folder, the fake app, and the rules |
+| 15:41 | `da6ea32` | #359 | Claim: partial checks item 2 (securevibe-e9) |
+| 15:45 | `64c4f8c` | #360 | Claim slice e (uploads) of splitting signed_in.rs |
+| 15:51 | `4b68e32` | #363 | American spelling in the paper, where the sweep missed it |
+| 15:53 | `847403e` | #362 | Backlog: two faults from killed_run on Colima; claim the first |
+| 15:53 | `0f42aa3` | #361 | killed_run test: put the app where Colima can see it |
+| 15:55 | `2bcbe57` | #364 | Split signed_in.rs, slice e: the upload checks into uploads.rs |
+| 15:59 | `12d5141` | #365 | Count the AI probes against C9.3.2 and C9.3.7, the agent requirements they already test |
+| 16:00 | `e255ef6` | #366 | Claim two paper analyses and the stale ADR count |
+| 16:01 | `32eff84` | #367 | Claim slice f (flows) of splitting signed_in.rs |
+| 16:05 | `4d75336` | #370 | report.json names the checks only a person can make by id, instead of writing them twice |
+| 16:09 | `1204fe9` | #371 | Split signed_in.rs, slice f: the multi-step flow checks into flows.rs |
+| 16:11 | `94523cb` | #368 | Backlog: claim twenty of the third group of partial checks |
+| 16:15 | `badd813` | #372 | Paper: corrected claims, and who decided what |
+| 16:18 | `57fed49` | #373 | Claim slice h (forgery) of splitting signed_in.rs |
+| 16:25 | `de1d1a3` | #374 | Claim two more paper analyses |
+| 16:29 | `97136dd` | #375 | Split signed_in.rs, slice h: the request-forgery checks into forgery.rs |
+| 16:36 | `273ba01` | #376 | Claim slice g (admin) of splitting signed_in.rs |
+| 16:39 | `ef752c5` | #377 | Seven partial checks that read the code (group 3, part 1) |
+| 16:43 | `88b59b6` | #378 | Backlog: evaluate Opengrep against semgrep |
+| 16:45 | `00290c6` | #379 | OpenAI and Hugging Face key rules, and vendor fine-tuning calls as training |
+| 16:46 | `0ae1ef0` | #380 | Split signed_in.rs, slice g: the admin and ownership checks into admin.rs |
+| 16:47 | `8d71180` | #381 | Claim slice b (sessions) of splitting signed_in.rs |
+| 16:59 | `94562ae` | #382 | Backlog: a rate limiter's 429 read as the app's answer about access |
+| 17:03 | `a11a813` | #384 | Split signed_in.rs, slice b: the session checks into sessions.rs |
+| 17:06 | `add801d` | #385 | Paper: coordination cost, and tests against faults |
+| 17:08 | `f584494` | #386 | Claim slice c (passwords) of splitting signed_in.rs |
+| 17:17 | `5117b0a` | #388 | Say in report.json what was examined, in a form a program can read |
+| 17:18 | `e176eea` | #387 | Four partial checks of the running app (group 3, part 2) |
+| 17:23 | `8cd082d` | #390 | Claim the eight paper inconsistencies |
+| 17:24 | `f35d49c` | #389 | Split signed_in.rs, slice c: the password checks into passwords.rs |
+| 17:25 | `06416ba` | #391 | Claim slice a (sign-in) of splitting signed_in.rs |
+| 17:32 | `7e65be7` | #392 | Paper: fix the eight inconsistencies |
+| 17:41 | `ab89622` | #393 | Split signed_in.rs, slice a: the sign-in checks into signin.rs |
+| 17:42 | `de7a87a` | #394 | Six partial checks of an app's AI feature (group 3, part 3) |
+| 17:53 | `592315b` | #395 | Claim merging the CI-hang fix into v1 |
+| 18:05 | `ea3941f` | #397 | The app as an MCP server: C10.3.3 and C10.2.6 (group 3, part 4) |
+| 18:12 | `f3519c1` | #398 | Backlog: claim the C9.5.4 citation and the empty app folder |
+| 18:15 | `7eab77d` | #399 | Claim slice d (codes) of splitting signed_in.rs |
+| 18:15 | `0d34d18` | #400 | Backlog: two limits cato-pipeline hit while wiring in sv |
+| 18:25 | `167b618` | #401 | The Anthropic key rule no longer cites C9.5.4 |
+| 18:28 | `4e946f1` | #402 | Say when the container backend cannot see the app's folder |
+| 18:33 | `945aa90` | #403 | Split signed_in.rs, slice d: reset, emailed codes, activation, and two-factor into codes.rs |
+| 18:50 | `4554ec3` | #404 | Claim step 2 of splitting signed_in.rs |
+| 19:05 | `d718bc7` | #405 | Split signed_in.rs, step 2: codes.rs by area, a map of the files, and the freeze lifted |
+| 19:20 | `cfc728c` | #406 | Claim: read requirements.lock beside pyproject.toml |
+| 19:31 | `3231e6b` | #407 | A large data file no longer blocks the credential scan or the MCP check |
+| 19:54 | `c8dd207` | #408 | Read requirements.lock beside pyproject.toml |
+| 20:08 | `1a2fa39` | #409 | Claim: name the lockfile read when a project has several |
+| 20:33 | `6bffbb4` | #410 | Name the lockfile read when a project has two of one kind |
+| 20:45 | `f7b7fc1` | #411 | Claim: a rate limiter's 429 read as the app's answer about access |
+| 20:55 | `546ace7` | #412 | A rate limiter's answer is not the app's: waited out once, and never credited as a refusal |
+| 20:59 | `14927c6` | #413 | Claim: ast.download-piped-to-shell flags a download read as data |
+| 21:19 | `2791e7c` | #415 | Claim: the anonymous probes and the rate limiter, and a limit on all the waiting |
+| 21:39 | `f1f83db` | #416 | Anonymous questions wait out a rate limiter too, and all waiting stops at five minutes |
+| 21:49 | `4eeb7dd` | #417 | Claim: a 500 from the app read as a refusal |
+| 22:52 | `fb80cf7` | #418 | A crash is not a refusal: passes resting on one are not credited |
+| 22:56 | `3fc9324` | #414 | ast.download-piped-to-shell: report an interpreter only when it runs what it is sent |
+| 23:02 | `3c4bc9e` | #419 | Claim: three findings raised from a refusal, so a crash can raise them |
+| 23:55 | `70dba73` | #420 | A crash does not raise a finding either |
+
+## Day 11 — 29 September: the comparison study begins
+
+48 changes reached `main`, 11:29 to 22:44, all of them pull requests, out of 149 commits in all.
+
+More questions only a running app can answer: an SVG upload carrying a script and the antivirus test file
+(#428), field-level access and private pages open to shared caches (#430), what a browser keeps (#432), two
+people with one email address at the sign-in provider (#437), another user's record through the AI feature's
+own tool (#440), and a development console that answers (#446). At 18:33 the first four issues from the owner's
+comparison study, run with `sv` on AI-built apps outside this repository, were recorded (#441), and all four were
+fixed eighteen minutes later (#443). A figure of how `sv` works was added to the paper (#449). Late in the
+evening came ADR-020, the record of why `sv` is in Rust, with corrections to v1's records (#463), and the first
+weekly review of the decision records (#464).
+
+| time | commit | pull request | change |
+|---|---|---|---|
+| 11:29 | `ce586ce` | #369 | A run that fails still says what it removed first |
+| 11:35 | `c87f0a3` | #422 | Backlog: OSV last_affected is ignored; claimed |
+| 11:37 | `bf72477` | #421 | Claim: the bundle test that failed once |
+| 11:56 | `d463721` | #423 | Read OSV's last_affected, and do not compare ranges with unknown events |
+| 11:57 | `982f97e` | #424 | The bundle test looks for the whole secret, not four digits of it |
+| 13:02 | `fba795e` | #425 | Claim: three signed-in partial checks, V4.1.3, V7.4.3, and V6.3.7 |
+| 13:59 | `61e02e4` | #426 | Signed-in checks for V4.1.3, V7.4.3, and V6.3.7 |
+| 15:44 | `a07b432` | #427 | Claim V1.3.4 and V5.4.3 (upload probe) |
+| 16:26 | `c859fef` | #428 | Upload probe: an SVG with a script (V1.3.4) and the antivirus test file (V5.4.3) |
+| 16:41 | `e6f37cd` | #429 | Claim V10.1.1 and V14.3.3 (browser storage) |
+| 16:43 | `250f37b` | #430 | Field-level access (V8.2.3) and private pages open to shared caches (V14.2.2) |
+| 16:57 | `a461d0a` | #431 | Backlog: a shell variable reference read as a credential (claimed) |
+| 17:17 | `5fcde8b` | #433 | A value that is wholly a shell or build-file reference is not a credential |
+| 17:28 | `f61c43e` | #432 | Browser storage: the test password (V14.3.3) and sign-in tokens (V10.1.1) |
+| 17:48 | `5e0faa0` | #435 | Backlog: claim narrowing the MCP check's large-file word test |
+| 17:54 | `4db4eba` | #434 | Claim V10.5.2 (two people sharing an email at the sign-in provider) |
+| 18:01 | `51da06d` | #436 | The MCP check reads a large file for a command key, not the word |
+| 18:05 | `a836cd7` | #437 | Two people with one email address at the sign-in provider (V10.5.2) |
+| 18:19 | `0fc9749` | #438 | Backlog: claim C9.5.3 |
+| 18:33 | `426aabd` | #441 | Backlog: four issues from the comparison study (claimed) |
+| 18:34 | `1260f50` | #440 | Another user's record through the AI feature's own tool (C9.5.3) |
+| 18:34 | `0d5c0b0` | #439 | Claim partial checks item 5: which CodeQL queries the suites run |
+| 18:44 | `1f98278` | #442 | Claim two running-app halves: the model name sent, and a debug console |
+| 18:51 | `5a6c5ad` | #443 | Four fixes from the owner's comparison study |
+| 18:53 | `0080f13` | #445 | Claim the static half of V10.4.4: retired grants in code |
+| 18:54 | `f8b8824` | #444 | Which queries the CodeQL suites run, measured, and two mapped for V15.4.2 |
+| 19:20 | `0b8ff46` | #448 | The password and implicit grants, read from a sign-in server's code |
+| 19:32 | `a88aa30` | #446 | A development console that answers, and the model name the app sent |
+| 19:35 | `0e3e9c6` | #449 | A figure and short account of how sv works, for the paper |
+| 19:53 | `bc77226` | #447 | Claim V11.4.4: a key made from a password with too little work |
+| 20:12 | `d00ac08` | #450 | A key made from a password with too few rounds (V11.4.4) |
+| 20:59 | `49e8451` | #452 | Claim the static half of V13.4.7: static files from the app's folder |
+| 21:11 | `3e8fc20` | #453 | Static files served from the app's own folder (V13.4.7, read from the code) |
+| 21:24 | `7c96bbe` | #451 | Claim: the killed_run test that failed once on CI |
+| 21:35 | `05495d9` | #454 | Fix the killed_run test that failed once on CI |
+| 21:37 | `8d46049` | #455 | Record why the ollama pull half of C6.1.3 is not built |
+| 21:39 | `65adc0d` | #457 | Backlog: the Semgrep license question is settled |
+| 21:42 | `7dc139d` | #456 | Claim the file half of C4.1.2: pickle-format model files |
+| 21:47 | `3fb153a` | #459 | Claim the Opengrep evaluation and OCSP stapling (V12.1.4) |
+| 21:51 | `68372cd` | #462 | Model files in the app stored in a format that can run code when loaded (C4.1.2) |
+| 21:53 | `177d779` | #458 | Claim: v1 record corrections, the Rust record, and closing F-0001 |
+| 21:54 | `d3876d7` | #460 | Claim: the first weekly review of the decision records |
+| 22:07 | `534a03d` | #461 | Claim: the code half of V9.2.3 (token audience check switched off) |
+| 22:17 | `52976d8` | #463 | ADR-020 (Rust), corrections to v1's records, and F-0001 closed |
+| 22:19 | `6740e21` | #465 | OCSP stapling (V12.1.4) in sv probe, from the handshake it already makes |
+| 22:33 | `ba4f1b1` | #464 | The first weekly review of the decision records |
+| 22:41 | `ef87c31` | #467 | Record the Opengrep evaluation |
+| 22:44 | `34ca633` | #466 | A token check told not to check who the token is for (V9.2.3) |
+
+## 30 September to 2 October
+
+No commits, on any branch that reached `main`. The comparison study ran outside this repository over these days
+(`sv-study`, 29 September to 3 October). On 1 October a new release of Rust's lint tool began failing the Lints
+check on every branch, which nobody noticed until #473 fixed it on 3 October.
+
+Dates written inside the records of these days are often in UTC, which is four hours ahead of Eastern time: the
+owner's choices "on 30 September" in the backlog and `docs/adr/README.md` were made on the evening of
+29 September, Eastern, and records "written on 4 October" were committed at 21:02 on 3 October.
+
+## Day 12 — 3 October: the running-app review and the MCP server
+
+76 changes reached `main`, 10:32 to 22:23: 71 merged and 5 rebased onto `main`, out of 229 commits in all.
+
+Two reviews set the day's work. One hardened and improved the MCP server (#470): nothing written through a link
+(#474), every malformed request answered (#477), each tool's result described (#479), the newest protocol
+versions (#483), the reports offered as resources (#488), a time limit (#498), and progress reported during a
+long check (#504). The other reviewed the checks that ask the running app (#471): a fault in the counts and
+sixteen items, most built the same day, among them old TLS versions on the live site (#495), text reflected into
+a page without encoding (#505), a file named `../` (#508), open redirects (#513), an action sent 20 times at the
+same instant (#527), where a feature that fetches addresses will go (#531), the sign-in token the app issues
+itself (#544), and SQL injection on the app's own reads (#545). The app's own container now runs read-only, with
+no capabilities (#496). Semgrep runs without usage reporting, with Opengrep in its place when it is absent
+(#481). A manifest that disagrees with its lockfile is now said, after one in `sv`'s own example app had
+disagreed unnoticed for ten days (#482, #511, #525, #530). That evening
+the comparison study's fifth app, family-hub, built that day with `sv` in the loop, sent three faults (#533,
+#535, #537), the AI tool's answers could be recorded through `sv` (#539), and the five records the weekly review
+said were owed were written, ADR-021 to ADR-025 (#541).
+
+| time | commit | pull request | change |
+|---|---|---|---|
+| 10:32 | `93b7bfa` | #472 | Claim: semgrep without usage reporting, Opengrep as a stand-in |
+| 10:37 | `0bd3f91` | #473 | Fix clippy 1.99: every branch fails Lints since 1 October |
+| 10:42 | `97fe041` | #470 | Backlog: hardening and improving the MCP server (items 1 to 3 claimed) |
+| 10:53 | `4b3db46` | #474 | Write nothing through a link, and keep the app's text on its own line |
+| 10:58 | `aeb056e` | #476 | Backlog: a prompt library from the CSA guide and lessons learned (#476) |
+| 11:01 | `88422e2` | #478 | Claim: MCP improvement 3, each tool's output schema |
+| 11:05 | `4a9abc6` | #475 | Claim: MCP hardening items 4, 5, 7, and the size half of 6 |
+| 11:12 | `d3b9388` | #479 | Declare the shape of each MCP tool's structured result |
+| 11:12 | `a2d3259` | #480 | Claim: MCP improvement 6, the newest protocol versions |
+| 11:20 | `67a497a` | #482 | Example app: PyJWT 2.15.1, and a lock that matches its manifest (#482) |
+| 11:24 | `1d79f89` | #477 | Answer every malformed request, and refuse to serve / or the home folder |
+| 11:35 | `521240b` | #471 | The running-app checks reviewed: a fault in the counts, and sixteen items |
+| 11:38 | `2d5cce0` | #483 | Speak MCP 2025-11-25 and 2026-07-28 beside the older versions |
+| 11:38 | `31ba927` | #485 | Claim MCP improvement 5: the written reports as MCP resources |
+| 11:45 | `182e804` | #486 | Count 21 checks that only ever raise a finding as finding-only |
+| 11:46 | `5cad3e4` | #487 | Claim the checks on the app's own sign-in tokens |
+| 11:49 | `53154bc` | #484 | Backlog: say when a manifest and its lockfile disagree (#484) |
+| 11:53 | `038f2a4` | #481 | Semgrep without usage reporting, Opengrep in its place when absent |
+| 11:56 | `0ca45dd` | #489 | Release the token-check claim, and withdraw the proposal to credit six checks |
+| 12:06 | `93bb745` | #493 | Claim running the app's container read-only (#493) |
+| 12:07 | `76c1eb0` | #491 | Claim: old TLS versions on the live site (V12.1.1) |
+| 12:07 | `6af5f58` | #490 | Claim the time limit on an MCP check (hardening item 6, second half) |
+| 12:12 | `f2809de` | #492 | Claim: headers judged on every page the run fetched |
+| 12:21 | `14389ca` | #494 | Judge the browser headers on the root page and the private pages too |
+| 12:27 | `1fe4622` | #496 | Run the app's container read-only, without capabilities (#496) |
+| 12:34 | `738dc5e` | #497 | Claim items 9 and 10: AI agent limits and AI service failure |
+| 12:35 | `1e9e18a` | #495 | sv probe: old TLS versions on the live site (V12.1.1) |
+| 12:37 | `72b77e9` | #499 | Claim MCP improvement 4: progress notifications during a long check |
+| 12:45 | `c01c04d` | #500 | What the app does when its AI service fails |
+| 12:48 | `ab3603e` | #501 | Claim: text reflected into a page without encoding (V1.2.1, V1.2.3) |
+| 12:55 | `5e72411` | #502 | An AI agent with no limit on its tool calls |
+| 13:02 | `e42dc86` | #488 | Offer the written reports as MCP resources |
+| 13:02 | `75d4051` | #498 | Put a time limit on a check over MCP |
+| 13:12 | `74612b7` | #505 | Probe for text reflected into a page without encoding (V1.2.1, V1.2.3) |
+| 13:16 | `bcc5181` | #503 | Claim: say when a manifest and its lockfile disagree |
+| 13:16 | `c671a40` | #504 | Say how a check over MCP is going |
+| 13:26 | `cd1f87b` | #506 | Claim: upload names with ../ (V5.3.2) and compressed bombs (V5.2.3) |
+| 13:42 | `42c1011` | #507 | Claim item 14: email change without the password again |
+| 14:02 | `13ad888` | #508 | Upload a file named ../ and look for where it landed (V5.3.2) |
+| 14:04 | `cdba4b0` | #510 | Claim item 8: open redirect |
+| 14:07 | `3c18d8e` | #511 | Say when a manifest and its lockfile disagree |
+| 14:16 | `72eb125` | #512 | Record the owner's decision on compressed bombs (V5.2.3), and claim it |
+| 14:18 | `f5841fd` | #509 | Check that changing the email address needs the password again (V7.5.1) |
+| 14:28 | `1847eda` | #513 | Check the sign-in flow for open redirects (V3.7.2) |
+| 14:48 | `3f1f2b5` | #514 | Send each request to the app as input, so a body can be any size and any bytes |
+| 14:59 | `67bb297` | #515 | Claim: another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3) |
+| 15:26 | `d6bab12` | #516 | Ask whether the AI feature searches other users' notes (C5.2.2, C8.1.3, C5.2.4) |
+| 15:34 | `65dc668` | #517 | Move CodeQL's init and analyze to v4.38.2 together, and group them |
+| 15:35 | `f3fb561` | #518 | Claim the rest of the weak key-derivation rule (Go's crypto/pbkdf2, C#'s two-argument Rfc2898DeriveBytes) |
+| 15:36 | `735ba44` | #519 | Claim: the app's own MCP server, hardened (C10.2.1, C10.4.3, C10.4.4, C10.4.5) |
+| 15:47 | `8a0e4fa` | #520 | Read Go's crypto/pbkdf2 and C#'s two-argument Rfc2898DeriveBytes for too few rounds |
+| 16:03 | `c9d9e37` | #521 | Claim comparing the other manifests with their lockfiles |
+| 16:05 | `45b6d71` | #522 | Release item 7 unbuilt (SQL injection on the app's own records) |
+| 16:14 | `0b877c7` | #523 | Claim item 13: limits and double-booking |
+| 16:16 | `a4f4386` | #524 | Ask the app's MCP server about its token and the arguments it should refuse (C10.2.1, C10.4.3-5) |
+| 16:27 | `3faffd7` | #525 | Hold pyproject.toml, Cargo.toml, composer.json, Gemfile, and go.mod to their lockfiles |
+| 16:29 | `8ba4a5d` | #527 | Send an action 20 times at the same instant and count how often it goes through (V2.3.4) |
+| 16:40 | `5cf3759` | #526 | Claim: requests the app makes for someone (V1.3.6, V15.3.2, V13.2.4) |
+| 16:42 | `501145a` | #528 | Claim comparing Gradle's build files with gradle.lockfile |
+| 16:47 | `b348578` | #529 | Hold creating records to a stated limit with a burst (V2.4.1) |
+| 16:55 | `b26444f` | #530 | Hold Gradle's build files to gradle.lockfile |
+| 17:43 | `9573c0d` | #531 | Ask where a feature that fetches addresses will go, and whether it follows redirects (V1.3.6, V13.2.4, V15.3.2) |
+| 20:24 | `660e782` | #532 | Claim: the prompt library |
+| 20:28 | `4b23ca3` | #533 | Backlog: three faults from family-hub; claim PEP 440 |
+| 20:37 | `24c70c2` | #534 | Record the owner's decisions of 4 October, and claim the answer-recording tool |
+| 20:43 | `5da838e` | #535 | Compare PyPI versions by PEP 440 in the advisory ranges |
+| 20:45 | `1c99394` | #536 | Claim the other two family-hub faults |
+| 20:55 | `7090598` | #537 | Read pylock.toml, and a fully hash-pinned requirements.txt, as Python lockfiles |
+| 21:05 | `45d4917` | #538 | Name the sv that made a report, and give the image its commit |
+| 21:07 | `a391ae3` | #540 | Claim the records owed, items 1 to 6 |
+| 21:33 | `44af910` | #542 | Claim the checks on the app's own sign-in tokens (running-app item 4) |
+| 21:33 | `117647c` | #541 | Write the records owed: ADR-021 to ADR-025, and a line in ADR-019 |
+| 21:33 | `44395d6` | #539 | Record the AI tool's answers through sv, always marked as its own |
+| 22:04 | `f0aca2f` | #543 | Claim SQL injection on the app's own reads |
+| 22:05 | `22e165e` | #544 | Check the sign-in token the app issues itself |
+| 22:23 | `fb1c625` | #545 | Ask the app's own reads for SQL injection |
+
+## Day 13 — 4 October, to 11:37: the deep review
+
+17 changes reached `main`, 09:08 to 11:37, all of them pull requests, out of 52 commits in all. This record
+stops at `157ddc3`, the merge of #564 at 11:37, which is the cut-off for every count in it.
+
+The first change of the day, `eff3f17` (#546), is the commit the cato-pipeline session's deep review read: six
+reviewers, 58 findings (1 critical, 26 high, 22 medium, and 9 low). They reached the backlog at 10:04 and 10:23
+(#553, #556). The one critical finding, S1, a backslash in a file name that let `sv bundle` read and zip files
+outside the app, was fixed at 10:16 (#555); S2 to S5 and S12 were claimed by 11:30, and the rest were open at the
+cut-off. The same morning the prompt library took shape: nine prompts tried and two shown to work (#549),
+prompts from the Secure by Design checklist (#559), and `sv prompts`, which gives them to the AI coding tool,
+each marked tested or not (#554). False alarms from one candidate set of Semgrep rules were measured over 25 apps
+in six languages (#561).
+
+| time | commit | pull request | change |
+|---|---|---|---|
+| 09:08 | `eff3f17` | #546 | Record the owner's decisions on the prompt library |
+| 09:21 | `791df5f` | #547 | Record why staticcheck and phpcs-security-audit were not added |
+| 09:24 | `8a59ad5` | #549 | Prompt library, first batch: nine tried, two shown to work |
+| 09:24 | `fe4b7a7` | #548 | Backlog: design-time prompts from the Secure by Design checklist |
+| 09:39 | `3c44931` | #550 | Keep the untested prompts in the library; claim sv prompts |
+| 09:42 | `04293c1` | #551 | Claim: research into C's false alarms, every language |
+| 09:52 | `ab53023` | #552 | Backlog: V9.1.3, a test key server and a code-reading rule |
+| 10:04 | `7fb8c9b` | #553 | Backlog: deep review part 1; claim S1 |
+| 10:16 | `47ec409` | #555 | Keep a backslash in a file name part of the name (deep review S1, critical) |
+| 10:18 | `9592bb2` | #557 | Claim S2: the fence and the bridge gateway |
+| 10:23 | `f62eb05` | #556 | Backlog: deep review parts 2 and 3 |
+| 10:38 | `6a7d8f2` | #559 | Design-time prompts from the Secure by Design checklist, tried |
+| 10:59 | `a610a09` | #560 | Claim deep review S3 to S5 |
+| 11:08 | `6456331` | #561 | Option C's false alarms, measured over 25 apps in six languages |
+| 11:19 | `84dcbd4` | #554 | sv prompts and securevibe_prompts: the prompt library, each marked tested or not |
+| 11:30 | `4960179` | #563 | Claim deep review S12 |
+| 11:37 | `157ddc3` | #564 | Claim: design-time prompts in sv prompts, and a second test brief |

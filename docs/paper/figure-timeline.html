@@ -70,14 +70,16 @@
 </head>
 <body>
 <div class="viz-root">
-  <h1>How the project unfolded, 16–27 September 2026</h1>
-  <p class="sub">Two versions over twelve days: v1, which builds an app from a fixed template and checks it, and
+  <h1>How the project unfolded, 16 September to 4 October 2026</h1>
+  <p class="sub">Two versions over nineteen days: v1, which builds an app from a fixed template and checks it, and
      <code>sv</code>, which checks an app written in any language by anyone. On 26 September <code>sv</code>
-     replaced v1 at the top of the repository. The detail is in <code>TIMELINE.md</code>.</p>
+     replaced v1 at the top of the repository. From 29 September a comparison study outside the repository used
+     <code>sv</code> on five AI-built apps, and on 4 October reviewed its code in depth. The detail is in
+     <code>TIMELINE.md</code>.</p>
 
   <div class="hero">
-    <div class="stat"><b>882</b><span>commits in the surviving record, 18–27 September</span></div>
-    <div class="stat"><b>226</b><span>pull requests reached <code>main</code>, from 23 September on</span></div>
+    <div class="stat"><b>1,784</b><span>commits in the surviving record, 18 September to 4 October</span></div>
+    <div class="stat"><b>528</b><span>pull requests reached <code>main</code> as changes of their own, from 23 September on; GitHub counts 548 merged into <code>main</code> in all</span></div>
     <div class="stat"><b>333</b><span>commits on 26 September alone, the busiest day</span></div>
     <div class="stat"><b>2</b><span>days before the record, lost to an iCloud eviction and reconstructed</span></div>
   </div>
@@ -86,13 +88,15 @@
     <span><span class="swatch" style="background:var(--v1)"></span>v1, the template builder</span>
     <span><span class="swatch" style="background:var(--sv)"></span><code>sv</code>, the any-language checker</span>
     <span><span class="swatch" style="background:var(--bar)"></span>commits per day, both together</span>
+    <span><span class="swatch" style="background:transparent;border:1.5px dashed var(--text-secondary);height:6px"></span>the comparison study, outside the repository</span>
   </div>
 
   <div class="chart" id="chart">
-    <svg viewBox="0 0 870 372" role="img" aria-labelledby="fig-title fig-desc">
-      <title id="fig-title">Project timeline, 16 to 27 September 2026</title>
-      <desc id="fig-desc">Two lanes, v1 from 16 to 26 September and sv from 22 to 27 September, with eight numbered
-        milestones explained in the table below, and a bar chart of commits per day beneath them.</desc>
+    <svg viewBox="0 0 980 412" role="img" aria-labelledby="fig-title fig-desc">
+      <title id="fig-title">Project timeline, 16 September to 4 October 2026</title>
+      <desc id="fig-desc">Three lanes, v1 from 16 to 26 September, sv from 22 September to 4 October, and the
+        comparison study from 29 September to 4 October, with twelve numbered milestones explained in the table
+        below, and a bar chart of commits per day beneath them.</desc>
       <defs>
         <pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
           <line x1="0" y1="0" x2="0" y2="6" stroke="var(--text-muted)" stroke-width="1.5"/>
@@ -115,6 +119,10 @@
       <tr><td><span class="mk" style="background:var(--sv)">6</span></td><td class="when">24 Sep 18:26</td><td><code>sv</code> reaches <code>main</code> in one pull request: the checks, the network fence, the corroborators, and the reports. From 23 September, changes arrive as pull requests from several sessions working in parallel.</td><td class="when">#35</td></tr>
       <tr><td><span class="mk" style="background:var(--sv)">7</span></td><td class="when">25 Sep</td><td><code>sv</code> is offered to AI coding tools over MCP, and starts asking a running app questions only a running app can answer. On 26 September a mail server, a test sign-in provider, a real browser, and a test model follow, all inside the fence.</td><td class="when">#65, #74</td></tr>
       <tr><td><span class="mk" style="background:var(--sv)">8</span></td><td class="when">26 Sep 21:22</td><td><code>sv</code> moves to the top of the repository and v1 moves to the <code>v1</code> branch, without rewriting history. v1 was tagged <code>v1-paper</code> (with a Zenodo DOI) and <code>v1-final</code> before the move.</td><td class="when">#224</td></tr>
+      <tr><td><span class="mk" style="background:var(--sv)">9</span></td><td class="when">27 Sep</td><td>The paper is written into the repository (the timeline, the Top 10 analyses, the self-assessment, the decision records), <code>sv</code> writes down its first decision records, and a review of <code>sv</code> adds thirteen items to the backlog, most fixed by midnight.</td><td class="when">#257–#300, #271, #315</td></tr>
+      <tr><td><span class="mk" style="background:var(--bar)">10</span></td><td class="when">29 Sep 18:33</td><td>The comparison study, run by another session on AI-built apps outside the repository, sends its first four issues with <code>sv</code>; all four are fixed eighteen minutes later. Then no commits for three days, 30 September to 2 October.</td><td class="when">#441, #443</td></tr>
+      <tr><td><span class="mk" style="background:var(--sv)">11</span></td><td class="when">3 Oct</td><td>Two reviews set the day: the MCP server is hardened and improved, and the checks of the running app are reviewed and extended. The app's own container now runs read-only, and five decision records owed since 30 September are written (ADR-021 to ADR-025).</td><td class="when">#471, #496, #541</td></tr>
+      <tr><td><span class="mk" style="background:var(--bar)">12</span></td><td class="when">4 Oct 10:04</td><td>The study's deep review of <code>sv</code> at <code>eff3f17</code>: 58 findings, one critical. The critical one, a file name that let <code>sv bundle</code> reach outside the app, is fixed at 10:16. The record stops at 11:37.</td><td class="when">#553, #555, <code>157ddc3</code></td></tr>
     </tbody>
   </table>
 
@@ -125,16 +133,19 @@
   </table>
 
   <p class="note">Commits are counted by the day they were committed, in Eastern time (the owner's), across all
-     branches that reached <code>main</code>, as of <code>c5ae4f9</code> at 10:52 on 27 September; that day is
+     branches that reached <code>main</code>, as of <code>157ddc3</code> at 11:37 on 4 October; that day is
      partial. 16 and 17 September have no surviving commits: their work is known from the ADRs and the first
-     session's transcript, not from the repository. Each of the 882 commits is listed in <code>TIMELINE.md</code>,
-     day by day, from the evening of 20 September as the changes that reached <code>main</code>.</p>
+     session's transcript, not from the repository. 30 September to 2 October have none either. The 1,784 commits
+     are listed in <code>TIMELINE.md</code>, day by day, from the evening of 20 September as the 569 changes that
+     reached <code>main</code>. The study's dates are from its own report and the pull requests it led to; its
+     work is not in this repository.</p>
 </div>
 
 <script>
 (() => {
-  // Commits per day, in Eastern time, at c5ae4f9. Recompute with:
-  // TZ=America/New_York git log --date=local --since="2026-09-DD 00:00" --until="2026-09-DD 23:59:59" --format=%h c5ae4f9 | wc -l
+  // Commits per day, in Eastern time, at 157ddc3. Recompute with:
+  // TZ=America/New_York git log --format=%cd --date=format-local:%m-%d 157ddc3 | sort | uniq -c
+  // Days run on from September: 31 is 1 October, 34 is 4 October.
   const days = [
     { d: 16, n: null, how: "Before the record: ADRs dated this day survive; no commits do." },
     { d: 17, n: null, how: "Before the record: the foundation, reconstructed from the first session's transcript." },
@@ -147,11 +158,20 @@
     { d: 24, n: 146, how: "37 pull requests. sv reaches main (#35)." },
     { d: 25, n: 184, how: "57 pull requests." },
     { d: 26, n: 333, how: "118 pull requests, 12 of them rebased. sv moves to the top (#224)." },
-    { d: 27, n: 27,  how: "To 10:52 only. 11 pull requests." },
+    { d: 27, n: 270, how: "89 pull requests. The paper, sv's first decision records, and a review of sv." },
+    { d: 28, n: 229, how: "83 pull requests. One file of checks split across sessions." },
+    { d: 29, n: 149, how: "48 pull requests. The comparison study's first issues, fixed the same evening." },
+    { d: 30, n: 0,   how: "No commits." },
+    { d: 31, n: 0,   how: "No commits. A new release of Rust's lint tool starts failing every branch." },
+    { d: 32, n: 0,   how: "No commits." },
+    { d: 33, n: 229, how: "76 pull requests, 5 of them rebased. The running-app review and the MCP server." },
+    { d: 34, n: 52,  how: "To 11:37 only. 17 pull requests. The deep review, and its critical finding fixed." },
   ];
-  const X0 = 130, W = 60, col = (day, hour = 0) => X0 + (day - 16) * W + (hour / 24) * W;
+  const X0 = 130, W = 44, col = (day, hour = 0) => X0 + (day - 16) * W + (hour / 24) * W;
   const NS = "http://www.w3.org/2000/svg";
   const plot = document.getElementById("plot");
+  const name = (d) => d <= 30 ? `${d} Sep` : `${d - 30} Oct`;
+  const BASE = 400;
   const el = (tag, attrs, text) => {
     const e = document.createElementNS(NS, tag);
     for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
@@ -161,10 +181,10 @@
 
   // Day columns and labels.
   days.forEach(({ d }) => {
-    el("line", { x1: col(d), y1: 30, x2: col(d), y2: 360, stroke: "var(--grid)", "stroke-width": 1 });
-    el("text", { x: col(d, 12), y: 20, "text-anchor": "middle", class: "day" }, `${d} Sep`);
+    el("line", { x1: col(d), y1: 30, x2: col(d), y2: BASE, stroke: "var(--grid)", "stroke-width": 1 });
+    el("text", { x: col(d, 12), y: 20, "text-anchor": "middle", class: "day" }, name(d));
   });
-  el("line", { x1: col(28), y1: 30, x2: col(28), y2: 360, stroke: "var(--grid)", "stroke-width": 1 });
+  el("line", { x1: col(35), y1: 30, x2: col(35), y2: BASE, stroke: "var(--grid)", "stroke-width": 1 });
 
   // Row: before the record.
   el("text", { x: 0, y: 52, class: "lane-sub" }, "before the record");
@@ -178,9 +198,14 @@
     el("rect", { x: from, y: y - 5, width: to - from, height: 10, rx: 4, fill: color });
   };
   lane(100, "var(--v1)", col(16), col(26, 21.37), "v1", "builds from a template");
-  lane(160, "var(--sv)", col(22, 21.97), col(27, 10.87), "sv", "checks any language");
+  lane(160, "var(--sv)", col(22, 21.97), col(34, 11.62), "sv", "checks any language");
   // sv carries on past the end of the record.
-  el("path", { d: `M${col(27, 10.87) + 4} 155 l10 5 l-10 5 z`, fill: "var(--sv)" });
+  el("path", { d: `M${col(34, 11.62) + 4} 155 l10 5 l-10 5 z`, fill: "var(--sv)" });
+  // The comparison study: outside the repository, 29 September to the deep review on 4 October.
+  el("text", { x: 0, y: 213, class: "lane" }, "study");
+  el("text", { x: 0, y: 228, class: "lane-sub" }, "outside the repository");
+  el("rect", { x: col(29), y: 203, width: col(34, 10.07) - col(29), height: 10, rx: 4, fill: "none",
+    stroke: "var(--text-secondary)", "stroke-width": 1.5, "stroke-dasharray": "4 3" });
   // The move: v1 ends, sv takes the top.
   el("path", { d: `M${col(26, 21.37)} 106 L${col(26, 21.37)} 150`, stroke: "var(--text-muted)",
     "stroke-width": 1.5, "stroke-dasharray": "3 3", fill: "none" });
@@ -192,6 +217,8 @@
     [3, 100, col(19, 23), "var(--v1)"],   [4, 100, col(20, 20.42), "var(--v1)"],
     [5, 160, col(22, 21.97), "var(--sv)"], [6, 160, col(24, 18.43), "var(--sv)"],
     [7, 160, col(25, 12), "var(--sv)"],   [8, 160, col(26, 21.37), "var(--sv)"],
+    [9, 160, col(27, 15), "var(--sv)"],    [10, 208, col(29, 18.55), "var(--bar)"],
+    [11, 160, col(33, 12), "var(--sv)"],   [12, 208, col(34, 10.07), "var(--bar)"],
   ];
   marks.forEach(([n, y, x, c]) => {
     el("circle", { cx: x, cy: y, r: 10, fill: c, stroke: "var(--surface-1)", "stroke-width": 2 });
@@ -199,15 +226,16 @@
   });
 
   // Commits per day.
-  const BASE = 360, H = 140, MAX = 333, BW = 34;
+  const H = 140, MAX = 333, BW = 26;
   el("text", { x: 0, y: BASE - H + 5, class: "lane" }, "commits");
   el("text", { x: 0, y: BASE - H + 20, class: "lane-sub" }, "per day");
-  el("line", { x1: X0, y1: BASE, x2: col(28), y2: BASE, stroke: "var(--text-muted)", "stroke-width": 1 });
+  el("line", { x1: X0, y1: BASE, x2: col(35), y2: BASE, stroke: "var(--text-muted)", "stroke-width": 1 });
   const tip = document.getElementById("tip"), chart = document.getElementById("chart");
   days.forEach(({ d, n, how }) => {
     const cx = col(d, 12), g = document.createElementNS(NS, "g");
     g.setAttribute("class", "hit"); g.setAttribute("tabindex", "0");
-    const label = n == null ? `${d} September: no surviving commits. ${how}` : `${d} September: ${n} commits. ${how}`;
+    const full = d <= 30 ? `${d} September` : `${d - 30} October`;
+    const label = n == null ? `${full}: no surviving commits. ${how}` : `${full}: ${n} commits. ${how}`;
     g.setAttribute("aria-label", label);
     plot.appendChild(g);
     const add = (tag, attrs, text) => { const e = el(tag, attrs, text); g.appendChild(e); return e; };
@@ -238,7 +266,7 @@
   const tbody = document.getElementById("daytable");
   days.forEach(({ d, n, how }) => {
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td class="when">${d} Sep</td><td class="n">${n == null ? "—" : n}</td><td></td>`;
+    tr.innerHTML = `<td class="when">${name(d)}</td><td class="n">${n == null ? "—" : n}</td><td></td>`;
     tr.lastChild.textContent = how;
     tbody.appendChild(tr);
   });

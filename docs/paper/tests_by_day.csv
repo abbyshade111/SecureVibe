@@ -15,4 +15,10 @@ date,version,tests_level,tests_level_measure,tests_level_first_parent,tests_adde
 2026-09-26,v1,1223,"v1 it()/test() calls in *.test.ts, static",,4,164dfd6,,,2,0,0,2,2,0,229,49
 2026-09-26,sv,1132,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1126,445,19572c7,e4054fe,,17,2,1,15,15,2,36231,10732
 2026-09-27,sv,1306,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1306,174,400bdae,400bdae,,17,4,2,13,13,4,13829,3697
-2026-09-28,sv,1341,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1341,35,273ba01,273ba01,,6,3,3,3,3,3,12200,1418
+2026-09-28,sv,1417,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1417,111,70dba73,70dba73,,24,7,7,17,19,5,11379,2612
+2026-09-29,sv,1491,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1491,74,34ca633,34ca633,,12,2,1,10,10,2,6217,156
+2026-09-30,sv,1491,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1491,0,34ca633,34ca633,,0,0,0,0,0,0,0,0
+2026-10-01,sv,1491,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1491,0,34ca633,34ca633,,0,0,0,0,0,0,0,0
+2026-10-02,sv,1491,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1491,0,34ca633,34ca633,,0,0,0,0,0,0,0,0
+2026-10-03,sv,1645,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1645,154,fb1c625,fb1c625,,19,0,0,19,18,1,15115,797
+2026-10-04,sv,1655,"#[test] lines at the last commit that day (any branch merged into main, by commit date)",1655,10,157ddc3,157ddc3,,57,0,0,57,57,0,787,207

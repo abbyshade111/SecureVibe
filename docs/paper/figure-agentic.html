@@ -59,13 +59,14 @@
   <h1>The project against the OWASP Top 10 for Agentic Applications</h1>
   <p class="sub">SecureVibe is agentic three times over: v1's own AI agents, <code>sv</code> driven by an AI coding
      tool over MCP, and a project built by several AI sessions at once. <code>sv</code> also checks the AI features of
-     other apps. The list defines its risks in words, not CWEs, so every placement is a judgment. The full account,
-     with a source for every mark, is <code>AGENTIC.md</code>.</p>
+     other apps. The list defines its risks in words, not CWEs, so every placement is a judgment. 16 September to
+     4 October 2026, to <code>main</code> at <code>157ddc3</code>. The full account, with a source for every mark, is
+     <code>AGENTIC.md</code>.</p>
 
   <div class="hero">
-    <div class="stat"><b>16</b><span>incidents: things that went wrong, from all three lenses</span></div>
-    <div class="stat"><b>8 of 16</b><span>fall under ASI09 (trust) and ASI07 (agents not hearing each other); no attack is recorded</span></div>
-    <div class="stat"><b>15 · 7</b><span>defenses built in, and checks <code>sv</code> makes of other apps' AI features</span></div>
+    <div class="stat"><b>24</b><span>incidents to 4 October, things that went wrong, from all three lenses (16 of them to 27 September); no attack is recorded</span></div>
+    <div class="stat"><b style="color:var(--sv)">13</b><span>recorded and left open at the cut-off, 10 of them from the deep review of <code>sv</code> on 4 October; 7 are in its MCP server</span></div>
+    <div class="stat"><b>21 · 25</b><span>defenses built in, and checks <code>sv</code> makes of other apps' AI features (15 and 7 to 27 September)</span></div>
   </div>
 
   <div class="legend">
@@ -92,9 +93,11 @@
   </div>
 
   <h2 style="font-size:1rem;margin:26px 0 6px"><code>sv</code> (v2) checking itself: how it is built with AI tools</h2>
-  <p class="sub" style="margin-bottom:8px">The 21 AISVS Appendix C requirements that applied when <code>sv</code> was run on its own code, by
-     what happens to each (<code>SELF-ASSESSMENT-V2.md</code>). It could not ask about itself as an MCP server, the
-     surface of its one tool-misuse incident: the manifest has no way to say so.</p>
+  <p class="sub" style="margin-bottom:8px">The 21 AISVS Appendix C requirements that applied when <code>sv</code> was run on its own code on
+     27 September, by what happens to each (<code>SELF-ASSESSMENT-V2.md</code>). It could not ask about itself as an
+     MCP server, the surface of its tool-misuse incidents: the manifest had no way to say so. A field for it was added
+     that night (#318). Re-run on 4 October, the Appendix C split was unchanged, and 6 AISVS requirements about serving
+     tools over MCP now apply (<code>SELF-ASSESSMENT-V2.md</code>).</p>
   <div class="marks" id="appc" role="img" aria-label="2 checked automatically, 13 handed to the AI tool as rules, 1 left to the owner, 5 reached by nothing." style="gap:5px;margin-bottom:6px"></div>
   <div class="legend" style="margin-bottom:0">
     <span><span class="m chk" style="background:var(--sv)"></span> checked automatically: CI hardening (2)</span>
@@ -103,23 +106,26 @@
     <span><span class="m chk" style="background:var(--grid)"></span> reached by nothing (5)</span>
   </div>
   <p class="note">Sources: <code>AGENTIC.md</code> for every mark. The list and its descriptions are from the OWASP GenAI
-     Security Project's announcement of 9 December 2025, read 27 September 2026. No session is recorded doing something
-     it was not asked to do, or hiding what it did, so ASI10 has defenses and a check but no incident. The absence of
-     an incident is not proof of safety: the defenses under ASI03, ASI04, and ASI10 were never tested by an attack.</p>
+     Security Project's announcement of 9 December 2025, read 27 September 2026. From 27 September the sources are git,
+     the pull requests, <code>docs/BACKLOG.md</code> at the cut-off, and the deep review of <code>sv</code> at
+     <code>eff3f17</code> (4 October); the sessions' transcripts from then on are not on this machine. "Left open" means
+     recorded and not fixed at the cut-off, a few hours after the deep review arrived. No session is recorded doing
+     something it was not asked to do, or hiding what it did, so ASI10 has defenses and checks but no incident. The
+     absence of an incident is not proof of safety: the defenses under ASI04 and ASI10 were never tested by an attack.</p>
 </div>
 <script>
   // [code, name, v1 {inc, ctl}, sv {inc, ctl, open}, checks, dev {inc, ctl}]
   const rows = [
-    ["ASI01", "Agent Goal Hijack",                   {inc: 1, ctl: 2}, {},                      3, {}],
-    ["ASI02", "Tool Misuse",                         {ctl: 1},         {inc: 1},                2, {}],
-    ["ASI03", "Identity & Privilege Abuse",          {ctl: 1},         {},                      0, {ctl: 1}],
-    ["ASI04", "Agentic Supply Chain",                {ctl: 1},         {ctl: 1},                0, {}],
-    ["ASI05", "Unexpected Code Execution",           {ctl: 2},         {inc: 2},                0, {}],
-    ["ASI06", "Memory & Context Poisoning",          {},               {inc: 1},                0, {}],
-    ["ASI07", "Insecure Inter-Agent Communication",  {},               {},                      0, {inc: 4, ctl: 1}],
-    ["ASI08", "Cascading Failures",                  {inc: 1, ctl: 1}, {inc: 1},                1, {inc: 1}],
-    ["ASI09", "Human-Agent Trust Exploitation",      {inc: 1, ctl: 1}, {inc: 2, ctl: 1, open: 1}, 0, {inc: 1, ctl: 1}],
-    ["ASI10", "Rogue Agents",                        {ctl: 1},         {},                      1, {}],
+    ["ASI01", "Agent Goal Hijack",                   {inc: 1, ctl: 2}, {inc: 1, open: 1},           4, {}],
+    ["ASI02", "Tool Misuse",                         {ctl: 1},         {inc: 3, ctl: 1, open: 3},   5, {}],
+    ["ASI03", "Identity & Privilege Abuse",          {ctl: 1},         {inc: 1, open: 1},           5, {ctl: 1}],
+    ["ASI04", "Agentic Supply Chain",                {ctl: 1},         {ctl: 1},                    4, {}],
+    ["ASI05", "Unexpected Code Execution",           {ctl: 2},         {inc: 3, open: 1},           0, {}],
+    ["ASI06", "Memory & Context Poisoning",          {},               {inc: 2, open: 1},           0, {}],
+    ["ASI07", "Insecure Inter-Agent Communication",  {},               {},                          0, {inc: 6, ctl: 2}],
+    ["ASI08", "Cascading Failures",                  {inc: 1, ctl: 1}, {inc: 1, ctl: 1, open: 2},   3, {inc: 1}],
+    ["ASI09", "Human-Agent Trust Exploitation",      {inc: 1, ctl: 1}, {inc: 2, ctl: 3, open: 4},   2, {inc: 1, ctl: 2}],
+    ["ASI10", "Rogue Agents",                        {ctl: 1},         {},                          2, {}],
   ];
   const cell = (o, color, checks = 0) => {
     const td = document.createElement("td"); const box = document.createElement("div"); box.className = "marks";

@@ -58,21 +58,23 @@
 <div class="viz-root">
   <h1>Each version checking itself</h1>
   <p class="sub">What each version's own checks flagged when pointed at its own code, and how a person triaged every
-     finding. Most of both was noise, from the same kind of cause: v1's rules assumed an app built from v1's own
-     template, and <code>sv</code> reads its own test code as the product.</p>
+     finding. Most of it was noise, from the same kind of cause: v1's rules assumed an app built from v1's own
+     template, and <code>sv</code> reads its own test code as the product. By 4 October <code>sv</code> listed most of
+     that test code apart, but its tests had grown by more than half.</p>
 
   <div class="legend">
     <span><span class="sw" style="background:var(--empty)"></span>false alarm</span>
     <span><span class="sw" style="background:var(--v1)"></span><span class="sw" style="background:var(--sv)"></span>accepted, by design</span>
-    <span><span class="sw" style="background:var(--open)"></span>left open</span>
+    <span><span class="sw" style="background:var(--open)"></span>left open (real ones included)</span>
   </div>
-  <div class="rows" id="rows" role="img" aria-label="v1 checking itself: 195 findings, 160 false alarms, 21 accepted, 14 left open, 2 real. sv checking itself: 252 findings, 191 false alarms, 61 accepted, 0 left open, none real."></div>
+  <div class="rows" id="rows" role="img" aria-label="v1 checking itself: 195 findings, 160 false alarms, 21 accepted, 14 left open, 2 real. sv checking itself on 27 September: 252 findings, 191 false alarms, 61 accepted, 0 left open, none found real then, 4 shown real on 4 October. sv checking itself on 4 October: 479 findings, 413 false alarms, 60 accepted, 6 left open, all 6 real."></div>
 
   <div class="tablewrap"><table>
     <thead><tr><th></th><th>Findings</th><th>False alarms</th><th>Accepted, by design</th><th>Left open</th><th>Real</th></tr></thead>
     <tbody>
       <tr><td>v1, 20 September</td><td class="n">195</td><td class="n">160 (82%)</td><td class="n">21</td><td class="n">14</td><td>2, fixed that evening</td></tr>
-      <tr><td><code>sv</code>, 27 September, product code</td><td class="n">252</td><td class="n">191 (76%)</td><td class="n">61</td><td class="n">0</td><td>none</td></tr>
+      <tr><td><code>sv</code>, 27 September, product code</td><td class="n">252</td><td class="n">191 (76%)</td><td class="n">61</td><td class="n">0</td><td>none found then; 4 of the accepted shown real on 4 October</td></tr>
+      <tr><td><code>sv</code>, 4 October, product code</td><td class="n">479</td><td class="n">413 (86%)</td><td class="n">60</td><td class="n">6</td><td>6, all known from the deep review and open at the cut-off</td></tr>
     </tbody>
   </table></div>
 
@@ -81,15 +83,22 @@
      with every finding's verdict and reason in <code>triage.json</code> beside it. v1's 14 left open were its 2 real
      findings (links drawn from data, fixed in <code>9dc8140</code>), 3 install scripts allowed in dependencies, 1 slow
      regular expression, 7 missing documentation, and 1 false alarm from a rate limiter (also <code>9dc8140</code>).
-     Run on its whole repository, tests and fixtures included, <code>sv</code> flagged 804. The full account is
-     <code>SELF-ASSESSMENT-V2.md</code>, and <code>TOP10.md</code> maps both runs to the OWASP Top 10.</p>
+     The 4 October run is <code>sv</code> at <code>84dcbd4</code> (the published image) on the source at
+     <code>157ddc3</code>, the cut-off; its reports and <code>triage.json</code> are in
+     <code>docs/paper/self-assessment-v2/2026-10-04/product-only/</code>. semgrep did not run then (it gave 19 of
+     27 September's findings), and 404 of its 413 false alarms are test code that <code>sv</code> now lists apart, so the
+     first list a reader sees has 75 findings. Its 6 real findings are deep review items S3, S4, S6, and S12; <code>sv</code>
+     flagged the lines of S3, S4, and S6 on 27 September too, and they were accepted then. Run on its whole repository,
+     tests and fixtures included, <code>sv</code> flagged 804 on 27 September and 1,162 on 4 October. The full account is
+     <code>SELF-ASSESSMENT-V2.md</code>, and <code>TOP10.md</code> maps v1's run and <code>sv</code>'s of 27 September to the OWASP Top 10.</p>
 </div>
 <script>
   const rows = [
     ["v1 checking itself", "20 September, 195 findings", [160, 21, 14], "var(--v1)", "2 real, fixed that evening"],
-    ["sv checking itself", "27 September, product code, 252 findings", [191, 61, 0], "var(--sv)", "none real"],
+    ["sv checking itself", "27 September, product code, 252 findings", [191, 61, 0], "var(--sv)", "none found real then; 4 later"],
+    ["sv checking itself", "4 October, product code, 479 findings", [413, 60, 6], "var(--sv)", "6 real, open at the cut-off"],
   ];
-  const MAX = 252;
+  const MAX = 479;
   const host = document.getElementById("rows");
   const draw = () => {
     host.innerHTML = "";

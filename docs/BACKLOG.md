@@ -17,6 +17,10 @@ another session is not a claim.
   `findings.csv`) is a fixed record and stays as it is.
   **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
   `claude/paper-refresh`. Other sessions: please leave `docs/paper/` to it until this entry says done.
+  **Done the same day**, in branch `claude/paper-refresh`, to `main` at `157ddc3` (11:37 Eastern): every analysis,
+  CSV, and figure recomputed to that cut-off; `STUDY.md` and `REVIEW.md` added with their figures and CSVs; `sv`'s
+  self-assessment repeated on the cut-off's source (`self-assessment-v2/2026-10-04/`); and the documents checked
+  against each other. `ARTIFACTS.md` lists what is where.
 
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**

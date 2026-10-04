@@ -47,3 +47,31 @@ n,date,time_eastern,version,direction,found_by,before,after,why,source
 46,2026-09-27,15:20,sv,down,reading the output,V15.1.2 credited for an unreadable lockfile,not assessed,the SBOM read nothing,10598b8; dc761916; aa992585
 47,2026-09-27,16:33,sv,down,a failing test,a sign-in that quietly failed could credit the signed-in guard,credits nothing,a failed setup is not a pass,d1ef678a
 48,2026-09-27,20:27,sv,down,reading the output,15 percent faster,2.86 s to 2.73 s,measured against a two-day-old binary,f340c97
+49,2026-09-28,10:02,sv,down,running the tool on real input,a Python app's packages compared against an export holding only crates.io records,not compared for Python,28 crates.io records that mention a PyPI package were taken as coverage of PyPI,6a75b74; #339
+50,2026-09-28,13:02,sv,down,another session's review,sv audit left out vulnerabilities in folders marked not-the-app,"listed apart, and counted","a line in securevibe.toml, which the AI tool writes, must not hide a vulnerability",51c6d71; #344
+51,2026-09-28,13:06,sv,down,running the tool on real input,examples/flask-booking: 39 known vulnerabilities,"20, each named by every id it goes by",one vulnerability published under two names was counted twice,8da9f27; #345
+52,2026-09-28,16:23,sv,down,another session's review,a fine-tuning call to an AI vendor read as consistent with 'no training',a contradiction with the manifest,the check knew the frameworks but not the vendors' own calls,7c0858f6; #379
+53,2026-09-28,18:20,sv,down,building another check,C9.5.4 credited by a clean credential scan (the Anthropic key rule),only ever found failing,a key in a file says nothing about what the model sees,405df97; #401
+54,2026-09-28,18:23,sv,wording,a failing test,the app 'never answered on its health path',the container backend could not see the app's folder,Colima shares only the home folder,c0d5e2c; #402
+55,2026-09-28,19:39,sv,down,another project using sv,"no lockfile, no Python packages, advisories partly compared (requirements.lock beside pyproject.toml)",the lockfile is read,the lockfile was not on the list for pyproject.toml,8340359; #408
+56,2026-09-28,19:39,sv,down,building another check,"a package with a platform condition compared, and matching no advisory",compared by its version alone,the condition stayed stuck to the version,8340359; #408
+57,2026-09-28,20:25,sv,down,building another check,"every package compared, nothing found, with a second lockfile unread",withheld; sv audit exits 2 and names the file,the file not read may be the one installed from,4caafaa; #410
+58,2026-09-28,20:26,sv,down,another project using sv,V8.2.1 'refused to somebody not signed in' when a rate limiter answered 429,not assessed,the app's own check never ran,ed5d770; #412
+59,2026-09-28,21:02,sv,down,another project using sv,'curl ... | python3 -c <program>' reported high,not reported,the interpreter does not run what it is sent,b7d6dba; #414
+60,2026-09-28,21:32,sv,down,building another check,Medium 'missing headers' on a rate limiter's 429 page,not judged,"the page was the limiter's, not the app's",8b4b6b8; #416
+61,2026-09-28,21:32,sv,down,building another check,'source control not exposed' credited from two 429s,not credited,a limiter's answer says nothing about the file,8b4b6b8; #416
+62,2026-09-28,22:44,sv,down,building another check,29 passes could be credited when the request crashed (500 or no answer),"not assessed, naming the request",a crash is not a refusal,7c3a10e; #418
+63,2026-09-28,23:44,sv,down,building another check,five findings raised when a request crashed,"not assessed, naming the request",a crash is not a refusal,3c09ba9; #420
+64,2026-09-29,11:38,sv,down,another project using sv,paramiko 5.0.0 reported as vulnerable,not affected,last_affected was ignored,1c8f375; #423
+65,2026-09-29,16:27,sv,down,building another check,V15.3.1 counted as checkable by a clean run,only ever as a finding,the check never credits,ed78ab9; #430
+66,2026-09-29,17:01,sv,down,another project using sv,'$OTHER_VAR' reported as a HIGH hard-coded credential,not reported,a reference holds no credential,da62308; #433
+67,2026-09-29,18:26,sv,down,another project using sv,"a HIGH credential finding in sv init's own template, on every app",not reported,{new_password} is sv's own blank,aae29c5; #443
+68,2026-09-29,18:27,sv,wording,another project using sv,Semgrep and CodeQL 'installed and would not start',not installed,under emulation a missing program exits 127,2470142; #443
+69,2026-09-29,18:31,sv,up,another project using sv,'this folder is not a git repository' for an app in a subfolder of one,checked against the repository's history,the .git was looked for only in the app's own folder,135a7fc; #443
+70,2026-09-29,21:55,sv,down,another session's review,ADR-019: the only writable place is a small in-memory folder,"true of the helpers, not of the app's own container (made true on 3 October)",the app's container was not run read-only,e7e727b; #464; 1fe4622 #496
+71,2026-10-03,10:20,sv,down,another session's review,coverage: 18 requirements checkable by a clean run,only ever as a finding,the 21 checks that speak to them never credit,4f14d86; #486
+72,2026-10-03,12:08,sv,down,another session's review,security headers and cookie attributes credited from the health path alone,every page fetched is judged,a small JSON status reply is not what a browser shows,5ed3393; #494
+73,2026-10-03,14:18,sv,up,building another check,requests over about 96 KB: the app 'did not answer',"sent, and answered",the request was too long for one command-line argument,d583b94; #514
+74,2026-10-03,20:25,sv,up,another project using sv,werkzeug 3.1.9 could not be compared with three advisories,compared: not affected,"PyPI versions follow PEP 440, not semver",55feb1e; #535
+75,2026-10-03,20:39,sv,down,another project using sv,"no lockfile, packages at the version asked for, list incomplete (hash-pinned requirements.txt, pylock.toml)","locked, and the list complete",neither was read as a lockfile,1866e40; #537
+76,2026-10-03,20:39,sv,down,building another check,a hashed requirements.txt disagreed with its lockfile on every line,they agree,a continued line's backslash was read as part of the version,1866e40; #537

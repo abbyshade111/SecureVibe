@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Five Apps Compared</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --other: #a3a29b; --hot: #d03b3b; --v1: #2a78d6; --sv: #eb6834; --learn: #184f95; --empty: #d6d5cf;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --other: #77766f; --hot: #e05252;
+      --v1: #3987e5; --sv: #d95926; --learn: #86b6ef; --empty: #4a4944;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f; --other: #77766f; --hot: #e05252;
+    --v1: #3987e5; --sv: #d95926; --learn: #86b6ef; --empty: #4a4944;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 1000px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 24px 0 4px; }
+  .sub, .lede { color: var(--text-secondary); margin: 0 0 14px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 12px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 170px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 4px 0 6px; }
+  .sw { width: 14px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .chart { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 600px; height: auto; font-family: inherit; }
+  svg text { fill: var(--text-secondary); font-size: 12px; }
+  svg .muted { fill: var(--text-muted); font-size: 11px; }
+  svg .ink { fill: var(--text-primary); font-size: 12px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+  .grid2 svg { min-width: 0; }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .82rem; min-width: 640px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; vertical-align: bottom; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Five AI-built apps under one <code>sv</code></h1>
+  <p class="sub">Each app scanned the same way: <code>sv</code> 982f97e with Bandit, offline, a pinned advisory
+     snapshot, <code>sv</code>'s blank manifest, and the app never started. Every finding is put in one class by where it
+     is. Run 11 of the study's pipeline, 3 October 2026. The full account is <code>STUDY.md</code>.</p>
+
+  <div class="hero">
+    <div class="stat"><b>62 <span style="font-size:1rem;color:var(--text-muted)">of 422</span></b><span>findings were in the apps' own code; the rest were in tests (210), copied-in libraries (142), and dependencies (8)</span></div>
+    <div class="stat"><b style="color:var(--hot)">13</b><span>high findings in own code, none critical; nine of them in family-hub, eight that its owner had reviewed as false alarms</span></div>
+    <div class="stat"><b>87–97%</b><span>of the requirements that apply were verified by nothing, for every app, under a blank manifest</span></div>
+  </div>
+
+  <h2>1. Where the findings are</h2>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--sv)"></span>own code</span>
+    <span><span class="sw" style="background:var(--v1)"></span>tests</span>
+    <span><span class="sw" style="background:var(--other)"></span>vendored code</span>
+    <span><span class="sw" style="background:var(--learn)"></span>dependencies</span>
+  </div>
+  <div class="chart"><svg id="classes" viewBox="0 0 960 190" role="img" aria-label="Findings by class. Fitness Tracker 6: own 4, dependencies 2. Pain in the Butt 157: own 10, tests 145, dependencies 2. SecureFit 20: own 16, tests 2, dependencies 2. my-first-app 19: own 8, tests 11. family-hub 220: own 24, tests 52, vendored 142, dependencies 2."></svg></div>
+
+  <div class="grid2">
+    <div>
+      <h2>2. Own-code findings per 1,000 lines</h2>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--hot)"></span>high</span>
+        <span><span class="sw" style="background:var(--sv)"></span>medium</span>
+        <span><span class="sw" style="background:var(--other)"></span>low</span>
+      </div>
+      <div class="chart"><svg id="rates" viewBox="0 0 460 200" role="img" aria-label="Own-code findings per 1,000 lines: Fitness Tracker 1.84 (high 0.92), Pain in the Butt 7.29 (high 0), SecureFit 2.29 (high 0.29), my-first-app 6.75 (high 0), family-hub 7.56 (high 2.84)."></svg></div>
+    </div>
+    <div>
+      <h2>3. What the requirements came to</h2>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--hot)"></span>need attention</span>
+        <span><span class="sw" style="background:var(--learn)"></span>checked</span>
+        <span><span class="sw" style="background:var(--v1)"></span>answered in writing</span>
+        <span><span class="sw" style="background:var(--empty)"></span>not verified</span>
+      </div>
+      <div class="chart"><svg id="reqs" viewBox="0 0 460 200" role="img" aria-label="Requirements that apply: Fitness Tracker 196 (182 not verified), Pain in the Butt 185 (171), SecureFit 254 (247), my-first-app 207 (182), family-hub 217 (188)."></svg></div>
+    </div>
+  </div>
+
+  <h2>4. family-hub as built: a newer <code>sv</code>, then the owner's own answers</h2>
+  <p class="lede">A is the study's run. B is <code>sv</code> 45b6d71, 298 commits later, with the same blank manifest. C is
+     45b6d71 with family-hub's own manifest and its owner's 25 reviews.</p>
+  <div class="chart"><svg id="asbuilt" viewBox="0 0 960 150" role="img" aria-label="family-hub. High findings in own code: A 9, B 9, C 1. Requirements that could not be placed: A 236, B 236, C 15. Findings in the app: A 220, B 220, C 202."></svg></div>
+
+  <div class="wrap">
+    <table>
+      <thead><tr><th></th><th>Fitness Tracker</th><th>Pain in the Butt</th><th>SecureFit</th><th>my-first-app</th><th>family-hub</th></tr></thead>
+      <tbody id="tab"></tbody>
+    </table>
+  </div>
+
+  <p class="note">Sources: <code>study.csv</code>, recomputed with the study's own <code>compare.py</code> from run 11's
+     raw reports (<code>~/code/sv-study/results/run-11/</code>) and the as-built reports
+     (<code>results/as-built-2026-10-03/</code>). Severity is critical / high / medium / low; there were no critical
+     findings. "Answered in writing" is what the app's <code>security-notes.md</code> answers (family-hub 17, and for
+     my-first-app 12 answered by its AI tool). Findings in the study's own manifest, one per app, are left out.
+     Dependency coverage was complete only for my-first-app. The ten <code>sv</code> faults the study raised are all fixed
+     on <code>main</code> at <code>157ddc3</code>.</p>
+</div>
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const mk = (svg, tag, a, text) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(a)) e.setAttribute(k, v); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+  const apps = ["Fitness Tracker", "Pain in the Butt", "SecureFit", "my-first-app", "family-hub"];
+  // [own, tests, vendored, dependencies]
+  const cls = [[4, 0, 0, 2], [10, 145, 0, 2], [16, 2, 0, 2], [8, 11, 0, 0], [24, 52, 142, 2]];
+  const C = ["var(--sv)", "var(--v1)", "var(--other)", "var(--learn)"];
+  const s1 = document.getElementById("classes"), L = 130, W = 680, H = 26, G = 9, MAX = 220;
+  cls.forEach((r, i) => {
+    const y = 10 + i * (H + G); let x = L;
+    mk(s1, "text", { x: L - 10, y: y + H / 2 + 4, "text-anchor": "end", class: "ink" }, apps[i]);
+    r.forEach((n, j) => { if (!n) return; const w = n / MAX * W; mk(s1, "rect", { x, y, width: Math.max(1.5, w - 1), height: H, rx: 2, fill: C[j] }); x += w; });
+    const t = r.reduce((a, b) => a + b, 0);
+    mk(s1, "text", { x: x + 8, y: y + H / 2 + 4, class: "ink" }, `${t}`);
+    mk(s1, "text", { x: x + 8 + String(t).length * 8 + 6, y: y + H / 2 + 4, class: "muted" }, `own ${r[0]}`);
+  });
+
+  // own-code rate per 1,000 lines: [high, medium, low] as counts, and own-code lines
+  const sev = [[2, 1, 1], [0, 7, 3], [2, 14, 0], [0, 8, 0], [9, 6, 9]], lines = [2169, 1371, 6973, 1185, 3173];
+  const short = ["Fitness", "Pain", "SecureFit", "my-first", "family-hub"];
+  const s2 = document.getElementById("rates"), B = 165, TOP = 20, M = 8, step = 420 / 5, cx = (i) => 30 + step * (i + 0.5), BW = 40;
+  mk(s2, "line", { x1: 20, x2: 450, y1: B, y2: B, stroke: "var(--text-muted)" });
+  sev.forEach((r, i) => {
+    let y = B; const SC = (B - TOP) / M;
+    r.forEach((n, j) => { if (!n) return; const v = 1000 * n / lines[i], h = v * SC; mk(s2, "rect", { x: cx(i) - BW / 2, y: y - h + 1, width: BW, height: Math.max(1, h - 1.5), rx: 2, fill: ["var(--hot)", "var(--sv)", "var(--other)"][j] }); y -= h; });
+    const tot = 1000 * r.reduce((a, b) => a + b, 0) / lines[i];
+    mk(s2, "text", { x: cx(i), y: y - 6, "text-anchor": "middle", class: "ink" }, tot.toFixed(2));
+    mk(s2, "text", { x: cx(i), y: B + 16, "text-anchor": "middle", class: "muted" }, short[i]);
+    mk(s2, "text", { x: cx(i), y: B + 30, "text-anchor": "middle", class: "muted" }, `${lines[i].toLocaleString("en-US")} lines`);
+  });
+
+  // requirements that apply: [need attention, checked, answered in writing, not verified]
+  const req = [[5, 9, 0, 182], [5, 9, 0, 171], [6, 1, 0, 247], [3, 10, 12, 182], [10, 2, 17, 188]];
+  const undec = [257, 258, 188, 230, 236];
+  const s3 = document.getElementById("reqs"), RL = 76, RW = 300, RH = 22, RG = 12, RM = 260;
+  req.forEach((r, i) => {
+    const y = 6 + i * (RH + RG); let x = RL;
+    mk(s3, "text", { x: RL - 8, y: y + RH / 2 + 4, "text-anchor": "end", class: "ink" }, short[i]);
+    r.forEach((n, j) => { if (!n) return; const w = n / RM * RW; mk(s3, "rect", { x, y, width: Math.max(1.5, w - 1), height: RH, rx: 2, fill: ["var(--hot)", "var(--learn)", "var(--v1)", "var(--empty)"][j] }); x += w; });
+    const t = r.reduce((a, b) => a + b, 0);
+    mk(s3, "text", { x: x + 6, y: y + RH / 2 + 4, class: "ink" }, `${(100 * r[3] / t).toFixed(0)}%`);
+  });
+  mk(s3, "text", { x: RL, y: 6 + 5 * (RH + RG) + 6, class: "muted" }, "Bar: requirements that apply. Label: share not verified.");
+
+  // family-hub A, B, C
+  const s4 = document.getElementById("asbuilt");
+  const groups = [
+    ["High findings in own code", [9, 9, 1], 10, "var(--hot)"],
+    ["Requirements not placed", [236, 236, 15], 260, "var(--other)"],
+    ["Findings in the app", [220, 220, 202], 260, "var(--sv)"],
+  ];
+  const gw = 300;
+  groups.forEach(([label, vals, max, col], g) => {
+    const x0 = 20 + g * (gw + 15);
+    mk(s4, "text", { x: x0, y: 14, class: "ink" }, label);
+    vals.forEach((v, k) => {
+      const y = 26 + k * 38, w = v / max * (gw - 70);
+      mk(s4, "text", { x: x0, y: y + 17, class: "muted" }, "ABC"[k]);
+      mk(s4, "rect", { x: x0 + 16, y, width: Math.max(2, w), height: 24, rx: 2, fill: col, opacity: k === 2 ? 1 : 0.55 });
+      mk(s4, "text", { x: x0 + 22 + Math.max(2, w), y: y + 17, class: "ink" }, String(v));
+    });
+  });
+
+  const rows = [
+    ["Findings in the app", [6, 157, 20, 19, 220]],
+    ["… in own code", [4, 10, 16, 8, 24]],
+    ["Own code: high / medium / low", ["2 / 1 / 1", "0 / 7 / 3", "2 / 14 / 0", "0 / 8 / 0", "9 / 6 / 9"]],
+    ["Own-code findings per 1,000 lines", ["1.84", "7.29", "2.29", "6.75", "7.56"]],
+    ["… high only", ["0.92", "0", "0.29", "0", "2.84"]],
+    ["Dependency coverage", ["partly", "partly", "partly", "complete", "partly"]],
+    ["Requirements that apply", [196, 185, 254, 207, 217]],
+    ["… not verified", ["182 (92.9%)", "171 (92.4%)", "247 (97.2%)", "182 (87.9%)", "188 (86.6%)"]],
+    ["Could not be placed", undec],
+    ["Own-code source lines", lines.map((n) => n.toLocaleString("en-US"))],
+    ["Functions over complexity 10", [3, 6, 26, 2, 4]],
+    ["Duplicated lines", ["0.7%", "1.3%", "3.9%", "0%", "2.5%"]],
+    ["Top 10 categories in own code", ["A01 2, A05 1", "A05 5, A01 2, A06 2", "A01 13, A07 2, A06 1", "A01 8", "A05 11, A07 7, A01 6"]],
+    ["AI-code issues overall, per 1,000 lines", ["8.76", "10.94", "13.05", "29.54", "10.40"]],
+    ["Formatting off the app's own style", ["8.2%", "3.6%", "9.1%", "1.3%", "4.6%"]],
+  ];
+  const tb = document.getElementById("tab");
+  rows.forEach(([label, vals]) => { const tr = document.createElement("tr"); const th = document.createElement("td"); th.textContent = label; tr.appendChild(th); vals.forEach((v) => { const td = document.createElement("td"); td.textContent = String(v); tr.appendChild(td); }); tb.appendChild(tr); });
+})();
+</script>
+</body>
+</html>
