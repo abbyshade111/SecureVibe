@@ -319,6 +319,12 @@ another session is not a claim.
     lookup in a dictionary of fixed queries), which is the same fault. Not in this claim, and still open: that
     entry's items 2 and 3 (a path from the app's own database, a destination already checked) and the redirect half
     of the family-hub item 7, which need a judgment about the app's own functions.
+    **Done the same day** (DESIGN, "Names that stand for fixed text"): a per-file list of names the file binds once
+    to fixed text, ALL_CAPS names bound once at the top of the module, and tables of fixed text, consulted wherever
+    a rule asks whether an argument is fixed, in Python, JavaScript, TypeScript, and Go; Go's `...Context` calls
+    judged on their query; a query that is only a name, with values beside it, reported low with the reason; and a
+    redirect to a path opening with one slash and an ordinary character not reported. Twenty-four new witnesses and
+    two tests; eleven guards broken in turn, each caught (the spread's only on a second, stronger mutation).
   - **A2. Medium, Read.** Review fingerprints collide on identical lines, and survive a change to the line that
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
@@ -624,6 +630,8 @@ another session is not a claim.
      `sql = SORT_ORDERS.get(key, SORT_ORDERS["newest"])`, a dictionary of fixed queries, and the values passed as
      parameters. Neither joins text. Witnesses needed both ways: a constant and a lookup in a constant dictionary
      stay quiet; a constant joined with a request value still fires.
+     **Done on 4 October 2026 with A1** (DESIGN, "Names that stand for fixed text"): both are quiet, and the
+     constant joined with a request value still fires.
   2. **`ast.file-path-from-value` (V5.3.2) on a path built from the app's own database.**
      `send_file(os.path.join(UPLOAD_DIR, row["id"]), ...)`, where `row` came from a query on the signed-in user's
      attachments and the id was made by the app (`uuid4().hex`) when the file was saved. Telling a database value
