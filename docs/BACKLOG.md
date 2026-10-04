@@ -486,6 +486,8 @@ another session is not a claim.
      a sentence, and quote pairing; nine guards broken in turn, each caught, one only after a control was added.
      Found: with `--tools`, Bandit's B105 on the same line now wins the merge and the sentence note is lost (not
      changed; it is the merge's rule for all findings). The redirect half is A1's, untouched.
+     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+     `claude/build-item-7-sentence-credential`: the Bandit merge follow-up above.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
