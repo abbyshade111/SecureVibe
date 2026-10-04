@@ -624,7 +624,7 @@ pub fn check(app_dir: &Path) -> WorkflowReport {
             None if !privileged.is_empty() => report.not_assessed.push((
                 FORK_CODE.into(),
                 format!(
-                    "{} {} started by {}, and `sv` found no step bringing in a pull request's code. \
+                    "{} {} started by one of {}, and `sv` found no step bringing in a pull request's code. \
                      That is not the same as none: a workflow can also run what it downloads from \
                      the pull request's own run, or a commit it looks up itself, which `sv` does \
                      not follow.",

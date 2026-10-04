@@ -125,6 +125,12 @@ another session is not a claim.
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-comment-triggers`.
+    **Done the same day, in part** (DESIGN, "Workflows a comment can start"): `issue_comment` and
+    `discussion_comment` are privileged triggers now, so the comment bot that checks out the pull request with the
+    secrets is found, not credited. Not added: the dispatch events, which only somebody with write access or a token
+    can start; and `pull_request_review_comment` and `pull_request_review`, **still open**: whether GitHub gives them
+    the secrets for a pull request from a fork could not be checked, since GitHub's documentation was not reachable
+    from the session. Three guards broken in turn, each caught.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
