@@ -166,10 +166,160 @@ and check the result with `sv` as you would anything else.
 
 *Not tested:* Both were credited on the build with the prompt, and on both builds without it: the tool already showed a plain message when the assistant failed and kept answering.
 
-## Still to write
+## Not tried yet, and no check can show them
 
-The checklist suggests more design-time prompts that no check in `sv` can show working: a design brief written as
-`securevibe.toml` before any code, when to bring in a person, a list of the app's data, everything the app talks to,
-safe defaults, a one-page "what we do if…" plan, which rules might apply, and what to re-read before changing a
-design. They are listed in docs/BACKLOG.md, "Design-time prompts from the Secure by Design checklist", items 8 to 15.
-A plan for keys (SBD-AC-05) is the library's own [secrets prompt](../PROMPTS.md#keep-keys-and-passwords-out-of-the-code).
+These come from the checklist's other suggestions. Each asks for a decision only a person can make, written down
+before the code, and none of them can be shown working by a check in `sv`, so each is marked **not tried** and
+names no ASVS requirement. Where a Secure by Design control's own statement fits, it is named; two draw on the
+checklist's escalation triggers and principles, which are not controls, and name none. What they ask for goes
+under the security notes' own headings where one fits, and otherwise into `design-decisions.md`, which `sv` does
+not read: a heading of your own in `security-notes.md` would be read as part of the answer above it. A plan for keys
+(SBD-AC-05) is the library's own [secrets prompt](../PROMPTS.md#keep-keys-and-passwords-out-of-the-code).
+
+In an AI coding tool connected to `sv mcp`, every design-time prompt on this page can also be chosen from the
+server's prompts, where the tool shows them (for example as a slash command); `sv prompts` prints them at a terminal.
+
+### Write the design brief before any code
+
+> Before you write any code, write the design brief with me, as securevibe.toml.
+>
+> 1. Run `sv init` (or ask SecureVibe for its spec) and fill in securevibe.toml for the app as it will be,
+>    not as it is now: there is no code yet. Ask me each question you cannot answer from what I have
+>    told you: what the app is for, who will use it (just me, my team, customers, or the public),
+>    whether it faces the internet, how people sign in, what it keeps about people, whether it takes
+>    payments, whether it uses an AI service, and whether it fetches web addresses or accepts uploads.
+> 2. If I am not sure whether the app will have something, write true: a capability planned and never
+>    built costs a requirement that did not need meeting, and one left out is how a real requirement
+>    gets switched off.
+> 3. Ask me for the limits now, and write them under [policy]: how many wrong passwords in a row, how
+>    many records one person may create in a minute, how long a session may sit unused, and the
+>    longest it may last. Suggest sensible numbers if I am not sure.
+> 4. Read the brief back to me in plain words, and change it until I agree with it.
+> 5. Plan the tests the app will need: for each requirement the brief makes apply that a test could
+>    show, a test whose name carries the requirement's id (such as `test_V8_2_1_...`).
+>
+> Do not start on the code until I have agreed the brief. When I later ask for something the brief
+> does not have, update securevibe.toml first.
+
+*Helps you answer:* Secure by Design MT-03. *Not tried:* No check in sv shows this prompt working. securevibe.toml is checked against the code once there is code, and a claim the code contradicts is reported, but that checks the file, not whether it was written first.
+
+### Say when the app needs a person's review
+
+> Before we build, tell me plainly whether this app needs a person's security review as well as
+> SecureVibe's checks. Say yes, and why, if any of these is true:
+>
+> - it keeps sensitive or regulated data: health, money, children's data, government ids, or
+>   anything people would be harmed by if it leaked;
+> - it puts something on the internet that was not there before, such as a new site, a public
+>   API, or a page anyone can reach;
+> - it uses a technology or a way of building that neither of us has used before;
+> - people would be badly hurt if it failed or went down.
+>
+> If any is true, recommend that I ask someone who knows security to look at the design before it
+> goes live, and write down which of these applied and what you recommended in design-decisions.md,
+> under "When to bring in a person". Do not add headings to security-notes.md for this. Do not decide
+> for me that the review can be skipped.
+
+*Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, and the checklist's escalation triggers it draws on are not controls, so it names none. sv does not read design-decisions.md.
+
+### List the app's data, and keep only what it needs
+
+> Before you create any database table or form, list with me every kind of data the app will keep
+> about people: for example names, email addresses, passwords, messages, health details, payment
+> details, or files they upload. For each one, write down:
+>
+> - how sensitive it is (public, private, or sensitive: would someone be harmed if it leaked?);
+> - why the app needs it, and whether it could do without it;
+> - how long it is kept, and what happens when someone deletes their account;
+> - how it is protected: who can see it, and whether it is encrypted where it is stored.
+>
+> Leave out anything the app does not need. Write the list in security-notes.md, under "How each kind
+> of sensitive data is protected", and write the categories into securevibe.toml under [data]. Then
+> build the app to match the list: if I later ask for something that keeps a new kind of data, add it
+> to the list first.
+
+*Helps you answer:* Secure by Design DM-01, DM-05. *Not tried:* No check in sv shows this prompt working. The notes section it fills is read as the person's or the AI tool's word, at its tier, never as a check.
+
+### Draw everything the app talks to
+
+> Before you write code that connects to anything, list with me everything the app will talk to:
+> the browser, the app's server, its database, any AI service, payment provider, email service, other
+> websites, and anything else. For each connection, write down:
+>
+> - what is sent across it, and in which direction;
+> - whether it crosses the internet, and that it uses HTTPS (or another encrypted connection) when it
+>   does;
+> - what the app checks about what comes back before it uses it: anything from outside the server,
+>   including what an AI service answers, is treated as untrusted until checked;
+> - which keys or passwords it needs, and that they come from the environment, never the code.
+>
+> Write the list in security-notes.md, under "Everything the app talks to". If something I ask for
+> later adds a connection, add it to the list first.
+
+*Helps you answer:* Secure by Design AS-01, AC-01. *Not tried:* No check in sv shows this prompt working. The notes section it fills is read at its writer's tier, never as a check; AS-01 is about trust zones in a larger system and is answered here only scaled down to one app.
+
+### Start closed, with as few moving parts as possible
+
+> Before we build, and again before the app goes live, list with me every feature, page, API
+> address, setting, and debug switch the app has, and for each one ask: does the app need it?
+>
+> - Remove what it does not need, rather than hiding it.
+> - Make every default the safe one: new accounts get the least they need, new pages need sign-in
+>   unless they are meant to be public, uploads and sharing start off, and debug mode and detailed
+>   error pages are off outside my own computer.
+> - Prefer one well-known way of doing a thing over several, and a well-known library over code
+>   written for this app.
+>
+> Write the list, and what was removed or turned off, in design-decisions.md, under "Safe defaults".
+> Do not add headings to security-notes.md for this.
+
+*Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, though its debug-mode, cross-site access, and header checks reach parts of it. It draws on the checklist's principles rather than one control, so it names none. sv does not read design-decisions.md.
+
+### Write "what we do if..." on one page
+
+> Before the app goes live, write a one-page plan with me for when something goes wrong, for a
+> person running the app on their own. In plain steps:
+>
+> - how to take the app offline quickly, and how to bring it back;
+> - what to do if a key or password leaks: which keys the app has, where each one is changed, and
+>   what has to be restarted afterwards;
+> - what to do if someone else's data may have been seen: what to look at in the logs, what to keep
+>   as evidence, and how and when to tell the people affected;
+> - who to ask for help, and how to reach them.
+>
+> Write it in design-decisions.md, under "What we do if something goes wrong", and remind me once
+> a year to read it again. Do not add headings to security-notes.md for this.
+
+*Helps you answer:* Secure by Design MT-06. *Not tried:* No check in sv shows this prompt working; whether a plan exists, is right, and has been rehearsed is for a person to answer. sv does not read design-decisions.md.
+
+### Flag the rules that might apply
+
+> Before we build, tell me in plain words whether any laws or industry rules might apply to this
+> app, from what it keeps and who uses it. For example:
+>
+> - children's data (such as COPPA in the US, or the GDPR's rules for children in Europe);
+> - health information (such as HIPAA in the US);
+> - card payments (PCI DSS: usually best avoided by letting a payment provider take the card
+>   details, so the app never sees them);
+> - personal data of people in Europe or California (the GDPR, the CCPA).
+>
+> You are not giving legal advice, and say so: for each one that might apply, say why, what it would
+> usually mean for the design, and that I should check with someone qualified. Write what you found
+> in design-decisions.md, under "Rules that might apply". Do not add headings to security-notes.md
+> for this.
+
+*Helps you answer:* Secure by Design AC-06. *Not tried:* No check in sv shows this prompt working; which rules apply is a question for a person, and a qualified one. sv does not read design-decisions.md.
+
+### Before changing the design, re-read what was decided
+
+> Whenever I ask for a new feature, or a change to how something works, before you write the code:
+>
+> 1. Re-read securevibe.toml, security-notes.md, and design-decisions.md.
+> 2. Tell me which of the decisions written there the change touches: who may do what, the limits,
+>    the data kept, what the app talks to, how sign-in works, what is logged.
+> 3. Update those first, with me, and only then change the code.
+> 4. If the change goes against a decision, say so plainly and ask me before going ahead.
+>
+> After the change, run SecureVibe's check again.
+
+*Helps you answer:* Secure by Design MT-05. *Not tried:* No check in sv shows this prompt working. A claim in securevibe.toml that the code contradicts is reported, but whether the decisions were re-read before the change is not something sv can see.
