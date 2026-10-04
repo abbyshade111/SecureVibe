@@ -7,6 +7,9 @@ when the build with it passed its check and the build without it failed. The res
 **not tested**, with what happened: they are worth using, but a prompt that has not been shown to change anything
 should not be trusted as if it had.
 
+`sv prompts` prints the same prompts at a terminal (`sv prompts --requirement V1.2.4` for those aimed at one
+requirement), and an AI coding tool connected to `sv mcp` can fetch them with `securevibe_prompts`.
+
 The prompts are written in this project's own words. Some were inspired by the Cloud Security Alliance's
 [Secure Vibe Coding Guide](https://cloudsecurityalliance.org/blog/2025/04/09/secure-vibe-coding-guide)
 (K. Huang, 9 April 2025); none of its text is copied. The same prompts, with the checks behind them, are in
