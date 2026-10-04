@@ -287,6 +287,11 @@ another session is not a claim.
     "data" / ...)`. Seven of family-hub's eight SQL findings were false alarms. Fix: a shared helper that treats
     ALL_CAPS module constants and names bound once to a literal as literals; bound parameters lower the confidence;
     each sink's argument position; a path starting `/` and then not `/` cannot leave the site.
+    **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch `claude/a1-constants`,
+    for those four fixes, with item 1 of "Three false alarms on code that does the safe thing" (`SCHEMA`, and a
+    lookup in a dictionary of fixed queries), which is the same fault. Not in this claim, and still open: that
+    entry's items 2 and 3 (a path from the app's own database, a destination already checked) and the redirect half
+    of the family-hub item 7, which need a judgment about the app's own functions.
   - **A2. Medium, Read.** Review fingerprints collide on identical lines, and survive a change to the line that
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
