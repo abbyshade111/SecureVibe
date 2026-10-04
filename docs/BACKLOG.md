@@ -25,6 +25,8 @@ another session is not a claim.
      `1.0.post1`, which do not parse, so an advisory whose range starts at `2.0.0rc1` goes unanswered. family-hub's
      werkzeug 3.1.9 was left "could not be compared" for three of them. Compare PyPI versions by PEP 440 (epoch,
      release, pre, post, dev, local ignored), and keep semver for the other ecosystems.
+     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
+     session, in branch `claude/securevibe-e9-pep440`.
   3. **A report does not say which `sv` made it, and the published image does not know its commit.** `report.json`
      has no version or commit, and `sv --version` in the published image prints "commit unknown", because
      `SV_GIT_COMMIT` is not set when the image is built. Write `"sv": {"version", "commit"}` into `report.json` and
