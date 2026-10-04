@@ -1,0 +1,36 @@
+manifest-version = 1
+
+[app]
+name = "Club evenings"
+description = "Members keep private notes, book the one seat at the club evening, and ask an assistant questions. Admins post announcements."
+audience = "customers"
+deployment = "internet"
+
+[stack]
+languages = ["python"]
+
+[stack.run]
+image = "python:3.12-slim"
+start = "python app.py"
+health = "/"
+
+[stack.run.users]
+seed = "python seed.py"
+login = { path = "/login", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
+logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
+private = ["/account"]
+admin = ["/admin"]
+admin-actions = [{ path = "/announcements", form = { text = "{marker}", csrf_token = "{csrf}" }, check = "/" }]
+owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } } }
+once = { path = "/book", form = { csrf_token = "{csrf}" }, completed = "Booked" }
+
+[stack.run.ai]
+chat = { path = "/ask", form = { question = "{prompt}", csrf_token = "{csrf}" } }
+signed-in = true
+
+[data]
+categories = ["contact"]
+
+[capabilities]
+auth = true
+ai = { enabled = true }
