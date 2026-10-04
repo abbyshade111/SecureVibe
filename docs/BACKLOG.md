@@ -74,6 +74,11 @@ another session is not a claim.
   - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
     reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
     gets; until then drop findings on linked files and mark the run partial.
+    **The same `{dir}` brings in folders `sv` leaves out** (added on 4 October 2026 by the cato-pipeline session,
+    usability analysis for `docs/paper`): in family-hub on 3 October, 139 of Bandit's findings (145 in the last
+    report of the day) were in `vendor/`, Flask's own code, which `sv`'s reading and Semgrep's file list both leave
+    out (`SKIP_DIRS`, `crates/sv-scan/src/ecosystems.rs` line 573; `data/adapters.json` line 26). Bandit's rules
+    are Bandit's; handing it the folder is `sv`'s choice. S7's fix, `sv`'s own file list, takes these out too.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
@@ -162,6 +167,12 @@ another session is not a claim.
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
+    **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
+    for `docs/paper`): the one file was a Finder `.DS_Store`. The report's gap says only "1 file not read while
+    looking for credentials" (`crates/sv-cli/src/main.rs`, lines 3344 to 3356), without the name or the reason, so
+    the AI tool searched for large files and then ran `sv check` to learn it was `.DS_Store — not a text file`. A
+    fix could name the files and why in the report, and say plainly when a file is one that holds no text a
+    person writes, such as `.DS_Store`, so nobody chases it.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
@@ -224,6 +235,121 @@ another session is not a claim.
     `--`; MCP path confinement, size caps, and batch refusal; helper containers' hardening; `sv probe`'s cap and
     TLS; the CVSS v3 arithmetic, alias grouping, withdrawn records, and version ordering; linear-time regular
     expressions.
+
+- **What the owner hit building family-hub (3 October 2026) and my-first-app (4 October 2026), never reported.**
+  Found on 4 October 2026 by the cato-pipeline session while updating `docs/paper` (the usability analysis,
+  `figure-usability.html`), from the two builds' transcripts on the owner's Mac. Each item says what happened, the
+  cause in `sv` at `main` 6d4ce3f, and how it was confirmed: *Reproduced* (run here), *Read* (from the code), or
+  *Plausible*. Items already in this backlog got a dated note on their entry instead: the "install `sv`" step
+  (under "Packaging `sv`"), the build folder `sv` cannot leave (the walk-through's item 2), Bandit reading
+  `vendor/` (S7), the Django rule and a regular-expression rule (the measured false-alarm entry), the
+  `.DS_Store` gap (H22). The SQL false alarms are A1's, and the 7 of 25 reviews a newer `sv` did not recognize
+  are R3's. **Each item can be claimed on its own.**
+  1. **The starter file's example start command listens where `sv` cannot reach it.** family-hub, 3 October: the
+     first `sv report --run` waited 60 seconds and said "The app started but never answered on its health path
+     within 60s. Its last output was: WARNING: This is a development server...". The AI tool had followed the
+     starter file's own example, `start = ""  # e.g. "uvicorn app:app --host 127.0.0.1 --port $PORT"`
+     (`crates/sv-manifest/src/spec.rs`, line 25). Inside its container, an app that listens on 127.0.0.1 answers
+     only itself, and `sv` asks from a second container on the fenced network (`crates/sv-run/src/docker.rs`, line
+     8). The AI tool found this by reading `sv`'s source, changed the command to `--host 0.0.0.0`, and the next run
+     worked. The message (`crates/sv-run/src/lib.rs`, lines 81 to 94) gives no hint; it already has a special case
+     for a read-only file system. *Read*, and the transcript. Fix: the example says `--host 0.0.0.0`, with a comment
+     on why; the "never answered" message says that an app listening on 127.0.0.1 or `localhost` cannot be reached;
+     and `sv` could warn before waiting when the start command itself names 127.0.0.1 or `localhost`.
+  2. **Two runs at once write the same report folder, and the one that finishes last wins, even when it failed.**
+     family-hub, 3 October: the AI tool and the owner each ran `sv report --run --tools` on the app, at about the
+     same time. The AI tool's run succeeded at 14:55 (Eastern); the owner's finished two minutes later with the
+     "never answered" failure and replaced the good report with the failed one. The AI tool guessed the owner's run
+     had started before it fixed the start command (item 1); the transcript does not show when it started, so why
+     it failed is not established. `sv report` writes to `<app>/securevibe-report` unless told otherwise
+     (`crates/sv-cli/src/main.rs`, line 3962) and replaces each file (`write_report_files`, line 2400, called at
+     3982), with nothing to say another run holds the folder or that a newer report is there. *Read*, and the
+     transcript. Related: S6 and S10 (two runs at once share tool reports and container names). Fix: a lock in the
+     report folder while a run is writing it (refuse, saying which run holds it), and record in `report.json` when
+     the run started and a hash of the `securevibe.toml` it read, so a report older than the one it replaces says
+     so rather than replacing it quietly.
+  3. **The real-browser checks cannot sign in to an app whose cookies use the `__Host-` prefix, so the AI tool
+     weakened the app's cookies for the run.** family-hub, 3 October: the browser checks (V7.4.4, V3.2.2, V14.3.1)
+     said "the private pages did not open in the browser with the first user's cookies, though they opened for the
+     plain requests, so the browser was not really signed in". family-hub names its cookies `__Host-fh_session` and
+     the like, marked `Secure`. The browser driver hands each cookie to the browser by name and value only, with no
+     `secure` (`crates/sv-run/assets/browser-driver.mjs`, lines 78 to 79 and 192 to 193; `browser.rs`, line 287),
+     and does not look at the browser's answer. A browser refuses a `__Host-` cookie that is not `Secure`.
+     *Reproduced* on Chrome 154 on this Mac (headless, through the same DevTools call): `__Host-fh_session` set as
+     the driver sets it was refused ("Sanitizing cookie failed"); with `secure: true` it was kept on
+     `http://localhost`; a plain name was kept either way. Not tried on the Chromium in `sv`'s browser image. The AI
+     tool's own explanation, that the browser drops `Secure` cookies over plain HTTP, is not what the code shows:
+     the browser reaches the app at `http://localhost`, which browsers treat as secure (`docker.rs`, line 386). Its
+     workaround was `FAMILY_HUB_INSECURE_COOKIES=1` in `sv`'s start command, which also drops the prefix: the
+     browser checks then passed, against a copy of the app whose cookies are weaker than the real one. Fix: carry
+     each cookie's attributes from the sign-in answer (at least `Secure`, and `Secure` for any `__Host-` or
+     `__Secure-` name), check the browser's answer to each cookie, and when one is refused say that, by name.
+  4. **The log checks need the test account's email address in the log, and an app that keeps personal data out of
+     its log cannot be checked.** family-hub, 3 October: V16.3.1, V16.3.2, V16.2.1, V16.2.2, and V16.2.4 were not
+     assessed ("Neither sign-in was named in the app's output", and "no such line was found"). The owner's
+     decisions, in `security-notes.md`, were never to log email addresses (V16.1.1) and to strip what follows `?`
+     from logged addresses (V14.1.2). `sv` finds its sign-ins in the log by the test account's email
+     (`crates/sv-check/src/signed_in/signin.rs`, lines 388 and 395 to 401), and its refused request by a marker
+     after `?` (lines 404 to 416); `crates/sv-check/src/logs.rs` (lines 137 and 162) then reports not assessed.
+     The app logged JSON lines with a user id and an event name, which `sv` cannot tie to its test account. The
+     not-assessed message names a log file or a service as the likely reason, not privacy. Note that `sv`'s own
+     design prompt 6 ("never passwords or personal data") asks for exactly the log that blinds this check. *Read*,
+     and the transcript. Fix: plant markers an app may log without personal data (a marker in the path's last part
+     rather than after `?`, a `User-Agent` or request-id header), and say in the message that an app keeping emails
+     and query strings out of its log ends up here.
+  5. **The admin checks sign the admin in with a password alone, so they say nothing about an app that requires an
+     authenticator for admins.** family-hub, 3 October: the owner asked for an authenticator code to be required for
+     admins. The AI tool warned beforehand that the seeded admin "has no authenticator app, because `sv` signs it in
+     with a password alone", and the run reported V8.2.1 and V8.3.1 as not assessed: "The admin account did not open
+     /family either, so the ordinary user being refused says nothing: the page may not be where securevibe.toml
+     says" (`crates/sv-check/src/signed_in/admin.rs`, lines 50 to 57). The page was where the file said. `sign_in`
+     sends only the `login` form (`crates/sv-check/src/signed_in/mod.rs`, lines 578 to 627); the `totp` step is
+     used only for one extra account made for the two-factor checks (`SV_USER_TOTP`; `spec.rs`, lines 129 to 133).
+     `sv`'s design prompt 7 recommends "two-factor sign-in for admins". *Read*, and the transcript. Fix: give the
+     seeded admin a secret too when `totp` is set (`SV_ADMIN_TOTP_SECRET`) and finish its sign-in with the code; and
+     when the admin's sign-in ends on the `totp` path, or any page other than the private one, say that rather than
+     suggest the page is in the wrong place.
+  6. **A test-name warning that says it does not take the credit away does take it away.** family-hub, 3 October:
+     V6.3.3 and V2.3.2, each backed by passing tests and by the owner's own check by hand, and V8.3.1, backed by the
+     owner's answer, read "needs attention" because of `tests.name-does-not-match-requirement`: a test named for the
+     requirement shares no words with it. That finding is information, low confidence, and its own text says "about
+     a third of these are honest tests written in different words, which is why this does not take the credit away"
+     (`crates/sv-check/src/suite.rs`, lines 456 to 489). But any finding at all makes a requirement "needs
+     attention" (`crates/sv-report/src/lib.rs`, lines 1032 to 1033). *Read*, and the transcript. The AI tool
+     proposed recording the three as false alarms rather than renaming tests to suit the word match, and the owner
+     signed them, seven test-name entries in all, with the rest. That made it worse: a requirement with a finding set
+     aside as a false alarm can never be "checked" by another check (`lib.rs`, lines 1027 to 1036), so in the last
+     report of the day V10.5.2 and V10.1.2, each with a passing test named for it, read "not verified", and V6.3.3
+     and V2.3.2 rested on the owner's word by hand rather than on their tests. Following the warning's own advice
+     cost the credit it says it leaves alone. *Read*, and family-hub's `report.json` of 3 October. Fix: show this
+     finding (and any information-only one) beside the credit rather than over it, and let a person's "these do
+     match" on it leave the test's credit standing; or, if it is meant to override, say so in its text.
+  7. **Two false alarms of `sv`'s own rules, one of which ended with working code removed.** family-hub,
+     3 October. (The third kind the owner met, SQL "built by joining text" from fixed text, is A1.)
+     - `secrets.credential-assignment` rated an error message high: `WRONG_PASSWORD = "Your current password isn't
+       right."` in `familyhub/views/account.py`, with the advice to "change the credential". The rule takes any
+       name containing `password` assigned 8 to 200 characters of quoted text with enough variety of characters
+       (`crates/sv-check/src/secrets.rs`, lines 211 to 241 and 326 to 357), and a sentence passes that test.
+     - `ast.open-redirect` flagged `redirect(destination)` in `familyhub/signin.py`, where `destination` was a
+       parameter that every caller filled with `url_for("home.index")`. The finding said "possible" and to read the
+       code first; the AI tool still offered to remove the parameter "which ... clears the finding", and the owner
+       agreed. The removal was harmless here, but it is code changed to quiet a rule. The "Three false alarms on
+       code that does the safe thing" entry's item 3 is the checked-destination form of the same rule.
+     *Reproduced* both, on a three-file scratch app with `sv check` built at 3f1f2b5 (the family-hub build); the
+     credential and redirect rules are unchanged between 3f1f2b5 and 6d4ce3f. Fix: for the credential rule, leave
+     out a value with spaces between ordinary words that ends in a period or question mark, or at least rate it
+     low with "this reads like a sentence"; for the redirect rule, when the value is a parameter, look at the
+     function's callers in the same app and stay quiet when every one passes the app's own route.
+  8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
+     3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
+     (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
+     them. The AI tool reproduced the app's answers and concluded the run had reused a session from before the
+     wait. The code agrees: A's main session is made first (`crates/sv-check/src/signed_in/mod.rs`, line 1156); the
+     timeout checks then wait with sessions of their own (lines 1211 to 1223, whose comment says "nothing below is
+     using them"); and every step after, from the owned records (line 1228) to the browser and the admin checks,
+     uses A's main session, which sat idle through the whole wait. *Read*, and the transcript. Fix: sign A in
+     again after the wait (or run the waiting checks last), and test it with the fake app's idle limit shorter than
+     the wait.
 
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
@@ -2923,6 +3049,16 @@ another session is not a claim.
      could live. A downloadable `sv` needs its data either compiled in (`include_str!`, as
      `atlas-references.json` and `breached-password-evidence.json` already are) or found beside the
      binary.
+     **A new form of it, in my-first-app on 28 September and 4 October 2026** (added on 4 October 2026 by the
+     cato-pipeline session, usability analysis for `docs/paper`, from the build's transcript). The owner's PATH line
+     and the app's `.mcp.json` both pointed at `sv` inside a build folder (`…/sv-tool-main/target/release/sv`). That
+     folder was later removed (the transcript does not say by whom), so on 28 September `which sv` printed "sv not
+     found", and on 4 October the AI tool's MCP connection to `sv` failed at startup. The AI tool found another build
+     on the Desktop, and the owner edited `~/.zshrc` by hand again and had the tool edit `.mcp.json`,
+     which only takes effect in a new session. Compiling the data in would not have helped here: the program itself
+     went with its folder. What helps is an install that does not live in a folder somebody works in. Still the case
+     on `main` at 6d4ce3f (`crates/sv-cli/src/main.rs`, lines 264 to 350 and others, read data through
+     `CARGO_MANIFEST_DIR`).
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
@@ -3070,6 +3206,18 @@ another session is not a claim.
   cannot be verified, which somebody who is not technical will not get past. Notarizing needs an Apple
   developer account. Homebrew is the usual way command-line tools are installed without that warning
   — believed rather than checked, and it asks the owner to use Homebrew.
+
+  **Met again on 3 October 2026, in family-hub** (added on 4 October 2026 by the cato-pipeline session, usability
+  analysis for `docs/paper`, from the build's transcript). The owner connected `sv` over MCP from the published
+  image, as the guide says, and ran `sv report --run --tools` at a terminal: `zsh: command not found: sv`. The MCP
+  result had told the AI tool that `--run` needs `sv` "installed on the computer itself rather than this container
+  ... (docs/GETTING-STARTED.md says how to install it)" (`crates/sv-cli/src/mcp.rs`, `terminal_command`, lines
+  120 to 125). The guide does not say how: its section 6 says that install "is not yet something this guide can
+  make easy" (`docs/GETTING-STARTED.md`, lines 187 to 189). The AI tool found the steps in the README instead, and
+  the owner cloned the repository and built `sv` from source with `cargo build`, which worked only because Rust was
+  already on the Mac. So the first build's "install Rust" is still step one for `--run`. Until the download exists,
+  the message should not point at a guide that does not answer it: either the guide gets the build steps, or the
+  message gives them. Still the case on `main` at 6d4ce3f.
 
   **Thoughts.**
 
@@ -4818,6 +4966,23 @@ another session is not a claim.
   faults over the golden apps and the examples; what `sv` knows that semgrep does not (a value from
   the app's own settings, a test file, a template that escapes by default, a file `sv` writes); and
   whether findings only the added rules make should be shown apart, as "worth a look".
+
+  **Two instances from the owner's own builds, added on 4 October 2026 by the cato-pipeline session** (usability
+  analysis for `docs/paper`), from the transcripts. Both are with today's packs, not option C.
+  - *family-hub, 3 October (Flask, Python).* Semgrep's `django-no-csrf-token` rule gave about 50 medium findings
+    (43 in the last report of the day) on Flask templates that do carry a token, through `{{ csrf_field() }}`, which
+    the rule does not know. Each cites V3.5.1, so V3.5.1 reads "needs attention" though `sv`'s own running-app
+    check (`probe.cross-site-request-accepted`) checked it on the same run. `sqlalchemy-execute-raw-query` did the
+    same on plain `sqlite3` calls. The rule is Semgrep's; what `sv` controls is that it runs a Django rule on an app
+    whose packages show Flask and no Django, shows it at medium, and lets it outweigh its own check. This is the
+    measured cost above (gating Django rules by framework lost 6 true findings in the corpus), seen from the other
+    side: an app where every one of them was false.
+  - *my-first-app, 4 October (Express).* `detect-non-literal-regexp` fired on `src/refresh/verify.js:71`, a regular
+    expression built from a price whose dots and commas the code had already escaped. The AI tool rewrote the
+    working price matching without a regular expression, "which cleared the last code warning", without asking.
+    The finding cites V1.3.12, which is above that app's target level; `sv` still listed it among the findings at
+    medium, and the AI tool treated it like any other. The rule is Semgrep's; what `sv` shows, and at what
+    weight, for a requirement the app is not held to is `sv`'s. This is follow-up 5's rule.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
