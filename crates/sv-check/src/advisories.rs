@@ -243,11 +243,78 @@ fn compare_prerelease(a: &str, b: &str) -> std::cmp::Ordering {
 /// `compare`, in the way the ecosystem's own installer orders versions: PEP 440 for PyPI, which writes a
 /// pre-release with no separator (`2.0.0rc1`), and semver for the rest.
 fn compare_in(ecosystem: &str, a: &str, b: &str) -> Option<std::cmp::Ordering> {
-    if ecosystem == "PyPI" {
-        Some(pep440_key(a)?.cmp(&pep440_key(b)?))
-    } else {
-        compare(a, b)
+    match ecosystem {
+        "PyPI" => Some(pep440_key(a)?.cmp(&pep440_key(b)?)),
+        "RubyGems" => compare_gem(a, b),
+        _ => compare(a, b),
     }
+}
+
+/// One part of a RubyGems version: a number, or letters, which mark a pre-release.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum GemSegment {
+    Number(u64),
+    Letters(String),
+}
+
+/// Compares two versions the way RubyGems does (`Gem::Version#<=>`), not as semver: `1.0.0.rc1` is a
+/// pre-release of `1.0.0`, `1.0` equals `1.0.0`, and a `-` is read as `.pre.`. `None` for a string
+/// that is not a RubyGems version, such as one still carrying a platform (`1.15.4-x86_64-linux`
+/// would read as a pre-release); the lockfile reader takes the platform off first.
+fn compare_gem(a: &str, b: &str) -> Option<std::cmp::Ordering> {
+    use std::cmp::Ordering;
+    static GEM_VERSION: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^[0-9]+(?:\.[0-9a-zA-Z]+)*(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$")
+            .expect("the RubyGems pattern is valid")
+    });
+    static SEGMENT: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new("[0-9]+|[a-zA-Z]+").expect("the segment pattern is valid"));
+    // `Gem::Version#canonical_segments`: the numbers before the first letters and the parts from
+    // there on, each without its trailing zeros.
+    fn segments(version: &str) -> Option<Vec<GemSegment>> {
+        let version = version.trim();
+        if !GEM_VERSION.is_match(version) {
+            return None;
+        }
+        let version = version.replace('-', ".pre.");
+        let all: Vec<GemSegment> = SEGMENT
+            .find_iter(&version)
+            .map(|m| match m.as_str().parse::<u64>() {
+                Ok(n) => Some(GemSegment::Number(n)),
+                Err(_) if m.as_str().bytes().all(|b| b.is_ascii_digit()) => None,
+                Err(_) => Some(GemSegment::Letters(m.as_str().to_owned())),
+            })
+            .collect::<Option<_>>()?;
+        let split = all
+            .iter()
+            .position(|s| matches!(s, GemSegment::Letters(_)))
+            .unwrap_or(all.len());
+        let trim = |part: &[GemSegment]| {
+            let mut part = part.to_vec();
+            while part.last() == Some(&GemSegment::Number(0)) {
+                part.pop();
+            }
+            part
+        };
+        let mut out = trim(&all[..split]);
+        out.extend(trim(&all[split..]));
+        Some(out)
+    }
+    let (x, y) = (segments(a)?, segments(b)?);
+    for i in 0..x.len().max(y.len()) {
+        let zero = GemSegment::Number(0);
+        let (l, r) = (x.get(i).unwrap_or(&zero), y.get(i).unwrap_or(&zero));
+        let order = match (l, r) {
+            (GemSegment::Number(p), GemSegment::Number(q)) => p.cmp(q),
+            (GemSegment::Letters(p), GemSegment::Letters(q)) => p.cmp(q),
+            (GemSegment::Letters(_), GemSegment::Number(_)) => Ordering::Less,
+            (GemSegment::Number(_), GemSegment::Letters(_)) => Ordering::Greater,
+        };
+        if order != Ordering::Equal {
+            return Some(order);
+        }
+    }
+    Some(Ordering::Equal)
 }
 
 /// The parts a PEP 440 version sorts by: epoch, release, pre-release, post-release, development.
@@ -330,32 +397,69 @@ fn in_range(ecosystem: &str, version: &str, range: &Range) -> Option<bool> {
     if range.events.iter().any(|e| !e.other.is_empty()) {
         return None;
     }
-    let mut affected = false;
+    // OSV asks for the events to be read in version order, not the order they are written in:
+    // 86 real ranges list a later `introduced` before an earlier `fixed`, and read in file order
+    // they end the range too soon. Two events at the same version could be read either way, so a
+    // range with any is not compared.
+    let mut events: Vec<(EventKind, &str)> = Vec::new();
     for event in &range.events {
-        if let Some(introduced) = &event.introduced {
-            // OSV writes "0" for "every version from the beginning", which is not a version and would
-            // not parse as one.
-            let from_the_start = introduced == "0";
-            if from_the_start
-                || compare_in(ecosystem, version, introduced)? != std::cmp::Ordering::Less
-            {
-                affected = true;
+        for (kind, at) in [
+            (EventKind::Introduced, &event.introduced),
+            (EventKind::Fixed, &event.fixed),
+            (EventKind::LastAffected, &event.last_affected),
+        ] {
+            if let Some(at) = at {
+                events.push((kind, at.as_str()));
             }
         }
-        if let Some(fixed) = &event.fixed
-            && compare_in(ecosystem, version, fixed)? != std::cmp::Ordering::Less
-        {
-            affected = false;
+    }
+    let order = |a: &str, b: &str| -> Option<std::cmp::Ordering> {
+        // OSV writes "0" for "every version from the beginning", which is not a version and would
+        // not parse as one.
+        match (a == "0", b == "0") {
+            (true, true) => Some(std::cmp::Ordering::Equal),
+            (true, false) => Some(std::cmp::Ordering::Less),
+            (false, true) => Some(std::cmp::Ordering::Greater),
+            (false, false) => compare_in(ecosystem, a, b),
         }
-        // `last_affected` is the last version still affected, where `fixed` is the first that is
-        // not: past it, not affected; at it, still affected.
-        if let Some(last) = &event.last_affected
-            && compare_in(ecosystem, version, last)? == std::cmp::Ordering::Greater
-        {
-            affected = false;
+    };
+    // An insertion sort, since a comparison can fail and the ranges are short.
+    let mut sorted: Vec<(EventKind, &str)> = Vec::with_capacity(events.len());
+    for (kind, at) in events {
+        let mut place = sorted.len();
+        for (i, (_, other)) in sorted.iter().enumerate() {
+            match order(at, other)? {
+                std::cmp::Ordering::Equal => return None,
+                std::cmp::Ordering::Less => {
+                    place = i;
+                    break;
+                }
+                std::cmp::Ordering::Greater => {}
+            }
+        }
+        sorted.insert(place, (kind, at));
+    }
+    let mut affected = false;
+    for (kind, at) in sorted {
+        let here = order(version, at)?;
+        match kind {
+            EventKind::Introduced if here != std::cmp::Ordering::Less => affected = true,
+            EventKind::Fixed if here != std::cmp::Ordering::Less => affected = false,
+            // `last_affected` is the last version still affected, where `fixed` is the first that
+            // is not: past it, not affected; at it, still affected.
+            EventKind::LastAffected if here == std::cmp::Ordering::Greater => affected = false,
+            _ => {}
         }
     }
     Some(affected)
+}
+
+/// The three kinds of event a range is read from.
+#[derive(Debug, Clone, Copy)]
+enum EventKind {
+    Introduced,
+    Fixed,
+    LastAffected,
 }
 
 fn matches(component: &Component, affected: &Affected) -> Option<bool> {
@@ -450,16 +554,24 @@ pub fn audit_against(
             if advisory.withdrawn.is_some() {
                 continue;
             }
+            // Undecided is per advisory: one that matches settles itself, and says nothing about
+            // another that could not be compared, which stays a gap in the report.
+            let mut this_one_undecided = false;
+            let mut hit = false;
             for affected in &advisory.affected {
                 match matches(component, affected) {
                     Some(true) => {
-                        matched.push(advisory);
-                        undecided = false;
+                        hit = true;
                         break;
                     }
-                    None => undecided = true,
+                    None => this_one_undecided = true,
                     Some(false) => {}
                 }
+            }
+            if hit {
+                matched.push(advisory);
+            } else if this_one_undecided {
+                undecided = true;
             }
         }
         // One vulnerability, once: records that name each other (a GitHub advisory and the PyPI one
@@ -1318,6 +1430,133 @@ mod tests {
             result.verified.is_empty(),
             "no clean claim while a package is only declared: {result:?}"
         );
+    }
+
+    /// A record whose two ranges are written out of version order: affected from the start until
+    /// 1.0.0, and again from 1.2.0 until 1.2.2, with the second `introduced` before the first `fixed`.
+    const OUT_OF_ORDER: &str = r#"{
+      "id": "GHSA-test-order",
+      "affected": [{
+        "package": {"ecosystem": "npm", "name": "left-pad"},
+        "ranges": [{"type": "SEMVER", "events": [
+          {"introduced": "0"}, {"introduced": "1.2.0"}, {"fixed": "1.0.0"}, {"fixed": "1.2.2"}
+        ]}]
+      }]
+    }"#;
+
+    #[test]
+    fn range_events_are_read_in_version_order_not_file_order() {
+        for (version, affected) in [
+            ("0.9.0", true),
+            ("1.0.0", false),
+            ("1.1.5", false),
+            ("1.2.0", true),
+            ("1.2.1", true),
+            ("1.2.2", false),
+            ("2.0.0", false),
+        ] {
+            let result = audit(
+                &sbom_of(vec![component("left-pad", version, "npm")]),
+                &[advisory(OUT_OF_ORDER)],
+            );
+            assert_eq!(
+                result.findings.len(),
+                usize::from(affected),
+                "{version}: {result:?}"
+            );
+            assert!(result.uncomparable.is_empty(), "{version}: {result:?}");
+        }
+    }
+
+    #[test]
+    fn two_events_at_one_version_are_not_compared() {
+        // Introduced and fixed at 1.0.0: read one way it is affected, read the other it is not.
+        let tie = OUT_OF_ORDER.replace(r#"{"introduced": "1.2.0"}"#, r#"{"introduced": "1.0.0"}"#);
+        assert_ne!(tie, OUT_OF_ORDER, "the record was changed");
+        let result = audit(
+            &sbom_of(vec![component("left-pad", "1.0.0", "npm")]),
+            &[advisory(&tie)],
+        );
+        assert!(result.findings.is_empty(), "{result:?}");
+        assert_eq!(result.uncomparable.len(), 1, "{result:?}");
+        assert!(result.verified.is_empty(), "{result:?}");
+    }
+
+    #[test]
+    fn a_match_leaves_another_advisorys_could_not_compare_standing() {
+        // The first record's range cannot be compared with this version; the second matches. The
+        // second is a finding, and the first is still a gap, whichever comes first.
+        let unreadable = OUT_OF_ORDER
+            .replace("GHSA-test-order", "GHSA-test-unreadable")
+            .replace(r#""1.2.2""#, r#""not-a-version""#);
+        let matching = LODASH.replace(r#""name": "lodash""#, r#""name": "left-pad""#);
+        assert_ne!(matching, LODASH, "the record was renamed");
+        for database in [
+            vec![advisory(&unreadable), advisory(&matching)],
+            vec![advisory(&matching), advisory(&unreadable)],
+        ] {
+            let result = audit(
+                &sbom_of(vec![component("left-pad", "1.2.1", "npm")]),
+                &database,
+            );
+            assert_eq!(result.findings.len(), 1, "{result:?}");
+            assert_eq!(result.uncomparable.len(), 1, "{result:?}");
+        }
+    }
+
+    #[test]
+    fn rubygems_versions_compare_the_way_rubygems_does() {
+        use std::cmp::Ordering::{Equal, Greater, Less};
+        for (a, b, want) in [
+            ("1.0.0.rc1", "1.0.0", Some(Less)),
+            ("1.0.0.pre", "1.0.0.rc1", Some(Less)),
+            ("1.0", "1.0.0", Some(Equal)),
+            ("1.15.4", "1.15.10", Some(Less)),
+            ("2.0.0.beta2", "2.0.0.beta10", Some(Less)),
+            ("1.0.0-1", "1.0.0", Some(Less)),
+            ("1.13.10", "1.13.9", Some(Greater)),
+            // A platform is not part of the version; still on it, nothing is said.
+            ("1.15.4-x86_64-linux", "1.15.4", None),
+            ("abc", "1.0", None),
+        ] {
+            assert_eq!(compare_gem(a, b), want, "{a} against {b}");
+        }
+    }
+
+    #[test]
+    fn a_gem_built_for_a_platform_is_compared_by_its_version() {
+        let dir = std::env::temp_dir().join(format!("sv-advisories-gem-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("Gemfile"), "gem 'nokogiri'\n").unwrap();
+        let fixed_in = r#"{
+          "id": "GHSA-test-nokogiri",
+          "affected": [{
+            "package": {"ecosystem": "RubyGems", "name": "nokogiri"},
+            "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "1.15.4"}]}]
+          }]
+        }"#;
+        let mut findings = Vec::new();
+        for version in ["1.15.4-x86_64-linux", "1.15.3-x86_64-linux", "1.15.4"] {
+            std::fs::write(
+                dir.join("Gemfile.lock"),
+                format!(
+                    "GEM\n  remote: https://rubygems.org/\n  specs:\n    nokogiri ({version})\n\n\
+                     PLATFORMS\n  x86_64-linux\n\nDEPENDENCIES\n  nokogiri\n"
+                ),
+            )
+            .unwrap();
+            let sbom = crate::sbom::build(&dir);
+            assert_eq!(sbom.components.len(), 1, "{version}: {sbom:?}");
+            assert_eq!(sbom.components[0].ecosystem, "Ruby", "{version}: {sbom:?}");
+            let result = audit(&sbom, &[advisory(fixed_in)]);
+            assert!(result.uncomparable.is_empty(), "{version}: {result:?}");
+            findings.push(result.findings.len());
+        }
+        std::fs::remove_dir_all(&dir).ok();
+        // The fixed release on a platform is fixed; the one before it is not; the plain fixed
+        // release is the control.
+        assert_eq!(findings, vec![0, 1, 0]);
     }
 
     #[test]
