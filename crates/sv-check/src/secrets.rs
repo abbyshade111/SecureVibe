@@ -1529,6 +1529,18 @@ mod tests {
             )
             .is_empty()
         );
+        // An assignment inside a JSON string, as a report's example holds one. A wider first shape
+        // read `"example": "// Before\nconst apiKey = '` as one name and value, and the regex went on
+        // past the real assignment: found in v1's self-assessment report before, lost by that version.
+        let in_a_string = format!(
+            r#""example": "// Before\nconst apiKey = '{}';\n// After","#,
+            made_up_value()
+        );
+        assert_eq!(
+            scan_text(&rules(), "report.json", &format!("{in_a_string}\n")).len(),
+            1,
+            "an assignment inside a JSON string"
+        );
         // And a credential with no space, path, or lower-case-only shape is still found in a JSON key.
         let value = made_up_value();
         assert!(
