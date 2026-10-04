@@ -9,6 +9,15 @@ another session is not a claim.
 
 ## Next
 
+- **Bring `docs/paper/` up to 4 October 2026, and add the comparison study and the deep review.** Asked for on
+  4 October 2026 by the owner through the cato-pipeline session. Recompute every analysis, CSV and figure in
+  `docs/paper/` that stops at 26 to 29 September from the record as it stands at `main` on 4 October, and add two new
+  ones: the comparison study of five AI-built apps (cato-pipeline's `sv-study`, 29 September to 3 October) and the deep
+  review of `sv` at `eff3f17` (58 findings). v1's three-arm experiment (`figure-three-arms.html`, `requirements.csv`,
+  `findings.csv`) is a fixed record and stays as it is.
+  **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+  `claude/paper-refresh`. Other sessions: please leave `docs/paper/` to it until this entry says done.
+
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
   1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
@@ -53,6 +62,10 @@ another session is not a claim.
     when a fenced container can reach the gateway, and test the gateway with a positive control.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-fence-gateway`.
+    **Done the same day** (DESIGN, "The fence's gateway"): the fenced network is made without a gateway address
+    (`inhibit_ipv4`), and before the app starts a throwaway container knocks on the gateway; any answer stops the run,
+    with a control on the container's own loopback. The fence test asks the runner's check of a plain `--internal`
+    network (refused, the positive control) and of the runner's own (passes); its real run is CI's.
   - **S3. High, Reproduced. `sv notes` and `sv rules` write through a link to a file outside the app**
     (`main.rs`, AGENTS.md and security-notes.md, plain `fs::write`). The MCP route refuses a link; the command
     line does not.
@@ -76,6 +89,8 @@ another session is not a claim.
     ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at
     once read each other's. Fix: a private folder per run (0700, unpredictable name), each tool's exit codes, and
     only a report created after the tool started.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
+    in branch `claude/securevibe-e9-tool-reports`.
   - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
     reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
     gets; until then drop findings on linked files and mark the run partial.
@@ -109,6 +124,12 @@ another session is not a claim.
     entries without one counting as proposals; show the entry's git author.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-set-aside-headline`.
+    **Done the same day** (DESIGN, "The headline counts what was set aside"): the headline counts false alarms set
+    aside in securevibe.toml, says so when nothing else is open, and says where they are listed; it says "in
+    securevibe.toml", not "by a person", since who wrote the entry is R1's question. Three guards broken in turn, each
+    caught.
 
 - **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
   H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
@@ -126,6 +147,8 @@ another session is not a claim.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-comment-triggers`.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.

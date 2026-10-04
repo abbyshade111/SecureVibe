@@ -25,6 +25,19 @@ const PROBE_IMAGE: &str = "busybox:1.36";
 /// The one place a container that talks to the app may write: in memory, where nothing written can
 /// be run, and only big enough for the request it is about to send.
 const PROBE_TMPFS: &str = "/tmp:rw,noexec,nosuid,size=16m";
+/// Ways of giving the fenced network's bridge no address of its own on the host, tried in order.
+/// `--internal` stops traffic leaving for the internet, but the bridge's gateway address is the host
+/// itself (on Docker Desktop and Colima, the virtual machine), so without one of these the app could
+/// reach anything listening there (the deep review of 4 October 2026, S2). Containers on the network
+/// still reach one another. The first is Docker's own option for an internal network with no gateway
+/// (Docker 28 and later); the second is the older one. Which was used is said if the check fails.
+const NO_GATEWAY: &[&str] = &[
+    "com.docker.network.bridge.gateway_mode_ipv4=isolated",
+    "com.docker.network.bridge.inhibit_ipv4=true",
+];
+/// A port the gateway check knocks on: whatever answers there, open or refused, is the host's stack
+/// answering, which is what the fence must not allow.
+const GATEWAY_PORT: &str = "9";
 /// The mail server the app is given when the probes need to read its email: Mailpit, which keeps
 /// every message it is sent and answers questions about them over HTTP. Pinned to a minor release,
 /// as the probe image is, so a run does not change under the owner because a new one came out.
@@ -206,8 +219,23 @@ impl DockerBackend {
             ],
         };
 
-        // 1. The fence.
-        self.docker(&["network", "create", "--internal", &network])
+        // 1. The fence. Without a gateway address when the daemon allows one of the ways; a daemon that
+        //    refuses both gets the plain internal network, and the gateway check below decides.
+        let mut made_with = None;
+        for option in NO_GATEWAY {
+            if self
+                .docker(&["network", "create", "--internal", "-o", option, &network])
+                .is_ok_and(|(code, _)| code == 0)
+            {
+                made_with = Some(*option);
+                break;
+            }
+        }
+        let created = match made_with {
+            Some(_) => Ok((0, String::new())),
+            None => self.docker(&["network", "create", "--internal", &network]),
+        };
+        created
             .map_err(|e| CannotRun::BackendFailed { detail: e })
             .and_then(|(code, out)| {
                 if code == 0 {
@@ -224,6 +252,21 @@ impl DockerBackend {
         // If a future edit drops the flag, or a daemon ignores it, this stops the run before any
         // untrusted code starts, rather than running it unfenced and reporting a clean result.
         self.verify_fenced(&network)?;
+        // 1b'. And that nothing on it can reach the host through the bridge's gateway, which
+        //      `--internal` alone leaves open.
+        self.verify_gateway_closed(&network).map_err(|e| match e {
+            CannotRun::BackendFailed { detail } => CannotRun::BackendFailed {
+                detail: format!(
+                    "{detail} (the network was made {})",
+                    made_with.map_or(
+                        "plain internal: Docker refused both ways of leaving out a gateway"
+                            .to_owned(),
+                        |o| format!("with `{o}`")
+                    )
+                ),
+            },
+            other => other,
+        })?;
 
         // 1c. A mail server, when a check needs to read what the app emails. Started before the app so
         //     it is there to be sent to, on the same fenced network, and nowhere else: mail sent to it
@@ -1177,6 +1220,87 @@ impl DockerBackend {
         }
     }
 
+    /// Refuses the run when a container on the fenced network can reach the bridge's gateway, the
+    /// host (or the virtual machine Docker runs in). Knocked on from a throwaway container: an answer
+    /// of any kind, a connection or a refusal, is the host's stack answering. The control is the same
+    /// knock on the container's own loopback, which must read as refused, so an `nc` that cannot tell
+    /// one from the other stops the run rather than passing for a fence.
+    pub fn verify_gateway_closed(&self, network: &str) -> Result<(), CannotRun> {
+        let fail = |detail: String| Err(CannotRun::BackendFailed { detail });
+        let config = match self.docker(&[
+            "network",
+            "inspect",
+            "-f",
+            "{{range .IPAM.Config}}{{.Gateway}}|{{.Subnet}} {{end}}",
+            network,
+        ]) {
+            Ok((0, out)) => out,
+            Ok((_, out)) => {
+                return fail(format!(
+                    "could not read the fence's gateway: {}",
+                    first_line(&out)
+                ));
+            }
+            Err(e) => return fail(format!("could not read the fence's gateway: {e}")),
+        };
+        // A network made without a gateway address may list none at all, so the address a gateway would
+        // have, the subnet's first, is knocked on as well as any Docker names.
+        let targets = gateway_targets(&config);
+        if targets.is_empty() {
+            return fail(format!(
+                "Docker names no IPv4 gateway or subnet for the network `{network}` ({}), so whether the \
+                 app could reach this computer through it cannot be checked",
+                config.trim()
+            ));
+        }
+        let gateway = targets.join(", ");
+        // `-vv`, and not `-z`: busybox's netcat (`nc_bloaty.c`, 1.36) reports a refused connection only
+        // at the second level of verbosity ("if we're scanning at a one -v verbosity level, don't print
+        // refusals"), and a refusal kept quiet would read as silence, which must never pass for a fence.
+        // CI found the first two tries silent. With nothing to send, a connection that opens ends at once.
+        let mut script =
+            format!("nc -vv -w 3 127.0.0.1 {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-self=$?\"");
+        // An address that is the knocking container's own is not knocked on: with no gateway, Docker
+        // gives the subnet's first address to the first container, which is this one, and its own
+        // refusal would read as the host answering. CI found exactly that.
+        for target in &targets {
+            script.push_str(&format!(
+                "; case \" $(ip -4 -o addr show 2>/dev/null) \" in *\"inet {target}/\"*) echo \"sv-own={target}\";; \
+                 *) nc -vv -w 3 {target} {GATEWAY_PORT} </dev/null 2>&1; echo \"sv-gateway=$?\";; esac"
+            ));
+        }
+        let out = match self.docker(&[
+            "run",
+            "--rm",
+            "--network",
+            network,
+            "--read-only",
+            "--cap-drop",
+            "ALL",
+            "--security-opt",
+            "no-new-privileges",
+            PROBE_IMAGE,
+            "sh",
+            "-c",
+            &script,
+        ]) {
+            Ok((_, out)) => out,
+            Err(e) => return fail(format!("could not check the fence's gateway: {e}")),
+        };
+        match gateway_verdict(&out) {
+            GatewayVerdict::Closed => Ok(()),
+            GatewayVerdict::Reachable => fail(format!(
+                "a container on the fenced network reached its gateway, {gateway}, which is this \
+                 computer (or the virtual machine Docker runs in): the app could have reached anything \
+                 listening there, so it was not started"
+            )),
+            GatewayVerdict::Unknown(why) => fail(format!(
+                "could not tell whether the fence's gateway, {gateway}, is reachable ({why}), so the \
+                 app was not started"
+            )),
+        }
+    }
+
     /// Starts the container every request to the app is sent from, on the app's fenced network.
     ///
     /// It has nothing to be allowed and one thing to write, so it is given a read-only file system
@@ -1677,6 +1801,98 @@ fn parse_at_once(
             parse_response(id, raw)
         })
         .collect()
+}
+
+/// What the gateway check saw. See `verify_gateway_closed`.
+#[derive(Debug, PartialEq, Eq)]
+enum GatewayVerdict {
+    Closed,
+    Reachable,
+    Unknown(String),
+}
+
+/// The addresses to knock on for a network: every IPv4 gateway Docker names, and the first address of
+/// every IPv4 subnet, where a gateway would be. Read from `Gateway|Subnet` pairs, space-separated.
+fn gateway_targets(config: &str) -> Vec<String> {
+    let mut out: Vec<String> = Vec::new();
+    for pair in config.split_whitespace() {
+        let (gateway, subnet) = pair.split_once('|').unwrap_or((pair, ""));
+        if let Ok(ip) = gateway.parse::<std::net::Ipv4Addr>() {
+            out.push(ip.to_string());
+        }
+        if let Some((base, bits)) = subnet.split_once('/')
+            && let (Ok(base), Ok(bits)) = (base.parse::<std::net::Ipv4Addr>(), bits.parse::<u32>())
+            && bits < 31
+        {
+            let mask = u32::MAX.checked_shl(32 - bits).unwrap_or(0);
+            out.push(std::net::Ipv4Addr::from((u32::from(base) & mask) + 1).to_string());
+        }
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// Reads the knocks: the container's own loopback (the control, which must be refused) and then each
+/// gateway address. A connection or a refusal from any of them is the host answering; a timeout, no
+/// route, or an unreachable network from every one is the fence holding. Anything else is not taken
+/// for either.
+fn gateway_verdict(out: &str) -> GatewayVerdict {
+    // Each knock's output, and its exit status, in order.
+    let mut sections: Vec<(String, String, Option<i32>)> = Vec::new();
+    let mut text = String::new();
+    for line in out.lines() {
+        if let Some((mark, code)) = line.split_once('=').filter(|(m, _)| m.starts_with("sv-")) {
+            sections.push((
+                mark.to_owned(),
+                std::mem::take(&mut text),
+                code.trim().parse().ok(),
+            ));
+        } else {
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
+    let Some((_, own, Some(own_code))) = sections.iter().find(|(m, _, _)| m == "sv-self").cloned()
+    else {
+        return GatewayVerdict::Unknown("the check did not run".to_owned());
+    };
+    if own_code == 0 || !own.to_lowercase().contains("refused") {
+        return GatewayVerdict::Unknown(format!(
+            "the control, a knock on the container's own loopback, did not read as refused: {}",
+            own.trim()
+        ));
+    }
+    let knocks: Vec<&(String, String, Option<i32>)> = sections
+        .iter()
+        .filter(|(m, _, _)| m == "sv-gateway")
+        .collect();
+    if knocks.is_empty() {
+        // Every address was the knocking container's own: nothing of the host's is on the network.
+        if sections.iter().any(|(m, _, _)| m == "sv-own") {
+            return GatewayVerdict::Closed;
+        }
+        return GatewayVerdict::Unknown("the knock on the gateway did not report back".to_owned());
+    }
+    let mut unknown = None;
+    for (_, said, code) in knocks {
+        let lower = said.to_lowercase();
+        if *code == Some(0) || lower.contains("refused") {
+            return GatewayVerdict::Reachable;
+        }
+        let closed = code.is_some()
+            && (lower.contains("timed out")
+                || lower.contains("timeout")
+                || lower.contains("no route")
+                || lower.contains("unreachable"));
+        if !closed && unknown.is_none() {
+            unknown = Some(format!("nc said: {}", said.trim()));
+        }
+    }
+    match unknown {
+        Some(why) => GatewayVerdict::Unknown(why),
+        None => GatewayVerdict::Closed,
+    }
 }
 
 fn request_bytes(request: &sv_check::probes::ProbeRequest, host: &str) -> Option<Vec<u8>> {
@@ -2563,6 +2779,101 @@ http.createServer((q, s) => {
         assert!(parse_response("r", "").is_none());
         assert!(parse_response("r", "connection refused").is_none());
         assert!(parse_response("r", "HTTP/1.1 notanumber OK\r\n\r\n").is_none());
+    }
+}
+
+#[cfg(test)]
+mod gateway_tests {
+    use super::*;
+
+    const REFUSED_SELF: &str =
+        "nc: can't connect to remote host (127.0.0.1): Connection refused\nsv-self=1\n";
+
+    #[test]
+    fn a_gateway_that_answers_in_any_way_is_reachable() {
+        for gateway in [
+            "nc: can't connect to remote host (172.20.0.1): Connection refused\nsv-gateway=1\n",
+            "sv-gateway=0\n",
+        ] {
+            assert_eq!(
+                gateway_verdict(&format!("{REFUSED_SELF}{gateway}")),
+                GatewayVerdict::Reachable,
+                "{gateway}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_gateway_that_cannot_be_reached_is_closed() {
+        for gateway in [
+            "nc: timed out\nsv-gateway=1\n",
+            "nc: can't connect to remote host (172.20.0.1): No route to host\nsv-gateway=1\n",
+            "nc: can't connect to remote host (172.20.0.1): Network is unreachable\nsv-gateway=1\n",
+            "nc: can't connect to remote host (172.20.0.1): Connection timed out\nsv-gateway=1\n",
+        ] {
+            assert_eq!(
+                gateway_verdict(&format!("{REFUSED_SELF}{gateway}")),
+                GatewayVerdict::Closed,
+                "{gateway}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_subnets_first_address_is_knocked_on_when_no_gateway_is_named() {
+        // What GitHub's Docker said of a network made without a gateway address: no gateway listed.
+        assert_eq!(gateway_targets("|172.18.0.0/16 "), vec!["172.18.0.1"]);
+        assert_eq!(
+            gateway_targets("172.20.0.1|172.20.0.0/16 "),
+            vec!["172.20.0.1"]
+        );
+        assert_eq!(
+            gateway_targets("10.9.0.254|10.9.0.0/24 |fd00::/64 "),
+            vec!["10.9.0.1", "10.9.0.254"]
+        );
+        assert!(gateway_targets("").is_empty());
+        assert!(gateway_targets("|fd00::/64 ").is_empty());
+    }
+
+    #[test]
+    fn one_answering_address_of_several_is_reachable() {
+        let out = format!(
+            "{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: can't connect to remote host (10.9.0.254): Connection refused\nsv-gateway=1\n"
+        );
+        assert_eq!(gateway_verdict(&out), GatewayVerdict::Reachable);
+        let out =
+            format!("{REFUSED_SELF}nc: timed out\nsv-gateway=1\nnc: timed out\nsv-gateway=1\n");
+        assert_eq!(gateway_verdict(&out), GatewayVerdict::Closed);
+    }
+
+    #[test]
+    fn the_knocking_containers_own_address_is_not_the_host() {
+        // CI, 4 October 2026: with no gateway, the subnet's first address was the knocking container's
+        // own, and its refusal read as the host answering.
+        assert_eq!(
+            gateway_verdict(&format!("{REFUSED_SELF}sv-own=172.18.0.1\n")),
+            GatewayVerdict::Closed
+        );
+        // Its own address skipped, another that answers still stops the run.
+        let out = format!(
+            "{REFUSED_SELF}sv-own=172.18.0.1\nnc: 172.18.0.254 (172.18.0.254:9): Connection refused\nsv-gateway=1\n"
+        );
+        assert_eq!(gateway_verdict(&out), GatewayVerdict::Reachable);
+    }
+
+    #[test]
+    fn a_check_that_cannot_tell_is_never_taken_for_a_fence() {
+        let unknown = |out: &str| matches!(gateway_verdict(out), GatewayVerdict::Unknown(_));
+        // The control did not read as refused: an nc that says nothing would pass any gateway.
+        assert!(unknown("sv-self=1\nnc: timed out\nsv-gateway=1\n"));
+        assert!(unknown("sv-self=0\nnc: timed out\nsv-gateway=1\n"));
+        // Nothing ran, or the second knock never reported.
+        assert!(unknown(""));
+        assert!(unknown(REFUSED_SELF));
+        // Something nobody has seen.
+        assert!(unknown(&format!(
+            "{REFUSED_SELF}sh: nc: not found\nsv-gateway=127\n"
+        )));
     }
 }
 
