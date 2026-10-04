@@ -4,6 +4,7 @@
     python3 tools/image_smoke.py securevibe/sv                      # the image as built
     python3 tools/image_smoke.py securevibe/sv --native target/release/sv   # and compare with sv itself
     python3 tools/image_smoke.py securevibe/sv --no-git              # an image built without git
+    python3 tools/image_smoke.py securevibe/sv --commit <sha>        # and built from this commit
 
 It makes a small app in a temporary folder, a copy of `examples/tested-notes` with a `.env` committed
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
@@ -23,7 +24,9 @@ to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --ne
 
 With `--native`, the image's findings must be the native `sv`'s, once both are known to have run.
 With `--no-git`, for an image built where packages could not be installed, the committed-secrets
-check must instead be reported as not assessed, never as passed.
+check must instead be reported as not assessed, never as passed. With `--commit`, `sv --version` in the
+image must name that commit: the build context has no `.git`, so the image only knows it when the build
+is given it (`--build-arg SV_GIT_COMMIT`), and its reports name the `sv` that made them.
 """
 
 import argparse
@@ -107,6 +110,7 @@ def main():
     parser.add_argument("image")
     parser.add_argument("--native", help="an sv built on this machine, to compare the image with")
     parser.add_argument("--no-git", action="store_true", help="the image was built without git")
+    parser.add_argument("--commit", help="the commit the image was built from, which `sv --version` must name")
     args = parser.parse_args()
 
     root = Path(tempfile.mkdtemp(prefix="sv-image-smoke-")).resolve()
@@ -186,6 +190,12 @@ def main():
             capture_output=True, text=True, timeout=120)
         check(no_net.stdout.split() == ["unknown", "lo"] or no_net.stdout.split() == ["lo"],
               f"--network none leaves only the loopback interface: {no_net.stdout.split()}")
+
+        if args.commit:
+            version = subprocess.run(["docker", "run", "--rm", "--network", "none", args.image, "--version"],
+                                     capture_output=True, text=True, timeout=120)
+            check(f"(commit {args.commit})" in version.stdout,
+                  f"sv --version in the image names the commit it was built from: {version.stdout.strip()}")
 
         if args.native:
             if not (committed or args.no_git):

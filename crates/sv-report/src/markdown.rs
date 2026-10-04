@@ -81,14 +81,15 @@ pub fn compliance(report: &Report) -> String {
         "# {} — what applies, and what is known\n\n",
         report.app_name
     ));
+    let made_by = report.sv.describe();
     if let Some(when) = &report.generated {
         out.push_str(&format!(
-            "Produced by `sv` on {when}. ASVS level {}.\n\n",
+            "Produced by `sv` {made_by} on {when}. ASVS level {}.\n\n",
             report.target_level
         ));
     } else {
         out.push_str(&format!(
-            "Produced by `sv`. ASVS level {}.\n\n",
+            "Produced by `sv` {made_by}. ASVS level {}.\n\n",
             report.target_level
         ));
     }
@@ -630,8 +631,12 @@ pub fn security(report: &Report) -> String {
         "# {} — what the checks found\n\n",
         report.app_name
     ));
-    if let Some(when) = &report.generated {
-        out.push_str(&format!("Produced by `sv` on {when}.\n\n"));
+    match &report.generated {
+        Some(when) => out.push_str(&format!(
+            "Produced by `sv` {} on {when}.\n\n",
+            report.sv.describe()
+        )),
+        None => out.push_str(&format!("Produced by `sv` {}.\n\n", report.sv.describe())),
     }
 
     if !report.gaps.is_empty() {
