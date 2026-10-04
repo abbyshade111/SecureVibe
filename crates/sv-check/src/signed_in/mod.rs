@@ -69,6 +69,7 @@ mod rules;
 mod sessions;
 mod signin;
 mod sql;
+mod tokens;
 mod totp;
 mod uploads;
 use activation::*;
@@ -86,6 +87,7 @@ pub(crate) use rules::{Rule, finding};
 use sessions::*;
 use signin::*;
 use sql::*;
+use tokens::*;
 use totp::*;
 use uploads::*;
 
@@ -796,6 +798,9 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
         &["timeout-busy-after-lifetime"],
     ),
     (SESSION_TOKEN_UNVERIFIED.rule_id, &["invented-session"]),
+    (APP_TOKEN_UNSIGNED.rule_id, &["token-altered"]),
+    (APP_TOKEN_ALG_NONE.rule_id, &["token-alg-none"]),
+    (APP_TOKEN_EXPIRED.rule_id, &["token-expired"]),
     (
         WS_WITHOUT_SESSION.rule_id,
         &["websocket-no-session", "websocket-invented-session"],
@@ -1260,6 +1265,14 @@ fn run_checks(
         &mut out,
     );
     client_side_validation_check(http, users, accounts, &mut out);
+    // 6a'. The app's own sign-in token, when it is a JWT, changed two ways and sent alone. With
+    //      A's token, which nothing here changes.
+    app_token_checks(
+        http,
+        &a,
+        confirm_path.clone().filter(|_| signed_in_works).as_deref(),
+        &mut out,
+    );
 
     // 6b. Uploads, with A's session, before anything below signs another account in. Placed here
     //     rather than at the end because it needs a working session and nothing it does disturbs
@@ -1314,6 +1327,9 @@ fn run_checks(
     // 9b'. Where the sign-in and sign-out send the browser when given an address outside the app:
     //     sessions of their own, and nothing changed.
     open_redirect_check(http, users, &accounts.a, &mut out);
+    // 9b''. The app's own sign-in token, waited out until it expires: a sign-in of its own, and
+    //      before the password changes below, which can change A's.
+    app_token_expiry_check(http, users, &accounts.a, confirm.as_deref(), slow, &mut out);
 
     // 9c. Admin actions, sent by A and then by the admin. Late, because an action changes what the
     //     app holds and the checks above have had what they needed; before the password changes
@@ -2489,6 +2505,8 @@ mod crash_tests {
         slow: bool,
         /// Session limits for the fake app, in seconds: idle, lifetime.
         limits: (Option<u64>, Option<u64>),
+        /// How long the fake app's tokens last, when it hands out tokens rather than session ids.
+        jwt: Option<u64>,
     }
 
     impl Scenario {
@@ -2501,6 +2519,7 @@ mod crash_tests {
                 policy: Default::default(),
                 slow: false,
                 limits: (None, None),
+                jwt: None,
             }
         }
 
@@ -2514,6 +2533,7 @@ mod crash_tests {
             let mut app = FakeApp::new(self.flaws);
             app.idle_limit = self.limits.0;
             app.lifetime_limit = self.limits.1;
+            app.jwt_lifetime = self.jwt;
             let mut acc = accounts();
             if self.seeded {
                 for account in [&acc.a, &acc.b] {
@@ -2705,6 +2725,19 @@ mod crash_tests {
                 sockets_and_files,
                 true,
             ),
+            Scenario {
+                jwt: Some(30),
+                ..Scenario::new(
+                    "the app's own tokens, neither signature nor expiry checked",
+                    Flaws {
+                        jwt_signature_ignored: true,
+                        jwt_expiry_ignored: true,
+                        ..Default::default()
+                    },
+                    users(),
+                    true,
+                )
+            },
             Scenario {
                 policy: sv_manifest::PolicySection {
                     idle_timeout_minutes: Some(15),

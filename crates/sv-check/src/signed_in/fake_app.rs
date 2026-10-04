@@ -107,7 +107,19 @@ pub(super) struct FakeApp {
     /// Records are looked up by an id the database keeps as text, so a value joined into the
     /// query sits inside quotes.
     pub(super) ids_are_text: bool,
+    /// Sign-ins hand out a JSON Web Token signed with `JWT_KEY` and lasting this many seconds,
+    /// in place of a session id: in the cookie after the form's sign-in, in the JSON after
+    /// `/api/login`. `None`, the default, hands out session ids.
+    pub(super) jwt_lifetime: Option<u64>,
+    /// The tokens carry no expiry time at all.
+    pub(super) jwt_without_expiry: bool,
+    /// Seconds past its expiry a token is still taken, as token libraries allow for clocks that
+    /// disagree. Not a fault.
+    pub(super) jwt_leeway: u64,
 }
+
+/// The key the fake app signs its tokens with. Not a secret: the fake app runs only in tests.
+const JWT_KEY: &[u8] = b"the fake app signs its tokens with this";
 
 /// The fake app's own context-specific word, as an owner would list it in `context-words`.
 pub(super) const CONTEXT_WORD: &str = "acmenotes";
@@ -416,6 +428,12 @@ pub(super) struct Flaws {
     pub(super) sql_in_record: bool,
     /// The search term is joined into its database query (V1.2.4).
     pub(super) sql_in_search: bool,
+    /// Reads what a token says without checking its signature (V9.1.1).
+    pub(super) jwt_signature_ignored: bool,
+    /// Takes a token marked `alg: none` with no signature (V9.1.2).
+    pub(super) jwt_alg_none_accepted: bool,
+    /// Takes a token past its expiry (V9.2.1).
+    pub(super) jwt_expiry_ignored: bool,
 }
 
 pub(super) const CSRF: &str = "tok-123";
@@ -448,8 +466,68 @@ impl FakeApp {
         )
     }
 
+    /// A token for this user, signed with `JWT_KEY`.
+    fn issue_jwt(&mut self, who: &str, lifetime: u64) -> String {
+        let header = crate::browser::base64(br#"{"alg":"HS256","typ":"JWT"}"#, true);
+        // An id of its own, so two sign-ins in the same second do not get the same token.
+        let jti = self.new_id();
+        let mut claims = serde_json::json!({ "sub": who, "iat": self.clock, "jti": jti });
+        if !self.jwt_without_expiry {
+            claims["exp"] = (self.clock + lifetime).into();
+        }
+        let payload = crate::browser::base64(claims.to_string().as_bytes(), true);
+        let signed = format!("{header}.{payload}");
+        let signature = jwt_signature(&signed);
+        format!("{signed}.{signature}")
+    }
+
+    /// Who a token names, when this app hands out tokens and `token` is one: `Some(None)` for a
+    /// token it refuses, `None` for something that is not a token at all.
+    fn jwt_user(&self, token: &str) -> Option<Option<String>> {
+        self.jwt_lifetime?;
+        let mut parts = token.split('.');
+        let (header, payload, signature) = (parts.next()?, parts.next()?, parts.next()?);
+        if parts.next().is_some() {
+            return None;
+        }
+        let read = |part: &str| serde_json::from_slice::<serde_json::Value>(&unbase64(part)?).ok();
+        let (head, claims) = (read(header)?, read(payload)?);
+        let signed = self.flaws.jwt_signature_ignored
+            || match head.get("alg").and_then(|a| a.as_str()) {
+                Some("HS256") => signature == jwt_signature(&format!("{header}.{payload}")),
+                Some("none") => self.flaws.jwt_alg_none_accepted && signature.is_empty(),
+                _ => false,
+            };
+        let current = self.flaws.jwt_expiry_ignored
+            || match claims.get("exp") {
+                Some(exp) => exp
+                    .as_u64()
+                    .is_some_and(|exp| self.clock <= exp + self.jwt_leeway),
+                None => true,
+            };
+        let who = claims
+            .get("sub")
+            .and_then(|s| s.as_str())
+            .map(str::to_owned);
+        Some(who.filter(|who| {
+            signed && current && !self.signed_out.contains(token) && self.users.contains_key(who)
+        }))
+    }
+
     /// A new session for this user, answered the way POST /login answers.
     fn signed_in(&mut self, who: String) -> ProbeResponse {
+        if let Some(lifetime) = self.jwt_lifetime {
+            let token = self.issue_jwt(&who, lifetime);
+            let attrs = self.cookie_attrs();
+            return Self::respond(
+                303,
+                vec![
+                    ("Location", "/account".into()),
+                    ("Set-Cookie", format!("sid={token}; {attrs}")),
+                ],
+                "",
+            );
+        }
         if self.one_session_per_user {
             self.sessions.retain(|_, u| *u != who);
         }
@@ -628,6 +706,14 @@ fn escape(text: &str) -> String {
         .replace('\'', "&#39;")
 }
 
+/// A token's signature: HMAC-SHA256 with `JWT_KEY`, in base64 for web addresses.
+fn jwt_signature(signed: &str) -> String {
+    use hmac::{Hmac, KeyInit, Mac};
+    let mut mac = <Hmac<sha2::Sha256>>::new_from_slice(JWT_KEY).expect("HMAC takes any key");
+    mac.update(signed.as_bytes());
+    crate::browser::base64(&mac.finalize().into_bytes(), true)
+}
+
 pub(super) fn pairs(text: &str) -> BTreeMap<String, String> {
     text.split('&')
         .filter_map(|kv| kv.split_once('='))
@@ -730,29 +816,34 @@ impl FakeApp {
                 times.1 = now;
             }
         }
-        let user = sid
-            .as_ref()
-            .and_then(|s| self.sessions.get(s))
-            .filter(|u| !u.is_empty())
-            .cloned()
-            // A session id is normally looked up; under this flaw any non-empty one is
-            // believed, which is what an app that never checks the cookie does.
-            .or_else(|| {
-                (self.flaws.session_not_verified && sid.as_deref().is_some_and(|s| !s.is_empty()))
+        let token_user = sid.as_deref().and_then(|s| self.jwt_user(s));
+        let user = if let Some(user) = token_user {
+            user
+        } else {
+            sid.as_ref()
+                .and_then(|s| self.sessions.get(s))
+                .filter(|u| !u.is_empty())
+                .cloned()
+                // A session id is normally looked up; under this flaw any non-empty one is
+                // believed, which is what an app that never checks the cookie does.
+                .or_else(|| {
+                    (self.flaws.session_not_verified
+                        && sid.as_deref().is_some_and(|s| !s.is_empty()))
                     .then(|| "believed@example.test".to_owned())
-            })
-            .or_else(|| {
-                self.flaws
-                    .trusts_identity_header
-                    .then(|| {
-                        r.headers
-                            .iter()
-                            .find(|(k, _)| k.eq_ignore_ascii_case("X-Remote-User"))
-                            .map(|(_, v)| v.clone())
-                    })
-                    .flatten()
-                    .filter(|named| self.users.contains_key(named))
-            });
+                })
+                .or_else(|| {
+                    self.flaws
+                        .trusts_identity_header
+                        .then(|| {
+                            r.headers
+                                .iter()
+                                .find(|(k, _)| k.eq_ignore_ascii_case("X-Remote-User"))
+                                .map(|(_, v)| v.clone())
+                        })
+                        .flatten()
+                        .filter(|named| self.users.contains_key(named))
+                })
+        };
         let foreign = r
             .headers
             .iter()
@@ -1281,8 +1372,14 @@ impl FakeApp {
                 if !good {
                     return Some(Self::respond(401, vec![], "{}"));
                 }
-                let id = self.new_id();
-                self.sessions.insert(id.clone(), email);
+                let id = match self.jwt_lifetime {
+                    Some(lifetime) => self.issue_jwt(&email, lifetime),
+                    None => {
+                        let id = self.new_id();
+                        self.sessions.insert(id.clone(), email);
+                        id
+                    }
+                };
                 Self::respond(200, vec![], &format!("{{\"token\": \"{id}\"}}"))
             }
             ("POST", "/logout") => {

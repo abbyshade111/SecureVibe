@@ -184,8 +184,12 @@ pub(super) fn sql_injection_check(
         let mut differed = None;
         for (words, true_end, false_end) in forms {
             n += 1;
-            if let Some(answers) = ask(http, &a.session, spot, (&n.to_string(), true_end, false_end))
-                && answers.0 != answers.1
+            if let Some(answers) = ask(
+                http,
+                &a.session,
+                spot,
+                (&n.to_string(), true_end, false_end),
+            ) && answers.0 != answers.1
             {
                 differed = Some((*words, *true_end, *false_end, answers));
                 break;
@@ -232,7 +236,8 @@ mod tests {
 
     impl Http for Twisting {
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
-            self.sent.push((r.id.clone(), r.method.clone(), r.path.clone()));
+            self.sent
+                .push((r.id.clone(), r.method.clone(), r.path.clone()));
             let answer = self.app.send(r)?;
             if r.id.starts_with("sql-") {
                 (self.twist)(r, answer, self.sent.len())
@@ -306,23 +311,37 @@ mod tests {
         let (o, sent) = plain(Flaws::default(), &sql_users());
         assert!(sql_findings(&o).is_empty(), "{:?}", sql_findings(&o));
         // Never credit: the check is a finding or nothing.
-        assert!(!o.verified.iter().any(|v| v.check_id == SQL_INJECTION.rule_id));
+        assert!(
+            !o.verified
+                .iter()
+                .any(|v| v.check_id == SQL_INJECTION.rule_id)
+        );
         // Setup: the record was read back, and every spot was asked.
-        assert!(o.steps.iter().any(|s| s.starts_with("A created a record")), "{:?}", o.steps);
+        assert!(
+            o.steps.iter().any(|s| s.starts_with("A created a record")),
+            "{:?}",
+            o.steps
+        );
         let asked: Vec<&String> = o
             .steps
             .iter()
             .filter(|s| s.starts_with("added an always-true"))
             .collect();
         assert_eq!(asked.len(), 3, "{asked:?}");
-        assert!(asked.iter().all(|s| s.ends_with("nothing told apart")), "{asked:?}");
+        assert!(
+            asked.iter().all(|s| s.ends_with("nothing told apart")),
+            "{asked:?}"
+        );
         // Only ever requests that read.
         let ours: Vec<_> = sent
             .iter()
             .filter(|(id, _, _)| id.starts_with("sql-"))
             .collect();
         assert!(!ours.is_empty());
-        assert!(ours.iter().all(|(_, method, _)| method == "GET"), "{ours:?}");
+        assert!(
+            ours.iter().all(|(_, method, _)| method == "GET"),
+            "{ours:?}"
+        );
         // Each address as a request line can carry it: the condition percent-encoded.
         assert!(
             ours.iter()
@@ -358,7 +377,11 @@ mod tests {
             let found = sql_findings(&o);
             assert_eq!(found.len(), places.len(), "{name}: {found:?}");
             for (finding, place) in found.iter().zip(&places) {
-                assert!(finding.description.contains(place), "{name}: {}", finding.description);
+                assert!(
+                    finding.description.contains(place),
+                    "{name}: {}",
+                    finding.description
+                );
             }
         }
         // Where the ids are text, the quoted form: in the record's address and in the query
@@ -371,9 +394,20 @@ mod tests {
         let found = run_app(app, &sql_users());
         let found = sql_findings(&found);
         assert_eq!(found.len(), 2, "{found:?}");
-        for (finding, place) in found.iter().zip(["the last part of /notes/1", "`id` in /note"]) {
-            assert!(finding.description.contains(place), "{}", finding.description);
-            assert!(finding.description.contains("as quoted text,"), "{}", finding.description);
+        for (finding, place) in found
+            .iter()
+            .zip(["the last part of /notes/1", "`id` in /note"])
+        {
+            assert!(
+                finding.description.contains(place),
+                "{}",
+                finding.description
+            );
+            assert!(
+                finding.description.contains("as quoted text,"),
+                "{}",
+                finding.description
+            );
         }
     }
 
@@ -402,7 +436,8 @@ mod tests {
             let twist = if silent {
                 (|r: &ProbeRequest, answer: ProbeResponse, _| {
                     (!r.id.contains("-false-")).then_some(answer)
-                }) as fn(&ProbeRequest, ProbeResponse, usize) -> Option<ProbeResponse>
+                })
+                    as fn(&ProbeRequest, ProbeResponse, usize) -> Option<ProbeResponse>
             } else {
                 |r: &ProbeRequest, mut answer: ProbeResponse, _| {
                     if r.id.contains("-false-") {
@@ -412,7 +447,11 @@ mod tests {
                 }
             };
             let (o, _) = run_twisted(Flaws::default(), &sql_users(), twist);
-            assert!(sql_findings(&o).is_empty(), "silent {silent}: {:?}", sql_findings(&o));
+            assert!(
+                sql_findings(&o).is_empty(),
+                "silent {silent}: {:?}",
+                sql_findings(&o)
+            );
         }
     }
 
@@ -434,7 +473,9 @@ mod tests {
         let (o, sent) = plain(Flaws::default(), &u);
         assert!(!sent.iter().any(|(id, _, _)| id.starts_with("sql-")));
         assert!(
-            o.steps.iter().any(|s| s.starts_with("no address with a value")),
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("no address with a value")),
             "{:?}",
             o.steps
         );
@@ -443,9 +484,15 @@ mod tests {
     #[test]
     fn spots_are_found_in_a_records_address_and_in_query_strings() {
         let spot = record_spot("/notes/12").unwrap();
-        assert_eq!((spot.template.as_str(), spot.value.as_str()), ("/notes/{}", "12"));
+        assert_eq!(
+            (spot.template.as_str(), spot.value.as_str()),
+            ("/notes/{}", "12")
+        );
         let spot = record_spot("/a/b%20c?x=1").unwrap();
-        assert_eq!((spot.template.as_str(), spot.value.as_str()), ("/a/{}?x=1", "b c"));
+        assert_eq!(
+            (spot.template.as_str(), spot.value.as_str()),
+            ("/a/{}?x=1", "b c")
+        );
         assert!(record_spot("/notes/").is_none());
         assert!(record_spot("notes").is_none());
         let spots = query_spots("/s?q=a+b&page=2&flag");
@@ -453,7 +500,13 @@ mod tests {
             .iter()
             .map(|s| (s.template.as_str(), s.value.as_str()))
             .collect();
-        assert_eq!(got, [("/s?q={}&page=2&flag", "a b"), ("/s?q=a+b&page={}&flag", "2")]);
+        assert_eq!(
+            got,
+            [
+                ("/s?q={}&page=2&flag", "a b"),
+                ("/s?q=a+b&page={}&flag", "2")
+            ]
+        );
         assert!(query_spots("/s").is_empty());
         assert_eq!(encode_value("1' AND '1'='1"), "1%27%20AND%20%271%27%3D%271");
         assert_eq!(decode_value("%27%2"), "'%2");

@@ -104,6 +104,12 @@ another session is not a claim.
      controls (`jku`, `kid`), which would need a key server inside the fence.
      **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
      `claude/securevibe-e2-app-tokens`.
+     **Done the same day** (DESIGN, "The sign-in token the app issues itself"): `probe.app-token-signature-not-checked`
+     (V9.1.1), `probe.app-token-alg-none` (V9.1.2), and `probe.app-token-expired-accepted` (V9.2.1), each with the
+     real token alone as the control. Expiry is asked only of a token due to run out within a minute, or within 90
+     minutes with `sv run --slow`; a longer-lived token leaves V9.2.1 not assessed, saying so. Twenty-four guards
+     broken in turn, each caught (one only after a test was added). V9.1.3 and the `jku`/`kid` forms not done, at
+     the owner's word.
   5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
      query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
      and the marker appearing at all is the control.
@@ -128,6 +134,8 @@ another session is not a claim.
      **The owner's decision, 4 October 2026: yes, limited** to requests that only read (GET: searches, and pages for
      one record), and only on the copy of the app `sv` starts itself, with its throwaway data, so an always-true
      condition can never reach a request that changes data. Only ever a finding, as above.
+     **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
+     `claude/securevibe-e2-sql-injection`.
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
