@@ -276,6 +276,10 @@ another session is not a claim.
     refusal.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-refusals-that-count`.
+    **Done the same day** (DESIGN, "A refusal is credited only for the reason it is about"): the burst gives each
+    record its own marker and credits only a 429, or a 503 with `Retry-After`; each upload has a fresh token and its
+    own marker, and a refusal is credited only when an ordinary file is accepted straight after it. Seven guards
+    broken in turn, each caught.
   - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
     that includes `docker exec`'s own time.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first

@@ -101,6 +101,22 @@ pub(super) struct FakeApp {
     code_born: BTreeMap<String, u64>,
     /// Whether the idle timeout ends sessions nobody has signed in to yet, too.
     pub(super) anonymous_sessions_time_out: bool,
+    /// Hands out a new anti-forgery token with each page that carries one, and takes each only
+    /// once. The fixed token the other pages hold is still taken, so the rest of a run works.
+    pub(super) single_use_tokens: bool,
+    /// The tokens handed out under `single_use_tokens` and not yet used.
+    issued_tokens: std::collections::BTreeSet<String>,
+    /// How many have been handed out, so each is new.
+    tokens_handed_out: usize,
+    /// Refuses with 409 a note whose text, or an upload whose `title`, it has had before.
+    pub(super) refuses_repeats: bool,
+    /// The `title`s of the uploads so far.
+    upload_titles: std::collections::BTreeSet<String>,
+    /// Refuses every upload with 403 once it holds this many.
+    pub(super) upload_quota: Option<usize>,
+    /// How the notes limit answers, as a status and whether it sends `Retry-After`. `None`, the
+    /// default, is 429 with it.
+    pub(super) notes_limit_answer: Option<(u16, bool)>,
     /// Notes one user may create in a minute of the clock, answered 429 past it. `None`, the
     /// default, is no limit at all.
     pub(super) notes_per_minute: Option<u32>,
@@ -537,6 +553,18 @@ impl FakeApp {
         }))
     }
 
+    /// The anti-forgery token a page carries: the fixed one, or under `single_use_tokens` a new one
+    /// that is taken once.
+    fn page_token(&mut self) -> String {
+        if !self.single_use_tokens {
+            return CSRF.to_owned();
+        }
+        self.tokens_handed_out += 1;
+        let token = format!("{CSRF}-{}", self.tokens_handed_out);
+        self.issued_tokens.insert(token.clone());
+        token
+    }
+
     /// A new session for this user, answered the way POST /login answers.
     fn signed_in(&mut self, who: String) -> ProbeResponse {
         if let Some(lifetime) = self.jwt_lifetime {
@@ -913,7 +941,15 @@ impl FakeApp {
             .headers
             .iter()
             .any(|(k, v)| k == "Origin" && v == STRANGER);
-        let token_ok = form(r).get("csrf_token").map(String::as_str) == Some(CSRF);
+        let given = form(r).get("csrf_token").cloned().or_else(|| {
+            let body = r.body_text();
+            body.split("name=\"csrf_token\"\r\n\r\n")
+                .nth(1)
+                .and_then(|rest| rest.split("\r\n").next())
+                .map(str::to_owned)
+        });
+        let token_ok =
+            given.as_deref() == Some(CSRF) || given.is_some_and(|t| self.issued_tokens.remove(&t));
         let is_admin = user
             .as_ref()
             .is_some_and(|u| self.users.get(u).is_some_and(|(_, admin)| *admin));
@@ -1498,8 +1534,9 @@ impl FakeApp {
                     } else {
                         format!(
                             "your account<form method='post' action='/logout'>\
-                             <input name='csrf_token' value='{CSRF}'>\
-                             <button>Sign out</button></form>"
+                             <input name='csrf_token' value='{}'>\
+                             <button>Sign out</button></form>",
+                            self.page_token()
                         )
                     };
                     Self::respond(200, headers, &body)
@@ -1545,13 +1582,31 @@ impl FakeApp {
                 } else {
                     vec![]
                 },
-                &format!("<input name='csrf_token' value='{CSRF}'>"),
+                &format!("<input name='csrf_token' value='{}'>", self.page_token()),
             ),
             ("POST", "/upload") => {
                 if user.is_none() || self.flaws.upload_broken {
                     return Some(Self::respond(403, vec![], "no"));
                 }
+                if self.single_use_tokens && !token_ok {
+                    return Some(Self::respond(403, vec![], "this form has expired"));
+                }
+                if self
+                    .upload_quota
+                    .is_some_and(|most| self.uploads.len() >= most)
+                {
+                    return Some(Self::respond(403, vec![], "your storage is full"));
+                }
                 let body = r.body_text().into_owned();
+                if self.refuses_repeats
+                    && let Some(title) = body
+                        .split("name=\"title\"\r\n\r\n")
+                        .nth(1)
+                        .and_then(|rest| rest.split("\r\n").next())
+                    && !self.upload_titles.insert(title.to_owned())
+                {
+                    return Some(Self::respond(409, vec![], "you already uploaded that"));
+                }
                 let name = body
                     .split("filename=\"")
                     .nth(1)
@@ -1806,6 +1861,11 @@ impl FakeApp {
                 {
                     return Some(Self::respond(403, vec![], "no origin"));
                 }
+                let text = form(r).get("text").cloned().unwrap_or_default();
+                if self.refuses_repeats && self.notes.iter().any(|(o, t)| *o == owner && *t == text)
+                {
+                    return Some(Self::respond(409, vec![], "you already wrote that"));
+                }
                 if let Some(limit) = self.notes_per_minute {
                     let now = self.clock;
                     let times = self.note_times.entry(owner.clone()).or_default();
@@ -1815,9 +1875,14 @@ impl FakeApp {
                         !self.leak_next
                     };
                     if times.len() >= limit as usize && !leaks {
+                        let (status, retry_after) = self.notes_limit_answer.unwrap_or((429, true));
                         return Some(Self::respond(
-                            429,
-                            vec![("Retry-After", "60".into())],
+                            status,
+                            if retry_after {
+                                vec![("Retry-After", "60".into())]
+                            } else {
+                                vec![]
+                            },
                             "slow down",
                         ));
                     }

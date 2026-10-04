@@ -47,19 +47,40 @@ fn multipart(
     body
 }
 
-/// Sends one file and returns what the app answered.
+/// Where each upload's anti-forgery token comes from, when the form takes one: a page fetched just
+/// before, so every upload carries a fresh token. One token for every upload is what an app with
+/// single-use tokens refuses from the second on, which would read as the file being refused.
+struct Token<'a> {
+    page: Option<&'a str>,
+    session: &'a Session,
+    wanted: bool,
+}
+
+impl Token<'_> {
+    fn fresh(&self, http: &mut dyn Http, id: &str) -> Option<String> {
+        if !self.wanted {
+            return None;
+        }
+        http.send(&get(&format!("{id}-page"), self.page?, self.session))
+            .and_then(|page| csrf_token(&page, self.session))
+    }
+}
+
+/// Sends one file and returns what the app answered. Each carries a fresh token and its own id as
+/// `{marker}`, so no two uploads repeat a value an app might keep unique.
 fn send_upload(
     http: &mut dyn Http,
     upload: &UploadSection,
     file: &Upload,
     session: &Session,
-    csrf: Option<&str>,
+    token: &Token,
 ) -> Option<ProbeResponse> {
     const BOUNDARY: &str = "----sv-probe-boundary-6f21a9";
     let values = Values {
         user: "",
         password: "",
-        csrf: csrf.map(str::to_owned),
+        csrf: token.fresh(http, file.id),
+        marker: file.id,
         ..Default::default()
     };
     let form: BTreeMap<String, String> = upload
@@ -84,6 +105,50 @@ fn send_upload(
     http.send(&request)
 }
 
+/// Whether a refusal can be credited to the file: an ordinary GIF, with its own token and marker,
+/// sent straight after and accepted. A quota reached, a token spent, or a value the app keeps
+/// unique would refuse that too, and then the refusal is not assessed, and `false` comes back.
+/// After rather than before, because a quota the refused file would have reached is only shown by
+/// what comes next.
+#[allow(clippy::too_many_arguments)]
+fn refusal_stands(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    session: &Session,
+    token: &Token,
+    after: &str,
+    requirement: &str,
+    what: &str,
+    out: &mut Outcome,
+) -> bool {
+    let id = format!("upload-after-{after}");
+    let name = format!("sv-probe-after-{after}.gif");
+    let ordinary = Upload {
+        id: &id,
+        name: &name,
+        contents: format!("{GIF_MAGIC}sv-probe-ordinary-file"),
+    };
+    let answer = send_upload(http, upload, &ordinary, session, token);
+    if refused(&answer) {
+        out.steps.push(format!(
+            "sent {} and then an ordinary GIF: both refused",
+            what.to_lowercase()
+        ));
+        out.not_assessed.push((
+            requirement.to_owned(),
+            format!(
+                "{what} was refused at {}, but so was an ordinary GIF sent straight after it ({}), \
+                 so the refusal may have been a quota, a limit, or a spent token rather than \
+                 anything about the file.",
+                upload.path,
+                status(&answer)
+            ),
+        ));
+        return false;
+    }
+    true
+}
+
 /// The three files an app ought to refuse, and what it serves back afterwards.
 ///
 /// Every part of this establishes its own setup first. A refusal proves nothing unless an ordinary
@@ -100,13 +165,11 @@ pub(super) fn upload_checks(
         return;
     };
     let session = &signed_in.session;
-    let csrf = |http: &mut dyn Http| {
-        users.private.first().and_then(|path| {
-            http.send(&get("upload-page", path, session))
-                .and_then(|page| csrf_token(&page, session))
-        })
+    let token = Token {
+        page: users.private.first().map(String::as_str),
+        session,
+        wanted: upload.form.values().any(|v| v.contains("{csrf}")),
     };
-    let token = csrf(http);
 
     // 1. An ordinary file, to show the upload works at all. Without this every refusal below is
     //    a refusal of everything.
@@ -115,7 +178,7 @@ pub(super) fn upload_checks(
         name: "sv-probe.gif",
         contents: format!("{GIF_MAGIC}sv-probe-ordinary-file"),
     };
-    let accepted = send_upload(http, upload, &ordinary, session, token.as_deref());
+    let accepted = send_upload(http, upload, &ordinary, session, &token);
     if accepted.as_ref().is_none_or(|r| r.status >= 400) {
         out.not_assessed.push((
             "V5.2.1, V5.2.2, V5.3.1, V3.2.1".to_owned(),
@@ -157,14 +220,27 @@ pub(super) fn upload_checks(
                 name: "sv-probe-big.gif",
                 contents: format!("{GIF_MAGIC}{}", "A".repeat((most + 1024) as usize)),
             };
-            let answer = send_upload(http, upload, &big, session, token.as_deref());
+            let answer = send_upload(http, upload, &big, session, &token);
             let refused = answer.as_ref().is_none_or(|r| r.status >= 400);
             out.steps.push(format!(
                 "sent a file of {} bytes where {most} is the stated limit: {}",
                 most + 1024 + GIF_MAGIC.len() as u64,
                 if refused { "refused" } else { "accepted" }
             ));
-            if refused {
+            if refused
+                && !refusal_stands(
+                    http,
+                    upload,
+                    session,
+                    &token,
+                    "oversized",
+                    "V5.2.1",
+                    "A file larger than the stated limit",
+                    out,
+                )
+            {
+                // Not assessed, and said so.
+            } else if refused {
                 out.verified.push(crate::Verified::new(
                     OVERSIZED_FILE.rule_id,
                     OVERSIZED_FILE.requirement_ids,
@@ -197,13 +273,26 @@ pub(super) fn upload_checks(
         name: "sv-probe-not-really.gif",
         contents: "<?php echo 'sv-probe'; ?>\nthis is not a GIF at all\n".to_owned(),
     };
-    let answer = send_upload(http, upload, &mismatched, session, token.as_deref());
+    let answer = send_upload(http, upload, &mismatched, session, &token);
     let refused = answer.as_ref().is_none_or(|r| r.status >= 400);
     out.steps.push(format!(
         "sent a .gif whose contents are not a GIF: {}",
         if refused { "refused" } else { "accepted" }
     ));
-    if refused {
+    if refused
+        && !refusal_stands(
+            http,
+            upload,
+            session,
+            &token,
+            "mismatched",
+            "V5.2.2",
+            "A .gif whose contents are not a GIF",
+            out,
+        )
+    {
+        // Not assessed, and said so.
+    } else if refused {
         out.verified.push(crate::Verified::new(
             CONTENT_MISMATCH.rule_id,
             CONTENT_MISMATCH.requirement_ids,
@@ -227,9 +316,9 @@ pub(super) fn upload_checks(
 
     // 4. V1.3.4 and V5.4.3: an SVG image carrying a script, and the antivirus test file. Each can
     //    be answered by a refusal, so each is sent whether or not the app serves uploads back.
-    svg_check(http, upload, session, token.as_deref(), out);
-    scan_check(http, upload, session, token.as_deref(), out);
-    traversal_check(http, upload, session, token.as_deref(), out);
+    svg_check(http, upload, session, &token, out);
+    scan_check(http, upload, session, &token, out);
+    traversal_check(http, upload, session, &token, out);
 
     // 5. V5.3.1 and V3.2.1: what the app does with an upload when it is fetched back.
     let Some(serves_at) = &upload.serves_at else {
@@ -242,8 +331,8 @@ pub(super) fn upload_checks(
         ));
         return;
     };
-    served_upload_checks(http, upload, serves_at, session, token.as_deref(), out);
-    download_name_checks(http, upload, serves_at, session, token.as_deref(), out);
+    served_upload_checks(http, upload, serves_at, session, &token, out);
+    download_name_checks(http, upload, serves_at, session, &token, out);
 }
 
 /// The address one folder above where uploads are served, for a name: `/files/{name}` gives `/{name}`,
@@ -272,7 +361,7 @@ fn traversal_check(
     http: &mut dyn Http,
     upload: &UploadSection,
     session: &Session,
-    token: Option<&str>,
+    token: &Token,
     out: &mut Outcome,
 ) {
     let nonce = format!(
@@ -291,6 +380,19 @@ fn traversal_check(
     };
     let stored = send_upload(http, upload, &file, session, token);
     if refused(&stored) {
+        let what = "A file named to land outside the upload folder";
+        if !refusal_stands(
+            http,
+            upload,
+            session,
+            token,
+            "traversal",
+            "V5.3.2",
+            what,
+            out,
+        ) {
+            return;
+        }
         out.steps
             .push("sent a file named `../…` to land outside the upload folder: refused".to_owned());
         out.verified.push(crate::Verified::new(
@@ -402,7 +504,7 @@ fn svg_check(
     http: &mut dyn Http,
     upload: &UploadSection,
     session: &Session,
-    token: Option<&str>,
+    token: &Token,
     out: &mut Outcome,
 ) {
     const MARKER: &str = "sv-probe-svg-marker-3d9e";
@@ -416,6 +518,10 @@ fn svg_check(
     };
     let stored = send_upload(http, upload, &svg, session, token);
     if refused(&stored) {
+        let what = "An SVG image carrying a script";
+        if !refusal_stands(http, upload, session, token, "svg", "V1.3.4", what, out) {
+            return;
+        }
         out.steps
             .push("sent an SVG image carrying a script: refused".to_owned());
         out.verified.push(crate::Verified::new(
@@ -526,7 +632,7 @@ fn scan_check(
     http: &mut dyn Http,
     upload: &UploadSection,
     session: &Session,
-    token: Option<&str>,
+    token: &Token,
     out: &mut Outcome,
 ) {
     /// Seconds a scanner that runs after the upload is stored is given before the file is
@@ -558,6 +664,10 @@ fn scan_check(
     };
     let stored = send_upload(http, upload, &test_file, session, token);
     if refused(&stored) {
+        let what = "The antivirus test file (EICAR)";
+        if !refusal_stands(http, upload, session, token, "eicar", "V5.4.3", what, out) {
+            return;
+        }
         out.steps.push(
             "sent the antivirus test file (EICAR) after an ordinary text file: refused".to_owned(),
         );
@@ -687,7 +797,7 @@ fn download_name_checks(
     upload: &UploadSection,
     serves_at: &str,
     session: &Session,
-    token: Option<&str>,
+    token: &Token,
     out: &mut Outcome,
 ) {
     const HOSTILE: &str = "sv-probe;svinjected=1.gif";
@@ -840,7 +950,7 @@ fn served_upload_checks(
     upload: &UploadSection,
     serves_at: &str,
     session: &Session,
-    token: Option<&str>,
+    token: &Token,
     out: &mut Outcome,
 ) {
     // Server-side code, and a page. One file answers both only if the app serves it, so each is
@@ -1425,6 +1535,124 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    /// The five upload rules a refusal can earn credit for.
+    const CREDITED_ON_REFUSAL: [&str; 5] = [
+        OVERSIZED_FILE.rule_id,
+        CONTENT_MISMATCH.rule_id,
+        UPLOAD_SVG_SCRIPT.rule_id,
+        UPLOAD_NOT_SCANNED.rule_id,
+        UPLOAD_PATH_TRAVERSAL.rule_id,
+    ];
+
+    /// A run with the upload form carrying a `title` of `{marker}`, against the app as `adjust`
+    /// leaves it.
+    fn upload_run_adjusted(flaws: Flaws, adjust: impl FnOnce(&mut FakeApp)) -> Outcome {
+        let mut users = with_upload(Some("/files/{name}"), Some(UPLOAD_LIMIT as u64));
+        if let Some(upload) = &mut users.upload {
+            upload
+                .form
+                .insert("title".to_owned(), "{marker}".to_owned());
+        }
+        let mut app = FakeApp::new(flaws);
+        adjust(&mut app);
+        let acc = accounts();
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let admin = acc.admin.clone().unwrap();
+        app.users.insert(admin.user, (admin.password, true));
+        run(&mut app, &users, &acc, true, &Default::default())
+    }
+
+    /// Every upload flaw a refusal could hide.
+    fn accepts_everything() -> Flaws {
+        Flaws {
+            oversized_upload_ok: true,
+            unchecked_contents_ok: true,
+            svg_scripts_kept: true,
+            no_malware_scan: true,
+            upload_path_traversal: true,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn a_refusal_for_a_repeat_or_a_spent_token_is_not_the_file_refused() {
+        for (what, adjust) in [
+            (
+                "repeats",
+                (|a: &mut FakeApp| a.refuses_repeats = true) as fn(&mut FakeApp),
+            ),
+            ("single-use tokens", |a: &mut FakeApp| {
+                a.single_use_tokens = true
+            }),
+        ] {
+            // An app that takes every bad file, and would refuse the second upload on for a
+            // reason of its own: each upload carries its own marker and a fresh token, so the
+            // bad files are seen being taken.
+            let o = upload_run_adjusted(accepts_everything(), adjust);
+            for rule in [OVERSIZED_FILE.rule_id, CONTENT_MISMATCH.rule_id] {
+                assert!(
+                    rule_ids(&o).contains(&rule),
+                    "{what}: {rule} not found: {:#?}",
+                    o.steps
+                );
+            }
+            for rule in CREDITED_ON_REFUSAL {
+                assert!(!verified_ids(&o).contains(&rule), "{what}: {rule} credited");
+            }
+            // The control: a correct app with the same habit is credited for all five.
+            let o = upload_run_adjusted(Flaws::default(), adjust);
+            for rule in CREDITED_ON_REFUSAL {
+                assert!(
+                    verified_ids(&o).contains(&rule),
+                    "{what}: {rule} not credited: {:#?}\n{:#?}",
+                    o.steps,
+                    o.not_assessed
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_refusal_is_credited_only_when_an_ordinary_file_is_taken_straight_after() {
+        // Full after the first file: every later upload is refused, the bad ones included, and
+        // the ordinary one after each shows the refusal was the quota's.
+        let o = upload_run_adjusted(accepts_everything(), |a| a.upload_quota = Some(1));
+        for rule in CREDITED_ON_REFUSAL {
+            assert!(
+                !verified_ids(&o).contains(&rule),
+                "{rule} credited: {:#?}",
+                o.steps
+            );
+            assert!(!rule_ids(&o).contains(&rule), "{rule} found");
+        }
+        for id in ["V5.2.1", "V5.2.2", "V1.3.4", "V5.3.2", "V5.4.3"] {
+            assert!(
+                o.not_assessed.iter().any(|(ids, _)| ids.contains(id)),
+                "{id} not said: {:#?}",
+                o.not_assessed
+            );
+        }
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("ordinary GIF sent straight after")),
+            "{:#?}",
+            o.not_assessed
+        );
+        // The control: room enough, and a correct app is credited for all five.
+        let o = upload_run_adjusted(Flaws::default(), |a| a.upload_quota = Some(1000));
+        for rule in CREDITED_ON_REFUSAL {
+            assert!(
+                verified_ids(&o).contains(&rule),
+                "{rule}: {:#?}",
+                o.not_assessed
+            );
+        }
     }
 
     #[test]
