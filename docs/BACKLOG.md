@@ -9,6 +9,66 @@ another session is not a claim.
 
 ## Next
 
+- **A deep review of `sv` at `eff3f17`, part 1 of 3: the safety of `sv` itself, and AI reviews.** Sent on 4 October
+  2026 by the cato-pipeline session at the owner's asking: six reviewers, findings reproduced with harmless fixtures
+  on a build of `eff3f17` or on the 45b6d71 image. Labels: *Reproduced* (a reviewer ran it), *Read* (confirmed from
+  the code), *Plausible*. Parts 2 and 3 (honesty, accuracy, reports) follow as their own entries. The sender's order
+  of fixes: S1; S2; S3 to S6; R1 and R2; then part 2's. **Each item can be claimed on its own.**
+  - **S1. Critical, Reproduced. A backslash in a file name makes `sv bundle` read and zip files outside the app.**
+    `bundle.rs` walk (about line 306) rebuilds each path from its text with `\` turned into `/`, so a file named
+    `..\outside\key.txt`, an ordinary name on macOS and Linux, is read as `../outside/key.txt` (enough `..\` parts
+    reached `/etc/hosts`), and the zip entry is a zip-slip. The same mapping feeds Semgrep's file list
+    (`adapters.rs`), the compose reader (`sv-scan/src/lib.rs`), and `jvm.rs`. Fix: carry the walked path, never
+    rebuild one from its text; leave out and list a name with `\`, a `..` part, or bytes that are not UTF-8; check
+    every zip entry name part is ordinary.
+  - **S2. High, Reproduced on Colima. The fence lets the app reach the host through the bridge's gateway.**
+    `docker network create --internal` blocks the internet but not the gateway: a fenced container reached the
+    Colima VM's sshd at 172.20.0.1:22. On Linux with Docker itself, the gateway is the developer's own machine.
+    `verify_fenced` only checks the network is internal, and `tests/fence.rs` only tries the internet. Fix: create
+    the network with `com.docker.network.bridge.inhibit_ipv4=true` or block the gateway another way, refuse to run
+    when a fenced container can reach the gateway, and test the gateway with a positive control.
+  - **S3. High, Reproduced. `sv notes` and `sv rules` write through a link to a file outside the app**
+    (`main.rs`, AGENTS.md and security-notes.md, plain `fs::write`). The MCP route refuses a link; the command
+    line does not.
+  - **S4. High, Reproduced. `sv bundle` writes its zip through a link in the app's parent folder**
+    (`main.rs`, `bundle.rs`): an existing `app-securevibe-bundle.zip` link to another file had that file
+    overwritten. Fix: refuse a link there; write a new file under a temporary name, then rename.
+  - **S5. High, Reproduced. A report written with `out` "." overwrites the app's own files** (`mcp.rs`,
+    `main.rs`): on a case-insensitive volume `security.md` replaced the app's `SECURITY.md`. Fix: refuse an
+    existing folder that holds other files and no marker of `sv`'s, comparing names case-insensitively.
+  - **S6. High, Reproduced. Tool reports go to fixed names in the shared temporary folder, and a planted file is
+    taken as a real run** (`adapters.rs`: `temp_dir()`, `sv-<id>.sarif`, any readable file accepted, exit status
+    ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at
+    once read each other's. Fix: a private folder per run (0700, unpredictable name), each tool's exit codes, and
+    only a report created after the tool started.
+  - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
+    reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
+    gets; until then drop findings on linked files and mark the run partial.
+  - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
+    report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
+    adapter finding's text, and scan the report files for secrets before zipping.
+  - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
+    `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
+  - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
+    two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
+    what this run made.
+  - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
+    in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
+    an isolated world, storage read through DevTools' storage domains.
+  - **S12. Medium, Reproduced. A named pipe in the app hangs `sv`** (`files.rs` lists pipes as files and blocks
+    reading them). Fix: list only regular files; say the rest were not read.
+  - **S13. Low, Reproduced. `sv probe` takes internal addresses, and curl's globbing turns one address into
+    several requests** (`production.rs`). Fix: `--globoff`, and refuse private, loopback, link-local, and
+    unspecified addresses, names that resolve to them included.
+  - **R1. High, Reproduced. An AI tool can mark its own findings as reviewed by a person** (`review.rs`,
+    `confirm.rs`): only an empty `by`, "ai-tool", and "AI coding tool" are refused, so `by = "owner"` cleared a
+    finding, shown as "SET ASIDE BY A PERSON"; `confirmed.by` has the same gap. Fix: at least say what is known
+    ("marked by = owner in securevibe.toml; sv cannot tell who wrote it"); better, record reviews only through an
+    interactive `sv review` that refuses input that is not a terminal and keeps its record outside the app folder,
+    entries without one counting as proposals; show the entry's git author.
+  - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
+    aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
+
 - **V9.1.3: a token must not choose where the app gets its keys (level 1).** Left out of item 4 below by the owner's
   word, then taken up on 4 October 2026: the owner asked session securevibe-e9 what a test key server would take and
   give, and decided **both options are to be built**: "I think it's worth building the key server for the stronger
