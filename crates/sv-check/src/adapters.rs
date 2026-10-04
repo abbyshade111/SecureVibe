@@ -593,11 +593,19 @@ pub fn run_one_in(
     if names_files {
         if files.is_empty() {
             return Outcome::NotRun {
-                why: format!(
-                    "there is no code in this app in a language `sv` reads, so {} was given \
-                     nothing to read",
-                    adapter.name
-                ),
+                why: if adapter.language == "*" {
+                    format!(
+                        "there is no code in this app in a language `sv` reads, so {} was given \
+                         nothing to read",
+                        adapter.name
+                    )
+                } else {
+                    format!(
+                        "there is no {} code in this app that `sv` reads, so {} was given nothing \
+                         to read",
+                        adapter.language, adapter.name
+                    )
+                },
             };
         }
         let bytes: usize = files.iter().map(|f| f.len() + 3).sum();
