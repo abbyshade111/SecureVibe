@@ -55,7 +55,9 @@ jobs:
       - name: Tests
         # The fence tests need a container backend. GitHub's runners have Docker, so they run for real here;
         # where there is none they assert the honest-absence path instead and say which branch they took.
-        run: cargo test --workspace
+        run: |
+          set -o pipefail
+          cargo test --workspace 2>&1 | tee test.log || { grep -E -A3 "panicked at|^---- |FAILED|reached|gateway|verdict" test.log | head -60 | sed 's/^/::error::/'; exit 1; }
 
   image:
     # The container for somebody who is not going to install Rust (the Dockerfile). Built from
