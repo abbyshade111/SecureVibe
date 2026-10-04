@@ -147,6 +147,11 @@ another session is not a claim.
     output tells the AI coding tool never to name the person in `by` itself. Twelve wordings put back in turn, each
     caught. **Still open, for the owner to decide:** the interactive `sv review` with its record outside the app's
     folder. The git author was considered and left out: an AI coding tool commits under the owner's git name.
+    **The owner decided on 4 October 2026**: build `sv review`, a command that runs only in a terminal and seals each
+    entry it records with a key kept outside the app's folder; the entries stay in securevibe.toml, and an entry
+    without a valid seal counts only as a proposal. A seal that cannot be checked where `sv` runs (CI, another
+    computer) still counts, saying it could not be checked there. **Claimed the same day by session securevibe-e9**,
+    in branch `claude/securevibe-e9-sv-review`.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
