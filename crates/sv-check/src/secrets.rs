@@ -323,14 +323,17 @@ fn scan_piece(
 /// the `=`: in one pattern, Java's `String password = "…"` would be read as the name `String` with the
 /// type `password`, and the line passed over.
 ///
-/// Until 4 October 2026 only the first shape's `:` and `=` were read, so a JSON or dict key, PHP's and
-/// Ruby's `=>`, Go's `:=`, a typed declaration, and a default given to an environment variable in the
-/// code were reported by nothing (the deep review's H3).
+/// The first shape is the one read until 4 October 2026, `name = "v"` and `name: "v"`, kept as it was;
+/// a JSON or dict key, PHP's and Ruby's `=>`, Go's `:=`, a typed declaration, and a default given to an
+/// environment variable in the code were reported by nothing (the deep review's H3). What only the
+/// later shapes find is judged once more (`reads_as_text_or_a_name`).
 static QUOTED_SHAPES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
     const VALUE: &str = r#"["'](?P<value>[^"'\n]{8,200})["']"#;
     const NAME: &str = r"(?P<name>[A-Za-z_][A-Za-z0-9_.\-]*)";
     [
-        // name = "v", name: "v", "name": "v", 'name' => 'v', name := "v".
+        // The shape read before: name = "v", name: "v".
+        format!(r#"{NAME}\s*[:=]\s*{VALUE}"#),
+        // And "name": "v", 'name' => 'v', name := "v".
         format!(r#"["']?{NAME}["']?\s*(?:=>|:=|:|=)\s*{VALUE}"#),
         // TypeScript, Kotlin, Swift, and Rust: `apiKey: string = "v"`, `API_KEY: &'static str = "v"`.
         format!(r#"{NAME}\s*:\s*&?(?:'[a-z]+\s+)?[A-Za-z_][A-Za-z0-9_.<>\[\]?]*\s*=\s*{VALUE}"#),
@@ -379,28 +382,57 @@ fn writes_values_unquoted(relative: &str) -> bool {
         .any(|ext| name.ends_with(ext))
 }
 
-/// Every name given a value in `text`, in the shapes above, as (name, value), in the order the values
-/// come. One value can come with more than one name: in `var password string = "v"` the first shape
-/// reads the type, `string`, as the name, and the Go shape reads `password`. Both are kept, so the
-/// caller can judge each name and report the value once.
-fn named_values<'t>(relative: &str, text: &'t str) -> Vec<(regex::Match<'t>, regex::Match<'t>)> {
+/// A name given a value, and whether the shape read before 4 October 2026 found it.
+struct Named<'t> {
+    name: regex::Match<'t>,
+    value: regex::Match<'t>,
+    read_before: bool,
+}
+
+/// Every name given a value in `text`, in the shapes above, in the order the values come. One value
+/// can come with more than one name: in `var password string = "v"` the first shape reads the type,
+/// `string`, as the name, and the Go shape reads `password`. Both are kept, so the caller can judge
+/// each name and report the value once.
+fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
     let unquoted = writes_values_unquoted(relative).then_some(&*UNQUOTED);
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
-    for shape in QUOTED_SHAPES.iter().chain(unquoted) {
+    for (shape_index, shape) in QUOTED_SHAPES.iter().chain(unquoted).enumerate() {
         for caps in shape.captures_iter(text) {
             let name = ["name", "name2", "name3"]
                 .iter()
                 .find_map(|g| caps.name(g))
                 .expect("every shape names its name");
             let value = caps.name("value").expect("every shape names its value");
+            // The first shape goes first, so a pair it found keeps `read_before`.
             if seen.insert((name.start(), value.start())) {
-                out.push((name, value));
+                out.push(Named {
+                    name,
+                    value,
+                    read_before: shape_index == 0,
+                });
             }
         }
     }
-    out.sort_by_key(|(name, value)| (value.start(), name.start()));
+    out.sort_by_key(|n| (n.value.start(), n.name.start()));
     out
+}
+
+/// Whether a value the newer shapes found is text or a name rather than a credential: words with a
+/// space between them, a relative path (`./lib/tokenize.js`), or an identifier in lower case
+/// (`config.workflow-fork-secrets`), as the upper-case one is already passed over. Reading JSON and
+/// dict keys brought in every message catalog and schema whose key holds "token" or "password"
+/// (TypeScript's "Unexpected token…" in thirteen languages, CycloneDX's "A secret word, phrase…"):
+/// 90 false alarms in v1's `node_modules` and 17 in this repository and v1's code, before this.
+/// A random credential has none of these shapes. A passphrase of words with spaces written as a
+/// JSON value is the cost: it was not found before the newer shapes, and is not found now.
+fn reads_as_text_or_a_name(value: &str) -> bool {
+    value.chars().any(char::is_whitespace)
+        || value.starts_with("./")
+        || value.starts_with("../")
+        || value
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || matches!(c, '.' | '-' | '_'))
 }
 
 /// A name that says "credential" assigned a value that looks like one.
@@ -416,13 +448,21 @@ fn assignment_findings(
 ) -> Vec<Finding> {
     let mut out = Vec::new();
     let mut reported = std::collections::HashSet::new();
-    for (name_match, value_match) in named_values(relative, text) {
+    for Named {
+        name: name_match,
+        value: value_match,
+        read_before,
+    } in named_values(relative, text)
+    {
         if !keep.contains(&name_match.start()) || reported.contains(&value_match.start()) {
             continue;
         }
         let name = name_match.as_str();
         let value = value_match.as_str();
         if !is_secret_name(name) || looks_like_placeholder(value) {
+            continue;
+        }
+        if !read_before && reads_as_text_or_a_name(value) {
             continue;
         }
         // A reference to another variable, a path or a URL is not a credential, and nor is a value
@@ -508,7 +548,7 @@ pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
     }
     // And every shape the assignment rule reads (`:=`, `=>`, a typed declaration, a default given to
     // an environment variable), which the pattern above cuts short or misses.
-    for (name, value) in named_values("", text) {
+    for Named { name, value, .. } in named_values("", text) {
         if is_secret_name(name.as_str()) && !looks_like_placeholder(value.as_str()) {
             spans.push((value.start(), value.end()));
         }
@@ -1434,6 +1474,71 @@ mod tests {
                 found.len()
             );
         }
+    }
+
+    #[test]
+    fn what_only_the_new_shapes_find_is_passed_over_when_it_is_text_or_a_name() {
+        // The false alarms reading JSON and dict keys first brought in, each from v1's code or its
+        // `node_modules` on 4 October 2026.
+        for (case, file, line) in [
+            (
+                "a message catalog",
+                "diagnosticMessages.generated.json",
+                r#""Unexpected_token_1012": "Unexpected token. A constructor, method, accessor, or property was expected.","#,
+            ),
+            (
+                "a package's export map",
+                "package.json",
+                r#""./lib/tokenize": "./lib/tokenize.js","#,
+            ),
+            (
+                "a rule id in a typed constant",
+                "workflows.rs",
+                r#"pub const FORK_SECRETS: &str = "config.workflow-fork-secrets";"#,
+            ),
+            (
+                "a sentence under a quoted key",
+                "metrics.ts",
+                r#"'auth_token_issued': 'Sign-in tokens issued today',"#,
+            ),
+        ] {
+            let found = scan_text(&rules(), file, &format!("{line}\n"));
+            assert!(
+                found.is_empty(),
+                "reported {case}: {} findings",
+                found.len()
+            );
+        }
+        // The controls. The shape read before 4 October 2026 is judged as it was, so a passphrase it
+        // found is still found; written as a JSON value, it is the stated cost, and not found.
+        let passphrase = ["Tr0ub4dor", "and 3 horses"].join(" ");
+        assert!(
+            !scan_text(
+                &rules(),
+                "app.py",
+                &format!("password = \"{passphrase}\"\n")
+            )
+            .is_empty(),
+            "the shape read before lost a passphrase"
+        );
+        assert!(
+            scan_text(
+                &rules(),
+                "config.json",
+                &format!("{{\"password\": \"{passphrase}\"}}\n")
+            )
+            .is_empty()
+        );
+        // And a credential with no space, path, or lower-case-only shape is still found in a JSON key.
+        let value = made_up_value();
+        assert!(
+            !scan_text(
+                &rules(),
+                "config.json",
+                &format!("{{\"password\": \"{value}\"}}\n")
+            )
+            .is_empty()
+        );
     }
 
     #[test]
