@@ -3929,6 +3929,7 @@ fn assemble_report_saying(
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let reviewed = sv_check::review::apply(
+        app_dir,
         &manifest.finding_review,
         findings,
         sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
