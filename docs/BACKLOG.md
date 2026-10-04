@@ -33,6 +33,8 @@ another session is not a claim.
      has no version or commit, and `sv --version` in the published image prints "commit unknown", because
      `SV_GIT_COMMIT` is not set when the image is built. Write `"sv": {"version", "commit"}` into `report.json` and
      the SARIF's `tool.driver`, show it in `report.html`, and pass the commit to the image build.
+     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline
+     session, in branch `claude/securevibe-e9-report-provenance`.
 
 - **The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add.** By session
   securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
