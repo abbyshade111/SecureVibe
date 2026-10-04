@@ -1,0 +1,230 @@
+{
+  "_comment": "Prompts a person gives their AI coding tool, each written in this project's own words. Where one was inspired by the Cloud Security Alliance's Secure Vibe Coding Guide (K. Huang, 9 April 2025, https://cloudsecurityalliance.org/blog/2025/04/09/secure-vibe-coding-guide), `inspired_by` names the guide's section; none of the guide's text is copied. Each names the requirements it targets and the sv check that shows whether it worked. A prompt ships only once `tested` records an app built with it passing that check and the same app built without it failing (the owner's decision of 3 October 2026; see docs/BACKLOG.md, 'A prompt library'). `status` is `shown` once that has happened, `not-shown` when it was tried and did not show it (with why), and `untested` before it is tried. Only `shown` prompts are offered.",
+  "prompts": [
+    {
+      "id": "settings-file-first",
+      "title": "Describe the app to SecureVibe before writing code",
+      "prompt": "Before writing any code, run `sv init` in the project folder and fill in the securevibe.toml it creates: what the app does, who uses it, its languages, how to start it, and which of the listed capabilities it has. For any capability you are not sure about, delete the line instead of writing false. Keep the file up to date whenever the app gains or loses a capability.",
+      "requirements": [],
+      "check": {
+        "kind": "static",
+        "how": "`sv report` reads the app's securevibe.toml. Without one it refuses to check the app at all.",
+        "passes_when": "sv report runs on the build",
+        "fails_when": "sv report says there is no securevibe.toml"
+      },
+      "inspired_by": "the owner's first build, 26 September 2026",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "With the prompt the build ran `sv init` and filled in securevibe.toml, and `sv report` ran on it; without, there was no securevibe.toml and `sv report` refused to check the app."
+      },
+      "status": "shown"
+    },
+    {
+      "id": "git-from-the-start",
+      "title": "Keep the app in git from the first file",
+      "prompt": "Make the project folder a git repository before writing the first file (`git init`), add a .gitignore straight away that leaves out .env files, keys, and installed dependencies, and commit after each step that works.",
+      "requirements": [
+        "V13.3.1"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The committed-secrets check reads the app's git history, and runs only in a git repository; the .gitignore check reads whether .env is left out.",
+        "rules": [
+          "config.secrets-file-committed",
+          "config.gitignore-covers-env"
+        ],
+        "passes_when": "the committed-secrets check ran, and neither rule is a finding",
+        "fails_when": "the committed-secrets check could not run (not a git repository), or either rule is a finding"
+      },
+      "inspired_by": "the owner's first build, 26 September 2026",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "With the prompt the build was a git repository with a .gitignore and two commits, and the committed-secrets check ran; without, `sv` said the folder is not a git repository and that check could not run. Measured with both builds copied outside any other repository: inside this one, the build without read as part of it."
+      },
+      "status": "shown"
+    },
+    {
+      "id": "secrets-in-the-environment",
+      "title": "Keep keys and passwords out of the code",
+      "prompt": "Never write a password, API key, or token into the code, a config file, or anything else that gets committed. Read each one from an environment variable when the app starts, and stop with a clear message if one is missing. List the variables the app needs in a .env.example with placeholder values only, and keep the real .env file out of git.",
+      "requirements": [
+        "V13.3.1"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The secrets scan reads every file for credentials; the .gitignore check reads whether .env is left out.",
+        "rules": [
+          "secrets.",
+          "config.gitignore-covers-env"
+        ],
+        "passes_when": "no secrets finding and no .gitignore finding",
+        "fails_when": "a secrets finding, or .env not left out of git"
+      },
+      "inspired_by": "the guide's Security fundamentals: avoid hardcoded secrets",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "The build without already read the API key from the environment, and the secrets scan found nothing in either: on this brief, with this model, the prompt changed nothing a check can see."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "database-placeholders",
+      "title": "Build every database query with placeholders",
+      "prompt": "Whenever the app reads or writes the database, pass every value through the database library's placeholders (parameters) or an ORM. Never build a query by joining strings, with f-strings, or with format(), not even for numbers. If a person chooses a column or a sort order, pick it from a fixed list in the code rather than putting what they sent into the query.",
+      "requirements": [
+        "V1.2.4"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The rule for queries built by joining text.",
+        "rules": [
+          "ast.sql-built-by-hand"
+        ],
+        "passes_when": "no finding, and the build does query the database",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "the guide's Database security: parameterized queries",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "The build with the prompt followed it, running a fixed setup script and choosing its sort order from a fixed list of queries, and `ast.sql-built-by-hand` flagged both as built by hand: false alarms in the check, recorded in docs/BACKLOG.md. The build without wrote its queries in place and was not flagged."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "no-shell-with-input",
+      "title": "Run other programs without a shell",
+      "prompt": "Never run a shell command built from anything a person sends. If the app has to run another program, call it with a list of arguments and no shell (in Python, subprocess.run([...]) without shell=True; in Node, execFile rather than exec), and check each value a person supplies against what is allowed before passing it on.",
+      "requirements": [
+        "V1.2.5"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The rule for a shell command built from a value.",
+        "rules": [
+          "ast.shell-command",
+          "ast.shell-command-backticks"
+        ],
+        "passes_when": "no finding, and the build does run the other program",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: validate inputs",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "The build without already ran `notes-export` with a list of arguments and no shell; neither was flagged."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "files-under-own-names",
+      "title": "Save files under names the app makes",
+      "prompt": "Never build a file path from a name or path a person sends. Save each uploaded file under a name the app makes (a random id), keep the original name only as data in the database, and when a person asks for a file, look it up by that id.",
+      "requirements": [
+        "V5.3.2"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The rule for a file opened at a path built from a value.",
+        "rules": [
+          "ast.file-path-from-value"
+        ],
+        "passes_when": "no finding, and the build does save and serve files",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: validate inputs",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "The build with the prompt saved files under a random id and opened them by the id stored in its own database, and `ast.file-path-from-value` flagged that path: a false alarm, recorded in docs/BACKLOG.md. The build without was not flagged."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "password-hashing",
+      "title": "Store passwords with a password-hashing function",
+      "prompt": "Store passwords only as hashes made by a password-hashing function from a well-known library: Argon2id first, or bcrypt or scrypt, with the library's recommended settings. Never use MD5, SHA-1, or SHA-256 on their own for passwords, never encrypt them so they can be read back, and never store them as they were typed.",
+      "requirements": [
+        "V11.4.1",
+        "V11.4.4"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The rules for a disallowed hash function and for a key made from a password with too few rounds.",
+        "rules": [
+          "ast.weak-hash-function",
+          "ast.weak-password-key-derivation"
+        ],
+        "passes_when": "no finding, and the build does store passwords",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "the guide's Application security: strong cryptography",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "The build without already hashed passwords with Werkzeug's `generate_password_hash`; the build with used Argon2id. Neither was flagged."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "same-site-redirects",
+      "title": "Send people back only to pages on the same site",
+      "prompt": "When the app sends someone on to another page after an action, such as back to where they were after signing in, only send them to a path on this same site. Treat a full web address, or anything starting with //, as not allowed, and send them to the home page instead.",
+      "requirements": [
+        "V3.7.2"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The rule for a redirect to a destination built from a value.",
+        "rules": [
+          "ast.open-redirect"
+        ],
+        "passes_when": "no finding, and the build does send people back after signing in",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: validate inputs",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "Both builds already checked the destination with a function of their own before redirecting, and `ast.open-redirect` flagged both: the check cannot tell a checked redirect from an unchecked one, recorded in docs/BACKLOG.md."
+      },
+      "status": "not-shown"
+    },
+    {
+      "id": "sanitize-rich-text",
+      "title": "Clean formatted text before showing it",
+      "prompt": "If people can write formatted text (HTML, or Markdown turned into HTML) that the app shows, clean it with a well-known sanitizer before showing it: bleach or nh3 in Python, DOMPurify in JavaScript, set to allow only the formatting the app needs. Show everything else as plain text through the template's own escaping, and never mark text as safe to skip that escaping.",
+      "requirements": [
+        "V1.3.1"
+      ],
+      "check": {
+        "kind": "static",
+        "how": "The check for rich text shown without a sanitizer.",
+        "rules": [
+          "config.rich-text-without-sanitizer"
+        ],
+        "passes_when": "no finding, and the build does show formatted text",
+        "fails_when": "a finding"
+      },
+      "inspired_by": "the guide's Vercel deployment: sanitize user input",
+      "tested": {
+        "date": "2026-10-03",
+        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
+        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
+        "result": "The build without escaped everything first and then allowed only bold, italics, and web links, which is safe; the build with used bleach. `config.rich-text-without-sanitizer` reads the app's declared libraries and saw no formatting in the build without at all, so its silence there was not a judgment."
+      },
+      "status": "not-shown"
+    }
+  ]
+}

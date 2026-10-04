@@ -9,6 +9,27 @@ another session is not a claim.
 
 ## Next
 
+- **Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026.** Found
+  by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
+  `docs/PROMPTS.md`). Each kept a prompt from being shown to work, because the build that followed the prompt was
+  flagged. **Each can be claimed on its own.**
+  1. **`ast.sql-built-by-hand` (V1.2.4) on a query taken whole from the code.** Flagged:
+     `db().executescript(SCHEMA)` with `SCHEMA` a module-level text constant, and `db().execute(sql, params)` with
+     `sql = SORT_ORDERS.get(key, SORT_ORDERS["newest"])`, a dictionary of fixed queries, and the values passed as
+     parameters. Neither joins text. Witnesses needed both ways: a constant and a lookup in a constant dictionary
+     stay quiet; a constant joined with a request value still fires.
+  2. **`ast.file-path-from-value` (V5.3.2) on a path built from the app's own database.**
+     `send_file(os.path.join(UPLOAD_DIR, row["id"]), ...)`, where `row` came from a query on the signed-in user's
+     attachments and the id was made by the app (`uuid4().hex`) when the file was saved. Telling a database value
+     from a request value is the hard part; at the least the finding could say `"confidence": "low"` here, as the
+     rule already does for a question it cannot settle.
+  3. **`ast.open-redirect` (V3.7.2) on a destination already checked.** `redirect(safe_next(next_url))`, and
+     `next_url = safe_next(...)` then `redirect(next_url)`, where `safe_next` sends anything but a same-site path to
+     the home page. Both the build with the prompt and the one without were flagged, so the rule cannot currently
+     tell a checked redirect from an unchecked one. Recognizing every checking function is not possible; one
+     honest step is to lower the confidence when the value passed through a function of the app's own whose
+     name or body speaks of the destination, and say so in the finding.
+
 - **Three faults found scanning the owner's family-hub, reported 3 October 2026.** Sent by the cato-pipeline session
   at the owner's asking. It found them on family-hub (Python and Flask, built with `sv` in the loop) with `sv` at
   982f97e and 45b6d71, and checked all three were still there on `main` at 9573c0d. **Each can be claimed on its
@@ -317,6 +338,11 @@ another session is not a claim.
 
   **How a prompt is known to work:** the check it targets, run on an app built with it, and failing
   on one built without it. The same discipline as every other check here.
+  **First batch tried, 3 October 2026:** nine prompts, in `data/prompts.json` and `docs/PROMPTS.md`. Two shown to
+  work (the settings file first, and git from the first file). Seven not shown: for four the build without the
+  prompt already did the safe thing, and for three `sv` raised a false alarm on the build that followed the prompt
+  (now an item under "Next"). Still to do: the rest of the batch (access control, headers, CORS, error pages), a
+  second app brief where the plain build does the unsafe thing, and `sv prompts` with its MCP tool.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
