@@ -43,7 +43,7 @@ fn a_tool_that_is_not_installed_is_not_run_rather_than_clean() {
         .find(|a| a.id == "bandit")
         .expect("bandit is listed");
 
-    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
+    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"), &secret_rules());
     std::fs::remove_dir_all(&dir).ok();
 
     match outcome {
@@ -78,7 +78,7 @@ fn a_tool_that_writes_no_report_is_not_run_either() {
     let adapters = Adapters::load(&path).unwrap();
     let bandit = adapters.all().iter().find(|a| a.id == "bandit").unwrap();
 
-    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
+    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"), &secret_rules());
     std::fs::remove_dir_all(&dir).ok();
 
     match outcome {
@@ -330,7 +330,7 @@ fn a_tool_that_is_there_and_will_not_start_is_told_apart_from_a_missing_one() {
             detail: "it exited with an error and said nothing".to_owned()
         }
     );
-    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"));
+    let outcome = adapters::run_one(bandit, &dir, &dir.join("out.sarif"), &secret_rules());
     std::fs::remove_dir_all(&dir).ok();
     match outcome {
         Outcome::NotRun { why } => {
@@ -1075,4 +1075,12 @@ fn a_stand_in_that_would_be_handed_what_it_refuses_is_refused() {
         );
     }
     std::fs::remove_dir_all(&dir).ok();
+}
+
+/// `sv`'s own credential rules, which redact what a tool says.
+fn secret_rules() -> sv_check::secrets::SecretRules {
+    sv_check::secrets::SecretRules::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
+    )
+    .expect("the secret rules load")
 }
