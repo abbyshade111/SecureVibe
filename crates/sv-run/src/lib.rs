@@ -655,6 +655,26 @@ pub(crate) struct Bounded {
     pub text: String,
     /// Stopped for taking longer than its limit; `code` is then not the command's own.
     pub stopped: bool,
+    /// Printed more than `OUTPUT_LIMIT` on one stream, so `text` holds only the start of it.
+    pub cut: bool,
+}
+
+/// The most `sv` reads of what one command prints on each of its two streams. Everything after it is
+/// read and thrown away, so the command is never left waiting on a full pipe, but none of it is kept:
+/// an app that answers with gigabytes, or a test suite that prints without end, could otherwise fill
+/// this computer's memory (the deep review of 4 October 2026, S9). Far above any answer a check reads.
+pub(crate) const OUTPUT_LIMIT: u64 = 32 * 1024 * 1024;
+
+/// What is added to output that was cut, so nobody reads the start of it as the whole.
+pub(crate) const CUT_NOTE: &str = "[sv stopped keeping this output here: it was longer than 32 MB]";
+
+/// Reads `pipe` to its end, keeping at most `limit` bytes. The bytes kept, and whether any were not.
+fn read_capped(pipe: &mut dyn std::io::Read, limit: u64) -> (Vec<u8>, bool) {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    let _ = pipe.take(limit).read_to_end(&mut bytes);
+    let rest = std::io::copy(pipe, &mut std::io::sink()).unwrap_or(0);
+    (bytes, rest > 0)
 }
 
 /// Runs a command for at most `limit`, and hands back what it printed and its status, whether it was
@@ -705,11 +725,7 @@ pub(crate) fn run_bounded_with_input(
         });
     }
     let read = |mut pipe: Box<dyn Read + Send>| {
-        std::thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let _ = pipe.read_to_end(&mut bytes);
-            bytes
-        })
+        std::thread::spawn(move || read_capped(&mut pipe, OUTPUT_LIMIT))
     };
     let out = read(Box::new(child.stdout.take().expect("piped")));
     let err = read(Box::new(child.stderr.take().expect("piped")));
@@ -732,12 +748,21 @@ pub(crate) fn run_bounded_with_input(
             }
         }
     };
-    let mut text = String::from_utf8_lossy(&out.join().unwrap_or_default()).into_owned();
-    text.push_str(&String::from_utf8_lossy(&err.join().unwrap_or_default()));
+    let (out, out_cut) = out.join().unwrap_or_default();
+    let (err, err_cut) = err.join().unwrap_or_default();
+    let mut text = String::from_utf8_lossy(&out).into_owned();
+    if out_cut {
+        text.push_str(&format!("\n{CUT_NOTE}\n"));
+    }
+    text.push_str(&String::from_utf8_lossy(&err));
+    if err_cut {
+        text.push_str(&format!("\n{CUT_NOTE}\n"));
+    }
     Ok(Bounded {
         code: status.and_then(|s| s.code()).unwrap_or(-1),
         text,
         stopped,
+        cut: out_cut || err_cut,
     })
 }
 
@@ -763,14 +788,10 @@ pub(crate) fn output_with_input(
     command: &mut Command,
     input: &[u8],
 ) -> Result<(i32, String), String> {
-    let done = run_bounded_with_input(command, DOCKER_CALL_LIMIT, false, input)?;
-    if done.stopped {
-        return Err(format!(
-            "it had not finished after {}, and was stopped",
-            minutes(DOCKER_CALL_LIMIT)
-        ));
-    }
-    Ok((done.code, done.text))
+    finished(
+        run_bounded_with_input(command, DOCKER_CALL_LIMIT, false, input)?,
+        DOCKER_CALL_LIMIT,
+    )
 }
 
 /// `output_of` with a limit of its own, and for cleanup, which still runs after Ctrl-C.
@@ -779,12 +800,24 @@ pub(crate) fn bounded_output(
     limit: Duration,
     cleanup: bool,
 ) -> Result<(i32, String), String> {
-    let done = run_bounded(command, limit, cleanup)?;
+    finished(run_bounded(command, limit, cleanup)?, limit)
+}
+
+/// A bounded command's status and output, or why neither can be used: it was stopped, or it printed
+/// more than `OUTPUT_LIMIT`. Every Docker call ends here, and a check that read the start of an
+/// answer as the whole of it could judge the app on half a page, so cut output is never handed on.
+fn finished(done: Bounded, limit: Duration) -> Result<(i32, String), String> {
     if done.stopped {
         return Err(format!(
             "it had not finished after {}, and was stopped",
             minutes(limit)
         ));
+    }
+    if done.cut {
+        return Err(
+            "it printed more than 32 MB, and sv does not keep more than that of anything"
+                .to_owned(),
+        );
     }
     Ok((done.code, done.text))
 }
@@ -1041,7 +1074,34 @@ mod tests {
         .unwrap();
         assert!(!done.stopped, "it filled a pipe and hung");
         assert_eq!(done.text.len(), 6_000_000);
+        assert!(!done.cut);
         assert!(bounded_output(&mut sh("exit 0"), Duration::from_secs(20), false).is_ok());
+    }
+
+    #[test]
+    fn output_past_the_limit_is_read_and_not_kept() {
+        // The limit itself, on something whose length is known.
+        let mut long: &[u8] = &[b'a'; 100];
+        assert_eq!(read_capped(&mut long, 40), (vec![b'a'; 40], true));
+        let mut exact: &[u8] = &[b'a'; 40];
+        assert_eq!(read_capped(&mut exact, 40), (vec![b'a'; 40], false));
+        // A command that prints more than `OUTPUT_LIMIT`: it still ends (the rest is read and
+        // thrown away), what is kept stops at the limit and says so, and nothing hands it on as an
+        // answer.
+        let over = OUTPUT_LIMIT + 5_000_000;
+        let script = format!("head -c {over} /dev/zero | tr '\\0' a; echo err >&2");
+        let done = run_bounded(&mut sh(&script), Duration::from_secs(60), false).unwrap();
+        assert!(!done.stopped, "it filled a pipe and hung");
+        assert!(done.cut, "{}", done.text.len());
+        assert!(done.text.contains(CUT_NOTE));
+        assert!(
+            done.text.ends_with("err\n"),
+            "the other stream is still read"
+        );
+        let kept = done.text.bytes().take_while(|b| *b == b'a').count() as u64;
+        assert_eq!(kept, OUTPUT_LIMIT);
+        let refused = bounded_output(&mut sh(&script), Duration::from_secs(60), false).unwrap_err();
+        assert!(refused.contains("more than 32 MB"), "{refused}");
     }
 
     #[test]

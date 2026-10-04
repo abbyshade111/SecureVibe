@@ -15,6 +15,7 @@
 
 use crate::{Backend, CannotRun, Fence, RunFailed, RunOutcome, RunPlan, TestResult, output_of};
 use std::process::Command;
+use std::sync::OnceLock;
 use std::time::Duration;
 
 /// How long to wait for the app to answer before calling it not assessed.
@@ -67,6 +68,16 @@ const SMTP_PORT: u16 = 1025;
 const MAIL_API_PORT: u16 = 8025;
 /// How long to wait for an email the app may send after it has already answered.
 const MAIL_WAIT_SECONDS: u64 = 10;
+/// What every container `sv` starts may use at most: memory (with no swap beyond it), processes, and
+/// processors. The app is code `sv` was asked to check, not code it trusts, and without these an app
+/// that leaks memory or starts processes without end could take this computer down with it (the deep
+/// review of 4 October 2026, S9). Its in-memory folders count against the same memory. Two gigabytes
+/// and 512 processes are far more than an app answering a few hundred requests and running its tests
+/// needs; the processors are two, or fewer when Docker has fewer, since Docker refuses more.
+const MEMORY_LIMIT: &str = "2g";
+const PROCESS_LIMIT: &str = "512";
+const MOST_CPUS: u64 = 2;
+
 /// How long the sidecar may live if nothing removes it. It is removed as soon as the probes are
 /// done, and by the teardown whatever happens; this is the bound for a run that dies without either,
 /// so a crash cannot leave a container behind on the owner's machine for longer than this.
@@ -76,6 +87,9 @@ pub struct DockerBackend {
     binary: String,
     /// What everything this backend starts is labeled with: this machine and this process.
     owner: String,
+    /// The processors each container may use, asked of Docker once, when the first is started.
+    /// `None` when Docker would not say, and then no processor limit is set.
+    cpus: OnceLock<Option<String>>,
 }
 
 impl Default for DockerBackend {
@@ -89,13 +103,32 @@ impl DockerBackend {
         Self {
             binary: "docker".to_owned(),
             owner: crate::cleanup::owner(),
+            cpus: OnceLock::new(),
         }
     }
 
     fn docker(&self, args: &[&str]) -> Result<(i32, String), String> {
         let mut c = Command::new(&self.binary);
-        c.args(crate::cleanup::labeled(args, &self.owner));
+        c.args(self.prepared(args));
         output_of(&mut c)
+    }
+
+    /// A Docker call's arguments as they are sent: labeled, and, for one that starts a container,
+    /// limited. Every container this backend starts goes through here, so none is missed.
+    fn prepared(&self, args: &[&str]) -> Vec<String> {
+        let labeled = crate::cleanup::labeled(args, &self.owner);
+        if !matches!(args, ["run", ..] | ["create", ..]) {
+            return labeled;
+        }
+        let cpus = self.cpus.get_or_init(|| {
+            let mut c = Command::new(&self.binary);
+            c.args(["info", "--format", "{{.NCPU}}"]);
+            match output_of(&mut c) {
+                Ok((0, out)) => cpus_for(&out),
+                _ => None,
+            }
+        });
+        limited(labeled, cpus.as_deref())
     }
 
     /// Removes the containers, then the networks, that runs on this machine left behind when their
@@ -841,6 +874,33 @@ fn never_ready_detail(logs: &str, build: Option<&str>) -> String {
     }
 }
 
+/// `args`, a `docker run` or `docker create`, with the limits every container is started under
+/// inserted after the command.
+fn limited(args: Vec<String>, cpus: Option<&str>) -> Vec<String> {
+    let mut limits = vec![
+        "--memory",
+        MEMORY_LIMIT,
+        "--memory-swap",
+        MEMORY_LIMIT,
+        "--pids-limit",
+        PROCESS_LIMIT,
+    ];
+    if let Some(cpus) = cpus {
+        limits.extend(["--cpus", cpus]);
+    }
+    let mut out = args;
+    let at = 1.min(out.len());
+    out.splice(at..at, limits.into_iter().map(str::to_owned));
+    out
+}
+
+/// The processor limit for a Docker that says it has `ncpu` processors: `MOST_CPUS`, or all of them
+/// when there are fewer. `None` when the answer is not a count.
+fn cpus_for(ncpu: &str) -> Option<String> {
+    let n: u64 = ncpu.trim().parse().ok().filter(|n| *n > 0)?;
+    Some(n.min(MOST_CPUS).to_string())
+}
+
 /// The app's own `/tmp`: in memory, and with a size, so the app has somewhere to keep its data
 /// while it runs (`sv init` tells it to use `/tmp`) and cannot fill the machine's memory through it.
 const APP_TMP: &str = "/tmp:size=256m";
@@ -985,6 +1045,11 @@ fn model_env(host: &str, others: &[String], mcp: Option<&str>) -> Vec<String> {
     env
 }
 
+/// The browser's `/tmp`, where Chromium keeps its profile, and the mail server's, where Mailpit keeps
+/// its messages: each in memory, and each with a size, as the app's is.
+const BROWSER_TMP: &str = "/tmp:size=512m";
+const MAIL_TMP: &str = "/tmp:size=64m";
+
 /// How the browser is started. Hardened like the sidecar, with somewhere in memory to write, since
 /// Chromium keeps its profile under `/tmp`; it runs with its own sandbox off, as it must in a
 /// container, so the container is the sandbox and everything it may not do is taken away.
@@ -999,7 +1064,7 @@ fn browser_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
         network,
         "--read-only",
         "--tmpfs",
-        "/tmp",
+        BROWSER_TMP,
         "--cap-drop",
         "ALL",
         "--security-opt",
@@ -1043,7 +1108,7 @@ fn mail_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
         network,
         "--read-only",
         "--tmpfs",
-        "/tmp",
+        MAIL_TMP,
         "--cap-drop",
         "ALL",
         "--security-opt",
@@ -1705,6 +1770,7 @@ mod tests {
         let backend = DockerBackend {
             binary: "definitely-not-a-real-binary-xyz".to_owned(),
             owner: crate::cleanup::owner(),
+            cpus: OnceLock::new(),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -2307,6 +2373,97 @@ mod probe_tests {
                 .any(|m| m.split(':').next() == Some(crate::REPORT_DIR)),
             "the report folder is where test runners are told to write: {tmpfs:?}"
         );
+    }
+
+    #[test]
+    fn every_container_is_started_with_limits_and_nothing_else_is_changed() {
+        let backend = DockerBackend::new();
+        backend.cpus.set(Some("2".to_owned())).unwrap();
+        let value = |args: &[String], flag: &str| {
+            let at = args.iter().position(|a| a == flag)?;
+            args.get(at + 1).cloned()
+        };
+        // Every way a container is started here: the app, each helper, and the plain `run`s.
+        let mut started: Vec<Vec<&str>> = vec![
+            app_args("sv-1-app", "sv-1-net", "/apps/notes:/app:ro", "PORT=8080"),
+            browser_args("net", "b"),
+            mail_args("net", "m"),
+            driver_args("net", "JOB=1"),
+            provider_args("net", "p", ["A=1", "B=2", "C=3", "D=4"]),
+            model_args("net", "m", ["A=1", "B=2"]),
+            backend.fence_args(&Via::FreshContainer("net")),
+            vec!["create", "busybox"],
+        ];
+        started[0].extend(["busybox", "sh"]);
+        for args in &started {
+            let sent = backend.prepared(args);
+            assert_eq!(sent[0], args[0], "{sent:?}");
+            assert_eq!(
+                value(&sent, "--memory").as_deref(),
+                Some(MEMORY_LIMIT),
+                "{sent:?}"
+            );
+            assert_eq!(
+                value(&sent, "--memory-swap").as_deref(),
+                Some(MEMORY_LIMIT),
+                "{sent:?}"
+            );
+            assert_eq!(
+                value(&sent, "--pids-limit").as_deref(),
+                Some(PROCESS_LIMIT),
+                "{sent:?}"
+            );
+            assert_eq!(value(&sent, "--cpus").as_deref(), Some("2"), "{sent:?}");
+            // Still labeled, and everything that was asked for is still there, in order.
+            assert!(
+                sent.iter()
+                    .any(|a| a.starts_with(crate::cleanup::OWNER_LABEL))
+            );
+            let asked: Vec<&String> = sent.iter().filter(|a| args.contains(&a.as_str())).collect();
+            assert_eq!(asked.len(), args.len(), "{sent:?}");
+            // Every in-memory folder has a size.
+            for w in sent.windows(2).filter(|w| w[0] == "--tmpfs") {
+                assert!(w[1].contains("size="), "{} has no size", w[1]);
+            }
+        }
+        // A call that starts nothing is sent as it was, labels aside.
+        for args in [
+            vec!["exec", "-i", "sidecar", "wget", "-q"],
+            vec!["rm", "-f", "app"],
+            vec!["logs", "--tail", "20", "app"],
+            vec!["network", "create", "--internal", "n"],
+        ] {
+            let sent = backend.prepared(&args);
+            assert!(
+                !sent.iter().any(|a| a == "--memory" || a == "--pids-limit"),
+                "{sent:?}"
+            );
+        }
+        // With no processor count from Docker, the other limits still hold.
+        let sent = limited(vec!["run".to_owned(), "img".to_owned()], None);
+        assert_eq!(
+            sent,
+            [
+                "run",
+                "--memory",
+                MEMORY_LIMIT,
+                "--memory-swap",
+                MEMORY_LIMIT,
+                "--pids-limit",
+                PROCESS_LIMIT,
+                "img"
+            ]
+        );
+    }
+
+    #[test]
+    fn the_processor_limit_never_asks_for_more_than_docker_has() {
+        assert_eq!(cpus_for("8\n").as_deref(), Some("2"));
+        assert_eq!(cpus_for("2").as_deref(), Some("2"));
+        assert_eq!(cpus_for("1").as_deref(), Some("1"));
+        assert_eq!(cpus_for("0"), None);
+        assert_eq!(cpus_for(""), None);
+        assert_eq!(cpus_for("Cannot connect to the Docker daemon"), None);
     }
 
     #[test]

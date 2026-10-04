@@ -525,6 +525,20 @@ fn prepared(
     session: &mut Session,
     pages: &[String],
 ) -> ProbeRequest {
+    let v = with_token(http, id, t, values, session, pages);
+    request(id, t, &v, session)
+}
+
+/// `values`, with the anti-forgery token the request needs, when it needs one: fetched from the
+/// request's own page or, failing that, the first of `pages` that has one.
+fn with_token<'a>(
+    http: &mut dyn Http,
+    id: &str,
+    t: &RequestTemplate,
+    values: &Values<'a>,
+    session: &mut Session,
+    pages: &[String],
+) -> Values<'a> {
     let mut v = values.clone();
     if uses_csrf(t) && v.csrf.is_none() {
         let own = fill(&t.path, &v);
@@ -539,7 +553,7 @@ fn prepared(
             }
         }
     }
-    request(id, t, &v, session)
+    v
 }
 
 /// `send_template`, with the request changed by `adjust` after the token is in it and before it
@@ -1587,7 +1601,7 @@ mod tests {
             &with_signup(),
         );
         let note = flawed.steps.join(" | ");
-        assert!(note.contains("invented: opened"), "{note}");
+        assert!(note.contains("every other cookie kept: opened"), "{note}");
         assert!(note.contains("maxlength=40: accepted"), "{note}");
         assert!(note.contains("Clear-Site-Data: yes"), "{note}");
     }
