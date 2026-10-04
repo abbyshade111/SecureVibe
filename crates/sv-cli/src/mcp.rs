@@ -3788,7 +3788,7 @@ mod tests {
         }
         // A question that is not asked of this app, and missing arguments.
         for args in [
-            json!({ "path": "app", "id": "V99.9.9", "answer": TOOL_ANSWER }),
+            json!({ "path": "app", "id": "V1.2.4", "answer": TOOL_ANSWER }),
             json!({ "path": "app", "answer": TOOL_ANSWER }),
             json!({ "path": "app", "id": id }),
         ] {
