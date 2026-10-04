@@ -6826,7 +6826,9 @@ with it passed its check and the same app built without it failed; the owner ask
 rest to be offered too, marked. So every copy, in the terminal, the tool's text, and its structured result,
 says `shown`, `not-shown` (tried, with what happened), or `untested`, right above the prompt's text, and the
 ones shown to work come first. The loader refuses a prompt said to be tried that does not say what happened,
-and one not tried that carries a result, so the two cannot read alike.
+and one not tried that carries a result, so the two cannot read alike. Eight of these guards were broken in turn,
+each caught; the first run found the "not tried yet" mark caught by nothing, because the library holds no untried
+prompt, so a test now makes one.
 
 **A prompt's requirements are a citation, held like the others.** `tools/coverage.py`, which a test runs, already
 knows what every rule cites. It now refuses a prompt that names a requirement none of its rules cites, a rule
