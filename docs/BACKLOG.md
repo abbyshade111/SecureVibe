@@ -4511,6 +4511,9 @@ another session is not a claim.
   Not claimed. The license question above comes first, since it decides whether C can be run at all. (No
   longer a blocker: the owner reviewed the license on 26 September 2026, and on 30 September 2026 confirmed that
   this work is unblocked.)
+  **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking ("I definitely still want to look
+  into reducing false alarms from tool C; more research into reducing false alarms for all languages would be great
+  as well"), as research first, in branch `claude/securevibe-e9-false-alarms`.
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
