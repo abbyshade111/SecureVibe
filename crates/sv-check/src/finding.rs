@@ -557,7 +557,11 @@ mod tests {
             assert!(f.requirement_ids.contains(&"V13.3.1".to_owned()));
             assert!(f.cwe.contains(&"CWE-259".to_owned()));
             // Its message quotes the value; nothing of it is copied over (S8).
-            assert!(!f.description.contains("current password isn"), "{f:#?}");
+            assert!(
+                !f.description.contains("current password isn"),
+                "the kept description quotes the value (rule {})",
+                f.rule_id
+            );
             assert!(f.secret.is_some());
         }
     }

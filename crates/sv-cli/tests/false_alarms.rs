@@ -355,9 +355,23 @@ fn account_findings(app: &Path, bin: &Path) -> (Vec<serde_json::Value>, String) 
 /// What the merged finding must be: `sv`'s own, low and possible, with its sentence note, naming
 /// Bandit, and holding no more of the value than its first four characters.
 fn assert_sentence_note_kept(found: &[serde_json::Value], security: &str) {
-    assert_eq!(found.len(), 1, "listed once: {found:#?}");
+    // Failure messages name rules and counts, never a finding or the report's text: a failure
+    // message is a log line, and findings here are built from a value under a credential's name
+    // (the same rule as `cf9f6a1`), whatever that value happens to be.
+    let rules: Vec<&str> = found
+        .iter()
+        .map(|f| f["rule_id"].as_str().unwrap_or("?"))
+        .collect();
+    assert_eq!(
+        found.len(),
+        1,
+        "listed once, but the rules found were {rules:?}"
+    );
     let f = &found[0];
-    assert_eq!(f["rule_id"], "secrets.credential-assignment", "{f:#}");
+    assert_eq!(
+        f["rule_id"], "secrets.credential-assignment",
+        "rules: {rules:?}"
+    );
     assert_eq!(f["severity"], "low");
     assert_eq!(f["confidence"], "low");
     assert_eq!(f["also_reported_by"], serde_json::json!(["bandit.B105"]));
@@ -372,12 +386,18 @@ fn assert_sentence_note_kept(found: &[serde_json::Value], security: &str) {
     let section = security
         .split("### ")
         .find(|s| s.contains("account.py` line"))
-        .unwrap_or_else(|| panic!("the line is not in the report:\n{security}"));
-    assert!(section.contains("reads like a sentence"), "{section}");
-    assert!(section.contains("How sure: possible."), "{section}");
+        .unwrap_or_else(|| panic!("the line is not in security.md"));
+    assert!(
+        section.contains("reads like a sentence"),
+        "the line's section in security.md has no sentence note"
+    );
+    assert!(
+        section.contains("How sure: possible."),
+        "the line's section in security.md does not say \"possible\""
+    );
     assert!(
         section.contains("Also reported by: `bandit.B105`"),
-        "{section}"
+        "the line's section in security.md does not name bandit.B105"
     );
     // Bandit's own message quotes the value (S8); the kept words are `sv`'s, which do not.
     assert!(!f.to_string().contains("current password isn"));
