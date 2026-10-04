@@ -933,7 +933,8 @@ impl Server {
                     "Recorded under {id} in {}, marked `Written by: AI coding tool`. The report counts \
                      it as stated by the AI coding tool, which is less than the person's own word, and \
                      asks again. Show the person what you wrote; if they agree with it, they can change \
-                     that line to `Written by: owner` themselves. Do not change it for them.",
+                     that line to `Written by: owner` themselves and record it by running `sv review` \
+                     in their own terminal. Do not change it or run `sv review` for them.",
                     written.path.display()
                 ),
             }],
@@ -1549,7 +1550,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_record_answer",
             "title": "Record an answer in the security notes",
-            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves. A section the person wrote is never replaced.",
+            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves and record it by running `sv review` in their own terminal. A section the person wrote is never replaced.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -2698,10 +2699,31 @@ mod tests {
         let today = sv_check::advisories::Day::today().unwrap().show();
         let manifest = root.join("app").join("securevibe.toml");
         let mut toml = std::fs::read_to_string(&manifest).unwrap();
+        // Recorded through `sv review`, as the owner's word counts only then: sealed with the
+        // key this test process uses, whatever the computer running it has.
+        let keys = sv_check::seal::key_folder_for_tests(
+            std::env::temp_dir().join(format!("sv-mcp-test-keys-{}", std::process::id())),
+        );
+        let (key, _) = sv_check::seal::Key::load_or_make_in(keys).unwrap();
+        let seal = |result: &str, how: &str| {
+            let check = sv_manifest::HandCheck {
+                result: result.into(),
+                on: Some(today.clone()),
+                by: Some("owner".into()),
+                how: Some(how.into()),
+                confirmed: None,
+                seal: None,
+            };
+            key.seal(&sv_check::seal::as_strs(
+                &sv_check::seal::hand_check_fields("V12.2.2", &check),
+            ))
+        };
+        let padlock = "The padlock shows a trusted certificate.";
         toml.push_str(&format!(
             "\n[checked-by-hand]\n\
-             \"V12.2.2\" = {{ result = \"done\", on = \"{today}\", by = \"owner\", how = \"The padlock shows a trusted certificate.\" }}\n\
-             \"V2.3.4\" = {{ result = \"problem\", on = \"{today}\", by = \"owner\", how = \"Two browsers booked one slot.\" }}\n"
+             \"V12.2.2\" = {{ result = \"done\", on = \"{today}\", by = \"owner\", how = \"{padlock}\", seal = \"{}\" }}\n\
+             \"V2.3.4\" = {{ result = \"problem\", on = \"{today}\", by = \"owner\", how = \"Two browsers booked one slot.\" }}\n",
+            seal("done", padlock)
         ));
         std::fs::write(&manifest, toml).unwrap();
         let server = Server::new(&root).unwrap();

@@ -39,6 +39,12 @@
 //! are *stated by the AI coding tool*, as its design answers are, and are asked again in the
 //! interview. A `Written by:` naming anyone else is unreadable and named, not guessed at.
 //!
+//! Since 4 October 2026 (deep review R1, the owner's decision), `Written by: owner` is not enough on
+//! its own: the AI coding tool can write that line as easily as the owner. A section counts as the
+//! owner's only when `sv review` recorded it, which puts a line `Sealed by sv review: …` under it
+//! (`crate::seal`). An owner's section without a seal that holds counts as the tool's word, and the
+//! report says why and how to make it the owner's.
+//!
 //! Found in the owner's first run in VS Code: the tool wrote nine sections from the code and marked
 //! each with its own italic line, which the reader then threw away along with `sv`'s own italic
 //! lines, so the report called all nine *documented by the owner*. The reader now drops only the two
@@ -60,6 +66,17 @@ const FACTS_LINE: &str = "*What `sv` found:*";
 pub const WRITTEN_BY: &str = "Written by:";
 pub const BY_OWNER: &str = "owner";
 pub const BY_AI_TOOL: &str = "AI coding tool";
+
+/// The line `sv review` puts in a section the owner recorded, before the seal.
+pub const SEALED_BY: &str = "Sealed by sv review:";
+
+/// The seal on a `Sealed by sv review:` line.
+fn sealed_by(line: &str) -> Option<String> {
+    let plain = line.trim();
+    plain
+        .strip_prefix(SEALED_BY)
+        .map(|rest| rest.trim().to_owned())
+}
 
 /// Who wrote a section, from its `Written by:` line.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -126,7 +143,7 @@ fn byline(line: &str) -> bool {
 /// A section's prose without the lines that say who wrote it, which say who and not what.
 fn prose(body: &str) -> String {
     body.lines()
-        .filter(|line| written_by(line).is_none() && !byline(line))
+        .filter(|line| written_by(line).is_none() && !byline(line) && sealed_by(line).is_none())
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
@@ -326,7 +343,8 @@ pub fn write_template_with(
          decision, or one your AI coding tool wrote that you have read and agree with; \
          `{WRITTEN_BY} {BY_AI_TOOL}` for one the tool wrote from the code that you have not agreed \
          to. The tool's counts for less, as *stated by the AI coding tool*, and an answer without \
-         the line counts as the tool's.\n\n"
+         the line counts as the tool's. An answer marked as yours counts as yours once you have run \
+         `sv review` in your own terminal, which records it and adds a line under it.\n\n"
     ));
 
     let mut wrote_any = false;
@@ -474,6 +492,22 @@ impl Answers {
         self.get_answer(id).map(prose)
     }
 
+    /// The seal `sv review` put on a section, if it has one (the last, if several).
+    pub fn seal_of(&self, id: &str) -> Option<String> {
+        self.get_answer(id)
+            .and_then(|body| body.lines().filter_map(sealed_by).next_back())
+    }
+
+    /// Whether the owner's section counts as theirs where this runs: its seal, or why not.
+    pub fn recorded(
+        &self,
+        id: &str,
+        seals: &crate::seal::Checker,
+    ) -> Result<crate::seal::Sealed, String> {
+        let fields = crate::seal::notes_fields(id, &self.prose_of(id).unwrap_or_default());
+        crate::seal::owner_recorded(seals, self.seal_of(id).as_deref(), &fields)
+    }
+
     /// Puts `body` under the section, in place of whatever was there.
     pub fn set(&mut self, id: &str, body: String) {
         match self.sections.iter_mut().find(|(section, _)| section == id) {
@@ -498,7 +532,7 @@ pub fn tool_answer(answer: &str) -> std::result::Result<String, String> {
     let answer = answer.trim();
     for line in answer.lines() {
         let t = line.trim();
-        if written_by(line).is_some() || byline(line) {
+        if written_by(line).is_some() || byline(line) || sealed_by(line).is_some() {
             return Err(format!(
                 "the answer says who wrote it (\"{t}\"); `sv` marks every answer it records as \
                  the AI coding tool's, so leave that line out"
@@ -585,6 +619,41 @@ pub fn read_answers(text: &str) -> Answers {
     answers
 }
 
+/// The notes file with `seal` recorded under the section for `id`: any earlier seal line in it
+/// taken out, and the new one put straight after its `Written by:` line. `None` when there is no
+/// such section, or it has no `Written by:` line to put the seal under. Nothing else changes.
+pub fn with_seal(text: &str, id: &str, seal: &str) -> Option<String> {
+    let lines: Vec<&str> = text.lines().collect();
+    let start = lines
+        .iter()
+        .position(|l| section_id(l).as_deref() == Some(id))?;
+    let end = lines[start + 1..]
+        .iter()
+        .position(|l| section_id(l).is_some())
+        .map_or(lines.len(), |i| start + 1 + i);
+    let mut out: Vec<String> = Vec::with_capacity(lines.len() + 1);
+    let mut placed = false;
+    for (i, line) in lines.iter().enumerate() {
+        let inside = i > start && i < end;
+        if inside && sealed_by(line).is_some() {
+            continue;
+        }
+        out.push((*line).to_owned());
+        if inside && !placed && written_by(line).is_some() {
+            out.push(format!("{SEALED_BY} {seal}"));
+            placed = true;
+        }
+    }
+    if !placed {
+        return None;
+    }
+    let mut joined = out.join("\n");
+    if text.ends_with('\n') {
+        joined.push('\n');
+    }
+    Some(joined)
+}
+
 /// `## V6.1.1 — …` or `### V6.1.1 — …`, giving the requirement id.
 fn section_id(line: &str) -> Option<String> {
     let rest = line
@@ -612,7 +681,12 @@ pub struct Evidence {
 ///
 /// One `Verified` per section rather than one for the file, because the report shows the scope
 /// beside each requirement and "the owner answered this question" is the scope that belongs there.
-pub fn evidence(catalog: &Catalog, answers: &Answers, file: &str) -> Evidence {
+pub fn evidence(
+    catalog: &Catalog,
+    answers: &Answers,
+    file: &str,
+    seals: &crate::seal::Checker,
+) -> Evidence {
     let mut out = Evidence::default();
     for (id, who) in answers.answered() {
         let Some(section) = catalog.section(&id) else {
@@ -620,16 +694,29 @@ pub fn evidence(catalog: &Catalog, answers: &Answers, file: &str) -> Evidence {
         };
         let place = format!("{file}, under \"{} — {}\"", section.id, section.title);
         match who {
-            Writer::Owner => {
-                out.documented
-                    .push(Verified::new("notes.documented", &[id.as_str()], place))
-            }
+            Writer::Owner => match answers.recorded(&id, seals) {
+                Ok(sealed) => out.documented.push(Verified::new(
+                    "notes.documented",
+                    &[id.as_str()],
+                    format!("{place}{}", crate::seal::recorded_where(&sealed)),
+                )),
+                Err(why) => out.stated.push(Verified::new(
+                    "notes.stated-by-ai",
+                    &[id.as_str()],
+                    format!(
+                        "{place}: it is marked `{WRITTEN_BY} {BY_OWNER}`, but {why}, so it counts \
+                         as your AI coding tool's word, not a decision you made. If it is yours, run \
+                         `sv review` in your own terminal to record it."
+                    ),
+                )),
+            },
             Writer::AiTool | Writer::Unmarked => out.stated.push(Verified::new(
                 "notes.stated-by-ai",
                 &[id.as_str()],
                 format!(
                     "{place}: {}. This is the word of the tool that wrote the code, not a decision \
-                     you made; read it, and mark it `{WRITTEN_BY} {BY_OWNER}` if you agree.",
+                     you made; read it, and if you agree, mark it `{WRITTEN_BY} {BY_OWNER}` and \
+                     run `sv review` in your own terminal to record it as yours.",
                     if who == Writer::AiTool {
                         "your AI coding tool wrote it"
                     } else {
@@ -646,6 +733,84 @@ pub fn evidence(catalog: &Catalog, answers: &Answers, file: &str) -> Evidence {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// This computer's key in these tests, from the system's randomness.
+    fn key() -> crate::seal::Key {
+        static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
+        KEY.get_or_init(|| crate::seal::Key::random().unwrap())
+            .clone()
+    }
+
+    /// `evidence` as on the computer where `sv review` recorded every section marked as the
+    /// owner's: the rules below are about what a section says, so each is sealed as a person's.
+    fn evidence(catalog: &Catalog, answers: &Answers, file: &str) -> Evidence {
+        let mut sealed = Answers::default();
+        for (id, body) in &answers.sections {
+            let mut body = body.clone();
+            if writer_of(&body) == Writer::Owner {
+                let fields = crate::seal::notes_fields(id, &prose(&body));
+                body.push_str(&format!(
+                    "\n\n{SEALED_BY} {}",
+                    key().seal(&crate::seal::as_strs(&fields))
+                ));
+            }
+            sealed.sections.push((id.clone(), body));
+        }
+        super::evidence(catalog, &sealed, file, &crate::seal::Checker::Key(key()))
+    }
+
+    #[test]
+    fn an_owners_section_counts_as_theirs_only_when_sv_review_recorded_it() {
+        let body = "Written by: owner\n\nFive failed sign-ins in fifteen minutes lock the account \
+                    for an hour.";
+        let answers = Answers {
+            sections: vec![("V6.1.1".into(), body.into())],
+        };
+        let here = crate::seal::Checker::Key(key());
+        // As written into the file, by anyone: the tool's word.
+        let out = super::evidence(&catalog(), &answers, "security-notes.md", &here);
+        assert!(out.documented.is_empty());
+        assert!(
+            out.stated[0]
+                .scope
+                .contains("not recorded through `sv review`")
+                && out.stated[0].scope.contains("run `sv review`"),
+            "{}",
+            out.stated[0].scope
+        );
+        // Sealed: the owner's. The seal line is not part of the answer, and never makes one.
+        let out = evidence(&catalog(), &answers, "security-notes.md");
+        assert_eq!(out.documented.len(), 1, "{out:?}");
+        let fields = crate::seal::notes_fields("V6.1.1", &prose(body));
+        let seal = key().seal(&crate::seal::as_strs(&fields));
+        let sealed = Answers {
+            sections: vec![("V6.1.1".into(), format!("{body}\n\n{SEALED_BY} {seal}"))],
+        };
+        assert_eq!(
+            sealed.prose_of("V6.1.1").as_deref(),
+            Some(prose(body).as_str())
+        );
+        let only_seal = Answers {
+            sections: vec![(
+                "V6.1.1".into(),
+                format!("Written by: owner\n\n{SEALED_BY} {seal}"),
+            )],
+        };
+        assert!(only_seal.answered().is_empty());
+        // A word changed after it was sealed: the tool's word again.
+        let changed = Answers {
+            sections: vec![(
+                "V6.1.1".into(),
+                format!("{}\n\n{SEALED_BY} {seal}", body.replace("an hour", "a day")),
+            )],
+        };
+        let out = super::evidence(&catalog(), &changed, "security-notes.md", &here);
+        assert!(out.documented.is_empty());
+        assert!(out.stated[0].scope.contains("does not match"));
+        // The AI coding tool cannot record a seal line through `sv`.
+        assert!(tool_answer(&format!("{} {SEALED_BY} {seal}", "x".repeat(50))).is_ok());
+        assert!(tool_answer(&format!("{}\n{SEALED_BY} {seal}", "x".repeat(50))).is_err());
+    }
 
     fn catalog() -> Catalog {
         Catalog {

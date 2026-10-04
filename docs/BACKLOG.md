@@ -171,6 +171,9 @@ another session is not a claim.
     in branch `claude/securevibe-e9-owner-answers`: `[design]` answers and `[checked-by-hand]` results written
     `by = "owner"`, and security-notes.md sections marked `Written by: owner`, count as the owner's word only when
     recorded through `sv review`; otherwise they count as the AI coding tool's.
+    **Done the same day** (DESIGN, "The owner's own answers are recorded through `sv review` too"): all three now
+    count as the owner's only when sealed by `sv review`, which offers each of them; without a seal they drop to
+    *stated by the AI coding tool*, and the report says why.
   - **R2. High, with R1, Reproduced. "Nothing here found a problem" when a check found something and it was set
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
