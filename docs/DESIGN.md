@@ -7281,6 +7281,44 @@ unread, a sanitizer assumed where a manifest was unread, the keyword filter, the
 counted as built, and Node without its keyword pattern. The recipe app with its sanitizer removed, and a Python file
 with `shell=True`, are now caught; the app as built, and the list form with no shell, are not.
 
+## Names that stand for fixed text (4 October 2026)
+
+A1 of the deep review: the SQL, redirect, and file-path rules read a name as something built, so a query held in
+a constant was reported as a query joined from text. Seven of family-hub's eight SQL findings were that, and so
+were the two that kept the prompt library's placeholders prompt from being shown to work (`executescript(SCHEMA)`,
+and a query chosen from a dictionary of fixed queries).
+
+**A name is fixed when the file settles it.** Before any rule runs on a file, `Fixed::of` lists every place the
+file binds a name: assignments, `const` and `var`, Go's `:=`, `+=`, loop variables, and parameters. A name counts
+as fixed text when it has exactly one binding and that binding is fixed text or other fixed names
+(`SQL = BASE + " WHERE id = ?"`), or when it is an ALL_CAPS name bound once at the top of the module, whatever it
+holds, since a module's constants are written before any request exists. A name bound twice, built with `+=`, used
+as a loop variable, or taken as a parameter anywhere in the file is not trusted, because which binding reaches the
+call cannot be told without following the code. A table is a name bound once to a dictionary or object whose
+every value is fixed; `TABLE[key]` and `TABLE.get(key, <fixed>)` are fixed whatever the key, and a spread
+(`**base`) makes it no table. The fixed-text judgment every rule already used (`is_literal`) consults this list, so
+the shell and code-execution rules gain it too. It reads Python, JavaScript, TypeScript, and Go; other languages
+get no fixed names, which only leaves their rules as they were. A name bound by a form the list does not count
+(`with ... as sql`, an import) is the known gap: such a name is never fixed unless the file also binds it once.
+
+**The argument that matters.** `argumentPositions` names, per language, calls whose judged argument is not the
+first: Go's `QueryContext(ctx, query)` was judged on `ctx`, a name, and so reported every time.
+
+**Values beside a query.** With `boundParametersLowerConfidence`, a query that is only a name the file does not
+settle, handed over with values beside it, is still reported, at low confidence, and says that values beside a
+query are how placeholders are used. Text built in the call itself (an f-string, a `+`) keeps the rule's
+confidence, values or not.
+
+**A path that stays on the site.** The redirect rule no longer reports a destination that opens with one slash and
+then an ordinary path character (`f"/notes/{id}"`, `` `/users/${id}` ``, `"/notes/" + id`): nothing after it can
+change the host. `"/" + next`, `` `/${next}` ``, `"//"`, and `"/\t/"` are still reported, since the next character
+there is a value or a trick a browser reads as `//`.
+
+Eleven guards broken in turn, each caught by its own witness or test; the table spread only by a second mutation,
+since the first left the spread refused for another reason. Not done, and still in the backlog: a path read from
+the app's own database, a redirect through the app's own checking function, and family-hub's redirect through a
+parameter, which need a judgment about the app's own functions.
+
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
@@ -7696,6 +7734,52 @@ refusals (two: a unit test and the end-to-end one), the report note left out (on
 warning rules dropped (one or two). Not parsing `Secure` was at first caught by nothing, since every `Secure` cookie
 in the tests also had a prefix; a plain `Secure` cookie was added to the unit test, which then caught it.
 
+## A made-up session changes the session cookie, and only that (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H14) found the check for V7.2.1, whether the app checks the
+session value it is sent, altering whichever cookie the browser happened to hold first and sending it alone. On an app
+that sets an anti-forgery cookie on its sign-in page, that first cookie is the anti-forgery one: the request then
+carried no session at all, any app refuses that, and the refusal was credited, including on an app that would believe
+any session value.
+
+The check now gives a made-up value, of the same length, to each cookie the app set at sign-in, the ones the run
+already treats as the session, and sends every other cookie as it was, so the request differs from the real one in the
+session alone. The real session is sent first, as a control, and a refusal is credited only when that has just opened
+the same page. When sign-in set no cookie, or also gave a token that may be what carries the session, the check is not
+assessed and says why, where before it altered whatever it found.
+
+Tested with the in-memory app given a cookie on its sign-in page before the session cookie, and, separately, refusing
+any request without it: an app believing any session value is found both ways, and a correct one is credited both
+ways. Five guards broken in turn, each caught: altering the first cookie instead (the old behavior) and dropping the
+other cookies were each caught by both new tests; skipping the control, ignoring a token, and staying silent when
+sign-in set no cookie were caught by the test that drives the check directly, since the in-memory app never gives
+those cases.
+
+## A refusal is credited only for the reason it is about (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H15) found two checks crediting any refusal as the one they ask
+about. The burst behind V2.4.1 sent the same record again and again with one anti-forgery token, and read any refusal
+of the last as a limit: an app that keeps a value unique, or takes each token once, refused the second record on and
+was credited with a limit it does not have. The upload checks (V5.2.1, V5.2.2, V1.3.4, V5.4.3, V5.3.2) sent every file
+with one token and the same form values, and credited a refusal of the bad file whatever the reason, a quota reached
+included.
+
+- **The burst.** Each record now carries a marker of its own, and the last refusal is credited only when it is how a
+  limit answers: 429 Too Many Requests, or 503 with `Retry-After` (which no longer counts as a crash). A refusal of any
+  other kind is not assessed, with its status and the reasons it may have had. The token is still fetched once: an app
+  that takes each token once is not assessed rather than credited, and fetching a page between the records would
+  stretch the burst past the minute it counts over.
+- **The uploads.** Each upload fetches a fresh token when the form takes one and carries its own id as `{marker}`.
+  A refusal is credited only when an ordinary GIF, with its own token and marker, is accepted straight after it;
+  otherwise the requirement is not assessed and the report says both were refused. The review suggested a control just
+  before each refusal; it is after, because a quota the refused file would have reached shows only in what comes next,
+  and for a spent token or a repeated value either order shows the same.
+
+The in-memory app gained four options to put these to the test: a token taken once, a refusal (409) of a repeated note
+or upload title, an upload quota, and the status its notes limit answers with. Seven guards broken in turn, each caught
+by a test written for it: the burst repeating its marker, crediting any refusal, taking a 503 without `Retry-After` as
+a limit, and taking a 503 with it as a crash; an upload repeating its marker, reusing the first upload's token, and
+skipping the ordinary file after a refusal.
 
 ## Decide before you build: the instructions, the spec, and the design-time prompts as MCP prompts (4 October 2026)
 

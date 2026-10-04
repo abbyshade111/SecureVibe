@@ -130,6 +130,8 @@ another session is not a claim.
     report of the day) were in `vendor/`, Flask's own code, which `sv`'s reading and Semgrep's file list both leave
     out (`SKIP_DIRS`, `crates/sv-scan/src/ecosystems.rs` line 573; `data/adapters.json` line 26). Bandit's rules
     are Bandit's; handing it the folder is `sv`'s choice. S7's fix, `sv`'s own file list, takes these out too.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with H7, at the owner's asking to work through the
+    review's open items, in branch `claude/s7-h7-bandit`.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
@@ -240,6 +242,7 @@ another session is not a claim.
     it; skip build folders only where an ecosystem puts them.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
   - **H8. High, Reproduced.** PyPI names are not normalized (PEP 503) in the advisory comparison: `jupyter_server`
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
@@ -274,20 +277,33 @@ another session is not a claim.
     and credits V7.2.1. Fix: alter only a cookie set at sign-in, keep the rest, with a control.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-session-cookie`.
+    **Done the same day** (DESIGN, "A made-up session changes the session cookie, and only that"): each cookie set
+    at sign-in gets a made-up value, every other cookie is kept, and the real session is sent just before as the
+    control. Five guards broken in turn, each caught.
   - **H15. High, Read; triggers plausible.** The burst treats any 4xx as a limit (V2.4.1), and the upload checks
     credit any refusal: a duplicate-value 409, a single-use token, or a quota earns credit. Fix: require 429 (or 503
     with `Retry-After`), a unique marker and a fresh token per request, and a control just before each credited
     refusal.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-refusals-that-count`.
+    **Done the same day** (DESIGN, "A refusal is credited only for the reason it is about"): the burst gives each
+    record its own marker and credits only a 429, or a 503 with `Retry-After`; each upload has a fresh token and its
+    own marker, and a refusal is credited only when an ordinary file is accepted straight after it. Seven guards
+    broken in turn, each caught.
   - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
     that includes `docker exec`'s own time.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H19. Medium, Read.** A matching advisory clears the "could not compare" flag earlier advisories left.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H20. Medium, Reproduced.** RubyGems platform versions (`1.15.4-x86_64-linux`) are compared as semver.
+    **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
+    with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
   - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
@@ -316,6 +332,12 @@ another session is not a claim.
     lookup in a dictionary of fixed queries), which is the same fault. Not in this claim, and still open: that
     entry's items 2 and 3 (a path from the app's own database, a destination already checked) and the redirect half
     of the family-hub item 7, which need a judgment about the app's own functions.
+    **Done the same day** (DESIGN, "Names that stand for fixed text"): a per-file list of names the file binds once
+    to fixed text, ALL_CAPS names bound once at the top of the module, and tables of fixed text, consulted wherever
+    a rule asks whether an argument is fixed, in Python, JavaScript, TypeScript, and Go; Go's `...Context` calls
+    judged on their query; a query that is only a name, with values beside it, reported low with the reason; and a
+    redirect to a path opening with one slash and an ordinary character not reported. Twenty-four new witnesses and
+    two tests; eleven guards broken in turn, each caught (the spread's only on a second, stronger mutation).
   - **A2. Medium, Read.** Review fingerprints collide on identical lines, and survive a change to the line that
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
@@ -621,6 +643,8 @@ another session is not a claim.
      `sql = SORT_ORDERS.get(key, SORT_ORDERS["newest"])`, a dictionary of fixed queries, and the values passed as
      parameters. Neither joins text. Witnesses needed both ways: a constant and a lookup in a constant dictionary
      stay quiet; a constant joined with a request value still fires.
+     **Done on 4 October 2026 with A1** (DESIGN, "Names that stand for fixed text"): both are quiet, and the
+     constant joined with a request value still fires.
   2. **`ast.file-path-from-value` (V5.3.2) on a path built from the app's own database.**
      `send_file(os.path.join(UPLOAD_DIR, row["id"]), ...)`, where `row` came from a query on the signed-in user's
      attachments and the id was made by the app (`uuid4().hex`) when the file was saved. Telling a database value

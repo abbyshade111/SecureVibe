@@ -24,6 +24,8 @@ it. (`sv`'s first eleven were each written one to seven days after the decision,
 - **References.** `crates/sv-cli/tests/decision_records.rs` fails when a record names a test or a file that no longer
   exists, governs a pattern that matches nothing, or when any record number cited in the code or the documents has no
   record, or a record is missing from the index below.
+- **Required.** The owner decided on 4 October 2026 that "Decision records" is a required check on `main`, so a pull
+  request that owes a record does not merge.
 - **The weekly review** stays as the safety net: once a week a scheduled session reads every record against the
   week's merged pull requests, and reports how many days each new record came after its decision.
 
