@@ -69,6 +69,8 @@ another session is not a claim.
     an isolated world, storage read through DevTools' storage domains.
   - **S12. Medium, Reproduced. A named pipe in the app hangs `sv`** (`files.rs` lists pipes as files and blocks
     reading them). Fix: list only regular files; say the rest were not read.
+    **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-pipes`.
   - **S13. Low, Reproduced. `sv probe` takes internal addresses, and curl's globbing turns one address into
     several requests** (`production.rs`). Fix: `--globoff`, and refuse private, loopback, link-local, and
     unspecified addresses, names that resolve to them included.
