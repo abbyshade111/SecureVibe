@@ -36,6 +36,10 @@ another session is not a claim.
     when a fenced container can reach the gateway, and test the gateway with a positive control.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
     in branch `claude/securevibe-e9-fence-gateway`.
+    **Done the same day** (DESIGN, "The fence's gateway"): the fenced network is made without a gateway address
+    (`inhibit_ipv4`), and before the app starts a throwaway container knocks on the gateway; any answer stops the run,
+    with a control on the container's own loopback. The fence test asks the runner's check of a plain `--internal`
+    network (refused, the positive control) and of the runner's own (passes); its real run is CI's.
   - **S3. High, Reproduced. `sv notes` and `sv rules` write through a link to a file outside the app**
     (`main.rs`, AGENTS.md and security-notes.md, plain `fs::write`). The MCP route refuses a link; the command
     line does not.
