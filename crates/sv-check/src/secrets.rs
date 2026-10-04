@@ -325,36 +325,56 @@ fn scan_piece(
 ///
 /// The first shape is the one read until 4 October 2026, `name = "v"` and `name: "v"`, kept as it was;
 /// a JSON or dict key, PHP's and Ruby's `=>`, Go's `:=`, a typed declaration, and a default given to an
-/// environment variable in the code were reported by nothing (the deep review's H3). What only the
-/// later shapes find is judged once more (`reads_as_text_or_a_name`).
-static QUOTED_SHAPES: LazyLock<Vec<Regex>> = LazyLock::new(|| {
+/// environment variable in the code were reported by nothing (the deep review's H3). Each shape says
+/// whether any text in it is a value: the first, as it always was, and a default given to a setting
+/// whose name says it is a credential, which is that credential whatever it reads like
+/// (`process.env.SESSION_SECRET || 'dev-session-secret'`). What the others find is judged once
+/// more (`reads_as_text_or_a_name`).
+static QUOTED_SHAPES: LazyLock<Vec<(Regex, bool)>> = LazyLock::new(|| {
     const VALUE: &str = r#"["'](?P<value>[^"'\n]{8,200})["']"#;
     const NAME: &str = r"(?P<name>[A-Za-z_][A-Za-z0-9_.\-]*)";
     [
         // The shape read before: name = "v", name: "v".
-        format!(r#"{NAME}\s*[:=]\s*{VALUE}"#),
+        (format!(r#"{NAME}\s*[:=]\s*{VALUE}"#), true),
         // And "name": "v", 'name' => 'v', name := "v".
-        format!(r#"["']?{NAME}["']?\s*(?:=>|:=|:|=)\s*{VALUE}"#),
+        (
+            format!(r#"["']?{NAME}["']?\s*(?:=>|:=|:|=)\s*{VALUE}"#),
+            false,
+        ),
         // TypeScript, Kotlin, Swift, and Rust: `apiKey: string = "v"`, `API_KEY: &'static str = "v"`.
-        format!(r#"{NAME}\s*:\s*&?(?:'[a-z]+\s+)?[A-Za-z_][A-Za-z0-9_.<>\[\]?]*\s*=\s*{VALUE}"#),
+        (
+            format!(
+                r#"{NAME}\s*:\s*&?(?:'[a-z]+\s+)?[A-Za-z_][A-Za-z0-9_.<>\[\]?]*\s*=\s*{VALUE}"#
+            ),
+            false,
+        ),
         // Go: `var password string = "v"`.
-        format!(r#"{NAME}[ \t]+[A-Za-z_][A-Za-z0-9_.\[\]*]*[ \t]*=\s*{VALUE}"#),
+        (
+            format!(r#"{NAME}[ \t]+[A-Za-z_][A-Za-z0-9_.\[\]*]*[ \t]*=\s*{VALUE}"#),
+            false,
+        ),
         // A default given in the code to a setting read from the environment, which is the
         // credential itself whenever the setting is not there: `os.getenv("X", "v")`,
         // `os.environ.get("X", "v")`, `ENV.fetch("X", "v")`, `env('X', 'v')`.
-        format!(
-            r#"(?:getenv|environ\.get|environ\.setdefault|ENV\.fetch|getOrDefault|\benv)\s*\(\s*["']{NAME}["']\s*,\s*{VALUE}"#
+        (
+            format!(
+                r#"(?:getenv|environ\.get|environ\.setdefault|ENV\.fetch|getOrDefault|\benv)\s*\(\s*["']{NAME}["']\s*,\s*{VALUE}"#
+            ),
+            true,
         ),
         // The same default after the read: `process.env.X || "v"`, `process.env["X"] ?? "v"`,
         // `ENV["X"] || "v"`, `getenv('X') ?: 'v'`, `os.environ.get("X") or "v"`.
-        format!(
-            r#"(?:process\.env\.{NAME}|(?:process\.env|ENV)\[\s*["']{NAME2}["']\s*\]|(?:getenv|environ\.get)\(\s*["']{NAME3}["']\s*\))\s*(?:\|\||\?\?|\?:|\bor\b)\s*{VALUE}"#,
-            NAME2 = r"(?P<name2>[A-Za-z_][A-Za-z0-9_.\-]*)",
-            NAME3 = r"(?P<name3>[A-Za-z_][A-Za-z0-9_.\-]*)",
+        (
+            format!(
+                r#"(?:process\.env\.{NAME}|(?:process\.env|ENV)\[\s*["']{NAME2}["']\s*\]|(?:getenv|environ\.get)\(\s*["']{NAME3}["']\s*\))\s*(?:\|\||\?\?|\?:|\bor\b)\s*{VALUE}"#,
+                NAME2 = r"(?P<name2>[A-Za-z_][A-Za-z0-9_.\-]*)",
+                NAME3 = r"(?P<name3>[A-Za-z_][A-Za-z0-9_.\-]*)",
+            ),
+            true,
         ),
     ]
-    .iter()
-    .map(|p| Regex::new(p).expect("static pattern"))
+    .into_iter()
+    .map(|(p, any_text_is_a_value)| (Regex::new(&p).expect("static pattern"), any_text_is_a_value))
     .collect()
 });
 
@@ -382,11 +402,11 @@ fn writes_values_unquoted(relative: &str) -> bool {
         .any(|ext| name.ends_with(ext))
 }
 
-/// A name given a value, and whether the shape read before 4 October 2026 found it.
+/// A name given a value, and whether its shape takes any text as a value (see `QUOTED_SHAPES`).
 struct Named<'t> {
     name: regex::Match<'t>,
     value: regex::Match<'t>,
-    read_before: bool,
+    any_text_is_a_value: bool,
 }
 
 /// Every name given a value in `text`, in the shapes above, in the order the values come. One value
@@ -397,19 +417,21 @@ fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
     let unquoted = writes_values_unquoted(relative).then_some(&*UNQUOTED);
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
-    for (shape_index, shape) in QUOTED_SHAPES.iter().chain(unquoted).enumerate() {
+    let unquoted = unquoted.map(|shape| (shape, false));
+    let quoted = QUOTED_SHAPES.iter().map(|(shape, any)| (shape, *any));
+    for (shape, any_text_is_a_value) in quoted.chain(unquoted) {
         for caps in shape.captures_iter(text) {
             let name = ["name", "name2", "name3"]
                 .iter()
                 .find_map(|g| caps.name(g))
                 .expect("every shape names its name");
             let value = caps.name("value").expect("every shape names its value");
-            // The first shape goes first, so a pair it found keeps `read_before`.
+            // The first shape goes first, so a pair it found is judged as it was before.
             if seen.insert((name.start(), value.start())) {
                 out.push(Named {
                     name,
                     value,
-                    read_before: shape_index == 0,
+                    any_text_is_a_value,
                 });
             }
         }
@@ -418,7 +440,7 @@ fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
     out
 }
 
-/// Whether a value the newer shapes found is text or a name rather than a credential: words with a
+/// Whether a value a newer shape found is text or a name rather than a credential: words with a
 /// space between them, a relative path (`./lib/tokenize.js`), or an identifier in lower case
 /// (`config.workflow-fork-secrets`), as the upper-case one is already passed over. Reading JSON and
 /// dict keys brought in every message catalog and schema whose key holds "token" or "password"
@@ -451,7 +473,7 @@ fn assignment_findings(
     for Named {
         name: name_match,
         value: value_match,
-        read_before,
+        any_text_is_a_value,
     } in named_values(relative, text)
     {
         if !keep.contains(&name_match.start()) || reported.contains(&value_match.start()) {
@@ -462,7 +484,7 @@ fn assignment_findings(
         if !is_secret_name(name) || looks_like_placeholder(value) {
             continue;
         }
-        if !read_before && reads_as_text_or_a_name(value) {
+        if !any_text_is_a_value && reads_as_text_or_a_name(value) {
             continue;
         }
         // A reference to another variable, a path or a URL is not a credential, and nor is a value
@@ -1540,6 +1562,29 @@ mod tests {
             scan_text(&rules(), "report.json", &format!("{in_a_string}\n")).len(),
             1,
             "an assignment inside a JSON string"
+        );
+        // A default given to a secret setting is a value whatever it reads like: lower case and
+        // hyphens is how a made-up fallback secret is written (v1's planted fixture is one).
+        let fallback = ["dev", "session", "secret", "for", "local"].join("-");
+        assert_eq!(
+            scan_text(
+                &rules(),
+                "app.js",
+                &format!("const s = process.env.SESSION_SECRET || '{fallback}';\n"),
+            )
+            .len(),
+            1,
+            "a lower-case default for a secret setting"
+        );
+        assert_eq!(
+            scan_text(
+                &rules(),
+                "app.py",
+                &format!("os.getenv('SESSION_SECRET', '{fallback}')\n")
+            )
+            .len(),
+            1,
+            "a lower-case default given to getenv"
         );
         // And a credential with no space, path, or lower-case-only shape is still found in a JSON key.
         let value = made_up_value();
