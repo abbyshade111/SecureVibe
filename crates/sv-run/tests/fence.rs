@@ -338,3 +338,59 @@ fn two_runs_in_one_process_do_not_collide() {
         assert!(outcome.healthy, "run {attempt} of 2 answered");
     }
 }
+
+#[test]
+fn the_fence_closes_the_way_to_this_computer_through_the_gateway() {
+    // The deep review of 4 October 2026, S2: `--internal` blocks the internet, and still lets a container
+    // reach the bridge's gateway, which is this computer (or Docker's virtual machine). The runner's own check
+    // is asked of both kinds of network.
+    let backend = DockerBackend::new();
+    if backend.available().is_err() {
+        println!("no container backend here; the gateway cannot be exercised");
+        return;
+    }
+    let make = |name: &str, extra: &[&str]| {
+        let _ = Command::new("docker")
+            .args(["network", "rm", name])
+            .output();
+        let created = Command::new("docker")
+            .args(["network", "create", "--internal"])
+            .args(extra)
+            .arg(name)
+            .output()
+            .expect("docker network create");
+        assert!(
+            created.status.success(),
+            "could not create {name}: {}",
+            String::from_utf8_lossy(&created.stderr)
+        );
+    };
+    let remove = |name: &str| {
+        let _ = Command::new("docker")
+            .args(["network", "rm", name])
+            .output();
+    };
+
+    // The positive control: `--internal` alone, which the review reached the host through. The check must
+    // stop the run here, or its passing below would prove nothing.
+    let open = "sv-gateway-open-net";
+    make(open, &[]);
+    let refused = backend.verify_gateway_closed(open);
+    remove(open);
+    let refused =
+        refused.expect_err("the gateway of an --internal network was not found reachable");
+    assert!(
+        format!("{refused:?}").contains("reached its gateway"),
+        "it stopped for the wrong reason: {refused:?}"
+    );
+
+    // The network the runner makes now.
+    let closed = "sv-gateway-closed-net";
+    make(
+        closed,
+        &["-o", "com.docker.network.bridge.inhibit_ipv4=true"],
+    );
+    let verdict = backend.verify_gateway_closed(closed);
+    remove(closed);
+    assert!(verdict.is_ok(), "the runner's own network: {verdict:?}");
+}

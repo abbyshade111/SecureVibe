@@ -6812,3 +6812,31 @@ number form or the quoted form fail a test.
 Twenty guards were broken in turn. Nineteen were caught at first; the one that was not, sending the condition without
 percent-encoding it, went unnoticed because the fake app reads spaces and quotes in an address anyway, and the test of
 a correct app now holds that every address the check sends is encoded.
+
+## The fence's gateway (4 October 2026)
+
+The deep review of `sv` at `eff3f17` found that the network fence let the app reach the host (S2, high).
+`docker network create --internal` stops traffic leaving for the internet. It still gives the bridge an address of
+its own, the network's gateway, and that address is the host: this computer on Linux, or the virtual machine Docker
+runs in on Docker Desktop and Colima. The review's fenced container reached the Colima machine's SSH server at
+172.20.0.1:22 while 1.1.1.1 was blocked. `verify_fenced` only asked Docker whether the network was internal, and
+the fence test only tried the internet.
+
+- **The network has no gateway address.** It is created with `com.docker.network.bridge.inhibit_ipv4=true`, so the
+  bridge holds no address on the host. Containers on it still reach one another. A daemon that refuses the option
+  gets the plain internal network, and the check below decides.
+- **The run fails closed.** Before the app starts, a throwaway container on the fence (read-only, no capabilities)
+  knocks on the gateway with busybox's `nc` and reads the answer:
+  - a connection, or a refusal, is the host's stack answering, and the run stops, saying so;
+  - a timeout, no route, or an unreachable network is the fence holding;
+  - anything else stops the run too.
+
+  The control is the same knock on the container's own loopback, which must read as refused. An `nc` that cannot
+  tell the two apart therefore stops the run instead of passing for a fence.
+- **The fence test asks the runner's own check of both networks.** It asks a plain `--internal` network, which
+  must be refused: that is the positive control, without which a pass would prove nothing. It then asks one made
+  as the runner makes it, which must pass.
+
+Not run in this environment, which has no Docker daemon: the fence test's real run is CI's, on GitHub's Linux runners,
+the first time this change is tested there. The reading of `nc`'s answers is tested here, and two breaks were each
+caught: a refusal read as the fence holding, and the control left out.
