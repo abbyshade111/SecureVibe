@@ -132,6 +132,11 @@ another session is not a claim.
     are Bandit's; handing it the folder is `sv`'s choice. S7's fix, `sv`'s own file list, takes these out too.
     **Claimed on 4 October 2026 by session securevibe-e10**, with H7, at the owner's asking to work through the
     review's open items, in branch `claude/s7-h7-bandit`.
+    **Done the same day** (DESIGN, "Bandit handed the app's own Python files, and a run that did not finish"):
+    Bandit is handed `sv`'s listing of the app's Python files by name, so links out of the app and `vendor/` are not
+    read; `{files}` gives a tool that reads one language only that language's files. Brakeman still takes the folder,
+    since it reads a Rails app as a whole. Tested with stand-in programs; Bandit itself is not installed where this
+    was written, so its first real run is CI's or the owner's.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
@@ -243,6 +248,9 @@ another session is not a claim.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
     **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
+    **Done the same day** (same DESIGN section): a tool's SARIF that marks its run unsuccessful, or names an
+    error-level problem in `toolExecutionNotifications` or `toolConfigurationNotifications`, keeps the run from
+    counting as clean, for every outside tool; the findings stand, and the report names up to five problems.
   - **H8. High, Reproduced.** PyPI names are not normalized (PEP 503) in the advisory comparison: `jupyter_server`
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
