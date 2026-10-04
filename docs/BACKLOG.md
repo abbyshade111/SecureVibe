@@ -71,6 +71,13 @@ another session is not a claim.
     ignored). A planted unwritable `/tmp/sv-bandit.sarif` recorded Bandit as run with nothing found; two runs at
     once read each other's. Fix: a private folder per run (0700, unpredictable name), each tool's exit codes, and
     only a report created after the tool started.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking through the cato-pipeline session,
+    in branch `claude/securevibe-e9-tool-reports`.
+    **Done the same day** (DESIGN, "Tools' reports in a folder of the run's own"): each run makes a new folder,
+    mode 700 with a random name, for the tools' reports and removes it afterwards; each adapter lists the exit codes
+    that mean it finished, from its own source, and any other ending is not run; and only a plain file the tool
+    wrote in this run is read. Seven guards undone in turn, each caught by its own test. Gosec ends with 1 both on
+    finding and on failing, so for it the report still decides.
   - **S7. High, Reproduced. Bandit follows links `sv` refuses**, so a linked file's text from outside the app
     reaches the report. Bandit and Brakeman are given `{dir}`. Fix: give Bandit `sv`'s own file list, as Semgrep
     gets; until then drop findings on linked files and mark the run partial.
@@ -106,6 +113,10 @@ another session is not a claim.
     aside** (`bluf.rs`, `markdown.rs`). Fix: name set-aside findings in the headline.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-set-aside-headline`.
+    **Done the same day** (DESIGN, "The headline counts what was set aside"): the headline counts false alarms set
+    aside in securevibe.toml, says so when nothing else is open, and says where they are listed; it says "in
+    securevibe.toml", not "by a person", since who wrote the entry is R1's question. Three guards broken in turn, each
+    caught.
 
 - **The deep review of `sv` at `eff3f17`, part 2 of 3: honesty, false cleans and coverage overclaims (H1 to
   H25).** Same sender, method, and labels as part 1. **Each item can be claimed on its own.** The sender's order:
