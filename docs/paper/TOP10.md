@@ -432,6 +432,22 @@ The record of 20 September does not name the commits checked, so the two are not
   and security events absent from the log (A09), but most of them ask the running app, and neither study started one.
   `docs/COVERAGE.md` counts that reach by ASVS requirement rather than by Top 10 category.
 
+## Since the cut-off
+
+The sections above keep the status at `157ddc3`. By 16:30 the same day, after the cut-off:
+
+- **Section 1, the deep review's 19:** S2 to S6, S12, and R1 were fixed as well as S1, so 8 of 19 rather than 1. Still
+  open: S7 to S11, S13, R4, R9, R10, R13, and A6.
+- **Section 2, the deep review's 30 that fail open:** S6, H8, H10 to H13, and R2 were fixed, and H4 in part, so 7 and
+  a part rather than none. H3, H14, and H15 were claimed.
+- **The returning fault.** "Each fix guarded the path in front of it, not every way of writing a file" was answered by
+  one shared way for `sv` to write its files, never through a link and never over the app's own (S3 to S5, #562). The
+  six real findings of `sv` checking itself were all fixed that afternoon.
+- **R1** ("an AI tool can mark its own findings as reviewed by a person") was fixed by `sv review` (ADR-026): what the
+  owner records is sealed, and an entry written any other way does not count as theirs.
+
+`SINCE-THE-CUTOFF.md` gives the pull requests and times.
+
 ## Limits
 
 - **This counts what was written down.** A fault fixed without a note is not here. From about 28 September the record
