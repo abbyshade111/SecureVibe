@@ -133,6 +133,8 @@ another session is not a claim.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/s8-bundle-tool-messages`.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
@@ -246,6 +248,8 @@ another session is not a claim.
     PyPI names are compared through `manifest_lock::python_name`, the normalizer already there.
   - **H9. High, Reproduced.** Pipenv apps (`Pipfile` and `Pipfile.lock` only) are invisible, yet the advisories ran
     and V15.2.1 was credited. Also detect `setup.py`, `setup.cfg`, `requirements*.txt`, at least as unread.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h9-pipenv`.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -336,8 +340,12 @@ another session is not a claim.
     add up. Fix: every status, and a test that the rows sum to the applicable total.
   - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r6-exit-codes`.
   - **R7. High, Reproduced.** `sv notes` and the MCP notes tool delete the owner's own text, though the tool says it
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r7-notes-keep-owner-text`.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
@@ -436,6 +444,16 @@ another session is not a claim.
      **The owner's decision, 4 October 2026:** fix the cookie handling as above, and also warn in the report when the start command looks like it weakens the app for the run (an environment variable naming `INSECURE`, `DISABLE_`, or the like): a warning, not a refusal.
      **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
      `claude/build-item-3-cookies`.
+     **Done the same day** (DESIGN, "The browser is handed each cookie as the app set it"): each cookie reaches the
+     browser with the `Secure`, `HttpOnly`, `Path`, and `SameSite` the app set (`Secure` always for a `__Host-` or
+     `__Secure-` name, and path `/` for `__Host-`); the browser's answer to each is read, and a refused cookie is
+     named in the not-assessed reason, or in the step when the pages opened anyway. A start command with a setting
+     that looks like it weakens the app (`INSECURE`; `DISABLE`, `SKIP`, `BYPASS`, or `NO` beside a security word;
+     a security word set to 0, false, no, or off) is warned about on the terminal and in the report's note about the
+     run, and the run goes on. Tested in sv's own Chromium 151, which refused `__Host-sid` handed over the old way
+     ("Sanitizing cookie failed"), and end to end with a `__Host-` copy of `examples/notes-with-users` started with
+     `FAMILY_HUB_INSECURE_COOKIES=1`. Each of eight guards broken was caught; parsing `Secure` was caught by nothing
+     at first, until a test cookie with `Secure` and no prefix was added.
   4. **The log checks need the test account's email address in the log, and an app that keeps personal data out of
      its log cannot be checked.** family-hub, 3 October: V16.3.1, V16.3.2, V16.2.1, V16.2.2, and V16.2.4 were not
      assessed ("Neither sign-in was named in the app's output", and "no such line was found"). The owner's
@@ -1044,6 +1062,52 @@ another session is not a claim.
   recorded nowhere. Three were not: 1 and 4, because both builds without them already passed; and 2, because `sv`'s
   check accused the build made with it of booking twenty times when it booked once (its own item below). Prompt 6
   was reworded once, after both builds with its first wording left the query string and status out of their log lines.
+  **Prompts 8 to 15 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
+  `claude/design-time-first` (item 8 of "Design-time help before any code", below).
+
+- **Design-time help before any code: keeping what v1 did best.** Proposed on 4 October 2026 by session paper-facts,
+  at the owner's asking, after comparing v1 and `sv` for the paper. v1 made the decisions first (the wizard, the design
+  freeze, plan → approve → build, eight decision records per app) and then held the build to them. `sv` has the
+  pieces (the design questions, the design-time prompts, the coding rules, the manifest spec), but its MCP
+  server's instructions and the spec are written for an app that already exists, and nothing puts the decisions in
+  front of the AI tool before it writes code. The prompts trial showed the lever: when `securevibe.toml` already held
+  the limits, builds with no prompt enforced them, so a decision written down first steers any tool. None of these
+  changes credits anything: a plan, a brief, or a decision is still checked only through what the running app shows.
+  **The owner's decision, 4 October 2026: all eight, yes.** Each numbered item can be claimed on its own.
+  1. **Design first, in the MCP server's instructions and the spec.** The instructions name the spec, the rules, and
+     the check, in that order, and never the design-time prompts; the spec says to describe "what the app really
+     does". For a folder with no code yet, they should say to write the design brief first, and to fetch the
+     design-time prompt for a feature before building it; and the spec should have wording for an app not yet
+     written ("what the app will do"), with a claim the code later contradicts still reported.
+  2. **The design-time prompts as MCP prompts.** The server answers `prompts/list` with "method not found" (a test
+     holds it). MCP prompts are what a client shows a person to choose (in Claude Code, as slash commands), so offering
+     the design-time prompts there keeps the choice with the person and works with any client that supports them;
+     `sv prompts` stays for the rest. Which clients show MCP prompts is to be tried before it is written down, as for
+     `AGENTS.md`.
+  3. **A plan before any code (`sv plan`, and `securevibe_plan`).** From the manifest alone: the requirements that
+     will apply, the threat model, the tests worth writing named by requirement id, the decisions to make for the
+     app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
+     Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
+     the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+  4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
+     (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
+     brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
+     by requirement id. `securevibe_guidance` takes topics of process (secrets, dependencies, CI), not features.
+  5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
+     which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
+     design-time prompts above, made a check; and a per-app record of decisions like v1's.
+  6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
+     form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
+     tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
+     protocol may change it, so it is to be tried first; `sv review` at a terminal stays the sure path.
+  7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
+     at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
+     with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
+     Spends the owner's AI credit: ask before each run.
+  8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
+     checklist" above, which the owner approved on 4 October and nobody has claimed.
+  **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
+  `claude/design-time-first`.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
@@ -2434,6 +2498,16 @@ another session is not a claim.
        choice, and ADR-010 itself says nothing of it.
 
      Both are candidates for records of their own, the way ADR-018 replaced ADR-012's ruling.
+
+- **Decision records written with the change, not after it.** Asked for by the owner on 4 October 2026, after the
+  appendix review showed every one of `sv`'s first eleven records was written one to seven days after its decision,
+  and only when a review noticed (`docs/paper/ADRS.md`). Four parts: a rule in `CLAUDE.md` saying what counts as a
+  decision and that its record (a new ADR, or a dated "Later" entry) goes in the same pull request, written first as
+  "proposed" for anything substantial; a "Decision record" section in the pull-request template; a "Governs:" list of
+  paths on every `sv` record, and a CI check that fails a pull request touching a governed path unless it changes
+  that record or says `ADR-0NN: unchanged, because …`; and a test that every test, file, and ADR number a record
+  names exists. The weekly review below becomes a scheduled task. **Claimed the same day by session securevibe-e9**,
+  in branch `claude/securevibe-e9-adr-upkeep`. Other sessions: please leave `docs/adr/` to it until this says done.
 
 - **A weekly review of the decision records, so they stop falling behind what is built.** Asked for by the owner
   on 27 September 2026, after the ADR analysis (`docs/paper/ADRS.md`) found records out of date within two days
