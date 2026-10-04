@@ -22,6 +22,13 @@ another session is not a claim.
   self-assessment repeated on the cut-off's source (`self-assessment-v2/2026-10-04/`); and the documents checked
   against each other. `ARTIFACTS.md` lists what is where.
 
+- **Correct `docs/paper/` where it was wrong at the cut-off, add what changed since, and write ADR-026 for
+  `sv review`.** Asked for on 4 October 2026 by the owner, after a review of the appendix against the current `sv`
+  (errors at the cut-off fixed in place; one dated "since the cut-off" record the other documents point to, the
+  cut-off figures kept as they are; a record of the decision that the owner's word counts only when `sv review`
+  sealed it). **Claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-appendix-fixes`.
+  Other sessions: please leave `docs/paper/` and `docs/adr/` to it until this entry says done.
+
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
   1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
