@@ -7608,6 +7608,18 @@ since the first left the spread refused for another reason. Not done, and still 
 the app's own database, a redirect through the app's own checking function, and family-hub's redirect through a
 parameter, which need a judgment about the app's own functions.
 
+**Later, 5 October 2026: a redirect through the app's own check.** `redirect(safe_next(next_url))`, with `safe_next`
+sending anything but a same-site path home, was reported as if the destination came straight from the request. The
+owner chose to keep the finding and name the function, since `sv` cannot tell a check that works from one that does
+not. With `namesOwnCheckingFunction` (set on `ast.open-redirect` only), when the destination is a call to a function
+the same file defines, or a name given such a call once (`next_url = safe_next(raw)`, then `redirect(next_url)`), the
+finding stays, at the rule's low confidence, and says the value passes through that function and to read it before
+changing anything. A function the file defines is Python's `def`, JavaScript's and TypeScript's `function` or a
+name given an arrow function or function expression, and Go's `func`. Left out, each with a witness: a function
+imported from another file (the import does not say whether it is the app's or a library's), a method
+(`self.safe_next(...)`, not told apart from a library's), and a name given two values. Witnesses in Python (both
+shapes), JavaScript, TypeScript, and Go. Eight guards broken in turn, each caught.
+
 ## The query calls each language really uses (4 October 2026)
 
 H1 of the deep review: `ast.sql-built-by-hand` named a short list of calls per language and judged only the first

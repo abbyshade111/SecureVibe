@@ -1052,6 +1052,10 @@ another session is not a claim.
      **The owner's decision, 5 October 2026:** keep the finding, and when the destination passes through a function
      of the app's own, name that function in it as the thing to check. **Claimed the same day by session
      securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-redirect-checked`.
+     **Done the same day** (DESIGN, "Later, 5 October 2026: a redirect through the app's own check"). Both shapes
+     above are still reported, at low confidence, and now name `safe_next` as the thing to read first. Only a function
+     the same file defines is named: one imported from another file is not, since the import does not say whose it
+     is. Eight guards broken in turn, each caught.
 
 - **Three faults found scanning the owner's family-hub, reported 3 October 2026.** Sent by the cato-pipeline session
   at the owner's asking. It found them on family-hub (Python and Flask, built with `sv` in the loop) with `sv` at
