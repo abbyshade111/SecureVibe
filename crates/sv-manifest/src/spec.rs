@@ -87,6 +87,9 @@ health = "/"              # a path that returns 200 once the app is up
 #                           # and SV_ADMIN, SV_ADMIN_PASSWORD when `admin` is listed, and
 #                           # SV_USER_TOTP, SV_PASSWORD_TOTP, SV_TOTP_SECRET when `totp` is set,
 #                           # and SV_ADMIN_TOTP_SECRET too when both are
+#   `sv` runs it once in each copy of the app it starts, inside that copy's container, after the
+#   app answers on `health`, never before. So the app must make its own tables when it starts,
+#   and the seed must work on the fresh database of a new copy.
 # signup = { path = "/signup", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }

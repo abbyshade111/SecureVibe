@@ -57,7 +57,7 @@ fn a_whole_session_over_stdio() {
         instructions.contains(&format!("`{} report ", program.display())),
         "{instructions}"
     );
-    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 11);
+    assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 12);
     assert!(
         instructions.contains("securevibe_guidance"),
         "the tool is told to ask for the rules before it codes: {instructions}"

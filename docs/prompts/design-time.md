@@ -24,6 +24,13 @@ An earlier round, in which `securevibe.toml` already held those numbers, showed 
 without any prompt read them and enforced them, so the file itself was acting as the prompt. Writing your numbers
 into `securevibe.toml` is worth doing for that reason alone.
 
+**Tried again with two more models (5 October 2026).** Claude Sonnet 5.5 and Claude Haiku 4.5, two builds with each
+prompt and two without, on the same brief ([the third trial](trial-3/README.md)). With Sonnet, the three prompts below
+held on every check they were shown on, and the logging prompt also on whether a refused request is logged (V16.3.2).
+With Haiku, the logging and sign-in prompts held; the limits prompt did not, because one of its two builds answered
+a limit with 403 instead of 429. The prompts under "Not yet shown to work" made no difference with either model: the
+builds without them were already safe on what `sv` checks. One tool, two models: other vendors' tools were not tried.
+
 ## Shown to work
 
 ### Decide the limits on abuse, write them down, and enforce them

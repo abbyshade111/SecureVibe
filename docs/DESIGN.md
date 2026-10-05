@@ -7052,6 +7052,49 @@ because one build without the prompt logged the refusal too.
 Not done: the eight design-time prompts no check can show working (backlog items 8 to 15), a second build per
 prompt, another brief, and another AI tool. One build each is a small sample, and every builder was the same model.
 
+
+## The prompts trial, a third time (5 October 2026)
+
+Item 7 of "Design-time help before any code", at the owner's chosen size: Claude Sonnet 5.5 and Claude Haiku 4.5, two
+builds per arm, every build checked with `sv report --run` (`docs/prompts/trial-3/README.md` has the method, the
+tables, and the files). Part 1 repeated the first trial's prompt arms on its brief, for prompts 1, 3, 4, 6, and 7;
+prompt 2 was left out while `probe.action-done-twice` miscounts a correct booking. Part 2 asked whether the help
+before any code makes an app `sv run` can test, on a plainer brief with no hint of what a tester needs: the
+specification alone, the plan, and the MCP server's instructions with the command line in place of the tools.
+
+**Results.** With Sonnet, prompts 3, 6, and 7 held on every check they were shown on, and 6 on V16.3.2 as well; with
+Haiku, 6 and 7 held and 3 did not. Prompts 1 and 4 made no difference with either model. In Part 2, the plan brought
+both Sonnet builds to the same high count of running-app checks answered (32 and 31), where the builds without it
+gave 9 and 30; with Haiku, `sv` could not sign in to either plan build. The MCP instructions and command line gave
+two testable Haiku builds (26 and 26). Two builds a cell is enough to see, not to generalize.
+
+**What the trial got wrong, and how each was found.** Each came from reading what `sv` said, not from guessing:
+- every first run reported its app's folder empty inside the container, because Colima shares only the home folder,
+  and the trial ran from `/tmp`. Moved, and run again;
+- three Haiku builds could not start: the first brief says the seed runs before the app, and `sv` runs it after. A
+  local start and a Docker start under the same limits both worked; reading `sv-run` showed when the seed runs. They
+  were rebuilt with the sentence corrected, and the gap in the specification is in the backlog;
+- prompt 7's session checks need `--slow`, which the builds without a prompt had not been given. They were run again
+  with it before prompt 7 was scored;
+- a build `sv` could not sign in to was first scored as the prompt failing. It is now left out, as one that did not
+  start is, since it says nothing about checks that need a signed-in user.
+
+
+## When the seed runs, said (5 October 2026)
+
+`sv run` runs `[stack.run.users] seed` inside the app's container once the app answers on its health path, and again
+in the second copy it starts for an AI kill switch (`sv-run/src/docker.rs`, the signed-in stage). The spec said only
+that the seed "creates" the accounts, and the trials' brief said it ran "before the app starts"; in the third prompts
+trial three builds that made their tables only in the seed crashed on the first page. The spec now says when it runs
+and what follows (the app makes its own tables; the seed works on a fresh database), the plan's line for `seed` says
+the same, and the brief is corrected with a note. How `sv` runs the seed is not changed: running it before the health
+check would break the apps that make their tables when they start, which every Sonnet build did.
+
+`the_spec_says_the_seed_runs_after_the_health_check_and_it_does` (`sv-run`) holds the sentence to the order in the
+code: the health wait comes before the signed-in stage, and that stage runs the seed. It reads the code's text, so it
+catches the call moved, not a run that behaves otherwise; removing the sentence, and putting the stage's call ahead of
+the health wait, each turned it red.
+
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
@@ -8179,6 +8222,59 @@ report), the plan not saying it credits nothing (in its text, and in its result)
 writing into the app's folder, an unanswered capability read as no, sign-in asked of an app without it, a setting the
 spec does not have, a given setting not marked, no design-time prompt given, the app's name not put on one line, and
 the instructions not naming the plan. Each was caught.
+
+## Before each feature: `sv brief` and `securevibe_before` (5 October 2026)
+
+Item 4 of "Decide before you build" (BACKLOG), in place of v1's template features. The plan speaks for the whole app;
+a brief speaks for one feature about to be built, and gathers in one place what the plan and the guidance spread
+over the app: `sv brief [PATH] --feature FEATURE`, and the MCP tool `securevibe_before`, which the server's
+instructions now name after the plan and before the coding rules.
+
+**The features** are in `data/feature-briefs.json`: sign-in, sign-in through another service, admin pages, uploads,
+payments, email, an AI feature, and fetching a web address. Each names the conditions whose requirements it brings
+(every requirement an applicability rule gates on one of them, through a new
+`applicability::requirement_ids_gated_on`), the requirements it brings that no condition gates, its design-time
+prompts, the coding-rule topics that bear on building it, and the table and key of each setting `sv run` needs. Two
+features have no condition that gates them: `payments` gates no ASVS requirement at all (only SBD-DM-03), and admin
+pages have none, since V8 always applies; each names its requirements itself (V2.3.4; V8.2.1, V8.2.2, V8.3.1), as
+does fetching a web address (V1.3.6, V13.2.4, V15.3.2, the requirements the fetch check asks about). Tests hold every
+id to the frameworks, every prompt to `design-prompts.json`, every topic to `coding-rules.json`, every table and key
+to the starter `securevibe.toml`, and the tool's list of features to the file.
+
+**A brief** is built from the same report as the plan, so the two cannot disagree. It has five parts:
+
+1. **The requirements it brings that apply to the app now**, the report's own. A requirement gated on several
+   conditions applies for any of them, so an app that sends email already has V12.3's encryption requirements before
+   it has an AI feature, and the AI feature's brief shows them as applying. Then, when `securevibe.toml` does not say
+   yet that the app has the feature, **the requirements that will apply once it does**: those gated on the feature's
+   own conditions, within the app's level, that do not apply now, named with the conditions to answer. The first
+   version showed only what applied, which for a feature not yet declared, the usual case before it is built, was
+   almost nothing: a test of the Flask example, which has no AI feature, found the AI brief listing eight
+   requirements that apply because the app sends email, and none of the AI feature's own.
+2. **The design-time prompts**, in full, for the AI coding tool to work through with the person. Uploads and email
+   have none written yet, and the brief says so.
+3. **The coding rules that bear on it.** The coding rules cite AISVS Appendix C, how the AI coding tool works, never a
+   requirement of the app, so no rule can be matched to a feature by what it cites; the first version tried, and every
+   brief came out with none. A feature instead names the topics that bear on building it: `secrets` (keys, passwords,
+   and people's data, uploads named among them) for sign-in, uploads, payments, email, and an AI feature. Admin pages
+   and fetching a web address name none, and the brief points to `securevibe_guidance` for the rules for all the work.
+4. **The tests to write**, the report's own, for the requirements that apply now; those for the pending ones come
+   with them once they apply, and `sv plan` lists them.
+5. **The settings `sv run` needs**, quoted from the starter `securevibe.toml`: each key's own line and the lines
+   that go on explaining it, so a brief cannot drift from the spec.
+
+It credits nothing (`creditsNothing` in the structured result), writes nothing, and never starts the app. A feature
+the data file does not name is refused with the list of those it does, before any check is started.
+
+Tested in `brief.rs` (the data file held to the frameworks, prompts, topics, and spec; settings quoted whole and only
+from their own table; what a condition brings), through the MCP server (every result to its declared shape; the
+brief's requirements and tests are the plan's and its own feature's; for the example's AI feature nothing pending is
+in the plan, nothing is above its level, and its rules are the `secrets` topic's; an unknown feature refused before a
+check given no time to run), and at the command line (`crates/sv-cli/tests/brief.rs`). Eleven guards broken in turn, each caught, by between one and
+three tests: conditions bringing nothing, a feature's own list left out, every applying requirement shown, the pending
+list repeating what applies, pending requirements above the app's level, every test shown, every coding-rule topic
+shown, a setting quoted without its explanation, a setting found in any table, an unknown feature checked only after
+the report, and the instructions not naming the tool.
 
 ## The notes file keeps what the owner wrote outside the answers (4 October 2026)
 

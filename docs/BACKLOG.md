@@ -1488,9 +1488,21 @@ another session is not a claim.
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
      by requirement id. `securevibe_guidance` takes topics of process (secrets, dependencies, CI), not features.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-feature-briefs`.
+     **Done the same day** (DESIGN, "Before each feature: `sv brief` and `securevibe_before`"): eight features in
+     `data/feature-briefs.json`, each with the conditions and requirements it brings, its design-time prompts, the
+     coding-rule topics that bear on it, and its `securevibe.toml` settings. A brief gives what applies now, what will
+     once `securevibe.toml` says the app has the feature, the prompts in full, the rules, the tests to write, and the
+     settings quoted from the spec; it credits nothing. Uploads and email have no design-time prompt yet, and admin
+     pages and fetching name no coding-rule topic: each brief says so.
   5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
      which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
      design-time prompts above, made a check; and a per-app record of decisions like v1's.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word, in branch
+     `claude/securevibe-e2-planned-decisions`. **The owner's decisions, 5 October 2026:** a fourth design answer,
+     `planned`, with an optional `where` naming the file it will be in, which credits nothing; and `sv` does not read
+     `design-decisions.md` in this item (a separate item below).
   6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
      form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
      tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
@@ -1507,6 +1519,12 @@ another session is not a claim.
      shows whether the instructions work when read, not whether a tool reads them unasked, and is reported as that.
      About 36 builds. One tool, two models: it cannot speak for other vendors' tools.
      **Claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompts-trial-3`.
+     **Done the same day** (`docs/prompts/trial-3/README.md`; DESIGN, "The prompts trial, a third time"). Thirty-nine
+     builds. Prompts 3, 6, and 7 held with Sonnet 5.5 on every check they were shown on, and 6 also on V16.3.2; with
+     Haiku 4.5, 6 and 7 held and 3 did not. Prompts 1 and 4 made no difference with either model. The plan made both
+     Sonnet builds testable to the same high level; with Haiku, `sv` could not sign in to either plan build. Given the
+     MCP instructions and the command line, both Haiku builds came out testable. Two builds a cell: enough to see,
+     not to generalize.
   8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
@@ -1535,6 +1553,55 @@ another session is not a claim.
   note, and the same under a `###` heading; still so on `main` after R7 the same day.
   **Done the same day**, at the owner's choice of "end a section at any heading, and say what was skipped" (ADR-022,
   "Later, 4 October 2026: a section ends at any heading"; DESIGN, "A heading of one's own ends the answer above it").
+
+- **The loop: `sv` as the MCP server an AI tool uses while it builds.** Proposed on 5 October 2026 by session
+  paper-facts, after the third prompts trial (`docs/prompts/trial-3/README.md`), where the MCP server's instructions
+  with the command line gave the most consistently testable builds. **The owner's decision, 5 October 2026: all six,
+  yes, and the trials' cost approved when each comes to be run.** Each numbered item can be claimed on its own.
+  1. **Clear the trial's confounds first.** Say in the spec when `seed` runs (the item below); correct the trials'
+     brief; and write the protocol of the next trial before it runs: the arms, the measures, the rule, and what makes
+     a build unusable (could not start, could not sign in, a check that needs `--slow` not given it). The third
+     trial's scoring changed twice after results were seen, each time for a stated reason; deciding it first is the
+     cleaner method.
+  2. **The real loop, a pilot.** Each build in a fresh folder by a headless AI coding tool (`claude -p`, with
+     `sv mcp` attached for that run only by `--mcp-config`, so no settings change), with no instruction to use `sv`
+     beyond what the server itself says. Its transcript (`--output-format stream-json`) records every tool call. About
+     four builds, to prove the setup before spending more. Other tools with MCP (Codex CLI, Gemini CLI, Cursor's agent)
+     where the owner has them.
+     **Claimed on 5 October 2026 by session paper-facts**, with item 4, at the owner's word, in branch
+     `claude/loop-pilot`. Builder: the Claude Code program the desktop app carries (2.1.286), headless, with
+     `--restricted`, `--strict-mcp-config`, `--no-session-persistence`, and `--max-budget-usd` on each build; the shell
+     allowed only for `python3`, which is not confined to the build's folder, and said so with the results.
+  3. **Which part of the loop does the work.** Arms: the server's instructions with no `sv`; `sv check` with no
+     instructions; the plan only; the whole loop.
+  4. **The loop's own measures,** from the transcripts: whether the brief and plan came before any code, how many
+     check-and-fix rounds, the findings after each round and whether they fell or were argued with, and the time and
+     tokens a loop costs.
+  5. **`securevibe_preflight`: the run settings checked against the code, without running it.** Most testability
+     failures in the third trial were sign-ins `sv` could not make: a seed that ignores the `SV_` accounts, a sign-in
+     path not where the settings say, tables made only by the seed. A static check of those, offered in the loop,
+     executes nothing, keeping the MCP server's rule that a model never starts the app.
+  6. **Scale.** About five builds a cell, the second brief (`docs/prompts/trial-2`), and security outcomes (the
+     running-app findings) as well as testability; other vendors' tools where available.
+  **Item 1 claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/loop-confounds`.
+  **Item 1 done the same day** (DESIGN, "When the seed runs, said"): the spec and the plan say the seed runs after
+  the app answers on `health`, in each copy `sv` starts, so the app makes its own tables; a test holds that sentence to
+  the order in `sv-run`. The trials' brief is corrected, with a note that the first three trials used the old
+  sentence. The next trials' protocol is `docs/prompts/loop-protocol.md`: the arms, the measures, what makes a build
+  unusable, what may be said, and the cost guard, fixed before any build.
+
+- **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
+  does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
+  the app's container after the app has answered its health path (`sv-run/src/docker.rs`, `seed`). The spec says only
+  "creates them"; `docs/prompts/trial/brief.md` says "when run once before the app starts". An app that makes its
+  tables only in its seed crashes on the first page `sv` asks for, and the run is reported as could not start: three
+  Haiku builds in the trial did. Ways out, for the owner: say in the spec that the seed runs once the app is up, so
+  the app must make its own tables; or run the seed before the health check. Either way, correct the brief.
+  **Claimed on 5 October 2026 by session paper-facts** with item 1 of "The loop", above, in branch
+  `claude/loop-confounds`: the spec will say when the seed runs, and how `sv` runs it is not changed (running it
+  earlier would break apps that make their tables when they start). Changing when it runs stays the owner's to choose.
+  **Done the same day**, as said: the spec and the plan say when the seed runs, and the brief is corrected. How `sv`
+  runs it is unchanged.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
