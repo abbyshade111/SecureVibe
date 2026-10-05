@@ -677,6 +677,8 @@ another session is not a claim.
     and control characters stripped from everything `sv` prints to a terminal. The other three parts (two-factor
     codes from the container's clock, seed secrets through standard input, WebSockets and workers in the browser
     driver) are not claimed.
+    **Those two done the same day** (DESIGN, "Markers made fresh for each use, and no control character to the
+    terminal").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with

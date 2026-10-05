@@ -15,6 +15,22 @@ use sv_manifest::{ClaimState, Manifest, consistency, spec};
 use sv_run::RunPlan;
 use sv_scan::{Evidence, Signatures};
 
+// Everything `sv` prints goes through `sv_report::visible`, so no control character from the app, in a
+// file name, a finding, or what its tests printed, reaches the terminal (the deep review's improvement 5).
+// These shadow the standard macros in every module of this crate below them; an `eprint!` added later wants
+// one too. The MCP server writes its protocol to its own writer, not through these.
+macro_rules! println {
+    () => { ::std::println!() };
+    ($($arg:tt)*) => { ::std::println!("{}", ::sv_report::visible(&::std::format!($($arg)*))) };
+}
+macro_rules! eprintln {
+    () => { ::std::eprintln!() };
+    ($($arg:tt)*) => { ::std::eprintln!("{}", ::sv_report::visible(&::std::format!($($arg)*))) };
+}
+macro_rules! print {
+    ($($arg:tt)*) => { ::std::print!("{}", ::sv_report::visible(&::std::format!($($arg)*))) };
+}
+
 mod bundle;
 mod exit;
 mod mcp;
