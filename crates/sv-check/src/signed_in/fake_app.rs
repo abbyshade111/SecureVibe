@@ -139,6 +139,8 @@ pub(super) struct FakeApp {
     leak_next: bool,
     /// Seats booked. There is one seat.
     pub(super) bookings: u32,
+    /// Who holds the seat, once somebody does.
+    booked_by: Option<String>,
     /// While copies are being sent at the same instant: the bookings there were when they
     /// started, which each sees under `booking_races`, and how many have arrived.
     together: Option<(u32, usize)>,
@@ -290,6 +292,10 @@ pub(super) struct Flaws {
     pub(super) booking_broken: bool,
     /// Booking answers copies sent at the same instant beyond the first with 429.
     pub(super) booking_rate_limited: bool,
+    /// Booking answers a repeat from the user who already holds the seat with "Booked" again,
+    /// changing nothing: safe to repeat, as the "actions that must happen once" prompt asks. Not a
+    /// flaw; until 5 October 2026 it was reported as one.
+    pub(super) booking_repeat_says_booked: bool,
     /// A password change leaves the account's other sessions working (V7.4.3).
     pub(super) change_keeps_sessions: bool,
     /// A password change sends the account holder no email (V6.3.7).
@@ -871,13 +877,9 @@ impl Http for FakeApp {
         self.model_up.then(|| FAKE_MODEL.to_owned())
     }
 
-    fn send_at_once(
-        &mut self,
-        r: &ProbeRequest,
-        times: usize,
-    ) -> Option<Vec<Option<ProbeResponse>>> {
+    fn send_together(&mut self, rs: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
         self.together = Some((self.bookings, 0));
-        let answers = (0..times).map(|_| self.send(r)).collect();
+        let answers = rs.iter().map(|r| self.send(r)).collect();
         self.together = None;
         Some(answers)
     }
@@ -1275,10 +1277,19 @@ impl FakeApp {
                     Some((at_start, _)) if self.flaws.booking_races => at_start,
                     _ => self.bookings,
                 };
+                let holds_it = user.is_some() && self.booked_by == user;
+                if !self.flaws.booking_broken
+                    && seen >= 1
+                    && self.flaws.booking_repeat_says_booked
+                    && holds_it
+                {
+                    return Some(Self::respond(200, vec![], "<p>Booked: seat 1</p>"));
+                }
                 if self.flaws.booking_broken || seen >= 1 {
                     return Some(Self::respond(409, vec![], "Sold out"));
                 }
                 self.bookings += 1;
+                self.booked_by = user.clone();
                 Self::respond(200, vec![], "<p>Booked: seat 1</p>")
             }
             ("POST", "/activate") => {
