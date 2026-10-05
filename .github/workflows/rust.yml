@@ -31,7 +31,9 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The suite took 14 to 15 minutes by 5 October 2026, and runs on main and on branches were being stopped
+    # at 15 with the tests unfinished. Room to grow; the repository is public, so the minutes cost nothing.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         # The token stays out of the checked-out folder, so nothing that runs later in the job

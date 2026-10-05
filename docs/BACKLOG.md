@@ -425,6 +425,9 @@ another session is not a claim.
     that includes `docker exec`'s own time.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h16`.
+    **Done the same day** (DESIGN, "A delay counts only when every attempt past the limit shows it"; ADR-021, Later):
+    the quickest attempt within the limit is the baseline, both attempts past it must be markedly slower, the
+    sign-in page is timed beside them as a control, and times that disagree are not assessed.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -641,6 +644,9 @@ another session is not a claim.
     `manifest-version`, refuse trailing text after dates, a stray `</details>` in `report.html`, let a false alarm
     lapse when nearby lines change. 7: refuse an option value starting `--`, do not overwrite a bundle without
     asking, one error for "outside the root" and "does not exist".
+    **Improvement 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-tool-limits`: a time limit on every outside tool, and an
+    environment with only what a tool needs to run, `GOTOOLCHAIN=local` among it.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
