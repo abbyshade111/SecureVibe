@@ -1045,6 +1045,9 @@ another session is not a claim.
      tell a checked redirect from an unchecked one. Recognizing every checking function is not possible; one
      honest step is to lower the confidence when the value passed through a function of the app's own whose
      name or body speaks of the destination, and say so in the finding.
+     **The owner's decision, 5 October 2026:** keep the finding, and when the destination passes through a function
+     of the app's own, name that function in it as the thing to check. **Claimed the same day by session
+     securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-redirect-checked`.
 
 - **Three faults found scanning the owner's family-hub, reported 3 October 2026.** Sent by the cato-pipeline session
   at the owner's asking. It found them on family-hub (Python and Flask, built with `sv` in the loop) with `sv` at
@@ -1657,7 +1660,9 @@ another session is not a claim.
   answer cannot tell "taken now" from "already yours". Ways out, for the owner to choose: send the copies as two or more
   users, so only one of them can be told it went through; or read the effect, from a page `once` names that shows how
   many were taken, rather than the answers. Until then the finding can accuse exactly the app it should credit, which
-  is the kind of false alarm that makes the tool rewrite correct code. Not claimed.
+  is the kind of false alarm that makes the tool rewrite correct code.
+  **The owner's decision, 5 October 2026:** send the copies as two or more users. **Claimed the same day by session
+  securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-done-twice-users`.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
