@@ -1662,6 +1662,8 @@ another session is not a claim.
   answered with the line, the field, and the fields allowed, and the builder sent the same mistake back five times,
   rewriting the file twice, before it put the field where it belongs. Naming the section the line was read in (`in [stack.run.ai]`) would say where
   it went wrong.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take another of the
+  pilot's findings, in branch `claude/manifest-section-in-message`.
 
 - **`sv check` does not say `.env` can be committed until the folder is a git repository.** Found on 5 October 2026
   by session paper-facts, in the loop pilot: every build was flagged `config.gitignore-covers-env` (high) by
