@@ -525,6 +525,8 @@ another session is not a claim.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.
+    **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-fingerprint`.
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
   - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
