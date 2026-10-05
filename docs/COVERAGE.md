@@ -42,7 +42,7 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 57 | 11 | 1 | 6 | 36 | 21 | 3 |
+| L1 | 70 | 57 | 11 | 1 | 6 | 37 | 21 | 3 |
 | L2 | 183 | 86 | 8 | 0 | 19 | 45 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
@@ -90,7 +90,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Signed in: `probe.upload-path-traversal`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
-| V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token` (sv only ever as a finding: `ast.token-key-source-from-token`) |
+| V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.3 | L2 | Reads the code: `ast.token-audience-not-checked` (sv only ever as a finding: `ast.token-audience-not-checked`) |
 | V10.4.4 | L1 | Reads the code: `config.retired-grant-enabled`; The running app: `probe.retired-grants-offered` (sv only ever as a finding: `config.retired-grant-enabled`, `probe.retired-grants-offered`) |
 | V11.2.4 | L3 | Reads the code: `ast.digest-compared-with-equals` (sv only ever as a finding: `ast.digest-compared-with-equals`) |
@@ -105,7 +105,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
 
-### Settled by asking the running app (110)
+### Settled by asking the running app (111)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -185,6 +185,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V9.1.1 | L1 | Signed in: `probe.app-token-signature-not-checked`; Outside tools: `semgrep`, `codeql-javascript` |
 | V9.1.2 | L1 | Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` |
+| V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.1 | L1 | Signed in: `probe.app-token-expired-accepted`; Outside tools: `semgrep` (semgrep only ever as a finding: `jwt-tokenvalidationparameters-no-expiry-validation`) |
 | V10.1.1 | L2 | Signed in: `probe.token-in-browser-storage` (sv only ever as a finding: `probe.token-in-browser-storage`) |
 | V10.1.2 | L2 | Signed in: `probe.oidc-sign-in-from-another-session` |

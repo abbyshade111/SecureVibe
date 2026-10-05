@@ -1917,16 +1917,24 @@ fn summary(report: &sv_report::Report) -> String {
 fn summary_with(report: &sv_report::Report, fence: &sv_report::fence::Fence) -> String {
     let one_line = |text: &str| fence.wrap(text);
     let c = &report.counts;
+    // Every status, so the numbers add up to what applies (deep review R5); the four that rest on
+    // somebody's word say whose, so the tool reading this cannot take them for checks.
     let mut out = format!(
         "{}: {} requirements apply at ASVS level {}. {} need attention, {} were checked by an \
-         automated check, {} were not verified by anything. {} more could not be placed because \
-         nobody has answered the question that decides them. Nothing here says a requirement \
-         passed.\n",
+         automated check, {} the owner answered in the security notes, {} the owner checked by \
+         hand, {} the owner answered yes to in securevibe.toml, {} the AI coding tool answered yes \
+         to (those four are somebody's word, not a check), {} were not verified by anything. {} \
+         more could not be placed because nobody has answered the question that decides them. \
+         Nothing here says a requirement passed.\n",
         one_line(&report.app_name),
         c.applicable,
         report.target_level,
         c.needs_attention,
         c.checked,
+        c.documented,
+        c.by_hand,
+        c.attested,
+        c.stated,
         c.not_verified,
         c.not_assessed
     );
