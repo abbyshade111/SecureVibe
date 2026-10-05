@@ -413,6 +413,7 @@ mod tests {
         sv_check::Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             rule_id: rule.into(),
             title: "Something".into(),

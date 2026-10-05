@@ -67,6 +67,9 @@ pub struct Sbom {
     /// all be compared. The list is still the lockfile's; this says the manifest asks for something
     /// else, so whoever installs from the manifest runs versions the list does not name.
     pub disagreements: Vec<Disagreement>,
+    /// The lockfiles the listed packages were read from, so a clean comparison can say where its
+    /// list came from (deep review, improvement 2).
+    pub lockfiles: Vec<String>,
 }
 
 /// A project whose manifest asks for something other than what its lockfile has.
@@ -191,6 +194,38 @@ impl Sbom {
     /// Whether this document can be relied on as a complete list.
     pub fn is_complete(&self) -> bool {
         self.unread.is_empty() && self.declared_count() == 0
+    }
+
+    /// What the list holds and where it came from, for a claim to name its limits (deep review,
+    /// improvement 2): "3 npm packages and 2 Python packages, read from `package-lock.json` and
+    /// `Pipfile.lock`". The ecosystems in alphabetical order, whatever case each is written in; the
+    /// lockfiles in the order they were read.
+    pub fn what_was_read(&self) -> String {
+        let mut by_ecosystem: Vec<(&str, usize)> = Vec::new();
+        for component in &self.components {
+            match by_ecosystem
+                .iter_mut()
+                .find(|(e, _)| *e == component.ecosystem)
+            {
+                Some((_, n)) => *n += 1,
+                None => by_ecosystem.push((component.ecosystem.as_str(), 1)),
+            }
+        }
+        by_ecosystem.sort_by_key(|(e, _)| e.to_lowercase());
+        let ecosystems: Vec<String> = by_ecosystem
+            .iter()
+            .map(|(e, n)| count(*n, &format!("{e} package"), &format!("{e} packages")))
+            .collect();
+        let lockfiles: Vec<String> = self.lockfiles.iter().map(|l| format!("`{l}`")).collect();
+        let ecosystems = crate::ast::and_list(&ecosystems);
+        if lockfiles.is_empty() {
+            ecosystems
+        } else {
+            format!(
+                "{ecosystems}, read from {}",
+                crate::ast::and_list(&lockfiles)
+            )
+        }
     }
 }
 
@@ -403,6 +438,7 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
                 comparison,
             });
         }
+        sbom.lockfiles.push(lockfile_path.clone());
         sbom.components
             .extend(pairs.into_iter().map(|(name, version)| Component {
                 name,
@@ -497,6 +533,7 @@ fn read_declaration(
             if let Some(text) = text.as_deref()
                 && sv_scan::ecosystems::fully_hash_pinned(text)
             {
+                sbom.lockfiles.push(path.clone());
                 sbom.components
                     .extend(
                         from_pinned_requirements(text)
@@ -1311,6 +1348,11 @@ pub const INVENTORY_REQUIREMENT: &str = "V15.1.2";
 /// by `is_complete`, so a document cannot be reported as both incomplete and a good inventory. An
 /// empty list is not a complete inventory either — an app with no dependencies `sv` could find is
 /// far more often an app whose manifests were not read than an app with no dependencies.
+/// "1 package", "2 packages".
+pub(crate) fn count(n: usize, one: &str, many: &str) -> String {
+    format!("{n} {}", if n == 1 { one } else { many })
+}
+
 pub fn completeness_verified(sbom: &Sbom) -> Option<crate::verified::Verified> {
     if !sbom.is_complete() || sbom.components.is_empty() {
         return None;
@@ -1320,13 +1362,15 @@ pub fn completeness_verified(sbom: &Sbom) -> Option<crate::verified::Verified> {
         &[INVENTORY_REQUIREMENT],
         format!(
             "an inventory of {} third-party librar{}, each at the version actually installed, from \
-             every ecosystem found in the app",
+             every ecosystem found in the app ({}), with the packages those need and the development \
+             packages each lockfile keeps",
             sbom.components.len(),
             if sbom.components.len() == 1 {
                 "y"
             } else {
                 "ies"
-            }
+            },
+            sbom.what_was_read()
         ),
     ))
 }
@@ -1345,6 +1389,7 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
     Some(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
         rule_id: "sbom.incomplete".into(),
         title: "The list of what this app ships is not complete".into(),
@@ -2122,6 +2167,11 @@ hashes = { sha256 = "0000" }
                 ecosystem: "Python".into(),
                 source: VersionSource::Locked,
             }]
+        );
+        // It is named as where the list came from.
+        assert_eq!(
+            sbom.what_was_read(),
+            "1 Python package, read from `requirements-dev.txt`"
         );
     }
 

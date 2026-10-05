@@ -674,24 +674,27 @@ pub fn audit_against(
         result.verified.push(Verified::new(
             "advisories",
             &[COMPONENTS_REQUIREMENT],
-            format!(
-                "all {} package{} in the bill of materials, compared against {} advisor{}",
-                result.components_checked,
-                if result.components_checked == 1 {
-                    ""
-                } else {
-                    "s"
-                },
-                result.advisories_read,
-                if result.advisories_read == 1 {
-                    "y"
-                } else {
-                    "ies"
-                }
-            ),
+            clean_scope(sbom, result.advisories_read),
         ));
     }
     result
+}
+
+/// What a clean comparison says it covered (deep review, improvement 2): how many packages of each
+/// ecosystem, the lockfiles they were read from, that a lockfile's list holds the packages the
+/// others need and its development packages, and what no lockfile lists.
+fn clean_scope(sbom: &Sbom, advisories: usize) -> String {
+    format!(
+        "all {} in the bill of materials ({}), compared against {} advisor{}. That is everything each \
+         lockfile lists: the packages the app asks for, the packages those need in turn, and the \
+         development packages a lockfile keeps beside them. Not in it: anything installed another \
+         way, such as the system's own packages, a container image's, or a script loaded from \
+         another site",
+        crate::sbom::count(sbom.components.len(), "package", "packages"),
+        sbom.what_was_read(),
+        advisories,
+        if advisories == 1 { "y" } else { "ies" },
+    )
 }
 
 /// The records in `matched` grouped by the vulnerability they describe: two are the same when one's
@@ -757,6 +760,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: format!("advisory.{}", advisory.id),
         title: format!(
@@ -1096,6 +1100,7 @@ mod tests {
         Sbom {
             passed_over: Vec::new(),
             disagreements: Vec::new(),
+            lockfiles: Vec::new(),
             components,
             unread: Vec::new(),
         }
@@ -1488,6 +1493,75 @@ mod tests {
             &[advisory(&other)],
         );
         assert_eq!(control.findings.len(), 1, "the control: {control:?}");
+    }
+
+    #[test]
+    fn a_clean_comparison_names_its_ecosystems_its_lockfiles_and_what_is_not_in_it() {
+        // Deep review, improvement 2. A real folder: npm with a development package and a package
+        // another needs, and Pipenv with a development section. The claim says what it covered, and
+        // the list really holds what the claim says it does.
+        let dir =
+            std::env::temp_dir().join(format!("sv-advisories-clean-claim-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("package.json"),
+            r#"{"name":"app","dependencies":{"express":"4.18.2"},"devDependencies":{"jest":"29.7.0"}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("package-lock.json"),
+            r#"{"lockfileVersion":3,"packages":{"":{"name":"app"},
+                "node_modules/express":{"version":"4.18.2"},
+                "node_modules/debug":{"version":"2.6.9"},
+                "node_modules/jest":{"version":"29.7.0","dev":true}}}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("Pipfile"),
+            "[packages]\nflask = \"==3.0.0\"\n\n[dev-packages]\npytest = \"==8.0.0\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("Pipfile.lock"),
+            r#"{"_meta":{},"default":{"flask":{"version":"==3.0.0"}},"develop":{"pytest":{"version":"==8.0.0"}}}"#,
+        )
+        .unwrap();
+        let sbom = crate::sbom::build(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        let mut names: Vec<&str> = sbom.components.iter().map(|c| c.name.as_str()).collect();
+        names.sort_unstable();
+        assert_eq!(
+            names,
+            ["debug", "express", "flask", "jest", "pytest"],
+            "{sbom:?}"
+        );
+        let python = LODASH
+            .replace(
+                "\"npm\", \"name\": \"lodash\"",
+                "\"PyPI\", \"name\": \"jinja2\"",
+            )
+            .replace("GHSA-test-lodash", "GHSA-test-jinja2");
+        assert_ne!(python, LODASH, "the second advisory was made");
+        let result = audit(&sbom, &[advisory(LODASH), advisory(&python)]);
+        assert_eq!(result.verified.len(), 1, "{result:?}");
+        assert_eq!(
+            result.verified[0].scope,
+            "all 5 packages in the bill of materials (3 npm packages and 2 Python packages, read \
+             from `package-lock.json` and `Pipfile.lock`), compared against 2 advisories. That is \
+             everything each lockfile lists: the packages the app asks for, the packages those need \
+             in turn, and the development packages a lockfile keeps beside them. Not in it: anything \
+             installed another way, such as the system's own packages, a container image's, or a \
+             script loaded from another site"
+        );
+        // The inventory's own claim names the same.
+        let inventory = crate::sbom::completeness_verified(&sbom).expect("the list is complete");
+        assert_eq!(
+            inventory.scope,
+            "an inventory of 5 third-party libraries, each at the version actually installed, from \
+             every ecosystem found in the app (3 npm packages and 2 Python packages, read from \
+             `package-lock.json` and `Pipfile.lock`), with the packages those need and the \
+             development packages each lockfile keeps"
+        );
     }
 
     #[test]
@@ -1939,6 +2013,7 @@ mod deadline_tests {
         Sbom {
             passed_over: Vec::new(),
             disagreements: Vec::new(),
+            lockfiles: Vec::new(),
             components: vec![Component {
                 name: "lodash".into(),
                 version: "4.17.15".into(),
