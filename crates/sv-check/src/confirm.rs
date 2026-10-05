@@ -62,7 +62,7 @@ pub struct Confirmation {
     pub by: Option<String>,
     pub on: Option<String>,
     pub how: Option<String>,
-    /// The design answer confirmed: `yes`, `no`, or `not-sure`.
+    /// The design answer confirmed: `yes`, `no`, `not-sure`, or `planned`.
     pub answer: Option<String>,
     /// The design answer's `where`, as it was when confirmed.
     pub location: Option<String>,
