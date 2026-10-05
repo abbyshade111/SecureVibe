@@ -1,7 +1,8 @@
 // Drives the headless Chromium next to it, for `sv run`. Node's standard library only.
 //
 // It shares Chromium's network (`--network container:<browser>`), so it reaches the DevTools port
-// on 127.0.0.1 and the app by its name on the fenced network, and nothing else. It reads one job
+// on 127.0.0.1 and the app by its name on the fenced network, and nothing else. The DevTools port
+// listens on 127.0.0.1 alone, so the app cannot reach it (`browser_args` in docker.rs). It reads one job
 // from the environment and prints one line of JSON: the result of each action, in order.
 //
 // SV_JOB = base64 of {"app": "http://localhost:8080", "actions": [...]}
@@ -153,8 +154,22 @@ async function settle() {
   await sleep(300);
 }
 
+// Every expression runs in a world of the driver's own beside the page's: the same page and the
+// same storage, with none of the page's scripts. In the page's own world, the app could redefine
+// what the driver reads with, such as `localStorage` or `Object.keys`, and hide what it keeps from
+// the sign-out check (deep review S11). Made afresh each time, since a navigation ends it; when it
+// cannot be made, the action fails rather than reading through the page's world.
+async function evaluate(params) {
+  const tree = await page('Page.getFrameTree');
+  const frameId = tree.result?.frameTree?.frame?.id;
+  const world = await page('Page.createIsolatedWorld', { frameId, worldName: 'sv-driver' });
+  const contextId = world.result?.executionContextId;
+  if (!contextId) throw new Error('the driver could not make a world of its own in the page');
+  return page('Runtime.evaluate', { ...params, contextId });
+}
+
 async function where() {
-  const r = await page('Runtime.evaluate', { expression: 'location.pathname + location.search', returnByValue: true });
+  const r = await evaluate({ expression: 'location.pathname + location.search', returnByValue: true });
   return r.result?.result?.value ?? '';
 }
 
@@ -189,19 +204,19 @@ for (const action of job.actions || []) {
       const opened = await goto(action.fill);
       loaded = false;
       status = 0;
-      const r = await page('Runtime.evaluate', { expression: FILL(action.text), returnByValue: true });
+      const r = await evaluate({ expression: FILL(action.text), returnByValue: true });
       const found = r.result?.result?.value === true;
       if (found) await settle();
       results.push({ ...opened, found, after: { status, path: await where() } });
     } else if ('act' in action) {
       loaded = false;
       status = 0;
-      const r = await page('Runtime.evaluate', { expression: action.act, returnByValue: true });
+      const r = await evaluate({ expression: action.act, returnByValue: true });
       const found = r.result?.result?.value === true;
       if (found) await settle();
       results.push({ found, after: { status, path: await where() } });
     } else if ('eval' in action) {
-      const r = await page('Runtime.evaluate', { expression: action.eval, returnByValue: true, awaitPromise: true });
+      const r = await evaluate({ expression: action.eval, returnByValue: true, awaitPromise: true });
       results.push({ value: r.result?.result?.value ?? null });
     } else if ('cookies' in action) {
       results.push({ refused: await setCookies(action.cookies) });
