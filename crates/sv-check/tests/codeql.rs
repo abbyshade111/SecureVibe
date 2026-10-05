@@ -145,7 +145,14 @@ fn run_with_leftover(
     }
     let adapters = stand_in(&dir, id, env);
     let languages: Vec<String> = languages.iter().map(|l| (*l).to_owned()).collect();
-    let outcome = adapters::run_all(&adapters, &app, &languages, &Default::default(), &dir);
+    let outcome = adapters::run_all(
+        &adapters,
+        &app,
+        &languages,
+        &Default::default(),
+        &dir,
+        &secret_rules(),
+    );
     // Its working state goes when it is done: a database left behind would be the next run's.
     let leftovers: Vec<_> = std::fs::read_dir(&dir)
         .unwrap()
@@ -360,6 +367,7 @@ fn the_real_codeql_finds_the_same_things_when_it_is_installed() {
         &["javascript".to_owned()],
         &Default::default(),
         &dir,
+        &secret_rules(),
     );
     std::fs::remove_dir_all(&dir).ok();
     let not_run: Vec<_> = out
@@ -524,4 +532,12 @@ fn an_entry_reading_several_languages_is_offered_for_each_of_them() {
         BTreeSet::from(["codeql-python".to_owned()])
     );
     assert!(ids(&["go", "ruby"]).is_empty());
+}
+
+/// `sv`'s own credential rules, which redact what a tool says.
+fn secret_rules() -> sv_check::secrets::SecretRules {
+    sv_check::secrets::SecretRules::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
+    )
+    .expect("the secret rules load")
 }

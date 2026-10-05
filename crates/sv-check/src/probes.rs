@@ -990,8 +990,9 @@ fn reflected_origin(response: &ProbeResponse) -> Option<Finding> {
     ))
 }
 
-/// Traces that a language or framework prints when something goes wrong.
-const TRACE_MARKERS: &[&str] = &[
+/// Traces that a language or framework prints when something goes wrong. Public so the runner can
+/// look for them in the whole of an answer before it keeps only the start (H17 of the deep review).
+pub const TRACE_MARKERS: &[&str] = &[
     "Traceback (most recent call last)",
     "    at ",
     "stack trace",

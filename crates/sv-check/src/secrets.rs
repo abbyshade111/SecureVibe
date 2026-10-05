@@ -193,6 +193,15 @@ fn looks_like_placeholder(value: &str) -> bool {
     }) {
         return true;
     }
+    // `[redacted: Qv7r… (16 more characters)]`: `sv`'s own redaction of a value, as `redact_text`
+    // writes it into a report. A report read back, as `sv bundle` reads its own before zipping it
+    // (deep review S8), would otherwise find every credential it had redacted a second time.
+    static REDACTED: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^\[redacted: .{1,4}(… \(\d+ more characters\))?\]$").expect("static pattern")
+    });
+    if REDACTED.is_match(v) {
+        return true;
+    }
     // `${VAR}`, `<something>`, `{{ var }}` — a template, not a value.
     v.contains("${") || (v.starts_with('<') && v.ends_with('>')) || v.contains("{{")
 }
@@ -676,9 +685,12 @@ pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
             }
         }
     }
+    // A single-quoted value runs on past a quote with a letter after it: Bandit's B105 quotes a
+    // value as `'…'` whatever it holds, and in `'You've been signed out.'` the value does not end at
+    // `You'` (deep review S8; the rest of a value that held a quote was left showing).
     static NAMED: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
-            r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"',;&]+))"#,
+            r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'((?:[^'\n]|'\w)+)'|([^\s"',;&]+))"#,
         )
         .expect("static pattern")
     });
@@ -1964,6 +1976,61 @@ mod tests {
         let (out, n) = redact_text(&rules(), &format!(r#"WRONG_PASSWORD = "{message}""#));
         assert_eq!(n, 1);
         assert!(!out.contains(message));
+    }
+
+    #[test]
+    fn a_tool_s_quoted_value_with_an_apostrophe_in_it_is_redacted_whole() {
+        // Bandit's B105, as it read in a real report on 4 October 2026: the value is a message, and
+        // the redaction stopped at `You'`, leaving the rest of it showing (deep review S8).
+        let value = [
+            "Pass",
+            "word changed. You've been ",
+            "signed out everywhere else.",
+        ]
+        .concat();
+        let (out, n) = redact_text(&rules(), &format!("Possible hardcoded password: '{value}'"));
+        assert_eq!(n, 1, "{out}");
+        assert_eq!(
+            out,
+            format!(
+                "Possible hardcoded password: '[redacted: Pass… ({} more characters)]'",
+                value.chars().count() - 4
+            )
+        );
+        // Two values side by side are still two: a quote with no letter after it ends the first.
+        let (out, n) = redact_text(&rules(), "{'password': 'Qv7rLm2x', 'token': 'Tz9kWp4n'}");
+        assert_eq!(n, 2, "{out}");
+        assert!(out.contains("'token': '[redacted: Tz9k"), "{out}");
+    }
+
+    #[test]
+    fn sv_s_own_redaction_read_back_is_not_a_credential() {
+        // A report holding what `redact_text` wrote, scanned again as `sv bundle` scans its own
+        // report: the marker is not a value, so finding it would refuse every such bundle.
+        let password = ["Qv7r", "Lm2x", "Tz9k"].concat();
+        let (redacted, n) = redact_text(
+            &rules(),
+            &format!("Possible hardcoded password: '{password}'"),
+        );
+        assert_eq!(n, 1);
+        for text in [
+            redacted.clone(),
+            format!("password = \"{}\"", redacted.split('\'').nth(1).unwrap()),
+            "PASSWORD: \"[redacted: abc]\"".to_owned(),
+        ] {
+            let found = scan_text(&rules(), "report/security.md", &format!("{text}\n"));
+            assert!(found.is_empty(), "{text}: {found:?}");
+        }
+        // The control: the value itself is found there, and a marker with text of its own is a value.
+        for text in [
+            format!("Possible hardcoded password: '{password}'"),
+            format!("password = \"[redacted: Qv7r… (8 more characters)]{password}\""),
+        ] {
+            assert!(
+                !scan_text(&rules(), "report/security.md", &format!("{text}\n")).is_empty(),
+                "not found: the scan does not read this shape, so the test proves nothing"
+            );
+        }
     }
 
     #[test]

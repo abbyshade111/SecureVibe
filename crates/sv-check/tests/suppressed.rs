@@ -59,6 +59,7 @@ fn run(id: &str, language: &str, report: &Path, app: &Path) -> adapters::Adapter
         &[language.to_owned()],
         &Default::default(),
         &scratch,
+        &secret_rules(),
     );
     std::fs::remove_dir_all(&scratch).ok();
     outcome
@@ -373,4 +374,12 @@ fn each_way_of_suppressing_is_described_as_what_it_is() {
     assert!(said[1].contains("in `security/allow.json`"), "{}", said[1]);
     assert!(said[2].contains("outside the code"), "{}", said[2]);
     assert_eq!(said[3], "Something.", "an empty list is not a suppression");
+}
+
+/// `sv`'s own credential rules, which redact what a tool says.
+fn secret_rules() -> sv_check::secrets::SecretRules {
+    sv_check::secrets::SecretRules::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
+    )
+    .expect("the secret rules load")
 }
