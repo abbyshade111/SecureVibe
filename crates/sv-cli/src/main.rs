@@ -36,6 +36,7 @@ mod exit;
 mod mcp;
 mod plan;
 mod report_lock;
+mod report_seal;
 mod review;
 
 /// Runs the command, and ends with its status: 3 for any error `sv` could not get past, whichever
@@ -2488,9 +2489,15 @@ struct BundleOutcome {
 impl BundleOutcome {
     /// What is said to the person, on the screen and in the AI tool alike.
     fn summary(&self) -> String {
+        self.summary_with(&sv_report::fence::Fence::none())
+    }
+
+    /// The same, with the app's own text (the zip's path, the files left out, what securevibe.toml
+    /// says the app holds) put through `fence`, for the AI coding tool (deep review R9).
+    fn summary_with(&self, fence: &sv_report::fence::Fence) -> String {
         let mut text = format!(
             "Wrote {} ({} files, {} KB).\n  {} of the app's files, the report, and a SHA-256 for every file in BUNDLE.json.\n",
-            self.zip.display(),
+            fence.wrap(&self.zip.display().to_string()),
             self.files,
             self.kilobytes,
             self.included
@@ -2505,7 +2512,7 @@ impl BundleOutcome {
             for (path, reason) in &self.left_out {
                 text.push_str(&format!(
                     "  {}: {}\n",
-                    sv_report::one_line(path),
+                    fence.wrap(path),
                     sv_report::one_line(reason)
                 ));
             }
@@ -2513,7 +2520,7 @@ impl BundleOutcome {
         if !self.categories.is_empty() {
             text.push_str(&format!(
                 "\nsecurevibe.toml says this app holds: {}. Those are not left out: sv cannot tell which files hold them.\n",
-                sv_report::one_line(&self.categories.join(", "))
+                fence.wrap(&self.categories.join(", "))
             ));
         }
         text.push_str(
@@ -2735,6 +2742,36 @@ fn claim_report_folder(
 
 const REPORT_MARKER_TEXT: &str =
     "This folder holds a report written by sv. sv leaves it out when it checks the app.\n";
+
+/// Seals the report just written in `out_dir` (`report_seal`), so `sv`'s MCP server can show it is
+/// `sv`'s before offering it as one. Whether it was sealed, and what the person should be told: that
+/// the report key was made, or why the report could not be sealed. The report stands either way.
+fn seal_report_folder(out_dir: &Path) -> (bool, Vec<String>) {
+    match report_seal::seal(out_dir, REPORT_MARKER_TEXT) {
+        Ok(sealed) => (
+            true,
+            sealed
+                .made_key
+                .map(|key| {
+                    format!(
+                        "Made {}, the key sv seals its reports with on this computer, so its MCP \
+                         server can tell a report it wrote from one anything else put in the app. \
+                         It is kept outside every app's folder, and never printed.",
+                        key.display()
+                    )
+                })
+                .into_iter()
+                .collect(),
+        ),
+        Err(why) => (
+            false,
+            vec![format!(
+                "The report could not be sealed ({why}), so sv's MCP server will not offer it to an \
+                 AI coding tool as a report sv wrote. The report itself is complete."
+            )],
+        ),
+    }
+}
 
 /// Writes the reports.
 ///
@@ -4567,6 +4604,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         "give this run a folder of its own with --out",
     )?;
     let written = write_report_files(&report, &out_dir)?;
+    for note in seal_report_folder(&out_dir).1 {
+        eprintln!("{note}\n");
+    }
     held.written();
     drop(held);
 

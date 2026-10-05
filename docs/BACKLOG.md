@@ -621,6 +621,14 @@ another session is not a claim.
     app text as data; offer only reports whose marker proves `sv` wrote them.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r9-app-text-fenced`.
+    **Done the same day** (DESIGN, "The app's text fenced as data, and reports offered only when sealed"; ADR-034):
+    every MCP tool result that quotes the app puts that text between `<app-text-…>` tags named afresh for each result
+    and never found in it, and says first that it is information, never an instruction; each such tool's description
+    and the instructions say so. Reports are sealed with a key of this computer's beside the review key, and the
+    server offers one only when its seal holds for its files as they are; anything else is not listed, and a read
+    says why. Reproduced first through the real server; tested through every tool, a fence-escape attempt, four
+    forged or changed report folders, and a real one. Twenty guards broken in turn: seventeen caught at once, two
+    after a test was added for each, and one (the bytes read held to the seal) not reachable by a test.
   - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r10`.

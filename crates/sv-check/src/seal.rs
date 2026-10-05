@@ -41,7 +41,16 @@ pub fn key_folder_for_tests(folder: PathBuf) -> &'static Path {
 /// The key's file, in the folder `Key::folder` names.
 pub const KEY_FILE: &str = "review-key";
 
+/// The file of the key `sv report` seals its report folders with, beside the review key and kept
+/// apart from it (deep review R9, ADR-034). Apart, because the review key exists only where a person
+/// has run `sv review`, and a computer with none counts sealed entries unchecked (ADR-026): `sv
+/// report` making that key on CI would make every entry sealed elsewhere a proposal there.
+pub const REPORT_KEY_FILE: &str = "report-key";
+
 const DOMAIN: &str = "sv review seal v1\n";
+
+/// What a report folder's seal is made over, apart from anything the review key seals.
+const REPORT_DOMAIN: &str = "sv report seal v1\n";
 
 /// One computer's sealing key. Never printed: `Debug` shows only its id.
 #[derive(Clone)]
@@ -92,7 +101,13 @@ impl Key {
     /// The key in `folder`: `Ok(None)` when there is none, `Err` when there is something there
     /// that cannot be used as one.
     pub fn load_from(folder: &Path) -> Result<Option<Key>, String> {
-        let path = folder.join(KEY_FILE);
+        Key::load_named(folder, KEY_FILE)
+    }
+
+    /// The key in `file` in `folder`, as `load_from` reads the review key.
+    pub fn load_named(folder: &Path, file: &str) -> Result<Option<Key>, String> {
+        let what = file.replace('-', " ");
+        let path = folder.join(file);
         let meta = match std::fs::symlink_metadata(&path) {
             Ok(meta) => meta,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
@@ -100,7 +115,7 @@ impl Key {
         };
         if !meta.file_type().is_file() {
             return Err(format!(
-                "{} is not a plain file, so it is not used as the review key",
+                "{} is not a plain file, so it is not used as the {what}",
                 path.display()
             ));
         }
@@ -108,7 +123,7 @@ impl Key {
             .map_err(|e| format!("{} could not be read ({e})", path.display()))?;
         let bytes = unhex(text.trim())
             .and_then(|b| <[u8; 32]>::try_from(b).ok())
-            .ok_or_else(|| format!("{} does not hold a review key", path.display()))?;
+            .ok_or_else(|| format!("{} does not hold a {what}", path.display()))?;
         Ok(Some(Key { bytes }))
     }
 
@@ -116,7 +131,12 @@ impl Key {
     /// only, the file made with a call that fails on anything already there. `true` when it was
     /// made now.
     pub fn load_or_make_in(folder: &Path) -> Result<(Key, bool), String> {
-        if let Some(key) = Key::load_from(folder)? {
+        Key::load_or_make_named(folder, KEY_FILE)
+    }
+
+    /// The key in `file` in `folder`, made as `load_or_make_in` makes the review key.
+    pub fn load_or_make_named(folder: &Path, file: &str) -> Result<(Key, bool), String> {
+        if let Some(key) = Key::load_named(folder, file)? {
             return Ok((key, false));
         }
         let key = Key::random()?;
@@ -129,7 +149,7 @@ impl Key {
         }
         make.create(folder)
             .map_err(|e| format!("{} could not be made ({e})", folder.display()))?;
-        let path = folder.join(KEY_FILE);
+        let path = folder.join(file);
         let mut open = std::fs::OpenOptions::new();
         open.write(true).create_new(true);
         #[cfg(unix)]
@@ -159,10 +179,14 @@ impl Key {
     }
 
     fn mac(&self, fields: &[&str]) -> Vec<u8> {
+        self.mac_in(DOMAIN, fields)
+    }
+
+    fn mac_in(&self, domain: &str, fields: &[&str]) -> Vec<u8> {
         use hmac::{Hmac, KeyInit, Mac};
         let mut mac =
             <Hmac<sha2::Sha256>>::new_from_slice(&self.bytes).expect("HMAC takes any key");
-        mac.update(DOMAIN.as_bytes());
+        mac.update(domain.as_bytes());
         for field in fields {
             // Each field with its length first, so moving text from one field to the next changes
             // the seal.
@@ -176,6 +200,39 @@ impl Key {
     /// The seal for an entry with these fields.
     pub fn seal(&self, fields: &[&str]) -> String {
         format!("v1:{}:{}", self.id(), hex(&self.mac(fields)))
+    }
+
+    /// The seal for a report folder whose files are these fields, written as a review seal is.
+    pub fn report_seal(&self, fields: &[&str]) -> String {
+        format!(
+            "v1:{}:{}",
+            self.id(),
+            hex(&self.mac_in(REPORT_DOMAIN, fields))
+        )
+    }
+
+    /// Whether `seal` is this key's seal of a report folder whose files are these fields. `Err`
+    /// says why not, as the end of a sentence beginning "sv cannot show it wrote this report:".
+    pub fn report_seal_holds(&self, seal: &str, fields: &[&str]) -> Result<(), String> {
+        let (key_id, mac) = parse(seal.trim()).ok_or("its marker holds no seal sv writes")?;
+        if key_id != self.id() {
+            return Err(format!(
+                "its seal was made with a key that is not this computer's ({key_id}), and a \
+                 made-up seal would look the same"
+            ));
+        }
+        let expected = self.mac_in(REPORT_DOMAIN, fields);
+        let same = expected.len() == mac.len()
+            && expected.iter().zip(&mac).fold(0u8, |d, (a, b)| d | (a ^ b)) == 0;
+        if same {
+            Ok(())
+        } else {
+            Err(
+                "its seal does not match its files: they were changed after sv wrote them, or \
+                 the seal was not made by sv"
+                    .to_owned(),
+            )
+        }
     }
 }
 
@@ -436,6 +493,21 @@ pub fn as_strs(fields: &[String]) -> Vec<&str> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_report_seal_never_stands_for_a_review_seal_or_the_other_way() {
+        let key = super::Key::random().unwrap();
+        let fields = ["security-notes", "V6.1.1", "Only staff see bookings."];
+        let review = key.seal(&fields);
+        let report = key.report_seal(&fields);
+        assert_ne!(review, report);
+        // Made by the same key over the same fields, each fails where the other is checked.
+        assert!(key.report_seal_holds(&report, &fields).is_ok());
+        assert!(key.report_seal_holds(&review, &fields).is_err());
+        let checker = super::Checker::Key(key.clone());
+        assert!(checker.check(Some(&review), &fields).is_ok());
+        assert!(checker.check(Some(&report), &fields).is_err());
+    }
+
     use super::*;
 
     /// Four keys from the system's randomness, the same ones throughout the run.
