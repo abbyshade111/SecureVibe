@@ -142,6 +142,15 @@ another session is not a claim.
     adapter finding's text, and scan the report files for secrets before zipping.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/s8-bundle-tool-messages`.
+    **Done the same day** (DESIGN, "What an outside tool says is redacted, and a bundle's report is scanned before
+    it is zipped"): every tool finding's title, description, impact, and fix, and every line of a tool's stderr a
+    reason quotes, go through `redact_text` as they are read, redacted before being cut to length; a quoted value
+    now runs on past an apostrophe (B105 quoting "You've…" left the rest showing); and `sv bundle` scans its report
+    files and refuses to zip one holding a credential, naming file and line, never the value, with `sv`'s own
+    redaction marker no longer read as one. Tested end to end with a stand-in Bandit quoting a password and stand-in
+    tools quoting it on stderr: after the search is shown to find a planted copy, the password is in no report file,
+    bundle entry, MCP reply, or printed line; and a key in the app's name stops the bundle. Seven guards broken in
+    turn, each caught; cutting before redacting only by its unit test, whose lines are long enough to be cut.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -247,6 +256,15 @@ another session is not a claim.
     **Claimed on 4 October 2026 by session securevibe-e10**, with H6, at the owner's asking to work through the
     review's open items, in branch `claude/h6-h2`: first, a page whose template holds code no longer counts as read;
     then, if it fits, that template code read as code.
+    **First step done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): a
+    `.svelte` page with any `{...}` outside its `<script>` and `<style>`, or a `.vue` page with `{{ }}` or an `@`, `:`,
+    or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
+    guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
+    eval(code)}` is found rather than only owned up to.
+    **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
+    TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
+    read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -286,6 +304,12 @@ another session is not a claim.
     it; skip build folders only where an ecosystem puts them.
     **Claimed on 4 October 2026 by session securevibe-e10**, with H2, at the owner's asking to work through the
     review's open items, in branch `claude/h6-h2`, for all three parts of the fix.
+    **Done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): `target`,
+    `vendor`, `dist`, `build`, `out`, and `coverage` are left out only beside the manifest that explains them (for
+    example `vendor/` beside `composer.json` or `go.mod`); anywhere else they are the app's code and are read. Every
+    folder left out is named in `sv check`'s output and as a gap in the report. A report marker is believed only in a
+    folder that holds nothing but the files `sv` writes, so a marker planted beside code leaves the code read, and
+    `sv check` says the marker was refused. Six guards broken in turn, each caught.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
     **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
@@ -353,6 +377,9 @@ another session is not a claim.
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h17`.
+    **Done the same day** (DESIGN, "An error page is searched whole before it is cut"): the whole answer is searched
+    for each sign of a stack trace, and the text around any found past the first 4,000 characters is kept, so the
+    check sees it; a long page with no trace is still credited.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
@@ -374,6 +401,8 @@ another session is not a claim.
     are still open.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (DESIGN, "pnpm 5 and 6 told apart, and packages without a version named"): pnpm v9 and
+    Yarn name their packages with no registry version as not listed, as `Pipfile.lock` and `pylock.toml` do.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -382,11 +411,21 @@ another session is not a claim.
     the AI tool searched for large files and then ran `sv check` to learn it was `.DS_Store — not a text file`. A
     fix could name the files and why in the report, and say plainly when a file is one that holds no text a
     person writes, such as `.DS_Store`, so nobody chases it.
+    **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-files-not-text`.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h23`.
+    **Done the same day** (DESIGN, "A .gitignore read the way git reads it, and a security contact however it is
+    spelled"): `/.env` passes, `.env` then `!.env` fails, and `.env.*` alone, which git does not apply to `.env`
+    and which used to pass, now fails; a `SECURITY` file in any spelling at the root, in `.github/` or `docs/`, and a
+    `security.txt` in `.well-known/` (also under `public/` or `static/`) or at the root count as a contact.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (same DESIGN section): the reader takes the lockfile's own version line, and reads 6.0's
+    `/name@version` and 5.x's `/name/version`; the "v6" test now uses v6's format, and 5.x has a test of its own.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
@@ -427,12 +466,29 @@ another session is not a claim.
     25 entries on a copy (16 match as before, 2 on identical lines say so). Guards broken in turn: each caught.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a3`.
+    **Done the same day** (DESIGN, "A Go app's modules are read from go.mod"): go.mod's `require` lines with its
+    `replace` lines applied; a module replaced by a folder is named as not listed; before Go 1.17, a module in
+    go.sum alone is listed at its highest version there.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
     Fix: whole words only.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a4`.
+    **Done the same day** (DESIGN, "A placeholder word in a key counts only where chance would not put it"): the
+    short markers `todo` and `xxx` count only as words of their own, the longer ones anywhere as before (AWS's
+    `AKIAEXAMPLEEXAMPLE12` shape needs it); of 20,000 random JWTs, 66 were dropped before and none now.
   - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
     `sk_test_` keys graded critical.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a5`.
+    **Done the same day** (DESIGN, "The secret rules find what they promise, and grade a test key below a live
+    one"): `xapp-` tokens and PGP private key blocks are found; a Stripe test key has its own rule at medium, and
+    `secrets.stripe-key` is for live keys only.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a6`.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
@@ -1229,6 +1285,8 @@ another session is not a claim.
      app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
      Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+     **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
+     with its record as `proposed` (ADR-030).
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
@@ -1267,6 +1325,11 @@ another session is not a claim.
   **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/notes-headings`. First
   step: reproduce it end to end, with a test, before any fix; the way out is then the owner's to choose, and its
   record is written with it.
+  **Reproduced the same day** (`crates/sv-cli/tests/notes_headings.rs`): with `## A note from me` under V2.1.1, which
+  nobody answered, the report called V2.1.1 *stated by the AI coding tool*, with or without a `Written by:` line in the
+  note, and the same under a `###` heading; still so on `main` after R7 the same day.
+  **Done the same day**, at the owner's choice of "end a section at any heading, and say what was skipped" (ADR-022,
+  "Later, 4 October 2026: a section ends at any heading"; DESIGN, "A heading of one's own ends the answer above it").
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same

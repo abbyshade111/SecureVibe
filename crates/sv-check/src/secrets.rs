@@ -185,11 +185,45 @@ fn looks_like_placeholder(value: &str) -> bool {
         "generate_with",
         "insert",
     ];
-    if MARKERS.iter().any(|m| lower.contains(m)) {
+    // A short marker is spelled by chance among a real key's random characters often enough to
+    // matter (`xxx`, `todo`), so it counts only as a word of its own; a longer one practically
+    // never is, and counts anywhere, as `AKIAEXAMPLEEXAMPLE12` needs.
+    if MARKERS.iter().any(|m| {
+        if m.len() < 5 {
+            has_word(&lower, m)
+        } else {
+            lower.contains(m)
+        }
+    }) {
+        return true;
+    }
+    // `[redacted: Qv7r… (16 more characters)]`: `sv`'s own redaction of a value, as `redact_text`
+    // writes it into a report. A report read back, as `sv bundle` reads its own before zipping it
+    // (deep review S8), would otherwise find every credential it had redacted a second time.
+    static REDACTED: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^\[redacted: .{1,4}(… \(\d+ more characters\))?\]$").expect("static pattern")
+    });
+    if REDACTED.is_match(v) {
         return true;
     }
     // `${VAR}`, `<something>`, `{{ var }}` — a template, not a value.
     v.contains("${") || (v.starts_with('<') && v.ends_with('>')) || v.contains("{{")
+}
+
+/// Whether `word` appears in `text` as a word of its own: not after a letter or digit, and not
+/// before a letter (a digit may follow, as in `todo1`). A short marker found inside a run of random
+/// characters, `…aXxXb…` in a real key, is not a placeholder: until 5 October 2026 any occurrence
+/// counted, and about one random JWT in a hundred was dropped as one (A4 of the deep review).
+fn has_word(text: &str, word: &str) -> bool {
+    text.match_indices(word).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + word.len()..].chars().next();
+        let starts_word = !word.starts_with(|c: char| c.is_ascii_alphanumeric())
+            || !before.is_some_and(|c| c.is_ascii_alphanumeric());
+        let ends_word = !word.ends_with(|c: char| c.is_ascii_alphanumeric())
+            || !after.is_some_and(|c| c.is_ascii_alphabetic());
+        starts_word && ends_word
+    })
 }
 
 /// Shannon entropy in bits per character.
@@ -655,9 +689,12 @@ pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
             }
         }
     }
+    // A single-quoted value runs on past a quote with a letter after it: Bandit's B105 quotes a
+    // value as `'…'` whatever it holds, and in `'You've been signed out.'` the value does not end at
+    // `You'` (deep review S8; the rest of a value that held a quote was left showing).
     static NAMED: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
-            r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"',;&]+))"#,
+            r#"([A-Za-z_][A-Za-z0-9_.\-]*)["']?\s*[:=]\s*(?:"([^"\n]+)"|'((?:[^'\n]|'\w)+)'|([^\s"',;&]+))"#,
         )
         .expect("static pattern")
     });
@@ -1371,6 +1408,62 @@ mod tests {
     }
 
     #[test]
+    fn a_placeholder_word_counts_only_as_a_word_of_its_own() {
+        // A4: the markers matched anywhere, so a real key with `xxx` or `todo` among its random
+        // characters was taken for a placeholder.
+        for value in [
+            "your-api-key-here",
+            "YOUR_API_KEY",
+            "sk-ant-changeme",
+            "changeme123",
+            "TODO",
+            "todo: put the key here",
+            "xxx-xxx-xxx",
+            "https://api.example.com/v1",
+            "replace_me",
+            "insert-token",
+            "dummy",
+            "AKIAEXAMPLEEXAMPLE12",
+            "todo1",
+        ] {
+            assert!(looks_like_placeholder(value), "{value}");
+        }
+        for value in [
+            "aB3xXxQ9",
+            "kTodoZ7q",
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4eHgifQ.abcXXXdef",
+        ] {
+            assert!(!looks_like_placeholder(value), "{value}");
+        }
+        // How often random JWTs are taken for placeholders now: none in twenty thousand, made the
+        // same way each run so a failure can be looked at again.
+        let mut seed: u64 = 0x5eed_cafe_f00d_d00d;
+        let mut next = || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        const B64URL: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        let mut part = |n: usize| -> String {
+            (0..n)
+                .map(|_| B64URL[(next() % 64) as usize] as char)
+                .collect()
+        };
+        let mut dropped = 0;
+        for _ in 0..20_000 {
+            let jwt = format!("eyJhbGciOiJIUzI1NiJ9.{}.{}", part(60), part(43));
+            if looks_like_placeholder(&jwt) {
+                dropped += 1;
+            }
+        }
+        assert_eq!(
+            dropped, 0,
+            "{dropped} of 20,000 random JWTs taken for placeholders"
+        );
+    }
+
+    #[test]
     fn a_placeholder_is_not_reported() {
         // The rule that decides whether anybody keeps using the scanner.
         for value in [
@@ -1890,6 +1983,61 @@ mod tests {
     }
 
     #[test]
+    fn a_tool_s_quoted_value_with_an_apostrophe_in_it_is_redacted_whole() {
+        // Bandit's B105, as it read in a real report on 4 October 2026: the value is a message, and
+        // the redaction stopped at `You'`, leaving the rest of it showing (deep review S8).
+        let value = [
+            "Pass",
+            "word changed. You've been ",
+            "signed out everywhere else.",
+        ]
+        .concat();
+        let (out, n) = redact_text(&rules(), &format!("Possible hardcoded password: '{value}'"));
+        assert_eq!(n, 1, "{out}");
+        assert_eq!(
+            out,
+            format!(
+                "Possible hardcoded password: '[redacted: Pass… ({} more characters)]'",
+                value.chars().count() - 4
+            )
+        );
+        // Two values side by side are still two: a quote with no letter after it ends the first.
+        let (out, n) = redact_text(&rules(), "{'password': 'Qv7rLm2x', 'token': 'Tz9kWp4n'}");
+        assert_eq!(n, 2, "{out}");
+        assert!(out.contains("'token': '[redacted: Tz9k"), "{out}");
+    }
+
+    #[test]
+    fn sv_s_own_redaction_read_back_is_not_a_credential() {
+        // A report holding what `redact_text` wrote, scanned again as `sv bundle` scans its own
+        // report: the marker is not a value, so finding it would refuse every such bundle.
+        let password = ["Qv7r", "Lm2x", "Tz9k"].concat();
+        let (redacted, n) = redact_text(
+            &rules(),
+            &format!("Possible hardcoded password: '{password}'"),
+        );
+        assert_eq!(n, 1);
+        for text in [
+            redacted.clone(),
+            format!("password = \"{}\"", redacted.split('\'').nth(1).unwrap()),
+            "PASSWORD: \"[redacted: abc]\"".to_owned(),
+        ] {
+            let found = scan_text(&rules(), "report/security.md", &format!("{text}\n"));
+            assert!(found.is_empty(), "{text}: {found:?}");
+        }
+        // The control: the value itself is found there, and a marker with text of its own is a value.
+        for text in [
+            format!("Possible hardcoded password: '{password}'"),
+            format!("password = \"[redacted: Qv7r… (8 more characters)]{password}\""),
+        ] {
+            assert!(
+                !scan_text(&rules(), "report/security.md", &format!("{text}\n")).is_empty(),
+                "not found: the scan does not read this shape, so the test proves nothing"
+            );
+        }
+    }
+
+    #[test]
     fn an_ordinary_string_with_a_harmless_name_is_left_alone() {
         for line in [
             "greeting = \"hello there friend\"",
@@ -1930,6 +2078,58 @@ mod tests {
             found.iter().any(|f| f.rule_id == "secrets.anthropic-key"),
             "{found:?}"
         );
+    }
+
+    #[test]
+    fn the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one() {
+        // A5 of the deep review. Every value is put together here, so the file holds no key.
+        let found = |text: &str| scan_text(&rules(), "src/config.txt", text);
+        let rule_of = |text: &str| {
+            let f = found(text);
+            assert_eq!(f.len(), 1, "{f:?}");
+            (f[0].rule_id.clone(), f[0].severity)
+        };
+        // Slack's app-level token, which the rule's own description named and its pattern missed.
+        let xapp = credential_shaped(
+            &[
+                "xapp",
+                "1",
+                "A0123456789",
+                "1234567890123",
+                "0a1b2c3d4e5f6a7b8c9d",
+            ],
+            "-",
+        );
+        assert_eq!(
+            rule_of(&format!("SLACK_APP_TOKEN={xapp}\n")).0,
+            "secrets.slack-token"
+        );
+        // A PGP private key block, beside the PEM ones it already found.
+        let pgp = format!("-----BEGIN PGP {} KEY BLOCK-----\nlQOYBF\n", "PRIVATE");
+        assert_eq!(rule_of(&pgp).0, "secrets.private-key-block");
+        let pem = format!("-----BEGIN {} KEY-----\nMIIE\n", "PRIVATE");
+        assert_eq!(rule_of(&pem).0, "secrets.private-key-block");
+        // A public PGP block is not a secret.
+        let public = format!("-----BEGIN PGP {} KEY BLOCK-----\nmQIN\n", "PUBLIC");
+        assert!(found(&public).is_empty(), "{:?}", found(&public));
+        // Stripe's test key cannot move money; its live key can.
+        let live = credential_shaped(&["sk", "live", "51HxaMpLeKeyV4lu3Abcdefghijk"], "_");
+        let test = credential_shaped(&["sk", "test", "51HxaMpLeKeyV4lu3Abcdefghijk"], "_");
+        assert_eq!(
+            rule_of(&format!("STRIPE_KEY={live}\n")),
+            ("secrets.stripe-key".to_owned(), Severity::Critical)
+        );
+        assert_eq!(
+            rule_of(&format!("STRIPE_KEY={test}\n")),
+            ("secrets.stripe-test-key".to_owned(), Severity::Medium)
+        );
+        // The private key rule says what it found, not only why it matters.
+        let block = rules()
+            .rules()
+            .find(|r| r.id == "secrets.private-key-block")
+            .map(|r| r.description.clone())
+            .unwrap();
+        assert!(block.starts_with("A private key"), "{block}");
     }
 
     #[test]

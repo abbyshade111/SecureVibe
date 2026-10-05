@@ -663,16 +663,12 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
 /// written only in shell, which is rare. The price is stated in DESIGN rather than paid silently.
 pub const NO_TECHNOLOGY_READER: &[&str] = &["dart", "swift"];
 
-/// Directories never worth walking: installed dependencies, build output, version control. Their
+/// Folders never walked, wherever they are: version control, installed dependencies, virtual
+/// environments, caches, and editor settings. Nobody keeps an app's own code under these names. Their
 /// contents belong to the dependency scan, not to the app's own source.
 pub const SKIP_DIRS: &[&str] = &[
     ".git",
     "node_modules",
-    "target",
-    "dist",
-    "build",
-    "out",
-    "vendor",
     ".venv",
     "venv",
     "__pycache__",
@@ -683,12 +679,129 @@ pub const SKIP_DIRS: &[&str] = &[
     ".gradle",
     ".mypy_cache",
     ".pytest_cache",
-    "coverage",
     ".idea",
     ".vscode",
-    // Where `sv report` writes by default. Any other folder it writes to carries REPORT_MARKER.
-    "securevibe-report",
 ];
+
+/// Folders with ordinary names that hold installed or built code only where an ecosystem puts it
+/// there: each name, with the manifests beside which that folder is that ecosystem's output.
+///
+/// H6 of the deep review: `build`, `out`, `dist`, `vendor`, `coverage`, and `target` were skipped at
+/// any depth, so an app keeping code in `src/build/` or `tools/out/` had it read by no check, and
+/// nothing said so. Each is now skipped only beside a manifest that explains it (`target` beside
+/// `Cargo.toml`, `dist` beside `package.json`), read as the app's own code anywhere else, and every
+/// skip is recorded with its reason (`files::Listing::skipped`).
+pub const OUTPUT_DIRS: &[(&str, &[&str])] = &[
+    ("target", &["Cargo.toml", "pom.xml"]),
+    (
+        "vendor",
+        &[
+            "go.mod",
+            "composer.json",
+            "Gemfile",
+            "requirements.txt",
+            "pyproject.toml",
+            "package.json",
+        ],
+    ),
+    (
+        "dist",
+        &["package.json", "pyproject.toml", "setup.py", "setup.cfg"],
+    ),
+    (
+        "build",
+        &[
+            "package.json",
+            "pyproject.toml",
+            "setup.py",
+            "setup.cfg",
+            "build.gradle",
+            "build.gradle.kts",
+            "pubspec.yaml",
+            "CMakeLists.txt",
+        ],
+    ),
+    ("out", &["package.json", "tsconfig.json", "build.gradle"]),
+    (
+        "coverage",
+        &[
+            "package.json",
+            "pyproject.toml",
+            "setup.cfg",
+            "jest.config.js",
+        ],
+    ),
+];
+
+/// Where `sv report` writes when not told otherwise. Like any folder carrying `REPORT_MARKER`, it is
+/// left out only while it holds nothing but what `sv` writes (`is_sv_output`).
+pub const DEFAULT_REPORT_DIR: &str = "securevibe-report";
+
+/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports.
+pub const REPORT_FOLDER_NAMES: &[&str] = &[
+    REPORT_MARKER,
+    ".securevibe-report.lock",
+    "report.html",
+    "compliance.md",
+    "security.md",
+    "findings.sarif",
+    "report.json",
+];
+
+/// Why a walk leaves a folder out, for the report to say.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Skip {
+    /// One of `SKIP_DIRS`: not recorded, since every app has some and none holds the app's code.
+    Always,
+    /// An ordinary name beside the manifest of the ecosystem whose output it is.
+    Output { beside: &'static str },
+    /// A report `sv` wrote.
+    Report,
+}
+
+/// A folder carrying `sv`'s marker, or named as `sv`'s default report folder, that holds something
+/// `sv` does not write. It is read as the app's own, and the report says so: the marker can be put
+/// anywhere, by anyone, and an AI tool could once put it there through `securevibe_write_report`.
+pub fn marker_refused(dir: &Path) -> bool {
+    claims_to_be_report(dir) && !holds_only_report_files(dir)
+}
+
+fn claims_to_be_report(dir: &Path) -> bool {
+    dir.join(REPORT_MARKER).is_file()
+        || dir
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy() == DEFAULT_REPORT_DIR)
+}
+
+/// Every entry is one of the names `sv` writes, compared without regard to capitals, and each is a
+/// plain file. An empty folder holds nothing to hide.
+fn holds_only_report_files(dir: &Path) -> bool {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return false;
+    };
+    entries.flatten().all(|entry| {
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        REPORT_FOLDER_NAMES.iter().any(|n| n.to_lowercase() == name)
+            && entry.file_type().is_ok_and(|k| k.is_file())
+    })
+}
+
+/// Why a walk of the app should leave this folder out, if it should.
+pub fn skip_reason(dir: &Path) -> Option<Skip> {
+    let name = dir.file_name()?.to_string_lossy();
+    if SKIP_DIRS.contains(&name.as_ref()) {
+        return Some(Skip::Always);
+    }
+    if is_sv_output(dir) {
+        return Some(Skip::Report);
+    }
+    let (_, manifests) = OUTPUT_DIRS.iter().find(|(n, _)| *n == name)?;
+    let parent = dir.parent()?;
+    manifests
+        .iter()
+        .find(|m| parent.join(m).is_file())
+        .map(|m| Skip::Output { beside: m })
+}
 
 /// Editor settings, in `SKIP_DIRS` for every walk of the app's code, and not for the credential scan:
 /// a `.vscode/settings.json` can hold a token as easily as any other file.
@@ -701,19 +814,16 @@ pub const EDITOR_DIRS: &[&str] = &[".idea", ".vscode"];
 /// `--out` takes any name.
 pub const REPORT_MARKER: &str = ".securevibe-report";
 
-/// Whether a walk of the app should leave this folder out: installed dependencies, build output,
-/// version control, editor settings, or a report `sv` wrote.
+/// Whether a walk of the app should leave this folder out: installed dependencies, build output
+/// beside the manifest that explains it, version control, editor settings, or a report `sv` wrote.
 pub fn skip_dir(dir: &Path) -> bool {
-    let name = dir
-        .file_name()
-        .map(|n| n.to_string_lossy())
-        .unwrap_or_default();
-    SKIP_DIRS.contains(&name.as_ref()) || is_sv_output(dir)
+    skip_reason(dir).is_some()
 }
 
-/// A folder `sv report` wrote.
+/// A folder `sv report` wrote: it carries the marker, or has the default name, and holds nothing but
+/// what `sv` writes.
 pub fn is_sv_output(dir: &Path) -> bool {
-    dir.join(REPORT_MARKER).is_file()
+    claims_to_be_report(dir) && holds_only_report_files(dir)
 }
 
 /// Every language whose files appear in the app, from the extensions actually seen.

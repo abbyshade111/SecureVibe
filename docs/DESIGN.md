@@ -7430,6 +7430,40 @@ warnings counted as errors, an unsuccessful run believed, and Bandit handed the 
 programs that write the reports and record what they were handed; Bandit itself was not installed where this was
 written, so the first run of the real program on the new arguments is CI's or the owner's.
 
+## Folders left out, report markers, and templates sv cannot read (4 October 2026)
+
+H6 and H2 of the deep review, both about code `sv` never read while its report spoke as if it had.
+
+**Folders with ordinary names.** `sv` left out any folder called `build`, `out`, `dist`, `vendor`, `coverage`, or
+`target`, at any depth, and said nothing. Those names are also ordinary names for an app's own code (a `build/`
+folder of deployment scripts, an `out/` folder of handlers), so a whole part of an app could go unread. Now the
+names that only ever mean installed or generated code (`node_modules`, `.venv`, `__pycache__`, `.git`, and their
+like) are still left out anywhere. The six ordinary names are left out only beside the manifest that explains them:
+`target/` beside `Cargo.toml` or `pom.xml`, `vendor/` beside `go.mod`, `composer.json`, `Gemfile`, or a Python or
+Node manifest, `dist/` beside a Node or Python package file, and so on (`OUTPUT_DIRS` in `sv-scan`'s
+`ecosystems.rs`). Anywhere else they are read like any other folder. Every folder left out this way is recorded,
+printed by `sv check`, and named as a gap in the report, so the owner can see what was not read and why.
+
+**The report marker.** A folder holding `.securevibe-report` was left out, so `sv` would not read its own earlier
+reports as the app's code. Anything that can write a file into the app, including an AI tool through the MCP
+server's `write_report`, could plant that marker beside real code and hide it. The marker is now believed only
+where the folder holds nothing but the files `sv` writes into a report folder (`REPORT_FOLDER_NAMES`, compared
+without regard to capitals, plain files only). A marker beside anything else is refused: the folder is read, and
+`sv check` says the marker was refused and where.
+
+**Svelte and Vue templates.** `sv`'s rules read the code in a page's `<script>` block. A Svelte or Vue page can also
+run code from its template (`on:click={() => eval(code)}`, `@click="..."`, `{{ ... }}`), and that code was never
+read, yet the page counted as read, so a rule could be credited a clean result it had not earned. For now, a
+`.svelte` page with any `{...}` outside its `<script>` and `<style>`, and a `.vue` page with `{{ }}` or an
+attribute starting `@`, `:`, or `v-`, is named among the files not fully read; no rule claims a clean result for
+it, and its `<script>` is still read and its findings still stand. A page whose template is plain markup is fully
+read, as before. Reading template code as code, so the problem is found and not only owned up to, is still to do.
+
+Ten guards broken in turn, each caught: for the folders, an output folder left out wherever it is, a folder left
+out without a record, the marker believed whatever the folder holds, `sv`'s own default report name forgotten,
+capitals compared, and a refused marker not mentioned; for templates, templates never looked at, scripts and styles
+not cut out first, and each of Vue's two signs of code ignored in turn.
+
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
@@ -8022,6 +8056,42 @@ fixture for files from before this change). Seven were at first caught by one te
 but the last, which only a file from before this change can show.
 
 
+
+## A heading of one's own ends the answer above it (4 October 2026)
+
+Found writing the design-time prompts, and reproduced the same day (BACKLOG, "A heading of the owner's own in
+`security-notes.md`"). The reader ended a section only at the next section's heading, so a heading of anyone else's,
+and everything under it, became the answer to the section above. With `## A note from me` under V2.1.1, which nobody
+had answered, the report called V2.1.1 *stated by the AI coding tool*: with or without a `Written by:` line in the
+note, and the same under `###`. It was still so after the same day's change that keeps the owner's text (R7, "The
+notes file keeps what the owner wrote outside the answers"), which had made `sv`'s own headings end a section and kept
+headings of the owner's inside the answer above them.
+
+At the owner's choice ("end a section at any heading, and say what was skipped"; ADR-022, "Later, 4 October 2026"):
+
+- **A heading of the first three levels ends the section above it.** What follows a heading of somebody's own after a
+  section is part of no answer: it goes with the other text that is not under a question, which R7 keeps word for word
+  in a section of its own near the top and the report does not read. A `####` heading, and `##` with no space after
+  it, stay inside the answer they are in, so an answer can still have parts. Headings before the first section are
+  `sv`'s own title and introduction, as before.
+- **The seal is held to the same boundary**, so `sv review` never places one under a `Written by:` line in somebody's
+  note below a section.
+- **The report names each such heading, and the section it followed, as a gap**, saying the text was not read as an
+  answer, that notes of one's own are fine there, and how to make one part of an answer. The gaps already say the same
+  of a `Written by:` line nothing was made of.
+- **One of R7's tests changed.** It held that `## Notes we keep` inside an answer was part of that answer. Keeping the
+  owner's text was R7's point, and the text is still kept; whether it counts as the answer is this decision. The test
+  keeps its other two heading-like lines, which stay in the answer.
+
+
+**Broken in turn.** Eleven guards: the old reader (5 tests red, the end-to-end one among them), `###` and `#` not ending
+a section, `####` ending one (caught by this test and by R7's own), the reader ignoring a heading of one's own, the
+heading not listed, the heading line itself not kept, the seal placed by the old boundary, the evidence and the report
+each saying nothing, and headings before the first section taken as somebody's (13 red, most of them R7's). Each was
+caught. A first run, before R7 was merged, reported the end-to-end test as catching nothing: the script named a test
+file in the wrong crate, cargo refused to start, and the script read that as no failures. It now stops when a run
+reports no tests.
+
 ## Exit codes for CI (4 October 2026)
 
 The deep review of `sv` at `eff3f17` found that `sv check` and `sv report` exited 0 whatever happened: with findings,
@@ -8194,6 +8264,78 @@ two agree; and keeping the zeros before the letters, because the case tested (`1
 either way. A test of a gem pre-release held to an advisory, and the cases `2.0.0.rc1` and `2.0.rc1`, were added, and
 both were then caught.
 
+## An error page is searched whole before it is cut (5 October 2026)
+
+H17 of the deep review: `sv` keeps only the first 4,000 characters of each answer from the app, enough to recognize
+a stack trace and not enough to copy a page out of somebody's app. The error-page check (V13.4.2, V16.5.1) read only
+what was kept, so a page whose trace began below a long stretch of markup was credited as saying nothing it should
+not.
+
+- **The whole answer is searched first.** `kept_body` looks through all of it for each sign of a trace
+  (`sv_check::probes::TRACE_MARKERS`, now public), and for the first of each found past the cut keeps the text
+  around it, as it already did for the reflection probes' value. The check then reads it like any other.
+- **What is kept stays small:** the start, plus at most one short stretch per kind of trace.
+
+How it is held: `a_stack_trace_below_the_cut_is_kept_and_found` (`crates/sv-run/src/docker.rs`) puts every marker past
+the cut, checks the setup really did, and runs the real check on what was kept; its control, a long page with no
+trace, is still credited. Taking the new search out turned it red.
+
+
+
+## What an outside tool says is redacted, and a bundle's report is scanned before it is zipped (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (part 1, S8) found a bundle that had left out the file holding a password, "so
+the zip carries no secret", carrying the password four times inside `report/`. Bandit's B105 message quotes the value
+it found ("Possible hardcoded password: '…'"), and a tool's words went into every report as the tool wrote them:
+`secrets::redact_text` was used only for a failing test suite's output. Merging a tool's finding into one of `sv`'s
+on the same line has not copied the tool's text since the merge kept `sv`'s words; a tool finding on a line of its
+own, and anything a tool wrote to stderr, still came through whole.
+
+**A tool's words are redacted as they are read** (`crates/sv-check/src/adapters.rs`). `run_all` and `run_all_in` now
+take `sv`'s credential rules, and `run_one_in` redacts with them, through the same `redact_text` the test output
+goes through: every finding's title, description, and fix (the tool's text) and its impact (`sv`'s, made from the
+adapter's name, redacted anyway, since an unneeded redaction costs four characters and a missed one cannot be taken
+back) (`redact_tool_text`); and every line of a tool's stderr a reason quotes, from the version question, the prepare
+step, an exit code that means failure, and a run that wrote no report (`said`). Those lines were cut to 160 or 200
+characters before; they are now redacted first and cut after, since a value cut short loses the quote that marks
+where it ends, and with it its redaction. Everything downstream reads the redacted findings: report.json,
+security.md, compliance.md, report.html, findings.sarif, the bundle, the MCP server's replies and resources, and
+the terminal. `parse_sarif` stays a plain parser; redaction is the run's.
+
+**A quoted value runs on past an apostrophe.** In a real report (family-hub under `--tools`) Bandit's B105 quoted a
+message, `'Password changed. You've been signed out everywhere else.'`, and `redact_text` ended the value at
+`You'`, leaving the rest showing; a password with an apostrophe in it would have shown its tail. A single quote
+followed by a letter is now read as part of the value; a quote followed by anything else still ends it, so two
+values side by side stay two.
+
+**The bundle scans its own report before zipping it** (`refuse_a_credential_in_the_report` in
+`crates/sv-cli/src/main.rs`), the review's suggested backstop. Every report file is read by the credential scan
+(`scan_text`); anything it finds stops the bundle, and the refusal names the file, line, and rule, never the value.
+It refuses rather than redacting the files, so a report in a bundle is always the one `sv` wrote. It also catches
+what the report quotes of the app itself: a key in the app's name in securevibe.toml went into every report file,
+while the bundle left securevibe.toml out for holding it; the message says to take the credential out of where it
+was quoted from. For the scan to read `sv`'s own reports, `sv`'s redaction marker (`[redacted: Qv7r… (16 more
+characters)]`, in exactly that shape) is now a placeholder rather than a value: before, the assignment rule read
+`password: '[redacted: …]'` as a credential, and the first trial refused family-hub's bundle, naming 111 such lines.
+
+**Tested.** `crates/sv-cli/tests/tool_messages.rs`: a stand-in Bandit (as `false_alarms.rs` makes one) reports
+B105 on a line of its own, quoting a password in its message, its rule's description, and its help, and every other
+tool `sv` knows is a stand-in that will not start and quotes the password as it says so. The password is built from
+pieces at run time. The test first shows its search finds a planted copy, that the stand-in really quoted it, and
+that both its finding and the other tools' words reached the report, then that the password is in no file
+`sv report --tools` wrote, nothing it or `sv bundle --tools` printed, no entry of the bundle (which left
+`config.py` out), no MCP resource or tool reply (`securevibe_check`, `securevibe_write_report`,
+`securevibe_bundle`), and no zip the MCP server wrote. A second test shows `sv bundle` refusing a report that quotes
+a key from the app's name, after showing the report really quotes it. Unit tests cover each stderr route with a
+line long enough that cutting first would show eight characters of the password, the apostrophe, the marker read
+back, and the backstop's refusal. With the real Bandit 1.9.4 and Semgrep, `sv bundle --tools` made bundles of
+family-hub and another of the owner's apps, and family-hub's B105 message now reads `'[redacted: Pass… (53 more
+characters)]'`; `sv bundle` without `--tools` made bundles of all five `examples/`.
+Seven guards broken in turn, each caught: a tool's findings not redacted (two tests, the unit test and the end-to-end
+one), its stderr not redacted (two), its stderr cut before redacting (one, the unit test: the end-to-end lines are too
+short to be cut, and the unit test's are made to be), `sv`'s marker read as a credential (three: the unit test, the
+backstop's, and the end-to-end test, whose bundle was then refused), an apostrophe ending a value (one), the backstop
+never refusing (two), and the backstop not called (one, the end-to-end refusal).
 ## Redirects and file calls the way Next.js and modern Node write them (5 October 2026)
 
 H5 of the deep review: `ast.open-redirect` and `ast.file-path-from-value` read only `res.redirect(…)` and
@@ -8213,6 +8355,110 @@ checked.
 
 How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
 twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
+
+## A placeholder word in a key counts only where chance would not put it (5 October 2026)
+
+A4 of the deep review: a value was taken for a placeholder, and not reported, when it held any of a list of words
+(`example`, `changeme`, `todo`, `xxx`, …) anywhere in it. A real key's random characters spell the short ones by
+chance: of 20,000 random JWTs made the way the test makes them, 66 were dropped as placeholders.
+
+- **The short markers, `todo` and `xxx`, count only as words of their own** (`has_word`): not after a letter or
+  digit, and not before a letter, so `TODO`, `xxx-xxx`, and `todo1` still count, and `…aXxXb…` inside a key does not.
+- **The longer markers count anywhere, as before.** Five or more letters in a row are practically never spelled by
+  chance, and the fused form is how real examples are written: AWS's own documentation key is
+  `AKIAEXAMPLEEXAMPLE12`-shaped. Making every marker a whole word was tried first and lost exactly that.
+- Of the same 20,000 random JWTs, none is now taken for a placeholder.
+
+How it is held: `a_placeholder_word_counts_only_as_a_word_of_its_own` (`crates/sv-check/src/secrets.rs`), which counts
+the random JWTs dropped and lists both kinds by hand, and `a_whole_example_env_file_is_silent`, which caught the first
+attempt.
+
+## A .gitignore read the way git reads it, and a security contact however it is spelled (5 October 2026)
+
+H23 of the deep review: the check that `.gitignore` leaves out `.env` (V13.3.1) compared whole lines against a short
+list, so `/.env` failed and `.env` followed by `!.env` passed. The check for a way to report a security problem knew
+four exact paths.
+
+- **`.gitignore` is read the way git reads it** (`gitignore_ignores`): blank lines and comments skipped, the last
+  pattern that matches decides, `!` brings a file back, a pattern with a `/` in it is anchored to the root, and
+  `*`, `?`, `**`, `[...]`, and `\` mean what they mean to git. So `/.env` and `*\n!.gitignore` pass, and `.env` then
+  `!.env`, or `*` then `!*.env`, fail.
+- **One answer changed the other way.** `.env.*` alone used to count as leaving out `.env`. Git does not apply it
+  to `.env`, which has no dot after `env`, so an app whose `.gitignore` says only that now gets the finding. The
+  finding's own fix has always said to add both `.env` and `.env.*`.
+- **A security contact is found however it is spelled** (`has_security_contact`): a `SECURITY` file, as `.md`,
+  `.txt`, `.rst`, `.adoc`, or with no extension, in any capitalization, at the root, in `.github/`, or in `docs/`; and
+  a `security.txt` where a site serves it from (RFC 9116's `.well-known/`, also under `public/` or `static/`, and at
+  the root). A folder called `SECURITY`, or a `security.txt` among the app's sources, is not one.
+
+How it is held: `a_gitignore_is_read_the_way_git_reads_it`, with twenty cases each checked against what git does,
+`a_wildcard_env_entry_counts`, now with `.env.*` alone as a failure, and
+`a_security_contact_is_found_however_it_is_spelled_and_wherever_a_site_serves_it` (`crates/sv-check/src/config.rs`).
+Five guards were undone in turn and each was caught; a sixth, skipping patterns that end in `/`, was found to change
+nothing, since such a pattern never matches a file, and was taken out.
+
+## A Go app's modules are read from go.mod (5 October 2026)
+
+A3 of the deep review: the bill of materials took a Go app's modules from go.sum, which keeps a checksum for every
+version Go has looked at, older ones included. Each was listed as if the app were built with it, and the advisory
+comparison reported versions the app had moved past.
+
+- **go.mod says what is built.** `from_go_mod` reads its `require` lines, one line or a block, and applies its
+  `replace` lines: a module swapped for another at a version is listed as that one; a module swapped for a folder of
+  the app's own has no published version, is not listed, and is named as not listed, as Python packages installed
+  from a folder already are. A `replace` for a different version leaves the required one as it is.
+- **Before Go 1.17, go.mod may leave out indirect modules.** For a go.mod with an older `go` line, or none, which
+  Go reads as 1.16, a module named only in go.sum is listed at the highest version go.sum holds for it. That is the
+  version Go chose whenever go.sum holds the one it chose. From 1.17 on, a module named only in go.sum is not
+  listed: it is not in the build.
+- **With no go.mod beside it**, go.sum is read as before.
+
+How it is held: `go_mod_names_the_version_built_and_go_sum_s_older_ones_are_not_listed` and
+`a_go_app_is_listed_from_go_mod_and_says_what_a_folder_replaced` (`crates/sv-check/src/sbom.rs`). Five guards were
+undone in turn and each was caught, the last only after a module named in go.sum alone was added to the fixture.
+
+## pnpm 5 and 6 told apart, and packages without a version named (5 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H21 and H24) found two JavaScript lockfile readers giving a
+package list that was not the whole of what is installed, and saying nothing about it.
+
+- **H24, pnpm's lockfile 6.0.** pnpm 8 writes a package as `/express@4.18.2`. The reader took any key starting with
+  `/` to be 5.x's `/express/4.18.2`, so a real 6.0 file gave no packages at all, and the test named for 6.0 used 5.x's
+  shape. The reader now reads the lockfile's own `lockfileVersion` line: 5.x keys are read by their slashes, with the
+  peer variant after `_` taken off the version (`/react-dom/18.2.0_react@18.2.0` is react-dom 18.2.0), and 6.0 and
+  later by the `@`. The 6.0 test now uses 6.0's shape, peer variant included, and 5.x has a test of its own.
+- **H21, packages with no registry version.** A package installed from a folder, a link, a repository, or an
+  address is listed by that rather than by a version: pnpm 9 writes `my-lib@file:../lib`, and Yarn Berry
+  `local-lib@file:../lib`. Both readers dropped such a package without a word, and the list still counted as
+  complete. Each is now named as not listed, the way the `Pipfile.lock` and `pylock.toml` readers already did, so the
+  list no longer counts as complete and V15.2.1 is not credited on it. A classic `yarn.lock` entry with no `version`
+  line is named the same way. The app's own Yarn workspace (`workspace:`) is its own code, not something installed,
+  and is left out.
+
+An earlier test held the opposite for Yarn Berry: it expected a folder the app links to be dropped with nothing said.
+It now expects the folder named. Eight guards broken in turn, each caught: reading 6.0 as 5.x (the old behavior),
+keeping 5.x's peer suffix in the version, dropping pnpm's packages without a version, not reporting them, dropping
+Berry's, naming the app's own workspace, and dropping a classic entry with no version, in the middle of the file or
+at its end.
+
+## The secret rules find what they promise, and grade a test key below a live one (5 October 2026)
+
+A5 of the deep review, three faults in `data/secret-rules.json`:
+
+- **Slack's app-level token (`xapp-`)** was named in `secrets.slack-token`'s own description and not matched by
+  its pattern. The pattern now takes `xapp-<digit>-…` beside the `xox?-` tokens.
+- **A PGP private key block** (`-----BEGIN PGP PRIVATE KEY BLOCK-----`) was missed; `secrets.private-key-block`
+  now finds it beside the PEM and OpenSSH ones. A public PGP block is not reported. The rule's description had lost
+  its first sentence, and now says what it found.
+- **A Stripe test key was graded critical**, the same as a live one. A test-mode key cannot create a charge or a
+  refund; it opens the test-mode data, and is often a sign the live key is kept the same way. It now has a rule of
+  its own, `secrets.stripe-test-key`, at medium, and `secrets.stripe-key` is for live keys only. No decision record
+  governs the secret rules, so the grading is recorded here. A finding on a test key that someone set aside under the
+  old rule's name no longer matches, and is looked at again under the new one.
+
+How it is held: `the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one`
+(`crates/sv-check/src/secrets.rs`), with every value put together at run time. Each of the three changes was undone in
+turn and the test went red.
 
 ## A review names one finding, and says whether its rule looked (5 October 2026)
 

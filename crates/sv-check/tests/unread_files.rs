@@ -115,6 +115,7 @@ fn run(name: &str, env: &[(&str, &str)]) -> adapters::AdapterRun {
         &["python".to_owned()],
         &Default::default(),
         &dir,
+        &secret_rules(),
     );
     std::fs::remove_dir_all(&dir).ok();
     outcome
@@ -199,6 +200,7 @@ fn a_list_left_by_an_earlier_run_does_not_vouch_for_this_one() {
         &["python".to_owned()],
         &Default::default(),
         &dir,
+        &secret_rules(),
     );
     std::fs::remove_dir_all(&dir).ok();
     assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
@@ -276,6 +278,7 @@ fn run_over(name: &str, app: impl Fn(&Path) -> PathBuf) -> adapters::AdapterRun 
         &["python".to_owned()],
         &Default::default(),
         &dir,
+        &secret_rules(),
     );
     std::fs::remove_dir_all(&dir).ok();
     outcome
@@ -318,4 +321,12 @@ fn too_many_files_to_name_is_said_rather_than_cut_short() {
         "{:?}",
         outcome.not_run
     );
+}
+
+/// `sv`'s own credential rules, which redact what a tool says.
+fn secret_rules() -> sv_check::secrets::SecretRules {
+    sv_check::secrets::SecretRules::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
+    )
+    .expect("the secret rules load")
 }
