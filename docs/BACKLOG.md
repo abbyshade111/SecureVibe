@@ -1237,6 +1237,8 @@ another session is not a claim.
       decisions above stand, and the item is open for whoever takes it up. Done in that branch first, and merged: the
       probes' request bodies are bytes, and each request reaches the probe container as input rather than as an
       argument (DESIGN, "Requests reach the app as input"), so an archive can now be sent as it is.
+      **V5.2.3 (compressed bombs) Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
+      `claude/v523-archive-limits`.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
@@ -2853,6 +2855,8 @@ another session is not a claim.
      **Go's standard-library `crypto/pbkdf2` and C#'s two-argument `Rfc2898DeriveBytes` claimed on 3 October 2026 by
      session securevibe-e2**, at the owner's asking to continue with the backlog, in branch
      `claude/securevibe-e2-weak-kdf-more`. Counts between 210,000 and 600,000 with SHA-256 stay unclaimed.
+     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
+     `claude/pbkdf2-mid-counts`.
      **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 3 October):
      both are reported, and x/crypto's own order is never misread as the standard library's. Six guards broken in
      turn, each caught.
@@ -4029,6 +4033,8 @@ another session is not a claim.
   already on the Mac. So the first build's "install Rust" is still step one for `--run`. Until the download exists,
   the message should not point at a guide that does not answer it: either the guide gets the build steps, or the
   message gives them. Still the case on `main` at 6d4ce3f.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch `claude/install-steps-for-run`:
+  the guide gets the build steps; the message is left as it is.
 
   **Thoughts.**
 
@@ -5768,6 +5774,8 @@ another session is not a claim.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
+     **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
+     `claude/semgrep-follow-ups-2-4`.
   5. Only then, and the owner's choice: the narrow "worth a look" tier (`unsafe-dynamic-method`,
      `detect-non-literal-regexp`, `prohibit-jquery-html`, `plaintext-http-link`, `var-in-href`), which costs one real
      finding in this corpus.
