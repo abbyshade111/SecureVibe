@@ -6658,6 +6658,37 @@ never works, and a rate limit on copies after the first. Each guard was broken i
 Each was caught by a test. The crash guard was caught only with both of its holds removed, as expected for a guard
 held twice.
 
+### Later, 5 October 2026: two users, not one
+
+The check sent every copy as A and counted the answers carrying `completed`. Testing the design-time prompts, it
+reported a booking that went through once as twenty: the build made with the "actions that must happen once" prompt
+took the seat in one step and answered a repeat from the member who already held it with "Booked" again, changing
+nothing, which is what that prompt asks for. An app's answer cannot tell "taken now" from "already yours". The owner
+chose, of the two ways out, to send the copies as two users.
+
+- **What is sent.** A and B each sign in and read the page's token, and the 20 copies go out together, A's and B's
+  taking turns, so neither user's all leave first.
+- **What is read.** `completed` in answers to both users is the finding: two people cannot both have the one thing there
+  was. `completed` for one user only, however many of their copies say so, with every copy from the other answered and
+  refused, is credited. The rest of the rules hold as before: nothing going through, a crash, or a rate limit's 429
+  leaves it not assessed.
+- **What a refusal has to show.** The crash sweep found the hole two users open: if B's sign-in or B's token silently
+  failed, B's copies were refused for that, not because the seat was taken, and were credited. So both users are shown
+  signed in (the first `private` page opens) before the copies go; each request must carry the token when the
+  template asks for one; and the user whose copies were refused must still open that page afterwards. Each failing is
+  not assessed, saying which. A `private` page is now needed for credit.
+- **Sending together.** `Http::send_at_once(request, times)` became `send_together(requests)`. The container script
+  takes the different requests one after another on its input, cuts each into a file of its own from the file it saved
+  (never from the pipe, so no request takes bytes of the next), and starts copy `i` with request `which[i]`. It was run
+  with busybox 1.36, the sidecar's own, against a local server that waits 300 ms on each request: the 20 copies were
+  all answered in 1.4 seconds (one after another would take 6), each carrying its own user's cookie in the order
+  given, and each body arrived whole.
+- **Tested.** Ten guards broken in turn, each caught: the old rule (any two completions), every copy sent as A, both
+  counts read from A's copies, no sign-in shown before or after, the check after asked of the holder, no token guard,
+  the container sending the first request for every copy or cutting the second from the start, and the fake app's
+  correct repeat removed. The token guard was caught only by the crash sweep at first, so a test aimed at it was
+  added, and it fails alone when the guard goes.
+
 ## The app's own MCP server: its token, and arguments it should refuse (3 October 2026)
 
 Three new settings under `[stack.run.mcp-server]`:
