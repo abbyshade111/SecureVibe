@@ -1662,6 +1662,8 @@ another session is not a claim.
   to a file instead of passing it on; `securevibe_check` gave 50 KB for one build, handled the same way. The builder
   then read them in parts with a script. A short answer first (what to build, the run settings, the decisions to
   make) with the rest by section, or a size the common tools pass whole, would let a builder read what it is given.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take the last of the
+  pilot's findings, in branch `claude/plan-in-parts`.
 
 - **A `securevibe.toml` field in the wrong section: the message names the field, not the section.** Found on 5 October
   2026 by session paper-facts, in the loop pilot. Haiku 4.5 wrote `enabled = true` under `[stack.run.ai]`; `sv`
