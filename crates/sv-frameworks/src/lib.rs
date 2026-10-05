@@ -2,6 +2,7 @@
 
 pub mod applicability;
 pub mod condition;
+pub mod data;
 pub mod load;
 
 pub use applicability::{ApplicabilityConfig, ConditionContext, VerificationClass};

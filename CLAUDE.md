@@ -18,11 +18,13 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   behind the network fence), `sv-check` (the checks), `sv-report` (the reports), `sv-cli` (the `sv` binary and its MCP server).
 - `data/` — the OWASP frameworks (`data/frameworks`), the knowledge files (`data/knowledge`) and `sv`'s own JSON beside
   them. `data/README.md` says what each file is and what reads it; add a line there with any new file.
-  Crates find it through the folder they were compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`);
-  `SV_DATA_DIR` overrides the OWASP part. The Docker image keeps `crates/` at the same path for that reason.
+  Every run-time read goes through `sv_frameworks::data` (ADR-036): `SV_DATA_DIR` (the whole folder), then beside
+  the program, then the folder it was compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`), which the Docker
+  image keeps at the same path. A test fails on `CARGO_MANIFEST_DIR` anywhere else outside a test module.
 - `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `codeql_suites.py`,
-  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`), each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
+  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`) and one shell script,
+  `install.sh`, which installs `sv` with its data outside the build folder; each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands
 

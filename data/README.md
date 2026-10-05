@@ -5,9 +5,10 @@ files are read each time `sv` runs, so editing one changes `sv`'s behavior witho
 marked below. A test (`crates/sv-cli/tests/data_readme.rs`) fails when a file here is not listed in this page, so
 the list stays complete.
 
-`sv` finds this folder through the folder it was built in (`crates/<crate>/../../data`). `SV_DATA_DIR` points it
-at another copy of the OWASP part: `frameworks/` and `knowledge/`. The Docker image keeps the same layout for that
-reason.
+`sv` reads every file here through one place (`crates/sv-frameworks/src/data.rs`, ADR-036), which looks in
+`SV_DATA_DIR` (a whole copy of this folder), then beside the program (`data`, or `../share/securevibe/data`), then
+in the repository it was built from (`crates/<crate>/../../data`), which is what the Docker image uses.
+`tools/install.sh` puts a copy beside the program it installs.
 
 ## The standards (`frameworks/`)
 

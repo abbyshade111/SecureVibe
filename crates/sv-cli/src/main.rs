@@ -71,6 +71,11 @@ fn run() -> Result<i32> {
         }
         "--version" | "-V" | "version" => {
             println!("{}", version_line());
+            // Which data this copy reads, so an install whose data is older than the code says so.
+            match sv_frameworks::data::dir() {
+                Ok(dir) => println!("data: {}", dir.display()),
+                Err(why) => println!("data: none found. {why}"),
+            }
             return Ok(exit::CLEAN);
         }
         _ => {}
@@ -83,6 +88,12 @@ fn run() -> Result<i32> {
     if rest.iter().any(|a| a == "--help" || a == "-h") {
         print!("USAGE:\n{}", command.help);
         return Ok(exit::CLEAN);
+    }
+    // Every command reads sv's own data, so a copy that cannot find it says so before doing
+    // anything, rather than reading some files from the build folder and going without others
+    // (ADR-036).
+    if let Err(why) = sv_frameworks::data::dir() {
+        bail!("{why}");
     }
     check_args(command, rest)?;
     let finished = |done: Result<()>| done.map(|()| exit::CLEAN);
@@ -346,26 +357,17 @@ fn print_help() {
 /// Where the data lives: the OWASP frameworks and knowledge files, and sv's own files beside them, all in the
 /// repository's `data/` folder.
 fn data_dir() -> Result<PathBuf> {
-    if let Ok(dir) = std::env::var("SV_DATA_DIR") {
-        return Ok(PathBuf::from(dir));
-    }
-    // From the workspace, the repository's `data` folder is two levels up from a crate.
-    let here = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let candidate = here.join("../../data");
-    if candidate.join("frameworks").is_dir() {
-        return Ok(candidate);
-    }
-    bail!("cannot find the OWASP data folder; set SV_DATA_DIR")
+    sv_frameworks::data::dir().map_err(anyhow::Error::msg)
 }
 
 /// The v2 overlay, which replaces the applicability rules whose reasons describe v1's own template.
 fn overlay_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/applicability-v2.json")
+    sv_frameworks::data::file("applicability-v2.json")
 }
 
 /// The Secure by Design checklist's controls against the ASVS requirements that ask the same thing.
 fn crosswalk_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/sbd-asvs-crosswalk.json")
+    sv_frameworks::data::file("sbd-asvs-crosswalk.json")
 }
 
 /// The OWASP data with the checklist's levels grounded in ASVS. Every command loads it this way, so
@@ -416,27 +418,27 @@ impl Loaded {
 
 /// What each `derived` condition looks like in real code.
 fn signatures_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/tech-signatures.json")
+    sv_frameworks::data::file("tech-signatures.json")
 }
 
 /// Rules that read the code itself.
 fn ast_rules_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/ast-rules.json")
+    sv_frameworks::data::file("ast-rules.json")
 }
 
 /// Per-language security tools `sv` can run.
 fn adapters_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json")
+    sv_frameworks::data::file("adapters.json")
 }
 
 /// Well-known credential formats.
 fn secret_rules_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json")
+    sv_frameworks::data::file("secret-rules.json")
 }
 
 /// How each manifest claim is checked against the code.
 fn corroborators_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/claim-corroborators.json")
+    sv_frameworks::data::file("claim-corroborators.json")
 }
 
 /// Breaks a paragraph into lines that fit a terminal.
@@ -508,7 +510,7 @@ pub(crate) fn plan_options() -> ReportOptions {
 
 /// The features a brief can be written for (`sv brief`, `securevibe_before`).
 pub(crate) fn feature_briefs_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/feature-briefs.json")
+    sv_frameworks::data::file("feature-briefs.json")
 }
 
 /// The brief for one feature of an app, from the report's own parts, as the plan is.
@@ -846,7 +848,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
 }
 
 fn design_questions_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-questions.json")
+    sv_frameworks::data::file("design-questions.json")
 }
 
 /// Asks the owner's own live site the handful of questions only it can answer.
@@ -987,7 +989,7 @@ fn cmd_probe(args: &[String]) -> Result<()> {
 }
 
 fn notes_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/security-notes.json")
+    sv_frameworks::data::file("security-notes.json")
 }
 
 /// What `sv` found that belongs in the notes, so the owner starts from their app, not a blank page.
@@ -1089,7 +1091,7 @@ fn cmd_notes(path: Option<PathBuf>) -> Result<()> {
 }
 
 pub(crate) fn coding_rules_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/coding-rules.json")
+    sv_frameworks::data::file("coding-rules.json")
 }
 
 /// The coding rules for an app, and how many were left out as not applying to it.
@@ -1158,8 +1160,10 @@ pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
 
 /// The prompt library's files: the prompts for the coding, then the design-time ones.
 pub(crate) fn prompts_paths() -> [PathBuf; 2] {
-    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    [data.join("prompts.json"), data.join("design-prompts.json")]
+    [
+        sv_frameworks::data::file("prompts.json"),
+        sv_frameworks::data::file("design-prompts.json"),
+    ]
 }
 
 /// The library's prompts for one requirement, or all of them, as Markdown, and the ones chosen.
@@ -4235,9 +4239,8 @@ fn assemble_report_saying(
     // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
     // tier here; `no`, and a `where` naming a file the app does not have, are findings.
     let design_questions = sv_check::design::Questions::load(&design_questions_path())?;
-    let human_checks = sv_check::human::HumanChecks::load(
-        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/human-checks.json"),
-    )?;
+    let human_checks =
+        sv_check::human::HumanChecks::load(&sv_frameworks::data::file("human-checks.json"))?;
     let design_answers: std::collections::BTreeMap<String, sv_check::design::Answer> = manifest
         .design
         .iter()

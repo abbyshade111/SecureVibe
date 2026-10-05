@@ -4027,6 +4027,11 @@ another session is not a claim.
      `claude/securevibe-e9-movable`: every data file found through one place, `SV_DATA_DIR`, then beside the program,
      then the build folder; and an install script that keeps `sv` and its data out of any working folder. Record:
      ADR-036 (proposed).
+     **Done the same day** (DESIGN, "A copy of `sv` reads the data beside it, and installs outside the build
+     folder"; ADR-036, accepted): every file found through `sv_frameworks::data`; `sv --version` names the data
+     folder; `tools/install.sh` puts `sv` and its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`,
+     and the guide installs that way. Not done: compiling the data into the program, which a single downloadable
+     file would need.
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
