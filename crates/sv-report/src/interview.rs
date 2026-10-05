@@ -53,6 +53,12 @@ How to ask them. These are for the person you are building this app with, not fo
 
 /// The questions for one app, as the AI coding tool is given them.
 pub fn text(report: &Report) -> String {
+    text_with(report, &crate::fence::Fence::none())
+}
+
+/// The same, with the one piece of the app's own text in it, its name, put through `fence`: the
+/// questions and how to ask them are `sv`'s own (deep review R9).
+pub fn text_with(report: &Report, fence: &crate::fence::Fence) -> String {
     let design: Vec<&Item> = of(report, Route::AnswerInTheManifest);
     let notes: Vec<&Item> = of(report, Route::WriteItDown);
     let by_hand: Vec<&Item> = of(report, Route::GoAndLook);
@@ -60,7 +66,7 @@ pub fn text(report: &Report) -> String {
 
     let mut out = format!(
         "QUESTIONS FOR THE OWNER of {}: {total} to ask.\n",
-        crate::one_line(&report.app_name)
+        fence.wrap(&report.app_name)
     );
     if total == 0 {
         out.push_str(

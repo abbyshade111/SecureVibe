@@ -21,6 +21,7 @@
 
 pub mod bluf;
 pub mod chapters;
+pub mod fence;
 pub mod groups;
 pub mod html;
 pub mod interview;
