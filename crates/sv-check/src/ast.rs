@@ -4569,6 +4569,8 @@ mod tests {
         ("ast.token-key-source-from-token", "rust", "async fn f() { let keys = reqwest::get(JWKS_URL).await; }", false),
         ("ast.token-key-source-from-token", "rust", "fn f(header: Header) -> bool { TRUSTED.contains(&header.jku.unwrap_or_default().as_str()) }", false),
         ("ast.token-key-source-from-token", "kotlin", "fun m(header: JWSHeader) { val keys = RemoteJWKSet<SecurityContext>(header.jwkurl.toURL()) }", true),
+        ("ast.token-key-source-from-token", "kotlin", "fun m(header: JWSHeader) { val p = UrlJwkProvider(URL(header.x509CertURL.toString())) }", true),
+        ("ast.token-key-source-from-token", "kotlin", "fun m(header: JWSHeader) { val keys = RemoteJWKSet<SecurityContext>(header.getJWKURL().toURL()) }", true),
         ("ast.token-key-source-from-token", "kotlin", "suspend fun m(jwt: DecodedJWT) { val keys = client.get(jwt.getHeaderClaim(\"jku\").asString()) }", true),
         ("ast.token-key-source-from-token", "kotlin", "fun m(header: JWSHeader) { val v = RSASSAVerifier(header.jwk.toRSAKey()) }", true),
         ("ast.token-key-source-from-token", "kotlin", "fun m() { val keys = RemoteJWKSet<SecurityContext>(URL(JWKS_URL)) }", false),
