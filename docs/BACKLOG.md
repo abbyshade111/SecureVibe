@@ -142,6 +142,15 @@ another session is not a claim.
     adapter finding's text, and scan the report files for secrets before zipping.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/s8-bundle-tool-messages`.
+    **Done the same day** (DESIGN, "What an outside tool says is redacted, and a bundle's report is scanned before
+    it is zipped"): every tool finding's title, description, impact, and fix, and every line of a tool's stderr a
+    reason quotes, go through `redact_text` as they are read, redacted before being cut to length; a quoted value
+    now runs on past an apostrophe (B105 quoting "You've…" left the rest showing); and `sv bundle` scans its report
+    files and refuses to zip one holding a credential, naming file and line, never the value, with `sv`'s own
+    redaction marker no longer read as one. Tested end to end with a stand-in Bandit quoting a password and stand-in
+    tools quoting it on stderr: after the search is shown to find a planted copy, the password is in no report file,
+    bundle entry, MCP reply, or printed line; and a key in the app's name stops the bundle. Seven guards broken in
+    turn, each caught; cutting before redacting only by its unit test, whose lines are long enough to be cut.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -387,6 +396,8 @@ another session is not a claim.
     person writes, such as `.DS_Store`, so nobody chases it.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h23`.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
@@ -418,6 +429,8 @@ another session is not a claim.
     two tests; eleven guards broken in turn, each caught (the spread's only on a second, stronger mutation).
   - **A2. Medium, Read.** Review fingerprints collide on identical lines, and survive a change to the line that
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r3-a2-review-matching`.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
@@ -429,6 +442,8 @@ another session is not a claim.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r3-a2-review-matching`.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.
@@ -464,6 +479,8 @@ another session is not a claim.
     on a copy of `examples/tested-notes` (the review's write-up does not include its fixture), unit, end-to-end, and MCP tests, including a byte-for-byte round trip and a five-megabyte
     file; sixteen guards broken in turn were each caught.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r8-record-answer-keeps-owner`.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
