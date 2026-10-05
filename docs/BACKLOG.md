@@ -655,6 +655,12 @@ another session is not a claim.
     off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
     refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
     outside its folder and one that does not exist.
+    **Improvement 6 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-validate`, for three of its four parts: `manifest-version`
+    checked, text after a date refused, and the stray `</details>` in `report.html`. The fourth, a false alarm
+    lapsing when nearby lines change, rests on the fingerprint, which #678 (R3, A2) is changing, and is left to it.
+    **Those three done the same day** (DESIGN, "A manifest version `sv` knows, a date with nothing after it, and
+    every collapsed list closed").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
