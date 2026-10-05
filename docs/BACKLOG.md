@@ -545,6 +545,8 @@ another session is not a claim.
   - **R11. Low to medium, Reproduced.** Duplicate or conflicting reviews are each applied.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r11`.
+    **Done the same day** (DESIGN, "One entry answers for one finding"; ADR-023, Later): a repeated answer does not
+    count again, and two that disagree leave the finding standing until one is removed.
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
