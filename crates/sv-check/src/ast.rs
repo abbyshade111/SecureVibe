@@ -2588,6 +2588,17 @@ mod tests {
                 format!("{script}<template lang=\"pug\">\np(@click=\"eval(x)\")\n</template>\n"),
             ),
             ("OpenText.vue", vue("<p>{{ eval(x) </p>")),
+            // One piece read and one not: the page is still not fully read.
+            (
+                "Mixed.svelte",
+                format!("{script}<p>{{count}}</p><p>{{eval(x) y}}</p>\n"),
+            ),
+            // Vue reads a `<textarea>`'s body as text, so nothing is taken out of it, while the older
+            // test of the page sees an `@click`. While the two disagree the page is not counted read.
+            (
+                "Textarea.vue",
+                vue("<textarea><b @click=\"eval(x)\"></b></textarea>"),
+            ),
         ] {
             let scan = read(name, &page);
             assert_eq!(scan.unparsed_files, [name], "{name}: {page}");
