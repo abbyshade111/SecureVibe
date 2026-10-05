@@ -8689,7 +8689,7 @@ Any other file not read stays a gap, and the report's gap now names each, with w
 more `sv check` lists. `sv bundle` holds these files to the rule it had: in when the name says image or font, out
 otherwise, with what the file is.
 
-Three tests used bytes standing for "a file nothing reads" that the new reading reads; they now use bytes nothing
+Two tests used bytes standing for "a file nothing reads" that the new reading reads; they now use bytes nothing
 reads. Nine guards broken in turn, each caught, by between one and five tests. One first looked uncaught: the disk was
 full, so the bundle tests never ran; run again with room, it was caught. The mutation run now counts a suite that did
 not run as no answer rather than as a pass.
