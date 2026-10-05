@@ -1237,8 +1237,17 @@ another session is not a claim.
       decisions above stand, and the item is open for whoever takes it up. Done in that branch first, and merged: the
       probes' request bodies are bytes, and each request reaches the probe container as input rather than as an
       argument (DESIGN, "Requests reach the app as input"), so an archive can now be sent as it is.
-      **V5.2.3 (compressed bombs) Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
-      `claude/v523-archive-limits`.
+      **V5.2.3 (compressed bombs) claimed on 5 October 2026 by the cato-pipeline session and released the same day, not
+      built**: its helper agent was stopped by a safety classifier while working on the archives that unpack past the
+      owner's limit, which is the heart of the check, so this session left it rather than work around that. The
+      owner's decisions above stand, and the item is open. Two points from the reading, for whoever takes it: a single
+      yes/no "unpacks archives" could make a finding of an app that unpacks zip but not gzip (a list such as
+      `unpacks-archives = ["zip", "gzip"]` would not), and each archive must itself stay under `max-bytes`, or a
+      refusal cannot be told from a size refusal. Where the rest goes: `UploadSection` (`crates/sv-manifest/src/lib.rs`)
+      and the `upload` template line (`spec.rs`, which `securevibe_spec` sends); the check in
+      `crates/sv-check/src/signed_in/uploads.rs`, its rule in `rules.rs` and `RESTS_ON_A_REFUSAL`; the fake app's upload
+      handler reads text today; and a place just before step 10 of `run_checks`, with a fresh sign-in, fits "takes no
+      other check with it" better than step 6b.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
