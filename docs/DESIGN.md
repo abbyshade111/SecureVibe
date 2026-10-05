@@ -8307,6 +8307,23 @@ two agree; and keeping the zeros before the letters, because the case tested (`1
 either way. A test of a gem pre-release held to an advisory, and the cases `2.0.0.rc1` and `2.0.rc1`, were added, and
 both were then caught.
 
+## An error page is searched whole before it is cut (5 October 2026)
+
+H17 of the deep review: `sv` keeps only the first 4,000 characters of each answer from the app, enough to recognize
+a stack trace and not enough to copy a page out of somebody's app. The error-page check (V13.4.2, V16.5.1) read only
+what was kept, so a page whose trace began below a long stretch of markup was credited as saying nothing it should
+not.
+
+- **The whole answer is searched first.** `kept_body` looks through all of it for each sign of a trace
+  (`sv_check::probes::TRACE_MARKERS`, now public), and for the first of each found past the cut keeps the text
+  around it, as it already did for the reflection probes' value. The check then reads it like any other.
+- **What is kept stays small:** the start, plus at most one short stretch per kind of trace.
+
+How it is held: `a_stack_trace_below_the_cut_is_kept_and_found` (`crates/sv-run/src/docker.rs`) puts every marker past
+the cut, checks the setup really did, and runs the real check on what was kept; its control, a long page with no
+trace, is still credited. Taking the new search out turned it red.
+
+
 
 ## What an outside tool says is redacted, and a bundle's report is scanned before it is zipped (4 October 2026)
 
@@ -8382,6 +8399,23 @@ checked.
 How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
 twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
 
+## A placeholder word in a key counts only where chance would not put it (5 October 2026)
+
+A4 of the deep review: a value was taken for a placeholder, and not reported, when it held any of a list of words
+(`example`, `changeme`, `todo`, `xxx`, …) anywhere in it. A real key's random characters spell the short ones by
+chance: of 20,000 random JWTs made the way the test makes them, 66 were dropped as placeholders.
+
+- **The short markers, `todo` and `xxx`, count only as words of their own** (`has_word`): not after a letter or
+  digit, and not before a letter, so `TODO`, `xxx-xxx`, and `todo1` still count, and `…aXxXb…` inside a key does not.
+- **The longer markers count anywhere, as before.** Five or more letters in a row are practically never spelled by
+  chance, and the fused form is how real examples are written: AWS's own documentation key is
+  `AKIAEXAMPLEEXAMPLE12`-shaped. Making every marker a whole word was tried first and lost exactly that.
+- Of the same 20,000 random JWTs, none is now taken for a placeholder.
+
+How it is held: `a_placeholder_word_counts_only_as_a_word_of_its_own` (`crates/sv-check/src/secrets.rs`), which counts
+the random JWTs dropped and lists both kinds by hand, and `a_whole_example_env_file_is_silent`, which caught the first
+attempt.
+
 ## A .gitignore read the way git reads it, and a security contact however it is spelled (5 October 2026)
 
 H23 of the deep review: the check that `.gitignore` leaves out `.env` (V13.3.1) compared whole lines against a short
@@ -8405,3 +8439,46 @@ How it is held: `a_gitignore_is_read_the_way_git_reads_it`, with twenty cases ea
 `a_security_contact_is_found_however_it_is_spelled_and_wherever_a_site_serves_it` (`crates/sv-check/src/config.rs`).
 Five guards were undone in turn and each was caught; a sixth, skipping patterns that end in `/`, was found to change
 nothing, since such a pattern never matches a file, and was taken out.
+
+## pnpm 5 and 6 told apart, and packages without a version named (5 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H21 and H24) found two JavaScript lockfile readers giving a
+package list that was not the whole of what is installed, and saying nothing about it.
+
+- **H24, pnpm's lockfile 6.0.** pnpm 8 writes a package as `/express@4.18.2`. The reader took any key starting with
+  `/` to be 5.x's `/express/4.18.2`, so a real 6.0 file gave no packages at all, and the test named for 6.0 used 5.x's
+  shape. The reader now reads the lockfile's own `lockfileVersion` line: 5.x keys are read by their slashes, with the
+  peer variant after `_` taken off the version (`/react-dom/18.2.0_react@18.2.0` is react-dom 18.2.0), and 6.0 and
+  later by the `@`. The 6.0 test now uses 6.0's shape, peer variant included, and 5.x has a test of its own.
+- **H21, packages with no registry version.** A package installed from a folder, a link, a repository, or an
+  address is listed by that rather than by a version: pnpm 9 writes `my-lib@file:../lib`, and Yarn Berry
+  `local-lib@file:../lib`. Both readers dropped such a package without a word, and the list still counted as
+  complete. Each is now named as not listed, the way the `Pipfile.lock` and `pylock.toml` readers already did, so the
+  list no longer counts as complete and V15.2.1 is not credited on it. A classic `yarn.lock` entry with no `version`
+  line is named the same way. The app's own Yarn workspace (`workspace:`) is its own code, not something installed,
+  and is left out.
+
+An earlier test held the opposite for Yarn Berry: it expected a folder the app links to be dropped with nothing said.
+It now expects the folder named. Eight guards broken in turn, each caught: reading 6.0 as 5.x (the old behavior),
+keeping 5.x's peer suffix in the version, dropping pnpm's packages without a version, not reporting them, dropping
+Berry's, naming the app's own workspace, and dropping a classic entry with no version, in the middle of the file or
+at its end.
+
+## The secret rules find what they promise, and grade a test key below a live one (5 October 2026)
+
+A5 of the deep review, three faults in `data/secret-rules.json`:
+
+- **Slack's app-level token (`xapp-`)** was named in `secrets.slack-token`'s own description and not matched by
+  its pattern. The pattern now takes `xapp-<digit>-…` beside the `xox?-` tokens.
+- **A PGP private key block** (`-----BEGIN PGP PRIVATE KEY BLOCK-----`) was missed; `secrets.private-key-block`
+  now finds it beside the PEM and OpenSSH ones. A public PGP block is not reported. The rule's description had lost
+  its first sentence, and now says what it found.
+- **A Stripe test key was graded critical**, the same as a live one. A test-mode key cannot create a charge or a
+  refund; it opens the test-mode data, and is often a sign the live key is kept the same way. It now has a rule of
+  its own, `secrets.stripe-test-key`, at medium, and `secrets.stripe-key` is for live keys only. No decision record
+  governs the secret rules, so the grading is recorded here. A finding on a test key that someone set aside under the
+  old rule's name no longer matches, and is looked at again under the new one.
+
+How it is held: `the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one`
+(`crates/sv-check/src/secrets.rs`), with every value put together at run time. Each of the three changes was undone in
+turn and the test went red.

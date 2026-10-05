@@ -279,7 +279,14 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
             }
             text.map(|_| pairs)
         }
-        Some("yarn.lock") => read("yarn.lock").as_deref().map(from_yarn_lock),
+        Some("yarn.lock") => {
+            let text = read("yarn.lock");
+            let (pairs, unversioned) = text.as_deref().map(from_yarn_lock).unwrap_or_default();
+            if note_unversioned(sbom, &eco.name, &lockfile_path, &unversioned) && pairs.is_empty() {
+                return;
+            }
+            text.map(|_| pairs)
+        }
         Some("bun.lock") => read("bun.lock").as_deref().map(from_bun_lock),
         Some("bun.lockb") => {
             sbom.unread.push((
@@ -296,7 +303,14 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("gradle.lockfile") => read("gradle.lockfile").as_deref().map(from_gradle_lockfile),
         Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
         Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
-        Some("pnpm-lock.yaml") => read("pnpm-lock.yaml").as_deref().map(from_pnpm_lock),
+        Some("pnpm-lock.yaml") => {
+            let text = read("pnpm-lock.yaml");
+            let (pairs, unversioned) = text.as_deref().map(from_pnpm_lock).unwrap_or_default();
+            if note_unversioned(sbom, &eco.name, &lockfile_path, &unversioned) && pairs.is_empty() {
+                return;
+            }
+            text.map(|_| pairs)
+        }
         Some("go.sum") => read("go.sum").as_deref().map(from_go_sum),
         Some("requirements.lock") => read("requirements.lock")
             .as_deref()
@@ -495,6 +509,25 @@ fn read_declaration(
     sbom.unread.push(("Python".into(), why));
 }
 
+/// Names the packages a lockfile lists with no version, as not listed. They are installed all the
+/// same, from a folder, a link, a repository, or an address, so the list is not the whole of what
+/// is, and dropping them without a word would read as if it were. `true` when there were any.
+fn note_unversioned(sbom: &mut Sbom, ecosystem: &str, lockfile: &str, names: &[String]) -> bool {
+    if names.is_empty() {
+        return false;
+    }
+    sbom.unread.push((
+        ecosystem.to_owned(),
+        format!(
+            "{} package(s) in `{lockfile}` give no version, because they are installed from a \
+             folder, a link, a repository, or an address ({}), so they are not listed; the rest are",
+            names.len(),
+            names.join(", ")
+        ),
+    ));
+    true
+}
+
 // ---------------------------------------------------------------------------------------------
 // Lockfile readers. Each returns (name, version) pairs; none guesses.
 
@@ -653,29 +686,52 @@ fn from_pipfile(text: &str) -> Option<Pinned> {
 /// after any scope, and only packages from the registry are listed: the app itself
 /// (`@workspace:`), and anything linked from a folder, are not packages anyone publishes advisories
 /// about.
-fn from_yarn_lock(text: &str) -> Vec<(String, String)> {
+/// Yarn's `yarn.lock`, classic (v1) or Berry (v2 and later). Gives the pairs, and the names of the
+/// packages it lists with no version from a registry: in Berry, those from a folder, a link, or a
+/// repository (`file:`, `link:`, `portal:`, `git`, `https:`, ...); in classic, an entry with no
+/// `version` line. The app's own workspaces (`workspace:`) are its own code and are left out.
+fn from_yarn_lock(text: &str) -> (Vec<(String, String)>, Vec<String>) {
     let berry = text.lines().any(|l| l.trim_end() == "__metadata:");
     let mut out: Vec<(String, String)> = Vec::new();
+    let mut unversioned: Vec<String> = Vec::new();
     let mut pending: Option<String> = None;
     for line in text.lines() {
         if line.trim_start().starts_with('#') || line.trim().is_empty() {
             continue;
         }
         if !line.starts_with(' ') && !line.starts_with('\t') {
+            // A classic entry that never said its version.
+            if let Some(name) = pending.take()
+                && !berry
+            {
+                unversioned.push(name);
+            }
             // A header may list several ranges separated by commas; they are all the same package.
             let first = line.trim_end_matches(':').split(',').next().unwrap_or(line);
             let spec = first.trim().trim_matches('"');
+            if spec == "__metadata" {
+                continue;
+            }
             pending = if berry {
                 let at = spec
                     .char_indices()
                     .skip(1)
                     .find(|(_, c)| *c == '@')
                     .map(|(i, _)| i);
-                at.filter(|i| {
-                    let protocol = &spec[i + 1..];
-                    protocol.starts_with("npm:") || protocol.starts_with("patch:")
-                })
-                .map(|i| spec[..i].to_owned())
+                match at {
+                    Some(i) => {
+                        let protocol = &spec[i + 1..];
+                        if protocol.starts_with("npm:") || protocol.starts_with("patch:") {
+                            Some(spec[..i].to_owned())
+                        } else {
+                            if !protocol.starts_with("workspace:") {
+                                unversioned.push(spec[..i].to_owned());
+                            }
+                            None
+                        }
+                    }
+                    None => None,
+                }
             } else {
                 spec.rfind('@')
                     .filter(|i| *i > 0)
@@ -694,9 +750,16 @@ fn from_yarn_lock(text: &str) -> Vec<(String, String)> {
             out.push((name, rest.trim().trim_matches('"').to_owned()));
         }
     }
+    if let Some(name) = pending
+        && !berry
+    {
+        unversioned.push(name);
+    }
     out.sort();
     out.dedup();
-    out
+    unversioned.sort();
+    unversioned.dedup();
+    (out, unversioned)
 }
 
 /// Bun's text lockfile (Bun 1.2 and later): JSON that allows a comma before a closing bracket.
@@ -806,10 +869,21 @@ fn from_composer_lock(text: &str) -> Vec<(String, String)> {
 ///
 /// Two key shapes, and peer suffixes on either:
 ///   v9:  `express@4.18.2:` and `@babel/core@7.23.0:`, sometimes `vite@5.0.0(terser@5.0.0):`
-///   v6:  `/express/4.18.2:` and `/@babel/core/7.23.0:`
-fn from_pnpm_lock(text: &str) -> Vec<(String, String)> {
+///   v6:  `/express@4.18.2:` and `/@babel/core@7.23.0:`, with peer variants in brackets as in v9
+///   v5:  `/express/4.18.2:` and `/@babel/core/7.23.0:`, sometimes `/foo/1.0.0_bar@2.0.0:`
+fn from_pnpm_lock(text: &str) -> (Vec<(String, String)>, Vec<String>) {
     let mut out = Vec::new();
+    let mut unversioned = Vec::new();
     let mut in_packages = false;
+    // Lockfile 5.x writes `/name/version`, with a peer variant after `_`; 6.0 and later write
+    // `/name@version` and `name@version`, with a peer variant in brackets. Without the version
+    // line, the `@` shape is tried first and the slash shape after it.
+    let slash_shape = text
+        .lines()
+        .find_map(|l| l.strip_prefix("lockfileVersion:"))
+        .map(|v| v.trim().trim_matches(|c| c == '\'' || c == '"'))
+        .and_then(|v| v.split('.').next()?.parse::<u32>().ok())
+        .is_some_and(|major| major <= 5);
 
     for line in text.lines() {
         if line.trim().is_empty() || line.trim_start().starts_with('#') {
@@ -835,29 +909,44 @@ fn from_pnpm_lock(text: &str) -> Vec<(String, String)> {
         let key = key.trim_matches(|c| c == '\'' || c == '"');
         // `vite@5.0.0(terser@5.0.0)` is one package with a peer variant, not two.
         let key = key.split('(').next().unwrap_or(key);
+        let rest = key.strip_prefix('/').unwrap_or(key);
 
-        let parsed = if let Some(rest) = key.strip_prefix('/') {
-            // v6: /name/version, where the name may itself contain a slash when scoped.
-            rest.rsplit_once('/')
-                .map(|(name, version)| (name.to_owned(), version.to_owned()))
-        } else {
-            // v9: name@version, where a scoped name contains its own @.
-            key.rsplit_once('@')
+        let by_at = || {
+            // name@version, where a scoped name contains its own @.
+            rest.rsplit_once('@')
                 .filter(|(name, _)| !name.is_empty())
                 .map(|(name, version)| (name.to_owned(), version.to_owned()))
         };
-        // A version starts with a digit. Anything else means this is not the key shape expected, and
-        // inventing a package out of it would be worse than admitting the file was not understood.
-        if let Some((name, version)) = parsed
-            && version.starts_with(|c: char| c.is_ascii_digit())
-        {
-            out.push((name, version));
+        let by_slash = || {
+            // name/version, where a scoped name contains a slash of its own, and the version may
+            // carry a peer variant after `_`.
+            rest.rsplit_once('/').map(|(name, version)| {
+                let version = version.split('_').next().unwrap_or(version);
+                (name.to_owned(), version.to_owned())
+            })
+        };
+        let parsed = if slash_shape {
+            by_slash()
+        } else {
+            by_at().or_else(by_slash)
+        };
+        // A version starts with a digit. A key whose version is an address (`file:`, `https:`,
+        // `link:`) is a package installed from somewhere else, named as such; a key that fits
+        // neither shape is not invented into a package.
+        match parsed {
+            Some((name, version)) if version.starts_with(|c: char| c.is_ascii_digit()) => {
+                out.push((name, version));
+            }
+            Some((name, version)) if version.contains(':') => unversioned.push(name),
+            _ => {}
         }
     }
 
     out.sort();
     out.dedup();
-    out
+    unversioned.sort();
+    unversioned.dedup();
+    (out, unversioned)
 }
 
 fn from_gemfile_lock(text: &str) -> Vec<(String, String)> {
@@ -1987,8 +2076,9 @@ __metadata:
         let sbom = build(&dir);
         fs::remove_dir_all(&dir).ok();
         let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
-        // Not the app itself, not a folder it links, not `__metadata`'s own version, and the
-        // patched `resolve` once, by its own name.
+        // Not the app itself, not `__metadata`'s own version, and the patched `resolve` once, by
+        // its own name. The folder it links is installed too, from outside the registry, so it is
+        // named as not listed rather than dropped without a word; the app's own workspace is not.
         assert_eq!(
             purls,
             vec![
@@ -1998,7 +2088,13 @@ __metadata:
             ],
             "{sbom:?}"
         );
-        assert!(sbom.unread.is_empty(), "{:?}", sbom.unread);
+        assert_eq!(sbom.unread.len(), 1, "{:?}", sbom.unread);
+        assert!(
+            sbom.unread[0].1.contains("(local-lib)"),
+            "{:?}",
+            sbom.unread
+        );
+        assert!(!sbom.is_complete());
     }
 
     const BUN_LOCK: &str = r#"{
@@ -2180,18 +2276,128 @@ __metadata:
     }
 
     #[test]
-    fn pnpm_lock_v6_uses_slashes_and_is_read_too() {
+    fn pnpm_lock_v6_uses_a_slash_and_an_at_and_is_read_too() {
+        // pnpm 8's lockfile 6.0: `/name@version`, with peer variants in brackets as in v9.
         let dir = scratch("pnpm6");
         fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
         fs::write(
             dir.join("pnpm-lock.yaml"),
-            "lockfileVersion: 6.0\n\npackages:\n\n  /express/4.18.2:\n    resolution: {integrity: sha512-x}\n\n  /@babel/core/7.23.0:\n    resolution: {integrity: sha512-y}\n",
+            "lockfileVersion: '6.0'\n\npackages:\n\n  /express@4.18.2:\n    resolution: {integrity: sha512-x}\n\n  /@babel/core@7.23.0:\n    resolution: {integrity: sha512-y}\n\n  /vite@5.0.0(terser@5.0.0):\n    resolution: {integrity: sha512-z}\n",
         )
         .unwrap();
         let sbom = build(&dir);
-        let names: Vec<&str> = sbom.components.iter().map(|c| c.name.as_str()).collect();
-        assert_eq!(names, vec!["@babel/core", "express"], "{sbom:?}");
         fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(
+            purls,
+            vec![
+                "pkg:npm/@babel/core@7.23.0",
+                "pkg:npm/express@4.18.2",
+                "pkg:npm/vite@5.0.0",
+            ],
+            "{sbom:?}"
+        );
+        assert!(sbom.is_complete(), "{sbom:?}");
+    }
+
+    #[test]
+    fn pnpm_lock_v5_uses_slashes_and_its_peer_suffix_is_not_the_version() {
+        let dir = scratch("pnpm5");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("pnpm-lock.yaml"),
+            "lockfileVersion: 5.4\n\npackages:\n\n  /express/4.18.2:\n    resolution: {integrity: sha512-x}\n\n  /@babel/core/7.23.0:\n    resolution: {integrity: sha512-y}\n\n  /react-dom/18.2.0_react@18.2.0:\n    resolution: {integrity: sha512-z}\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(
+            purls,
+            vec![
+                "pkg:npm/@babel/core@7.23.0",
+                "pkg:npm/express@4.18.2",
+                "pkg:npm/react-dom@18.2.0",
+            ],
+            "{sbom:?}"
+        );
+        assert!(sbom.is_complete(), "{sbom:?}");
+    }
+
+    #[test]
+    fn a_pnpm_package_with_no_version_is_named_not_dropped() {
+        // pnpm 9 lists a package installed from a folder or an address by that, not by a version.
+        // It is installed, so the list is not complete, and says which.
+        let dir = scratch("pnpm9-file");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("pnpm-lock.yaml"),
+            "lockfileVersion: '9.0'\n\npackages:\n\n  express@4.18.2:\n    resolution: {integrity: sha512-x}\n\n  my-lib@file:../lib:\n    resolution: {directory: ../lib, type: directory}\n\n  left-pad@https://codeload.github.com/x/left-pad/tar.gz/abc:\n    resolution: {tarball: https://codeload.github.com/x/left-pad/tar.gz/abc}\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(purls, vec!["pkg:npm/express@4.18.2"], "{sbom:?}");
+        assert!(!sbom.is_complete(), "{sbom:?}");
+        assert!(
+            sbom.unread.iter().any(|(eco, why)| eco == "npm"
+                && why.contains("2 package(s)")
+                && why.contains("left-pad")
+                && why.contains("my-lib")),
+            "{sbom:?}"
+        );
+    }
+
+    #[test]
+    fn a_yarn_package_with_no_registry_version_is_named_not_dropped() {
+        // Berry: a folder, a link, and a repository are named; the app's own workspace is not.
+        let dir = scratch("yarn-unversioned");
+        fs::write(dir.join("package.json"), r#"{"name":"app"}"#).unwrap();
+        fs::write(
+            dir.join("yarn.lock"),
+            "__metadata:\n  version: 8\n\n\"lodash@npm:^4.17.0\":\n  version: 4.17.21\n  resolution: \"lodash@npm:4.17.21\"\n\n\"my-lib@file:../lib::locator=app%40workspace%3A.\":\n  version: 0.0.0-use.local\n\n\"shared@link:../shared::locator=app%40workspace%3A.\":\n  version: 0.0.0-use.local\n\n\"left-pad@https://github.com/x/left-pad.git#commit=abc\":\n  version: 1.3.0\n\n\"app@workspace:.\":\n  version: 0.0.0-use.local\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        assert_eq!(purls, vec!["pkg:npm/lodash@4.17.21"], "{sbom:?}");
+        assert!(!sbom.is_complete(), "{sbom:?}");
+        let said = sbom
+            .unread
+            .iter()
+            .find(|(eco, _)| eco == "npm")
+            .map(|(_, why)| why.clone())
+            .unwrap_or_default();
+        assert!(said.contains("3 package(s)"), "{said}");
+        for name in ["my-lib", "shared", "left-pad"] {
+            assert!(said.contains(name), "{name}: {said}");
+        }
+        assert!(!said.contains("app,") && !said.contains("app)"), "{said}");
+
+        // Classic: an entry that never says its version is named too.
+        fs::write(
+            dir.join("yarn.lock"),
+            "# yarn lockfile v1\n\nlodash@^4.17.0:\n  version \"4.17.21\"\n  resolved \"https://registry.yarnpkg.com/lodash/-/lodash-4.17.21.tgz\"\n\n\"my-lib@file:../lib\":\n  resolved \"file:../lib\"\n\nzod@^3.22.0:\n  version \"3.22.4\"\n\n\"tail-lib@file:../tail\":\n  resolved \"file:../tail\"\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let purls: Vec<String> = sbom.components.iter().map(Component::purl).collect();
+        // One without a version between two with, and one at the very end.
+        assert_eq!(
+            purls,
+            vec!["pkg:npm/lodash@4.17.21", "pkg:npm/zod@3.22.4"],
+            "{sbom:?}"
+        );
+        for name in ["my-lib", "tail-lib"] {
+            assert!(
+                sbom.unread
+                    .iter()
+                    .any(|(eco, why)| eco == "npm" && why.contains(name)),
+                "{name}: {sbom:?}"
+            );
+        }
     }
 
     #[test]
