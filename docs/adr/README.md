@@ -74,6 +74,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-028](ADR-028.md) | Decide before you build: the design comes first, and nothing is credited for it |
 | [ADR-029](ADR-029.md) | Exit codes: 2 only when a check could not run, 1 only when asked, 3 when `sv` failed |
 | [ADR-030](ADR-030.md) | A plan before any code (proposed) |
+| [ADR-031](ADR-031.md) | A `not-the-app` list that would set apart all of the app's code is not used (proposed) |
 
 ## Where v1's records disagree with what v1 built
 
