@@ -248,7 +248,7 @@ fn the_pinning_rule_is_not_a_python_quirk() {
 }
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-scan-{name}"));
+    let dir = std::env::temp_dir().join(format!("sv-scan-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     dir

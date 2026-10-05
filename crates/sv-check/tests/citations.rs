@@ -362,7 +362,7 @@ fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
     // The configuration checks, which is where the third wrong citation lived. Each is run against
     // a folder built to make it fail, because the failing side carries the prose — the passing side
     // records only that the check ran, and both cite the same ids by construction.
-    let dir = std::env::temp_dir().join("sv-citations-config");
+    let dir = std::env::temp_dir().join(format!("sv-citations-config-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     // A manifest with no lockfile beside it: `config.versions-pinned` fails.

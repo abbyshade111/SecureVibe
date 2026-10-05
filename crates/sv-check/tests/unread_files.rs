@@ -35,7 +35,7 @@ fn real_adapters() -> PathBuf {
 }
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-unread-{name}"));
+    let dir = std::env::temp_dir().join(format!("sv-unread-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     dir

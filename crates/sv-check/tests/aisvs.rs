@@ -124,7 +124,7 @@ fn the_careful_version_raises_nothing() {
 
 #[test]
 fn a_requirement_both_credited_and_only_ever_a_finding_is_refused() {
-    let dir = std::env::temp_dir().join("sv-aisvs-both");
+    let dir = std::env::temp_dir().join(format!("sv-aisvs-both-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json");
     let mut file: serde_json::Value =

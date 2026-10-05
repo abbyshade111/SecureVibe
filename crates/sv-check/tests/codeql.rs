@@ -35,7 +35,7 @@ fn real(id: &str) -> adapters::Adapter {
 }
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-codeql-{name}"));
+    let dir = std::env::temp_dir().join(format!("sv-codeql-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     dir

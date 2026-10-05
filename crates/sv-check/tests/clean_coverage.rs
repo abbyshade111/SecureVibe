@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use sv_check::{ast, probes, secrets};
 
 fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-clean-{name}"));
+    let dir = std::env::temp_dir().join(format!("sv-clean-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     dir
