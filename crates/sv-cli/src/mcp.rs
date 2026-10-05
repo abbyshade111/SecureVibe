@@ -5299,6 +5299,10 @@ mod tests {
         // Each feature's brief after the plan, and before the rules for coding.
         assert!(at("securevibe_before") > at("securevibe_plan"));
         assert!(at("securevibe_before") < at("securevibe_guidance"));
+        // Once the code is written, the preflight, before the check (ADR-035).
+        assert!(at("Once the code is written") > at("securevibe_guidance"));
+        assert!(at("securevibe_preflight") > at("Once the code is written"));
+        assert!(at("securevibe_preflight") < at("securevibe_check never says"));
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
     }
