@@ -1661,6 +1661,30 @@ another session is not a claim.
   `claude/loop-preflight`, with its decision record; 6 after 3, at a size the owner chooses from 3's cost. Each run's
   number of builds and estimate goes to the owner before it starts.
   Item 5's record is written with its claim, as `proposed`: `docs/adr/ADR-035.md`.
+  **Item 3 done the same day** (DESIGN, "Which part of the loop does the work"; `docs/prompts/loop-arms/README.md`):
+  eighteen builds, $4.78. No build without the server wrote a manifest `sv` could read, so none of the eight could be
+  tested; with the server every build read the specification first, and ten of twelve could be signed in to. The
+  arms' own tools were mostly unused (the plan called by three of eight builds offered it, all Haiku; the check by
+  three of eight, once each), so the trial cannot say which of them does the work: what the testable builds share is
+  the specification.
+
+- **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
+  trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
+  near the end, and none checked again after fixing. The server's instructions say what the check is for, not when to
+  call it. Saying when (after each feature, and again after fixing what it found) is the change to try, and item 6 can
+  measure whether it is followed.
+
+- **The loop trials cannot compare security with the arms that have no `sv`.** Found on 5 October 2026 by session
+  paper-facts, in item 3: a build that never saw `sv`'s specification writes no manifest `sv` can read, so it cannot
+  be run, and the protocol's security measures leave it out. Two ways, for the owner to choose before item 6: a
+  tester writes the manifest for those builds from the code, as trial 3 did, so the comparison is of the apps; or
+  every arm's request includes the specification, so the comparison is of what the loop adds beyond it.
+
+- **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
+  loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
+  signed-in checks had nothing to work with. A correct limit is what the owner wants; `sv` signs in many times in a
+  run from one address. The spec could say how many, so a builder can set the limit to allow them in a test copy, or
+  `sv` could say which sign-in hit the limit and stop counting the checks it blocked as unanswered.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
