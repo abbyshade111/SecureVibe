@@ -2182,13 +2182,13 @@ fn vue_template(source: &str) -> Result<Template, String> {
         regex::Regex::new(r#"<template\b[^>]*\slang\s*=\s*["']?([a-z0-9-]+)"#)
             .expect("a fixed pattern")
     });
-    if let Some(found) = lang.captures(&source.to_ascii_lowercase()) {
-        if &found[1] != "html" {
-            return Err(format!(
-                "a template written in {}, which this does not read",
-                &found[1]
-            ));
-        }
+    if let Some(found) = lang.captures(&source.to_ascii_lowercase())
+        && &found[1] != "html"
+    {
+        return Err(format!(
+            "a template written in {}, which this does not read",
+            &found[1]
+        ));
     }
     let mut out = Template::default();
     for attribute in &read_markup(source)?.attributes {
@@ -2269,9 +2269,9 @@ fn outside_code_elements(source: &str) -> Result<Vec<std::ops::Range<usize>>, St
     while let Some(i) = lower[at..].find('<') {
         let open = at + i;
         let rest = &lower[open..];
-        let end = if rest.starts_with("<!--") {
+        let end = if let Some(comment) = rest.strip_prefix("<!--") {
             Some(
-                rest[4..]
+                comment
                     .find("-->")
                     .map_or(lower.len(), |j| open + 4 + j + 3),
             )
