@@ -28,6 +28,11 @@ struct Run {
 }
 
 fn report(dir: &Path) -> Run {
+    report_exiting(dir, &[0])
+}
+
+/// `report`, which may exit with one of `codes`.
+fn report_exiting(dir: &Path, codes: &[i32]) -> Run {
     let out = dir.join("report");
     let run = Command::new(env!("CARGO_BIN_EXE_sv"))
         .env("XDG_CONFIG_HOME", config())
@@ -38,8 +43,9 @@ fn report(dir: &Path) -> Run {
         .output()
         .expect("sv runs");
     assert!(
-        run.status.success(),
-        "{}",
+        run.status.code().is_some_and(|c| codes.contains(&c)),
+        "{:?}: {}",
+        run.status,
         String::from_utf8_lossy(&run.stderr)
     );
     let read = |name: &str| std::fs::read_to_string(out.join(name)).unwrap();
@@ -83,10 +89,16 @@ fn status(run: &Run, id: &str) -> String {
 
 /// The review key this test's runs of `sv` use, as `sv review` would have made it, so a person's
 /// entry can be sealed the way `sv review` seals it.
+/// Made once, since the tests here run at the same time.
 fn config() -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-finding-review-config-{}", std::process::id()));
-    sv_check::seal::Key::load_or_make_in(&dir.join("securevibe")).unwrap();
-    dir
+    static MADE: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    MADE.get_or_init(|| {
+        let dir =
+            std::env::temp_dir().join(format!("sv-finding-review-config-{}", std::process::id()));
+        sv_check::seal::Key::load_or_make_in(&dir.join("securevibe")).unwrap();
+        dir
+    })
+    .clone()
 }
 
 fn key() -> sv_check::seal::Key {
@@ -329,6 +341,29 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
 
 /// `securevibe_check` over MCP, as the AI coding tool calls it; the text it is given.
 fn mcp_check(app: &Path) -> String {
+    mcp_reply(app)["result"]["content"][0]["text"]
+        .as_str()
+        .map(str::to_owned)
+        .map(unfenced)
+        .expect("a reply to the check")
+}
+
+/// What the check says with its fence's tags taken out (deep review R9): this test is about what is
+/// said, and the app's text is fenced as data.
+fn unfenced(text: String) -> String {
+    let Some(tag) = text
+        .strip_prefix("Text between <")
+        .and_then(|rest| rest.split_once('>'))
+        .map(|(tag, _)| tag.to_owned())
+    else {
+        return text;
+    };
+    text.replace(&format!("</{tag}>"), "")
+        .replace(&format!("<{tag}>"), "")
+}
+
+/// The whole reply to `securevibe_check` over MCP, text and structured results alike.
+fn mcp_reply(app: &Path) -> Value {
     use std::io::Write;
     let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
         .env("XDG_CONFIG_HOME", config())
@@ -357,25 +392,243 @@ fn mcp_check(app: &Path) -> String {
         .lines()
         .map(|l| serde_json::from_str::<Value>(l).unwrap())
         .find(|r| r["id"] == 2)
-        .and_then(|r| {
-            r["result"]["content"][0]["text"]
-                .as_str()
-                .map(str::to_owned)
-        })
-        .map(unfenced)
         .expect("a reply to the check")
 }
 
-/// What the check says with its fence's tags taken out (deep review R9): this test is about what is
-/// said, and the app's text is fenced as data.
-fn unfenced(text: String) -> String {
-    let Some(tag) = text
-        .strip_prefix("Text between <")
-        .and_then(|rest| rest.split_once('>'))
-        .map(|(tag, _)| tag.to_owned())
-    else {
-        return text;
+/// Deep review R3: an entry that matches no finding says which of three things happened, in the
+/// report and in what the AI coding tool is told, and only the last reads as the finding gone.
+/// With A2, an entry written with the fingerprint used before 5 October 2026 still counts.
+#[test]
+fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one_still_counts() {
+    let dir: PathBuf =
+        std::env::temp_dir().join(format!("sv-finding-review-r3-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(dir.join("tests")).unwrap();
+    app(&dir, REDIRECT);
+    // A file of the app's language that does not parse cleanly.
+    std::fs::write(dir.join("broken.py"), "def broken(:\n    cur.execute(q)\n").unwrap();
+    std::fs::write(
+        dir.join("tests/test_notes.py"),
+        "def test_v1_2_4_notes_are_found():\n    assert True\n",
+    )
+    .unwrap();
+    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    // 2, because `broken.py` could not be read in full.
+    let before = report_exiting(&dir, &[2]);
+    let redirect = fingerprint(&before, "ast.open-redirect");
+    assert!(redirect.starts_with("v2-"), "{redirect}");
+    // The setup: the redirect was found on app.py, and the code rules read app.py.
+    let examined = before.json["examined"].as_array().unwrap();
+    let state = |rules: &str| {
+        examined
+            .iter()
+            .find(|e| e["rules"] == rules)
+            .unwrap_or_else(|| panic!("no examined entry for {rules}: {examined:?}"))["state"]
+            .clone()
     };
-    text.replace(&format!("</{tag}>"), "")
-        .replace(&format!("<{tag}>"), "")
+    assert_eq!(state("tests."), "not-run");
+    assert_eq!(state("design."), "ran");
+    assert_eq!(state("hand."), "ran");
+
+    let why = "Looked at by the owner on the day, and the value never comes from a request.";
+    let sql_line = "cur.execute(\"SELECT * FROM notes WHERE owner = \" + user_id)";
+    std::fs::write(
+        dir.join("securevibe.toml"),
+        format!(
+            "{MANIFEST}{}{}{}{}{}{}",
+            // The rule ran over app.py and the line is fixed below: gone.
+            entry(
+                "ast.open-redirect",
+                "app.py",
+                &redirect,
+                "false-alarm",
+                "owner",
+                why
+            ),
+            // Reported only when the app's tests run, which needs --run: not looked for.
+            entry(
+                "tests.name-does-not-match-requirement",
+                "tests/test_notes.py",
+                "v2-0123456789abcdef",
+                "false-alarm",
+                "owner",
+                why
+            ),
+            // An outside tool, which runs only with --tools: not looked for.
+            entry(
+                "bandit.B608",
+                "app.py",
+                "v2-0123456789abcdef",
+                "false-alarm",
+                "owner",
+                why
+            ),
+            // A file the code rules could not read in full: not looked for.
+            entry(
+                "ast.sql-built-by-hand",
+                "broken.py",
+                "v2-0123456789abcdef",
+                "false-alarm",
+                "owner",
+                why
+            ),
+            // A rule this version does not have.
+            entry(
+                "ast.no-such-rule",
+                "app.py",
+                "v2-0123456789abcdef",
+                "false-alarm",
+                "owner",
+                why
+            ),
+            // Written with the fingerprint used before 5 October 2026, on a line no other
+            // finding shares: it counts, as it did.
+            entry(
+                "ast.sql-built-by-hand",
+                "app.py",
+                &sv_check::review::named("ast.sql-built-by-hand", "app.py", sql_line),
+                "accepted-risk",
+                "owner",
+                why
+            ),
+        ),
+    )
+    .unwrap();
+    app(&dir, "    return redirect(url_for(\"home\"))");
+    let after = report_exiting(&dir, &[2]);
+    let tool = mcp_check(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+
+    let named = |rule: &str, file: &str| format!("`{rule}` in {file}");
+    let says = |page: &str, rule: &str, file: &str, what: &str| {
+        let line = page
+            .lines()
+            .find(|l| l.contains(&named(rule, file)))
+            .unwrap_or_else(|| panic!("no line for {rule} in {file}:\n{page}"));
+        assert!(line.contains(what), "{rule}: {line}");
+        line.to_owned()
+    };
+    for page in [&after.security, &tool] {
+        let gone = says(
+            page,
+            "ast.open-redirect",
+            "app.py",
+            "no finding matches it any more, and the check that reports it looked at this file",
+        );
+        assert!(gone.contains("can be removed"), "{gone}");
+        for (rule, file, what) in [
+            (
+                "tests.name-does-not-match-requirement",
+                "tests/test_notes.py",
+                "not looked for this time (the app's own tests run only with --run)",
+            ),
+            (
+                "bandit.B608",
+                "app.py",
+                "not looked for this time (outside tools run only with --tools)",
+            ),
+            (
+                "ast.sql-built-by-hand",
+                "broken.py",
+                "not looked for this time (`broken.py` did not parse cleanly",
+            ),
+            (
+                "ast.no-such-rule",
+                "app.py",
+                "has no rule `ast.no-such-rule`",
+            ),
+        ] {
+            let line = says(page, rule, file, what);
+            assert!(
+                line.contains("not a sign the finding was fixed")
+                    && !line.contains("no finding matches it")
+                    && !line.contains("can be removed"),
+                "{line}"
+            );
+        }
+    }
+    assert!(
+        after.html.contains("not looked for this time")
+            && after.html.contains("has no rule `ast.no-such-rule`"),
+        "{}",
+        after.html
+    );
+    assert!(
+        tool.contains("never remove it or tell the owner the finding is gone"),
+        "{tool}"
+    );
+    // The earlier fingerprint still names its finding.
+    assert!(
+        after
+            .security
+            .contains("Known and accepted as a risk for now"),
+        "{}",
+        after.security
+    );
+    assert!(
+        !after
+            .security
+            .contains(&named("ast.sql-built-by-hand", "app.py")),
+        "{}",
+        after.security
+    );
+}
+
+/// Deep review R4 with A2: no fingerprint the report or the AI coding tool is given for a credential
+/// finding, today's or the earlier one given beside it, is a hash over the credential as written,
+/// from which a short one could be guessed back.
+#[test]
+fn no_fingerprint_given_for_a_credential_is_over_its_value_as_written() {
+    let dir: PathBuf =
+        std::env::temp_dir().join(format!("sv-finding-review-r4-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    // A test password built at run time, so this file holds none.
+    let password: String = ["Xk7mQ92v", "LpR4sTzW"].concat();
+    let line = format!("db_password = \"{password}\"");
+    std::fs::write(
+        dir.join("app.py"),
+        format!("import sqlite3\n{line}\nconn = connect(db_password)\n"),
+    )
+    .unwrap();
+    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    let run = report(&dir);
+    let reply = mcp_reply(&dir).to_string();
+    std::fs::remove_dir_all(&dir).ok();
+
+    let rule = "secrets.credential-assignment";
+    // The fingerprint an `sv` before R4 gave this line: a hash over the password as written.
+    let unsafe_hash = sv_check::review::named(rule, "app.py", &line);
+    let leaks = |text: &str| text.contains(&unsafe_hash) || text.contains(&password);
+    // The control: the check finds a planted unsafe hash.
+    assert!(leaks(&format!("{{\"fingerprint\": \"{unsafe_hash}\"}}")));
+    // The setup: the credential was found, and given a fingerprint and an earlier one.
+    let found = run.json["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["rule_id"] == rule)
+        .unwrap_or_else(|| panic!("no {rule} finding: {}", run.json["findings"]));
+    assert!(found["fingerprint"].as_str().unwrap().starts_with("v2-"));
+    assert_eq!(
+        found["earlier_fingerprints"][0].as_str().unwrap(),
+        sv_check::review::named(rule, "app.py", &sv_check::review::masked(&line)),
+        "the earlier one given is over the masked line"
+    );
+    assert!(
+        reply.contains(found["fingerprint"].as_str().unwrap()),
+        "the setup: MCP gives fingerprints"
+    );
+    for (what, text) in [
+        ("report.json", run.json.to_string()),
+        ("findings.sarif", run.sarif.to_string()),
+        ("security.md", run.security.clone()),
+        ("report.html", run.html.clone()),
+        ("the MCP reply", reply.clone()),
+    ] {
+        assert!(
+            !leaks(&text),
+            "{what} gives a fingerprint over the password as written"
+        );
+    }
 }

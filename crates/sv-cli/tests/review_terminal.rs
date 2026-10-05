@@ -144,6 +144,16 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     assert!(run.status.success(), "{said}");
     assert!(said.contains(&format!("Line 6: {LINE}")), "{said}");
     assert!(said.contains("Recorded 1 of 1"), "{said}");
+    // The proposal named its line with the fingerprint used before 5 October 2026; what was
+    // recorded names it with today's, the one the report gives the finding (deep review A2).
+    let recorded = std::fs::read_to_string(app.join("securevibe.toml")).unwrap();
+    let earlier = sv_check::review::named("ast.open-redirect", "app.py", LINE);
+    let todays = sv_check::review::todays_form(&app, "ast.open-redirect", "app.py", &earlier)
+        .expect("the earlier fingerprint names one line");
+    assert!(
+        !recorded.contains(&earlier) && recorded.contains(&format!("fingerprint = \"{todays}\"")),
+        "{recorded}"
+    );
     assert!(
         config.join("securevibe").join("review-key").is_file(),
         "the setup: a key was made"

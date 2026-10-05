@@ -730,8 +730,9 @@ pub fn security(report: &Report) -> String {
         if !report.reviews_not_counted.is_empty() {
             out.push_str(
                 "These entries in `[[finding-review]]` do not count, so the findings they name \
-                 still do. To record one as your decision, run `sv review` in your own \
-                 terminal.\n\n",
+                 still do. Each says why. One whose finding was not looked for this time, or whose \
+                 rule this version of `sv` does not have, is not a sign the finding was fixed. To \
+                 record one as your decision, run `sv review` in your own terminal.\n\n",
             );
             for line in &report.reviews_not_counted {
                 out.push_str(&format!("- {line}\n"));
