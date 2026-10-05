@@ -878,9 +878,13 @@ fn from_gemfile_lock(text: &str) -> Vec<(String, String)> {
             continue;
         }
         let entry = trimmed.trim();
+        // `nokogiri (1.15.4-x86_64-linux)`: Bundler writes a gem built for one platform with the
+        // platform after the first `-`, and reads it back the same way, so the version is what
+        // comes before it. Kept, the platform would read as a pre-release of 1.15.4.
         if let Some((name, rest)) = entry.split_once(" (")
             && let Some(version) = rest.strip_suffix(')')
         {
+            let version = version.split('-').next().unwrap_or(version);
             out.push((name.to_owned(), version.to_owned()));
         }
     }
