@@ -119,6 +119,12 @@ pub struct AstRule {
     /// call itself (an f-string, a `+`, a template) keeps the rule's confidence.
     #[serde(default)]
     pub bound_parameters_lower_confidence: bool,
+    /// When the argument judged passed through a function this file defines (called on it in the
+    /// call itself, or the one value a name was given), the finding names that function as the thing
+    /// to read first: it may already be the check the rule asks for. The finding is kept, because
+    /// `sv` cannot tell a check that works from one that does not.
+    #[serde(default)]
+    pub names_own_checking_function: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
@@ -1266,6 +1272,61 @@ fn at_top(node: tree_sitter::Node) -> bool {
     false
 }
 
+/// The names of the functions a file defines at any depth: Python's `def`, JavaScript's and
+/// TypeScript's `function` and a name given an arrow function or function expression, and Go's
+/// `func`. Methods are left out: `self.check(x)` is not told apart from a library's method.
+fn own_functions(node: tree_sitter::Node, source: &[u8], out: &mut BTreeSet<String>) {
+    let name = match node.kind() {
+        "function_definition" | "function_declaration" | "generator_function_declaration" => {
+            node.child_by_field_name("name")
+        }
+        "variable_declarator" => node
+            .child_by_field_name("value")
+            .filter(|v| {
+                matches!(
+                    v.kind(),
+                    "arrow_function" | "function_expression" | "function"
+                )
+            })
+            .and(node.child_by_field_name("name")),
+        _ => None,
+    };
+    if let Some(name) = name
+        && name.kind() == "identifier"
+        && let Ok(text) = name.utf8_text(source)
+    {
+        out.insert(text.to_owned());
+    }
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        own_functions(child, source, out);
+    }
+}
+
+/// The function of the file's own that a value passed through: the one called on it, as in
+/// `redirect(safe_next(url))`, or, for a plain name, the call it was given once, as in
+/// `url = safe_next(raw)` and then `redirect(url)`.
+fn through_own_function(
+    arg: tree_sitter::Node,
+    source: &[u8],
+    functions: &BTreeSet<String>,
+    values: &BTreeMap<String, Option<tree_sitter::Node>>,
+) -> Option<String> {
+    let called = |node: tree_sitter::Node| -> Option<String> {
+        if !matches!(node.kind(), "call" | "call_expression") {
+            return None;
+        }
+        let function = node.child_by_field_name("function")?;
+        let name = function.utf8_text(source).ok()?;
+        (function.kind() == "identifier" && functions.contains(name)).then(|| name.to_owned())
+    };
+    if arg.kind() == "identifier" {
+        let value = (*values.get(arg.utf8_text(source).ok()?)?)?;
+        return called(value);
+    }
+    called(arg)
+}
+
 /// Every place in the file that binds a name, with the value when the code gives one.
 fn collect_bindings<'a>(
     node: tree_sitter::Node<'a>,
@@ -1528,10 +1589,33 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         return unread;
     };
     // The names that stand for fixed text, in the languages whose bindings `Fixed` reads.
-    let fixed = if matches!(language, "python" | "javascript" | "typescript" | "go") {
+    let reads_bindings = matches!(language, "python" | "javascript" | "typescript" | "go");
+    let fixed = if reads_bindings {
         Fixed::of(tree.root_node(), source.as_bytes())
     } else {
         Fixed::default()
+    };
+    // The functions this file defines, and what each name is given, for a rule that names the app's
+    // own checking function. Read once, and only when such a rule runs here.
+    let own_cell = std::cell::OnceCell::new();
+    let own = || {
+        own_cell.get_or_init(|| {
+            let mut bindings = BTreeMap::new();
+            collect_bindings(tree.root_node(), source.as_bytes(), &mut bindings);
+            let values: BTreeMap<String, Option<tree_sitter::Node>> = bindings
+                .into_iter()
+                .map(|(name, binds)| {
+                    let value = match binds.as_slice() {
+                        [only] => only.value,
+                        _ => None,
+                    };
+                    (name, value)
+                })
+                .collect();
+            let mut functions = BTreeSet::new();
+            own_functions(tree.root_node(), source.as_bytes(), &mut functions);
+            (functions, values)
+        })
     };
 
     let mut out = Vec::new();
@@ -1695,6 +1779,14 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                             > 1
                     })
                 });
+            let checked_by = (compiled.rule.names_own_checking_function && reads_bindings)
+                .then(|| {
+                    let (functions, values) = own();
+                    arg_node.and_then(|arg| {
+                        through_own_function(arg, source.as_bytes(), functions, values)
+                    })
+                })
+                .flatten();
             let node = hit_index
                 .and_then(|index| m.captures().iter().find(|c| c.index == index))
                 .map(|c| c.node)
@@ -1725,6 +1817,14 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                         "{} The query here is a name, handed over with values beside it, which is \
                          how placeholders are used, so it may already be safe: read where the \
                          name is given its text before changing anything.",
+                        compiled.rule.description
+                    )
+                } else if let Some(function) = &checked_by {
+                    format!(
+                        "{} The value passes through `{function}`, a function this file defines, \
+                         which may already be the check: read it before changing anything. `sv` \
+                         cannot tell a check that works from one that does not, so the finding \
+                         stays.",
                         compiled.rule.description
                     )
                 } else {
@@ -4875,6 +4975,94 @@ mod tests {
         assert_eq!(built.len(), 1, "{built:?}");
         assert_eq!(built[0].confidence, Confidence::Medium);
         assert!(!built[0].description.contains("placeholders are used"));
+    }
+
+    #[test]
+    fn a_redirect_through_the_apps_own_check_names_it_and_is_still_reported() {
+        // The false alarm of 3 October 2026, found testing the prompt library: `safe_next` sends
+        // anything but a same-site path home, and both redirects through it were reported as if the
+        // destination came straight from the request. By the owner's decision of 5 October 2026 the
+        // finding stays, naming the function as the thing to read first.
+        let rules = rules();
+        let redirects = |language: &str, file: &str, source: &str| -> Vec<Finding> {
+            scan_file(&rules, language, file, source)
+                .into_iter()
+                .filter(|f| f.rule_id == "ast.open-redirect")
+                .collect()
+        };
+        let check = "def safe_next(target):\n    if target and target.startswith('/') and not target.startswith('//'):\n        return target\n    return '/'\n\n";
+        let cases = [
+            (
+                "python",
+                "app.py",
+                format!("{check}def login():\n    return redirect(safe_next(request.args.get('next')))\n"),
+                "safe_next",
+            ),
+            (
+                "python",
+                "app.py",
+                format!("{check}def login():\n    next_url = safe_next(request.args.get('next'))\n    return redirect(next_url)\n"),
+                "safe_next",
+            ),
+            (
+                "javascript",
+                "app.js",
+                "function sameSite(p) { return p && p.startsWith('/') && !p.startsWith('//') ? p : '/'; }\napp.get('/in', (req, res) => res.redirect(sameSite(req.query.next)));\n".to_owned(),
+                "sameSite",
+            ),
+            (
+                "typescript",
+                "app.ts",
+                "const sameSite = (p: string) => (p.startsWith('/') && !p.startsWith('//') ? p : '/');\napp.get('/in', (req, res) => { const to = sameSite(req.query.next as string); res.redirect(to); });\n".to_owned(),
+                "sameSite",
+            ),
+            (
+                "go",
+                "main.go",
+                "package main\nfunc safeNext(p string) string { return p }\nfunc h(w http.ResponseWriter, r *http.Request) {\n\thttp.Redirect(w, r, safeNext(r.URL.Query().Get(\"next\")), http.StatusFound)\n}\n".to_owned(),
+                "safeNext",
+            ),
+        ];
+        for (language, file, source, function) in &cases {
+            let found = redirects(language, file, source);
+            assert_eq!(
+                found.len(),
+                1,
+                "{language}: still reported: {found:?}\n{source}"
+            );
+            let description = &found[0].description;
+            assert!(
+                description.contains(&format!(
+                    "passes through `{function}`, a function this file defines"
+                )),
+                "{language}: {description}"
+            );
+            assert_eq!(found[0].confidence, Confidence::Low, "{language}");
+        }
+
+        // The controls: a function the file does not define (a library's, or one imported), a name
+        // given two different values, and a method, say nothing of a check.
+        let quiet = [
+            ("python", "app.py", "from helpers import safe_next\ndef login():\n    return redirect(safe_next(request.args.get('next')))\n".to_owned()),
+            ("python", "app.py", format!("{check}def login():\n    next_url = safe_next(request.args.get('next'))\n    if admin:\n        next_url = request.args.get('next')\n    return redirect(next_url)\n")),
+            ("python", "app.py", "class V:\n    def safe_next(self, t):\n        return t\n    def login(self):\n        return redirect(self.safe_next(request.args.get('next')))\n".to_owned()),
+            ("javascript", "app.js", "app.get('/in', (req, res) => res.redirect(decodeURIComponent(req.query.next)));\n".to_owned()),
+        ];
+        for (language, file, source) in &quiet {
+            let found = redirects(language, file, source);
+            assert_eq!(
+                found.len(),
+                1,
+                "{language}: the setup is a redirect it reports: {found:?}\n{source}"
+            );
+            assert!(
+                !found[0]
+                    .description
+                    .contains("a function this file defines"),
+                "{language}: {}\n{source}",
+                found[0].description
+            );
+        }
     }
 
     #[test]
