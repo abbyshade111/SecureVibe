@@ -1,0 +1,36 @@
+sonnet p1 probe.private-page-anonymous             with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p1 probe.admin-page-ordinary-user           with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p1 probe.admin-action-ordinary-user         with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p1 probe.other-users-data                   with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p3 probe.create-rate-unlimited              with=credited/credited     (+0 unusable) without=found/found           (+0 unusable) SHOWN
+sonnet p3 probe.failed-sign-ins-unlimited          with=credited/credited     (+0 unusable) without=found/found           (+0 unusable) SHOWN
+sonnet p4 probe.error-detail-leak                  with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p4 probe.ai-service-failure-handled         with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p4 probe.ai-service-error-shown             with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+sonnet p6 probe.log-line-metadata                  with=credited/credited     (+0 unusable) without=-/-                   (+0 unusable) SHOWN
+sonnet p6 probe.log-timestamp-zoned                with=credited/credited     (+0 unusable) without=-/-                   (+0 unusable) SHOWN
+sonnet p6 probe.authorization-failure-logged       with=credited/credited     (+0 unusable) without=-/-                   (+0 unusable) SHOWN
+sonnet p7 probe.session-idle-timeout               with=credited/credited     (+0 unusable) without=found/found           (+0 unusable) SHOWN
+sonnet p7 probe.session-lifetime                   with=-/-                   (+0 unusable) without=found/found           (+0 unusable) not shown
+sonnet p7 probe.logout-keeps-session               with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+sonnet p7 probe.app-token-signature-not-checked    with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+sonnet p7 probe.app-token-alg-none                 with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+sonnet p7 probe.app-token-expired-accepted         with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+haiku  p1 probe.private-page-anonymous             with=credited              (+1 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p1 probe.admin-page-ordinary-user           with=credited              (+1 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p1 probe.admin-action-ordinary-user         with=credited              (+1 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p1 probe.other-users-data                   with=credited              (+1 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p3 probe.create-rate-unlimited              with=credited/-            (+0 unusable) without=found/found           (+0 unusable) not shown
+haiku  p3 probe.failed-sign-ins-unlimited          with=credited/found        (+0 unusable) without=found/found           (+0 unusable) not shown
+haiku  p4 probe.error-detail-leak                  with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p4 probe.ai-service-failure-handled         with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p4 probe.ai-service-error-shown             with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+haiku  p6 probe.log-line-metadata                  with=credited/credited     (+0 unusable) without=-/-                   (+0 unusable) SHOWN
+haiku  p6 probe.log-timestamp-zoned                with=credited/credited     (+0 unusable) without=-/-                   (+0 unusable) SHOWN
+haiku  p6 probe.authorization-failure-logged       with=-/credited            (+0 unusable) without=-/-                   (+0 unusable) not shown
+haiku  p7 probe.session-idle-timeout               with=credited/credited     (+0 unusable) without=found/found           (+0 unusable) SHOWN
+haiku  p7 probe.session-lifetime                   with=-/-                   (+0 unusable) without=found/found           (+0 unusable) not shown
+haiku  p7 probe.logout-keeps-session               with=credited/credited     (+0 unusable) without=credited/credited     (+0 unusable) no difference (both credited)
+haiku  p7 probe.app-token-signature-not-checked    with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+haiku  p7 probe.app-token-alg-none                 with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown
+haiku  p7 probe.app-token-expired-accepted         with=-/-                   (+0 unusable) without=-/-                   (+0 unusable) not shown

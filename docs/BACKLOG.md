@@ -1505,6 +1505,12 @@ another session is not a claim.
      shows whether the instructions work when read, not whether a tool reads them unasked, and is reported as that.
      About 36 builds. One tool, two models: it cannot speak for other vendors' tools.
      **Claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompts-trial-3`.
+     **Done the same day** (`docs/prompts/trial-3/README.md`; DESIGN, "The prompts trial, a third time"). Thirty-nine
+     builds. Prompts 3, 6, and 7 held with Sonnet 5.5 on every check they were shown on, and 6 also on V16.3.2; with
+     Haiku 4.5, 6 and 7 held and 3 did not. Prompts 1 and 4 made no difference with either model. The plan made both
+     Sonnet builds testable to the same high level; with Haiku, `sv` could not sign in to either plan build. Given the
+     MCP instructions and the command line, both Haiku builds came out testable. Two builds a cell: enough to see,
+     not to generalize.
   8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
@@ -1533,6 +1539,15 @@ another session is not a claim.
   note, and the same under a `###` heading; still so on `main` after R7 the same day.
   **Done the same day**, at the owner's choice of "end a section at any heading, and say what was skipped" (ADR-022,
   "Later, 4 October 2026: a section ends at any heading"; DESIGN, "A heading of one's own ends the answer above it").
+
+- **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
+  does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
+  the app's container after the app has answered its health path (`sv-run/src/docker.rs`, `seed`). The spec says only
+  "creates them"; `docs/prompts/trial/brief.md` says "when run once before the app starts". An app that makes its
+  tables only in its seed crashes on the first page `sv` asks for, and the run is reported as could not start: three
+  Haiku builds in the trial did. Ways out, for the owner: say in the spec that the seed runs once the app is up, so
+  the app must make its own tables; or run the seed before the health check. Either way, correct the brief. Not
+  claimed.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
