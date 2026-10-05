@@ -553,6 +553,10 @@ another session is not a claim.
     Fix: hash the line with the value masked, or use a key kept locally.
     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-fingerprint`.
+    **Done the same day.** The fingerprint is now the hash of the line with the credential masked, as the report
+    shows it, so it tells nothing the report does not; a line with no credential keeps the fingerprint it had. A
+    review recorded by an older `sv` for a credential line is said to be one, and to be recorded again. See DESIGN,
+    "A credential's fingerprint says nothing the report does not".
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
@@ -654,6 +658,10 @@ another session is not a claim.
     off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
     refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
     outside its folder and one that does not exist.
+    **Improvement 6 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-validate`, for three of its four parts: `manifest-version`
+    checked, text after a date refused, and the stray `</details>` in `report.html`. The fourth, a false alarm
+    lapsing when nearby lines change, rests on the fingerprint, which #678 (R3, A2) is changing, and is left to it.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
