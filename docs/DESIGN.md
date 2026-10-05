@@ -5084,6 +5084,40 @@ questions, no limit on all the waiting, and the report's gap never said. Not tes
 real app behind a rate limiter, so the wiring in `sv-run` is checked by the compiler and by reading, not by a run. The
 sign-in provider (`oidc.rs`) and MCP server (`mcp_server.rs`) checks were not looked at for the same reading.
 
+### Later, 5 October 2026: a sign-in the app's limit refuses is named, and the spec says how many there are
+
+Found by session paper-facts in the loop trials, and trial 3 before them: an app that limits sign-in attempts, as it
+should, answered `sv`'s admin sign-in with 429, and the signed-in checks had nothing to work with. The report said so
+only as a list of request ids under each credit it withheld, and when the refused sign-in was the first user's, it said
+the sign-in request, the accounts, or the page was "not what securevibe.toml says", which sent the builder looking for
+a mistake that was not there. The owner chose both fixes on 5 October.
+
+- **The spec states the number.** `[stack.run.users]` now says `sv` signs in up to 60 times in one run, all from one
+  address, a few of them on purpose with a wrong password, and last of all the guessing check's wrong passwords
+  (`failed-sign-ins` plus two). A builder can let the test copy allow that many and keep the real limit everywhere else.
+  The number is `SIGN_INS_IN_A_RUN`. A test counts every request sent to the sign-in path, other than the page's GET,
+  in each of the seven scripted runs (13 to 50; repeats under one id counted, since each is an attempt to an app's
+  limit), holds each to the number, checks that the guessing check's attempts come after all the others, and checks
+  that the spec gives the same number.
+- **A refused sign-in is named, once.** `Patient` now knows the sign-in path and, when the limiter is still answering a
+  request sent to it after the wait, notes it as a refused sign-in. The run then adds one gap naming those sign-ins,
+  saying it is the limit working, not the app failing the checks or securevibe.toml being wrong, and what to change.
+  It is listed under the requirements whose credit was withheld, and under the first user's checks when that sign-in
+  was the one refused.
+- **The first user's sign-in refused by the limit no longer reads as a mistake in securevibe.toml.** `SignedIn` carries
+  whether its answer was the limiter's; when it was, the run stops as before but leaves the saying to that one gap.
+
+What did not change: every credit is still withheld while the limiter keeps answering anything, sign-ins included. A
+sign-in refused by the limiter can look exactly like the refusal a check is waiting for (the old password refused
+after a change), so the blanket rule is what keeps that from being credited.
+
+Broken on purpose nine ways, each caught by a test written for it: no sign-in ever noted, the sign-in page's GET
+counted as a sign-in, any request other than GET counted, the first user's limited sign-in treated as a manifest
+mistake (twice: the flag ignored, and never set), the first user's checks left out of the gap, the number lowered
+below what a run makes, the spec's number different from the code's, and the gap left empty. Not tested end to end:
+no test here starts a real app with a limit on sign-ins, and 60 is measured against the scripted runs, not every
+combination of settings an app can list.
+
 ## OCSP stapling, from the handshake `sv probe` already makes (29 September 2026)
 
 V12.1.4 asks that "proper certification revocation, such as Online Certificate Status Protocol (OCSP)
