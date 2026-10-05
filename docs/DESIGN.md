@@ -8796,6 +8796,73 @@ reads. Nine guards broken in turn, each caught, by between one and five tests. O
 full, so the bundle tests never ran; run again with room, it was caught. The mutation run now counts a suite that did
 not run as no answer rather than as a pass.
 
+## SARIF addresses are addresses, and a rule is described in its own words (5 October 2026)
+
+R14 of the deep review: `findings.sarif` wrote each finding's place straight into `artifactLocation.uri`, so a
+finding about the running app had the URI `the running app` (not an address of anything), and a file in a folder
+with a space, a `#`, or a letter outside ASCII had a URI that was not valid. Each rule's entry in
+`tool.driver.rules` took its title, harm, and fix from whichever of its findings came first, so a probe rule was
+described by one page it had asked about, and the same findings in another order gave another description.
+
+- **A file** is a relative reference (RFC 3986, section 4.2) to the path from the app's folder, as before, with
+  every byte but letters, digits, `-`, `.`, `_`, `~`, and `/` percent-encoded (UTF-8 for letters outside ASCII), so a
+  `:` cannot read as a scheme and a `#` or `?` cannot end the path. A path that starts `//` gains `./`. No
+  `uriBaseId`: `sv` never used one. CodeQL writes paths with spaces the same way, and GitHub decodes them.
+- **The running app and its output** have no file. SARIF allows a result with no location, but GitHub code
+  scanning marks `physicalLocation` required and shows no result without one, so such a finding points at
+  `securevibe.toml`, line 1, the manifest whose `[run]` section says how the app was started (`sv report --run`
+  needs it), and the location's own message says so: "Seen in the running app, which has no file or line of its
+  own." The place is also a `logicalLocation` and the result's `properties.place`; the address the probe asked is
+  in the result's message, as it was. `Location::RUNNING_APP`, `RUNNING_APP_OUTPUT`, and `Location::is_file`
+  (`crates/sv-check/src/finding.rs`) name these places once; the probes build them with `Location::running_app()`.
+  `sv probe`'s findings, which name a host, are only printed and never reach the SARIF.
+- **A rule kept as data** (`data/ast-rules.json`, `data/secret-rules.json`, read from the folder the checks read
+  them from) is described by its own title, description and harm, and fix. **Any other rule** (a probe, a tool's,
+  a settings check) is described by what its findings all say alike: a tool's findings carry the tool's own rule
+  text, and a probe's carry its rule's harm and fix. A field they disagree on, such as a probe's title naming the
+  page, is taken from none of them and says that each result says it. Tags and requirements are every one the
+  rule's findings name, sorted.
+- `partialFingerprints["svFingerprint/v1"]` is unchanged, and so is every fingerprint: the places' text is the
+  same.
+
+How it is held, in `crates/sv-report/src/sarif.rs`: `a_file_path_is_written_as_a_relative_uri_that_decodes_back_to_it`
+(spaces, accents, Japanese, `#?%[]`, a colon, `C:/`, `../`, `//`, each checked against RFC 3986's grammar and decoded
+back to the path), `a_finding_about_the_running_app_gets_an_honest_place_github_will_take`,
+`a_rule_is_described_the_same_whichever_of_its_findings_comes_first` (a probe rule, a data rule, and a tool's, in
+both orders), and `a_secret_rule_is_described_from_its_own_data`. All four failed before the change. Six guards
+were undone in turn, and each was caught: no encoding, no `./` before `//`, every place taken for a file, no
+catalog, the first finding's text instead of the text all share, and the first finding's tags instead of all of
+them.
+
+## The counts add up to what applies (5 October 2026)
+
+R5 of the deep review: an applicable requirement has one of seven statuses (needs attention, checked, documented,
+checked by hand, attested, stated, not verified), and most places that counted them left some out. Reproduced on a
+copy of `examples/tested-notes` with one of each: compliance.md and report.html opened "130 requirements apply. Of
+those, 8 have been looked at by something and 118 have not", four short; their tables had no row for checked by
+hand, attested, or stated; the terminal's summary gave three statuses and then the rest as "a further", as if on top;
+and the AI coding tool's summary gave three. The short version's list and the chapter table already added up.
+
+- **One list of every status.** `Status::ALL` and `Counts::by_status` give the seven, strongest evidence first, and
+  every count table is made from them: compliance.md's and report.html's table of what applies, the short version's
+  list, the terminal's summary, which is now a line per status under the total. A test with an exhaustive match fails
+  to compile when a status is added without a place in the list.
+- **The opening sentence has three parts**, `sv_report::lede`: looked at by something (a problem found or a check),
+  resting only on somebody's word (yours or your AI coding tool's), and not looked at at all. The middle part is
+  never added to the first, and it is left out when it is zero.
+- **Somebody's word is shown as what it is.** Each row for checked by hand, attested, or stated says whose word it
+  rests on; the paragraph after the opening sentence says such a requirement is never shown as checked; the
+  terminal's lines and the AI coding tool's summary each say "your word, not a check" or "the tool's word".
+- **report.json and the MCP server's structured counts** already had every status, and are unchanged; no field was
+  added or renamed. security.md counts findings, not requirements, and is unchanged.
+
+How it is held: `the_counts_add_up_to_what_applies_in_every_format` (`crates/sv-cli/tests/counts_add_up.rs`) builds an
+app where every status occurs (asserted first, with the tool's answers two and the owner's one, so a count shown in
+another tier's row cannot add up by chance), then holds report.json, compliance.md (the short version, the opening
+sentence, the table, and each chapter's row), report.html (the same three), the terminal, and `securevibe_check`'s
+text and data to the total. `every_status_has_a_row_and_the_rows_add_up` (`crates/sv-report/src/lib.rs`) holds the list
+and the sentence. Seven guards were undone in turn (a status left out of each format, the old sentence, and one
+status counted from another's field), and each was caught.
 
 ## A `not-the-app` list that would set apart all the code is not used (5 October 2026)
 

@@ -76,6 +76,19 @@ pub enum Status {
 }
 
 impl Status {
+    /// Every status, strongest evidence first: a problem found, a check, the owner's notes, the
+    /// owner's check by hand, the owner's answer, the AI coding tool's answer, nothing. The order
+    /// the count tables are read in; `Ord` is the order the requirement lists show them in.
+    pub const ALL: [Status; 7] = [
+        Status::NeedsAttention,
+        Status::Checked,
+        Status::Documented,
+        Status::ByHand,
+        Status::Attested,
+        Status::Stated,
+        Status::NotVerified,
+    ];
+
     pub fn label(self) -> &'static str {
         match self {
             Status::NeedsAttention => "needs attention",
@@ -85,6 +98,24 @@ impl Status {
             Status::Stated => "stated by the AI coding tool",
             Status::ByHand => "checked by hand by the owner",
             Status::NotVerified => "not verified",
+        }
+    }
+
+    /// The row for this status in the table of what applies (compliance.md and report.html).
+    ///
+    /// Each one that rests on a person's word says whose, and that it is not a check, so a row
+    /// read on its own cannot be taken for the one above it.
+    pub fn applies_row(self) -> &'static str {
+        match self {
+            Status::NeedsAttention => "Applies, needs attention",
+            Status::Checked => "Applies, checked by an automated check",
+            Status::Documented => "Applies, you answered it in the security notes",
+            Status::ByHand => "Applies, rests on your word: you checked it by hand",
+            Status::Attested => {
+                "Applies, rests on your word: you answered yes about how it is built"
+            }
+            Status::Stated => "Applies, rests on your AI coding tool's word: it answered yes",
+            Status::NotVerified => "Applies, not verified by anything",
         }
     }
 }
@@ -369,6 +400,88 @@ pub struct Counts {
     /// Appendix C requirements that apply and that nothing has reached, counted apart from
     /// `applicable` and `not_verified`: see `Report::ai_process`.
     pub ai_process: usize,
+}
+
+impl Counts {
+    /// Every status a requirement that applies can have, with how many have it, strongest evidence
+    /// first: a problem found, a check, the owner's notes, the owner's check by hand, the owner's
+    /// answer, the AI coding tool's answer, nothing.
+    ///
+    /// The numbers add up to `applicable`, and every table and sentence that counts what applies is
+    /// made from this list, so none of them can leave a status out (deep review R5: the tables and
+    /// the opening sentence counted three or four of the seven, and on an app with an owner's
+    /// answers did not add up). `Status::ALL` is checked against the enum by an exhaustive match
+    /// in its test, so a status added later cannot be left out here either.
+    pub fn by_status(&self) -> [(Status, usize); 7] {
+        Status::ALL.map(|s| (s, self.of(s)))
+    }
+
+    /// How many applicable requirements have this status.
+    pub fn of(&self, status: Status) -> usize {
+        match status {
+            Status::NeedsAttention => self.needs_attention,
+            Status::Checked => self.checked,
+            Status::Documented => self.documented,
+            Status::ByHand => self.by_hand,
+            Status::Attested => self.attested,
+            Status::Stated => self.stated,
+            Status::NotVerified => self.not_verified,
+        }
+    }
+
+    /// How many a check looked at: a problem found, or a check satisfied.
+    pub fn looked_at_by_a_check(&self) -> usize {
+        self.needs_attention + self.checked
+    }
+
+    /// How many rest on somebody's word and nothing else: the owner's notes, the owner's check by
+    /// hand, the owner's answer, or the AI coding tool's. Never added to the ones a check looked at.
+    pub fn on_somebodys_word(&self) -> usize {
+        self.documented + self.by_hand + self.attested + self.stated
+    }
+}
+
+/// The opening sentence of the counts, the same in compliance.md and report.html, with `open` and
+/// `close` around each number and its words (`**` in Markdown, `<strong>` in HTML).
+///
+/// Its numbers add up to how many apply. It once said "N have been looked at by something and M
+/// have not", with N the problems found and the checks and M the ones nothing reached, and the
+/// requirements that rest on somebody's word were in neither (deep review R5). They are a group of
+/// their own here, never added to what something looked at.
+pub fn lede(c: &Counts, open: &str, close: &str) -> String {
+    let word = c.on_somebodys_word();
+    let looked = format!(
+        "{open}{} {} been looked at by something{close}",
+        c.looked_at_by_a_check(),
+        if c.looked_at_by_a_check() == 1 {
+            "has"
+        } else {
+            "have"
+        }
+    );
+    let nothing = format!(
+        "{open}{} {} not been looked at at all{close}",
+        c.not_verified,
+        if c.not_verified == 1 { "has" } else { "have" }
+    );
+    let middle = if word == 0 {
+        format!("{looked} and {nothing}")
+    } else {
+        format!(
+            "{looked}, {open}{word} {} only on somebody's word{close} (yours, or your AI coding \
+             tool's, which nothing here repeated), and {nothing}",
+            if word == 1 { "rests" } else { "rest" }
+        )
+    };
+    format!(
+        "{} requirement{} to this app. Of those, {middle}.",
+        c.applicable,
+        if c.applicable == 1 {
+            " applies"
+        } else {
+            "s apply"
+        }
+    )
 }
 
 /// The prefix of an OWASP AISVS Appendix C requirement id.
@@ -1583,7 +1696,7 @@ fn stake(level: u8) -> u8 {
 
 #[cfg(test)]
 mod examined_tests {
-    use super::{Examined, ExaminedState};
+    use super::{Counts, Examined, ExaminedState, Status, lede};
 
     #[test]
     fn the_longest_matching_entry_decides_and_no_entry_means_not_looked_for() {
@@ -1600,6 +1713,57 @@ mod examined_tests {
         );
         assert_eq!(state("ast.shell-command"), Some(ExaminedState::Partly));
         assert_eq!(state("bandit.B314"), None);
+    }
+
+    #[test]
+    fn every_status_has_a_row_and_the_rows_add_up() {
+        // An exhaustive match: a status added to the enum fails to compile here until it is given
+        // a place in `Status::ALL`, which every count table is made from (deep review R5).
+        let place = |s: Status| match s {
+            Status::NeedsAttention => 0,
+            Status::Checked => 1,
+            Status::Documented => 2,
+            Status::ByHand => 3,
+            Status::Attested => 4,
+            Status::Stated => 5,
+            Status::NotVerified => 6,
+        };
+        for (i, s) in Status::ALL.iter().enumerate() {
+            assert_eq!(place(*s), i, "{s:?}");
+        }
+        let c = Counts {
+            applicable: 28,
+            needs_attention: 1,
+            checked: 2,
+            documented: 3,
+            by_hand: 4,
+            attested: 5,
+            stated: 6,
+            not_verified: 7,
+            ..Counts::default()
+        };
+        let rows = c.by_status();
+        assert_eq!(rows.iter().map(|(_, n)| n).sum::<usize>(), c.applicable);
+        assert_eq!(rows.map(|(_, n)| n), [1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(
+            c.looked_at_by_a_check() + c.on_somebodys_word() + c.not_verified,
+            28
+        );
+        // The rows that rest on somebody's word say so, and none of them reads as a check.
+        for s in [Status::ByHand, Status::Attested, Status::Stated] {
+            assert!(
+                s.applies_row().contains("rests on your"),
+                "{}",
+                s.applies_row()
+            );
+        }
+        let lede = lede(&c, "**", "**");
+        assert_eq!(
+            lede,
+            "28 requirements apply to this app. Of those, **3 have been looked at by something**, \
+             **18 rest only on somebody's word** (yours, or your AI coding tool's, which nothing \
+             here repeated), and **7 have not been looked at at all**."
+        );
     }
 
     #[test]
