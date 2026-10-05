@@ -25,6 +25,9 @@
 //! would pass. What it does catch is a citation pointing at a different subject altogether, which is
 //! every mistake made here so far.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use sv_check::adapters::Adapters;
@@ -362,9 +365,7 @@ fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
     // The configuration checks, which is where the third wrong citation lived. Each is run against
     // a folder built to make it fail, because the failing side carries the prose — the passing side
     // records only that the check ran, and both cite the same ids by construction.
-    let dir = std::env::temp_dir().join("sv-citations-config");
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = Scratch::new("citations-config");
     // A manifest with no lockfile beside it: `config.versions-pinned` fails.
     std::fs::write(dir.join("requirements.txt"), "flask==3.0.0\n").unwrap();
     let config = sv_check::config::check_dir(&dir);
