@@ -1658,12 +1658,11 @@ fn claim_line(claim: &ResolvedClaim) -> ClaimLine {
     }
 }
 
-/// The question a condition really asks, for a reader who has never seen its name.
+/// The question a condition really asks, for a reader who has never seen its name. The condition's
+/// reason is written as the exclusion ("This app has no sign-in, so…"), the wrong voice for a list of
+/// open questions; each condition carries its question beside its reason, so the two cannot drift.
 fn question_for(condition: Condition) -> &'static str {
-    // The condition's own reason is written as the *exclusion* — "this app has no sign-in, so…" —
-    // which is the wrong voice for a list of open questions. Turning it round here keeps one
-    // wording in the data and the right one in the report.
-    condition.default_not_applicable_reason()
+    condition.question()
 }
 
 /// Where a requirement's level puts its question in the interview: level 1, the baseline every app

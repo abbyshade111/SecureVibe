@@ -2779,3 +2779,50 @@ fn a_suite_stopped_for_time_is_said_to_have_been_stopped_not_to_have_failed() {
         "{line}"
     );
 }
+
+#[test]
+fn what_has_to_be_answered_is_asked_as_a_question_never_said_as_an_answer() {
+    // The table of requirements nobody has placed printed each condition's exclusion as its
+    // question, so a WebSocket requirement asked "No WebSocket library is used". Every condition,
+    // as a requirement blocked on it, in both the Markdown and the page.
+    let f = frameworks();
+    let buckets = Buckets {
+        not_assessed: Condition::ALL
+            .iter()
+            .map(|c| NotAssessed {
+                id: "V16.5.1".into(),
+                blocked_on: vec![*c],
+            })
+            .collect(),
+        ..Default::default()
+    };
+    let report = build(inputs(&f, &buckets, vec![], &[]));
+    // Setup: one row for every condition.
+    assert_eq!(report.undecided.len(), Condition::ALL.len());
+    let markdown = sv_report::markdown::compliance(&report);
+    let html = sv_report::html::page(&report);
+    for c in Condition::ALL {
+        let reason = c.default_not_applicable_reason();
+        assert!(
+            markdown.contains(&format!("| V16.5.1 | {} |", c.question())),
+            "{}: {}",
+            c.name(),
+            c.question()
+        );
+        assert!(
+            !markdown.contains(&format!("| {reason} |")),
+            "{}: the reason is in the table as its question",
+            c.name()
+        );
+    }
+    let rows: Vec<&str> = markdown
+        .lines()
+        .filter(|l| l.starts_with("| V16.5.1 |"))
+        .collect();
+    assert_eq!(rows.len(), Condition::ALL.len(), "{markdown}");
+    for row in rows {
+        assert!(row.trim_end_matches(" |").ends_with('?'), "a statement: {row}");
+    }
+    assert!(html.contains("Does the app use WebSockets?"), "the page asks too");
+    assert!(!html.contains("No WebSocket library is used"));
+}
