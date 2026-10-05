@@ -36,6 +36,16 @@ another session is not a claim.
   decision on `sv review`, with "Later" entries on ADR-022 and ADR-023, and one on ADR-019 for the fence's gateway.
   Left as they are, not checkable from the repository: OPTIMIZATION's "4-minute" check and ADRS' "441 merges".
 
+- **Give the tests' scratch folders a name of their own per run.** Twelve test helpers make their scratch folder
+  at a fixed name in the shared temporary folder (`sv-clean-{name}` in `crates/sv-check/tests/clean_coverage.rs`, and
+  the same shape in `suppressed.rs`, `suite.rs`, `unread_files.rs`, `adapters.rs`, `codeql.rs`, `citations.rs`,
+  `aisvs.rs`, `sv-scan/tests/scan.rs` and a unit test in `sv-check/src/config.rs`). Two `cargo test --workspace`
+  runs at once on one computer share the folder, and one run's clean-up deletes the other's files mid-test: on
+  5 October 2026 two `clean_coverage` tests failed this way while another session's full run was going, and passed
+  with `TMPDIR` pointed at a private folder. Make each name unique per run and per call, and remove the folder
+  when the test ends. **Claimed on 5 October 2026 by session practical-banach-b1faa1**, at the owner's asking, in
+  branch `claude/scratch-names`.
+
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
   1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
