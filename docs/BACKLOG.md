@@ -417,6 +417,14 @@ another session is not a claim.
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r3-a2-review-matching`.
+    **Done the same day**, with R3 (DESIGN, "A review names one finding, and says whether its rule looked"; ADR-023
+    and ADR-026, "Later, 5 October 2026"): today's fingerprint (`v2-...`) also reads the lines above that set a name
+    the flagged line uses, and which of the identical lines it is, so identical lines each need their own entry and
+    changing `sql = "...?"` to `sql = "..." + user` ends the false alarm. An entry in the earlier form still matches
+    the one finding it did; on identical lines it matches none and says so. Seals still verify (nothing rewrites a
+    sealed entry); `sv review` writes today's fingerprint when it records one in the earlier form. Tested with
+    identical lines, changed and unchanged lines above, an earlier-form entry sealed and unsealed, and family-hub's
+    25 entries on a copy (16 match as before, 2 on identical lines say so). Guards broken in turn: each caught.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
@@ -430,6 +438,13 @@ another session is not a claim.
     unknown to this version, gone.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r3-a2-review-matching`.
+    **Done the same day**, with A2 (same DESIGN section): an entry that matches nothing says "not looked for this
+    time" with why (needs `--run` or `--tools`, the file did not parse, no parser, not taught), "unknown to this
+    version", or, only when its rule read its file, that it is gone; the first two say they are not a sign of a fix,
+    in the report and over MCP. Decided from `examined`, which gained `tests.`, `design.`, and `hand.`. Each message
+    reached on purpose end to end; family-hub's 7 `tests.` entries now say "not looked for this time". Thirteen
+    guards (both items) broken in turn, each caught by one to three tests. R11 is untouched: duplicate entries apply
+    as before, and a second one is no longer told its finding is gone.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.

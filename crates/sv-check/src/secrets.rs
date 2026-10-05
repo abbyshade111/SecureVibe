@@ -49,6 +49,10 @@ pub struct SecretRules {
     rules: Vec<(PatternRule, Regex)>,
 }
 
+/// The rule that reports a value that looks like a credential assigned to a name that says so. It
+/// is written here rather than in `data/secret-rules.json`.
+pub const ASSIGNMENT_RULE: &str = "secrets.credential-assignment";
+
 /// What the credential-assignment rule cites. A constant rather than a literal in the finding, so the
 /// citation guard can read it alongside the data file's rules.
 pub const ASSIGNMENT_REQUIREMENTS: &[&str] = &["V13.3.1", "V13.2.3", "SBD-AC-05"];
@@ -608,7 +612,7 @@ fn assignment_findings(
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             marked_test_code: false,
-            rule_id: "secrets.credential-assignment".into(),
+            rule_id: ASSIGNMENT_RULE.into(),
             title,
             severity,
             confidence,

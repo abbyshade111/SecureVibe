@@ -6,7 +6,9 @@
 //! `[[finding-review]]` entry and a `confirmed` under `[design]` or `[checked-by-hand]`, whether the
 //! AI coding tool proposed it or someone wrote it by hand. For each it shows what is being decided
 //! and asks for the person's name. What they record is written back into securevibe.toml, with `by`,
-//! today's date and the seal, and nothing else in the file is changed.
+//! today's date and the seal, and nothing else in the file is changed, except one thing: a finding's
+//! fingerprint in the form used before 5 October 2026 that names one line is written in today's
+//! form, which also watches the lines that set the values that line uses (deep review A2).
 //!
 //! It refuses to run unless both what it reads and what it writes are a terminal, since an AI coding
 //! tool runs commands without one. That stops the easy path, not a tool set on faking a terminal;
@@ -187,9 +189,8 @@ fn review(
             Waiting::Finding(i) => {
                 let entry = &manifest.finding_review[i];
                 match record_finding(app_dir, entry, &rules, today, &key, input, out)? {
-                    Some((by, why, on, seal)) => {
-                        set_finding(&mut doc, i, &by, &why, &on, &seal)
-                            .context("writing the entry")?;
+                    Some(recorded) => {
+                        set_finding(&mut doc, i, &recorded).context("writing the entry")?;
                         Some(Waiting::Finding(i))
                     }
                     None => None,
@@ -343,8 +344,18 @@ fn is_tool(name: &str) -> bool {
 const NAME_PROMPT: &str = "Type your name, or `owner` if this is your app, to record it as your \
     decision; `edit` to write it in your own words first; or press Enter to leave it as a proposal.\n> ";
 
+/// What `sv review` writes into a `[[finding-review]]` entry the person records.
+struct Recorded {
+    /// The entry's fingerprint, in today's form when it was in the earlier one and named one line.
+    fingerprint: String,
+    by: String,
+    why: String,
+    on: String,
+    seal: String,
+}
+
 /// Asks about one `[[finding-review]]` entry. What to write when the person records it: `by`,
-/// `why`, `on`, and the seal.
+/// `why`, `on`, the seal, and the fingerprint in today's form.
 #[allow(clippy::too_many_arguments)]
 fn record_finding(
     app_dir: &Path,
@@ -354,7 +365,7 @@ fn record_finding(
     key: &Key,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
-) -> Result<Option<(String, String, String, String)>> {
+) -> Result<Option<Recorded>> {
     let secret = entry.rule.starts_with("secrets.");
     writeln!(
         out,
@@ -368,14 +379,15 @@ fn record_finding(
         entry.rule,
         entry.file
     )?;
-    match sv_check::review::line_with_fingerprint(
+    let lines = sv_check::review::lines_with_fingerprint(
         app_dir,
         &entry.rule,
         &entry.file,
         &entry.fingerprint,
-    ) {
-        Some((n, line))
-            if secret || !sv_check::secrets::scan_text(rules, &entry.file, &line).is_empty() =>
+    );
+    match lines.as_slice() {
+        [(n, line)]
+            if secret || !sv_check::secrets::scan_text(rules, &entry.file, line).is_empty() =>
         {
             writeln!(
                 out,
@@ -383,15 +395,35 @@ fn record_finding(
                  to read it."
             )?;
         }
-        Some((n, line)) => writeln!(out, "  Line {n}: {line}")?,
-        None => writeln!(
+        [(n, line)] => writeln!(out, "  Line {n}: {line}")?,
+        [] => writeln!(
             out,
             "  No line of the file has this fingerprint ({}) now. It may be a finding about the \
              app as a whole rather than one line, or the line has changed; `sv report` lists each \
              finding with its fingerprint.",
             entry.fingerprint
         )?,
+        many => {
+            // A fingerprint in the form used before 5 October 2026 named a line by its text alone,
+            // so on lines that read the same it names them all, and counts for none of them.
+            let numbers: Vec<String> = many.iter().map(|(n, _)| n.to_string()).collect();
+            writeln!(
+                out,
+                "  Lines {} read the same, and this fingerprint ({}), in the form `sv` used before \
+                 5 October 2026, names a line by its text alone, so it cannot say which one it \
+                 means and would count for none of them. Left as it is: ask for the entry to be \
+                 written again with the fingerprint `sv report` now prints beside the one you mean.",
+                numbers.join(", "),
+                entry.fingerprint
+            )?;
+            return Ok(None);
+        }
     }
+    // Recorded with today's fingerprint, which also watches the lines that set the values the line
+    // uses and tells identical lines apart (deep review A2), when the earlier one names one line.
+    let fingerprint =
+        sv_check::review::todays_form(app_dir, &entry.rule, &entry.file, &entry.fingerprint)
+            .unwrap_or_else(|| entry.fingerprint.clone());
     writeln!(
         out,
         "  Reason given: \"{}\"\n  Written by: {}",
@@ -465,6 +497,7 @@ fn record_finding(
         }
         let on = today.show();
         let recorded = sv_manifest::FindingReview {
+            fingerprint: fingerprint.clone(),
             by: Some(answer.clone()),
             why: why.clone(),
             on: Some(on.clone()),
@@ -474,7 +507,13 @@ fn record_finding(
         let fields = sv_check::seal::finding_review_fields(&recorded);
         let seal = key.seal(&sv_check::seal::as_strs(&fields));
         writeln!(out, "  Recorded as {answer}'s decision, dated {on}.")?;
-        return Ok(Some((answer, why, on, seal)));
+        return Ok(Some(Recorded {
+            fingerprint,
+            by: answer,
+            why,
+            on,
+            seal,
+        }));
     }
 }
 
@@ -636,14 +675,7 @@ fn set_seal(doc: &mut toml_edit::DocumentMut, section: &str, id: &str, seal: &st
     Ok(())
 }
 
-fn set_finding(
-    doc: &mut toml_edit::DocumentMut,
-    i: usize,
-    by: &str,
-    why: &str,
-    on: &str,
-    seal: &str,
-) -> Result<()> {
+fn set_finding(doc: &mut toml_edit::DocumentMut, i: usize, recorded: &Recorded) -> Result<()> {
     let table: Option<&mut dyn toml_edit::TableLike> = match doc.get_mut("finding-review") {
         Some(toml_edit::Item::ArrayOfTables(tables)) => tables
             .get_mut(i)
@@ -655,10 +687,13 @@ fn set_finding(
         _ => None,
     };
     let table = table.context("the entry is not where it was")?;
-    table.insert("why", toml_edit::value(why));
-    table.insert("by", toml_edit::value(by));
-    table.insert("on", toml_edit::value(on));
-    table.insert("seal", toml_edit::value(seal));
+    if table.get("fingerprint").and_then(|f| f.as_str()) != Some(recorded.fingerprint.as_str()) {
+        table.insert("fingerprint", toml_edit::value(&recorded.fingerprint));
+    }
+    table.insert("why", toml_edit::value(&recorded.why));
+    table.insert("by", toml_edit::value(&recorded.by));
+    table.insert("on", toml_edit::value(&recorded.on));
+    table.insert("seal", toml_edit::value(&recorded.seal));
     Ok(())
 }
 
@@ -980,7 +1015,19 @@ mod tests {
         with_app(&s, &manifest);
         let path = s.app().join("securevibe.toml");
         let mut doc: toml_edit::DocumentMut = manifest.parse().unwrap();
-        set_finding(&mut doc, 0, "owner", WHY, "2026-10-04", "v1:0:0").unwrap();
+        let fingerprint = sv_check::review::named("ast.open-redirect", "app.py", LINE);
+        set_finding(
+            &mut doc,
+            0,
+            &Recorded {
+                fingerprint,
+                by: "owner".into(),
+                why: WHY.into(),
+                on: "2026-10-04".into(),
+                seal: "v1:0:0".into(),
+            },
+        )
+        .unwrap();
         let err = save(&path, &doc, &|_| false).unwrap_err();
         assert!(format!("{err}").contains("put back"), "{err}");
         assert_eq!(s.manifest(), manifest);
@@ -1069,5 +1116,76 @@ mod tests {
         );
         assert!(result.is_err());
         assert!(!s.manifest().contains("seal"));
+    }
+
+    #[test]
+    fn an_earlier_fingerprint_on_identical_lines_is_left_and_todays_shows_its_one_line() {
+        let s = Scratch::new("identical");
+        std::fs::write(
+            s.app().join("app.py"),
+            format!("def a():\n    {LINE}\n\ndef b():\n    {LINE}\n"),
+        )
+        .unwrap();
+        let entry = |fp: &str| {
+            format!(
+                "{HEAD}[[finding-review]]\nrule = \"ast.open-redirect\"\nfile = \"app.py\"\n\
+                 fingerprint = \"{fp}\"\nverdict = \"false-alarm\"\nwhy = \"{WHY}\"\n"
+            )
+        };
+        // The earlier form names both lines, so recording it would count for neither: left.
+        let earlier = entry(&sv_check::review::named(
+            "ast.open-redirect",
+            "app.py",
+            LINE,
+        ));
+        std::fs::write(s.app().join("securevibe.toml"), &earlier).unwrap();
+        let (result, out) = s.run("owner\n");
+        result.unwrap();
+        assert!(
+            out.contains("Lines 2, 5 read the same") && out.contains("Left as it is"),
+            "{out}"
+        );
+        assert!(out.contains("Recorded 0 of 1"), "{out}");
+        assert_eq!(s.manifest(), earlier);
+        // Today's form names the second line alone, and is recorded as it is.
+        let mut second = vec![sv_check::finding::Finding {
+            rule_id: "ast.open-redirect".into(),
+            location: sv_check::finding::Location {
+                file: "app.py".into(),
+                line: 5,
+            },
+            ..first_finding()
+        }];
+        sv_check::review::fill_fingerprints(&s.app(), &mut second);
+        let todays = entry(&second[0].fingerprint);
+        std::fs::write(s.app().join("securevibe.toml"), &todays).unwrap();
+        let (result, out) = s.run("owner\n");
+        result.unwrap();
+        assert!(out.contains(&format!("Line 5: {LINE}")), "{out}");
+        assert!(out.contains("Recorded 1 of 1"), "{out}");
+        assert!(s.manifest().contains(&second[0].fingerprint));
+        assert!(finding_counts(&s, 0));
+    }
+
+    fn first_finding() -> sv_check::finding::Finding {
+        sv_check::finding::Finding {
+            rule_id: String::new(),
+            title: String::new(),
+            severity: sv_check::finding::Severity::High,
+            confidence: sv_check::finding::Confidence::Medium,
+            location: sv_check::finding::Location {
+                file: String::new(),
+                line: 1,
+            },
+            secret: None,
+            requirement_ids: Vec::new(),
+            cwe: Vec::new(),
+            description: String::new(),
+            impact: String::new(),
+            fix: String::new(),
+            also_reported_by: Vec::new(),
+            fingerprint: String::new(),
+            marked_test_code: false,
+        }
     }
 }

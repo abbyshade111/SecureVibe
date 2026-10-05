@@ -3102,6 +3102,10 @@ fn assemble_report_saying(
     let mut tool_verified = Vec::new();
     let mut test_verified = Vec::new();
     let mut test_output = None;
+    // Whether the app's own tests were read for what they name (`tests.`), for `examined` and for
+    // telling a review whose finding is gone from one nobody looked for (deep review R3).
+    let mut tests_examined =
+        sv_report::Examined::not_run("tests.", "the app's own tests run only with --run");
     let mut findings = Vec::new();
     findings.extend(findings_from_advisories);
     findings.extend(secrets.findings.iter().cloned());
@@ -3276,6 +3280,10 @@ fn assemble_report_saying(
                 match &outcome.tests {
                     Some(result) if result.stopped_after.is_some() => {
                         let after = result.stopped_after.unwrap_or(sv_run::TEST_LIMIT);
+                        tests_examined = sv_report::Examined::not_run(
+                            "tests.",
+                            "the app's own tests were stopped before they finished",
+                        );
                         gaps.push(sv_report::Gap {
                             what: "anything the app's own tests would have shown".to_owned(),
                             why: format!(
@@ -3332,6 +3340,18 @@ fn assemble_report_saying(
                                 None => None,
                             }
                         };
+                        tests_examined = match (result.exit_code, &passed_cases) {
+                            (0, _) => sv_report::Examined::ran("tests."),
+                            (_, Some(_)) => sv_report::Examined::partly(
+                                "tests.",
+                                "the suite failed, and only the tests its runner reported as \
+                                 passing were read",
+                            ),
+                            (_, None) => sv_report::Examined::not_run(
+                                "tests.",
+                                "the suite failed and nothing says which of its tests passed",
+                            ),
+                        };
                         let suite_outcome = if result.exit_code == 0 {
                             sv_check::suite::SuiteOutcome::Passed
                         } else {
@@ -3386,16 +3406,26 @@ fn assemble_report_saying(
                         findings.extend(mismatches);
                         test_verified = credited;
                     }
-                    None => gaps.push(sv_report::Gap {
-                        what: "the app's own tests".to_owned(),
-                        why: "securevibe.toml declares no test command".to_owned(),
-                    }),
+                    None => {
+                        tests_examined = sv_report::Examined::not_run(
+                            "tests.",
+                            "securevibe.toml declares no test command",
+                        );
+                        gaps.push(sv_report::Gap {
+                            what: "the app's own tests".to_owned(),
+                            why: "securevibe.toml declares no test command".to_owned(),
+                        })
+                    }
                 }
             }
             Err(reason) => {
                 run_status = sv_report::RunStatus::CouldNotStart {
                     why: reason.clone(),
                 };
+                tests_examined = sv_report::Examined::not_run(
+                    "tests.",
+                    "--run was given and the app could not be run",
+                );
                 gaps.push(sv_report::Gap {
                     what: "the running app".to_owned(),
                     why: format!("--run was given and the app could not be run. {reason}"),
@@ -4035,16 +4065,6 @@ fn assemble_report_saying(
     sv_check::finding::mark_rust_test_code(app_dir, &mut findings);
     // What the manifest says is not the app is listed with test and sample code.
     sv_check::finding::mark_not_the_app(&manifest.not_the_app().0, &mut findings);
-    // What a person set aside, matched by the fingerprint the report prints beside each finding.
-    sv_check::review::fill_fingerprints(app_dir, &mut findings);
-    let reviewed = sv_check::review::apply(
-        app_dir,
-        &manifest.finding_review,
-        findings,
-        sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
-        &seals,
-    );
-    let findings = reviewed.findings;
     examined.push(match &run_status {
         // Started is still only part of what the app could be asked: what sits behind a sign-in
         // it could not reach, and the requirements no question reaches, are in the gaps.
@@ -4056,6 +4076,32 @@ fn assemble_report_saying(
             sv_report::Examined::not_run("probe.", why.clone())
         }
     });
+    examined.push(tests_examined);
+    // The owner's answers in securevibe.toml are read on every run.
+    examined.push(sv_report::Examined::ran("design."));
+    examined.push(sv_report::Examined::ran("hand."));
+    // What a person set aside, matched by the fingerprint the report prints beside each finding.
+    // An entry that matches nothing says whether its rule looked this time (deep review R3), so
+    // `examined` is complete before this.
+    sv_check::review::fill_fingerprints(app_dir, &mut findings);
+    let lookup = ReviewLookup {
+        app_dir,
+        examined: &examined,
+        listing: &listing,
+        code: &code,
+        secrets: &secrets,
+        ast_rules,
+        secret_rules,
+    };
+    let reviewed = sv_check::review::apply(
+        app_dir,
+        &manifest.finding_review,
+        findings,
+        sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
+        &seals,
+        &|rule, file| lookup.looked(rule, file),
+    );
+    let findings = reviewed.findings;
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -4532,6 +4578,145 @@ fn file_checks_examined(
         examined.push(sv_report::Examined::not_run(id.clone(), why.clone()));
     }
     examined
+}
+
+/// What tells a `[[finding-review]]` entry whose finding is gone from one whose finding was not
+/// looked for this time, or that names a rule this version does not have (deep review R3). Read
+/// from `examined`, so it says what the report says, and, for the checks that read the app's files,
+/// from whether they read the entry's file.
+struct ReviewLookup<'a> {
+    app_dir: &'a Path,
+    examined: &'a [sv_report::Examined],
+    listing: &'a sv_scan::files::Listing,
+    code: &'a sv_check::ast::AstScan,
+    secrets: &'a sv_check::secrets::SecretScan,
+    ast_rules: &'a sv_check::ast::AstRules,
+    secret_rules: &'a sv_check::secrets::SecretRules,
+}
+
+impl ReviewLookup<'_> {
+    fn looked(&self, rule: &str, file: &str) -> sv_check::review::Looked {
+        use sv_check::review::Looked;
+        if !self.known(rule) {
+            return Looked::Unknown;
+        }
+        let Some(deciding) = sv_report::Examined::deciding(self.examined, rule) else {
+            return Looked::NotThisTime(
+                "nothing in this run looks for findings of its kind".to_owned(),
+            );
+        };
+        let why = deciding
+            .why
+            .clone()
+            .unwrap_or_else(|| "no reason was recorded".to_owned());
+        match deciding.state {
+            sv_report::ExaminedState::NotRun | sv_report::ExaminedState::NothingToExamine => {
+                Looked::NotThisTime(why)
+            }
+            // The checks that read the app's files can say whether they read this one, which is
+            // what matters for a finding in it, whatever else they did not read.
+            _ if ["ast.", "secrets.", "config."]
+                .iter()
+                .any(|p| rule.starts_with(p)) =>
+            {
+                match self.file_not_read(rule, file) {
+                    Some(why) => Looked::NotThisTime(why),
+                    None => Looked::Ran,
+                }
+            }
+            sv_report::ExaminedState::Partly => {
+                Looked::NotThisTime(format!("it covered only part of the app: {why}"))
+            }
+            sv_report::ExaminedState::Ran => Looked::Ran,
+        }
+    }
+
+    /// Whether this version of `sv` has the rule. Exactly, for the rules read from `data/`; for the
+    /// checks written in Rust and the outside tools, whose rule names are not listed anywhere `sv`
+    /// can read, by the family alone.
+    fn known(&self, rule: &str) -> bool {
+        if rule.starts_with("ast.") {
+            return self.ast_rules.rules().any(|r| r.id == rule);
+        }
+        if rule.starts_with("secrets.") {
+            return rule == sv_check::secrets::ASSIGNMENT_RULE
+                || self.secret_rules.ids().contains(&rule);
+        }
+        sv_check::finding::is_svs_own(rule)
+            || sv_report::Examined::deciding(self.examined, rule).is_some()
+    }
+
+    /// Why the check that reports `rule` did not read `file` this time, if it did not. A file that
+    /// is not there at all was not skipped: the finding in it is gone with it.
+    fn file_not_read(&self, rule: &str, file: &str) -> Option<String> {
+        if self
+            .listing
+            .links
+            .iter()
+            .any(|l| file == l || file.starts_with(&format!("{l}/")))
+        {
+            return Some(format!(
+                "`{file}` is behind a symbolic link, which was not followed"
+            ));
+        }
+        let inside = Path::new(file)
+            .components()
+            .all(|c| matches!(c, std::path::Component::Normal(_)));
+        if !inside || !self.app_dir.join(file).exists() {
+            return None;
+        }
+        let Some(entry) = self.listing.files.iter().find(|e| e.relative == file) else {
+            return Some(format!("`{file}` is not among the files this run read"));
+        };
+        if rule.starts_with("secrets.") {
+            return self
+                .secrets
+                .coverage
+                .skipped
+                .iter()
+                .find(|(f, _)| f == file)
+                .map(|(_, why)| format!("`{file}` was not read: {why}"));
+        }
+        if !rule.starts_with("ast.") {
+            return None;
+        }
+        if let Some((_, why)) = self.code.unread_files.iter().find(|(f, _)| f == file) {
+            return Some(format!("`{file}` was not opened: {why}"));
+        }
+        if self.code.unparsed_files.iter().any(|f| f == file) {
+            return Some(format!(
+                "`{file}` did not parse cleanly, so part of it was not read"
+            ));
+        }
+        let Some(language) = entry.language else {
+            return Some(format!(
+                "the rules that read code read no files like `{file}`"
+            ));
+        };
+        if self.code.unread_languages.contains(language) {
+            return Some(format!("there is no parser for {language} here"));
+        }
+        if self
+            .code
+            .untaught
+            .iter()
+            .any(|u| u.rule_id == rule && u.languages.iter().any(|l| l == language))
+        {
+            return Some(format!("the rule has not been taught {language}"));
+        }
+        if let Some(broken) = self
+            .code
+            .broken_queries
+            .iter()
+            .find(|b| b.rule_id == rule && b.language == language)
+        {
+            return Some(format!(
+                "its query for {language} would not compile: {}",
+                broken.why
+            ));
+        }
+        None
+    }
 }
 
 fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
