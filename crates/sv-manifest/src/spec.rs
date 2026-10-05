@@ -277,7 +277,8 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # Findings a person has looked at and set aside. One [[finding-review]] each, naming the finding by
 # the rule, file, and fingerprint the report prints beside it:
 #   verdict = "false-alarm"    — the code is fine. The finding leaves the list of things to fix,
-#                                and holds until the flagged line changes.
+#                                and holds until the flagged line changes, or a line above it
+#                                that sets a value it uses.
 #   verdict = "accepted-risk"  — a real problem, lived with for now. It stays on the list, labeled,
 #                                and lapses after 90 days.
 #   why = what was looked at and what it showed, at least 40 characters (80 for a key or password,
@@ -290,7 +291,7 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # [[finding-review]]
 # rule = "ast.open-redirect"
 # file = "app.py"
-# fingerprint = "3f2a9c1e0b7d4a55"
+# fingerprint = "v2-3f2a9c1e0b7d4a55"
 # verdict = "false-alarm"
 # why = "The next= value is looked up in a fixed list of our own paths on the line above."
 # by = "ai-tool"

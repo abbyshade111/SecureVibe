@@ -529,6 +529,14 @@ another session is not a claim.
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r3-a2-review-matching`.
+    **Done the same day**, with R3 (DESIGN, "A review names one finding, and says whether its rule looked"; ADR-023
+    and ADR-026, "Later, 5 October 2026"): today's fingerprint (`v2-...`) also reads the lines above that set a name
+    the flagged line uses, and which of the identical lines it is, so identical lines each need their own entry and
+    changing `sql = "...?"` to `sql = "..." + user` ends the false alarm. An entry in the earlier form still matches
+    the one finding it did; on identical lines it matches none and says so. Seals still verify (nothing rewrites a
+    sealed entry); `sv review` writes today's fingerprint when it records one in the earlier form. Tested with
+    identical lines, changed and unchanged lines above, an earlier-form entry sealed and unsealed, and family-hub's
+    25 entries on a copy (16 match as before, 2 on identical lines say so). Guards broken in turn: each caught.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -562,6 +570,13 @@ another session is not a claim.
     unknown to this version, gone.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r3-a2-review-matching`.
+    **Done the same day**, with A2 (same DESIGN section): an entry that matches nothing says "not looked for this
+    time" with why (needs `--run` or `--tools`, the file did not parse, no parser, not taught), "unknown to this
+    version", or, only when its rule read its file, that it is gone; the first two say they are not a sign of a fix,
+    in the report and over MCP. Decided from `examined`, which gained `tests.`, `design.`, and `hand.`. Each message
+    reached on purpose end to end; family-hub's 7 `tests.` entries now say "not looked for this time". Thirteen
+    guards (both items) broken in turn, each caught by one to three tests. Merged with R11's rule, which decides
+    duplicates and conflicts; neither is ever told its finding is gone.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.
@@ -571,6 +586,9 @@ another session is not a claim.
     shows it, so it tells nothing the report does not; a line with no credential keeps the fingerprint it had. A
     review recorded by an older `sv` for a credential line is said to be one, and to be recorded again. See DESIGN,
     "A credential's fingerprint says nothing the report does not".
+    **Merged with A2 the same day**: today's fingerprint masks the flagged line and every line above it that it
+    reads, and `earlier_fingerprints` gives only the masked earlier form, never the hash an `sv` before R4 gave a
+    credential's line (ADR-023, Later). Tested in `report.json`, the SARIF, both reports, and the MCP reply.
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
@@ -644,6 +662,10 @@ another session is not a claim.
     `claude/securevibe-e9-r11`.
     **Done the same day** (DESIGN, "One entry answers for one finding"; ADR-023, Later): a repeated answer does not
     count again, and two that disagree leave the finding standing until one is removed.
+    **The owner's decision, 5 October 2026**, merging this with A2: one case changed. An entry whose fingerprint is
+    in the earlier form and matches findings on several identical lines answers for none of them and says so,
+    rather than taking the first in order; everything else in R11 stands, and its test passes unchanged (ADR-023,
+    "Later, 5 October 2026: an earlier fingerprint on identical lines answers for none of them").
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
