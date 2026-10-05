@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The loop trials' measures (docs/prompts/loop-protocol.md), from each build's transcript and report.
 
-    python3 loop_measures.py OUT BUILD...
+    python3 loop_measures.py OUT BUILD... [--json FILE]
 
 Reads OUT/<build>.jsonl (the stream-json transcript) and OUT/runs/<build>-out/report.json (tools/prompt_trial.py's
 `run`). Prints one line per build and writes OUT/loop-measures.json.
@@ -46,10 +46,13 @@ def use(calls, results):
     checks = [(cid, name) for cid, name, _ in calls if name == 'mcp__securevibe__securevibe_check']
     attention = []
     for cid, _ in checks:
-        text = results.get(cid, '')
-        # The check's first sentence gives how many need attention.
-        number = next((w for w in text.split(' need attention')[0].split()[-1:] if w.isdigit()), None)
-        attention.append(int(number) if number else None)
+        # The check answers in JSON: how many requirements need attention, and the findings.
+        try:
+            answer = json.loads(results.get(cid, ''))
+            attention.append({'needs_attention': answer.get('needsAttention'),
+                              'findings': [f"{f.get('rule_id')}:{f.get('severity')}" for f in answer.get('findings', [])]})
+        except (json.JSONDecodeError, AttributeError):
+            attention.append(None)
     return {
         'sv_calls': [n for _, n in sv],
         'spec_before_code': 'securevibe_spec' in before,
@@ -77,7 +80,7 @@ def report(build):
 
 
 rows = []
-for build in sys.argv[2:]:
+for build in [a for i, a in enumerate(sys.argv[2:], 2) if a != '--json' and sys.argv[i - 1] != '--json']:
     calls, results, final = transcript(build)
     row = {'build': build, **use(calls, results), **report(build),
            'cost_usd': (final or {}).get('total_cost_usd'), 'seconds': ((final or {}).get('duration_ms') or 0) / 1000,
@@ -87,4 +90,4 @@ for build in sys.argv[2:]:
           f"plan-first={row['plan_before_code']} checks={row['checks']} attention={row['attention_per_check']} "
           f"started={row['started']} signed-in={row['signed_in']} answered={row['answered']} "
           f"cost=${row['cost_usd']} {row['seconds']:.0f}s {row['stopped']}")
-json.dump(rows, open(os.path.join(OUT, 'loop-measures.json'), 'w'), indent=1)
+json.dump(rows, open(sys.argv[sys.argv.index('--json') + 1] if '--json' in sys.argv else os.path.join(OUT, 'loop-measures.json'), 'w'), indent=1)
