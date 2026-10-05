@@ -44,7 +44,8 @@ another session is not a claim.
   5 October 2026 two `clean_coverage` tests failed this way while another session's full run was going, and passed
   with `TMPDIR` pointed at a private folder. Make each name unique per run and per call, and remove the folder
   when the test ends. **Claimed on 5 October 2026 by session practical-banach-b1faa1**, at the owner's asking, in
-  branch `claude/scratch-names`.
+  branch `claude/scratch-names`. **Done the same day**: DESIGN, "The tests' scratch folders, one per run and per
+  call".
 
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**

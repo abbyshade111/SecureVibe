@@ -5,14 +5,41 @@
 //! which fail in a direction nobody notices: a green line in a report is not something a reader goes
 //! back to question. Every test here is a way of arriving at one that was not earned.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::path::PathBuf;
 use sv_check::{ast, probes, secrets};
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-clean-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("clean-{name}"))
+}
+
+#[test]
+fn a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go() {
+    // Two `cargo test` runs at once used to share `sv-{prefix}-{name}`, and one run's clean-up
+    // deleted the other's files mid-test. Two calls with one name, in one process, get two folders,
+    // each named for this process, each there while held and gone after.
+    let first = scratch("same-name");
+    let second = scratch("same-name");
+    assert_ne!(first.to_path_buf(), second.to_path_buf());
+    let pid = std::process::id().to_string();
+    for dir in [&first, &second] {
+        assert!(dir.is_dir(), "{} was made", dir.display());
+        let name = dir.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.contains(&pid), "{name} names the run it belongs to");
+    }
+    std::fs::write(first.join("file"), "x").unwrap();
+    let (gone, kept) = (first.to_path_buf(), second.to_path_buf());
+    drop(first);
+    assert!(
+        !gone.exists(),
+        "{} is removed, with its file",
+        gone.display()
+    );
+    assert!(kept.is_dir(), "the other folder is left alone");
+    drop(second);
+    assert!(!kept.exists());
 }
 
 fn data(file: &str) -> PathBuf {
