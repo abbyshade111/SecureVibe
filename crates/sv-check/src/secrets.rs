@@ -131,6 +131,65 @@ pub struct SecretScan {
     pub verified: Vec<crate::Verified>,
 }
 
+/// Whether `value`, written under `name`, is a stored password hash rather than a credential: a
+/// bcrypt hash (`$2b$12$` and 53 more characters) under a name that says password, hash, or digest,
+/// or a hex digest (an MD5, SHA-1, or SHA-2 length: 32, 40, 56, 64, 96, or 128 hex digits) under a
+/// name that says hash or digest. A stored hash is what an app keeps in place of a password; it is
+/// not something to move into a secret store and change, which is what a credential finding asks.
+///
+/// Kept narrow on purpose, because it removes a finding. Measured on 4 October 2026
+/// (`docs/SEMGREP-FALSE-ALARMS.md`, filters C and C2): skipping every hex-shaped value hid a real
+/// 64-hex-digit token secret (`TokenSecret = "…"`), and a password made of hex digits is still a
+/// password, so a hex value under a name that says only password is still reported. A name that
+/// also says key, secret, token, salt, pepper, seed, or HMAC is still reported whatever the value: a
+/// key for hashing is a key. Other hash formats (Argon2, PBKDF2, `crypt`) are not taken in.
+pub fn is_stored_hash(name: &str, value: &str) -> bool {
+    static BCRYPT: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"^\$2[abxy]?\$\d{2}\$[./A-Za-z0-9]{53}$").expect("static pattern")
+    });
+    let n = name.to_lowercase();
+    let says = |words: &[&str]| words.iter().any(|w| n.contains(w));
+    if says(&["key", "secret", "token", "salt", "pepper", "seed", "hmac"]) {
+        return false;
+    }
+    let says_hash = says(&["hash", "digest"]);
+    let says_password = says(&["password", "passwd", "pwd"]);
+    let hex_digest = matches!(value.len(), 32 | 40 | 56 | 64 | 96 | 128)
+        && value.chars().all(|c| c.is_ascii_hexdigit());
+    (BCRYPT.is_match(value) && (says_hash || says_password)) || (hex_digest && says_hash)
+}
+
+/// Whether one line of a file holds a stored password hash (`is_stored_hash`) and nothing else that
+/// could be a credential: for a finding from another tool's secret rule, which names the line and not
+/// the value. With the hash taken out, the line must give `sv`'s own secret rules nothing, and hold
+/// no run of 16 or more letters and digits mixed that could be a key in a shape nobody listed. A line
+/// with a hash and a key on it keeps its finding.
+pub fn holds_only_stored_hashes(rules: &SecretRules, relative: &str, line: &str) -> bool {
+    static TOKEN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"[A-Za-z0-9+/=_\-]{16,}").expect("static pattern"));
+    let mut hashes: Vec<std::ops::Range<usize>> = named_values(relative, line)
+        .into_iter()
+        .filter(|n| is_stored_hash(n.name.as_str(), n.value.as_str()))
+        .map(|n| n.value.range())
+        .collect();
+    if hashes.is_empty() {
+        return false;
+    }
+    hashes.sort_by_key(|r| std::cmp::Reverse(r.start));
+    hashes.dedup();
+    let mut rest = line.to_owned();
+    for range in hashes {
+        rest.replace_range(range, "");
+    }
+    let token_shaped = TOKEN.find_iter(&rest).any(|m| {
+        let t = m.as_str();
+        t.chars().any(|c| c.is_ascii_digit())
+            && t.chars().any(|c| c.is_ascii_alphabetic())
+            && shannon_entropy(t) >= 3.0
+    });
+    !token_shaped && scan_text(rules, relative, &rest).is_empty()
+}
+
 /// Values that mean "fill this in", not a credential.
 /// Whether the whole value is one reference to something kept elsewhere, in the shapes shells and
 /// build files write one: `$NAME`, `${NAME}`, `$(command)` or backticks, Windows' `%NAME%`, and
@@ -597,6 +656,10 @@ fn assignment_findings(
             || is_whole_reference(value)
             || value.starts_with("ENC[")
         {
+            continue;
+        }
+        // Nor is a stored password hash, under a name that says so (see `is_stored_hash`).
+        if is_stored_hash(name, value) {
             continue;
         }
         if shannon_entropy(value) < 3.5 {
@@ -2338,5 +2401,267 @@ SIGNING_KEY=generate_with_openssl_rand
             rules.requirement_ids().contains(&"SBD-AC-05"),
             "a clean scan has to offer itself as supporting evidence for it"
         );
+    }
+
+    /// A hex digest of `n` digits, built at run time so no file holds one.
+    fn hex(n: usize) -> String {
+        filler(n, "9f3a0c7e5b18d246")
+    }
+
+    /// A bcrypt hash's shape (`$2b$12$` and 53 more), built at run time so no file holds one.
+    fn bcrypt() -> String {
+        format!(
+            "${}${}${}",
+            "2b",
+            "12",
+            filler(53, "Qm7Rz2Kv9Lp4./Wn8Hs3Jd6Tf1Gb5Yc0")
+        )
+    }
+
+    fn reported(relative: &str, line: &str) -> Vec<Finding> {
+        scan_text(&rules(), relative, &format!("{line}\n"))
+    }
+
+    #[test]
+    fn a_stored_password_hash_is_not_a_credential_and_a_hexy_password_still_is() {
+        // Follow-up 4 of the Semgrep false-alarm measurement: a hex digest or bcrypt hash written
+        // under a name that says it is one is what an app keeps instead of a password.
+        let (b, h32, h40, h64, h128) = (bcrypt(), hex(32), hex(40), hex(64), hex(128));
+        let stored = [
+            ("app.py", format!("password_hash = \"{b}\"")),
+            ("seed.js", format!("{{ \"password\": \"{b}\" }}")),
+            ("users.rb", format!("'encrypted_password' => '{b}'")),
+            ("app.py", format!("hashed_password = \"{h64}\"")),
+            ("settings.py", format!("ADMIN_PASSWORD_DIGEST = \"{h40}\"")),
+            (
+                "user.ts",
+                format!("const passwordHash: string = \"{h32}\";"),
+            ),
+            ("main.go", format!("passwordHash := \"{h128}\"")),
+            ("config.yml", format!("password_hash: {h64}")),
+        ];
+        for (file, line) in &stored {
+            // The setup: the same value under a plain credential name is reported, so silence
+            // below is the exception and not a value the rule cannot see.
+            let value = line
+                .rsplit(['"', '\'', ' '])
+                .find(|p| p.len() >= 32)
+                .unwrap();
+            assert!(
+                !reported(file, &format!("api_key = \"{value}\"")).is_empty(),
+                "the value in {line:?} is not findable at all, so the test proves nothing"
+            );
+            let found = reported(file, line);
+            assert!(found.is_empty(), "{line:?} was reported: {found:?}");
+        }
+
+        // Still reported, high: a password made of hex digits is still a password; a key for
+        // hashing is a key; a value that is not exactly a digest or a bcrypt hash is judged as before.
+        let still = [
+            ("app.py", format!("password = \"{h32}\"")),
+            ("app.py", format!("ADMIN_PASSWORD = \"{h64}\"")),
+            ("seed.js", format!("{{ \"password\": \"{h64}\" }}")),
+            (
+                "User.cs",
+                format!("public const string TokenSecret = \"{h64}\";"),
+            ),
+            ("app.py", format!("PASSWORD_HASH_KEY = \"{h64}\"")),
+            ("app.py", format!("password_hash_salt = \"{h32}\"")),
+            ("app.py", format!("hmac_digest_secret = \"{h64}\"")),
+            ("app.py", format!("api_token = \"{b}\"")),
+            ("app.py", format!("password_hash = \"{}\"", hex(31))),
+            ("app.py", format!("password_hash = \"{}\"", hex(33))),
+            ("app.py", format!("password_hash = \"{}\"", &b[..59])),
+            (
+                "app.py",
+                format!("password_hash = \"{}\"", filler(64, MIXED)),
+            ),
+        ];
+        for (file, line) in &still {
+            let found = reported(file, line);
+            assert!(
+                found
+                    .iter()
+                    .any(|f| f.rule_id == "secrets.credential-assignment"
+                        && f.severity == Severity::High),
+                "{line:?} was not reported high: {found:?}"
+            );
+            // And never shown whole.
+            assert!(!serde_json::to_string(&found).unwrap().contains(&h32[..20]));
+        }
+    }
+
+    #[test]
+    fn a_line_with_a_stored_hash_and_nothing_else_is_all_another_tool_s_secret_rule_is_spared() {
+        let (b, h64) = (bcrypt(), hex(64));
+        let rules = rules();
+        let spared = [
+            ("app.py", format!("password_hash = \"{b}\"")),
+            // NodeGoat's seed script, as the measurement found it: a commented-out hash.
+            (
+                "db-reset.js",
+                format!("//\"password\" : \"{b}\", // Admin_123"),
+            ),
+            (
+                "models.py",
+                format!("User(name=\"ann\", password_hash=\"{h64}\")"),
+            ),
+        ];
+        for (file, line) in &spared {
+            assert!(
+                holds_only_stored_hashes(&rules, file, line),
+                "{line:?} was not spared"
+            );
+        }
+        let key = credential_shaped(&["sk", "ant", "api03", "Zp8Kd3Wq1Ls6Vn0Rt4Yb"], "-");
+        let kept = [
+            // A hexy plaintext password.
+            ("app.py", format!("password = \"{h64}\"")),
+            // A hash beside a key the vendor rules know, beside a named key, and beside a token
+            // in a shape nobody listed.
+            ("app.py", format!("password_hash = \"{b}\"; k = \"{key}\"")),
+            (
+                "seed.js",
+                format!(
+                    "{{ \"password_hash\": \"{h64}\", \"api_key\": \"{}\" }}",
+                    filler(24, MIXED)
+                ),
+            ),
+            (
+                "seed.js",
+                format!(
+                    "{{ \"password_hash\": \"{h64}\" }} // {}",
+                    filler(24, MIXED)
+                ),
+            ),
+            // A key for hashing, under a name that says hash.
+            ("app.py", format!("password_hash_key = \"{h64}\"")),
+            // Nothing named at all.
+            ("app.py", format!("check(\"{h64}\")")),
+            ("app.py", String::new()),
+        ];
+        for (file, line) in &kept {
+            assert!(
+                !holds_only_stored_hashes(&rules, file, line),
+                "{line:?} was spared"
+            );
+        }
+    }
+
+    #[test]
+    fn the_measured_corpus_s_secret_rule_lines_keep_every_true_finding() {
+        // The secret-rule findings outside test code in `docs/semgrep-false-alarms.csv`, each line
+        // rebuilt in its shape with values made here: the measurement's verdict, and whether the
+        // exception spares it. Test-code findings are listed apart instead (follow-up 2).
+        let (b, h32, h64) = (bcrypt(), hex(32), hex(64));
+        let jwt = format!(
+            "{}.{}.{}",
+            filler(36, "eyJhbGciOiJIUzI1NiJ9"),
+            filler(40, MIXED),
+            filler(43, MIXED)
+        );
+        let rows = [
+            // pygoat introduction/views.py 866, 870, 872: MD5 digests under `password`.
+            (
+                false,
+                "views.py",
+                format!("sql_instance = sql_lab_table(id=\"admin\", password=\"{h32}\")"),
+            ),
+            (
+                false,
+                "views.py",
+                format!("sql_instance = sql_lab_table(id=\"slinky\", password=\"{h32}\")"),
+            ),
+            (
+                false,
+                "views.py",
+                format!("sql_instance = sql_lab_table(id=\"bloke\", password=\"{h32}\")"),
+            ),
+            // pygoat introduction/views.py 1164 to 1167: SHA-256 digests under `password`.
+            (
+                false,
+                "views.py",
+                format!(
+                    "    \"User1\":{{\"userid\":\"1\", \"username\":\"User1\", \"password\": \"{h64}\"}},"
+                ),
+            ),
+            (
+                false,
+                "views.py",
+                format!(
+                    "    \"User2\":{{\"userid\":\"2\", \"username\":\"User2\", \"password\": \"{h64}\"}},"
+                ),
+            ),
+            (
+                false,
+                "views.py",
+                format!(
+                    "    \"User3\":{{\"userid\":\"3\", \"username\":\"User3\", \"password\": \"{h64}\"}},"
+                ),
+            ),
+            (
+                false,
+                "views.py",
+                format!(
+                    "    \"User4\":{{\"userid\":\"4\", \"username\":\"User4\", \"password\": \"{h64}\"}}"
+                ),
+            ),
+            // NodeGoat artifacts/db-reset.js 19, 28, 36: commented-out bcrypt hashes.
+            (
+                false,
+                "db-reset.js",
+                format!("        //\"password\" : \"{b}\", // Admin_123"),
+            ),
+            (
+                false,
+                "db-reset.js",
+                format!("        // \"password\" : \"{b}\",// User1_123"),
+            ),
+            (
+                false,
+                "db-reset.js",
+                format!("        //\"password\" : \"{b}\", // User2_123"),
+            ),
+            // DVWA's help page: an example token.
+            (false, "help.php", format!("user-token: {h32}")),
+            // True: dvcsharp's token secret, NodeGoat's ZAP key, pygoat's pasted session token,
+            // and juice-shop's expected password (unsure, counted with the true ones).
+            (
+                true,
+                "User.cs",
+                format!("      public const string TokenSecret = \"{h64}\";"),
+            ),
+            (
+                true,
+                "development.js",
+                format!("   zapApiKey: \"{}\",", filler(26, MIXED)),
+            ),
+            (
+                true,
+                "a7.js",
+                format!("// document.cookie = \"sessionid={jwt}\";"),
+            ),
+            (
+                true,
+                "login.ts",
+                format!(
+                    "    return req.body.email === 'bjoern@example.org' && req.body.password === '{}'",
+                    filler(36, MIXED)
+                ),
+            ),
+        ];
+        let rules = rules();
+        let mut spared_false = 0;
+        for (true_finding, file, line) in &rows {
+            let spared = holds_only_stored_hashes(&rules, file, line);
+            assert!(
+                !(spared && *true_finding),
+                "a true finding was spared: {line:?}"
+            );
+            spared_false += usize::from(spared);
+        }
+        // The three bcrypt hashes. The seven digests under a name that says only `password` are
+        // still reported: that is the price of never sparing a hex plaintext password.
+        assert_eq!(spared_false, 3);
     }
 }
