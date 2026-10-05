@@ -1764,6 +1764,9 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
         std::fs::write(app.join("web.js"), "console.log(1)\n").unwrap();
         std::fs::write(app.join("vendor/lib.py"), "print(2)\n").unwrap();
+        // `vendor/` holds installed code beside the manifest that explains it, as in family-hub; with
+        // no manifest it would be the app's own (H6).
+        std::fs::write(app.join("requirements.txt"), "flask\n").unwrap();
         std::fs::write(dir.join("outside.py"), "print('outside the app')\n").unwrap();
         std::os::unix::fs::symlink(dir.join("outside.py"), app.join("linked.py")).unwrap();
         let outcome = run_all(
