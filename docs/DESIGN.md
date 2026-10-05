@@ -8081,6 +8081,26 @@ version in `Pipfile.lock` dropped (two), a `Pipfile`'s ranges dropped (two), the
 and `develop` read (one), the app's own folder named (one), a hashed `requirements-dev.txt` not read (one), and every
 `setup.cfg` counted (one).
 
+
+## Each run removes only its own (4 October 2026)
+
+S10 of the deep review: a run was named `sv-<process id>-<number>`, and its teardown removed containers by those
+names. Two copies of `sv`, each in its own container and each process 7 there, sharing one Docker daemon, named
+their runs alike, so either run's teardown could remove the other's app halfway through its checks. Recorded under
+ADR-019.
+
+- **A random part in every name.** `run_id` adds four bytes from the system's randomness: `sv-7-0-0badc0de`.
+- **A label on everything a run creates.** While a run is under way, `DockerBackend::prepared` gives every
+  `docker run`, `docker create`, and `docker network create` the label `org.securevibe.run=<the run's name>`, beside
+  the owner label the crash cleanup reads.
+- **The teardown removes what carries that label**, by id: `docker ps -aq` and `docker network ls -q`, filtered by
+  the label. Only when Docker will not list them does it fall back to the run's own names, which hold the random
+  part, so even then it cannot name another run's.
+
+How it is held: `two_runs_never_share_a_name`, `everything_a_run_creates_carries_its_label_and_nothing_else_does`, and
+`a_teardown_removes_what_docker_lists_under_its_label` (`crates/sv-run/src/docker.rs`). Four guards were undone in
+turn, and each turned its test red.
+
 ## Advisory versions: in order, gaps kept, gems as gems (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H18 to H20) found three ways the advisory comparison could call
@@ -8120,3 +8140,23 @@ not.
 How it is held: `a_stack_trace_below_the_cut_is_kept_and_found` (`crates/sv-run/src/docker.rs`) puts every marker past
 the cut, checks the setup really did, and runs the real check on what was kept; its control, a long page with no
 trace, is still credited. Taking the new search out turned it red.
+
+## Redirects and file calls the way Next.js and modern Node write them (5 October 2026)
+
+H5 of the deep review: `ast.open-redirect` and `ast.file-path-from-value` read only `res.redirect(…)` and
+`fs.readFile(…)` shapes, so the usual Next.js and modern Node forms went unreported while TypeScript was claimed
+checked.
+
+- **Redirects** now also read Next.js's bare `redirect(…)` from `next/navigation`, `NextResponse.redirect(…)`, and
+  the browser's own: `window.location = …`, `location.href = …`, `window.location.href = …`, and
+  `location.assign(…)` or `location.replace(…)`. A destination that is a path on the same site stays safe, and so
+  does `new URL('/path', request.url)`, the way Next.js middleware sends someone to its own sign-in page;
+  `new URL('//other.site', …)` does not count as a path.
+- **File calls** now also read `fs.promises.readFile(…)` and the bare `readFile(…)`, `writeFile(…)`, `rm(…)` and
+  their kin imported from `fs/promises`. A bare call is read only for the file system's own names, so a function of
+  the app's that happens to be called `download` is not.
+- **What it still does not read:** a redirect or file call reached through a name of the app's own, such as
+  `const go = redirect` or `const fsp = require('fs').promises` named anything but `fsp`.
+
+How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
+twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.

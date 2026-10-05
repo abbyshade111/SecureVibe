@@ -156,6 +156,10 @@ another session is not a claim.
     what this run made.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-s10`.
+    **Done the same day** (DESIGN, "Each run removes only its own"; ADR-019, Later): a run's name ends in four
+    random bytes, everything it creates carries the label `org.securevibe.run` with that name, and its teardown
+    removes what Docker lists under the label, by id, falling back to the run's own names only when Docker will not
+    list them. Four guards broken in turn, each caught.
   - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
     in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
     an isolated world, storage read through DevTools' storage domains.
@@ -269,6 +273,13 @@ another session is not a claim.
     TypeScript coverage is claimed.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/h5-next-node-sinks`.
+    **Also claimed on 5 October 2026 by session securevibe-e9**, in branch `claude/securevibe-e9-h5`: the earlier
+    claim reached `main` after this session had checked the backlog, so both took it. securevibe-e9's was built and
+    tested first, and the owner chose it on 5 October 2026; the cato-pipeline session's branch had nothing pushed.
+    **Done the same day** (DESIGN, "Redirects and file calls the way Next.js and modern Node write them"): every
+    form the review named is found, Next.js's bare `redirect` and `NextResponse.redirect`, the browser's
+    `location` assignments and calls, `fs.promises.readFile`, and the bare `fs/promises` calls; a same-site path,
+    `new URL('/path', request.url)`, and an app's own function named `download` are not.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
