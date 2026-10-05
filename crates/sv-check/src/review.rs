@@ -67,9 +67,16 @@ pub struct Outcome {
 }
 
 /// The name a review gives a finding: its rule, its file, and, for a finding on a line of code, the
-/// text of that line with its spaces trimmed, so moving the line keeps the name and changing it does
-/// not. A finding with no line of code is named by its title instead. Only a hash of these is kept,
-/// sixteen hex characters of SHA-256, so the line a key was found on is never copied anywhere.
+/// text of that line with its spaces trimmed and any credential in it masked, so moving the line
+/// keeps the name and changing it does not. A finding with no line of code is named by its title
+/// instead. Only a hash of these is kept, sixteen hex characters of SHA-256.
+///
+/// The masking is what keeps the hash from giving the credential back. Hashed as written, a line
+/// holding a weak password could be found again by guessing: the report shows the name, the first
+/// four characters, and the length, and a test password was recovered in 190 guesses (R4 of the
+/// deep review). Masked the way the report masks it, the hash says nothing the report does not
+/// already show, and a placeholder replaced by a real key still changes it, since its first four
+/// characters or its length change.
 pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
     let what = if crate::finding::reads_code(f) {
         std::fs::read_to_string(app_dir.join(&f.location.file))
@@ -77,7 +84,7 @@ pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
             .and_then(|text| {
                 text.lines()
                     .nth(f.location.line.saturating_sub(1))
-                    .map(|l| l.trim().to_owned())
+                    .map(masked)
             })
             .unwrap_or_else(|| format!("line {}", f.location.line))
     } else {
@@ -86,7 +93,25 @@ pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
     named(&f.rule_id, &f.location.file, &what)
 }
 
-/// The fingerprint of what a finding names, from its rule, its file, and its trimmed line (or its
+/// A line of code as a review names and shows it: trimmed, with every credential in it masked as the
+/// report masks it, its first four characters and its length (`Secret::redact`). Empty when the
+/// credential rules could not be read, which they always are where `sv` was built: the line is then
+/// never named or shown as written, at the cost of reviews telling two lines in one file apart.
+pub fn masked(line: &str) -> String {
+    static RULES: std::sync::LazyLock<Option<crate::secrets::SecretRules>> =
+        std::sync::LazyLock::new(|| {
+            crate::secrets::SecretRules::load(
+                &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
+            )
+            .ok()
+        });
+    match &*RULES {
+        Some(rules) => crate::secrets::redact_text(rules, line.trim()).0,
+        None => String::new(),
+    }
+}
+
+/// The fingerprint of what a finding names, from its rule, its file, and its masked line (or its
 /// title, for a finding with no line of code).
 pub fn named(rule: &str, file: &str, what: &str) -> String {
     use sha2::{Digest, Sha256};
@@ -95,7 +120,8 @@ pub fn named(rule: &str, file: &str, what: &str) -> String {
 }
 
 /// The line of `file` an entry's fingerprint names, as its number and its text with spaces
-/// trimmed, for `sv review` to show the person what they are deciding about. `None` when no line
+/// trimmed and any credential masked, for `sv review` to show the person what they are deciding
+/// about without printing a key. `None` when no line
 /// matches (the line changed, or the finding is not about a line), and for a file outside the app
 /// folder, whose lines are never read.
 pub fn line_with_fingerprint(
@@ -113,8 +139,27 @@ pub fn line_with_fingerprint(
     let text = std::fs::read_to_string(app_dir.join(file)).ok()?;
     text.lines()
         .enumerate()
-        .find(|(_, l)| named(rule, file, l.trim()) == fingerprint)
-        .map(|(i, l)| (i + 1, l.trim().to_owned()))
+        .map(|(i, l)| (i, masked(l)))
+        .find(|(_, l)| named(rule, file, l) == fingerprint)
+        .map(|(i, l)| (i + 1, l))
+}
+
+/// Whether an entry names, by the older unmasked fingerprint, a line of its file that holds a
+/// credential: a review recorded before R4, which no longer matches and is said to be so, rather
+/// than said to name a line that changed. Never for a file outside the app folder.
+fn written_unmasked(app_dir: &Path, entry: &FindingReview) -> bool {
+    let inside = Path::new(&entry.file)
+        .components()
+        .all(|c| matches!(c, std::path::Component::Normal(_)));
+    if !inside {
+        return false;
+    }
+    let Ok(text) = std::fs::read_to_string(app_dir.join(&entry.file)) else {
+        return false;
+    };
+    text.lines().any(|l| {
+        named(&entry.rule, &entry.file, l.trim()) == entry.fingerprint && masked(l) != l.trim()
+    })
 }
 
 /// Fills in every finding's fingerprint.
@@ -171,6 +216,15 @@ pub fn apply(
             .filter(|i| matches(entry, &findings[*i]))
             .collect();
         let Some(&first) = candidates.first() else {
+            if written_unmasked(app_dir, entry) {
+                not_counted.push(format!(
+                    "{}: recorded by an older `sv`, which named a line holding a credential in a \
+                     way that could give the credential back. The line is still there; record the \
+                     review again with `sv review`, which names it safely.",
+                    named(entry)
+                ));
+                continue;
+            }
             not_counted.push(format!(
                 "{}: no finding matches it any more. The flagged line changed, so the finding has \
                  a new fingerprint and needs looking at again, or the finding is gone and the entry \
@@ -338,6 +392,124 @@ pub const AGREE: &str = "If you agree after reading the code, run `sv review` in
 mod tests {
     use super::*;
     use crate::finding::{Confidence, Location, Severity};
+
+    /// A credential-shaped value built from pieces at run time, so this file holds none.
+    fn aws_key(tail: &str) -> String {
+        ["AKIA", tail].concat()
+    }
+
+    fn app_with_line(tag: &str, line: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-review-fp-{tag}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("config.py"), format!("import os\n    {line}\n")).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_fingerprint_says_nothing_about_a_credential_the_report_does_not() {
+        // Two keys alike in their first four characters and their length, which is what the report
+        // shows, and different everywhere else: one fingerprint, so it cannot tell them apart, and
+        // guessing the rest against it finds nothing.
+        let one = aws_key("Q7RZ2KV9LP4WN8HA");
+        let other = aws_key("ZZZZZZZZZZZZZZZZ");
+        let f = finding("secrets.aws-access-key", "config.py", 2);
+        let a = app_with_line("a", &format!("KEY = \"{one}\""));
+        let b = app_with_line("b", &format!("KEY = \"{other}\""));
+        let (fa, fb) = (fingerprint(&a, &f), fingerprint(&b, &f));
+        assert_eq!(fa, fb, "the key showed through the fingerprint");
+        // The hash of the line as written is what could be guessed against, and it is not kept.
+        assert_ne!(
+            fa,
+            named(&f.rule_id, "config.py", &format!("KEY = \"{one}\""))
+        );
+        // A key whose length or first four characters change still changes it, so a placeholder
+        // replaced by a real key is not covered by a review of the placeholder.
+        let c = app_with_line("c", "KEY = \"AKIAPLACEHOLDER\"");
+        assert_ne!(fingerprint(&c, &f), fa);
+        // And `sv review` shows the line masked, never the key.
+        let shown =
+            line_with_fingerprint(&a, &f.rule_id, "config.py", &fa).expect("the line is found");
+        assert_eq!(shown.0, 2);
+        assert!(!shown.1.contains(&one), "the line shown holds the key");
+        assert!(
+            shown.1.contains("[redacted:"),
+            "{}",
+            shown.1.replace(&one, "<key>")
+        );
+        for dir in [a, b, c] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+    }
+
+    #[test]
+    fn a_review_recorded_before_masking_is_said_to_be_one() {
+        // A false alarm recorded by an older `sv` names a credential's line as written. It no
+        // longer matches, as it should not, and it is said why, rather than that the line changed.
+        let key = aws_key("Q7RZ2KV9LP4WN8HA");
+        let line = format!("KEY = \"{key}\"");
+        let dir = app_with_line("older", &line);
+        let mut f = finding("secrets.aws-access-key", "config.py", 2);
+        f.fingerprint = fingerprint(&dir, &f);
+        let mut older = entry(
+            "secrets.aws-access-key",
+            FALSE_ALARM,
+            Some("owner"),
+            "2026-09-27",
+            SECRET_WHY,
+        );
+        older.file = "config.py".into();
+        older.fingerprint = named("secrets.aws-access-key", "config.py", &line);
+        let out = apply_in(&dir, &[older.clone()], vec![f.clone()], today());
+        // The control: the same entry, named the way `sv review` names it now, counts.
+        older.fingerprint = f.fingerprint.clone();
+        let now = apply_in(&dir, &[older], vec![f], today());
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(out.findings.len(), 1);
+        assert_eq!(out.not_counted.len(), 1);
+        assert!(
+            out.not_counted[0].contains("recorded by an older `sv`"),
+            "{}",
+            out.not_counted[0].replace(&key, "<key>")
+        );
+        assert!(
+            !out.not_counted[0].contains(&key),
+            "the reason holds the key"
+        );
+        assert!(now.findings.is_empty(), "{:?}", now.not_counted);
+
+        // And a review of a line with no credential, whose finding has gone, is told the usual
+        // reason: only a credential's line was ever named in a way that could give it back.
+        let dir = app_with_line("older-plain", "x = 1");
+        let mut plain = entry(
+            "ast.open-redirect",
+            FALSE_ALARM,
+            Some("owner"),
+            "2026-09-27",
+            SECRET_WHY,
+        );
+        plain.file = "config.py".into();
+        plain.fingerprint = named("ast.open-redirect", "config.py", "x = 1");
+        let out = apply_in(&dir, &[plain], Vec::new(), today());
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            out.not_counted[0].contains("no finding matches it any more"),
+            "{:?}",
+            out.not_counted
+        );
+    }
+
+    #[test]
+    fn a_line_with_no_credential_keeps_the_fingerprint_it_had() {
+        // Masking changes nothing on a line with no credential in it, so every review already
+        // written for one still matches.
+        let line = "return redirect(request.args.get('next'))";
+        let dir = app_with_line("plain", line);
+        let f = finding("ast.open-redirect", "config.py", 2);
+        let fp = fingerprint(&dir, &f);
+        std::fs::remove_dir_all(&dir).ok();
+        assert_eq!(fp, named("ast.open-redirect", "config.py", line));
+    }
 
     fn finding(rule: &str, file: &str, line: usize) -> Finding {
         Finding {
@@ -522,7 +694,8 @@ mod tests {
         };
         let reviewed = |rule: &str, line: &str| {
             let mut e = entry(rule, FALSE_ALARM, Some("owner"), "2026-09-27", SECRET_WHY);
-            e.fingerprint = named(rule, "app.py", line);
+            // As `sv review` writes it: the line masked (R4).
+            e.fingerprint = named(rule, "app.py", &masked(line));
             e
         };
         let line = "WRONG_PASSWORD = \"Your current password isn't right.\"";

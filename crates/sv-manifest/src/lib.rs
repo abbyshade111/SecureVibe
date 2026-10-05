@@ -1068,6 +1068,9 @@ pub struct HandCheck {
     pub seal: Option<String>,
 }
 
+/// The `manifest-version` this `sv` reads.
+pub const MANIFEST_VERSION: u32 = 1;
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Manifest {
@@ -1170,7 +1173,20 @@ impl Manifest {
     /// The manifest in `text`, read from `path`, which only names it in an error. For a caller that
     /// needs the bytes it parsed as well, such as `sv report` recording their hash.
     pub fn parse(text: &str, path: &Path) -> Result<Self> {
-        toml::from_str(text).with_context(|| format!("parsing {}", path.display()))
+        let manifest: Self =
+            toml::from_str(text).with_context(|| format!("parsing {}", path.display()))?;
+        // A version this `sv` does not know is not read as if it were the one it knows: its fields
+        // may mean something else, and a manifest read wrongly changes what applies. A file with no
+        // `manifest-version` line is read as version 1, as it always was (the deep review's
+        // improvement 6).
+        anyhow::ensure!(
+            matches!(manifest.manifest_version, 0 | MANIFEST_VERSION),
+            "{} says manifest-version = {}, and this sv reads version {MANIFEST_VERSION} only. A \
+             later sv may read it; this one would read it wrongly, so it does not read it at all.",
+            path.display(),
+            manifest.manifest_version
+        );
+        Ok(manifest)
     }
 
     /// The ASVS target level. Sensitive data or a public audience means level 2, as in v1.
@@ -2091,5 +2107,25 @@ mod mcp_server_tests {
         assert_eq!(effective(m, Condition::McpServer), None);
         let m = "[capabilities.ai]\nenabled = false\n";
         assert_eq!(effective(m, Condition::McpServer), None);
+    }
+
+    #[test]
+    fn a_manifest_version_this_sv_does_not_know_is_refused() {
+        let path = Path::new("securevibe.toml");
+        assert!(Manifest::parse("manifest-version = 1\n", path).is_ok());
+        assert!(
+            Manifest::parse("[app]\nname = \"x\"\n", path).is_ok(),
+            "no line is version 1, as it always was"
+        );
+        for version in [2, 7, 100] {
+            let text = format!("manifest-version = {version}\n[app]\nname = \"x\"\n");
+            let refused = Manifest::parse(&text, path).expect_err("an unknown version was read");
+            let said = format!("{refused:#}");
+            assert!(
+                said.contains(&format!("manifest-version = {version}"))
+                    && said.contains("reads version 1 only"),
+                "{said}"
+            );
+        }
     }
 }

@@ -110,6 +110,10 @@ fn an_example_app_cannot_overrule_the_manifest_once_it_is_named() {
         security.contains("Named but not found: `nowhere`."),
         "{security}"
     );
+    assert!(
+        security.contains("`demo`, holding 1 of the app's 2 code files"),
+        "{security}"
+    );
     std::fs::remove_dir_all(&named).ok();
 }
 
@@ -130,5 +134,40 @@ fn an_entry_that_would_hide_the_whole_app_is_refused_and_said_to_be() {
         security.contains("none of them is in this app"),
         "{security}"
     );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn a_list_that_would_set_apart_all_the_app_s_code_is_not_used_and_said_to_be() {
+    // Deep review R12: the app's own code all lies under `demo`, and `src` names nothing. Taken
+    // together the list would leave no code to say what the app uses.
+    let dir = app("all-apart", "not-the-app = [\"demo\", \"src\"]");
+    std::fs::remove_file(dir.join("app.py")).unwrap();
+    let scope = sv(&["scope"], &dir);
+    assert!(
+        scope.contains(OVERRULED),
+        "the code is read as the app: {scope}"
+    );
+    let (security, json) = report(&dir);
+    assert!(
+        security.contains(
+            "`demo`, `src`: together they would set apart all 1 of the app's code file, leaving \
+             nothing to say what the app uses, so the list is not used"
+        ),
+        "{security}"
+    );
+    assert!(
+        !security.contains("in test or sample code"),
+        "the app's findings are its own: {security}"
+    );
+    let json: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let hash = json["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["location"]["file"] == "demo/shop/app.py")
+        .expect("the finding is in report.json");
+    // Written only when true.
+    assert!(hash.get("marked_test_code").is_none(), "{hash}");
     std::fs::remove_dir_all(&dir).ok();
 }

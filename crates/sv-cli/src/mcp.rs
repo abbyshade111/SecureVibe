@@ -718,14 +718,20 @@ impl Server {
         } else {
             self.root.join(asked)
         };
-        let resolved = joined
-            .canonicalize()
-            .with_context(|| format!("{asked} does not exist under {}", self.root.display()))?;
-        anyhow::ensure!(
-            resolved.starts_with(&self.root),
-            "{asked} is outside {}, the folder this server was started for, so it cannot be read",
-            self.root.display()
-        );
+        // One answer for a path that does not exist and one outside the root, whichever it is: two
+        // answers would tell whoever asks, the model or text in the app steering it, which files exist
+        // anywhere on this computer (the deep review's improvement 7).
+        let refused = || {
+            anyhow::anyhow!(
+                "{asked} is not a folder inside {}, the folder this server was started for, so it \
+                 cannot be read: it is outside that folder, or nothing is there",
+                self.root.display()
+            )
+        };
+        let resolved = joined.canonicalize().map_err(|_| refused())?;
+        if !resolved.starts_with(&self.root) {
+            return Err(refused());
+        }
         anyhow::ensure!(resolved.is_dir(), "{asked} is not a folder");
         Ok(resolved)
     }
@@ -2083,6 +2089,37 @@ mod tests {
                 text(&result)
             );
         }
+    }
+
+    #[test]
+    fn a_path_outside_the_root_gets_the_same_answer_whether_or_not_it_exists() {
+        // The deep review's improvement 7: "does not exist" for one and "outside" for the other told
+        // whoever asked which folders exist anywhere on the computer.
+        let server = Server::new(&examples().join("tested-notes")).unwrap();
+        let there = examples().join("flask-booking");
+        let missing = examples().join("no-such-app-anywhere");
+        assert!(
+            there.is_dir() && !missing.exists(),
+            "the setup needs one of each"
+        );
+        let answer = |path: &Path| {
+            let asked = path.to_str().unwrap();
+            let result = call(&server, "securevibe_check", json!({ "path": asked }));
+            assert_eq!(result["isError"], true, "{asked} was not refused");
+            text(&result).replace(asked, "PATH")
+        };
+        assert_eq!(answer(&there), answer(&missing));
+        // Inside the root, a folder that is not there is refused the same way too.
+        let inside = call(
+            &server,
+            "securevibe_check",
+            json!({ "path": "no-such-folder" }),
+        );
+        assert!(
+            text(&inside).contains("cannot be read"),
+            "{}",
+            text(&inside)
+        );
     }
 
     #[test]

@@ -31,9 +31,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 163 can be checked, 10 where a check helps but a person decides, and 172 with no check.
+345 requirements: 164 can be checked, 10 where a check helps but a person decides, and 171 with no check.
 
-### Level 1 (70 requirements, 56 can be checked)
+### Level 1 (70 requirements, 57 can be checked)
 
 #### V1 Encoding and Sanitization
 
@@ -130,7 +130,7 @@ decided per app, from its `securevibe.toml` and its code.
 |---|---|---|
 | **V9.1.1** Verify that self-contained tokens are validated using their digital signature or MAC to protect against tampering before accepting the token's contents. | Can be checked | Signed in: `probe.app-token-signature-not-checked`, if it fails: The app's own sign-in token, with something added to what it says and the signature left as it was, opened a private page. The app is reading the token without checking its signature, so anybody can write one that says they are somebody else.<br>Outside tools: semgrep, 1 rule, its rules look for: a self-contained token (JWT) accepted without validating its signature<br>Outside tools: codeql-javascript, 1 rule, its rules look for: a self-contained token (JWT) accepted without validating its signature |
 | **V9.1.2** Verify that only algorithms on an allowlist can be used to create and verify self-contained tokens, for a given context. The allowlist must include the permitted algorithms, ideally only either symmetric or asymmetric algorithms, and must not include the 'None' algorithm. If both symmetric and asymmetric must be supported, additional controls will be needed to prevent key confusion. | Can be checked | Signed in: `probe.app-token-alg-none`, if it fails: The app's own sign-in token, marked as needing no signature (`alg: none`) and sent with none, opened a private page. Anybody can write such a token.<br>Outside tools: semgrep, 1 rule, its rules look for: a self-contained token (JWT) accepted with an algorithm outside an allowlist, such as none |
-| **V9.1.3** Verify that key material that is used to validate self-contained tokens is from trusted pre-configured sources for the token issuer, preventing attackers from specifying untrusted sources and keys. For JWTs and other JWS structures, headers such as 'jku', 'x5u', and 'jwk' must be validated against an allowlist of trusted sources. | No check | – |
+| **V9.1.3** Verify that key material that is used to validate self-contained tokens is from trusted pre-configured sources for the token issuer, preventing attackers from specifying untrusted sources and keys. For JWTs and other JWS structures, headers such as 'jku', 'x5u', and 'jwk' must be validated against an allowlist of trusted sources. | Can be checked | Reads the code: `ast.token-key-source-from-token`, looks for: A sign-in token is allowed to say where the key that checks it comes from (found failing only) |
 | **V9.2.1** Verify that, if a validity time span is present in the token data, the token and its content are accepted only if the verification time is within this validity time span. For example, for JWTs, the claims 'nbf' and 'exp' must be verified. | Can be checked | Signed in: `probe.app-token-expired-accepted`, if it fails: The app's own sign-in token still opened a private page more than a minute after the time written in it as its expiry (`exp`). A token copied or stolen once keeps working after it should have run out.<br>Outside tools: semgrep, 1 rule, its rules look for: a token accepted without its validity time span (exp) being verified (found failing only) |
 
 #### V10 OAuth and OIDC

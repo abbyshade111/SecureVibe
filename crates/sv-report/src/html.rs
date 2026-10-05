@@ -546,6 +546,10 @@ pub fn page(report: &Report) -> String {
             ));
         }
         b.push_str("</table>\n");
+        // Closed here, where it was opened: closed after the next section, the collapsed list held
+        // that section too, and a report with nothing undecided had a `</details>` and no
+        // `<details>` (the deep review's improvement 6).
+        b.push_str("</details>\n");
     }
 
     if !report.satisfied_elsewhere.is_empty() {
@@ -569,8 +573,6 @@ pub fn page(report: &Report) -> String {
         }
         b.push_str("</table>\n");
     }
-
-    b.push_str("</details>\n");
 
     if !report.out_of_scope.is_empty() {
         b.push_str("<h2>Findings about requirements this app is not being assessed against</h2>\n");
@@ -627,9 +629,8 @@ pub fn page(report: &Report) -> String {
             ));
         }
         b.push_str("</table>\n");
+        b.push_str("</details>\n");
     }
-
-    b.push_str("</details>\n");
 
     b.push_str("</body>\n</html>\n");
     b
@@ -688,5 +689,108 @@ mod tests {
         assert_eq!(escape("<"), "&lt;");
         assert_eq!(escape("&lt;"), "&amp;lt;");
         assert!(!escape("&<").contains("&amp;amp;"));
+    }
+
+    fn report(undecided: bool, elsewhere: bool, excluded: bool) -> Report {
+        Report {
+            app_name: "test".into(),
+            target_level: 1,
+            generated: None,
+            sv: Default::default(),
+            run_record: None,
+            run_note: None,
+            run_steps: Vec::new(),
+            test_output: None,
+            run_status: None,
+            ai_process: Default::default(),
+            counts: crate::Counts::default(),
+            requirements: vec![],
+            excluded: if excluded {
+                vec![crate::ExcludedRequirement {
+                    id: "V1.1.1".into(),
+                    description: "d".into(),
+                    chapter: "V1".into(),
+                    reason: "r".into(),
+                    condition: "c".into(),
+                    rests_on: "claim",
+                }]
+            } else {
+                vec![]
+            },
+            undecided: if undecided {
+                vec![crate::UndecidedRequirement {
+                    id: "V2.1.1".into(),
+                    description: "d".into(),
+                    chapter: "V2".into(),
+                    blocked_on: vec!["q".into()],
+                }]
+            } else {
+                vec![]
+            },
+            claims: vec![],
+            findings: vec![],
+            set_aside: Vec::new(),
+            reviews_not_counted: Vec::new(),
+            out_of_scope: vec![],
+            checklist_above_level: vec![],
+            tests_to_write: vec![],
+            only_you_can_check: Vec::new(),
+            questions_for_you: Vec::new(),
+            no_instructions_yet: 0,
+            named_not_credited: vec![],
+            not_for_tests: 0,
+            threats: Vec::new(),
+            threat_parts: Vec::new(),
+            threat_atlas_release: None,
+            satisfied_elsewhere: if elsewhere {
+                vec![crate::SatisfiedElsewhere {
+                    check_id: "c".into(),
+                    scope: "s".into(),
+                    why: "w".into(),
+                }]
+            } else {
+                vec![]
+            },
+            gaps: vec![],
+            examined: Vec::new(),
+            could_not_run: Vec::new(),
+            partly_read: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn every_collapsed_list_is_closed_where_it_was_opened() {
+        // The deep review's improvement 6: a report with nothing undecided, or nothing excluded,
+        // had a `</details>` with no `<details>`, and the undecided list held the next section too.
+        for undecided in [false, true] {
+            for elsewhere in [false, true] {
+                for excluded in [false, true] {
+                    let page = page(&report(undecided, elsewhere, excluded));
+                    let case = format!(
+                        "undecided {undecided}, elsewhere {elsewhere}, excluded {excluded}"
+                    );
+                    // Every close follows an open, and the counts agree.
+                    let mut open = 0i32;
+                    for (i, _) in page.match_indices("details") {
+                        if page[..i].ends_with("</") {
+                            open -= 1;
+                        } else if page[..i].ends_with('<') {
+                            open += 1;
+                        }
+                        assert!((0..=1).contains(&open), "{case}: {page}");
+                    }
+                    assert_eq!(open, 0, "{case}");
+                    // The section of checks found clean elsewhere is never inside a collapsed list.
+                    if let Some(at) = page.find("Checks that ran and found nothing") {
+                        let before = &page[..at];
+                        assert_eq!(
+                            before.matches("<details").count(),
+                            before.matches("</details>").count(),
+                            "{case}: the section is inside a collapsed list"
+                        );
+                    }
+                }
+            }
+        }
     }
 }
