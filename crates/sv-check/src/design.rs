@@ -388,6 +388,7 @@ fn never_built(question: &Question, path: &str, who: &Who) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: "design.planned-never-built".to_owned(),
         title: format!("Decided, never built: {}", question.title.to_lowercase()),
