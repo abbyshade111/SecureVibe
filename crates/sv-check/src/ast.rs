@@ -71,6 +71,17 @@ pub struct AstRule {
     /// forgets the capture reports nothing rather than everything.
     #[serde(default)]
     pub argument_patterns: BTreeMap<String, String>,
+    /// Per language, what `@arg` must match in place of `argumentPatterns` when the call states
+    /// its hash: a pattern over the `@hash` capture, and the argument pattern that goes with it.
+    ///
+    /// PBKDF2 needs 600,000 rounds with SHA-256 and 210,000 with SHA-512 (OWASP), so one figure
+    /// for every hash either misses SHA-256 counts between the two or reports SHA-512 counts that
+    /// are fine. A match whose `@hash` is missing, or matches none of the patterns (a hash passed
+    /// in a variable, another hash, a hash set somewhere else), is judged by `argumentPatterns`
+    /// as before. Where a query captures more than one node as `@hash` (a shell option and its
+    /// value), their texts are joined by a space, in the order they appear.
+    #[serde(default)]
+    pub argument_patterns_by_hash: BTreeMap<String, BTreeMap<String, String>>,
     /// Per language, an `@arg` text that is known to be safe, so the call is not reported.
     ///
     /// Narrow on purpose, and each one written for a named idiom: `redirect(url_for("index"))` builds
@@ -189,6 +200,7 @@ struct Compiled {
     keyword: BTreeMap<String, regex::Regex>,
     positions: BTreeMap<String, Vec<(regex::Regex, usize)>>,
     common_names: BTreeMap<String, Vec<(regex::Regex, regex::Regex)>>,
+    by_hash: BTreeMap<String, Vec<(regex::Regex, regex::Regex)>>,
 }
 
 pub struct AstRules {
@@ -835,6 +847,27 @@ impl AstRules {
                 }
                 common_names.insert(language.clone(), pairs);
             }
+            let mut by_hash = BTreeMap::new();
+            for (language, by_name) in &rule.argument_patterns_by_hash {
+                anyhow::ensure!(
+                    queries.contains_key(language),
+                    "rule {} has argumentPatternsByHash for {language} but no {language} query",
+                    rule.id
+                );
+                let mut pairs = Vec::new();
+                for (hash, argument) in by_name {
+                    let compile = |source: &str| {
+                        regex::Regex::new(source).with_context(|| {
+                            format!(
+                                "rule {} has an unusable argumentPatternsByHash entry for {language}",
+                                rule.id
+                            )
+                        })
+                    };
+                    pairs.push((compile(hash)?, compile(argument)?));
+                }
+                by_hash.insert(language.clone(), pairs);
+            }
             // A pattern for a language the rule has no query in is a pattern that never runs, and
             // the rule reads as if it had been taught that language.
             for (what, patterns) in [
@@ -891,6 +924,7 @@ impl AstRules {
                 keyword,
                 positions,
                 common_names,
+                by_hash,
             });
         }
         Ok(AstRules { compiled })
@@ -1527,6 +1561,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         let fn_index = query.capture_index_for_name("fn");
         let mod_index = query.capture_index_for_name("mod");
         let kw_index = query.capture_index_for_name("kw");
+        let hash_index = query.capture_index_for_name("hash");
         let text_of = |m: &tree_sitter::QueryMatch, index: Option<u32>| -> Option<String> {
             let index = index?;
             let capture = m.captures().iter().find(|c| c.index == index)?;
@@ -1595,7 +1630,32 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             {
                 continue;
             }
-            if let Some(pattern) = compiled.argument.get(language) {
+            // The hash the call states, if the query reads one: every node captured as `@hash`,
+            // in the order they appear.
+            let hash_text = hash_index.and_then(|index| {
+                let mut nodes: Vec<_> = m
+                    .captures()
+                    .iter()
+                    .filter(|c| c.index == index)
+                    .map(|c| c.node)
+                    .collect();
+                nodes.sort_by_key(|n| n.start_byte());
+                let texts = nodes
+                    .iter()
+                    .map(|n| n.utf8_text(source.as_bytes()).ok())
+                    .collect::<Option<Vec<_>>>()?;
+                (!texts.is_empty()).then(|| texts.join(" "))
+            });
+            // A stated hash with its own figure is judged by that figure; anything else by the
+            // rule's own argument pattern.
+            let for_hash = compiled.by_hash.get(language).and_then(|pairs| {
+                let hash = hash_text.as_deref()?;
+                pairs
+                    .iter()
+                    .find(|(pattern, _)| pattern.is_match(hash))
+                    .map(|(_, argument)| argument)
+            });
+            if let Some(pattern) = for_hash.or_else(|| compiled.argument.get(language)) {
                 match arg_text {
                     Some(text) if pattern.is_match(text) => {}
                     _ => continue,
@@ -2890,6 +2950,27 @@ mod tests {
             Err(e) => format!("{e:#}"),
         };
         assert!(error.contains("no go query"), "{error}");
+    }
+
+    #[test]
+    fn a_figure_for_a_named_hash_is_refused_where_the_rule_has_no_query_or_an_unusable_pattern() {
+        let without_query = rules_from(&one_rule(
+            r#", "argumentPatternsByHash": {"go": {"sha256": "^1$"}}"#,
+        ));
+        let error = format!("{:#}", without_query.err().expect("no go query"));
+        assert!(error.contains("no go query"), "{error}");
+        let unusable = rules_from(&one_rule(
+            r#", "argumentPatternsByHash": {"python": {"sha256": "("}}"#,
+        ));
+        let error = format!("{:#}", unusable.err().expect("an unusable pattern"));
+        assert!(error.contains("unusable argumentPatternsByHash"), "{error}");
+        // And a usable one loads, so the two refusals above are about what they say.
+        assert!(
+            rules_from(&one_rule(
+                r#", "argumentPatternsByHash": {"python": {"sha256": "^1$"}}"#
+            ))
+            .is_ok()
+        );
     }
 
     #[test]
@@ -4542,6 +4623,95 @@ mod tests {
         ("ast.weak-password-key-derivation", "shell", "openssl pkcs12 -export -iter 1000 -in cert.pem -out cert.p12", true),
         ("ast.weak-password-key-derivation", "shell", "openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -in a -out b", false),
         ("ast.weak-password-key-derivation", "shell", "openssl rand -hex 32", false),
+        // Counts between 210,000 and 600,000: reported where the call itself names SHA-256, and not
+        // where it names SHA-512, or names no hash this rule can read (a variable, a hash set
+        // elsewhere, or a default).
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac('sha256', pw, salt, 300_000)", true),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac(\"SHA256\", pw, salt, 599999)", true),
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=s, iterations=300000)", true),
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(iterations=300000, length=32, salt=s, algorithm=hashes.SHA256())", true),
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(hashes.SHA256(), 32, s, 300000)", true),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac('sha256', pw, salt, 600_000)", false),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac('sha512', pw, salt, 300_000)", false),
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(algorithm=hashes.SHA512(), length=32, salt=s, iterations=300000)", false),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac(name, pw, salt, 300_000)", false),
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(algorithm=algo, length=32, salt=s, iterations=300000)", false),
+        // Another keyword that happens to hold the text is not the hash.
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(algorithm=algo, label='sha256', length=32, salt=s, iterations=300000)", false),
+        ("ast.weak-password-key-derivation", "javascript", "const k = crypto.pbkdf2Sync(pw, salt, 300000, 32, 'sha256');", true),
+        ("ast.weak-password-key-derivation", "javascript", "crypto.pbkdf2(pw, salt, 300_000, 32, 'SHA256', done);", true),
+        ("ast.weak-password-key-derivation", "javascript", "crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 300000, hash: 'SHA-256' }, base, aes, false, use);", true),
+        ("ast.weak-password-key-derivation", "javascript", "crypto.subtle.deriveKey({ name: 'PBKDF2', hash: { name: 'SHA-256' }, salt, iterations: 300000 }, base, aes, false, use);", true),
+        ("ast.weak-password-key-derivation", "javascript", "const k = crypto.pbkdf2Sync(pw, salt, 600000, 32, 'sha256');", false),
+        ("ast.weak-password-key-derivation", "javascript", "const k = crypto.pbkdf2Sync(pw, salt, 300000, 32, 'sha512');", false),
+        ("ast.weak-password-key-derivation", "javascript", "crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 300000, hash: 'SHA-512' }, base, aes, false, use);", false),
+        ("ast.weak-password-key-derivation", "javascript", "const k = crypto.pbkdf2Sync(pw, salt, 300000, 32, digest);", false),
+        ("ast.weak-password-key-derivation", "javascript", "crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 300000, hash }, base, aes, false, use);", false),
+        // A pair other than `hash` holding the text is not the hash.
+        ("ast.weak-password-key-derivation", "javascript", "crypto.subtle.deriveKey({ name: 'sha256', salt, iterations: 300000, hash }, base, aes, false, use);", false),
+        ("ast.weak-password-key-derivation", "typescript", "const k: Buffer = pbkdf2Sync(pw, salt, 300_000, 32, 'sha256');", true),
+        ("ast.weak-password-key-derivation", "typescript", "const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: 300000, hash: 'SHA-256' }, base, 256);", true),
+        ("ast.weak-password-key-derivation", "typescript", "const k: Buffer = pbkdf2Sync(pw, salt, 600_000, 32, 'sha256');", false),
+        ("ast.weak-password-key-derivation", "typescript", "const k: Buffer = pbkdf2Sync(pw, salt, 300_000, 32, 'sha512');", false),
+        ("ast.weak-password-key-derivation", "typescript", "const k: Buffer = pbkdf2Sync(pw, salt, 300_000, 32, digest);", false),
+        // Java and Kotlin name the hash in `SecretKeyFactory.getInstance(...)`, not in the key spec,
+        // so a count between the two figures is not judged.
+        ("ast.weak-password-key-derivation", "java", "class A { void f() { KeySpec s = new PBEKeySpec(pw, salt, 300000, 256); } }", false),
+        ("ast.weak-password-key-derivation", "kotlin", "fun f() { val s = PBEKeySpec(pw, salt, 300_000, 256) }", false),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 300_000, 32, sha256.New) }", true),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha256.New, pw, salt, 300_000, 32) }", true),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 600_000, 32, sha256.New) }", false),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 300_000, 32, sha512.New) }", false),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha512.New, pw, salt, 300_000, 64) }", false),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 300_000, 32, h) }", false),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2(\"sha256\", $pw, $salt, 300000, 32);", true),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = openssl_pbkdf2($pw, $salt, 32, 300000, 'sha256');", true),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2(\"sha256\", $pw, $salt, 600000, 32);", false),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2(\"sha512\", $pw, $salt, 300000, 32);", false),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = openssl_pbkdf2($pw, $salt, 32, 300000, 'sha512');", false),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2($algo, $pw, $salt, 300000, 32);", false),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 300_000, 32, OpenSSL::Digest::SHA256.new)", true),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 300_000, 32, OpenSSL::Digest.new('SHA256'))", true),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::KDF.pbkdf2_hmac(pw, salt: s, iterations: 300_000, length: 32, hash: 'sha256')", true),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::KDF.pbkdf2_hmac(pw, hash: 'SHA256', salt: s, iterations: 300_000, length: 32)", true),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 600_000, 32, OpenSSL::Digest::SHA256.new)", false),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 300_000, 32, OpenSSL::Digest::SHA512.new)", false),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::KDF.pbkdf2_hmac(pw, salt: s, iterations: 300_000, length: 32, hash: 'sha512')", false),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 300_000, 32, d)", false),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 300000, HashAlgorithmName.SHA256); } }", true),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var b = Rfc2898DeriveBytes.Pbkdf2(pw, salt, 300_000, HashAlgorithmName.SHA256, 32); } }", true),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var b = Rfc2898DeriveBytes.Pbkdf2(pw, salt, 600_000, HashAlgorithmName.SHA256, 32); } }", false),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 300000, HashAlgorithmName.SHA512); } }", false),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 300000, alg); } }", false),
+        ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 300000, EVP_sha256(), 32, out); }", true),
+        ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 300000, EVP_sha512(), 32, out); }", false),
+        ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 300000, md, 32, out); }", false),
+        ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 300000, EVP_sha256(), 32, out); }", true),
+        ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 600000, EVP_sha256(), 32, out); }", false),
+        ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 300000, EVP_sha512(), 32, out); }", false),
+        ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 300000, md, 32, out); }", false),
+        ("ast.weak-password-key-derivation", "rust", "fn f() { pbkdf2::pbkdf2_hmac::<Sha256>(pw, salt, 300_000, &mut key); }", true),
+        ("ast.weak-password-key-derivation", "rust", "fn f() { pbkdf2::<Hmac<sha2::Sha256>>(pw, salt, 300_000, &mut key); }", true),
+        ("ast.weak-password-key-derivation", "rust", "fn f() { let k = pbkdf2_hmac_array::<Sha256, 32>(pw, salt, 300_000u32); }", true),
+        ("ast.weak-password-key-derivation", "rust", "fn f() { pbkdf2::pbkdf2_hmac::<Sha512>(pw, salt, 300_000, &mut key); }", false),
+        ("ast.weak-password-key-derivation", "rust", "fn f() { pbkdf2::pbkdf2_hmac::<D>(pw, salt, 300_000, &mut key); }", false),
+        ("ast.weak-password-key-derivation", "dart", "void f() { final a = Pbkdf2(macAlgorithm: Hmac.sha256(), iterations: 300000, bits: 256); }", true),
+        ("ast.weak-password-key-derivation", "dart", "void f() { final a = Pbkdf2(iterations: 300000, bits: 256, macAlgorithm: Hmac.sha256()); }", true),
+        ("ast.weak-password-key-derivation", "dart", "void f() { final a = Pbkdf2(macAlgorithm: Hmac.sha512(), iterations: 300000, bits: 256); }", false),
+        ("ast.weak-password-key-derivation", "dart", "void f() { final a = Pbkdf2(macAlgorithm: mac, iterations: 300000, bits: 256); }", false),
+        // pointycastle names the hash in the `KeyDerivator`, not in the parameters.
+        ("ast.weak-password-key-derivation", "dart", "void f() { final p = Pbkdf2Parameters(salt, 300000, 32); }", false),
+        ("ast.weak-password-key-derivation", "swift", "func f() { CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), pw, n, salt, sn, CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256), 300000, &key, 32) }", true),
+        ("ast.weak-password-key-derivation", "swift", "func f() { CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), pw, n, salt, sn, CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA512), 300000, &key, 32) }", false),
+        ("ast.weak-password-key-derivation", "swift", "func f() { CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), pw, n, salt, sn, prf, 300000, &key, 32) }", false),
+        ("ast.weak-password-key-derivation", "shell", "openssl enc -d -pbkdf2 -iter 300000 -md sha256 -in a -out b", true),
+        ("ast.weak-password-key-derivation", "shell", "openssl enc -d -md sha256 -pbkdf2 -iter 300000 -in a -out b", true),
+        ("ast.weak-password-key-derivation", "shell", "openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -md sha256 -in a -out b", false),
+        ("ast.weak-password-key-derivation", "shell", "openssl enc -aes-256-cbc -pbkdf2 -iter 300000 -md sha512 -in a -out b", false),
+        // `enc`'s default digest is SHA-256, but nothing in the line says so.
+        ("ast.weak-password-key-derivation", "shell", "openssl enc -aes-256-cbc -pbkdf2 -iter 300000 -in a -out b", false),
+        // In `pkcs12`, `-md` is the digest of the file's MAC, not of the key derivation.
+        ("ast.weak-password-key-derivation", "shell", "openssl pkcs12 -export -iter 300000 -md sha256 -in cert.pem -out cert.p12", false),
         // Static files from the app's own folder: the handler given the code's folder or the
         // current one, beside the same handler given a folder of its own.
         ("ast.static-files-from-app-folder", "javascript", "app.use(express.static(__dirname))", true),

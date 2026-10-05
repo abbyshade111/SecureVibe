@@ -1045,6 +1045,10 @@ another session is not a claim.
      tell a checked redirect from an unchecked one. Recognizing every checking function is not possible; one
      honest step is to lower the confidence when the value passed through a function of the app's own whose
      name or body speaks of the destination, and say so in the finding.
+     **Items 2 and 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-a1-rest`: each finding stays, with its confidence lowered and the reason said, when the
+     path is built only from fixed text and a value read back from the app's database, or the destination passed
+     through a function whose name says it checks it.
      **The owner's decision, 5 October 2026:** keep the finding, and when the destination passes through a function
      of the app's own, name that function in it as the thing to check. **Claimed the same day by session
      securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-redirect-checked`.
@@ -1642,6 +1646,10 @@ another session is not a claim.
   without being asked; Haiku stopped to ask the owner until the request said the owner was away (protocol amendment
   1); all four builds that wrote an app could be started and signed in to (34, 38, 21, 27 checks answered). Only three
   ran `sv check`, each once: no check-and-fix round was seen. The measures are `loop_measures.py`.
+  **Items 3, 5, and 6 claimed on 5 October 2026 by session paper-facts**, at the owner's word: 3 in branch
+  `claude/loop-arms`, run on the pilot's `sv` (`87404c8e`) so its loop arm is comparable with the pilot; 5 in branch
+  `claude/loop-preflight`, with its decision record; 6 after 3, at a size the owner chooses from 3's cost. Each run's
+  number of builds and estimate goes to the owner before it starts.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
@@ -2946,11 +2954,19 @@ another session is not a claim.
      **Go's standard-library `crypto/pbkdf2` and C#'s two-argument `Rfc2898DeriveBytes` claimed on 3 October 2026 by
      session securevibe-e2**, at the owner's asking to continue with the backlog, in branch
      `claude/securevibe-e2-weak-kdf-more`. Counts between 210,000 and 600,000 with SHA-256 stay unclaimed.
-     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
-     `claude/pbkdf2-mid-counts`.
      **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 3 October):
      both are reported, and x/crypto's own order is never misread as the standard library's. Six guards broken in
      turn, each caught.
+     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
+     `claude/pbkdf2-mid-counts`.
+     **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 5 October):
+     the rule now ties the figure to the hash where the call names it: below 600,000 is reported with SHA-256, and
+     210,000 stays the figure with SHA-512 and wherever the hash is not named or cannot be read (a variable, a
+     default, or a hash set elsewhere, as Java's and Kotlin's `PBEKeySpec` and pointycastle's `Pbkdf2Parameters`
+     always do), which the rule's description and what it looks for now say. The hash is read in thirteen of the
+     fifteen languages; every language has a case at 300,000 with SHA-256 or with no hash it can read, and each
+     that names a hash has cases at 600,000 with SHA-256 and 300,000 with SHA-512. Eight guards broken in turn,
+     each caught. Not done: SHA-1 counts between 210,000 and 1,300,000.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
@@ -5877,6 +5893,22 @@ another session is not a claim.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
      **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
      `claude/semgrep-follow-ups-2-4`.
+     **Done the same day** (DESIGN, "Semgrep follow-ups 2 and 4"). *2:* nothing kept the secret rules' findings
+     out of the split: `Finding::in_test_code` reads the path for every rule alike, and all 92 secret-rule findings
+     the measurement found in test code are test code by it (111 of its 112 test-code findings in all; the one
+     missed is an example's `run_tests.py`). Now held by a test over `docs/semgrep-false-alarms.csv`, which also
+     shows no true or unsure finding is moved apart, and by a test that a real password in a test file is still
+     reported, listed apart, and counted. *4:* a bcrypt hash under a name that says password, hash, or digest,
+     or a hex digest of MD5 to SHA-512 length under one that says hash or digest, is not reported by `sv`'s
+     assignment rule, nor by Semgrep's secret rules, Bandit's B105 to B107, or gosec's G101 when it is the only
+     thing on the line that could be a credential. A hex value under a name that says only password is still
+     reported, as is anything under a name that also says key, secret, token, salt, pepper, seed, or HMAC. On the
+     corpus's secret-rule lines, rebuilt by shape, it spares NodeGoat's three bcrypt hashes and keeps every true
+     finding; pygoat's seven digests under `password` stay reported, the price of never sparing a hex password, so
+     it removes 3 of the 7 the measurement's C2 did. Real Semgrep's `detected-bcrypt-hash` fired on a stored hash
+     and the report no longer shows it. Eight guards broken in turn: seven caught. The eighth, dropping the `test`
+     folder from what is test code, was not by these tests, because every corpus file in `test/` is also named
+     like a test; `finding.rs`'s own tests hold it.
   5. Only then, and the owner's choice: the narrow "worth a look" tier (`unsafe-dynamic-method`,
      `detect-non-literal-regexp`, `prohibit-jquery-html`, `plaintext-http-link`, `var-in-href`), which costs one real
      finding in this corpus.
