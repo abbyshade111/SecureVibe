@@ -8038,6 +8038,43 @@ the "not tried yet" mark caught by nothing, because every design-time prompt the
 ones it is caught by two tests. The headings guard was broken twice (the incident plan written into the notes, and a
 heading misspelled), and each was caught.
 
+
+## A plan before any code: `sv plan` and `securevibe_plan` (4 October 2026)
+
+Item 3 of the backlog's "Design-time help before any code"; the decision is ADR-030, written first as `proposed` with
+the claim (#659) and accepted with the build.
+
+`sv plan [PATH]` prints, and the MCP tool `securevibe_plan` returns, the plan for an app from its `securevibe.toml`:
+the requirements that will apply, grouped by chapter; the design-time prompts for the decisions before each feature,
+marked shown to work or not tested, with the questions only the person can answer; the tests worth writing, named by
+requirement id; what the app must give `sv run`, worked out from the brief's answers; and the threats those answers
+raise. It writes nothing, ends clean (a plan is not a check), and credits nothing, which it says in its first lines
+and in `creditsNothing` in the tool's result.
+
+**Built from the report.** `plan::from_report` takes the parts `assemble_report` already makes (`requirements`,
+`tests_to_write`, `questions_for_you`, `threats`), so the plan and a later report cannot disagree about what
+applies; two tests compare them, one through `sv report`'s `report.json` and one through `securevibe_check`. The
+report's assembly reads the app's files when there are any, which only ever adds requirements; on a folder holding
+only the brief it reads nothing. The MCP tool goes through the same time limit and progress as a check.
+
+**What `sv run` needs.** `plan::run_needs` maps the brief's answers to the settings each check of the running app
+reads: `image`, `start`, `health`, and `test` always; for sign-in, `seed`, `login`, `logout`, `private`, `owned`, and
+`admin` under `[stack.run.users]`; and `[stack.run.oidc]`, `upload`, `reset`, `once`, `[stack.run.ai]`,
+`[stack.run.fetch]`, and `[stack.run.mcp-server]` for the answers that bring them. An unanswered capability is planned
+for, as the spec's rule 2 asks; one answered no asks for nothing; one the brief already gives is marked given. Each
+reason was read against the checks it serves (the upload entry, for one, says what is really sent: a file over
+`max-bytes`, a page, a script, an SVG with a script, a name that climbs out of its folder), and a test refuses a table
+or setting the spec does not describe.
+
+**Text from the app.** The app's name comes from its folder, so it is written on one line, with its line breaks and
+invisible characters as escapes, as everywhere else such text reaches the AI coding tool.
+
+**Broken in turn.** Thirteen guards: a requirement or a test left out of the plan (each caught by a comparison with the
+report), the plan not saying it credits nothing (in its text, and in its result), the plan ending as a failed check or
+writing into the app's folder, an unanswered capability read as no, sign-in asked of an app without it, a setting the
+spec does not have, a given setting not marked, no design-time prompt given, the app's name not put on one line, and
+the instructions not naming the plan. Each was caught.
+
 ## The notes file keeps what the owner wrote outside the answers (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 3, R7) found that `sv notes`, and the MCP tools
@@ -8282,6 +8319,28 @@ ADR-019.
 How it is held: `two_runs_never_share_a_name`, `everything_a_run_creates_carries_its_label_and_nothing_else_does`, and
 `a_teardown_removes_what_docker_lists_under_its_label` (`crates/sv-run/src/docker.rs`). Four guards were undone in
 turn, and each turned its test red.
+
+## The tests' scratch folders, one per run and per call (5 October 2026)
+
+The same fault in `sv`'s own tests. Twelve helpers made their scratch folder at a fixed name in the computer's
+shared temporary folder (`sv-clean-<test>` and the like), emptying it first. Two `cargo test --workspace` runs at
+once, from two sessions or a session and the owner, used the same folder, and one run's emptying deleted the
+other's files in the middle of a test. On 5 October 2026 two `clean_coverage` tests failed so, their second scan
+finding nothing, while another session's full run was going; with `TMPDIR` pointed at a folder of their own they
+passed. A failure of that kind says something false about `sv`.
+
+- **The name carries the process id and a count**: `sv-clean-<test>-<process id>-<n>`. No two processes running at
+  once share an id, and the count keeps two calls with one name in one run apart.
+- **The folder goes when the test lets go of it.** A fixed name was emptied by the next run; a name of the run's own
+  never would be, so the helpers return a `Scratch` that removes its folder when dropped. One whose test panicked is
+  kept, so the files it failed on can be looked at.
+- One copy serves `sv-check`'s test files (`crates/sv-check/tests/scratch/mod.rs`); `sv-scan`'s single test file
+  has its own. The unit-test helper in `sv-check/src/config.rs` already removed its folders, and gained the
+  process id only. Helpers that already named their folder by process id were left as they were.
+
+How it is held: `a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go`, in `clean_coverage.rs` and
+in `sv-scan`'s `scan.rs`. With the count taken out, the process id taken out, or the removal taken out, it failed
+each time, on the assertion written for that guard.
 
 ## Advisory versions: in order, gaps kept, gems as gems (4 October 2026)
 
@@ -8655,6 +8714,44 @@ How it is held: `app_text_is_inert_outside_code_and_left_as_it_is_inside` and
 end to end with a file name and an app name built to escape; and `sv_s_own_redaction_marker_is_read_as_one_escaped_or_not`
 (`crates/sv-check/src/secrets.rs`). The S8 test `a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen`
 now looks for the escaped marker in the Markdown. Four guards were undone in turn and each was caught.
+
+## Files that are not text named, and text that is not UTF-8 read (5 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H22) found two things, and the cato-pipeline session saw the
+first in my-first-app: one Finder `.DS_Store` left the credential scan partial for good, and the report's gap said
+only "1 file not read while looking for credentials", so the AI tool searched for large files and then ran `sv check`
+to learn which file it was. The second: text that was not UTF-8 was never read, by the credential scan or any code
+rule.
+
+**Reading text.** Every check reads a file through `files::decode`, which now tries, in order:
+
+- **A kind of file that holds no text a person writes, by its first bytes.** PNG, JPEG, GIF, and WebP images, icons,
+  fonts, and `.DS_Store`. By contents, never by name: a `logo.png` holding text is read as text. First, because a
+  small `.DS_Store` is valid UTF-8.
+- **UTF-8 with no zero byte**, as nearly everything is. A zero byte is a character in UTF-8, but text a person
+  writes has none; before, UTF-16 saved without its mark was read this way, with a zero between each letter, and a
+  key written in it was missed while the file counted as read.
+- **UTF-16**, with its mark (as Windows tools write it) or without it (nearly every other byte zero). Taken only
+  when what it reads as is mostly ASCII with no control characters: two bytes can look like the mark by chance at
+  the start of a binary file, and read as UTF-16 a key written in it as plain letters would read as nonsense and be
+  missed. An app's own UTF-16 files, scripts and settings saved by Windows tools, are mostly ASCII.
+- **Not text, if a zero byte is left.**
+- **Latin-1 otherwise**, where every byte is one character, so letters, digits, and punctuation read as written and
+  a credential written in them is found where it is.
+
+A file over 2 MB, read in pieces, is still read as UTF-8 only.
+
+**Saying what was not read.** A file of a kind that holds no text a person writes is named, by `sv check` and in the
+credential scan's evidence ("2 more not read, being images, fonts, or other files that hold no text a person
+writes"), and does not keep the scan from being complete: there is no text in it for a credential to be written in.
+Any other file not read stays a gap, and the report's gap now names each, with why, up to five, and says how many
+more `sv check` lists. `sv bundle` holds these files to the rule it had: in when the name says image or font, out
+otherwise, with what the file is.
+
+Two tests used bytes standing for "a file nothing reads" that the new reading reads; they now use bytes nothing
+reads. Nine guards broken in turn, each caught, by between one and five tests. One first looked uncaught: the disk was
+full, so the bundle tests never ran; run again with room, it was caught. The mutation run now counts a suite that did
+not run as no answer rather than as a pass.
 
 ## SARIF addresses are addresses, and a rule is described in its own words (5 October 2026)
 

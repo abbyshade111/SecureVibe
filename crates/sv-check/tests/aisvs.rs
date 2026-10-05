@@ -5,6 +5,9 @@
 //! requirement in `findings_against`, carried by a finding and never credited by a clean run, and
 //! these tests hold both halves against a real run (`fixtures/semgrep-aisvs`).
 
+mod scratch;
+
+use scratch::Scratch;
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use sv_check::adapters::{self, Adapter, Adapters};
@@ -124,8 +127,7 @@ fn the_careful_version_raises_nothing() {
 
 #[test]
 fn a_requirement_both_credited_and_only_ever_a_finding_is_refused() {
-    let dir = std::env::temp_dir().join("sv-aisvs-both");
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = Scratch::new("aisvs-both");
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json");
     let mut file: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
@@ -144,7 +146,7 @@ fn a_requirement_both_credited_and_only_ever_a_finding_is_refused() {
     let doctored = dir.join("adapters.json");
     std::fs::write(&doctored, file.to_string()).unwrap();
     let loaded = Adapters::load(&doctored);
-    std::fs::remove_dir_all(&dir).ok();
+    drop(dir);
     assert!(
         loaded
             .unwrap_err()
