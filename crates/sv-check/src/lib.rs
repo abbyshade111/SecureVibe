@@ -18,6 +18,7 @@ pub mod cvss;
 pub mod design;
 pub mod fetch;
 pub mod finding;
+pub mod git;
 pub mod grants;
 pub mod hand;
 pub mod human;

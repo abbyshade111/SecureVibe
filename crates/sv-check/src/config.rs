@@ -17,7 +17,6 @@
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::verified::Verified;
 use std::path::Path;
-use std::process::Command;
 use sv_scan::ecosystems::Pinning;
 
 /// What a configuration check concluded.
@@ -143,19 +142,8 @@ fn tracked_files(app_dir: &Path) -> Result<Vec<String>, NoHistory> {
 }
 
 fn read_tracked(app_dir: &Path) -> Option<Vec<String>> {
-    let out = Command::new("git")
-        .args(["-C", app_dir.to_str()?, "ls-files"])
-        .output()
-        .ok()?;
-    if !out.status.success() {
-        return None;
-    }
-    Some(
-        String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .map(str::to_owned)
-            .collect(),
-    )
+    // Through `git::ls_files`, which runs nothing the app's own repository names (ADR-032).
+    crate::git::ls_files(app_dir)
 }
 
 /// The check that matters most: a file whose job is holding credentials, committed to version control.
@@ -620,6 +608,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
 mod tests {
     use super::*;
     use std::fs;
+    use std::process::Command;
 
     fn scratch(name: &str) -> std::path::PathBuf {
         let dir = std::env::temp_dir().join(format!("sv-config-{name}-{}", std::process::id()));
