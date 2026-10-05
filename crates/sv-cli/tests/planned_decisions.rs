@@ -133,3 +133,21 @@ fn once_there_is_code_a_planned_file_that_is_not_there_is_decided_never_built() 
     );
     assert!(!json.contains("planned, not built yet"), "{json}");
 }
+
+#[test]
+fn a_dependency_list_with_no_source_read_is_code_too() {
+    // The same test the technology answers use: a dependency manifest is the app begun, even in a
+    // language `sv` cannot read the source of, so a plan is held to from then on.
+    let dir = fresh("manifest-only");
+    std::fs::write(
+        dir.join("package.json"),
+        r#"{ "name": "notes", "version": "1.0.0", "dependencies": { "express": "4.19.2" } }"#,
+    )
+    .unwrap();
+    let (compliance, json) = report(&dir, ANSWERS);
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert_not_credited(&compliance);
+    assert!(json.contains("\"design.planned-never-built\""), "{json}");
+    assert!(!json.contains("planned, not built yet"), "{json}");
+}
