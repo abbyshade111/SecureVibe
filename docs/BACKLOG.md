@@ -4118,6 +4118,16 @@ another session is not a claim.
   message gives them. Still the case on `main` at 6d4ce3f.
   **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch `claude/install-steps-for-run`:
   the guide gets the build steps; the message is left as it is.
+  **Done the same day** (DESIGN, "The guide says how to install `sv` for `--run`"): section 6 of
+  `docs/GETTING-STARTED.md` now walks somebody who is not a programmer through it: Apple's command-line tools (or
+  `build-essential` on Linux), Rust through rustup, the source by `git clone` or a ZIP, `cargo build --release -p
+  sv-cli`, a `PATH` line for zsh and for bash, `sv --version` and a check of a bundled example, that the folder must
+  stay where it was built (a built `sv` still cannot be moved: item 2 above is open on `main`), and that Docker or
+  Colima must be running. Windows is said plainly to be untried. Every command was run on the Mac from a fresh clone
+  of `main` at aa4d371, and from the ZIP, and `sv report --run` then started an example app; the Linux steps were not
+  tried by hand. A test (`the_guide_the_container_points_at_says_how_to_install_sv`, `crates/sv-cli/src/mcp.rs`)
+  holds the container message's pointer to the guide: putting back the old guide failed it, and so did putting back
+  only the old "not yet something this guide can make easy" sentence.
 
   **Thoughts.**
 

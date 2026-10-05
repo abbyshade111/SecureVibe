@@ -15,7 +15,9 @@ short too.
 
 ## 1. Install Docker, and start it
 
-SecureVibe runs inside Docker, so there is nothing else to install.
+SecureVibe runs inside Docker, so there is nothing else to install. (One later step, which starts
+your app to check it while it runs, needs SecureVibe installed on the computer itself; section 6 says
+how, and it is optional.)
 
 - **On a Mac:** Docker Desktop (docker.com), or Colima if you prefer something smaller.
 - **On Windows or Linux:** Docker Desktop, or Docker itself on Linux.
@@ -184,9 +186,10 @@ and asks you the questions. **It does not start the app.** The checks that need 
 as what it sends to a browser, whether signing out really ends the session, and whether one person
 can see another's data, are reported as *not assessed*. That is honest, not a pass.
 
-Those checks need `sv report --run` at a terminal, with SecureVibe installed directly rather than in
-Docker, because starting your app means starting containers of its own. That install is not yet
-something this guide can make easy.
+Those checks need `sv report --run` at a terminal, with SecureVibe installed directly on your computer
+rather than in Docker, because starting your app means starting containers of its own. There is no
+download for that yet, so it means building SecureVibe yourself. The steps are at the end of this
+section, under "Installing SecureVibe on your computer, for `--run`".
 
 If you later run SecureVibe in an automatic check (CI) whenever the code changes, the number it ends with
 says what happened. 0: it finished. 2: some check could not run, such as a file it could not read or a
@@ -195,6 +198,106 @@ language it does not read, so that run left part of the app unchecked. 3: Secure
 known vulnerability) or when you ask for it: `sv check . --fail-on attention:high` stops the check when
 anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
 exactly what each number covers.
+
+### Installing SecureVibe on your computer, for `--run`
+
+You only need this for `sv report --run`. Everything in steps 1 to 5 keeps working through Docker as it
+is, and your AI tool keeps using the container: the copy you build here is for typing at a terminal.
+
+SecureVibe has no ready-made download yet, so you build it from its source code (the program written
+out as text, which a builder turns into a program you can run). It is done once and takes a few
+commands. These steps were tried on a Mac on 5 October 2026, from a fresh copy of SecureVibe. The Linux
+steps have not been tried by hand, though SecureVibe is built on Linux every time its code changes.
+**Windows:** SecureVibe has never been built or tried on Windows, so nothing here is known to work
+there; use the Docker steps above, and leave `--run` out for now.
+
+**1. The basic tools.** On a Mac, in a terminal:
+
+```bash
+xcode-select --install
+```
+
+This installs Apple's command-line tools, which include `git` and the parts Rust needs to finish
+building a program. If it says they are already installed, go on. On Linux (Debian or Ubuntu):
+`sudo apt install build-essential git curl`.
+
+**2. Install Rust.** Rust is the programming language SecureVibe is written in. Installing it gives you
+`cargo`, the program that builds SecureVibe. The official installer, from rust-lang.org:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+When it asks how to install, press Enter for the standard choice. Then close the terminal window and
+open a new one, so it sees what was installed, and type `cargo --version`. It should print a version
+number: SecureVibe needs 1.95 or newer. If yours is older, `rustup update` brings it up to date.
+
+**3. Get SecureVibe's source code**, into a folder named `securevibe` in your home folder:
+
+```bash
+cd ~
+git clone https://github.com/abbyshade111/SecureVibe.git securevibe
+```
+
+Or, without `git`: on SecureVibe's GitHub page, choose **Code**, then **Download ZIP**, unzip it,
+rename the folder it makes (`SecureVibe-main`) to `securevibe`, and move it into your home folder.
+Built that way, `sv --version` says `commit unknown` rather than which version of the code it is, and
+updating means downloading it again.
+
+**4. Build it:**
+
+```bash
+cd ~/securevibe
+cargo build --release -p sv-cli
+```
+
+The first time, `cargo` downloads the pieces SecureVibe is made from, and the build takes a few
+minutes. It is done when it prints a line starting `Finished`. The program is then
+`~/securevibe/target/release/sv`.
+
+**5. Let the terminal find it.** When you type a command, the terminal looks for it in a list of
+folders called your `PATH`. This adds SecureVibe's folder to that list, for every terminal you open
+from now on. On a Mac:
+
+```bash
+echo 'export PATH="$HOME/securevibe/target/release:$PATH"' >> ~/.zshrc
+```
+
+On Linux, the same line with `~/.bashrc` at the end instead of `~/.zshrc`. Then close the terminal
+window and open a new one.
+
+**6. Check it:**
+
+```bash
+sv --version
+sv check ~/securevibe/examples/flask-booking
+```
+
+The first prints `sv 0.1.0` and the version of the code it was built from. That alone does not show
+SecureVibe can find its own files, so the second checks one of the example apps that come with it: it
+should say what it read and what it found, not `Error`. If it says `command not found: sv`, step 5 has
+not taken effect: open a new terminal window, or look for the line at the end of `~/.zshrc`.
+
+**Leave the `securevibe` folder where it is.** Each time SecureVibe runs, it reads more than a dozen of
+its own files (the security standards and its rules) from the folder it was built in. So do not move,
+rename, or delete that folder, and do not copy the `sv` program somewhere else on its own: a copy works
+only as long as the folder it was built in is still there. When this was tried, moving the folder made
+a copied `sv` stop with `Error: reading …/data/secret-rules.json`. If you do move it, build it again in
+its new place (step 4) and change the line from step 5 to match. Keep it out of folders you tidy up,
+such as the Desktop or Downloads, and out of your app's folder.
+
+**Docker or Colima has to be running** for `--run`, as in step 1 of this guide, because that is what
+starts your app. With Colima on a Mac, your app's folder has to be inside your home folder (Colima
+shares only that unless you tell it otherwise); if it is not, the report says so and why.
+
+Your AI tool tells you the exact command to type. It looks like this, with your own app folder:
+
+```bash
+sv report /Users/you/code/my-app --run
+```
+
+To update SecureVibe later: `cd ~/securevibe`, then `git pull`, then `cargo build --release -p sv-cli`
+again.
 
 ## Known problems while this is new
 
