@@ -1661,6 +1661,11 @@ another session is not a claim.
   `claude/loop-preflight`, with its decision record; 6 after 3, at a size the owner chooses from 3's cost. Each run's
   number of builds and estimate goes to the owner before it starts.
   Item 5's record is written with its claim, as `proposed`: `docs/adr/ADR-035.md`.
+  **Item 5 done the same day** (ADR-035; DESIGN, "A preflight of the run settings"): `sv preflight` and
+  `securevibe_preflight` read the code against `[stack.run]` with nothing run, and say for the start command, the
+  address and port, the seed's file and `SV_` accounts, where the tables are made, and every path and sign-in field
+  whether it looks right, needs a look, or could not be told. The server's instructions offer it once the code is
+  written, before the check. Not yet tried in a loop build: item 3 runs on the pilot's `sv`, which does not have it.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
