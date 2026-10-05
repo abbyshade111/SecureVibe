@@ -931,8 +931,9 @@ pub fn run_one_in(
     let scanned = std::fs::read_to_string(&scanned_path).ok();
     std::fs::remove_file(&scanned_path).ok();
     match parse_sarif_relative_to(adapter, &text, app_dir) {
-        Ok(mut findings) => Outcome::Ran {
+        Ok(findings) => Outcome::Ran {
             findings: {
+                let mut findings = without_stored_hashes(findings, listing, rules);
                 for finding in &mut findings {
                     redact_tool_text(rules, finding);
                 }
@@ -953,6 +954,51 @@ pub fn run_one_in(
             why: format!("{}'s report could not be read: {e}", adapter.name),
         },
     }
+}
+
+/// The tools' rules that judge a value written in the code to be a credential, by the start of the
+/// rule id as `sv` names it: Semgrep's secret rules (and Opengrep's, which keep semgrep's id),
+/// Bandit's three for a password written as a string, and gosec's for a credential. Each fires on a
+/// stored hash under a password's name as readily as on the password.
+const SECRET_RULES: &[&str] = &[
+    "semgrep.generic.secrets.",
+    "bandit.B105",
+    "bandit.B106",
+    "bandit.B107",
+    "gosec.G101",
+];
+
+/// `findings`, less those of a tool's secret rule on a line that holds a stored password hash and
+/// nothing else that could be a credential (`secrets::holds_only_stored_hashes`): the exception
+/// `sv`'s own assignment rule makes, so the two agree. A line that cannot be read again keeps its
+/// finding, as does every finding of every other rule.
+pub fn without_stored_hashes(
+    findings: Vec<Finding>,
+    listing: &sv_scan::files::Listing,
+    rules: &SecretRules,
+) -> Vec<Finding> {
+    let mut read: BTreeMap<String, Option<String>> = BTreeMap::new();
+    findings
+        .into_iter()
+        .filter(|f| {
+            if !SECRET_RULES.iter().any(|p| f.rule_id.starts_with(p)) {
+                return true;
+            }
+            let text = read.entry(f.location.file.clone()).or_insert_with(|| {
+                listing
+                    .files
+                    .iter()
+                    .find(|e| e.relative == f.location.file)
+                    .and_then(|e| e.read_text().ok())
+            });
+            let line = text
+                .as_deref()
+                .and_then(|t| t.lines().nth(f.location.line.saturating_sub(1)));
+            !line.is_some_and(|line| {
+                crate::secrets::holds_only_stored_hashes(rules, &f.location.file, line)
+            })
+        })
+        .collect()
 }
 
 /// Runs every adapter that suits this app, and records the ones that could not run.
@@ -2481,5 +2527,136 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             "{presence:?}"
         );
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_tool_s_secret_rules_spare_a_stored_hash_and_keep_a_hexy_password_and_test_code() {
+        // Follow-ups 2 and 4 of the Semgrep false-alarm measurement, through a run: a secret rule's
+        // finding on a stored password hash is dropped, as `sv`'s own rule drops it; one on a
+        // password that happens to be hex digits is kept; another rule on the hash's line is kept;
+        // and one in a test file is kept and listed with test code. Values are made here.
+        let dir = scratch("stored-hash");
+        let (_, rule) = adapter(&dir, "unused");
+        let app = dir.join("app");
+        std::fs::create_dir_all(app.join("tests")).unwrap();
+        let bcrypt = format!(
+            "${}${}${}",
+            "2b",
+            "12",
+            "Qm7Rz2Kv9Lp4./Wn8Hs3Jd6Tf1Gb5Yc0"
+                .repeat(2)
+                .get(..53)
+                .unwrap()
+        );
+        let hex: String = "9f3a0c7e5b18d246".repeat(2);
+        let password: String = "Qm7Rz2Kv9Lp4Wn8Hs3Jd6".to_owned();
+        std::fs::write(
+            app.join("app.py"),
+            format!(
+                "password_hash = \"{bcrypt}\"\npassword = \"{hex}\"\npassword_hash = \"{bcrypt}\"; k = \"{password}{password}\"\n"
+            ),
+        )
+        .unwrap();
+        std::fs::write(
+            app.join("tests/test_login.py"),
+            format!("password = \"{password}\"\n"),
+        )
+        .unwrap();
+        let api_key = "generic.secrets.gitleaks.generic-api-key.generic-api-key";
+        let bcrypt_rule = "generic.secrets.security.detected-bcrypt-hash.detected-bcrypt-hash";
+        let other = "python.lang.security.audit.hardcoded-password-hash.example";
+        let result = |rule: &str, file: &str, line: u32| {
+            serde_json::json!({
+                "ruleId": rule,
+                "message": { "text": "found" },
+                "locations": [{ "physicalLocation": {
+                    "artifactLocation": { "uri": file },
+                    "region": { "startLine": line }
+                }}]
+            })
+        };
+        let sarif = serde_json::json!({
+            "version": "2.1.0",
+            "runs": [{ "tool": { "driver": { "name": "Semgrep", "rules": [] } }, "results": [
+                result(bcrypt_rule, "app.py", 1),
+                result(api_key, "app.py", 1),
+                result(other, "app.py", 1),
+                result(api_key, "app.py", 2),
+                result(api_key, "app.py", 3),
+                result(api_key, "tests/test_login.py", 1),
+                result(api_key, "gone.py", 1),
+            ]}]
+        });
+        let written = dir.join("written.sarif");
+        std::fs::write(&written, sarif.to_string()).unwrap();
+        let mut semgrep = tool(
+            &dir,
+            &rule,
+            &format!("cp '{}' \"$1\"; exit 0", written.display()),
+        );
+        semgrep.id = "semgrep".into();
+        let outcome = run_one(&semgrep, &app, &dir.join("out.sarif"), &secret_rules());
+
+        // Bandit's rule for a password written as a string, on the same two lines.
+        let bandit_sarif = serde_json::json!({
+            "version": "2.1.0",
+            "runs": [{ "tool": { "driver": { "name": "Bandit", "rules": [] } }, "results": [
+                result("B105", "app.py", 1),
+                result("B105", "app.py", 2),
+            ]}]
+        });
+        let bandit_written = dir.join("bandit.sarif");
+        std::fs::write(&bandit_written, bandit_sarif.to_string()).unwrap();
+        let mut bandit = tool(
+            &dir,
+            &rule,
+            &format!("cp '{}' \"$1\"; exit 0", bandit_written.display()),
+        );
+        bandit.id = "bandit".into();
+        let bandit_outcome = run_one(
+            &bandit,
+            &app,
+            &dir.join("bandit-out.sarif"),
+            &secret_rules(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        let Outcome::Ran {
+            findings: by_bandit,
+            ..
+        } = bandit_outcome
+        else {
+            panic!("bandit did not run: {bandit_outcome:?}");
+        };
+        let lines: Vec<usize> = by_bandit.iter().map(|f| f.location.line).collect();
+        assert_eq!(lines, [2], "{by_bandit:?}");
+
+        let Outcome::Ran { findings, .. } = outcome else {
+            panic!("the tool did not run: {outcome:?}");
+        };
+        let mut got: Vec<(String, usize, bool)> = findings
+            .iter()
+            .map(|f| {
+                (
+                    format!(
+                        "{}:{}",
+                        f.location.file,
+                        f.rule_id.rsplit('.').next().unwrap()
+                    ),
+                    f.location.line,
+                    f.in_test_code(),
+                )
+            })
+            .collect();
+        got.sort();
+        assert_eq!(
+            got,
+            [
+                ("app.py:example".to_owned(), 1, false),
+                ("app.py:generic-api-key".to_owned(), 2, false),
+                ("app.py:generic-api-key".to_owned(), 3, false),
+                ("gone.py:generic-api-key".to_owned(), 1, false),
+                ("tests/test_login.py:generic-api-key".to_owned(), 1, true),
+            ]
+        );
     }
 }
