@@ -220,7 +220,7 @@
       "sbd_controls": [],
       "check": {
         "kind": "none",
-        "how": "No check in sv shows this prompt working, and the checklist's escalation triggers it draws on are not controls, so it names none. sv does not read design-decisions.md.",
+        "how": "No check in sv shows this prompt working, and the checklist's escalation triggers it draws on are not controls, so it names none. sv repeats what this section says in its report, where what was not examined is listed, and credits nothing for it.",
         "rules": [],
         "passes_when": "nothing sv checks: a person reads what was written",
         "fails_when": "nothing sv checks"
@@ -296,7 +296,7 @@
       ],
       "check": {
         "kind": "none",
-        "how": "No check in sv shows this prompt working; whether a plan exists, is right, and has been rehearsed is for a person to answer. sv does not read design-decisions.md.",
+        "how": "No check in sv shows this prompt working; whether a plan exists, is right, and has been rehearsed is for a person to answer. sv reads the section as a written answer toward SBD-MT-06: documented, or stated by the AI coding tool, never checked. That shows a plan is written, not that it works.",
         "rules": [],
         "passes_when": "nothing sv checks: a person reads what was written",
         "fails_when": "nothing sv checks"
@@ -315,7 +315,7 @@
       ],
       "check": {
         "kind": "none",
-        "how": "No check in sv shows this prompt working; which rules apply is a question for a person, and a qualified one. sv does not read design-decisions.md.",
+        "how": "No check in sv shows this prompt working; which rules apply is a question for a person, and a qualified one. sv reads the section as a written answer toward SBD-AC-06: documented, or stated by the AI coding tool, never checked. That shows the rules were written down, not that the design follows them.",
         "rules": [],
         "passes_when": "nothing sv checks: a person reads what was written",
         "fails_when": "nothing sv checks"

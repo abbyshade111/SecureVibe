@@ -1601,6 +1601,11 @@ another session is not a claim.
        to the check `sv` already has; decided off and found on is a finding, *decided, not held to*. The safe-defaults
        prompt changes to write those lines (it has never been tried).
      - "When to bring in a person": a recommended review is repeated in the report as a reminder, crediting nothing.
+     **The first part done the same day** (DESIGN, "`design-decisions.md`: two sections as written answers, and a
+     review repeated"): the two sections count toward SBD-MT-06 and SBD-AC-06, read by the security notes' reader with
+     `data/design-decisions.json`, sealed through `sv review`, each saying what it does not cover; what the file says
+     about bringing in a person is repeated in the report. Twelve guards broken in turn, each caught. Safe defaults
+     held to the code is the second part, still to do.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
   **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
