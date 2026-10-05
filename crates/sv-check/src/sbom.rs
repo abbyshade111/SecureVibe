@@ -303,8 +303,14 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("gradle.lockfile") => read("gradle.lockfile").as_deref().map(from_gradle_lockfile),
         Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
         Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
-<<<<<<< HEAD
-        Some("pnpm-lock.yaml") => read("pnpm-lock.yaml").as_deref().map(from_pnpm_lock),
+        Some("pnpm-lock.yaml") => {
+            let text = read("pnpm-lock.yaml");
+            let (pairs, unversioned) = text.as_deref().map(from_pnpm_lock).unwrap_or_default();
+            if note_unversioned(sbom, &eco.name, &lockfile_path, &unversioned) && pairs.is_empty() {
+                return;
+            }
+            text.map(|_| pairs)
+        }
         Some("go.sum") => {
             let sum = read("go.sum");
             let modules = match read("go.mod") {
@@ -328,17 +334,6 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
             }
             sum.map(|_| modules.pairs)
         }
-=======
-        Some("pnpm-lock.yaml") => {
-            let text = read("pnpm-lock.yaml");
-            let (pairs, unversioned) = text.as_deref().map(from_pnpm_lock).unwrap_or_default();
-            if note_unversioned(sbom, &eco.name, &lockfile_path, &unversioned) && pairs.is_empty() {
-                return;
-            }
-            text.map(|_| pairs)
-        }
-        Some("go.sum") => read("go.sum").as_deref().map(from_go_sum),
->>>>>>> origin/main
         Some("requirements.lock") => read("requirements.lock")
             .as_deref()
             .map(from_pinned_requirements),
