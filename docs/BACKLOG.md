@@ -1642,6 +1642,10 @@ another session is not a claim.
   without being asked; Haiku stopped to ask the owner until the request said the owner was away (protocol amendment
   1); all four builds that wrote an app could be started and signed in to (34, 38, 21, 27 checks answered). Only three
   ran `sv check`, each once: no check-and-fix round was seen. The measures are `loop_measures.py`.
+  **Items 3, 5, and 6 claimed on 5 October 2026 by session paper-facts**, at the owner's word: 3 in branch
+  `claude/loop-arms`, run on the pilot's `sv` (`87404c8e`) so its loop arm is comparable with the pilot; 5 in branch
+  `claude/loop-preflight`, with its decision record; 6 after 3, at a size the owner chooses from 3's cost. Each run's
+  number of builds and estimate goes to the owner before it starts.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
