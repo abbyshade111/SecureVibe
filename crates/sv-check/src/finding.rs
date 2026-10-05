@@ -115,6 +115,13 @@ pub struct Finding {
     /// report fills it in.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub fingerprint: String,
+    /// What the same finding was named before its fingerprint changed form (deep review A2): the
+    /// earlier form, when it differs from `fingerprint`. For a tool that tracks findings by
+    /// fingerprint across runs (cato-pipeline's POA&M), so it can carry an item over rather than
+    /// close it and open another. Identical lines shared one earlier fingerprint, so it can name
+    /// several findings; a tracker should give it to the first and treat the rest as new.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub earlier_fingerprints: Vec<String>,
     /// Known to be test or sample code from more than its file's name: on a line Rust builds only for
     /// its tests (`mark_rust_test_code`), or in a folder the manifest says is not the app
     /// (`mark_not_the_app`). False until the report looks.
@@ -456,6 +463,7 @@ mod tests {
             fix: String::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
         }
     }
@@ -915,6 +923,7 @@ mod tests {
         let finding = Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),

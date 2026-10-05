@@ -264,6 +264,7 @@ fn finding(about: &About, title: &str, severity: Severity, description: String) 
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: about.rule_id.to_owned(),
         title: title.to_owned(),

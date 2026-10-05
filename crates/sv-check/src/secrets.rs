@@ -317,6 +317,7 @@ fn scan_piece(
             out.push(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
+                earlier_fingerprints: Vec::new(),
                 marked_test_code: false,
                 rule_id: rule.id.clone(),
                 title: rule.title.clone(),
@@ -645,6 +646,7 @@ fn assignment_findings(
         out.push(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             rule_id: ASSIGNMENT_RULE.into(),
             title,

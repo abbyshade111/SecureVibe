@@ -1185,6 +1185,7 @@ mod tests {
             fix: String::new(),
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
         }
     }

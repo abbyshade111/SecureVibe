@@ -310,6 +310,12 @@ pub fn fill_fingerprints(app_dir: &Path, findings: &mut [Finding]) {
     let mut texts = Texts::new(app_dir);
     for f in findings {
         let fingerprint = texts.fingerprint(f, &f.rule_id);
+        let earlier = texts.earlier_fingerprint(f, &f.rule_id);
+        f.earlier_fingerprints = if earlier == fingerprint {
+            Vec::new()
+        } else {
+            vec![earlier]
+        };
         f.fingerprint = fingerprint;
     }
 }
@@ -594,6 +600,7 @@ mod tests {
             fix: String::new(),
             also_reported_by: Vec::new(),
             fingerprint: format!("fp-{rule}"),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
         }
     }
@@ -983,6 +990,50 @@ mod tests {
         );
         assert_eq!(out.findings.len(), 1);
         assert!(out.not_counted[0].contains("cannot be an accepted risk"));
+    }
+
+    #[test]
+    fn a_finding_says_what_it_was_called_before_its_fingerprint_changed_form() {
+        // For a tracker that keys findings by fingerprint across runs (cato-pipeline's POA&M):
+        // the earlier name is given when it differs, and only then.
+        let dir = std::env::temp_dir().join(format!("sv-review-earlier-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let line = "    cur.execute(\"SELECT * FROM t WHERE id = \" + user_id)";
+        std::fs::write(dir.join("app.py"), format!("import x\n{line}\n")).unwrap();
+        let mut findings = vec![finding("ast.sql", "app.py", 2)];
+        fill_fingerprints(&dir, &mut findings);
+        let f = &findings[0];
+        assert!(
+            f.fingerprint.starts_with(FINGERPRINT_V2),
+            "the setup: today's form"
+        );
+        assert_eq!(
+            f.earlier_fingerprints,
+            vec![named("ast.sql", "app.py", line.trim())],
+            "the earlier form, by the line's text"
+        );
+        let json = serde_json::to_value(f).unwrap();
+        assert_eq!(
+            json["earlier_fingerprints"][0],
+            f.earlier_fingerprints[0].as_str()
+        );
+        // A finding about no line of code is named as before, so nothing earlier is given.
+        let mut about_the_app = finding("config.security-contact", "", 0);
+        about_the_app.location.file = String::new();
+        let mut findings = vec![about_the_app];
+        fill_fingerprints(&dir, &mut findings);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            findings[0].earlier_fingerprints.is_empty(),
+            "{:?}",
+            findings[0].fingerprint
+        );
+        assert!(
+            serde_json::to_value(&findings[0])
+                .unwrap()
+                .get("earlier_fingerprints")
+                .is_none()
+        );
     }
 
     #[test]

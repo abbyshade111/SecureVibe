@@ -8550,3 +8550,5 @@ caught by one to three tests: the occurrence count, the lines above read at all,
 earlier form on identical lines, the earlier form read at all, the three messages, the second entry not called gone,
 the unknown rule, the tests' entry in `examined`, whether the file was read, the MCP sentence, and `sv review`'s
 writing and refusing.
+**Each finding also says what it was called before** (`earlier_fingerprints` in `report.json` and in the MCP results, left out when it did not change). A tool that tracks findings across runs by fingerprint, as cato-pipeline's POA&M does, would otherwise read every code finding as closed and a new one opened, once, when the form changed. Identical lines shared one earlier fingerprint, so it can name more than one finding; a tracker gives it to the first. Held by `a_finding_says_what_it_was_called_before_its_fingerprint_changed_form`.
+

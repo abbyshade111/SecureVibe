@@ -730,6 +730,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: format!("advisory.{}", advisory.id),
         title: format!(

@@ -1379,7 +1379,8 @@ fn output_schema(tool: &str) -> Option<Value> {
             },
             "requirement_ids": strings, "cwe": strings,
             "description": string, "impact": string, "fix": string,
-            "also_reported_by": strings, "fingerprint": string, "marked_test_code": { "type": "boolean" },
+            "also_reported_by": strings, "fingerprint": string, "earlier_fingerprints": strings,
+            "marked_test_code": { "type": "boolean" },
         }),
         &[
             "rule_id",
