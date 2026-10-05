@@ -5803,7 +5803,8 @@ an argument, and the number written into the code is often a copy from an old tu
 `ast.weak-password-key-derivation` reports PBKDF2 whose count is a number written into the code below 210,000. That is
 OWASP's lowest recommended figure for any PBKDF2 hash (210,000 for SHA-512; SHA-256 needs 600,000 and SHA-1 1,300,000),
 so a count below it is too low whichever hash is used, and the rule does not need to know which one it is. A count
-between 210,000 and 600,000 used with SHA-256 is too low too, and is not reported; the rule's description says so.
+between 210,000 and 600,000 used with SHA-256 is too low too, and is not reported; the rule's description says so. (It is
+reported where the call names SHA-256 since 5 October 2026; see below.)
 The number may carry digit separators (`100_000`) or an integer suffix. A count read from a setting or a variable is
 not judged. It is only ever a finding: finding none says nothing about keys made elsewhere.
 
@@ -5848,6 +5849,42 @@ number. A three-argument call with a count from a variable is still not judged.
 Six guards broken in turn, each caught: either new pattern removed, the hash not required first, the number or name
 not required last, the two arguments not required to be the only ones, and `)` not accepted. The case with the hash in
 a variable was added when breaking the hash-first guard turned nothing red.
+
+**Added on 5 October 2026: the figure tied to the hash the call names.** OWASP's figures are 600,000 rounds for
+PBKDF2 with SHA-256 and 210,000 with SHA-512, so a single figure of 210,000 missed SHA-256 counts between the two.
+The rule now reads the hash where the call states it, and holds a count below 600,000 against SHA-256. With SHA-512,
+and wherever the hash is not named or cannot be read, the figure stays 210,000, as before: a hash passed in a
+variable, a default the code does not spell out, or a hash set in another call. The rule does not guess the hash from
+a default, even a well-known one such as `openssl enc`'s SHA-256, and its description and what it says it looks for
+now say all of this.
+
+Rules gained one field for it, `argumentPatternsByHash` (`crates/sv-check/src/ast.rs`): per language, a pattern over
+a new `@hash` capture and the count pattern to use when it matches, in place of `argumentPatterns`. Where a query
+captures more than one node as `@hash`, their texts are joined in order, which is how a shell line's `-md sha256` is
+read as one. The hash is read in thirteen languages: Python's first argument or `algorithm=`, Node's fifth argument
+and WebCrypto's `hash:` (also as `{ name: ... }`), Go's last argument for x/crypto and first for the standard
+library, PHP's first argument for `hash_pbkdf2` and fifth for `openssl_pbkdf2`, Ruby's fifth argument or `hash:`
+(a string, `Digest::SHA256`, or `Digest.new("SHA256")`), C#'s `HashAlgorithmName.SHA256` after the count, OpenSSL's
+`EVP_sha256()` in C and C++, the Rust crate's type argument (`Sha256` or `Hmac<Sha256>`), Dart's
+`macAlgorithm: Hmac.sha256()`, Swift's `kCCPRFHmacAlgSHA256`, and `openssl enc ... -md sha256`. Java's and Kotlin's
+`PBEKeySpec` and pointycastle's `Pbkdf2Parameters` never name the hash (it is set in `SecretKeyFactory` or the
+`KeyDerivator`), so there a count between the two figures is still not judged. A keyword, key, or option that holds
+the text `sha256` is read as the hash only when it is the one that sets it: `label='sha256'` in Python,
+`name: 'sha256'` in WebCrypto's parameters, and `-md sha256` given to `openssl pkcs12`, where it sets the digest of the
+file's integrity check rather than the key's, are not.
+
+The test table gained a case for every language: 300,000 with SHA-256 reported in each language that names the hash,
+600,000 with SHA-256 and 300,000 with SHA-512 not, and 300,000 with a hash the rule cannot read not, in all fifteen. A
+further test holds that the new field is refused for a language the rule has no query in, and when its pattern cannot
+be compiled. Broken on purpose eight ways, each caught: the figure for a named hash ignored (every case at 300,000
+with SHA-256 missed, in all thirteen languages); any text taken for SHA-256 (every SHA-512 and unreadable-hash case
+reported, in all thirteen); 600,000 read as below the SHA-256 figure (the 600,000 cases reported, in every language
+that names a hash); any Python keyword taken for `algorithm=`; any key taken for WebCrypto's `hash:`; any `openssl`
+command taken for `enc`; only the first of the shell line's `@hash` nodes read; and the load check for a language with
+no query removed.
+
+**Not done here.** SHA-1, which needs 1,300,000 rounds, is still judged at 210,000; the field can carry it, with
+cases for each language's spelling of it.
 
 ## Static files served from the app's own folder (30 September 2026)
 

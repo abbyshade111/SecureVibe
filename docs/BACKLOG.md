@@ -2855,11 +2855,19 @@ another session is not a claim.
      **Go's standard-library `crypto/pbkdf2` and C#'s two-argument `Rfc2898DeriveBytes` claimed on 3 October 2026 by
      session securevibe-e2**, at the owner's asking to continue with the backlog, in branch
      `claude/securevibe-e2-weak-kdf-more`. Counts between 210,000 and 600,000 with SHA-256 stay unclaimed.
-     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
-     `claude/pbkdf2-mid-counts`.
      **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 3 October):
      both are reported, and x/crypto's own order is never misread as the standard library's. Six guards broken in
      turn, each caught.
+     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
+     `claude/pbkdf2-mid-counts`.
+     **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 5 October):
+     the rule now ties the figure to the hash where the call names it: below 600,000 is reported with SHA-256, and
+     210,000 stays the figure with SHA-512 and wherever the hash is not named or cannot be read (a variable, a
+     default, or a hash set elsewhere, as Java's and Kotlin's `PBEKeySpec` and pointycastle's `Pbkdf2Parameters`
+     always do), which the rule's description and what it looks for now say. The hash is read in thirteen of the
+     fifteen languages; every language has a case at 300,000 with SHA-256 or with no hash it can read, and each
+     that names a hash has cases at 600,000 with SHA-256 and 300,000 with SHA-512. Eight guards broken in turn,
+     each caught. Not done: SHA-1 counts between 210,000 and 1,300,000.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
