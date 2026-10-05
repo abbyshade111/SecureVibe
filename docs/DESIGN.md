@@ -7968,3 +7968,52 @@ version in `Pipfile.lock` dropped (two), a `Pipfile`'s ranges dropped (two), the
 and `develop` read (one), the app's own folder named (one), a hashed `requirements-dev.txt` not read (one), and every
 `setup.cfg` counted (one).
 
+
+## Next.js and modern Node redirects and file calls (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H5) found the redirect and file-path rules blind to the way a
+Next.js app, and much of today's Node code, is written, while a TypeScript app's clean result said both were checked.
+The redirect rule read only `res.redirect`, `response.redirect`, `reply.redirect`, and `ctx.redirect`; the file rule
+read only `fs.readFile` and its kin, and `res.sendFile` and `res.download`, called on a name.
+
+Both rules keep what they already counted as input and every guard they already had (a written-out value, a name the
+file binds once to fixed text, which is A1's, an ALL_CAPS name, `path.join(__dirname, ...)` with fixed parts, a path
+on the app's own site). What changed is the calls they read, in JavaScript and TypeScript (the TypeScript query is
+also the one `.tsx` files are read with):
+
+- **Redirects.** A bare `redirect()` or `permanentRedirect()`, which is Next.js's (`next/navigation`), Remix's, and,
+  with a status first, SvelteKit's; `NextResponse.redirect` and the web standard's `Response.redirect`; Express's
+  `res.location`, which sets the same header; and the browser's own: `window.location`, `document.location`, and
+  `location.href` given a value, and `location.assign`, `window.location.assign`, and `window.location.replace`.
+  `location.replace` on its own is left out, since a string called `location` has a `replace` too.
+- **One new guard.** The middleware idiom `NextResponse.redirect(new URL("/login", request.url))` is not reported: a
+  path opening with one slash, resolved against the request's own address, stays on the app's site. `new URL(next,
+  request.url)`, and `new URL("//elsewhere", request.url)`, are reported.
+- **Files.** `fs.promises.readFile` and the like, `fsPromises.readFile`, and the same calls imported on their own
+  from `fs/promises` (`readFile`, `writeFile`, `appendFile`, `createReadStream`, `createWriteStream`, `unlink`, `rm`,
+  and their `Sync` forms). `sendFile` and `download` are not read when bare: `download(blob, name)` is a browser
+  helper as often as not.
+- **The guard for the app's own folder** now takes `process.cwd()` and `import.meta.dirname` as it took `__dirname`,
+  and `new URL("./schema.sql", import.meta.url)`: the folder a Next.js app reads its content from, and the ES module
+  way to name a file beside the code.
+- **The clean result names the calls.** Each rule's `looksForIn` for JavaScript and TypeScript lists them, so a clean
+  result says what was looked for rather than "a redirect".
+
+How the data does it without a text test in the query: a bare call captures the one name as both `@fn` and `@mod`,
+and a call on `window.location` or an assignment to it captures the whole callee or target, so the two name patterns
+can admit `location.href` or `redirect` without admitting `replace` or `assign` on anything else.
+
+What is not done: Next.js's middleware idiom of cloning `request.nextUrl`, setting its path, and redirecting to the
+clone is still reported, since the clone is a name nothing here follows; the router's `router.push` and `useRouter`
+are not read; a file helper the app writes itself under another name is not followed; and `fs-extra` and Deno's and
+Bun's file calls are not read.
+
+**Tested.** Sixty-six new witnesses in `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one`, a found and
+a not-found case for each new call in each of JavaScript and TypeScript, and `a_next_js_app_is_read_in_its_own_files`, which
+reads a page in `.tsx`, middleware in `.ts`, and a route handler in `.js`, and checks each parsed and gave only the
+line expected. Thirteen guards broken in turn, each caught: the bare redirect call (four witnesses and the Next.js
+test), `NextResponse` and `Response` (four and the test), the assignment to `location` (three), the whole-callee
+call (two), the `new URL` guard (two and the test), `location.replace` let through (one), `fs.promises` (two), the
+bare file calls (three and the test), `process.cwd()` in the guard (one), `import.meta.url` (one), `download` among
+the bare names (one), and A1's names bound to fixed text switched off (the two witnesses here that rest on it, with
+A1's own).

@@ -3291,6 +3291,77 @@ mod tests {
         ("ast.file-path-from-value", "php", "<?php include 'header.php';", false),
         ("ast.file-path-from-value", "php", "<?php require_once __DIR__ . '/config.php';", false),
         ("ast.file-path-from-value", "php", "<?php require_once(dirname(__FILE__) . '/lib.php');", false),
+        // Next.js and modern Node (H5 of the deep review): the framework's own redirect calls, the
+        // browser's, and Node's file calls through `fs/promises` and `fs.promises`, each beside the
+        // same call given fixed text or a path on the app's own site.
+        ("ast.open-redirect", "javascript", "redirect(searchParams.get('next'))", true),
+        ("ast.open-redirect", "javascript", "redirect('/login')", false),
+        ("ast.open-redirect", "typescript", "redirect(searchParams.get('next') as string)", true),
+        ("ast.open-redirect", "typescript", "redirect(`/posts/${post.id}`)", false),
+        ("ast.open-redirect", "javascript", "permanentRedirect(params.to)", true),
+        ("ast.open-redirect", "typescript", "permanentRedirect('/new-home')", false),
+        ("ast.open-redirect", "javascript", "throw redirect(303, url.searchParams.get('redirectTo'))", true),
+        ("ast.open-redirect", "typescript", "throw redirect(303, '/login')", false),
+        ("ast.open-redirect", "javascript", "return NextResponse.redirect(request.nextUrl.searchParams.get('next'))", true),
+        ("ast.open-redirect", "javascript", "return NextResponse.redirect(new URL('/login', request.url))", false),
+        ("ast.open-redirect", "typescript", "return NextResponse.redirect(new URL(next, request.url))", true),
+        ("ast.open-redirect", "typescript", "return NextResponse.redirect(new URL(\"/\", req.nextUrl))", false),
+        ("ast.open-redirect", "typescript", "return NextResponse.redirect(new URL('//evil.example', request.url))", true),
+        ("ast.open-redirect", "javascript", "return Response.redirect(url.searchParams.get('to'), 302)", true),
+        ("ast.open-redirect", "typescript", "return Response.redirect('https://example.com/', 301)", false),
+        ("ast.open-redirect", "javascript", "window.location = params.get('next')", true),
+        ("ast.open-redirect", "javascript", "window.location = '/home'", false),
+        ("ast.open-redirect", "typescript", "window.location.href = new URLSearchParams(location.search).get('returnTo')!", true),
+        ("ast.open-redirect", "typescript", "window.location.href = '/dashboard'", false),
+        ("ast.open-redirect", "javascript", "location.href = returnTo", true),
+        ("ast.open-redirect", "typescript", "location.href = `/items`", false),
+        ("ast.open-redirect", "javascript", "location.assign(next)", true),
+        ("ast.open-redirect", "typescript", "location.assign('/')", false),
+        ("ast.open-redirect", "typescript", "window.location.replace(next)", true),
+        ("ast.open-redirect", "javascript", "const HOME = 'https://example.com/';\nwindow.location.replace(HOME)", false),
+        ("ast.open-redirect", "javascript", "res.location(req.query.next)", true),
+        ("ast.open-redirect", "typescript", "res.location('/ok')", false),
+        // A string that happens to be called `location`, and a function stored on `window`.
+        ("ast.open-redirect", "javascript", "const slug = location.replace(/\\s+/g, '-')", false),
+        ("ast.open-redirect", "typescript", "window.redirect = (u: string) => go(u)", false),
+        ("ast.file-path-from-value", "javascript", "const t = await readFile(req.query.name, 'utf8')", true),
+        ("ast.file-path-from-value", "javascript", "const t = await readFile('data.json', 'utf8')", false),
+        ("ast.file-path-from-value", "typescript", "const md = await readFile(path.join(process.cwd(), 'posts', params.slug + '.md'), 'utf8')", true),
+        ("ast.file-path-from-value", "typescript", "const md = await readFile(path.join(process.cwd(), 'posts', 'about.md'), 'utf8')", false),
+        ("ast.file-path-from-value", "javascript", "const t = await fs.promises.readFile(req.params.file)", true),
+        ("ast.file-path-from-value", "javascript", "const dataFile = 'data.json';\nconst t = await fs.promises.readFile(dataFile)", false),
+        ("ast.file-path-from-value", "typescript", "await fs.promises.writeFile(`uploads/${body.name}`, buf)", true),
+        ("ast.file-path-from-value", "typescript", "await fs.promises.writeFile('out.json', data)", false),
+        ("ast.file-path-from-value", "typescript", "await fsPromises.unlink(file)", true),
+        ("ast.file-path-from-value", "typescript", "const s = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')", false),
+        ("ast.file-path-from-value", "typescript", "createReadStream(req.query.path as string).pipe(res)", true),
+        ("ast.file-path-from-value", "javascript", "download(blob, filename)", false),
+        // The mirror of each line above in the other language, so every new call is witnessed both ways in both.
+        ("ast.open-redirect", "javascript", "permanentRedirect('/new-home')", false),
+        ("ast.open-redirect", "typescript", "permanentRedirect(params.to as string)", true),
+        ("ast.open-redirect", "javascript", "throw redirect(303, '/login')", false),
+        ("ast.open-redirect", "typescript", "throw redirect(303, url.searchParams.get('redirectTo') ?? '/')", true),
+        ("ast.open-redirect", "javascript", "return Response.redirect('https://example.com/', 301)", false),
+        ("ast.open-redirect", "typescript", "return Response.redirect(url.searchParams.get('to')!, 302)", true),
+        ("ast.open-redirect", "typescript", "window.location = params.get('next') as string", true),
+        ("ast.open-redirect", "typescript", "window.location = '/home'", false),
+        ("ast.open-redirect", "javascript", "window.location.href = new URLSearchParams(location.search).get('returnTo')", true),
+        ("ast.open-redirect", "javascript", "window.location.href = '/dashboard'", false),
+        ("ast.open-redirect", "typescript", "location.href = returnTo", true),
+        ("ast.open-redirect", "javascript", "location.href = `/items`", false),
+        ("ast.open-redirect", "typescript", "location.assign(next)", true),
+        ("ast.open-redirect", "javascript", "location.assign('/')", false),
+        ("ast.open-redirect", "javascript", "window.location.replace(next)", true),
+        ("ast.open-redirect", "typescript", "const HOME = 'https://example.com/';\nwindow.location.replace(HOME)", false),
+        ("ast.open-redirect", "typescript", "res.location(req.query.next as string)", true),
+        ("ast.open-redirect", "javascript", "res.location('/ok')", false),
+        ("ast.file-path-from-value", "javascript", "await fsPromises.unlink(file)", true),
+        ("ast.file-path-from-value", "javascript", "await fsPromises.unlink(LOCK_FILE)", false),
+        ("ast.file-path-from-value", "typescript", "await fsPromises.unlink('server.lock')", false),
+        ("ast.file-path-from-value", "javascript", "createReadStream(req.query.path).pipe(res)", true),
+        ("ast.file-path-from-value", "javascript", "createReadStream(path.join(__dirname, 'public', 'app.js')).pipe(res)", false),
+        ("ast.file-path-from-value", "typescript", "createReadStream(path.join(import.meta.dirname, 'public', 'app.js')).pipe(res)", false),
+        ("ast.file-path-from-value", "javascript", "const s = readFileSync(new URL('./schema.sql', import.meta.url), 'utf8')", false),
         // WebSocket addresses written into the code.
         ("ast.plaintext-websocket-url", "python", "ws = create_connection(\"ws://chat.example.com/live\")", true),
         ("ast.plaintext-websocket-url", "python", "ws = create_connection(\"wss://chat.example.com/live\")", false),
@@ -3682,6 +3753,52 @@ mod tests {
             }
         }
         assert!(unwitnessed.is_empty(), "{}", unwitnessed.join("\n"));
+    }
+
+    #[test]
+    fn a_next_js_app_is_read_in_its_own_files() {
+        // H5 of the deep review, as the files of a Next.js app are written: a page in `.tsx`, which
+        // is read with the TSX grammar, middleware in `.ts`, and a route handler in `.js`.
+        let rules = rules();
+        let found = |relative: &str, language: &str, source: &str| -> Vec<String> {
+            let read = read_file(&rules, language, relative, source);
+            assert!(!read.parse_error, "{relative} did not parse");
+            assert!(read.broken.is_empty(), "{:?}", read.broken);
+            read.findings
+                .into_iter()
+                .map(|f| format!("{}:{}", f.rule_id, f.location.line))
+                .collect()
+        };
+        let page = "import { redirect } from 'next/navigation';\n\
+                    export default function Page({ searchParams }: { searchParams: { next?: string } }) {\n\
+                    \x20 if (searchParams.next) redirect(searchParams.next);\n\
+                    \x20 return <main onClick={() => { window.location.href = '/help'; }}>Hello</main>;\n\
+                    }\n";
+        assert_eq!(
+            found("app/login/page.tsx", "typescript", page),
+            ["ast.open-redirect:3"]
+        );
+        let middleware = "import { NextResponse } from 'next/server';\n\
+                          export function middleware(request) {\n\
+                          \x20 if (!request.cookies.get('s')) return NextResponse.redirect(new URL('/login', request.url));\n\
+                          \x20 const to = request.nextUrl.searchParams.get('to');\n\
+                          \x20 if (to) return NextResponse.redirect(to);\n\
+                          }\n";
+        assert_eq!(
+            found("middleware.ts", "typescript", middleware),
+            ["ast.open-redirect:5"]
+        );
+        let route = "import { readFile } from 'node:fs/promises';\n\
+                     const INDEX = 'content/index.md';\n\
+                     export async function GET(req) {\n\
+                     \x20 const name = new URL(req.url).searchParams.get('name');\n\
+                     \x20 const index = await readFile(INDEX, 'utf8');\n\
+                     \x20 return new Response(await readFile(`content/${name}.md`, 'utf8') + index);\n\
+                     }\n";
+        assert_eq!(
+            found("app/docs/route.js", "javascript", route),
+            ["ast.file-path-from-value:6"]
+        );
     }
 
     /// Prints the parse tree of a snippet, for writing a query against what the grammar really

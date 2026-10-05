@@ -261,6 +261,13 @@ another session is not a claim.
     TypeScript coverage is claimed.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/h5-next-node-sinks`.
+    **Done the same day** (DESIGN, "Next.js and modern Node redirects and file calls"): bare `redirect()` and
+    `permanentRedirect()` (Next.js, Remix, SvelteKit), `NextResponse.redirect`, `Response.redirect`, `res.location`,
+    and the browser's `window.location`, `location.href`, `location.assign`, and `window.location.replace`; and
+    `fs.promises`, `fsPromises`, and the file calls imported bare from `fs/promises`. Each rule's existing guards are
+    kept, and `new URL("/path", request.url)`, `process.cwd()`, and `import.meta.url` join them; each clean result
+    names the calls it read. Sixty-six witnesses and a Next.js test in `.tsx`, `.ts`, and `.js`; thirteen guards
+    broken in turn, each caught. Not done: a redirect to a clone of `request.nextUrl`, `router.push`, and `fs-extra`.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote

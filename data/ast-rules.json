@@ -376,8 +376,8 @@
       "literalArgumentIsSafe": true,
       "queries": {
         "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
-        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
-        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (member_expression) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (member_expression) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod arguments: (arguments . (_) @arg)) @hit",
         "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) @arg)) @hit",
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit\n(include_expression \"include\" @fn (_) @arg) @hit\n(include_once_expression \"include_once\" @fn (_) @arg) @hit\n(require_expression \"require\" @fn (_) @arg) @hit\n(require_once_expression \"require_once\" @fn (_) @arg) @hit",
         "ruby": "(call receiver: (constant) @mod method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit\n(call !receiver method: (identifier) @fn @mod\n      arguments: (argument_list . (_) @arg)) @hit",
@@ -409,8 +409,8 @@
         "cpp": "^(fopen|freopen|open|unlink|remove)$"
       },
       "modulePatterns": {
-        "javascript": "^(fs|fsp|res|response)$",
-        "typescript": "^(fs|fsp|res|response)$",
+        "javascript": "^(fs|fsp|fsPromises|res|response|fs\\.promises|readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync)$",
+        "typescript": "^(fs|fsp|fsPromises|res|response|fs\\.promises|readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync)$",
         "go": "^(os|ioutil)$",
         "ruby": "^(File|IO|send_file)$",
         "csharp": "^File$",
@@ -419,8 +419,8 @@
       },
       "safeArgumentPatterns": {
         "python": "^[A-Z][A-Z0-9_]*$|secure_filename\\(|safe_join\\(|^os\\.path\\.join\\(\\s*(os\\.path\\.dirname\\(\\s*(os\\.path\\.abspath\\(\\s*)?__file__\\s*\\)\\)?|BASE_DIR)(\\s*,\\s*('[^'{}]*'|\"[^\"{}]*\"))*\\s*,?\\s*\\)$",
-        "javascript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
-        "typescript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*__dirname(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$",
+        "javascript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*(__dirname|process\\.cwd\\(\\)|import\\.meta\\.dirname)(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$|^new URL\\(\\s*('[^']*'|\"[^\"]*\")\\s*,\\s*import\\.meta\\.url\\s*\\)$",
+        "typescript": "^[A-Z][A-Z0-9_]*$|^path\\.(join|resolve)\\(\\s*(__dirname|process\\.cwd\\(\\)|import\\.meta\\.dirname)(\\s*,\\s*('[^']*'|\"[^\"]*\"))*\\s*,?\\s*\\)$|^new URL\\(\\s*('[^']*'|\"[^\"]*\")\\s*,\\s*import\\.meta\\.url\\s*\\)$",
         "ruby": "^([A-Z][A-Z0-9_]*|Rails\\.root\\.join\\(\\s*(['\"][^'\"#]*['\"]\\s*,?\\s*)*\\))$",
         "php": "^([A-Z][A-Z0-9_]*|\\(?\\s*(__DIR__|dirname\\(__FILE__\\))\\s*\\.\\s*['\"][^'\"$]*['\"]\\s*\\)?)$",
         "swift": "^\\w+\\s*:\\s*(URL\\(fileURLWithPath:\\s*\"[^\"\\\\]*\"\\)|Bundle\\.main\\.)"
@@ -431,7 +431,9 @@
       },
       "looksFor": "a file opened, written, or deleted at a path built from a value rather than written out",
       "looksForIn": {
-        "shell": "only commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not looked at"
+        "shell": "only commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not looked at",
+        "javascript": "a file opened, written, or deleted at a path built from a value, through Node's file calls (`readFile`, `writeFile`, `appendFile`, `createReadStream`, `createWriteStream`, `unlink`, `rm`, and their `Sync` forms) on `fs`, `fs.promises`, `fsPromises`, or `fsp`, the same calls imported on their own from `fs/promises`, and Express's `res.sendFile` and `res.download`",
+        "typescript": "a file opened, written, or deleted at a path built from a value, through Node's file calls (`readFile`, `writeFile`, `appendFile`, `createReadStream`, `createWriteStream`, `unlink`, `rm`, and their `Sync` forms) on `fs`, `fs.promises`, `fsPromises`, or `fsp`, the same calls imported on their own from `fs/promises`, and Express's `res.sendFile` and `res.download`"
       }
     },
     {
@@ -672,8 +674,8 @@
       "literalArgumentIsSafe": true,
       "queries": {
         "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
-        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (number) . (_) @arg)) @hit",
-        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (number) . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (number) . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod arguments: (arguments . (number) . (_) @arg)) @hit\n(call_expression function: (member_expression) @fn @mod arguments: (arguments . (_) @arg)) @hit\n(assignment_expression left: (member_expression) @fn @mod right: (_) @arg) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                 arguments: (arguments . (number) . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod arguments: (arguments . (number) . (_) @arg)) @hit\n(call_expression function: (member_expression) @fn @mod arguments: (arguments . (_) @arg)) @hit\n(assignment_expression left: (member_expression) @fn @mod right: (_) @arg) @hit",
         "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) . (_) . (_) @arg)) @hit",
         "php": "(function_call_expression function: (name) @fn\n                          arguments: (arguments . (argument (_) @arg))) @hit",
         "ruby": "(call method: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
@@ -689,8 +691,8 @@
       },
       "functionPatterns": {
         "python": "^(redirect|HttpResponseRedirect|HttpResponsePermanentRedirect|RedirectResponse)$",
-        "javascript": "^redirect$",
-        "typescript": "^redirect$",
+        "javascript": "^(redirect|permanentRedirect|(window|document|self|top)\\.location(\\.href|\\.assign|\\.replace)?|location(\\.href|\\.assign)?)$",
+        "typescript": "^(redirect|permanentRedirect|(window|document|self|top)\\.location(\\.href|\\.assign|\\.replace)?|location(\\.href|\\.assign)?)$",
         "go": "^Redirect$",
         "php": "^header$",
         "ruby": "^redirect_to$",
@@ -705,8 +707,8 @@
         "cpp": "^(printf|fprintf|sprintf|dprintf)$"
       },
       "modulePatterns": {
-        "javascript": "^(res|response|reply|ctx)$",
-        "typescript": "^(res|response|reply|ctx)$",
+        "javascript": "^(res|response|reply|ctx|NextResponse|Response|redirect|permanentRedirect|(window|document|self|top)\\.location(\\.href|\\.assign|\\.replace)?|location(\\.href|\\.assign)?)$",
+        "typescript": "^(res|response|reply|ctx|NextResponse|Response|redirect|permanentRedirect|(window|document|self|top)\\.location(\\.href|\\.assign|\\.replace)?|location(\\.href|\\.assign)?)$",
         "go": "^http$",
         "dart": "(^|\\.)(Response|response|res)$",
         "rust": "(^|::)Redirect$",
@@ -723,8 +725,8 @@
         "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$|^[\"']/[A-Za-z0-9_.~%-]",
         "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(|^@?\\$?\"/[A-Za-z0-9_.~%-]",
         "dart": "^Uri\\.parse\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$",
-        "javascript": "^[\"'`]/[A-Za-z0-9_.~%-]",
-        "typescript": "^[\"'`]/[A-Za-z0-9_.~%-]",
+        "javascript": "^[\"'`]/[A-Za-z0-9_.~%-]|^new URL\\(\\s*(\"/([A-Za-z0-9_.~%-][^\"]*)?\"|'/([A-Za-z0-9_.~%-][^']*)?'|`/([A-Za-z0-9_.~%-][^`$]*)?`)\\s*,\\s*(req|request)\\.(url|nextUrl(\\.origin)?)\\s*\\)$",
+        "typescript": "^[\"'`]/[A-Za-z0-9_.~%-]|^new URL\\(\\s*(\"/([A-Za-z0-9_.~%-][^\"]*)?\"|'/([A-Za-z0-9_.~%-][^']*)?'|`/([A-Za-z0-9_.~%-][^`$]*)?`)\\s*,\\s*(req|request)\\.(url|nextUrl(\\.origin)?)\\s*\\)$",
         "go": "^[\"`]/[A-Za-z0-9_.~%-]",
         "java": "^\"/[A-Za-z0-9_.~%-]",
         "kotlin": "^\"/[A-Za-z0-9_.~%-]"
@@ -734,7 +736,9 @@
         "shell": "only a Location header printed with echo or printf from a variable, the way a CGI script redirects",
         "c": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects",
         "php": "a Location header set with header() from a value",
-        "cpp": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects"
+        "cpp": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects",
+        "javascript": "a redirect to a destination built from a value, through `res.redirect`, `res.location`, `reply.redirect`, and `ctx.redirect` (Express, Fastify, Koa), a bare `redirect()` or `permanentRedirect()` (Next.js, Remix, SvelteKit), `NextResponse.redirect` and `Response.redirect`, and the browser's `window.location`, `location.href`, `location.assign`, and `window.location.replace`",
+        "typescript": "a redirect to a destination built from a value, through `res.redirect`, `res.location`, `reply.redirect`, and `ctx.redirect` (Express, Fastify, Koa), a bare `redirect()` or `permanentRedirect()` (Next.js, Remix, SvelteKit), `NextResponse.redirect` and `Response.redirect`, and the browser's `window.location`, `location.href`, `location.assign`, and `window.location.replace`"
       }
     },
     {
