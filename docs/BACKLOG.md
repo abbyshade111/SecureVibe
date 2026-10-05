@@ -867,6 +867,8 @@ another session is not a claim.
      the header) to whatever fetches its keys. Cheaper, and it runs in every check without Docker, but it is weaker
      evidence than the app seen fetching. Today only Semgrep speaks to V9.1.3 by reading the code. Like the other code
      rules: a finding where the pattern matches, never credit where it does not.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-v913-rule`.
 
 - **Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026.** Found
   by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
