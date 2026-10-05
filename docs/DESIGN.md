@@ -8124,3 +8124,23 @@ as semver, because the RubyGems test called the comparison directly and the lock
 two agree; and keeping the zeros before the letters, because the case tested (`1.0` and `1.0.0`) comes out equal
 either way. A test of a gem pre-release held to an advisory, and the cases `2.0.0.rc1` and `2.0.rc1`, were added, and
 both were then caught.
+
+## Redirects and file calls the way Next.js and modern Node write them (5 October 2026)
+
+H5 of the deep review: `ast.open-redirect` and `ast.file-path-from-value` read only `res.redirect(…)` and
+`fs.readFile(…)` shapes, so the usual Next.js and modern Node forms went unreported while TypeScript was claimed
+checked.
+
+- **Redirects** now also read Next.js's bare `redirect(…)` from `next/navigation`, `NextResponse.redirect(…)`, and
+  the browser's own: `window.location = …`, `location.href = …`, `window.location.href = …`, and
+  `location.assign(…)` or `location.replace(…)`. A destination that is a path on the same site stays safe, and so
+  does `new URL('/path', request.url)`, the way Next.js middleware sends someone to its own sign-in page;
+  `new URL('//other.site', …)` does not count as a path.
+- **File calls** now also read `fs.promises.readFile(…)` and the bare `readFile(…)`, `writeFile(…)`, `rm(…)` and
+  their kin imported from `fs/promises`. A bare call is read only for the file system's own names, so a function of
+  the app's that happens to be called `download` is not.
+- **What it still does not read:** a redirect or file call reached through a name of the app's own, such as
+  `const go = redirect` or `const fsp = require('fs').promises` named anything but `fsp`.
+
+How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
+twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
