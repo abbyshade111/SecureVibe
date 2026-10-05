@@ -137,7 +137,7 @@ fn a_heading_of_the_owners_own_does_not_answer_the_section_above_it() {
             && report.contains(&format!("\"A note from me\", after {}", ids[0])),
         "{report}"
     );
-    // `sv notes` writes the file again and keeps the note, once, where it was.
+    // `sv notes` writes the file again and keeps the note, once.
     std::fs::write(
         dir.join("security-notes.md"),
         under_first(&notes, &ids, &note),
@@ -151,10 +151,18 @@ fn a_heading_of_the_owners_own_does_not_answer_the_section_above_it() {
     );
     let rewritten = std::fs::read_to_string(dir.join("security-notes.md")).unwrap();
     assert_eq!(rewritten.matches(note.as_str()).count(), 1, "{rewritten}");
+    // Kept word for word in the section of text that is not under a question, which the report
+    // does not read, and not in the section it followed.
     let pos = |what: &str| rewritten.find(what).unwrap();
     assert!(
-        pos(&format!("## {} — ", ids[0])) < pos(&note)
-            && pos(&note) < pos(&format!("## {} — ", ids[1]))
+        pos("## Kept as you wrote it") < pos(&note)
+            && pos(&note) < pos(&format!("## {} — ", ids[0])),
+        "{rewritten}"
+    );
+    let reread = compliance(&dir, &rewritten);
+    assert!(
+        status_of(&reread, &ids[0]).starts_with("not verified"),
+        "{reread}"
     );
     std::fs::remove_dir_all(&dir).ok();
     assert!(

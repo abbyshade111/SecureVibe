@@ -7402,6 +7402,33 @@ How it is held: `the_usual_query_calls_of_each_language_are_read_and_their_safe_
 (`crates/sv-check/src/ast.rs`). It has twenty-nine cases, and asserts that each one parses, so a pass is not a fixture
 the grammar could not read.
 
+## Bandit handed the app's own Python files, and a run that did not finish (4 October 2026)
+
+S7 and H7 of the deep review, both about what `sv` takes from an outside tool as having been read.
+
+**What Bandit is handed.** Bandit was given the app folder (`--recursive {dir}`), and read what it found there in
+its own way: it followed a link out of the app and read the file the link pointed at, which `sv`'s own reading
+refuses, and it read `vendor/` and the other folders of installed code `sv` leaves out (139 of family-hub's Bandit
+findings were Flask's own code). It is now handed the app's Python files by name, from `sv`'s own listing, as
+Semgrep already is (`-- {files}`, run in the app folder). `{files}` now gives a tool that reads one language only
+the files of that language (`code_files_for`), so Bandit is never handed JavaScript to fail on; Semgrep, which reads
+many, is still given every code file. An app with no Python is not handed to Bandit at all, and the report says
+so. Brakeman still takes the folder: it reads a Rails application as a whole, not files one by one.
+
+**A run its own report says did not finish.** A tool's SARIF can say that part of its run failed:
+`executionSuccessful: false` on an invocation, or a notification at level `error` in `toolExecutionNotifications`
+or `toolConfigurationNotifications`, usually naming the file. Bandit writes both when it skips a file it cannot
+parse, and nothing read them, so a run that had skipped the file was credited as clean. Now any such report keeps
+the run from counting as clean, for every outside tool: its findings still stand, the run is listed as partial,
+and the report names what it could not get past (up to five, then a count). A warning does not count; a run marked
+unsuccessful with nothing said does. The message for a partial run now says the tool did not look at all of the
+app, which covers this and Semgrep's unread files, where it used to say the tool was told not to look.
+
+Five guards broken in turn, each caught: every language's files handed over, the report's own word ignored,
+warnings counted as errors, an unsuccessful run believed, and Bandit handed the folder again. Tested with stand-in
+programs that write the reports and record what they were handed; Bandit itself was not installed where this was
+written, so the first run of the real program on the new arguments is CI's or the owner's.
+
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 1, H8, H10, and H11) found three ways the advisory comparison
@@ -7864,6 +7891,33 @@ by a test written for it: the burst repeating its marker, crediting any refusal,
 a limit, and taking a 503 with it as a crash; an upload repeating its marker, reusing the first upload's token, and
 skipping the ordinary file after a refusal.
 
+## A broken file holds back only the rules it could hide something from (4 October 2026)
+
+H25 of the deep review: one file the parser could not read in full silenced every code rule for the whole app.
+Every rule reads JavaScript, so one vendored script with syntax the grammar does not know took every clean result
+for the code out of the report. The rule that a partly read file cannot support a claim that something is absent
+stays (`verified.rs`): what changes is which claims it touches. Recorded under ADR-018.
+
+- **The question is whether the rule's call could be in the file.** A rule reports a call only when the call's name
+  matches its pattern for that language (`functionPatterns`). So `hold_back` reads every word in a broken file
+  (`names_in`: runs of letters, digits, `_`, and `$`, with Ruby's `?` or `!`, and each part of a run joined by `-`),
+  and holds a rule back when any word matches. The word can be anywhere in the file, not only where the parser gave
+  up: a call whose name was read and whose arguments were not is still a call the rule missed.
+- **Only patterns made of words.** `names_only` accepts a pattern built from letters, digits, `_`, alternatives,
+  groups, anchors, `?`, `!`, `*`, and `+`. Anything else can match text no word is, such as the shell's quoted
+  `"/bin/sh"`, its `.`, `hashlib.pbkdf2_hmac`, or a character class, and holds its rule back whatever the file says.
+- **Unchanged:** a file not opened holds back every rule that reads its language; a language with no parser, a page
+  whose script did not parse (it is left behind, as before), and a query that would not compile, hold back every
+  rule.
+- **What a person sees:** the file is still named as partly read. The message says a rule whose call is named in it
+  cannot say it found nothing, and a rule whose call is named nowhere in it could not have found it there.
+
+How it is held: `a_file_that_does_not_parse_holds_back_the_rules_whose_call_it_names_and_keeps_its_findings`,
+`a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call`,
+`a_file_not_opened_holds_back_every_rule_that_reads_its_language`, and
+`a_rule_whose_name_pattern_is_more_than_a_word_is_always_held_back` (`crates/sv-check/tests/clean_coverage.rs`),
+and `the_words_in_a_file_rule_out_only_what_a_name_pattern_can_match` (`crates/sv-check/src/ast.rs`).
+
 ## Decide before you build: the instructions, the spec, and the design-time prompts as MCP prompts (4 October 2026)
 
 Items 1, 2, and 8 of the backlog's "Design-time help before any code", as the owner decided the same day; the decision
@@ -7906,6 +7960,65 @@ the "not tried yet" mark caught by nothing, because every design-time prompt the
 ones it is caught by two tests. The headings guard was broken twice (the incident plan written into the notes, and a
 heading misspelled), and each was caught.
 
+## The notes file keeps what the owner wrote outside the answers (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 3, R7) found that `sv notes`, and the MCP tools
+`securevibe_notes_file` and `securevibe_record_answer`, which write through the same function, rebuilt
+`security-notes.md` from the answers alone, though the tool told the AI coding tool it "keeps everything". Reproduced
+before the fix on a copy of `examples/tested-notes`: a paragraph the owner wrote above the first question and a quote
+in an answer were gone after one `sv notes`, and a file with one byte that is not UTF-8 was read as no file at all and
+written over with a blank template, every answer in it lost. Reading the code found more: a bullet added to `sv`'s
+list of facts was dropped with them, an answer lost the indentation of its first line, a second section for the same
+question was silently ignored, a heading for a requirement `sv` no longer asks about was replaced by `sv`'s own
+title (or dropped, with nothing under it), and the heading `sv` puts over answers to questions that no longer apply,
+with its paragraph, was read as part of the answer to the last question above it, which then counted as *stated by the
+AI coding tool* from `sv`'s own words.
+
+**What is `sv`'s, and what is kept.** The reader (`sv_check::notes::read_answers`, which now takes the catalog) drops
+only what `sv` writes: the title line, its paragraphs (in every wording since the file was first written, so a file
+from 27 September does not have the old paragraph kept as the owner's), the question as the catalog asks it now, the
+italic line quoting the requirement, the facts line and the bullets under it that begin as `sv`'s facts do, and the
+placeholder. Everything else under a question's heading is that question's answer, carried across as it was, with only
+blank lines at its start and end left out, and a heading the file already has is kept as it was. Everything that is
+neither, wherever it was (above the first question, under `sv`'s headings), is kept word for word and in order in a
+section of its own near the top, "Kept as you wrote it: text that is not under a question", which says that the report
+does not read it. So is a quoted block at the top of a section that is not the question as asked now: it may be an
+earlier wording of the question, so it is not counted as an answer, and it may be the owner's, so it is not dropped.
+Lines are split on the newline alone, so a Windows line ending stays on the line it was on.
+
+**Refused, writing nothing, and why.** A file that is there but is not UTF-8 text, or cannot be read, is refused, so
+it is never written over; and so is a file with two sections for one question, since which is the answer is the
+owner's to say and keeping both leaves the file read two ways. Both say how to put it right. `sv notes` and the MCP
+tool say when a kept section was written, and the tool's description says what it keeps and when it refuses.
+
+**What is still not kept**, stated: the question and the facts are `sv`'s and are written afresh each time, so an
+owner's edit inside the quoted question, or to a bullet of `sv`'s facts that still begins as `sv`'s do, is replaced; a
+second copy of one of `sv`'s whole paragraphs is dropped; and a heading's `##` or `###` is set by where the section
+is (a question that applies, or one that no longer does), though its words are kept. Text after a section's heading is
+that section's answer, as before, even when the owner meant it for the file as a whole.
+
+`record_answer`'s refusal to replace an owner's section without a `Written by:` line (R8) is a different fault in
+`write_notes` and is not changed here; the tool's answer is written through the same writer, so it now keeps the
+owner's text elsewhere in the file. One effect on seals (R1, the same day): a quote or a bullet in an answer that the
+reader used to drop is now part of the answer, so a seal recorded over such a section before this change no longer
+matches, and the report says so and how to record it again.
+
+**Tested.** Reproduced first with a copy of `examples/tested-notes` (the review's write-up names the code, not its fixture) (a preface, a quote in an answer, and a byte that
+is not UTF-8), then held by unit tests beside the reader (`crates/sv-check/src/notes.rs`): the owner's text before,
+between, and after `sv`'s sections, in order; text that looks like a heading (in the preface, inside an answer, a
+requirement `sv` does not know, one with nothing under it, a retitled question); two sections for one question,
+refused; an empty file; a file of more than five megabytes, kept whole; a byte-for-byte round trip (Windows line
+endings, an indented first line, trailing spaces, a fenced block, tabs, accents); an earlier wording of the question
+and of the paragraph above; every fact `sv` writes recognized as `sv`'s; and kept text never counted as an answer.
+End to end, `crates/sv-cli/tests/notes_keep_owner_text.rs` runs `sv notes` and checks that a refusal leaves the file's
+bytes as they were, and an MCP test does the same for both notes tools. Sixteen guards broken in turn, each caught:
+the kept section not written (8 tests), the preface not gathered (7), a quote at the top of a section dropped (2) or
+one further down (4), every bullet under the facts dropped (2) or none recognized (12), the question never recognized
+(9), the heading over old answers not ending a section (2), duplicates not refused (2), an unreadable file read as no
+file (2), headings not kept (2), a heading with nothing under it dropped (2), answers trimmed whole (2), the earlier
+paragraph not recognized (4), the line ending dropped (2), and `sv`'s own paragraph under a question kept (1, a
+fixture for files from before this change). Seven were at first caught by one test each; a fixture was added for each
+but the last, which only a file from before this change can show.
 ## Pipenv apps, and Python dependency files `sv` does not read (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H9) found that a Python app with only `Pipfile` and
@@ -7968,34 +8081,53 @@ version in `Pipfile.lock` dropped (two), a `Pipfile`'s ranges dropped (two), the
 and `develop` read (one), the app's own folder named (one), a hashed `requirements-dev.txt` not read (one), and every
 `setup.cfg` counted (one).
 
+## Advisory versions: in order, gaps kept, gems as gems (4 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H18 to H20) found three ways the advisory comparison could call
+an affected version clean, or drop the note that it could not tell.
+
+- **H18, events read in the order they were written.** OSV asks for a range's events to be read in version order.
+  They were read as the record lists them, and 86 real ranges list a later `introduced` before an earlier `fixed`, so
+  the range ended too soon: PYSEC-2024-265 reported 1.2.1 clean. The events are now sorted by version first. Two
+  events at the same version could be read either way, so a range with any is not compared, and says so.
+- **H19, a match cleared another advisory's gap.** When one advisory could not be compared with a package's version
+  and a later one matched, the match cleared the "could not compare" the first had left. That is now kept per
+  advisory: a match settles its own advisory and says nothing about another.
+- **H20, gems compared as semver.** Bundler writes a gem built for one platform as `nokogiri (1.15.4-x86_64-linux)`,
+  and the semver comparison read `-x86_64-linux` as a pre-release, before 1.15.4 and so inside a range 1.15.4 fixed.
+  The lockfile reader now takes the version as Bundler does, everything before the first `-`. RubyGems versions are
+  also compared by RubyGems' own rules (`Gem::Version`): `2.0.0.rc1` is a pre-release of `2.0.0`, which semver could
+  not compare at all; `1.0` equals `1.0.0`; and zeros before a pre-release's letters do not count.
+
+Eight guards broken in turn. Six were caught at once, each by the test written for it. Two were not: comparing gems
+as semver, because the RubyGems test called the comparison directly and the lockfile test used versions on which the
+two agree; and keeping the zeros before the letters, because the case tested (`1.0` and `1.0.0`) comes out equal
+either way. A test of a gem pre-release held to an advisory, and the cases `2.0.0.rc1` and `2.0.rc1`, were added, and
+both were then caught.
 
 ## A heading of one's own ends the answer above it (4 October 2026)
 
 Found writing the design-time prompts, and reproduced the same day (BACKLOG, "A heading of the owner's own in
-`security-notes.md`"). `read_answers` ended a section only at the next section's heading, so a heading of anyone
-else's, and everything under it, became the answer to the section above. With `## A note from me` under V2.1.1, which
-nobody had answered, the report called V2.1.1 *stated by the AI coding tool*: with or without a `Written by:` line in the
-note, and the same under `###`. `sv`'s own heading for answers that no longer apply, and the sentence it writes under
-it, were read the same way into the last section above them.
+`security-notes.md`"). The reader ended a section only at the next section's heading, so a heading of anyone else's,
+and everything under it, became the answer to the section above. With `## A note from me` under V2.1.1, which nobody
+had answered, the report called V2.1.1 *stated by the AI coding tool*: with or without a `Written by:` line in the
+note, and the same under `###`. It was still so after the same day's change that keeps the owner's text (R7, "The
+notes file keeps what the owner wrote outside the answers"), which had made `sv`'s own headings end a section and kept
+headings of the owner's inside the answer above them.
 
 At the owner's choice ("end a section at any heading, and say what was skipped"; ADR-022, "Later, 4 October 2026"):
 
-- **A heading of the first three levels ends the section above it.** What follows a heading of somebody's own is kept
-  as `Answers::loose`, with the section it followed, and is part of no answer. A `####` heading stays inside the answer
-  it is in. Headings before the first section are `sv`'s own title and introduction, as before. `sv`'s heading for
-  answers that no longer apply is `sv`'s, and nobody's answer.
-- **It is never dropped.** `sv notes`, and the AI tool recording an answer, write the file again from what was read; a
-  note of one's own is written back after the same section, and one after a section no longer written goes at the end.
-  Writing the file twice gives the same file.
+- **A heading of the first three levels ends the section above it.** What follows a heading of somebody's own after a
+  section is part of no answer: it goes with the other text that is not under a question, which R7 keeps word for word
+  in a section of its own near the top and the report does not read. A `####` heading, and `##` with no space after
+  it, stay inside the answer they are in, so an answer can still have parts. Headings before the first section are
+  `sv`'s own title and introduction, as before.
 - **The seal is held to the same boundary**, so `sv review` never places one under a `Written by:` line in somebody's
   note below a section.
 - **The report names each such heading, and the section it followed, as a gap**, saying the text was not read as an
   answer, that notes of one's own are fine there, and how to make one part of an answer. The gaps already say the same
   of a `Written by:` line nothing was made of.
+- **One of R7's tests changed.** It held that `## Notes we keep` inside an answer was part of that answer. Keeping the
+  owner's text was R7's point, and the text is still kept; whether it counts as the answer is this decision. The test
+  keeps its other two heading-like lines, which stay in the answer.
 
-**Broken in turn.** Eleven guards: the old reader (6 tests red, the end-to-end one among them), `###` and `#` not ending
-a section, `####` ending one, `sv`'s own heading read as somebody's, a note not written back after its section or
-dropped after one no longer written, the seal placed by the old boundary, the evidence and the report each saying
-nothing, and headings before the first section taken as somebody's (6 red). Each was caught. The first run reported
-the end-to-end test as catching nothing: the script named a test file in the wrong crate, cargo refused to start, and
-the script read that as no failures. It now stops when a run reports no tests.
