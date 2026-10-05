@@ -1045,6 +1045,10 @@ another session is not a claim.
      tell a checked redirect from an unchecked one. Recognizing every checking function is not possible; one
      honest step is to lower the confidence when the value passed through a function of the app's own whose
      name or body speaks of the destination, and say so in the finding.
+     **Items 2 and 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-a1-rest`: each finding stays, with its confidence lowered and the reason said, when the
+     path is built only from fixed text and a value read back from the app's database, or the destination passed
+     through a function whose name says it checks it.
 
 - **Three faults found scanning the owner's family-hub, reported 3 October 2026.** Sent by the cato-pipeline session
   at the owner's asking. It found them on family-hub (Python and Flask, built with `sv` in the loop) with `sv` at
