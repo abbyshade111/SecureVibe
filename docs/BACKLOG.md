@@ -1570,6 +1570,11 @@ another session is not a claim.
      may be used for, and whether an answer given through it could fairly count as the owner's.
      **Claimed the same day by session securevibe-e2**, at the owner's word, for that research only, in branch
      `claude/securevibe-e2-elicitation-research`; nothing is built until the owner has read it.
+     **Researched the same day** (DESIGN, "Asking the owner through the AI tool's own form: research, not built"). An
+     answer given through elicitation cannot count as the owner's word: nothing lets `sv` tell a person from the AI tool
+     answering, and Claude Code documents settings that answer the form with no person shown it. Claude Code and VS Code
+     support it; Cursor and Codex CLI by secondary sources; Zed and Gemini CLI do not. Waiting on the owner: whether to
+     try a middle tier, "confirmed in the AI tool's form, not sealed", which would never stand in for `sv review`.
   7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
