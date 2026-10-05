@@ -280,6 +280,16 @@ another session is not a claim.
     form the review named is found, Next.js's bare `redirect` and `NextResponse.redirect`, the browser's
     `location` assignments and calls, `fs.promises.readFile`, and the bare `fs/promises` calls; a same-site path,
     `new URL('/path', request.url)`, and an app's own function named `download` are not.
+  - **H5 follow-up: five differences from a second build of H5** (the cato-pipeline session's
+    `claude/h5-next-node-sinks`, closed unmerged as #642), ported onto #641's rules at the owner's asking:
+    (a) `new URL("/path", base)` is safe only when the base is the request's own address (`request.url`, `req.url`,
+    `request.nextUrl`), so `new URL("/path", userInput)` is reported; (b) `permanentRedirect()`, `Response.redirect`,
+    Express's `res.location`, `document.location` (and `self` and `top`), and SvelteKit's status-first
+    `redirect(303, x)`; (c) a bare `location.replace(...)` on a name called `location` is not reported, since a string
+    has a `replace` too, while `window.location.replace(x)` still is; (d) `process.cwd()`, `import.meta.dirname`, and
+    `new URL('./x', import.meta.url)` accepted as the app's own folder by the file-path guard; (e) the clean result's
+    words for JavaScript and TypeScript naming the calls each rule reads.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch `claude/h5-follow-up`.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
