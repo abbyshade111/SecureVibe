@@ -10,7 +10,7 @@ It makes a small app in a temporary folder, a copy of `examples/tested-notes` wi
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
 <folder>:<folder> <image> mcp --root <folder>`). Then, over MCP:
 
-- the ten tools are offered, and `securevibe_spec` answers;
+- the eleven tools are offered, and `securevibe_spec` answers;
 - `securevibe_prompts` gives the prompt library, each marked, so the prompts file is in the image;
 - `securevibe_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
 - `securevibe_check` ran the committed-secrets check and found the `.env`. **This is asserted before
@@ -54,6 +54,7 @@ TOOLS = [
     "securevibe_guidance",
     "securevibe_prompts",
     "securevibe_spec",
+    "securevibe_plan",
 ]
 FAILURES = []
 
@@ -131,7 +132,7 @@ def main():
             ("tools/call", {"name": "securevibe_prompts", "arguments": {}}),
         ])
         names = [t["name"] for t in replies[0]["result"]["tools"]]
-        check(names == TOOLS, f"ten tools offered: {names}")
+        check(names == TOOLS, f"eleven tools offered: {names}")
         prompts = replies[6]["result"]
         prompts_text = prompts["content"][0]["text"]
         check(prompts["isError"] is False and "**Shown to work.**" in prompts_text
