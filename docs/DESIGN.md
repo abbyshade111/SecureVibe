@@ -6658,6 +6658,37 @@ never works, and a rate limit on copies after the first. Each guard was broken i
 Each was caught by a test. The crash guard was caught only with both of its holds removed, as expected for a guard
 held twice.
 
+### Later, 5 October 2026: two users, not one
+
+The check sent every copy as A and counted the answers carrying `completed`. Testing the design-time prompts, it
+reported a booking that went through once as twenty: the build made with the "actions that must happen once" prompt
+took the seat in one step and answered a repeat from the member who already held it with "Booked" again, changing
+nothing, which is what that prompt asks for. An app's answer cannot tell "taken now" from "already yours". The owner
+chose, of the two ways out, to send the copies as two users.
+
+- **What is sent.** A and B each sign in and read the page's token, and the 20 copies go out together, A's and B's
+  taking turns, so neither user's all leave first.
+- **What is read.** `completed` in answers to both users is the finding: two people cannot both have the one thing there
+  was. `completed` for one user only, however many of their copies say so, with every copy from the other answered and
+  refused, is credited. The rest of the rules hold as before: nothing going through, a crash, or a rate limit's 429
+  leaves it not assessed.
+- **What a refusal has to show.** The crash sweep found the hole two users open: if B's sign-in or B's token silently
+  failed, B's copies were refused for that, not because the seat was taken, and were credited. So both users are shown
+  signed in (the first `private` page opens) before the copies go; each request must carry the token when the
+  template asks for one; and the user whose copies were refused must still open that page afterwards. Each failing is
+  not assessed, saying which. A `private` page is now needed for credit.
+- **Sending together.** `Http::send_at_once(request, times)` became `send_together(requests)`. The container script
+  takes the different requests one after another on its input, cuts each into a file of its own from the file it saved
+  (never from the pipe, so no request takes bytes of the next), and starts copy `i` with request `which[i]`. It was run
+  with busybox 1.36, the sidecar's own, against a local server that waits 300 ms on each request: the 20 copies were
+  all answered in 1.4 seconds (one after another would take 6), each carrying its own user's cookie in the order
+  given, and each body arrived whole.
+- **Tested.** Ten guards broken in turn, each caught: the old rule (any two completions), every copy sent as A, both
+  counts read from A's copies, no sign-in shown before or after, the check after asked of the holder, no token guard,
+  the container sending the first request for every copy or cutting the second from the start, and the fake app's
+  correct repeat removed. The token guard was caught only by the crash sweep at first, so a test aimed at it was
+  added, and it fails alone when the guard goes.
+
 ## The app's own MCP server: its token, and arguments it should refuse (3 October 2026)
 
 Three new settings under `[stack.run.mcp-server]`:
@@ -9745,6 +9776,76 @@ place that wiring is), the rest of the line not judged (two), secret rules' find
 code (two), and files named `.spec.` not test code (the corpus test). Not caught by these: dropping the `test` folder
 from what is test code, because every corpus file in `test/` is also named like a test; `finding.rs`'s own tests hold
 that.
+
+## A path the app stored, and a destination a function checked, say so (5 October 2026)
+
+Items 2 and 3 of "Three false alarms on code that does the safe thing", left over from A1. Both rules already
+report at low confidence, the lowest a finding has, so lowering it says nothing more; what was missing is the
+reason. Each finding stays, and says why it may already be safe and what to look at.
+
+- **A path made of the app's own stored values** (`ast.file-path-from-value`, `saysWhenReadFromDatabase`).
+  `send_file(os.path.join(UPLOAD_DIR, row["id"]))`, where `row` came from `fetchone()`, is usually the id the app
+  gave a file when it saved it. The finding says the path is built from fixed text and a value read back from the
+  app's own database, and asks the owner to check nothing a person typed is ever stored there. A value read back
+  is a name every binding of which is a database read (DB-API's `fetchone`, `fetchall`, and `fetchmany`;
+  SQLAlchemy's `first`, `one`, and `scalar`; Flask-SQLAlchemy's `get_or_404`; Prisma's, Sequelize's, and
+  Mongoose's `findUnique`, `findOne`, `findByPk`, and the like), a loop variable over one, or text built from those
+  and fixed text. `get` is not one: `request.args.get("f")` is what the rule is for. A path with anything else in
+  it, a name also set from the request elsewhere in the file, or a value from a dictionary's `get` keeps the plain
+  finding.
+- **A destination that passed through a checking function** (`ast.open-redirect`, `saysWhenChecked`).
+  `redirect(safe_next(next_url))`, or a name only ever set from such a call, names the function: "passed through
+  `safe_next` first, whose name says it checks it". A function counts when its name holds `safe`, `valid`,
+  `allowed`, `check`, `clean`, `saniti`, `verif`, or `trusted`. No rule can read every such function, so the finding
+  stays and asks the owner to read it. A name set from a checking function in one place and from the request in
+  another keeps the plain finding; one set from two checking functions names both.
+- Both read Python, JavaScript, and TypeScript, the languages whose bindings `Fixed` reads, and, like it, judge a
+  name by every place in the file that sets it, not by which one reaches the call.
+
+How it is held: `a_path_made_of_the_app_s_own_stored_values_says_so` and
+`a_destination_that_passed_through_a_checking_function_names_it` (`crates/sv-check/src/ast.rs`), each with the
+cases that say so and controls that must not. Fifteen guards were undone in turn. Thirteen were caught; two carried
+no weight and were taken out: a second check that every binding of a checked name has a value, which the first
+already made, and a check for a name with no bindings, which cannot happen.
+
+## `.env` with nothing leaving it out, in a folder not yet in git (5 October 2026)
+
+In the loop pilot every build was flagged `config.gitignore-covers-env` (high) by `sv report` on a copy that
+`prompt_trial.py` had made a git repository, while the `sv check` during the build, in a plain folder, did not say
+so: with no `.gitignore` and no repository the check answered "not assessed, nothing to read". A builder who checks
+before `git init` never heard it, and then `git init` and `git add .` commit the `.env` that is sitting there.
+
+Whether a `.gitignore` leaves `.env` out needs no repository: since H23 the file is read the way git reads it
+(`gitignore_ignores`). The repository was needed only for one case, a folder with no `.gitignore` at all, where the
+check had no file to read and so did not decide. That case is now decided from the folder's own files
+(`gitignore_covers_env`, `crates/sv-check/src/config.rs`):
+
+- **Not a repository, no `.gitignore`, an environment file at the root** (`.env` or `.env.*`, not a template such
+  as `.env.example`): a finding, at the environment file, worded for a folder not yet in git: when it becomes one,
+  the usual first commit (`git add .`) would save the file, unless a git ignore file kept outside the folder (a
+  global one on that computer) leaves it out, which `sv` does not read. That one case cannot be decided from the
+  app's files, and the finding says so rather than claiming more.
+- **Not a repository, no `.gitignore`, no environment file**: still not assessed, now saying there is no `.env`
+  either and to add a `.gitignore` before adding one. A folder with nothing to commit is not flagged.
+- **Not a repository, with a `.gitignore`**: decided as before (it already was); a failing one now says the folder
+  is not a repository yet.
+- **In a repository**: unchanged, wording included, as is `config.secrets-file-committed` (what is already committed).
+  A subfolder of a larger repository with no `.gitignore` of its own is still not assessed, because the one that
+  matters may be in a folder above.
+
+`sv check`, `sv report`, and the MCP server's `securevibe_check` all call `check_dir_in`, so they say the same.
+
+How it is held: in `config.rs`,
+`a_folder_not_yet_in_git_with_an_environment_file_and_nothing_leaving_it_out_is_a_finding`,
+`a_folder_not_yet_in_git_with_no_environment_file_has_nothing_to_read` (no file, a template only, and a folder
+called `.env`), and `in_a_repository_the_environment_file_check_is_unchanged`; and
+`an_environment_file_in_a_folder_not_yet_in_git_is_said_by_all_three` (`crates/sv-cli/tests/env_plain_folder.rs`),
+which asks `sv check`, `sv report`, and the MCP server over stdio about one plain folder with a `.env`, then with a
+`.gitignore` covering it, then with neither. Each setup asserts the folder is outside any repository. Four guards
+were undone in turn and each was caught: deciding nothing in a plain folder (the old behavior) failed the first
+`config.rs` test and the three-way test; counting `.env.example` failed the no-file test; giving a plain folder's
+failing `.gitignore` the repository's wording failed the first test; and taking the plain-folder path in a
+repository failed the repository test, which is the only test of a repository with no `.gitignore`.
 
 ## The plan and the check in parts an AI tool takes in whole (5 October 2026)
 
