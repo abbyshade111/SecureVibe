@@ -7454,9 +7454,12 @@ without regard to capitals, plain files only). A marker beside anything else is 
 run code from its template (`on:click={() => eval(code)}`, `@click="..."`, `{{ ... }}`), and that code was never
 read, yet the page counted as read, so a rule could be credited a clean result it had not earned. For now, a
 `.svelte` page with any `{...}` outside its `<script>` and `<style>`, and a `.vue` page with `{{ }}` or an
-attribute starting `@`, `:`, or `v-`, is named among the files not fully read; no rule claims a clean result for
-it, and its `<script>` is still read and its findings still stand. A page whose template is plain markup is fully
-read, as before. Reading template code as code, so the problem is found and not only owned up to, is still to do.
+attribute starting `@`, `:`, or `v-`, is named among the files not fully read, and its `<script>` is still read
+and its findings still stand. A page whose template is plain markup is fully read, as before. **Corrected the same
+day:** this said no rule then claims a clean result for the page, and that was not so. Naming a file as not fully
+read does not hold a rule back; `hold_back` does, and this step did not call it, so the rule could still be
+credited. Its test checked only that the page was named. The next section reads the template code, and holds the
+rules back when it cannot.
 
 Ten guards broken in turn, each caught: for the folders, an output folder left out wherever it is, a folder left
 out without a record, the marker believed whatever the folder holds, `sv`'s own default report name forgotten,

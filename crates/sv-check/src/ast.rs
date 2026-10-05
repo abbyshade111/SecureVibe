@@ -1938,25 +1938,72 @@ fn and_list(items: &[String]) -> String {
 /// because the extractor did not take that and saying otherwise would be the whole failure this
 /// guards against.
 fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan) {
-    let page = html_fragments(source);
+    // H2 of the deep review: a Svelte or Vue template runs code of its own (`on:click={() => …}`,
+    // `{expression}`, `@click="…"`, `:href="…"`, `v-…`, `{{ … }}`) that is neither a `<script>` nor an
+    // `on…=` handler. It is taken out here and read with the page's scripts.
+    let template = template_code(relative, source);
+    // Svelte's braces are read before its markup, as Svelte's own compiler reads them, so the markup
+    // is given to the tokenizer with each one blanked out: otherwise `onclick={() => go()}` is a
+    // handler `{()` that ends at the first space, and `=>` closes the tag.
+    let blanked;
+    let markup = match &template {
+        Some(Ok(t)) if !t.spans.is_empty() => {
+            blanked = blank_out(source, &t.spans);
+            blanked.as_str()
+        }
+        _ => source,
+    };
+    let page = html_fragments(markup);
     if page.left_behind.is_some() {
         scan.unread_languages.insert("html".to_owned());
         return;
     }
-    // H2 of the deep review: a Svelte or Vue template runs code of its own (`on:click={() => …}`,
-    // `{expression}`, `@click="…"`, `:href="…"`, `v-…`, `{{ … }}`) that is neither a `<script>` nor an
-    // `on…=` handler, so no rule reads it. Its scripts are still read and what they find stands, but
-    // the page is named as not fully read, so no rule claims it clean.
-    if template_holds_code(relative, source) {
-        scan.unparsed_files.push(relative.to_owned());
+    // Template code is in the language of the page's scripts: TypeScript when one says so.
+    let language = if page.fragments.iter().any(|f| f.language == "typescript") {
+        "typescript"
+    } else {
+        "javascript"
+    };
+    let mut fragments = page.fragments;
+    let mut whole = true;
+    match template {
+        None => {}
+        Some(Err(_)) => whole = false,
+        Some(Ok(t)) => {
+            // Each piece is checked on its own, so one the grammar cannot read does not cost the
+            // rest; the ones it can are read together, as one fragment, at their own lines.
+            let (read, unread): (Vec<_>, Vec<_>) = t
+                .pieces
+                .into_iter()
+                .partition(|p| parses_cleanly(language, &p.code));
+            whole = unread.is_empty();
+            // A backstop against this and `template_holds_code` drifting apart: a page that holds
+            // template code and gave none up was not read.
+            if read.is_empty() && whole && template_holds_code(relative, source) {
+                whole = false;
+            }
+            if !read.is_empty() {
+                fragments.push(Fragment {
+                    language,
+                    code: joined(source, &read),
+                    line_offset: 0,
+                });
+            }
+        }
     }
-    if page.fragments.is_empty() {
+    if !whole {
+        // Its scripts are still read and what they find stands, but the page is named as not fully
+        // read, and every rule whose call could be named in it is kept from claiming it clean.
+        scan.unparsed_files.push(relative.to_owned());
+        hold_back(rules, scan, language, relative, Some(source));
+    }
+    if fragments.is_empty() {
         // A page of markup. Nothing to read, and nothing hidden.
         return;
     }
 
     scan.files_parsed += 1;
-    for fragment in &page.fragments {
+    for fragment in &fragments {
         // Counted under the language actually parsed. A page holding JavaScript is a file in which
         // JavaScript was read, and the rules that claim coverage of JavaScript really did read it.
         *scan
@@ -1974,17 +2021,21 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
     }
 }
 
-/// Whether a `.svelte` or `.vue` page's markup, outside its `<script>` and `<style>` elements, holds
-/// code the template runs. Svelte reads every `{` in its markup as the start of an expression; Vue
-/// runs `{{ … }}` and the values of attributes named `@…`, `:…`, and `v-…`. Other pages are left to
-/// `html_fragments`.
+/// Whether a `.svelte` or `.vue` page's markup, outside its `<script>` and `<style>` elements and its
+/// comments, holds code the template runs. Svelte reads every `{` in its markup as the start of an
+/// expression; Vue runs `{{ … }}` and the values of attributes named `@…`, `:…`, and `v-…`. Other
+/// pages are left to `html_fragments`. Kept apart from `template_code`, which takes the code out, as
+/// a check on it.
 fn template_holds_code(relative: &str, source: &str) -> bool {
     let lower = relative.to_lowercase();
     let svelte = lower.ends_with(".svelte");
     if !svelte && !lower.ends_with(".vue") {
         return false;
     }
-    let markup = without_elements(source, &["script", "style"]);
+    let Ok(ranges) = outside_code_elements(source) else {
+        return true;
+    };
+    let markup: String = ranges.into_iter().map(|r| &source[r]).collect();
     if svelte {
         return markup.contains('{');
     }
@@ -1996,39 +2047,407 @@ fn template_holds_code(relative: &str, source: &str) -> bool {
     vue.is_match(&markup)
 }
 
-/// The text with every element of these names cut out, opening tag to closing tag, ignoring case.
-/// An element with no closing tag runs to the end.
-fn without_elements(source: &str, names: &[&str]) -> String {
-    // ASCII only, so every byte stays where it was and the positions found here cut `source` too.
+/// A piece of code a Svelte or Vue template runs, written as a statement the grammar reads, and
+/// where in the page it starts.
+#[derive(Debug)]
+struct TemplatePiece {
+    code: String,
+    at: usize,
+}
+
+/// The code a Svelte or Vue page's template runs.
+#[derive(Debug, Default)]
+struct Template {
+    pieces: Vec<TemplatePiece>,
+    /// Where Svelte's `{…}` sit, braces included.
+    spans: Vec<std::ops::Range<usize>>,
+}
+
+/// The code in a `.svelte` or `.vue` page's template, or why it could not all be taken out; `None`
+/// for any other page.
+fn template_code(relative: &str, source: &str) -> Option<Result<Template, String>> {
+    let lower = relative.to_ascii_lowercase();
+    if lower.ends_with(".svelte") {
+        Some(svelte_template(source))
+    } else if lower.ends_with(".vue") {
+        Some(vue_template(source))
+    } else {
+        None
+    }
+}
+
+/// Every `{…}` in a Svelte page outside its scripts, styles, and comments: Svelte reads each as an
+/// expression or a block (`{#if …}`, `{#each … as …}`, `{@html …}`), in text and attributes alike.
+fn svelte_template(source: &str) -> Result<Template, String> {
+    let mut out = Template::default();
+    let mut next = 0;
+    for range in outside_code_elements(source)? {
+        let mut at = range.start.max(next);
+        while at < range.end {
+            let Some(i) = source[at..range.end].find('{') else {
+                break;
+            };
+            let open = at + i;
+            let close = closing_brace(source, open)
+                .ok_or_else(|| "a `{` with no `}` to close it".to_owned())?;
+            if let Some(code) = svelte_statements(&source[open + 1..close])? {
+                out.pieces.push(TemplatePiece { code, at: open + 1 });
+            }
+            out.spans.push(open..close + 1);
+            at = close + 1;
+        }
+        next = at;
+    }
+    Ok(out)
+}
+
+/// What one Svelte `{…}` runs, as statements; `None` for one that runs nothing (`{/if}`, `{:else}`).
+/// A pattern that names values (`{#each items as item}`) is written as an arrow function's
+/// parameters, so it is read where a default value in it could run code.
+fn svelte_statements(inner: &str) -> Result<Option<String>, String> {
+    let t = inner.trim_start();
+    // The rest after a block's keyword, when the keyword is followed by a space or nothing.
+    let after = |keyword: &str| {
+        t.strip_prefix(keyword)
+            .filter(|r| r.is_empty() || r.starts_with(char::is_whitespace))
+            .map(str::trim)
+    };
+    if t.starts_with('/') || t.trim_end() == ":else" {
+        return Ok(None);
+    }
+    if let Some(e) = after("#if")
+        .or_else(|| after(":else if"))
+        .or_else(|| after("#key"))
+        .or_else(|| after("@html"))
+        .or_else(|| after("@render"))
+        .or_else(|| after("@attach"))
+    {
+        return Ok(Some(format!("({e});")));
+    }
+    if let Some(rest) = after("#each") {
+        let Some((list, binding)) = split_top(rest, " as ") else {
+            return Ok(Some(format!("({rest});")));
+        };
+        let mut code = format!("({list});");
+        let (params, key) = match trailing_group(binding) {
+            Some((params, key)) => (params, Some(key)),
+            None => (binding, None),
+        };
+        code.push_str(&format!(" (({params}) => 0);"));
+        if let Some(key) = key {
+            code.push_str(&format!(" ({key});"));
+        }
+        return Ok(Some(code));
+    }
+    if let Some(rest) = after("#await") {
+        let (promise, pattern) =
+            match split_top(rest, " then ").or_else(|| split_top(rest, " catch ")) {
+                Some((promise, pattern)) => (promise, pattern.trim()),
+                None => (rest, ""),
+            };
+        let mut code = format!("({promise});");
+        if !pattern.is_empty() {
+            code.push_str(&format!(" (({pattern}) => 0);"));
+        }
+        return Ok(Some(code));
+    }
+    if let Some(pattern) = after(":then").or_else(|| after(":catch")) {
+        return Ok((!pattern.is_empty()).then(|| format!("(({pattern}) => 0);")));
+    }
+    if let Some(declaration) = after("@const") {
+        return Ok(Some(format!("const {declaration};")));
+    }
+    if let Some(e) = after("@debug") {
+        return Ok((!e.is_empty()).then(|| format!("({e});")));
+    }
+    if let Some(snippet) = after("#snippet") {
+        return Ok(Some(format!("function {snippet} {{}}")));
+    }
+    if let Some(e) = t.strip_prefix("...") {
+        return Ok(Some(format!("({{...{e}}});")));
+    }
+    if t.starts_with(['#', ':', '@']) {
+        let word: String = t.chars().take_while(|c| !c.is_whitespace()).collect();
+        return Err(format!("a `{{{word}` block this does not know"));
+    }
+    Ok(Some(format!("({inner});")))
+}
+
+/// Every directive value and every `{{ … }}` in a Vue page. Vue runs the value of each attribute
+/// named `@…` or `v-on:…` as a handler, `v-for`'s as a loop, `#…` and `v-slot`'s as a slot's
+/// parameters, and the value of every other `:…`, `.…`, and `v-…` attribute as an expression.
+fn vue_template(source: &str) -> Result<Template, String> {
+    static LANG: OnceLock<regex::Regex> = OnceLock::new();
+    let lang = LANG.get_or_init(|| {
+        regex::Regex::new(r#"<template\b[^>]*\slang\s*=\s*["']?([a-z0-9-]+)"#)
+            .expect("a fixed pattern")
+    });
+    if let Some(found) = lang.captures(&source.to_ascii_lowercase()) {
+        if &found[1] != "html" {
+            return Err(format!(
+                "a template written in {}, which this does not read",
+                &found[1]
+            ));
+        }
+    }
+    let mut out = Template::default();
+    for attribute in &read_markup(source)?.attributes {
+        let name = attribute.name.as_str();
+        let directive = name.starts_with(['@', ':', '#', '.']) || name.starts_with("v-");
+        if !directive {
+            continue;
+        }
+        if name.contains('[') {
+            return Err("a directive whose name is worked out when the page runs".to_owned());
+        }
+        let (value, unread) = decode_character_references(&source[attribute.value.clone()]);
+        if unread {
+            return Err("a character reference inside code that this does not decode".to_owned());
+        }
+        let value = value.trim();
+        if value.is_empty() {
+            continue;
+        }
+        let code = if name.starts_with('@') || name.starts_with("v-on:") {
+            format!("(function ($event) {{ {value} ;}});")
+        } else if name == "v-for" {
+            let (alias, list) = split_top(value, " in ")
+                .or_else(|| split_top(value, " of "))
+                .ok_or_else(|| "a `v-for` with no `in` or `of`".to_owned())?;
+            let alias = alias.trim();
+            let alias = alias
+                .strip_prefix('(')
+                .and_then(|a| a.strip_suffix(')'))
+                .unwrap_or(alias);
+            format!("(({alias}) => 0); ({list});")
+        } else if name.starts_with('#') || name.starts_with("v-slot") {
+            format!("(({value}) => 0);")
+        } else {
+            format!("({value});")
+        };
+        out.pieces.push(TemplatePiece {
+            code,
+            at: attribute.value.start,
+        });
+    }
+    for range in outside_code_elements(source)? {
+        let mut at = range.start;
+        while at < range.end {
+            let Some(i) = source[at..range.end].find("{{") else {
+                break;
+            };
+            let open = at + i + 2;
+            // Vue's own reading: the expression ends at the first `}}`.
+            let close = source[open..]
+                .find("}}")
+                .map(|j| open + j)
+                .ok_or_else(|| "a `{{` with no `}}` after it".to_owned())?;
+            let (inner, unread) = decode_character_references(&source[open..close]);
+            if unread {
+                return Err(
+                    "a character reference inside code that this does not decode".to_owned(),
+                );
+            }
+            out.pieces.push(TemplatePiece {
+                code: format!("({inner});"),
+                at: open,
+            });
+            at = close + 2;
+        }
+    }
+    out.pieces.sort_by_key(|p| p.at);
+    Ok(out)
+}
+
+/// The parts of a page outside its `<script>` and `<style>` elements and its comments.
+fn outside_code_elements(source: &str) -> Result<Vec<std::ops::Range<usize>>, String> {
+    // ASCII lowering keeps every byte where it was; every position found is at an ASCII byte.
     let lower = source.to_ascii_lowercase();
+    let bytes = lower.as_bytes();
+    let mut out = Vec::new();
+    let (mut start, mut at) = (0, 0);
+    while let Some(i) = lower[at..].find('<') {
+        let open = at + i;
+        let rest = &lower[open..];
+        let end = if rest.starts_with("<!--") {
+            Some(
+                rest[4..]
+                    .find("-->")
+                    .map_or(lower.len(), |j| open + 4 + j + 3),
+            )
+        } else if let Some(name) = ["script", "style"].into_iter().find(|n| {
+            rest[1..].starts_with(n)
+                && bytes
+                    .get(open + 1 + n.len())
+                    .is_none_or(|&b| is_html_space(b) || b == b'>' || b == b'/')
+        }) {
+            let close = format!("</{name}");
+            let Some(j) = rest.find(&close) else {
+                return Err(format!("a `<{name}>` with no `</{name}>` after it"));
+            };
+            Some(
+                lower[open + j..]
+                    .find('>')
+                    .map_or(lower.len(), |k| open + j + k + 1),
+            )
+        } else {
+            None
+        };
+        match end {
+            Some(end) => {
+                out.push(start..open);
+                start = end;
+                at = end;
+            }
+            None => at = open + 1,
+        }
+        if at >= lower.len() {
+            break;
+        }
+    }
+    out.push(start.min(source.len())..source.len());
+    Ok(out)
+}
+
+/// Where the `}` that closes the `{` at `open` is, reading the JavaScript between them: braces in a
+/// string do not count, and a template string's `${…}` does.
+fn closing_brace(source: &str, open: usize) -> Option<usize> {
+    let bytes = source.as_bytes();
+    // What is open, innermost last: `{` a brace, `` ` `` a template string.
+    let mut stack = vec![b'{'];
+    let mut i = open + 1;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if stack.last() == Some(&b'`') {
+            match b {
+                b'\\' => i += 1,
+                b'`' => {
+                    stack.pop();
+                }
+                b'$' if bytes.get(i + 1) == Some(&b'{') => {
+                    stack.push(b'{');
+                    i += 1;
+                }
+                _ => {}
+            }
+        } else {
+            match b {
+                b'\'' | b'"' => {
+                    i += 1;
+                    while i < bytes.len() && bytes[i] != b {
+                        if bytes[i] == b'\\' {
+                            i += 1;
+                        }
+                        i += 1;
+                    }
+                    if i >= bytes.len() {
+                        return None;
+                    }
+                }
+                b'`' | b'{' => stack.push(b),
+                b'}' => {
+                    stack.pop();
+                    if stack.is_empty() {
+                        return Some(i);
+                    }
+                }
+                _ => {}
+            }
+        }
+        i += 1;
+    }
+    None
+}
+
+/// The text before and after the first `separator` that sits outside every bracket and string.
+fn split_top<'a>(text: &'a str, separator: &str) -> Option<(&'a str, &'a str)> {
+    let bytes = text.as_bytes();
+    let mut depth = 0i32;
+    let mut i = 0;
+    while i < bytes.len() {
+        match bytes[i] {
+            quote @ (b'\'' | b'"' | b'`') => {
+                i += 1;
+                while i < bytes.len() && bytes[i] != quote {
+                    if bytes[i] == b'\\' {
+                        i += 1;
+                    }
+                    i += 1;
+                }
+            }
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => depth -= 1,
+            _ if depth == 0 && text.is_char_boundary(i) && text[i..].starts_with(separator) => {
+                return Some((&text[..i], &text[i + separator.len()..]));
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// A Svelte `{#each}` binding's key: the `(…)` it ends with, after a space, and what comes before.
+fn trailing_group(binding: &str) -> Option<(&str, &str)> {
+    let binding = binding.trim_end();
+    if !binding.ends_with(')') {
+        return None;
+    }
+    let bytes = binding.as_bytes();
+    let mut depth = 0i32;
+    for i in (0..bytes.len()).rev() {
+        match bytes[i] {
+            b')' => depth += 1,
+            b'(' => {
+                depth -= 1;
+                if depth == 0 {
+                    let before = &binding[..i];
+                    return (before.ends_with(char::is_whitespace) && !before.trim().is_empty())
+                        .then(|| (before.trim_end(), &binding[i + 1..binding.len() - 1]));
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+/// The page with every byte of these spans replaced by `_`, except line breaks, so every position
+/// and line number stays where it was.
+fn blank_out(source: &str, spans: &[std::ops::Range<usize>]) -> String {
     let mut out = String::with_capacity(source.len());
     let mut at = 0;
-    while at < source.len() {
-        let next = names
-            .iter()
-            .filter_map(|name| {
-                lower[at..]
-                    .find(&format!("<{name}"))
-                    .map(|i| (at + i, *name))
-            })
-            .min_by_key(|(i, _)| *i);
-        let Some((start, name)) = next else {
-            out.push_str(&source[at..]);
-            break;
-        };
-        out.push_str(&source[at..start]);
-        let close = format!("</{name}");
-        at = match lower[start..].find(&close) {
-            Some(i) => {
-                let after = start + i;
-                lower[after..]
-                    .find('>')
-                    .map_or(source.len(), |j| after + j + 1)
+    for span in spans {
+        out.push_str(&source[at..span.start]);
+        for c in source[span.clone()].chars() {
+            if c == '\n' {
+                out.push('\n');
+            } else {
+                out.extend(std::iter::repeat_n('_', c.len_utf8()));
             }
-            None => source.len(),
-        };
+        }
+        at = span.end;
     }
+    out.push_str(&source[at..]);
     out
+}
+
+/// The pieces as one program, each on the line of the page it came from, so a finding's line is
+/// the page's.
+fn joined(source: &str, pieces: &[TemplatePiece]) -> String {
+    let mut code = String::new();
+    let mut line = 0;
+    for piece in pieces {
+        let target = source[..piece.at].matches('\n').count();
+        while line < target {
+            code.push('\n');
+            line += 1;
+        }
+        code.push_str(&piece.code);
+        code.push(' ');
+        line += piece.code.matches('\n').count();
+    }
+    code
 }
 
 #[cfg(test)]
@@ -2037,9 +2456,10 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn a_template_that_runs_code_is_named_as_not_fully_read() {
+    fn template_code_is_read_as_code() {
         // H2 of the deep review: `on:click={() => eval(code)}` in a Svelte page gave no finding, and
-        // the page counted as read.
+        // the page counted as read. Each place a Svelte or Vue template runs code, holding `eval`, on
+        // line 4 of the page; each must be found there, with the page fully read.
         let rules = rules();
         let read = |name: &str, source: &str| {
             let mut scan = AstScan::default();
@@ -2047,49 +2467,136 @@ mod tests {
             scan
         };
         let script = "<script>\n  let count = 0;\n</script>\n";
+        let ts = "<script lang=\"ts\">\n  let count: number = 0;\n</script>\n";
+        let vue = |markup: &str| format!("{script}<template>{markup}\n</template>\n");
         for (name, page) in [
             (
-                "App.svelte",
+                "Click.svelte",
                 format!("{script}<button on:click={{() => eval(code)}}>Go</button>\n"),
             ),
-            ("Note.svelte", format!("{script}<p>{{note.body}}</p>\n")),
+            // Svelte 5's handlers are plain attributes; the space in the arrow must not end it.
             (
-                "App.vue",
-                format!("<template><button @click=\"eval(code)\">Go</button></template>\n{script}"),
+                "Click5.svelte",
+                format!("{script}<button onclick={{() => eval(code)}}>Go</button>\n"),
+            ),
+            ("Text.svelte", format!("{script}<p>{{eval(note)}}</p>\n")),
+            (
+                "Quoted.svelte",
+                format!("{script}<p class=\"note {{eval(kind)}}\">x</p>\n"),
             ),
             (
-                "Link.vue",
-                format!("<template><a :href=\"next\">Back</a></template>\n{script}"),
+                "If.svelte",
+                format!("{script}{{#if eval(x)}}<p>x</p>{{/if}}\n"),
             ),
             (
-                "Text.vue",
-                format!("<template><p>{{{{ note.body }}}}</p></template>\n{script}"),
+                "ElseIf.svelte",
+                format!("{script}{{#if a}}a{{:else if eval(x)}}b{{/if}}\n"),
             ),
+            (
+                "Each.svelte",
+                format!("{script}{{#each eval(list) as item}}<p>{{item}}</p>{{/each}}\n"),
+            ),
+            (
+                "Key.svelte",
+                format!("{script}{{#each list as item, i (eval(item))}}<p>{{i}}</p>{{/each}}\n"),
+            ),
+            (
+                "Await.svelte",
+                format!("{script}{{#await eval(p) then v}}<p>{{v}}</p>{{/await}}\n"),
+            ),
+            ("Html.svelte", format!("{script}{{@html eval(body)}}\n")),
+            ("Const.svelte", format!("{script}{{@const x = eval(y)}}\n")),
+            (
+                "Spread.svelte",
+                format!("{script}<a {{...eval(p)}}>x</a>\n"),
+            ),
+            (
+                "Typed.svelte",
+                format!("{ts}<p>{{eval(note as string)}}</p>\n"),
+            ),
+            (
+                "Click.vue",
+                vue("<button @click=\"eval(code)\">Go</button>"),
+            ),
+            (
+                "On.vue",
+                vue("<button v-on:click=\"eval(code)\">Go</button>"),
+            ),
+            ("Bind.vue", vue("<a :href=\"eval(next)\">Back</a>")),
+            ("If.vue", vue("<p v-if=\"eval(x)\">x</p>")),
+            ("For.vue", vue("<p v-for=\"(item, i) in eval(list)\">x</p>")),
+            ("Html.vue", vue("<p v-html=\"eval(body)\"></p>")),
+            ("Text.vue", vue("<p>{{ eval(note) }}</p>")),
+            (
+                "Escaped.vue",
+                vue("<p :title=\"eval(&quot;x&quot; + y)\">x</p>"),
+            ),
+            ("Slot.vue", vue("<p #item=\"{ x = eval(y) }\">x</p>")),
         ] {
             let scan = read(name, &page);
-            assert_eq!(scan.unparsed_files, [name], "{name}: {page}");
-            assert_eq!(scan.files_parsed, 1, "{name}: its script is still read");
+            assert!(scan.unparsed_files.is_empty(), "{name}: {page}");
+            assert!(scan.unread_languages.is_empty(), "{name}: {page}");
+            let found: Vec<_> = scan
+                .findings
+                .iter()
+                .map(|f| (f.rule_id.as_str(), f.location.line))
+                .collect();
+            assert_eq!(found, [("ast.dynamic-code-execution", 4)], "{name}: {page}");
         }
 
-        // The controls: markup with no template code, a brace inside a Svelte script or style, a
-        // plain HTML page with a brace in its text, and Vue's ordinary attributes.
+        // Template code with nothing to find is read too, braces in strings and template strings
+        // included, and a page of markup has nothing taken out of it.
         for (name, page) in [
+            (
+                "Strings.svelte",
+                format!("{script}<p title={{\"}}\"}}>{{`a ${{ {{b: 1}}.b }} }}`}}</p>\n"),
+            ),
             (
                 "Plain.svelte",
                 format!("{script}<h1>Notes</h1>\n<style>h1 {{ color: red }}</style>\n"),
             ),
             (
-                "Plain.vue",
-                format!("<template><a href=\"/x\" class=\"b\">x</a></template>\n{script}"),
+                "Comment.svelte",
+                format!("{script}<!-- {{ not code -->\n<p>x</p>\n"),
+            ),
+            ("Plain.vue", vue("<a href=\"/x\" class=\"b\">x</a>")),
+            (
+                "Obj.vue",
+                vue("<p :class=\"{ a: b, c: d }\" @click=\"n++; go()\">x</p>"),
             ),
             ("index.html", "<p>Use {name} here</p>\n".to_owned()),
         ] {
             let scan = read(name, &page);
             assert!(
-                scan.unparsed_files.is_empty(),
-                "{name}: {:?}",
-                scan.unparsed_files
+                scan.unparsed_files.is_empty() && scan.findings.is_empty(),
+                "{name}: {:?} {:?}",
+                scan.unparsed_files,
+                scan.findings
             );
+        }
+
+        // What cannot be taken out, or is not code the grammar reads, leaves the page named as not
+        // fully read, and holds back each rule whose call is named in it. Its script is still read.
+        for (name, page) in [
+            ("Open.svelte", format!("{script}<p>{{eval(x)</p>\n")),
+            ("Unknown.svelte", format!("{script}{{#nope eval(x)}}\n")),
+            ("Garbled.svelte", format!("{script}<p>{{eval(x) y}}</p>\n")),
+            ("Garbled.vue", vue("<p :title=\"eval(x) y\">x</p>")),
+            ("Dynamic.vue", vue("<p :[eval(k)]=\"v\">x</p>")),
+            (
+                "Pug.vue",
+                format!("{script}<template lang=\"pug\">\np(@click=\"eval(x)\")\n</template>\n"),
+            ),
+            ("OpenText.vue", vue("<p>{{ eval(x) </p>")),
+        ] {
+            let scan = read(name, &page);
+            assert_eq!(scan.unparsed_files, [name], "{name}: {page}");
+            assert!(
+                scan.held_back.contains_key("ast.dynamic-code-execution"),
+                "{name}: {:?}",
+                scan.held_back
+            );
+            assert!(scan.files_parsed >= 1, "{name}: its script is still read");
         }
     }
 
