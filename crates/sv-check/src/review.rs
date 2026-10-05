@@ -131,6 +131,13 @@ pub fn fill_fingerprints(app_dir: &Path, findings: &mut [Finding]) {
 /// of words changes, and a person's review of that line should not be lost with it. Such an entry
 /// counts when its fingerprint is the one the finding would have had under the rule it names
 /// (its line read from `app_dir`).
+///
+/// One entry answers for one finding. Each entry that counts takes the first finding it matches
+/// that no earlier entry has taken, so two identical lines with an entry each are both answered.
+/// An entry that counts and finds every finding it matches already taken says the same thing again,
+/// or says the opposite: the first adds nothing, and the second leaves the finding to be decided,
+/// so neither entry counts. Until 5 October 2026 both were applied, a conflicting pair as a false
+/// alarm and an accepted risk at once (R11 of the deep review).
 pub fn apply(
     app_dir: &Path,
     entries: &[FindingReview],
@@ -138,52 +145,102 @@ pub fn apply(
     today: Day,
     seals: &Checker,
 ) -> Outcome {
-    let mut out = Outcome {
-        findings,
-        ..Outcome::default()
+    let matches = |entry: &FindingReview, f: &Finding| {
+        f.location.file == entry.file
+            && ((f.fingerprint == entry.fingerprint
+                && (f.rule_id == entry.rule || f.also_reported_by.contains(&entry.rule)))
+                || (f.also_reported_by.contains(&entry.rule)
+                    && fingerprint(
+                        app_dir,
+                        &Finding {
+                            rule_id: entry.rule.clone(),
+                            ..f.clone()
+                        },
+                    ) == entry.fingerprint))
     };
-    for entry in entries {
-        let named = format!("`{}` in {} ({})", entry.rule, entry.file, entry.fingerprint);
-        let Some(i) = out.findings.iter().position(|f| {
-            f.location.file == entry.file
-                && ((f.fingerprint == entry.fingerprint
-                    && (f.rule_id == entry.rule || f.also_reported_by.contains(&entry.rule)))
-                    || (f.also_reported_by.contains(&entry.rule)
-                        && fingerprint(
-                            app_dir,
-                            &Finding {
-                                rule_id: entry.rule.clone(),
-                                ..f.clone()
-                            },
-                        ) == entry.fingerprint))
-        }) else {
-            out.not_counted.push(format!(
-                "{named}: no finding matches it any more. The flagged line changed, so the \
-                 finding has a new fingerprint and needs looking at again, or the finding is gone \
-                 and the entry can be removed."
+    let named = |entry: &FindingReview| {
+        format!("`{}` in {} ({})", entry.rule, entry.file, entry.fingerprint)
+    };
+    let mut not_counted = Vec::new();
+    // Which entry has taken each finding, and what each counting entry decided.
+    let mut taken: Vec<Option<usize>> = vec![None; findings.len()];
+    let mut counting: Vec<(usize, usize, Sealed)> = Vec::new();
+    let mut voided: Vec<bool> = vec![false; entries.len()];
+    for (k, entry) in entries.iter().enumerate() {
+        let candidates: Vec<usize> = (0..findings.len())
+            .filter(|i| matches(entry, &findings[*i]))
+            .collect();
+        let Some(&first) = candidates.first() else {
+            not_counted.push(format!(
+                "{}: no finding matches it any more. The flagged line changed, so the finding has \
+                 a new fingerprint and needs looking at again, or the finding is gone and the entry \
+                 can be removed.",
+                named(entry)
             ));
             continue;
         };
-        match judge(entry, &out.findings[i], today, seals) {
-            Err(why) => out.not_counted.push(format!("{named}: {why}")),
-            Ok(sealed) => {
-                let finding = if entry.verdict == FALSE_ALARM {
-                    out.findings.remove(i)
-                } else {
-                    out.findings[i].clone()
-                };
-                out.set_aside.push(SetAside {
-                    finding,
-                    verdict: entry.verdict.clone(),
-                    why: entry.why.trim().to_owned(),
-                    by: entry.by.clone().unwrap_or_default(),
-                    on: entry.on.clone().unwrap_or_default(),
-                    sealed,
-                });
+        let sealed = match judge(entry, &findings[first], today, seals) {
+            Err(why) => {
+                not_counted.push(format!("{}: {why}", named(entry)));
+                continue;
             }
+            Ok(sealed) => sealed,
+        };
+        if let Some(&free) = candidates.iter().find(|i| taken[**i].is_none()) {
+            taken[free] = Some(k);
+            counting.push((k, free, sealed));
+            continue;
+        }
+        // Every finding it matches is answered already: by an entry saying the same, or the opposite.
+        let earlier = taken[first].expect("taken");
+        if entries[earlier].verdict == entry.verdict {
+            not_counted.push(format!(
+                "{}: an earlier entry already answers for this finding in the same way, so this one \
+                 adds nothing and can be removed.",
+                named(entry)
+            ));
+        } else {
+            voided[earlier] = true;
+            voided[k] = true;
+            not_counted.push(format!(
+                "{}: it says {} and an earlier entry for the same finding says {}, so neither \
+                 counts and the finding stands until one of them is removed.",
+                named(entry),
+                entry.verdict,
+                entries[earlier].verdict
+            ));
         }
     }
-    out
+    let mut set_aside = Vec::new();
+    let mut gone = Vec::new();
+    for (k, i, sealed) in counting {
+        let entry = &entries[k];
+        if voided[k] {
+            continue;
+        }
+        if entry.verdict == FALSE_ALARM {
+            gone.push(i);
+        }
+        set_aside.push(SetAside {
+            finding: findings[i].clone(),
+            verdict: entry.verdict.clone(),
+            why: entry.why.trim().to_owned(),
+            by: entry.by.clone().unwrap_or_default(),
+            on: entry.on.clone().unwrap_or_default(),
+            sealed,
+        });
+    }
+    let findings = findings
+        .into_iter()
+        .enumerate()
+        .filter(|(i, _)| !gone.contains(i))
+        .map(|(_, f)| f)
+        .collect();
+    Outcome {
+        findings,
+        set_aside,
+        not_counted,
+    }
 }
 
 /// Whether an entry counts, and why not when it does not.
@@ -377,6 +434,54 @@ mod tests {
         assert_eq!(still, vec!["ast.b"]);
         assert_eq!(out.set_aside.len(), 2);
         assert_eq!(out.set_aside[1].by, "Sam Lee");
+    }
+
+    #[test]
+    fn one_entry_answers_for_one_finding_and_a_pair_that_disagree_leaves_it_standing() {
+        // R11 of the deep review: duplicate and conflicting entries were each applied.
+        let a = || finding("ast.a", "app.py", 5);
+        let fa = |by: &str| entry("ast.a", FALSE_ALARM, Some(by), "2026-09-27", WHY);
+        let ar = |by: &str| entry("ast.a", ACCEPTED_RISK, Some(by), "2026-09-27", WHY);
+
+        // The same answer twice: the first counts, the second adds nothing and says so.
+        let out = apply(&[ar("owner"), ar("Sam Lee")], vec![a()], today());
+        assert_eq!(out.set_aside.len(), 1, "{:?}", out.set_aside);
+        assert_eq!(out.set_aside[0].by, "owner");
+        assert_eq!(out.findings.len(), 1, "an accepted risk stays on the list");
+        assert!(
+            out.not_counted[0].contains("adds nothing"),
+            "{:?}",
+            out.not_counted
+        );
+
+        // Opposite answers: neither counts, and the finding stands, in either order.
+        for pair in [[fa("owner"), ar("owner")], [ar("owner"), fa("owner")]] {
+            let out = apply(&pair, vec![a()], today());
+            assert!(out.set_aside.is_empty(), "{:?}", out.set_aside);
+            assert_eq!(out.findings.len(), 1, "the finding stands");
+            assert!(
+                out.not_counted.iter().any(|n| n.contains("neither")),
+                "{:?}",
+                out.not_counted
+            );
+        }
+
+        // Two identical lines, an entry for each: both are answered, as before.
+        let out = apply(
+            &[fa("owner"), fa("owner")],
+            vec![a(), finding("ast.a", "app.py", 9)],
+            today(),
+        );
+        assert!(out.not_counted.is_empty(), "{:?}", out.not_counted);
+        assert_eq!(out.set_aside.len(), 2);
+        assert!(out.findings.is_empty());
+
+        // An entry that does not count takes nothing: the one after it still answers.
+        let mut unsealed = fa("owner");
+        unsealed.seal = None;
+        let out = apply(&[unsealed, fa("owner")], vec![a()], today());
+        assert_eq!(out.set_aside.len(), 1, "{:?}", out.not_counted);
+        assert!(out.findings.is_empty());
     }
 
     #[test]
