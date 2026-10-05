@@ -447,6 +447,10 @@ another session is not a claim.
     person writes, such as `.DS_Store`, so nobody chases it.
     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-files-not-text`.
+    **Done the same day** (DESIGN, "Files that are not text named, and text that is not UTF-8 read"): text in UTF-16,
+    with its mark or without, and in Latin-1 is read; an image, a font, or a `.DS_Store`, known by its contents, is
+    named as holding no text a person writes and no longer keeps the credential scan partial; and the report's gap
+    names each file not read, and why.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
