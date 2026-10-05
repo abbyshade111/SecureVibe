@@ -649,6 +649,8 @@ another session is not a claim.
     off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
     refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
     outside its folder and one that does not exist.
+    **Done the same day** (DESIGN, "An option is never a value, a bundle replaces only its own, and one answer for a
+    path"; ADR-017, Later).
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with

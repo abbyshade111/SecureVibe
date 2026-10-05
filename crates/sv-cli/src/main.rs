@@ -232,8 +232,17 @@ fn check_args(command: &Command, args: &[String]) -> Result<()> {
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         if command.valued.contains(&arg.as_str()) {
-            if rest.next().is_none() {
-                return refuse(format!("`{arg}` needs a value after it"));
+            match rest.next() {
+                None => return refuse(format!("`{arg}` needs a value after it")),
+                // `sv report --out --run` once wrote the report to a folder named `--run` and did
+                // not run the app (the deep review's improvement 7).
+                Some(value) if value.starts_with("--") => {
+                    return refuse(format!(
+                        "`{arg}` needs a value after it, and was given the option {value}. A \
+                         folder or file whose name starts with `-` can be given as ./{value}"
+                    ));
+                }
+                Some(_) => {}
             }
         } else if command.flags.contains(&arg.as_str()) {
         } else if arg.starts_with('-') && arg.len() > 1 {
@@ -2555,6 +2564,15 @@ fn write_bundle(
     // Not through a link: a bundle name in the folder beside the app that is a link to another file had
     // that file overwritten (deep review S4).
     refuse_link(zip_abs, FILE_LINK)?;
+    // A bundle replaces only one `sv` made: a file of the owner's at that name, given with --out by
+    // mistake or there before, is not written over (the deep review's improvement 7).
+    if std::fs::symlink_metadata(zip_abs).is_ok() && !bundle::made_by_sv(zip_abs) {
+        bail!(
+            "{} is already there, and is not a bundle sv made, so it is not written over. Give \
+             another name with --out, or move that file first.",
+            zip_abs.display()
+        );
+    }
     let (Some(parent), Some(file_name)) = (zip_abs.parent(), zip_abs.file_name()) else {
         bail!("{} is not a file name", zip_abs.display());
     };
