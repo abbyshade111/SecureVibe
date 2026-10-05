@@ -415,6 +415,8 @@ another session is not a claim.
     two tests; eleven guards broken in turn, each caught (the spread's only on a second, stronger mutation).
   - **A2. Medium, Read.** Review fingerprints collide on identical lines, and survive a change to the line that
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r3-a2-review-matching`.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
@@ -426,6 +428,8 @@ another session is not a claim.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r3-a2-review-matching`.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.
@@ -461,6 +465,8 @@ another session is not a claim.
     on a copy of `examples/tested-notes` (the review's write-up does not include its fixture), unit, end-to-end, and MCP tests, including a byte-for-byte round trip and a five-megabyte
     file; sixteen guards broken in turn were each caught.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r8-record-answer-keeps-owner`.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
