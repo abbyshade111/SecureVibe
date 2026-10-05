@@ -994,7 +994,7 @@ fn notes_path() -> PathBuf {
 
 /// The sections of design-decisions.md that count toward a checklist control (`sv_check::decisions`).
 fn decisions_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-decisions.json")
+    sv_frameworks::data::file("design-decisions.json")
 }
 
 /// What `sv` found that belongs in the notes, so the owner starts from their app, not a blank page.
