@@ -16,6 +16,8 @@ pub mod deps;
 pub mod ecosystems;
 pub mod files;
 pub mod jvm;
+mod not_the_app;
+pub use not_the_app::not_the_app_in;
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -143,8 +145,13 @@ pub struct ScanReport {
     /// at all, or one only the code rules read (`ecosystems::NO_TECHNOLOGY_READER`).
     pub unread_extensions: BTreeSet<String>,
     pub answers: Vec<Answer>,
-    /// The folders the manifest says are not the app (`[repository] not-the-app`), as given.
+    /// The folders the manifest says are not the app (`[repository] not-the-app`), as used: empty when
+    /// the list was not used (`not_the_app_refused`).
     pub not_the_app: Vec<String>,
+    /// Why the list was not used, when it would have set apart every code file the app has.
+    pub not_the_app_refused: Option<String>,
+    /// How many of the app's code files the list set apart, and how many the app has.
+    pub code_set_apart: (usize, usize),
     /// The folders in the app that one of those matched, and so were not looked in for evidence.
     pub set_apart: BTreeSet<String>,
 }
@@ -180,6 +187,8 @@ pub fn scan_listing_app(
     not_the_app: &[String],
 ) -> Result<ScanReport> {
     let app_dir = listing.root.as_path();
+    let (not_the_app, not_the_app_refused, code_set_apart) = not_the_app_in(listing, not_the_app);
+    let not_the_app = not_the_app.as_slice();
     let ours = |path: &str| !under_any(path, not_the_app);
     let mut report = ScanReport {
         ecosystems: ecosystems::detect_in(listing)
@@ -200,6 +209,8 @@ pub fn scan_listing_app(
             .filter(|p| ours(p))
             .collect(),
         not_the_app: not_the_app.to_vec(),
+        not_the_app_refused,
+        code_set_apart,
         // The outermost folder each entry matched, so the report can name what it set apart.
         set_apart: listing
             .dirs

@@ -5917,6 +5917,49 @@ and Rust, any keyed value counted in Go, and `True` counted as well as `False` i
 sign-in server with a token for another audience, also speaks to V9.2.3 is the owner's call (BACKLOG, partial checks
 item 2). Keycloak's `verify-token-audience` in a JSON settings file is not read, since the rule reads code.
 
+## A token that says where its own key comes from (5 October 2026)
+
+V9.1.3 asks that the key used to check a signed token come from a source set up ahead of time for its issuer, never
+from the token. A JWT's header can carry `jku` (the address of a set of keys), `x5u` (the address of a certificate),
+or `jwk` (a key written into the token itself). An app that follows any of them lets whoever made the token choose the
+key it is checked with: make a key, sign a token as anybody, point the header at the key, and the signature checks
+out. The owner decided on 4 October that both ways of looking for it are to be built (BACKLOG, "V9.1.3"); this is the
+second, the code-reading rule. The first, a test key server the running app can be caught fetching from, is not yet
+built.
+
+`ast.token-key-source-from-token` reports a read of the token header's `jku`, `x5u`, or `jwk` handed, in the same
+call, to something that fetches a key or makes one. Both halves are needed. The read is any of the forms the common
+libraries give it in: `header["jku"]`, `header.get("x5u")`, `header[:jku]`, `getHeaderClaim("jku")`,
+`GetHeaderValue<string>("jwk")`, `header.jku`, `$header->jku`, `header.jwk`, Nimbus's and jjwt's getters
+(`getJWKURL()`, `getJwkSetUrl()`, `getJWK()`, and the rest) and their Kotlin property names (`header.jwkurl`), and
+C's `jwt_get_header(jwt, "jku")` (libjwt) and `cjose_header_get(header, "jwk", ...)` (cjose). The call is named per language: HTTP clients (`requests.get`,
+`urlopen`, `fetch`, `axios`, `http.Get`, `Net::HTTP.get`, `file_get_contents`, `HttpClient.GetStringAsync`,
+`reqwest::get`, URLSession's `data`, `cpr::Get`, `curl_easy_setopt`), and what turns a key set's address or a key into a key (`PyJWKClient`, `PyJWK`, `jwk.construct`,
+`jwksClient`, `createRemoteJWKSet`, `importJWK`, `jwkToPem`, `jwk.Fetch`, `JWT::JWK.import`, `JWK::parseKey`,
+`RemoteJWKSet`, `UrlJwkProvider`, `RSASSAVerifier`, `JsonWebKey`, `DecodingKey::from_jwk`, `JWTKey.fromJWK`,
+`cjose_jwk_import`). Kotlin's grammar reads `RemoteJWKSet<SecurityContext>(x)` as two comparisons, so its query also
+takes that reading, and a call with type arguments is found. The names come from each
+library's interface as known when it was written, not read again from each library's source this day. A call
+outside that list is not reported whatever it is given, which is what keeps the safe forms quiet: a check against a
+list (`TRUSTED.includes(header.jku)`), an address parsed to read its host, a log line, a function of the app's own
+such as `is_trusted(header["jku"])`, and a key chosen by `kid` from the app's own table. A token being made with a
+`jku` of the app's own is a dictionary written, not a header read, and is not reported either.
+
+It is only ever a finding, at high severity and medium confidence, and the finding says why it may be wrong: a check
+against a fixed list on an earlier line is not seen, and the advice says to record that with `sv review` if so. What it
+misses is said in `looksFor`: the address saved to a variable first and fetched on a later line is not followed, so
+finding none credits nothing. Every language `sv` reads code in has a query; shell has nothing to find, and says
+why. Semgrep's rules still speak to V9.1.3 as before.
+
+The test table has, for each of the fourteen languages, the read handed to a fetch or a key maker and the safe
+forms beside it: 77 cases. Thirteen guards broken in turn, each caught: the call list dropped (13 cases), any header
+name read (6), each of the eight forms of the read left out (between 1 and 11), Python's `decode` (1), Java's `new`
+(3), and Kotlin's reading of a call with type arguments (2). The first version taught nine languages; the test that
+holds every rule to every language `sv` reads failed on it, and the other five were written then. A first run of six
+of the guards broke the pattern with a form Rust's regular expressions refuse, so every rule failed to load
+and every test failed; that said nothing about the rule, and they were run again with a pattern that loads and
+matches nothing.
+
 ## Writing nothing through a link, and saying nothing on the app's behalf (3 October 2026)
 
 Three holes, found by trying them against `sv mcp` in a scratch folder (BACKLOG, "Hardening the MCP server", items 1
@@ -8790,3 +8833,237 @@ both orders), and `a_secret_rule_is_described_from_its_own_data`. All four faile
 were undone in turn, and each was caught: no encoding, no `./` before `//`, every place taken for a file, no
 catalog, the first finding's text instead of the text all share, and the first finding's tags instead of all of
 them.
+
+## A `not-the-app` list that would set apart all the code is not used (5 October 2026)
+
+R12 of the deep review: `[repository] not-the-app` refused an entry that named the whole app outright (`.`, `*`),
+and nothing else. An app whose code all lay under `src`, with `src` on the list, had none of its code read as
+evidence of what it uses, so a requirement its code showed to apply read "does not apply". The report's only sign
+was a gap line naming the folder. The list is written by the AI coding tool (ADR-031).
+
+- **The list is weighed against the app's code files** (`sv_scan::not_the_app_in`), those in a language `sv` reads.
+  When the entries together leave none outside, the whole list is not used: every folder is read as the app, its
+  findings are the app's own, and "What was not examined" says why with the count. The whole list, because no
+  one entry need be at fault: `src` and `lib` together can cover an app neither covers alone. An app with no code
+  file at all is not affected.
+- **One decision for every command.** The scan makes it and records it (`ScanReport::not_the_app`,
+  `not_the_app_refused`), so `sv scope`, `sv report`, `sv notes`, and `sv questions` agree; the listing of findings
+  with test and sample code now uses the list as the scan used it, not as securevibe.toml wrote it; and `sv audit`,
+  which splits the packages itself, asks the same function and says when it did not use the list.
+- **When the list is used, the report says how many of the app's code files it set apart**, such as "`demo`,
+  holding 1 of the app's 2 code files", so a list that leaves one small file outside is visible.
+
+What is not done: a list that sets apart nearly all the code is still used, with the count as its only guard. A
+share past which it would be refused would be a guess at how much of an app its tests and examples are.
+
+How it is held: `a_list_that_would_set_apart_all_the_app_s_code_is_not_used` (`crates/sv-scan/tests/scan.rs`),
+with two folders that cover the code only together and an app with no code;
+`a_list_that_would_set_apart_all_the_app_s_code_is_not_used_and_said_to_be` (`crates/sv-cli/tests/not_the_app.rs`)
+through `sv scope` and `sv report`; and `a_list_that_would_set_apart_all_the_app_s_code_is_not_used_by_audit_either`
+(`crates/sv-cli/tests/audit_not_the_app.rs`). Five guards were undone in turn, the check for an app with no code
+among them, and each was caught.
+
+## The browser's DevTools on loopback, and the driver in a world of its own (5 October 2026)
+
+S11 of the deep review, reproduced. The browser checks run Chromium beside the app on the fenced network, with a
+driver that speaks to Chromium's DevTools. The image's own start script forwards port 9222 on every address to
+DevTools, so the app could ask the browser's address for DevTools and drive the browser that checks it. And the
+driver ran its expressions in the page's own world, where the app's scripts can redefine `localStorage`, its
+`getItem`, or `Object.keys`, so the sign-out check could be shown storage with the token gone while it was kept
+(ADR-019, Later).
+
+- **DevTools on 127.0.0.1 alone.** Chromium is started directly rather than through the image's script, so the
+  forwarder never starts, and DevTools listens on loopback, where only the driver, sharing the browser's network,
+  reaches it. Chromium 151 already ignores an address other than loopback for its own port; the setting is kept
+  so a later version that honors it cannot open the port again.
+- **A world of the driver's own.** Every expression the driver runs, for `goto`, `fill`, `act`, and `eval`, runs in
+  an isolated world made afresh for it (`Page.createIsolatedWorld`): the same page, its elements and its storage,
+  with none of the page's scripts. Clicks and typing still reach the page's own handlers, since they are events on
+  the same elements. If the world cannot be made, the action fails; it never falls back to the page's world.
+
+What is not done: storage is read with the page's interfaces in the driver's world, not through DevTools' storage
+domains, which the review also suggested. The world of its own already keeps the app's scripts out of the reading.
+
+How it is held: `the_app_cannot_reach_the_browser_s_devtools_or_hide_its_storage_from_the_driver`
+(`crates/sv-run/src/docker.rs`), with a real browser and an app on an internal network: from the app's container,
+neither DevTools port answers at the browser's address, while the driver's side does; and a page that redefines
+`Storage.prototype.getItem` and `Object.keys` still has its token read. `the_browser_and_its_driver_are_fenced_and_hardened_like_the_sidecar`
+holds the arguments and that every expression goes through the driver's own world, without a container backend.
+Four guards were undone in turn: the image's script restored, DevTools on every address, the page's own world for
+every expression, and for `eval` alone. Each was caught; the second only by the arguments, for the reason above.
+
+## A delay counts only when every attempt past the limit shows it (5 October 2026)
+
+H16 of the deep review: the password-guessing check (V6.3.1) and the emailed-code guessing check (V6.6.3) credit an
+app that slows down past the limit the owner states. Each compared one time with one: the last attempt against the
+first. Both times include the time `docker exec` takes to start the request in the test container, which varies
+from one request to the next, so one slow start credited a limiter that was not there, and a slow first answer hid a
+limiter that was (ADR-021, Later).
+
+- **`slowing`** (`crates/sv-check/src/signed_in/signin.rs`) takes the quickest attempt within the limit as the
+  baseline, since the container's time only ever adds, and counts a delay only when every attempt past the limit
+  is four times as long and at least 900ms longer.
+- **Two attempts past the limit**, so there are two to agree: each check makes the number allowed plus two, at
+  most 26.
+- **A request no limit slows, as a control.** The password check already fetches the sign-in page before each
+  attempt; it is now timed, and a page as slow as the attempts beside it means the slowness was not the sign-in's.
+- **When the times disagree, it is not assessed,** with the times, unless a different answer or a refusal settles
+  it, as before. Neither a pass nor a finding rests on a timing the run cannot stand behind.
+- **The fake app can answer chosen requests late** (`FakeApp::slow_ms`), in real time, the only wait in it not on
+  its own clock, so the tests time what the checks time.
+
+What is not done: the time is still measured from outside the container. Timing the request inside it would take the
+container's own time out of the number altogether; it needs a change to how `sv-run` sends requests, and a
+container to test it in.
+
+How it is held: `a_delay_counts_only_when_every_attempt_past_the_limit_shows_it` and
+`an_app_that_slows_every_attempt_past_the_limit_is_credited_and_one_slow_attempt_is_not` (`signin.rs`), and
+`a_code_guessing_delay_counts_only_when_both_codes_past_the_limit_show_it` (`codes.rs`). Eight guards were undone in
+turn: the quickest as the baseline, both attempts slow, the control, the page times passed to it, the not-assessed
+outcome in each check, and the second attempt past the limit in each. Each was caught.
+
+## Git runs no program the app's repository names (5 October 2026)
+
+Found while looking at how `sv` runs outside programs, and not in the deep review. The committed-secrets check runs
+`git ls-files` in the app's folder, on the owner's computer and outside the fence. Git reads the repository's own
+`.git/config`, written by whoever wrote the app, and `core.fsmonitor` there names a program git runs to learn which
+files changed. Reproduced: plain `git ls-files` ran it. An app handed to the owner to check could have run anything
+during `sv check` (ADR-032).
+
+- **One place runs git, `git::ls_files`** (`crates/sv-check/src/git.rs`), with `core.fsmonitor=false` given on the
+  command line, which wins over the repository's own setting.
+- **Only what was shown to run is overridden.** A planted `core.hooksPath` with `post-index-change` and
+  `reference-transaction` hooks was tried too; `ls-files` runs neither, so nothing is given for them. An override
+  for them was built and then taken out, since undoing it was caught by nothing.
+
+How it is held: `a_program_the_app_s_repository_names_is_not_run` (`git.rs`) and
+`checking_an_app_runs_no_program_its_repository_names` (`crates/sv-cli/tests/git_config.rs`), through `sv check`, each
+with a control in which plain git runs the planted program. Undoing the override was caught by both, and reading the
+files with git directly again, as before, by the second.
+
+## A credential's fingerprint says nothing the report does not (5 October 2026)
+
+A review names the line it answers for by a fingerprint, a hash of the line, so it still counts when the line moves.
+That hash was of the line as written. The report also shows the credential's rule, its first four characters, and its
+length, so anyone with the report could guess the rest of a short test password, hash each guess, and stop at the one
+that matches: the deep review recovered one in 190 guesses.
+
+The fingerprint is now the hash of the line with every credential the secret rules find masked, exactly as the
+report would show it (`review::masked`, through `secrets::redact_text`). It says nothing more than the report does.
+A line with no credential reads the same masked as written, so its fingerprint, and every review recorded for it, is
+unchanged. `sv review`, which shows the line it is recording, shows it masked too.
+
+A review recorded by an older `sv` for a line holding a credential no longer matches. It is not quietly dropped: when
+an entry matches a line still there by the old hash, and that line holds a credential, the entry is listed as not
+counted, saying it was recorded by an older `sv` in a way that could give the credential back, and to record it
+again with `sv review`. The old fingerprint stays in the user's file until they do; `sv` does not edit it.
+
+Four guards broken in turn, each caught: hashing the line as written (four tests), showing it as written (one),
+dropping the note about older reviews (two), and giving that note for lines with no credential (two).
+
+## A manifest version `sv` knows, a date with nothing after it, and every collapsed list closed (5 October 2026)
+
+Three parts of the deep review's improvement 6.
+
+- **`manifest-version` is checked.** It was read and never looked at, so a file written for a later layout was read
+  as version 1, its fields perhaps meaning something else. A version other than 1 is now refused, saying which
+  version this `sv` reads (`Manifest::parse`, `MANIFEST_VERSION`). A file with no `manifest-version` line is read
+  as version 1, as before.
+- **A date with text after it is refused.** `Day::parse` read the first ten characters and ignored the rest, so a
+  review entry dated `2026-09-27 or so` counted as dated that day. A date is now `YYYY-MM-DD` alone, or the start
+  of a whole RFC 3339 timestamp (`T`, `HH:MM:SS`, a fraction if any, and `Z` or an offset), as the advisory
+  databases write theirs. An entry with a date it cannot read is treated as it was before for no date at all.
+- **Every collapsed list in `report.html` is closed where it was opened.** The list of requirements nobody has
+  placed was closed after the next section, so it held that section too, and with nothing undecided the page had a
+  `</details>` and no `<details>`; the list of requirements that do not apply had the same stray close.
+
+The fourth part of improvement 6, a false alarm lapsing when the lines near it change, rests on the fingerprint,
+which #678 (R3, A2) is changing, and is left to it.
+
+How it is held: `a_manifest_version_this_sv_does_not_know_is_refused` (`crates/sv-manifest/src/lib.rs`),
+`dates_are_read_and_written_the_same_way` with seven new dates that must be refused
+(`crates/sv-check/src/advisories.rs`), and `every_collapsed_list_is_closed_where_it_was_opened`
+(`crates/sv-report/src/html.rs`), over every combination of the three sections. Five guards were undone in turn and
+each was caught.
+
+## An option is never a value, a bundle replaces only its own, and one answer for a path (5 October 2026)
+
+The deep review's improvement 7, three small guards on what `sv` is told.
+
+- **An option given where a value belongs is refused.** `sv report app --out --run` wrote the report to a folder
+  named `--run` and did not start the app. Now a value that starts with `--` is refused with the option named,
+  and the message says a name that starts with `-` can be given as `./--run`. A single dash is still a value
+  (`--out -out`), as before.
+- **A bundle replaces only a zip `sv` made** (ADR-017, Later). Every bundle ends with a comment of its own in the
+  zip's comment field; a file at the bundle's name that does not end that way is refused and left as it was.
+- **The MCP server gives one answer for a path outside its folder and one that is not there.** "Does not exist"
+  for one and "is outside" for the other told whoever asked, the model or text in an app steering it, which
+  folders exist anywhere on the computer. Both now read "is not a folder inside ..., so it cannot be read: it is
+  outside that folder, or nothing is there".
+
+How it is held: `an_option_given_where_a_value_belongs_is_refused_and_nothing_is_written`
+(`crates/sv-cli/tests/options.rs`), `a_bundle_replaces_only_a_zip_sv_made` (`crates/sv-cli/tests/bundle.rs`), and
+`a_path_outside_the_root_gets_the_same_answer_whether_or_not_it_exists` (`crates/sv-cli/src/mcp.rs`). Five guards
+were undone in turn: the option check, the one answer, the refusal to write over, the comment being checked, and the
+comment being written. Each was caught.
+
+## Outside tools run for at most half an hour, with only the environment they need (5 October 2026)
+
+The deep review's improvement 3: `sv` started each outside tool with the owner's whole environment and waited for it
+however long it took. A tool stuck on one file held `sv report` for ever, and every key in the owner's environment
+reached a program reading somebody else's code (ADR-018, Later).
+
+- **`finish`** runs a tool and stops it at its limit: half an hour for a run and for CodeQL's step before it
+  (`TOOL_SECONDS`, or the entry's own `time_limit_seconds`), and a minute for asking a tool its version. A run that
+  was stopped is not read, and says it was stopped; a version that did not come makes the tool broken, not missing.
+  The tool leads a process group of its own on Unix, and the whole group is stopped, since Semgrep does its work in
+  a second program. Its stderr is read as it comes, so a tool never waits on a full pipe.
+- **`prepared`** clears the environment and hands on only `PASSED_ON`: where programs, the home folder, and the
+  temporary folders are, the language, a proxy and certificates, and where Java, Go, and Python keep what they need.
+  Then `GOTOOLCHAIN=local`, so a Go tool uses the Go installed here rather than fetching the one an app's `go.mod`
+  names, and the adapter's own settings, such as Semgrep's `SEMGREP_ENABLE_VERSION_CHECK=0`.
+
+What is not done: a tool that needs a variable not on the list fails, and says so through its own error; the list
+grows when one does. Not run against the real tools in this session, none of which is installed here; the tests use
+the stand-in scripts the adapter tests always have.
+
+How it is held: `a_tool_that_does_not_finish_is_stopped_with_what_it_started_and_not_read`, with a tool that starts a
+second program and hangs; `a_tool_is_handed_only_the_environment_it_needs`, with a tool that writes out its
+environment; and `a_tool_that_does_not_say_its_version_is_broken_not_waited_for` (`crates/sv-check/src/adapters.rs`).
+Six guards were undone in turn: the cleared environment, `GOTOOLCHAIN`, the stopped run not being read, the group
+being stopped, the group being made, and the limit on the version. Each was caught.
+
+## CVSS v4 scores, and advisory files that could not be read (5 October 2026)
+
+The deep review's improvement 4. 2,340 OSV records carry only a CVSS v4 vector, and each was shown as a placeholder
+medium, since only v3 was scored. And a file in the advisory database that `sv` could not parse was skipped in
+silence, so a database with a broken file compared as if it were whole (ADR-033).
+
+- **v4 is scored with FIRST's own tables.** v4 is not a formula: a vector falls in one of 270 groups whose scores
+  FIRST's experts assigned, and is moved down within its group by how far it is from the group's most severe
+  vectors. `tools/cvss4_tables.py` copies the tables from FIRST's reference calculator
+  (`github.com/FIRSTdotorg/cvss-v4-calculator`, commit `c5b0d40`, BSD-2-Clause, its notice kept) into
+  `crates/sv-check/src/cvss4_tables.rs`, and `cvss4::score` follows the calculator's `cvss_score.js` step for step,
+  in the same order of arithmetic, so its rounding lands where the calculator's does. Base and threat metrics are
+  read; environmental ones, which describe a deployment, take their defaults. `cvss::severity_of` takes the first
+  vector it can score, v3 or v4.
+- **Held to the reference's own output.** The tool asks the calculator's JavaScript to score 1,624 vectors, every
+  base value and a fixed random draw each with every threat value, and the test holds `sv` to every one. All
+  419,904 base and threat vectors were compared the same way and every one agreed; that file is too large to keep,
+  and the test reads it when `SV_CVSS4_ALL` names it.
+- **An advisory file that could not be read is named.** `advisories::read_database` keeps each file it could not
+  parse, with why. `sv audit` lists them, makes no claim that nothing was missed, and exits 2; `sv report` adds them
+  to what the comparison could not cover, names them under "What was not examined", and credits nothing on the
+  comparison.
+
+Two steps of the reference cannot be told apart by any base or threat vector, checked over all 419,904: which of two
+equal next-lower groups is taken, and which of the group's most severe vectors the distance is measured from. They
+are kept as the reference has them, so the port stays step for step with it, and no test catches undoing them.
+
+How it is held: `every_score_equals_the_reference_calculator_s`, `the_textbook_vectors_score_as_first_publishes_them`,
+and `a_vector_that_is_not_a_whole_v4_vector_is_not_scored` (`crates/sv-check/src/cvss4.rs`);
+`a_record_with_only_a_v4_vector_is_rated_by_it` (`cvss.rs`) and `an_advisory_with_only_a_v4_vector_is_rated_by_it`
+(`advisories.rs`); `an_advisory_file_that_cannot_be_read_makes_the_comparison_partial` (`sv audit`) and
+`an_advisory_file_that_cannot_be_read_is_named_and_nothing_is_credited_on_the_comparison` (`sv report`). Eight
+guards were undone in turn and each was caught; the two steps above were undone too, and, as said, nothing could.
+

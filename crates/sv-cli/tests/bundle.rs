@@ -665,3 +665,55 @@ fn a_backslash_in_a_file_name_never_reaches_outside_the_app() {
         "the odd name is listed as left out: {listing}"
     );
 }
+
+#[test]
+fn a_bundle_replaces_only_a_zip_sv_made() {
+    // The deep review's improvement 7: `sv bundle` wrote over whatever file had the bundle's name.
+    let root = scratch("replace");
+    let dir = app(&root);
+    let zip = root.join("notes-app-securevibe-bundle.zip");
+    let bundle = || sv(&["bundle", dir.to_str().unwrap()]);
+    let first = bundle();
+    assert!(
+        first.status.success(),
+        "{}",
+        String::from_utf8_lossy(&first.stderr)
+    );
+    // The archive says who made it, in the comment any zip program shows, and is still a zip.
+    let comment = Command::new("python3")
+        .arg("-c")
+        .arg("import sys, zipfile; print(zipfile.ZipFile(sys.argv[1]).comment.decode())")
+        .arg(&zip)
+        .output()
+        .expect("python3 is needed to read the zip back");
+    assert!(
+        String::from_utf8_lossy(&comment.stdout).starts_with("Made by SecureVibe (sv bundle)"),
+        "{}{}",
+        String::from_utf8_lossy(&comment.stdout),
+        String::from_utf8_lossy(&comment.stderr)
+    );
+    // Run again, it replaces its own.
+    let again = bundle();
+    assert!(
+        again.status.success(),
+        "{}",
+        String::from_utf8_lossy(&again.stderr)
+    );
+
+    // A file of the owner's at that name, a zip or not, is left as it is.
+    for (what, bytes) in [
+        ("a document", b"the owner's own notes\n".to_vec()),
+        (
+            "another zip",
+            b"PK\x05\x06\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0".to_vec(),
+        ),
+    ] {
+        std::fs::write(&zip, &bytes).unwrap();
+        let refused = bundle();
+        let said = String::from_utf8_lossy(&refused.stderr).into_owned();
+        assert!(!refused.status.success(), "{what}: written over");
+        assert!(said.contains("is not a bundle sv made"), "{what}: {said}");
+        assert_eq!(std::fs::read(&zip).unwrap(), bytes, "{what} was changed");
+    }
+    std::fs::remove_dir_all(&root).ok();
+}

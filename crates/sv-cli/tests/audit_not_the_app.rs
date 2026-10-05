@@ -243,3 +243,52 @@ fn a_folder_set_apart_by_a_pattern_still_counts_both_ways() {
     let (_, apart) = partial_text.split_once("not the app").unwrap();
     assert!(!apart.contains("none matches a record"), "{partial_text}");
 }
+
+#[test]
+fn a_list_that_would_set_apart_all_the_app_s_code_is_not_used_by_audit_either() {
+    // Deep review R12: the only code is under `examples`, so naming it would leave nothing that is
+    // the app's. `sv audit` reads the list as every other command does (ADR-031).
+    let (dir, osv) = setup("all-apart", NOT_THE_APP, &[("qs", "6.5.0")]);
+    std::fs::write(dir.join("examples/demo/index.js"), "console.log('hi')\n").unwrap();
+    let (code, text) = audit(&dir, Some(&osv));
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+
+    assert_eq!(code, Some(1), "{text}");
+    assert!(
+        text.contains(
+            "`[repository] not-the-app` is not used: together they would set apart all 1"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("\n2 known vulnerabilities:"), "{text}");
+    assert!(!text.contains("counted all the same"), "{text}");
+}
+
+#[test]
+fn an_advisory_file_that_cannot_be_read_makes_the_comparison_partial() {
+    // The deep review's improvement 4: the broken file was skipped in silence, and the audit said there was
+    // nothing it could not compare.
+    let (dir, osv) = setup("unreadable", PLAIN, &[("left-pad", "1.0.0")]);
+    std::fs::remove_dir_all(dir.join("examples")).unwrap();
+    let (clean_code, clean) = audit(&dir, Some(&osv));
+    std::fs::write(osv.join("GHSA-broken.json"), "not json at all").unwrap();
+    let (code, text) = audit(&dir, Some(&osv));
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+
+    // The control: whole and clean, it says so and exits 0.
+    assert_eq!(clean_code, Some(0), "{clean}");
+    assert!(
+        clean.contains("there was nothing it could not compare"),
+        "{clean}"
+    );
+    assert_eq!(code, Some(2), "{text}");
+    assert!(
+        text.contains("1 file in the advisory database could not be read")
+            && text.contains("GHSA-broken.json"),
+        "{text}"
+    );
+    assert!(
+        !text.contains("there was nothing it could not compare"),
+        "{text}"
+    );
+}

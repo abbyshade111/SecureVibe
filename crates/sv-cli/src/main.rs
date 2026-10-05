@@ -232,8 +232,17 @@ fn check_args(command: &Command, args: &[String]) -> Result<()> {
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         if command.valued.contains(&arg.as_str()) {
-            if rest.next().is_none() {
-                return refuse(format!("`{arg}` needs a value after it"));
+            match rest.next() {
+                None => return refuse(format!("`{arg}` needs a value after it")),
+                // `sv report --out --run` once wrote the report to a folder named `--run` and did
+                // not run the app (the deep review's improvement 7).
+                Some(value) if value.starts_with("--") => {
+                    return refuse(format!(
+                        "`{arg}` needs a value after it, and was given the option {value}. A \
+                         folder or file whose name starts with `-` can be given as ./{value}"
+                    ));
+                }
+                Some(_) => {}
             }
         } else if command.flags.contains(&arg.as_str()) {
         } else if arg.starts_with('-') && arg.len() > 1 {
@@ -2077,7 +2086,13 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
         .as_ref()
         .map(|m| m.not_the_app().0)
         .unwrap_or_default();
-    let (ours, theirs) = sv_scan::files::Listing::of(&app_dir).split(&folders);
+    let listing = sv_scan::files::Listing::of(&app_dir);
+    // A list that would set apart all the app's code is not used, as in every other command (ADR-031).
+    let (folders, refused, _) = sv_scan::not_the_app_in(&listing, &folders);
+    if let Some(why) = refused {
+        println!("securevibe.toml's `[repository] not-the-app` is not used: {why}.\n");
+    }
+    let (ours, theirs) = listing.split(&folders);
     let sbom = sbom::build_in(&ours);
     let elsewhere = sbom::build_in(&theirs);
 
@@ -2107,7 +2122,10 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
         return Ok(exit::NOT_ASSESSED);
     };
 
-    let database = advisories::load_database(&dir)
+    let advisories::Database {
+        records: database,
+        unread,
+    } = advisories::read_database(&dir)
         .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
     if database.is_empty() {
         println!(
@@ -2123,12 +2141,17 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
     let time_frames = manifest
         .as_ref()
         .and_then(|m| m.policy.fix_within_days.clone());
-    let result = advisories::audit_against(
+    let mut result = advisories::audit_against(
         &sbom,
         &database,
         time_frames.as_ref(),
         advisories::Day::today(),
     );
+    // A file of the database that could not be read is a record nothing compared: the comparison did not
+    // cover the database, so it makes no claim that nothing was missed (the deep review's improvement 4).
+    if !unread.is_empty() {
+        result.verified.clear();
+    }
     println!(
         "Compared {} package{} against {} advisory record{}.",
         result.components_checked,
@@ -2142,6 +2165,25 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
     );
 
     // Everything the comparison could not cover comes first.
+    if !unread.is_empty() {
+        println!(
+            "\nNot assessed — {} file{} in the advisory database could not be read, so the records in \
+             {} were not compared:",
+            unread.len(),
+            if unread.len() == 1 { "" } else { "s" },
+            if unread.len() == 1 { "it" } else { "them" }
+        );
+        for (name, why) in unread.iter().take(8) {
+            println!(
+                "  {}: {}",
+                sv_report::one_line(name),
+                sv_report::one_line(why)
+            );
+        }
+        if unread.len() > 8 {
+            println!("  and {} more", unread.len() - 8);
+        }
+    }
     if !result.uncovered.is_empty() {
         println!(
             "\nNot assessed — the database holds nothing about {}, so its packages were not checked.\n\
@@ -2549,6 +2591,15 @@ fn write_bundle(
     // Not through a link: a bundle name in the folder beside the app that is a link to another file had
     // that file overwritten (deep review S4).
     refuse_link(zip_abs, FILE_LINK)?;
+    // A bundle replaces only one `sv` made: a file of the owner's at that name, given with --out by
+    // mistake or there before, is not written over (the deep review's improvement 7).
+    if std::fs::symlink_metadata(zip_abs).is_ok() && !bundle::made_by_sv(zip_abs) {
+        bail!(
+            "{} is already there, and is not a bundle sv made, so it is not written over. Give \
+             another name with --out, or move that file first.",
+            zip_abs.display()
+        );
+    }
     let (Some(parent), Some(file_name)) = (zip_abs.parent(), zip_abs.file_name()) else {
         bail!("{} is not a file name", zip_abs.display());
     };
@@ -2965,9 +3016,12 @@ fn scan_for(
 /// are not there, and any entry refused. Said in the report because the list changes what counts as
 /// evidence, and a list nobody sees could hide the app's own code from the check.
 fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_report::Gap> {
-    let (folders, refused) = manifest.not_the_app();
+    let (folders, mut refused) = manifest.not_the_app();
     let mut gaps = Vec::new();
-    if !folders.is_empty() {
+    if let Some(why) = &scan.not_the_app_refused {
+        let named: Vec<String> = folders.iter().map(|f| format!("`{f}`")).collect();
+        refused.push(format!("{}: {why}", named.join(", ")));
+    } else if !folders.is_empty() {
         let found: Vec<String> = scan.set_apart.iter().map(|f| format!("`{f}`")).collect();
         let missing: Vec<String> = folders
             .iter()
@@ -2988,7 +3042,12 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
             if found.is_empty() {
                 "none of them is in this app".to_owned()
             } else {
-                found.join(", ")
+                let (apart, total) = scan.code_set_apart;
+                format!(
+                    "{}, holding {apart} of the app's {total} code file{}",
+                    found.join(", "),
+                    if total == 1 { "" } else { "s" }
+                )
             }
         );
         if !found.is_empty() && !missing.is_empty() {
@@ -3110,7 +3169,10 @@ fn assemble_report_saying(
             })
         }
         Some(dir) => {
-            let database = advisories::load_database(dir)
+            let advisories::Database {
+                records: database,
+                unread,
+            } = advisories::read_database(dir)
                 .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
             if database.is_empty() {
                 examined.push(sv_report::Examined::not_run(
@@ -3126,7 +3188,7 @@ fn assemble_report_saying(
                     ),
                 });
             } else {
-                let result = advisories::audit_against(
+                let mut result = advisories::audit_against(
                     &bill_of_materials,
                     &database,
                     manifest.policy.fix_within_days.as_ref(),
@@ -3135,6 +3197,19 @@ fn assemble_report_saying(
                 // Whole only as `sv audit` counts it: every ecosystem covered, every version
                 // comparable, and the list of packages itself complete.
                 let mut short = Vec::new();
+                if !unread.is_empty() {
+                    short.push(format!(
+                        "{} file{} in the advisory database could not be read ({})",
+                        unread.len(),
+                        if unread.len() == 1 { "" } else { "s" },
+                        unread
+                            .iter()
+                            .take(3)
+                            .map(|(name, _)| format!("`{name}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
                 if !result.uncovered.is_empty() {
                     let names: Vec<String> = result.uncovered.iter().cloned().collect();
                     short.push(format!(
@@ -3176,6 +3251,28 @@ fn assemble_report_saying(
                 } else {
                     sv_report::Examined::partly("advisory.", short.join("; "))
                 });
+                // Records in a file nobody read were not compared, so nothing is credited on the
+                // comparison, as `sv audit` credits nothing (the deep review's improvement 4).
+                if !unread.is_empty() {
+                    result.verified.clear();
+                    advisory_gaps.push(sv_report::Gap {
+                        what: "advisory files that could not be read".to_owned(),
+                        why: format!(
+                            "{}{}. The records in them were not compared with this app's packages.",
+                            unread
+                                .iter()
+                                .take(10)
+                                .map(|(name, why)| format!("`{name}`: {why}"))
+                                .collect::<Vec<_>>()
+                                .join("; "),
+                            if unread.len() > 10 {
+                                format!("; and {} more", unread.len() - 10)
+                            } else {
+                                String::new()
+                            }
+                        ),
+                    });
+                }
                 findings_from_advisories = result.findings;
                 advisory_verified = result.verified;
                 if !result.uncovered.is_empty() {
@@ -4212,7 +4309,8 @@ fn assemble_report_saying(
     // Rust keeps its unit tests beside the code, so the file's name cannot say which is which.
     sv_check::finding::mark_rust_test_code(app_dir, &mut findings);
     // What the manifest says is not the app is listed with test and sample code.
-    sv_check::finding::mark_not_the_app(&manifest.not_the_app().0, &mut findings);
+    // As the scan used it: none when the list would have set apart all the app's code (ADR-031).
+    sv_check::finding::mark_not_the_app(&scan_report.not_the_app, &mut findings);
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let reviewed = sv_check::review::apply(

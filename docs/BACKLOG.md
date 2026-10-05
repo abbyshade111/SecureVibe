@@ -9,6 +9,17 @@ another session is not a claim.
 
 ## Next
 
+- **`git ls-files` runs a program the app's repository names.** Found on 5 October 2026 by session securevibe-e9,
+  while looking at how `sv` runs outside programs. The committed-secrets check runs `git ls-files` in the app's
+  folder (`crates/sv-check/src/config.rs`), and git honors the repository's own `.git/config`. A `core.fsmonitor`
+  there is a program git runs: reproduced, `git ls-files` ran it. So an app someone hands the owner to check could
+  run anything on the owner's computer, outside the fence, during `sv check`. In the Docker image, which trusts every
+  repository (`safe.directory '*'`), the same. Fix: run git with the settings that run programs overridden on its
+  command line, which wins over the repository's; a test that plants one.
+  **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working off the backlog,
+  in branch `claude/securevibe-e9-git-config`.
+  **Done the same day** (DESIGN, "Git runs no program the app's repository names"; ADR-032): git is run through
+  one place, with `core.fsmonitor` overridden on its command line, and a test plants one and checks it never runs.
 - **Bring `docs/paper/` up to 4 October 2026, and add the comparison study and the deep review.** Asked for on
   4 October 2026 by the owner through the cato-pipeline session. Recompute every analysis, CSV and figure in
   `docs/paper/` that stops at 26 to 29 September from the record as it stands at `main` on 4 October, and add two new
@@ -183,6 +194,11 @@ another session is not a claim.
   - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
     in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
     an isolated world, storage read through DevTools' storage domains.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s11`.
+    **Done the same day** (DESIGN, "The browser's DevTools on loopback, and the driver in a world of its own";
+    ADR-019, Later): reproduced, the image's script forwarded DevTools on every address; Chromium now starts with
+    DevTools on loopback alone, and the driver runs every expression in an isolated world of its own.
   - **S12. Medium, Reproduced. A named pipe in the app hangs `sv`** (`files.rs` lists pipes as files and blocks
     reading them). Fix: list only regular files; say the rest were not read.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -409,6 +425,9 @@ another session is not a claim.
     that includes `docker exec`'s own time.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h16`.
+    **Done the same day** (DESIGN, "A delay counts only when every attempt past the limit shows it"; ADR-021, Later):
+    the quickest attempt within the limit is the baseline, both attempts past it must be markedly slower, the
+    sign-in page is timed beside them as a control, and times that disagree are not assessed.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -534,6 +553,10 @@ another session is not a claim.
     Fix: hash the line with the value masked, or use a key kept locally.
     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-fingerprint`.
+    **Done the same day.** The fingerprint is now the hash of the line with the credential masked, as the report
+    shows it, so it tells nothing the report does not; a line with no credential keeps the fingerprint it had. A
+    review recorded by an older `sv` for a credential line is said to be one, and to be recorded again. See DESIGN,
+    "A credential's fingerprint says nothing the report does not".
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
@@ -599,6 +622,12 @@ another session is not a claim.
     `claude/securevibe-e9-r12`. Record: ADR-031 (proposed).
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r12-not-the-app-warning`.
+    **The two claims crossed:** securevibe-e9's was committed at 03:48 UTC and open as #674 from 03:49, and the
+    cato-pipeline session's (#677) was made at 03:55, before #674 reached `main`. securevibe-e9's was built, so it
+    is the one that went in; nothing of the other had been pushed.
+    **Done the same day** (DESIGN, "A `not-the-app` list that would set apart all the code is not used"; ADR-031,
+    accepted): a list that would leave none of the app's code files outside it is not used, in every command, and
+    the report says why; a list that is used is shown with how many of the code files it set apart.
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -625,6 +654,30 @@ another session is not a claim.
     `manifest-version`, refuse trailing text after dates, a stray `</details>` in `report.html`, let a false alarm
     lapse when nearby lines change. 7: refuse an option value starting `--`, do not overwrite a bundle without
     asking, one error for "outside the root" and "does not exist".
+    **Improvement 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-tool-limits`: a time limit on every outside tool, and an
+    environment with only what a tool needs to run, `GOTOOLCHAIN=local` among it.
+    **Done the same day** (DESIGN, "Outside tools run for at most half an hour, with only the environment they
+    need"; ADR-018, Later): stopped after half an hour with everything it started, not read when stopped, and
+    handed only a short list from the owner's environment, with `GOTOOLCHAIN=local`.
+    **Improvement 7 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
+    refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
+    outside its folder and one that does not exist.
+    **Done the same day** (DESIGN, "An option is never a value, a bundle replaces only its own, and one answer for a
+    path"; ADR-017, Later).
+    **Improvement 6 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-validate`, for three of its four parts: `manifest-version`
+    checked, text after a date refused, and the stray `</details>` in `report.html`. The fourth, a false alarm
+    lapsing when nearby lines change, rests on the fingerprint, which #678 (R3, A2) is changing, and is left to it.
+    **Improvement 4 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-cvss4`: CVSS v4 vectors scored with FIRST's reference tables,
+    and advisory files that fail to parse counted and said. Record: ADR-033 (proposed).
+    **Done the same day** (DESIGN, "CVSS v4 scores, and advisory files that could not be read"; ADR-033, accepted):
+    v4 scored with FIRST's tables and held to its calculator over every vector there is; a file that could not be
+    read is named, and the comparison is not credited as whole.
+    **Those three done the same day** (DESIGN, "A manifest version `sv` knows, a date with nothing after it, and
+    every collapsed list closed").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
@@ -873,6 +926,13 @@ another session is not a claim.
      the header) to whatever fetches its keys. Cheaper, and it runs in every check without Docker, but it is weaker
      evidence than the app seen fetching. Today only Semgrep speaks to V9.1.3 by reading the code. Like the other code
      rules: a finding where the pattern matches, never credit where it does not.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-v913-rule`.
+     **Done the same day** (DESIGN, "A token that says where its own key comes from"): `ast.token-key-source-from-token`
+     reports a token header's `jku`, `x5u`, or `jwk` handed, in the same call, to something that fetches a key or
+     makes one, in each of the fourteen languages `sv` reads code in; shell has nothing to find, and says why. Only
+     ever a finding, at medium confidence: a check against a list on an earlier line is not seen, and a value saved
+     to a variable first is not followed.
 
 - **Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026.** Found
   by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
