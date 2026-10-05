@@ -8655,3 +8655,38 @@ How it is held: `app_text_is_inert_outside_code_and_left_as_it_is_inside` and
 end to end with a file name and an app name built to escape; and `sv_s_own_redaction_marker_is_read_as_one_escaped_or_not`
 (`crates/sv-check/src/secrets.rs`). The S8 test `a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen`
 now looks for the escaped marker in the Markdown. Four guards were undone in turn and each was caught.
+
+## When `not-the-app` leaves nothing of the app to read (5 October 2026)
+
+R12 of the deep review: `[repository] not-the-app` refused an entry naming the whole app (`.`, `*`), but a list such
+as `["src"]` could cover every code file there was without a word. The folders are left out of what decides which
+requirements apply, so the technology scan read no code, and with a dependency file outside them still read, a
+derived condition such as `websockets` came back "nothing found": V4.4.1 to V4.4.4 went from applying to "does not
+apply", read from the code, and `sv report` exited 0. Reproduced with a one-file app, `src/server.js` opening a
+WebSocket, and `not-the-app = ["src"]`.
+
+- **The scan counts what it set apart.** `ScanReport::set_apart_code` is the number of code files in the named
+  folders (a language `sv` reads, or an extension that looks like code), and `all_code_set_apart` is true when some
+  were set apart and none was read as the app.
+- **Nothing read is not answered, not absent.** When every code file was set apart, each condition the code would
+  settle by not finding it is "not answered" (`Evidence::Incomplete`, naming `not-the-app`), as for an app with no
+  code at all, so the requirements it decides are not assessed. What a dependency file outside the folders does show
+  still counts.
+- **It is said first.** The report puts "the app's own code: none of it was read as the app" at the top of what
+  was not examined, so security.md, compliance.md, report.html, report.json, and the MCP summary's NOT EXAMINED all
+  open with it. `sv scope` prints it before the counts, and its derived lines say "the code read could not settle
+  it" instead of "no scanner reads this from the code yet", which was never true for a condition a scanner had
+  tried.
+- **`sv report` exits 2** (ADR-029, Later), with the folders named in the reason. R6's "no file of the app was read"
+  did not fire, because the credentials scan and the code rules still read those folders; for what applies, nothing
+  was read. `sv check` reads no manifest and reads every folder, so it is unaffected.
+- **Only "all", never "nearly all".** A `vendor/` or `third_party/` folder routinely holds many times the app's own
+  code, and a one-file app with its `tests/` set apart is ordinary, so no share or count of files left over tells a
+  mistaken list from a normal one. With one code file read, what was read is the app's and the answers stand on it.
+  The list's own line in the report now counts both, "N code files in them were left out of what is read as the
+  app, and M were read as the app", so a person can see a list that took nearly everything.
+
+How it is held: in `crates/sv-scan/tests/scan.rs`, `not_the_app_over_all_the_code_leaves_the_code_unanswered_not_absent`
+(with its control read as the app), `not_the_app_over_nearly_all_the_code_still_reads_what_is_left`, and
+`an_ordinary_vendor_and_tests_list_is_not_taken_for_all_the_code` (twenty-one files set apart to one read); end to end
+in `crates/sv-cli/tests/not_the_app_leaves_nothing.rs`, the same three through `sv report`, `sv scope`, and `sv mcp`.

@@ -588,6 +588,15 @@ another session is not a claim.
     requirement from applicable to "does not apply".
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r12-not-the-app-warning`.
+    **Done the same day** (DESIGN, "When `not-the-app` leaves nothing of the app to read"; ADR-029, Later): when the
+    list sets apart every code file, the conditions the code would settle are not answered, so their requirements
+    are not assessed rather than "does not apply"; the report, `sv scope`, and the MCP summary say so first; and
+    `sv report` exits 2 naming the folders. Only "all": nearly all, and a `third_party/` folder twenty-one times the
+    app, read as before, with the counts in the list's own report line. Four guards were undone in turn and each
+    was caught: the "not answered" in `evaluate` (one scan test and the end-to-end test), the exit 2 (end to end),
+    the gap put first (end to end), and "all" loosened to "all but one" (two scan tests and two end-to-end tests).
+    **Follow-up, not done here:** the "what has to be answered" table prints a condition's exclusion sentence ("No
+    WebSocket library is used") as the question (`question_for`, `crates/sv-report/src/lib.rs`).
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch

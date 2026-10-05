@@ -2017,3 +2017,123 @@ fn python_dependency_declarations_sv_does_not_read_are_found() {
          a text file that is not a list are not declarations"
     );
 }
+
+/// An app in a temporary folder: `(path, contents)` pairs, folders made as needed.
+fn app_of(name: &str, files: &[(&str, &str)]) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("sv-scan-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    for (path, contents) in files {
+        let file = dir.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, contents).unwrap();
+    }
+    dir
+}
+
+fn scan_apart(dir: &std::path::Path, folders: &[&str]) -> ScanReport {
+    let folders: Vec<String> = folders.iter().map(|f| (*f).to_owned()).collect();
+    sv_scan::scan_listing_app(
+        &sv_scan::files::Listing::of(dir),
+        &all_signatures(),
+        &folders,
+    )
+    .unwrap()
+}
+
+#[test]
+fn not_the_app_over_all_the_code_leaves_the_code_unanswered_not_absent() {
+    // A pinned dependency file outside the folder, so something about the app was still read:
+    // without it an app with no code read was already "not answered". All of the code is in `src`.
+    let dir = app_of(
+        "all-set-apart",
+        &[
+            ("requirements.txt", "flask==3.0.0\n"),
+            ("requirements.lock", "flask==3.0.0\n"),
+            ("src/app.py", "import websocket\n"),
+        ],
+    );
+    // The control: read as the app, `src` says WebSockets are used, and the scan is decisive.
+    let whole = scan_apart(&dir, &[]);
+    assert_eq!(answer(&whole, Condition::Websockets).value, Some(true));
+    assert!(whole.unpinned.is_empty(), "{:?}", whole.unpinned);
+    assert_eq!(whole.set_apart_code, 0);
+    assert!(!whole.all_code_set_apart());
+
+    let apart = scan_apart(&dir, &["src"]);
+    assert_eq!(apart.files_read, 0);
+    assert_eq!(apart.set_apart_code, 1);
+    assert!(!apart.declared.is_empty(), "the dependency file was read");
+    assert!(apart.all_code_set_apart());
+    for condition in [Condition::Websockets, Condition::Graphql] {
+        let found = answer(&apart, condition);
+        assert_eq!(found.value, None, "{condition:?} is not answered");
+        assert!(
+            matches!(&found.evidence, Evidence::Incomplete { reason } if reason.contains("not-the-app")),
+            "{:?}",
+            found.evidence
+        );
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn not_the_app_over_nearly_all_the_code_still_reads_what_is_left() {
+    // One file left outside the folder is the app's code, read, and the answers rest on it: no share
+    // of files tells "nearly all" from an ordinary `vendor/` (the next test), so only "all" changes
+    // the answers. The report counts both, so a person can see it.
+    let dir = app_of(
+        "nearly-all-set-apart",
+        &[
+            ("requirements.txt", "flask==3.0.0\n"),
+            ("requirements.lock", "flask==3.0.0\n"),
+            ("main.py", "print('hello')\n"),
+            ("src/app.py", "import websocket\n"),
+            ("src/more.py", "x = 1\n"),
+            ("src/other.py", "y = 2\n"),
+        ],
+    );
+    let apart = scan_apart(&dir, &["src"]);
+    assert_eq!(apart.files_read, 1);
+    assert_eq!(apart.set_apart_code, 3);
+    assert!(!apart.all_code_set_apart());
+    let found = answer(&apart, Condition::Websockets);
+    assert_eq!(found.value, Some(false), "{:?}", found.evidence);
+    assert!(matches!(
+        found.evidence,
+        Evidence::NothingFound { files_read: 1 }
+    ));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn an_ordinary_vendor_and_tests_list_is_not_taken_for_all_the_code() {
+    // Vendored code routinely outnumbers the app's own: here twenty-one files to one. A rule on the
+    // share set apart would call this a mistake; the app's own file was read, so nothing is said.
+    // (`third_party/`, because beside requirements.txt the listing already leaves `vendor/` out as
+    // installed code before `not-the-app` is consulted.)
+    let mut files: Vec<(String, String)> = vec![
+        ("requirements.txt".into(), "flask==3.0.0\n".into()),
+        ("requirements.lock".into(), "flask==3.0.0\n".into()),
+        ("app.py".into(), "print('hello')\n".into()),
+        ("tests/test_app.py".into(), "import websocket\n".into()),
+    ];
+    for i in 0..20 {
+        files.push((format!("third_party/lib/m{i}.py"), format!("v = {i}\n")));
+    }
+    let files: Vec<(&str, &str)> = files
+        .iter()
+        .map(|(p, c)| (p.as_str(), c.as_str()))
+        .collect();
+    let dir = app_of("vendor-and-tests", &files);
+    let apart = scan_apart(&dir, &["tests", "third_party"]);
+    assert_eq!(apart.files_read, 1);
+    assert_eq!(apart.set_apart_code, 21);
+    assert!(
+        apart.set_apart_code > 10 * apart.files_read,
+        "most of the code is set apart, as in an ordinary vendored app"
+    );
+    assert!(!apart.all_code_set_apart());
+    let found = answer(&apart, Condition::Websockets);
+    assert_eq!(found.value, Some(false), "{:?}", found.evidence);
+    std::fs::remove_dir_all(&dir).ok();
+}

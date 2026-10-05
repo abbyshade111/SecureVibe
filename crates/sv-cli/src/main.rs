@@ -484,6 +484,13 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
             eco.manifest
         );
     }
+    if let Some(reason) = nothing_left_reason(&manifest, &report) {
+        println!(
+            "\nNothing of the app's own code was read: {reason}. What the code would decide is not \
+             answered, so the requirements it decides are not assessed. If the app's code is in \
+             one of those folders, take it off the list."
+        );
+    }
     if !report.unread_extensions.is_empty() {
         let exts: Vec<&str> = report
             .unread_extensions
@@ -594,6 +601,16 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         for (condition, n) in &blocked {
             let who = match condition.source() {
                 Source::Claim => "securevibe.toml does not say",
+                // A scanner that ran and could not settle it is not one that does not exist: an
+                // app whose code was all set apart, or not all read, said so above.
+                Source::Derived
+                    if report.answers.iter().any(|a| {
+                        a.condition == *condition
+                            && matches!(a.evidence, sv_scan::Evidence::Incomplete { .. })
+                    }) =>
+                {
+                    "the code read could not settle it (see above)"
+                }
                 Source::Derived => "no scanner reads this from the code yet",
             };
             println!("  {n:>3}  {:<22} {who}", condition.name());
@@ -2931,6 +2948,21 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
                 found.join(", ")
             }
         );
+        if scan.set_apart_code > 0 {
+            why.push_str(&format!(
+                " {} code file{} in them {} left out of what is read as the app, and {} {} read \
+                 as the app.",
+                scan.set_apart_code,
+                if scan.set_apart_code == 1 { "" } else { "s" },
+                if scan.set_apart_code == 1 {
+                    "was"
+                } else {
+                    "were"
+                },
+                scan.files_read,
+                if scan.files_read == 1 { "was" } else { "were" }
+            ));
+        }
         if !found.is_empty() && !missing.is_empty() {
             why.push_str(&format!(" Named but not found: {}.", missing.join(", ")));
         }
@@ -2949,6 +2981,47 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
         });
     }
     gaps
+}
+
+/// What the report puts first when `[repository] not-the-app` set apart every code file the app
+/// has: nothing of the app's own code was read, so whatever the code would have decided is not
+/// answered rather than "does not apply" (the deep review of 4 October 2026, R12). `None` when even
+/// one code file was read as the app. The same sentence makes `sv report` exit 2
+/// (`nothing_left_reason`).
+fn nothing_left_of_the_app(
+    manifest: &Manifest,
+    scan: &sv_scan::ScanReport,
+) -> Option<sv_report::Gap> {
+    let reason = nothing_left_reason(manifest, scan)?;
+    Some(sv_report::Gap {
+        what: "the app's own code: none of it was read as the app".to_owned(),
+        why: format!(
+            "{reason}. What the code would have settled, such as whether the app uses WebSockets \
+             or GraphQL, is not answered, and the requirements it decides are not assessed rather \
+             than \"does not apply\". The credentials scan and the code rules still read those \
+             folders. If the app's code is in one of them, take that folder off the list; if the \
+             list is right, this folder holds no app code for `sv` to check."
+        ),
+    })
+}
+
+/// One sentence for `nothing_left_of_the_app` and the exit status, or `None`.
+fn nothing_left_reason(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Option<String> {
+    if !scan.all_code_set_apart() {
+        return None;
+    }
+    let folders: Vec<String> = manifest
+        .not_the_app()
+        .0
+        .iter()
+        .map(|f| format!("`{f}`"))
+        .collect();
+    Some(format!(
+        "every code file of the app ({}) is in a folder securevibe.toml's `[repository] \
+         not-the-app` names ({}), so none of the app's own code was read as the app",
+        scan.set_apart_code,
+        folders.join(", ")
+    ))
 }
 
 fn assemble_report(
@@ -3617,6 +3690,10 @@ fn assemble_report_saying(
         });
     }
     gaps.extend(not_the_app_gaps(&manifest, &scan_report));
+    // First of all, because every count below it rests on code that was not read.
+    if let Some(gap) = nothing_left_of_the_app(&manifest, &scan_report) {
+        gaps.insert(0, gap);
+    }
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
@@ -4199,6 +4276,11 @@ fn assemble_report_saying(
     report.examined = examined;
     let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);
     report.could_not_run = file_gaps.could_not_run;
+    // R6's "no file of the app was read" counts the credentials scan, which reads these folders
+    // too; for what the requirements rest on, nothing was read, and that is not assessed.
+    if let Some(reason) = nothing_left_reason(&manifest, &scan_report) {
+        report.could_not_run.push(reason);
+    }
     report.partly_read = file_gaps.partly;
     report.run_record = Some(run_record);
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the

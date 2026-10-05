@@ -147,9 +147,23 @@ pub struct ScanReport {
     pub not_the_app: Vec<String>,
     /// The folders in the app that one of those matched, and so were not looked in for evidence.
     pub set_apart: BTreeSet<String>,
+    /// The code files in those folders: files the scan would have read as the app had the
+    /// manifest not set them apart (a language it reads, or an extension that looks like code).
+    pub set_apart_code: usize,
 }
 
 impl ScanReport {
+    /// Whether `[repository] not-the-app` left out every code file there is: some were set apart
+    /// and none was read as the app. Only "all", never "nearly all": a `vendor/` folder routinely
+    /// holds many times the app's own code, and a one-file app with its `tests/` set apart is
+    /// ordinary, so no share or count of files left over tells a mistake from a normal list. With
+    /// even one file read, what was read is the app's code and the answers stand on it; with none,
+    /// nothing about the app's code was read, and that is said, not answered (DESIGN, "When
+    /// `not-the-app` leaves nothing of the app to read").
+    pub fn all_code_set_apart(&self) -> bool {
+        self.files_read == 0 && self.set_apart_code > 0
+    }
+
     /// The scanner as a corroborator, in the shape `sv_manifest::resolve` expects.
     pub fn as_corroborator(&self) -> impl Fn(Condition) -> Option<bool> + '_ {
         move |c| self.answers.iter().find(|a| a.condition == c)?.value
@@ -207,6 +221,13 @@ pub fn scan_listing_app(
             .filter(|d| !ours(d) && d.rsplit_once('/').is_none_or(|(parent, _)| ours(parent)))
             .cloned()
             .collect(),
+        set_apart_code: listing
+            .app_files()
+            .filter(|e| !ours(&e.relative))
+            .filter(|e| {
+                e.language.is_some() || e.extension.as_deref().is_some_and(looks_like_source)
+            })
+            .count(),
         ..Default::default()
     };
 
@@ -425,6 +446,25 @@ fn evaluate(
     }
 
     // Whether the rest is an answer depends entirely on what was read.
+    //
+    // The manifest's `[repository] not-the-app` set apart every code file there is. A dependency
+    // file outside those folders may still have been read, but the code was not, so nothing in the
+    // code can be called absent: the same "not answered" as an app with no code at all, rather than
+    // a derived "no" that switches requirements off (the deep review of 4 October 2026, R12).
+    if report.all_code_set_apart() {
+        return Answer {
+            condition,
+            value: None,
+            evidence: Evidence::Incomplete {
+                reason: format!(
+                    "every code file here ({}) is in a folder securevibe.toml's `[repository] \
+                     not-the-app` names, so none of the app's own code was read",
+                    report.set_apart_code
+                ),
+            },
+        };
+    }
+
     //
     // Reading nothing is the clearest case: a scan that did not run is not a clean result. An
     // empty folder, a repository of files `sv` skipped, an app whose source lives somewhere else —
