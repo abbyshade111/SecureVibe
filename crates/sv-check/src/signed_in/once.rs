@@ -491,6 +491,45 @@ mod tests {
     }
 
     #[test]
+    fn a_user_whose_page_gave_no_token_is_not_assessed_rather_than_counted_as_refused() {
+        /// A correct app whose booking page, asked as B, comes back without its token: every copy B
+        /// sent would be refused for that, which says nothing about the seat.
+        struct NoTokenForB(FakeApp);
+        impl Http for NoTokenForB {
+            fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+                if r.id == "once-b-page" {
+                    return Some(ProbeResponse {
+                        id: r.id.clone(),
+                        status: 200,
+                        headers: Vec::new(),
+                        body: "<p>Book a seat</p>".into(),
+                    });
+                }
+                self.0.send(r)
+            }
+            fn send_together(&mut self, rs: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
+                self.0.send_together(rs)
+            }
+        }
+        let acc = accounts();
+        let mut app = NoTokenForB(FakeApp::new(Flaws::default()));
+        for account in [&acc.a, &acc.b] {
+            app.0
+                .users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let o = super::super::run(&mut app, &users(), &acc, true, &Default::default());
+        assert!(!verified_ids(&o).contains(&DONE_TWICE.rule_id));
+        assert!(
+            why_not(&o).contains("token could not be read for the second user"),
+            "{}\n{:?}",
+            why_not(&o),
+            o.steps
+        );
+        assert_eq!(app.0.bookings, 0, "nothing was sent without it");
+    }
+
+    #[test]
     fn without_a_once_action_it_is_not_assessed() {
         let mut u = users();
         u.once = None;
