@@ -8263,6 +8263,23 @@ two agree; and keeping the zeros before the letters, because the case tested (`1
 either way. A test of a gem pre-release held to an advisory, and the cases `2.0.0.rc1` and `2.0.rc1`, were added, and
 both were then caught.
 
+## An error page is searched whole before it is cut (5 October 2026)
+
+H17 of the deep review: `sv` keeps only the first 4,000 characters of each answer from the app, enough to recognize
+a stack trace and not enough to copy a page out of somebody's app. The error-page check (V13.4.2, V16.5.1) read only
+what was kept, so a page whose trace began below a long stretch of markup was credited as saying nothing it should
+not.
+
+- **The whole answer is searched first.** `kept_body` looks through all of it for each sign of a trace
+  (`sv_check::probes::TRACE_MARKERS`, now public), and for the first of each found past the cut keeps the text
+  around it, as it already did for the reflection probes' value. The check then reads it like any other.
+- **What is kept stays small:** the start, plus at most one short stretch per kind of trace.
+
+How it is held: `a_stack_trace_below_the_cut_is_kept_and_found` (`crates/sv-run/src/docker.rs`) puts every marker past
+the cut, checks the setup really did, and runs the real check on what was kept; its control, a long page with no
+trace, is still credited. Taking the new search out turned it red.
+
+
 
 ## What an outside tool says is redacted, and a bundle's report is scanned before it is zipped (4 October 2026)
 
@@ -8338,6 +8355,23 @@ checked.
 How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
 twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
 
+## A placeholder word in a key counts only where chance would not put it (5 October 2026)
+
+A4 of the deep review: a value was taken for a placeholder, and not reported, when it held any of a list of words
+(`example`, `changeme`, `todo`, `xxx`, …) anywhere in it. A real key's random characters spell the short ones by
+chance: of 20,000 random JWTs made the way the test makes them, 66 were dropped as placeholders.
+
+- **The short markers, `todo` and `xxx`, count only as words of their own** (`has_word`): not after a letter or
+  digit, and not before a letter, so `TODO`, `xxx-xxx`, and `todo1` still count, and `…aXxXb…` inside a key does not.
+- **The longer markers count anywhere, as before.** Five or more letters in a row are practically never spelled by
+  chance, and the fused form is how real examples are written: AWS's own documentation key is
+  `AKIAEXAMPLEEXAMPLE12`-shaped. Making every marker a whole word was tried first and lost exactly that.
+- Of the same 20,000 random JWTs, none is now taken for a placeholder.
+
+How it is held: `a_placeholder_word_counts_only_as_a_word_of_its_own` (`crates/sv-check/src/secrets.rs`), which counts
+the random JWTs dropped and lists both kinds by hand, and `a_whole_example_env_file_is_silent`, which caught the first
+attempt.
+
 ## A .gitignore read the way git reads it, and a security contact however it is spelled (5 October 2026)
 
 H23 of the deep review: the check that `.gitignore` leaves out `.env` (V13.3.1) compared whole lines against a short
@@ -8381,3 +8415,27 @@ comparison reported versions the app had moved past.
 How it is held: `go_mod_names_the_version_built_and_go_sum_s_older_ones_are_not_listed` and
 `a_go_app_is_listed_from_go_mod_and_says_what_a_folder_replaced` (`crates/sv-check/src/sbom.rs`). Five guards were
 undone in turn and each was caught, the last only after a module named in go.sum alone was added to the fixture.
+
+## pnpm 5 and 6 told apart, and packages without a version named (5 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H21 and H24) found two JavaScript lockfile readers giving a
+package list that was not the whole of what is installed, and saying nothing about it.
+
+- **H24, pnpm's lockfile 6.0.** pnpm 8 writes a package as `/express@4.18.2`. The reader took any key starting with
+  `/` to be 5.x's `/express/4.18.2`, so a real 6.0 file gave no packages at all, and the test named for 6.0 used 5.x's
+  shape. The reader now reads the lockfile's own `lockfileVersion` line: 5.x keys are read by their slashes, with the
+  peer variant after `_` taken off the version (`/react-dom/18.2.0_react@18.2.0` is react-dom 18.2.0), and 6.0 and
+  later by the `@`. The 6.0 test now uses 6.0's shape, peer variant included, and 5.x has a test of its own.
+- **H21, packages with no registry version.** A package installed from a folder, a link, a repository, or an
+  address is listed by that rather than by a version: pnpm 9 writes `my-lib@file:../lib`, and Yarn Berry
+  `local-lib@file:../lib`. Both readers dropped such a package without a word, and the list still counted as
+  complete. Each is now named as not listed, the way the `Pipfile.lock` and `pylock.toml` readers already did, so the
+  list no longer counts as complete and V15.2.1 is not credited on it. A classic `yarn.lock` entry with no `version`
+  line is named the same way. The app's own Yarn workspace (`workspace:`) is its own code, not something installed,
+  and is left out.
+
+An earlier test held the opposite for Yarn Berry: it expected a folder the app links to be dropped with nothing said.
+It now expects the folder named. Eight guards broken in turn, each caught: reading 6.0 as 5.x (the old behavior),
+keeping 5.x's peer suffix in the version, dropping pnpm's packages without a version, not reporting them, dropping
+Berry's, naming the app's own workspace, and dropping a classic entry with no version, in the middle of the file or
+at its end.

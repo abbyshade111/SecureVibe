@@ -261,6 +261,10 @@ another session is not a claim.
     or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
     guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
     eval(code)}` is found rather than only owned up to.
+    **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
+    TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
+    read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -373,6 +377,9 @@ another session is not a claim.
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h17`.
+    **Done the same day** (DESIGN, "An error page is searched whole before it is cut"): the whole answer is searched
+    for each sign of a stack trace, and the text around any found past the first 4,000 characters is kept, so the
+    check sees it; a long page with no trace is still credited.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
@@ -394,6 +401,8 @@ another session is not a claim.
     are still open.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (DESIGN, "pnpm 5 and 6 told apart, and packages without a version named"): pnpm v9 and
+    Yarn name their packages with no registry version as not listed, as `Pipfile.lock` and `pylock.toml` do.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -413,6 +422,8 @@ another session is not a claim.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (same DESIGN section): the reader takes the lockfile's own version line, and reads 6.0's
+    `/name@version` and 5.x's `/name/version`; the "v6" test now uses v6's format, and 5.x has a test of its own.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
@@ -454,6 +465,9 @@ another session is not a claim.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a4`.
+    **Done the same day** (DESIGN, "A placeholder word in a key counts only where chance would not put it"): the
+    short markers `todo` and `xxx` count only as words of their own, the longer ones anywhere as before (AWS's
+    `AKIAEXAMPLEEXAMPLE12` shape needs it); of 20,000 random JWTs, 66 were dropped before and none now.
   - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
     `sk_test_` keys graded critical.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
