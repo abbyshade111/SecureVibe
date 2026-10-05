@@ -86,6 +86,9 @@ pub struct Adapter {
     /// which stops it asking semgrep.dev whether a newer semgrep is out.
     #[serde(default)]
     pub env: BTreeMap<String, String>,
+    /// How long this tool may run, in seconds, before it is stopped: `TOOL_SECONDS` when not given.
+    #[serde(default)]
+    pub time_limit_seconds: Option<u64>,
     /// Another program run in this one's place when this one is not installed.
     #[serde(default)]
     pub stand_in: Option<StandIn>,
@@ -446,18 +449,179 @@ pub enum Presence {
 }
 
 pub fn presence(adapter: &Adapter) -> Presence {
-    let output = Command::new(&adapter.version.command)
-        .args(&adapter.version.args)
-        .envs(&adapter.env)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::piped())
-        .output();
-    judge_presence(output.ok().map(|out| {
-        (
-            out.status.code(),
-            String::from_utf8_lossy(&out.stderr).into_owned(),
-        )
+    let mut command = Command::new(&adapter.version.command);
+    command.args(&adapter.version.args);
+    let limit = adapter
+        .time_limit_seconds
+        .unwrap_or(VERSION_SECONDS)
+        .min(VERSION_SECONDS);
+    let ran = finish(prepared(&mut command, adapter), limit);
+    judge_presence(ran.ok().map(|ran| {
+        if ran.timed_out {
+            (
+                None,
+                format!(
+                    "it did not answer within {} when asked its version",
+                    minutes(limit)
+                ),
+            )
+        } else {
+            (ran.code, ran.stderr)
+        }
     }))
+}
+
+/// How long an outside tool may run before it is stopped, unless its entry says otherwise: half an
+/// hour. CodeQL builds a database of the code before it reads it, and on a large app that takes
+/// minutes; a tool still running after half an hour is stuck, and `sv` would otherwise wait for it
+/// for ever (the deep review's improvement 3).
+pub const TOOL_SECONDS: u64 = 30 * 60;
+/// How long a tool may take to say its version.
+const VERSION_SECONDS: u64 = 60;
+
+/// The owner's environment variables an outside tool is handed, and no others: where programs are,
+/// where the home and temporary folders are, the language, a proxy and certificates the computer
+/// needs to reach anything, and where Java, Go, and Python keep what they need. Everything else in
+/// the owner's environment (keys for services, tokens, settings for other programs) is left out:
+/// a tool reading somebody's code needs none of it, and Semgrep, given a token for its service, would
+/// use it.
+const PASSED_ON: &[&str] = &[
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "LANG",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+    "XDG_CACHE_HOME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "NO_PROXY",
+    "http_proxy",
+    "https_proxy",
+    "no_proxy",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
+    "JAVA_HOME",
+    "GOPATH",
+    "GOROOT",
+    "GOCACHE",
+    "GOMODCACHE",
+    "VIRTUAL_ENV",
+    // Windows: where the system is, how programs are found, and where the user's folders are.
+    "SystemRoot",
+    "PATHEXT",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "ComSpec",
+];
+
+/// `command` with the environment an outside tool is given: only `PASSED_ON` from the owner's, then
+/// `GOTOOLCHAIN=local`, so a Go tool uses the Go installed here rather than fetching and running the
+/// one an app's `go.mod` asks for, then the adapter's own settings.
+fn prepared<'c>(command: &'c mut Command, adapter: &Adapter) -> &'c mut Command {
+    command.env_clear();
+    for name in PASSED_ON {
+        if let Some(value) = std::env::var_os(name) {
+            command.env(name, value);
+        }
+    }
+    command.env("GOTOOLCHAIN", "local");
+    command.envs(&adapter.env);
+    command
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::piped());
+    #[cfg(unix)]
+    std::os::unix::process::CommandExt::process_group(command, 0);
+    command
+}
+
+/// A limit as a person says it: "30 minutes", "2 seconds".
+fn minutes(seconds: u64) -> String {
+    match seconds {
+        1 => "1 second".to_owned(),
+        s if s < 120 => format!("{s} seconds"),
+        s => format!("{} minutes", s / 60),
+    }
+}
+
+/// What became of a tool run under a time limit.
+struct Finished {
+    /// Its exit code: `None` when it was stopped by a signal, or by the limit.
+    code: Option<i32>,
+    stderr: String,
+    timed_out: bool,
+}
+
+/// How much of a tool's stderr is kept; the rest is read and let go, so the tool never waits on a
+/// full pipe.
+const STDERR_KEPT: usize = 64 * 1024;
+
+/// Runs `command`, stopping it, and everything it started, when it has run for `seconds`.
+fn finish(command: &mut Command, seconds: u64) -> std::io::Result<Finished> {
+    use std::io::Read;
+    let mut child = command.spawn()?;
+    let (sent, received) = std::sync::mpsc::channel();
+    if let Some(mut stderr) = child.stderr.take() {
+        std::thread::spawn(move || {
+            let mut kept = Vec::new();
+            let mut buffer = [0u8; 8192];
+            while let Ok(n) = stderr.read(&mut buffer) {
+                if n == 0 {
+                    break;
+                }
+                let room = STDERR_KEPT.saturating_sub(kept.len());
+                kept.extend_from_slice(&buffer[..n.min(room)]);
+            }
+            let _ = sent.send(kept);
+        });
+    }
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
+    let (status, timed_out) = loop {
+        if let Some(status) = child.try_wait()? {
+            break (Some(status), false);
+        }
+        if std::time::Instant::now() >= deadline {
+            stop(&mut child);
+            break (child.wait().ok(), true);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(50));
+    };
+    // A program the tool started may hold its stderr open after it ends; what came is enough.
+    let stderr = received
+        .recv_timeout(std::time::Duration::from_secs(2))
+        .unwrap_or_default();
+    Ok(Finished {
+        code: if timed_out {
+            None
+        } else {
+            status.and_then(|s| s.code())
+        },
+        stderr: String::from_utf8_lossy(&stderr).into_owned(),
+        timed_out,
+    })
+}
+
+/// Stops a tool and every process it started: on Unix it leads a group of its own (`prepared`), and
+/// the whole group is stopped, since Semgrep's work is done by a second program it starts.
+fn stop(child: &mut std::process::Child) {
+    #[cfg(unix)]
+    {
+        let _ = Command::new("kill")
+            .args(["-KILL", "--", &format!("-{}", child.id())])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status();
+    }
+    let _ = child.kill();
 }
 
 /// What a tool's version command showed: `None` when it could not be started at all, else its exit
@@ -651,6 +815,7 @@ pub fn run_one_in(
             ),
         };
     }
+    let limit = adapter.time_limit_seconds.unwrap_or(TOOL_SECONDS);
     let fill = |arg: &str| {
         arg.replace("{dir}", &app_dir.to_string_lossy())
             .replace("{output}", &report_path.to_string_lossy())
@@ -660,19 +825,16 @@ pub fn run_one_in(
     if let Some(prepare) = &adapter.prepare {
         let mut command = Command::new(&prepare.command);
         command.args(prepare.args.iter().map(|a| fill(a)));
-        command.envs(&adapter.env);
         if adapter.working_directory.is_some() {
             command.current_dir(app_dir);
         }
-        command.stdout(std::process::Stdio::null());
-        command.stderr(std::process::Stdio::piped());
-        let failed = match command.output() {
-            Ok(out) if out.status.success() => None,
-            Ok(out) => Some(said(
-                rules,
-                &last_line(&String::from_utf8_lossy(&out.stderr)),
-                LINE_CHARS,
+        let failed = match finish(prepared(&mut command, adapter), limit) {
+            Ok(ran) if ran.timed_out => Some(format!(
+                "it was stopped after {}, the most `sv` gives one tool",
+                minutes(limit)
             )),
+            Ok(ran) if ran.code == Some(0) => None,
+            Ok(ran) => Some(said(rules, &last_line(&ran.stderr), LINE_CHARS)),
             Err(e) => Some(e.to_string()),
         };
         if let Some(detail) = failed {
@@ -687,7 +849,6 @@ pub fn run_one_in(
         }
     }
     let mut command = Command::new(&adapter.run.command);
-    command.envs(&adapter.env);
     for arg in &run_args {
         if arg == "{files}" {
             // `./` as well as the `--` before it in the data: a file called `-x.py` is a file.
@@ -699,10 +860,8 @@ pub fn run_one_in(
     if adapter.working_directory.is_some() {
         command.current_dir(app_dir);
     }
-    command.stdout(std::process::Stdio::null());
-    command.stderr(std::process::Stdio::piped());
 
-    let output = command.output();
+    let output = finish(prepared(&mut command, adapter), limit);
     std::fs::remove_dir_all(&database).ok();
     let output = match output {
         Ok(output) => output,
@@ -712,17 +871,28 @@ pub fn run_one_in(
             };
         }
     };
+    if output.timed_out {
+        std::fs::remove_file(report_path).ok();
+        return Outcome::NotRun {
+            why: format!(
+                "{} was stopped after {}, the most `sv` gives one tool, so whatever it had \
+                 written is not read",
+                adapter.name,
+                minutes(limit)
+            ),
+        };
+    }
 
     // A non-zero exit is how most of these tools say "I found something", not "I failed", so each
     // adapter names the codes that mean it ran to the end. Any other is a failure, whatever report it
     // left. Gosec says both with 1; for it, the report is what decides.
-    let detail = String::from_utf8_lossy(&output.stderr);
+    let detail = output.stderr.as_str();
     let detail = said(
         rules,
         detail.lines().next().unwrap_or("no output").trim(),
         LINE_CHARS,
     );
-    match output.status.code() {
+    match output.code {
         Some(code) if adapter.finished_exits.contains(&code) => {}
         Some(code) => {
             std::fs::remove_file(report_path).ok();
@@ -2199,5 +2369,116 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             assert!(why.contains(&"x".repeat(100)), "{case}: {why}");
             assert!(!holds_password(why), "{case}: {why}");
         }
+    }
+
+    /// An app with one Python file, for a tool to be run over.
+    fn one_file_app(dir: &Path) -> PathBuf {
+        let app = dir.join("app");
+        std::fs::create_dir_all(&app).unwrap();
+        std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
+        app
+    }
+
+    #[test]
+    fn a_tool_that_does_not_finish_is_stopped_with_what_it_started_and_not_read() {
+        // The deep review's improvement 3: `sv` waited for an outside tool for ever. This one starts
+        // a second program, as Semgrep does, writes a clean report, and then hangs.
+        let dir = scratch("stuck");
+        let (_, rule) = adapter(&dir, "unused");
+        let started = dir.join("started");
+        let ending = format!("sleep 300 & echo $! > '{}'; CLEAN; wait", started.display());
+        let mut stuck = tool(&dir, &rule, &ending);
+        stuck.time_limit_seconds = Some(2);
+        let app = one_file_app(&dir);
+        let report = dir.join("out.sarif");
+        let begun = std::time::Instant::now();
+        let outcome = run_one(&stuck, &app, &report, &secret_rules());
+        let took = begun.elapsed();
+        let Outcome::NotRun { why } = &outcome else {
+            panic!("a tool stopped by the limit was read: {outcome:?}");
+        };
+        assert!(why.contains("was stopped after 2 seconds"), "{why}");
+        assert!(took < std::time::Duration::from_secs(20), "{took:?}");
+        // What it started was stopped too.
+        let pid = std::fs::read_to_string(&started).expect("the tool started its second program");
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        // Gone, or a zombie nobody has reaped yet, which runs nothing: in a container whose first
+        // process does not reap orphans, a stopped one stays listed.
+        let alive = match std::fs::read_to_string(format!("/proc/{}/stat", pid.trim())) {
+            Ok(stat) => !stat
+                .rsplit_once(')')
+                .is_some_and(|(_, rest)| rest.trim_start().starts_with('Z')),
+            Err(_) if Path::new("/proc/self/stat").exists() => false,
+            Err(_) => Command::new("kill")
+                .args(["-0", pid.trim()])
+                .stderr(std::process::Stdio::null())
+                .status()
+                .is_ok_and(|s| s.success()),
+        };
+        assert!(!alive, "the program the tool started was left running");
+        // And a tool that finishes inside its limit is read as before.
+        let mut quick = tool(&dir, &rule, "CLEAN");
+        quick.time_limit_seconds = Some(30);
+        assert!(
+            !matches!(
+                run_one(&quick, &app, &report, &secret_rules()),
+                Outcome::NotRun { .. }
+            ),
+            "a tool inside its limit was not read"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_tool_is_handed_only_the_environment_it_needs() {
+        // Cargo gives every test this; a tool reading somebody's code needs none of it.
+        assert!(
+            std::env::var_os("CARGO_MANIFEST_DIR").is_some(),
+            "the test needs a variable of the owner's to look for"
+        );
+        let dir = scratch("environment");
+        let (_, rule) = adapter(&dir, "unused");
+        let seen = dir.join("environment");
+        let mut probe = tool(&dir, &rule, &format!("env > '{}'; CLEAN", seen.display()));
+        probe.env.insert("TOOL_OWN".into(), "1".into());
+        let app = one_file_app(&dir);
+        let outcome = run_one(&probe, &app, &dir.join("out.sarif"), &secret_rules());
+        assert!(!matches!(outcome, Outcome::NotRun { .. }), "{outcome:?}");
+        let seen = std::fs::read_to_string(&seen).unwrap();
+        let names: Vec<&str> = seen.lines().filter_map(|l| l.split('=').next()).collect();
+        assert!(!names.contains(&"CARGO_MANIFEST_DIR"), "{names:?}");
+        assert!(names.contains(&"PATH"), "{names:?}");
+        assert!(seen.lines().any(|l| l == "GOTOOLCHAIN=local"), "{seen}");
+        assert!(seen.lines().any(|l| l == "TOOL_OWN=1"), "{seen}");
+        // Nothing beyond the list, apart from what the shell sets itself and the adapter's own.
+        let shell_sets = ["PWD", "SHLVL", "_", "OLDPWD"];
+        for name in names {
+            assert!(
+                PASSED_ON.contains(&name)
+                    || shell_sets.contains(&name)
+                    || name == "GOTOOLCHAIN"
+                    || probe.env.contains_key(name),
+                "{name} was handed on"
+            );
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_tool_that_does_not_say_its_version_is_broken_not_waited_for() {
+        let dir = scratch("silent-version");
+        let (_, rule) = adapter(&dir, "unused");
+        let mut silent = tool(&dir, &rule, "CLEAN");
+        silent.version.command = script(&dir, "silent", "#!/bin/sh\nsleep 300\n");
+        silent.version.args = Vec::new();
+        silent.time_limit_seconds = Some(1);
+        let begun = std::time::Instant::now();
+        let presence = presence(&silent);
+        assert!(begun.elapsed() < std::time::Duration::from_secs(20));
+        assert!(
+            matches!(&presence, Presence::Broken { detail } if detail.contains("did not answer within 1 second")),
+            "{presence:?}"
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
