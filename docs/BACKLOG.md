@@ -261,6 +261,10 @@ another session is not a claim.
     or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
     guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
     eval(code)}` is found rather than only owned up to.
+    **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
+    TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
+    read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
