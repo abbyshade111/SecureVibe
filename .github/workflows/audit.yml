@@ -12,7 +12,8 @@
 # they are listed, never whether they count), and some fixtures hold lockfiles that cannot be read on
 # purpose, so the whole repository can never be fully compared. Choosing the files here, in a file a
 # person reviews, is the deliberate version of that choice. The job fails on `sv audit`'s status: 1 for
-# a known vulnerability, 2 for a comparison that did not cover every crate. Only 0 passes.
+# a known vulnerability, 2 for a comparison that did not cover every crate, 3 when `sv` itself failed.
+# Only 0 passes.
 #
 # Every step is pinned to an exact commit fingerprint, as in rust.yml.
 

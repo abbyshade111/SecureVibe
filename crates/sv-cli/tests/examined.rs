@@ -36,8 +36,9 @@ fn report(dir: &Path, extra: &[&str]) -> Value {
         .args(&args)
         .output()
         .expect("sv runs");
+    // Finished: 0, or 2 where a check could not run, which several of these set up on purpose.
     assert!(
-        run.status.success(),
+        matches!(run.status.code(), Some(0 | 2)),
         "sv report failed: {}",
         String::from_utf8_lossy(&run.stderr)
     );

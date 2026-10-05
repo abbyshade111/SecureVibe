@@ -168,6 +168,8 @@ mod tests {
             satisfied_elsewhere: vec![],
             gaps,
             examined: Vec::new(),
+            could_not_run: Vec::new(),
+            partly_read: Vec::new(),
         }
     }
 
