@@ -18,6 +18,8 @@ another session is not a claim.
   command line, which wins over the repository's; a test that plants one.
   **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working off the backlog,
   in branch `claude/securevibe-e9-git-config`.
+  **Done the same day** (DESIGN, "Git runs no program the app's repository names"; ADR-032): git is run through
+  one place, with `core.fsmonitor` overridden on its command line, and a test plants one and checks it never runs.
 - **Bring `docs/paper/` up to 4 October 2026, and add the comparison study and the deep review.** Asked for on
   4 October 2026 by the owner through the cato-pipeline session. Recompute every analysis, CSV and figure in
   `docs/paper/` that stops at 26 to 29 September from the record as it stands at `main` on 4 October, and add two new
@@ -648,6 +650,10 @@ another session is not a claim.
     **Done the same day** (DESIGN, "Outside tools run for at most half an hour, with only the environment they
     need"; ADR-018, Later): stopped after half an hour with everything it started, not read when stopped, and
     handed only a short list from the owner's environment, with `GOTOOLCHAIN=local`.
+    **Improvement 7 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
+    refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
+    outside its folder and one that does not exist.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
