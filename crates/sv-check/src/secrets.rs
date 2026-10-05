@@ -2077,6 +2077,58 @@ mod tests {
     }
 
     #[test]
+    fn the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one() {
+        // A5 of the deep review. Every value is put together here, so the file holds no key.
+        let found = |text: &str| scan_text(&rules(), "src/config.txt", text);
+        let rule_of = |text: &str| {
+            let f = found(text);
+            assert_eq!(f.len(), 1, "{f:?}");
+            (f[0].rule_id.clone(), f[0].severity)
+        };
+        // Slack's app-level token, which the rule's own description named and its pattern missed.
+        let xapp = credential_shaped(
+            &[
+                "xapp",
+                "1",
+                "A0123456789",
+                "1234567890123",
+                "0a1b2c3d4e5f6a7b8c9d",
+            ],
+            "-",
+        );
+        assert_eq!(
+            rule_of(&format!("SLACK_APP_TOKEN={xapp}\n")).0,
+            "secrets.slack-token"
+        );
+        // A PGP private key block, beside the PEM ones it already found.
+        let pgp = format!("-----BEGIN PGP {} KEY BLOCK-----\nlQOYBF\n", "PRIVATE");
+        assert_eq!(rule_of(&pgp).0, "secrets.private-key-block");
+        let pem = format!("-----BEGIN {} KEY-----\nMIIE\n", "PRIVATE");
+        assert_eq!(rule_of(&pem).0, "secrets.private-key-block");
+        // A public PGP block is not a secret.
+        let public = format!("-----BEGIN PGP {} KEY BLOCK-----\nmQIN\n", "PUBLIC");
+        assert!(found(&public).is_empty(), "{:?}", found(&public));
+        // Stripe's test key cannot move money; its live key can.
+        let live = credential_shaped(&["sk", "live", "51HxaMpLeKeyV4lu3Abcdefghijk"], "_");
+        let test = credential_shaped(&["sk", "test", "51HxaMpLeKeyV4lu3Abcdefghijk"], "_");
+        assert_eq!(
+            rule_of(&format!("STRIPE_KEY={live}\n")),
+            ("secrets.stripe-key".to_owned(), Severity::Critical)
+        );
+        assert_eq!(
+            rule_of(&format!("STRIPE_KEY={test}\n")),
+            ("secrets.stripe-test-key".to_owned(), Severity::Medium)
+        );
+        // The private key rule says what it found, not only why it matters.
+        let block = rules()
+            .rules()
+            .find(|r| r.id == "secrets.private-key-block")
+            .map(|r| r.description.clone())
+            .unwrap();
+        assert!(block.starts_with("A private key"), "{block}");
+    }
+
+    #[test]
     fn one_secret_produces_one_finding() {
         // A vendor key assigned to a well-named variable matches both the vendor rule and the generic
         // assignment rule. Reporting it twice doubles the apparent problem and halves the attention each
