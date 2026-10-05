@@ -477,7 +477,7 @@ pub struct Answers {
 ///
 /// Until 4 October 2026 such a heading ended nothing, so what followed it was read as the answer to
 /// the section above, and a section nobody answered could count as answered (BACKLOG, "A heading of
-/// the owner's own in `security-notes.md`"; ADR-029). Now it ends the section, what follows belongs
+/// the owner's own in `security-notes.md`"; ADR-022, "Later, 4 October 2026"). Now it ends the section, what follows belongs
 /// to no answer, and the report says it was not read as one.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Loose {
