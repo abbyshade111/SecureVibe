@@ -142,6 +142,15 @@ another session is not a claim.
     adapter finding's text, and scan the report files for secrets before zipping.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/s8-bundle-tool-messages`.
+    **Done the same day** (DESIGN, "What an outside tool says is redacted, and a bundle's report is scanned before
+    it is zipped"): every tool finding's title, description, impact, and fix, and every line of a tool's stderr a
+    reason quotes, go through `redact_text` as they are read, redacted before being cut to length; a quoted value
+    now runs on past an apostrophe (B105 quoting "You've…" left the rest showing); and `sv bundle` scans its report
+    files and refuses to zip one holding a credential, naming file and line, never the value, with `sv`'s own
+    redaction marker no longer read as one. Tested end to end with a stand-in Bandit quoting a password and stand-in
+    tools quoting it on stderr: after the search is shown to find a planted copy, the password is in no report file,
+    bundle entry, MCP reply, or printed line; and a key in the app's name stops the bundle. Seven guards broken in
+    turn, each caught; cutting before redacting only by its unit test, whose lines are long enough to be cut.
   - **S9. Medium, Read. No resource limits on the app, and its output read without a cap** (`docker.rs`: no
     `--memory`, `--pids-limit`, `--cpus`, or `--user`; unsized tmpfs; `sv-run/src/lib.rs` reads to the end).
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
