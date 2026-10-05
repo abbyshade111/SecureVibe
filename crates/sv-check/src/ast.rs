@@ -1943,6 +1943,13 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
         scan.unread_languages.insert("html".to_owned());
         return;
     }
+    // H2 of the deep review: a Svelte or Vue template runs code of its own (`on:click={() => …}`,
+    // `{expression}`, `@click="…"`, `:href="…"`, `v-…`, `{{ … }}`) that is neither a `<script>` nor an
+    // `on…=` handler, so no rule reads it. Its scripts are still read and what they find stands, but
+    // the page is named as not fully read, so no rule claims it clean.
+    if template_holds_code(relative, source) {
+        scan.unparsed_files.push(relative.to_owned());
+    }
     if page.fragments.is_empty() {
         // A page of markup. Nothing to read, and nothing hidden.
         return;
@@ -1967,10 +1974,124 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
     }
 }
 
+/// Whether a `.svelte` or `.vue` page's markup, outside its `<script>` and `<style>` elements, holds
+/// code the template runs. Svelte reads every `{` in its markup as the start of an expression; Vue
+/// runs `{{ … }}` and the values of attributes named `@…`, `:…`, and `v-…`. Other pages are left to
+/// `html_fragments`.
+fn template_holds_code(relative: &str, source: &str) -> bool {
+    let lower = relative.to_lowercase();
+    let svelte = lower.ends_with(".svelte");
+    if !svelte && !lower.ends_with(".vue") {
+        return false;
+    }
+    let markup = without_elements(source, &["script", "style"]);
+    if svelte {
+        return markup.contains('{');
+    }
+    static VUE: OnceLock<regex::Regex> = OnceLock::new();
+    let vue = VUE.get_or_init(|| {
+        regex::Regex::new(r#"\{\{|[\s<]([@:]|v-)[A-Za-z0-9_.:\[\]-]*\s*="#)
+            .expect("a fixed pattern")
+    });
+    vue.is_match(&markup)
+}
+
+/// The text with every element of these names cut out, opening tag to closing tag, ignoring case.
+/// An element with no closing tag runs to the end.
+fn without_elements(source: &str, names: &[&str]) -> String {
+    // ASCII only, so every byte stays where it was and the positions found here cut `source` too.
+    let lower = source.to_ascii_lowercase();
+    let mut out = String::with_capacity(source.len());
+    let mut at = 0;
+    while at < source.len() {
+        let next = names
+            .iter()
+            .filter_map(|name| {
+                lower[at..]
+                    .find(&format!("<{name}"))
+                    .map(|i| (at + i, *name))
+            })
+            .min_by_key(|(i, _)| *i);
+        let Some((start, name)) = next else {
+            out.push_str(&source[at..]);
+            break;
+        };
+        out.push_str(&source[at..start]);
+        let close = format!("</{name}");
+        at = match lower[start..].find(&close) {
+            Some(i) => {
+                let after = start + i;
+                lower[after..]
+                    .find('>')
+                    .map_or(source.len(), |j| after + j + 1)
+            }
+            None => source.len(),
+        };
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn a_template_that_runs_code_is_named_as_not_fully_read() {
+        // H2 of the deep review: `on:click={() => eval(code)}` in a Svelte page gave no finding, and
+        // the page counted as read.
+        let rules = rules();
+        let read = |name: &str, source: &str| {
+            let mut scan = AstScan::default();
+            read_page(&rules, name, source, &mut scan);
+            scan
+        };
+        let script = "<script>\n  let count = 0;\n</script>\n";
+        for (name, page) in [
+            (
+                "App.svelte",
+                format!("{script}<button on:click={{() => eval(code)}}>Go</button>\n"),
+            ),
+            ("Note.svelte", format!("{script}<p>{{note.body}}</p>\n")),
+            (
+                "App.vue",
+                format!("<template><button @click=\"eval(code)\">Go</button></template>\n{script}"),
+            ),
+            (
+                "Link.vue",
+                format!("<template><a :href=\"next\">Back</a></template>\n{script}"),
+            ),
+            (
+                "Text.vue",
+                format!("<template><p>{{{{ note.body }}}}</p></template>\n{script}"),
+            ),
+        ] {
+            let scan = read(name, &page);
+            assert_eq!(scan.unparsed_files, [name], "{name}: {page}");
+            assert_eq!(scan.files_parsed, 1, "{name}: its script is still read");
+        }
+
+        // The controls: markup with no template code, a brace inside a Svelte script or style, a
+        // plain HTML page with a brace in its text, and Vue's ordinary attributes.
+        for (name, page) in [
+            (
+                "Plain.svelte",
+                format!("{script}<h1>Notes</h1>\n<style>h1 {{ color: red }}</style>\n"),
+            ),
+            (
+                "Plain.vue",
+                format!("<template><a href=\"/x\" class=\"b\">x</a></template>\n{script}"),
+            ),
+            ("index.html", "<p>Use {name} here</p>\n".to_owned()),
+        ] {
+            let scan = read(name, &page);
+            assert!(
+                scan.unparsed_files.is_empty(),
+                "{name}: {:?}",
+                scan.unparsed_files
+            );
+        }
+    }
 
     fn rules() -> AstRules {
         AstRules::load(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/ast-rules.json"))
