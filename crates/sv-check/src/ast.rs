@@ -2939,6 +2939,171 @@ mod tests {
     }
 
     #[test]
+    fn next_js_and_modern_node_redirects_and_file_calls_are_read() {
+        // H5 of the deep review: each of these went unreported while TypeScript was claimed checked.
+        let redirect = "ast.open-redirect";
+        let file = "ast.file-path-from-value";
+        let cases: &[(&str, &str, &str, &str, bool)] = &[
+            // Next.js's `redirect` from `next/navigation`, and `NextResponse.redirect`.
+            (
+                redirect,
+                "typescript",
+                "page.tsx",
+                "export default function P({ searchParams }: any) { redirect(searchParams.next); }",
+                true,
+            ),
+            (
+                redirect,
+                "typescript",
+                "page.tsx",
+                "export default function P() { redirect('/login'); }",
+                false,
+            ),
+            (
+                redirect,
+                "typescript",
+                "middleware.ts",
+                "export function middleware(req: any) { return NextResponse.redirect(req.nextUrl.searchParams.get('to')); }",
+                true,
+            ),
+            (
+                redirect,
+                "typescript",
+                "middleware.ts",
+                "export function middleware(req: any) { return NextResponse.redirect(new URL('/login', req.url)); }",
+                false,
+            ),
+            (
+                redirect,
+                "typescript",
+                "middleware.ts",
+                "export function middleware(req: any) { return NextResponse.redirect(new URL('//evil.test', req.url)); }",
+                true,
+            ),
+            // The browser's own way.
+            (
+                "ast.open-redirect",
+                "javascript",
+                "app.js",
+                "const to = new URLSearchParams(location.search).get('to'); window.location = to;",
+                true,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "function go(u) { window.location.href = u; }",
+                true,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "function go(u) { location.href = u; }",
+                true,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "function go(u) { location.assign(u); }",
+                true,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "function go(u) { window.location.replace(u); }",
+                true,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "window.location.href = '/home';",
+                false,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "function f(s, a) { return s.replace(a, ''); }",
+                false,
+            ),
+            (
+                redirect,
+                "javascript",
+                "app.js",
+                "function f(el, u) { el.href = u; }",
+                false,
+            ),
+            // `fs/promises`, imported by name or reached through `fs.promises`.
+            (
+                file,
+                "javascript",
+                "app.mjs",
+                "import { readFile } from 'fs/promises';\nexport async function f(req) { return readFile(req.query.name); }",
+                true,
+            ),
+            (
+                file,
+                "typescript",
+                "app.ts",
+                "import { writeFile } from 'node:fs/promises';\nexport async function f(n: string) { await writeFile(n, 'x'); }",
+                true,
+            ),
+            (
+                file,
+                "javascript",
+                "app.js",
+                "async function f(req) { return fs.promises.readFile(req.params.p); }",
+                true,
+            ),
+            (
+                file,
+                "javascript",
+                "app.mjs",
+                "import { readFile } from 'fs/promises';\nexport async function f() { return readFile(path.join(__dirname, 'a.html')); }",
+                false,
+            ),
+            (
+                file,
+                "javascript",
+                "app.mjs",
+                "import { readFile } from 'fs/promises';\nexport async function f() { return readFile('config.json'); }",
+                false,
+            ),
+            (
+                file,
+                "javascript",
+                "app.js",
+                "function f(url) { return download(url); }",
+                false,
+            ),
+        ];
+        let mut wrong = Vec::new();
+        for (rule, language, name, code, expected) in cases {
+            let parses = parses_cleanly(
+                if name.ends_with(".tsx") {
+                    "tsx"
+                } else {
+                    language
+                },
+                code,
+            );
+            assert!(
+                parses,
+                "the fixture must parse, or a pass proves nothing: {code}"
+            );
+            let found = ids(&scan_file(&rules(), language, name, code)).contains(rule);
+            if found != *expected {
+                wrong.push(format!("{rule}, expected {expected}: {code}"));
+            }
+        }
+        assert!(wrong.is_empty(), "{}", wrong.join("\n"));
+    }
+
+    #[test]
     fn a_ruby_load_on_something_that_is_not_a_deserialiser_is_not_reported() {
         // `load` is far too common a method name to report on its own. The receiver is what makes
         // it a deserialization, and over-reporting here would teach somebody to skip the rule.
