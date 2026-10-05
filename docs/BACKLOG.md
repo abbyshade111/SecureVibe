@@ -18,6 +18,8 @@ another session is not a claim.
   command line, which wins over the repository's; a test that plants one.
   **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working off the backlog,
   in branch `claude/securevibe-e9-git-config`.
+  **Done the same day** (DESIGN, "Git runs no program the app's repository names"; ADR-032): git is run through
+  one place, with `core.fsmonitor` overridden on its command line, and a test plants one and checks it never runs.
 - **Bring `docs/paper/` up to 4 October 2026, and add the comparison study and the deep review.** Asked for on
   4 October 2026 by the owner through the cato-pipeline session. Recompute every analysis, CSV and figure in
   `docs/paper/` that stops at 26 to 29 September from the record as it stands at `main` on 4 October, and add two new
