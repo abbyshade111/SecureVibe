@@ -290,6 +290,11 @@ another session is not a claim.
     `new URL('./x', import.meta.url)` accepted as the app's own folder by the file-path guard; (e) the clean result's
     words for JavaScript and TypeScript naming the calls each rule reads.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch `claude/h5-follow-up`.
+    **Done the same day** (DESIGN, "Redirects and file calls the way Next.js and modern Node write them", its
+    "Later, 5 October 2026" paragraph): all five. `new URL("/login", req.query.next)` is now found where it was a clean
+    result; a string's `location.replace(...)` is no longer reported; the redirect query names its object and call
+    together, so the name pattern stays plain words for H25. Forty witnesses (eighteen of them fail on #641's rules)
+    and a clean-result test; eleven guards broken in turn, each caught. Nothing #641 chose was undone.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
