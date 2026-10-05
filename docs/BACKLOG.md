@@ -1566,6 +1566,11 @@ another session is not a claim.
   6. **Scale.** About five builds a cell, the second brief (`docs/prompts/trial-2`), and security outcomes (the
      running-app findings) as well as testability; other vendors' tools where available.
   **Item 1 claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/loop-confounds`.
+  **Item 1 done the same day** (DESIGN, "When the seed runs, said"): the spec and the plan say the seed runs after
+  the app answers on `health`, in each copy `sv` starts, so the app makes its own tables; a test holds that sentence to
+  the order in `sv-run`. The trials' brief is corrected, with a note that the first three trials used the old
+  sentence. The next trials' protocol is `docs/prompts/loop-protocol.md`: the arms, the measures, what makes a build
+  unusable, what may be said, and the cost guard, fixed before any build.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
@@ -1577,6 +1582,8 @@ another session is not a claim.
   **Claimed on 5 October 2026 by session paper-facts** with item 1 of "The loop", above, in branch
   `claude/loop-confounds`: the spec will say when the seed runs, and how `sv` runs it is not changed (running it
   earlier would break apps that make their tables when they start). Changing when it runs stays the owner's to choose.
+  **Done the same day**, as said: the spec and the plan say when the seed runs, and the brief is corrected. How `sv`
+  runs it is unchanged.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
