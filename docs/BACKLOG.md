@@ -1291,6 +1291,10 @@ another session is not a claim.
       `crates/sv-check/src/signed_in/uploads.rs`, its rule in `rules.rs` and `RESTS_ON_A_REFUSAL`; the fake app's upload
       handler reads text today; and a place just before step 10 of `run_checks`, with a fresh sign-in, fits "takes no
       other check with it" better than step 6b.
+      **V5.2.3 (compressed bombs) claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in
+      branch `claude/securevibe-e9-zip-bombs`, to the owner's decisions above: the limits and which archive formats
+      the app unpacks stated in `securevibe.toml`, an archive just over each limit sent last, and the whole of it
+      tested.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
