@@ -90,7 +90,15 @@ pub struct DockerBackend {
     /// The processors each container may use, asked of Docker once, when the first is started.
     /// `None` when Docker would not say, and then no processor limit is set.
     cpus: OnceLock<Option<String>>,
+    /// The run under way, if one is: everything started while it is set carries it as `RUN_LABEL`,
+    /// and its teardown removes exactly what carries it.
+    run: std::sync::Mutex<Option<String>>,
 }
+
+/// The label naming the one run a container or network belongs to. The owner label says which
+/// process made it, for the next run's cleanup after a crash; this one says which run, so a
+/// teardown removes only that run's and never another's (the deep review of 4 October 2026, S10).
+const RUN_LABEL: &str = "org.securevibe.run";
 
 impl Default for DockerBackend {
     fn default() -> Self {
@@ -104,6 +112,7 @@ impl DockerBackend {
             binary: "docker".to_owned(),
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
+            run: std::sync::Mutex::new(None),
         }
     }
 
@@ -116,7 +125,17 @@ impl DockerBackend {
     /// A Docker call's arguments as they are sent: labeled, and, for one that starts a container,
     /// limited. Every container this backend starts goes through here, so none is missed.
     fn prepared(&self, args: &[&str]) -> Vec<String> {
-        let labeled = crate::cleanup::labeled(args, &self.owner);
+        let mut labeled = crate::cleanup::labeled(args, &self.owner);
+        let at = match args {
+            ["run", ..] | ["create", ..] => Some(1),
+            ["network", "create", ..] => Some(2),
+            _ => None,
+        };
+        if let Some(at) = at
+            && let Some(run) = self.run.lock().ok().and_then(|run| run.clone())
+        {
+            labeled.splice(at..at, ["--label".to_owned(), format!("{RUN_LABEL}={run}")]);
+        }
         if !matches!(args, ["run", ..] | ["create", ..]) {
             return labeled;
         }
@@ -229,7 +248,10 @@ impl DockerBackend {
         probes: &[sv_check::probes::ProbeRequest],
         left_over_removed: Vec<String>,
     ) -> Result<RunOutcome, CannotRun> {
-        let run_id = format!("sv-{}-{}", std::process::id(), next_run_number());
+        let run_id = run_id(std::process::id(), next_run_number(), &crate::random_hex(4));
+        if let Ok(mut run) = self.run.lock() {
+            *run = Some(run_id.clone());
+        }
         let network = format!("{run_id}-net");
         let app = format!("{run_id}-app");
         let sidecar = format!("{run_id}-probe");
@@ -240,6 +262,7 @@ impl DockerBackend {
         let switched_off = format!("{run_id}-app-off");
         let guard = Teardown {
             backend: self,
+            run: run_id.clone(),
             network: network.clone(),
             containers: vec![
                 app.clone(),
@@ -1653,21 +1676,59 @@ enum Via<'a> {
     FreshContainer(&'a str),
 }
 
+/// A run's name: `sv-<process>-<run in this process>-<random>`. The process id alone repeats
+/// between two copies of `sv` in two containers sharing one Docker daemon (each is often process 1
+/// or 7 in its own container), and then each run's teardown removed the other's containers by
+/// name (S10). The random part makes the names, and so the label, this run's alone.
+fn run_id(process: u32, number: u64, random: &str) -> String {
+    format!("sv-{process}-{number}-{random}")
+}
+
 /// Removes the containers and the network however the run ended, including on an early return.
+///
+/// It removes what carries this run's label, by id, and nothing else. Only if Docker will not list
+/// them does it fall back to the run's own names, which hold its random part.
 struct Teardown<'a> {
     backend: &'a DockerBackend,
+    run: String,
     network: String,
     containers: Vec<String>,
 }
 
 impl Drop for Teardown<'_> {
     fn drop(&mut self) {
-        for container in &self.containers {
-            let _ = self.backend.docker_cleanup(&["rm", "-f", container]);
+        let filter = format!("label={RUN_LABEL}={}", self.run);
+        let listed = |args: &[&str]| match self.backend.docker_cleanup(args) {
+            Ok((0, out)) => Some(out),
+            _ => None,
+        };
+        let containers = listed(&["ps", "-aq", "--filter", &filter]);
+        for container in to_remove(containers.as_deref(), &self.containers) {
+            let _ = self.backend.docker_cleanup(&["rm", "-f", &container]);
         }
-        let _ = self
-            .backend
-            .docker_cleanup(&["network", "rm", &self.network]);
+        let networks = listed(&["network", "ls", "-q", "--filter", &filter]);
+        for network in to_remove(networks.as_deref(), std::slice::from_ref(&self.network)) {
+            let _ = self.backend.docker_cleanup(&["network", "rm", &network]);
+        }
+        if let Ok(mut run) = self.backend.run.lock()
+            && run.as_deref() == Some(self.run.as_str())
+        {
+            *run = None;
+        }
+    }
+}
+
+/// What a teardown removes: the ids Docker listed under this run's label, or, when it would not
+/// list them, the names this run gave.
+fn to_remove(listed: Option<&str>, names: &[String]) -> Vec<String> {
+    match listed {
+        Some(listed) => listed
+            .lines()
+            .map(str::trim)
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+            .collect(),
+        None => names.to_vec(),
     }
 }
 
@@ -1771,6 +1832,7 @@ mod tests {
             binary: "definitely-not-a-real-binary-xyz".to_owned(),
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
+            run: std::sync::Mutex::new(None),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -2454,6 +2516,71 @@ mod probe_tests {
                 "img"
             ]
         );
+    }
+
+    #[test]
+    fn two_runs_never_share_a_name() {
+        // Two copies of `sv`, each process 7 in its own container, on one Docker daemon: the
+        // names differ by their random part, so neither run's teardown can name the other's.
+        let a = run_id(7, 0, &crate::random_hex(4));
+        let b = run_id(7, 0, &crate::random_hex(4));
+        assert!(
+            a.starts_with("sv-7-0-") && b.starts_with("sv-7-0-"),
+            "{a} {b}"
+        );
+        assert_ne!(a, b);
+        assert_eq!(a.len(), "sv-7-0-".len() + 8, "{a}");
+    }
+
+    #[test]
+    fn everything_a_run_creates_carries_its_label_and_nothing_else_does() {
+        let a = run_id(7, 0, "0badc0de");
+        // While a run is under way, everything that creates a container or a network carries its
+        // label; nothing else is changed, and with no run under way nothing carries one.
+        let backend = DockerBackend::new();
+        backend.cpus.set(None).unwrap();
+        let label = |args: &[&str]| -> Option<String> {
+            let sent = backend.prepared(args);
+            sent.windows(2)
+                .find(|w| w[0] == "--label" && w[1].starts_with(RUN_LABEL))
+                .map(|w| w[1].clone())
+        };
+        assert_eq!(label(&["run", "-d", "busybox"]), None, "no run under way");
+        *backend.run.lock().unwrap() = Some(a.clone());
+        let mine = format!("{RUN_LABEL}={a}");
+        for args in [
+            &["run", "-d", "--name", "x", "busybox"][..],
+            &["create", "busybox"][..],
+            &["network", "create", "--internal", "n"][..],
+        ] {
+            assert_eq!(label(args).as_deref(), Some(mine.as_str()), "{args:?}");
+        }
+        for args in [
+            &["exec", "-i", "x", "sh"][..],
+            &["rm", "-f", "x"][..],
+            &["logs", "x"][..],
+        ] {
+            assert_eq!(label(args), None, "{args:?}");
+        }
+        let sent = backend.prepared(&["network", "create", "--internal", "n"]);
+        assert_eq!(sent.last().map(String::as_str), Some("n"), "{sent:?}");
+    }
+
+    #[test]
+    fn a_teardown_removes_what_docker_lists_under_its_label() {
+        let a = run_id(7, 0, "0badc0de");
+        // The teardown removes the ids Docker listed under the label, and only when it would not
+        // list them falls back to the run's own names.
+        let names = vec![format!("{a}-app"), format!("{a}-probe")];
+        assert_eq!(
+            to_remove(Some("abc123\n\ndef456\n"), &names),
+            ["abc123", "def456"]
+        );
+        assert!(
+            to_remove(Some(""), &names).is_empty(),
+            "nothing of this run's is left"
+        );
+        assert_eq!(to_remove(None, &names), names);
     }
 
     #[test]
