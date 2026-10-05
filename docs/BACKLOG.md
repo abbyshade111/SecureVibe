@@ -241,6 +241,11 @@ another session is not a claim.
     **Claimed on 4 October 2026 by session securevibe-e10**, with H6, at the owner's asking to work through the
     review's open items, in branch `claude/h6-h2`: first, a page whose template holds code no longer counts as read;
     then, if it fits, that template code read as code.
+    **First step done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): a
+    `.svelte` page with any `{...}` outside its `<script>` and `<style>`, or a `.vue` page with `{{ }}` or an `@`, `:`,
+    or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
+    guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
+    eval(code)}` is found rather than only owned up to.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -271,6 +276,12 @@ another session is not a claim.
     it; skip build folders only where an ecosystem puts them.
     **Claimed on 4 October 2026 by session securevibe-e10**, with H2, at the owner's asking to work through the
     review's open items, in branch `claude/h6-h2`, for all three parts of the fix.
+    **Done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): `target`,
+    `vendor`, `dist`, `build`, `out`, and `coverage` are left out only beside the manifest that explains them (for
+    example `vendor/` beside `composer.json` or `go.mod`); anywhere else they are the app's code and are read. Every
+    folder left out is named in `sv check`'s output and as a gap in the report. A report marker is believed only in a
+    folder that holds nothing but the files `sv` writes, so a marker planted beside code leaves the code read, and
+    `sv check` says the marker was refused. Six guards broken in turn, each caught.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
     **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
