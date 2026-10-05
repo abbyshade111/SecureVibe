@@ -8861,6 +8861,51 @@ How it is held: `a_program_the_app_s_repository_names_is_not_run` (`git.rs`) and
 with a control in which plain git runs the planted program. Undoing the override was caught by both, and reading the
 files with git directly again, as before, by the second.
 
+## A credential's fingerprint says nothing the report does not (5 October 2026)
+
+A review names the line it answers for by a fingerprint, a hash of the line, so it still counts when the line moves.
+That hash was of the line as written. The report also shows the credential's rule, its first four characters, and its
+length, so anyone with the report could guess the rest of a short test password, hash each guess, and stop at the one
+that matches: the deep review recovered one in 190 guesses.
+
+The fingerprint is now the hash of the line with every credential the secret rules find masked, exactly as the
+report would show it (`review::masked`, through `secrets::redact_text`). It says nothing more than the report does.
+A line with no credential reads the same masked as written, so its fingerprint, and every review recorded for it, is
+unchanged. `sv review`, which shows the line it is recording, shows it masked too.
+
+A review recorded by an older `sv` for a line holding a credential no longer matches. It is not quietly dropped: when
+an entry matches a line still there by the old hash, and that line holds a credential, the entry is listed as not
+counted, saying it was recorded by an older `sv` in a way that could give the credential back, and to record it
+again with `sv review`. The old fingerprint stays in the user's file until they do; `sv` does not edit it.
+
+Four guards broken in turn, each caught: hashing the line as written (four tests), showing it as written (one),
+dropping the note about older reviews (two), and giving that note for lines with no credential (two).
+
+## A manifest version `sv` knows, a date with nothing after it, and every collapsed list closed (5 October 2026)
+
+Three parts of the deep review's improvement 6.
+
+- **`manifest-version` is checked.** It was read and never looked at, so a file written for a later layout was read
+  as version 1, its fields perhaps meaning something else. A version other than 1 is now refused, saying which
+  version this `sv` reads (`Manifest::parse`, `MANIFEST_VERSION`). A file with no `manifest-version` line is read
+  as version 1, as before.
+- **A date with text after it is refused.** `Day::parse` read the first ten characters and ignored the rest, so a
+  review entry dated `2026-09-27 or so` counted as dated that day. A date is now `YYYY-MM-DD` alone, or the start
+  of a whole RFC 3339 timestamp (`T`, `HH:MM:SS`, a fraction if any, and `Z` or an offset), as the advisory
+  databases write theirs. An entry with a date it cannot read is treated as it was before for no date at all.
+- **Every collapsed list in `report.html` is closed where it was opened.** The list of requirements nobody has
+  placed was closed after the next section, so it held that section too, and with nothing undecided the page had a
+  `</details>` and no `<details>`; the list of requirements that do not apply had the same stray close.
+
+The fourth part of improvement 6, a false alarm lapsing when the lines near it change, rests on the fingerprint,
+which #678 (R3, A2) is changing, and is left to it.
+
+How it is held: `a_manifest_version_this_sv_does_not_know_is_refused` (`crates/sv-manifest/src/lib.rs`),
+`dates_are_read_and_written_the_same_way` with seven new dates that must be refused
+(`crates/sv-check/src/advisories.rs`), and `every_collapsed_list_is_closed_where_it_was_opened`
+(`crates/sv-report/src/html.rs`), over every combination of the three sections. Five guards were undone in turn and
+each was caught.
+
 ## An option is never a value, a bundle replaces only its own, and one answer for a path (5 October 2026)
 
 The deep review's improvement 7, three small guards on what `sv` is told.

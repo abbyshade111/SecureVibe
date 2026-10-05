@@ -787,14 +787,51 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
 }
 
 /// A calendar day, counted from 1 January 1970. Enough date arithmetic for a deadline and no more.
+/// The time of day in an RFC 3339 timestamp, after its `T`: `HH:MM:SS`, a fraction of a second if
+/// any, and `Z` or an offset `+HH:MM`.
+fn is_time(text: &str) -> bool {
+    let b = text.as_bytes();
+    let digits =
+        |r: std::ops::Range<usize>| b.get(r).is_some_and(|d| d.iter().all(u8::is_ascii_digit));
+    if b.len() < 9
+        || !digits(0..2)
+        || b[2] != b':'
+        || !digits(3..5)
+        || b[5] != b':'
+        || !digits(6..8)
+    {
+        return false;
+    }
+    let mut rest = &text[8..];
+    if let Some(fraction) = rest.strip_prefix('.') {
+        let n = fraction.bytes().take_while(u8::is_ascii_digit).count();
+        if n == 0 {
+            return false;
+        }
+        rest = &fraction[n..];
+    }
+    let o = rest.as_bytes();
+    matches!(rest, "Z" | "z")
+        || (o.len() == 6
+            && matches!(o[0], b'+' | b'-')
+            && o[1..3].iter().all(u8::is_ascii_digit)
+            && o[3] == b':'
+            && o[4..6].iter().all(u8::is_ascii_digit))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Day(pub i64);
 
 impl Day {
-    /// The date at the start of an RFC 3339 timestamp, `YYYY-MM-DD`. Anything else is `None`, and
-    /// a finding with no date it can read is judged against no time frame.
+    /// A date, `YYYY-MM-DD`, alone or at the start of an RFC 3339 timestamp. Anything else is
+    /// `None`, and a finding with no date it can read is judged against no time frame. Text after
+    /// the date that is not a whole time of day is refused, where it was once read past: an entry
+    /// dated `2026-09-27 or so` counted as dated that day (the deep review's improvement 6).
     pub fn parse(text: &str) -> Option<Day> {
         let date = text.get(..10)?;
+        if !(text.len() == 10 || text[10..].strip_prefix(['T', 't']).is_some_and(is_time)) {
+            return None;
+        }
         let b = date.as_bytes();
         let digits = |r: std::ops::Range<usize>| b[r].iter().all(u8::is_ascii_digit);
         if b[4] != b'-' || b[7] != b'-' || !digits(0..4) || !digits(5..7) || !digits(8..10) {
@@ -1907,7 +1944,16 @@ mod deadline_tests {
         assert_eq!(day("2024-02-29").show(), "2024-02-29");
         assert_eq!(day("2023-12-31").plus(1).show(), "2024-01-01");
         assert_eq!(day("2024-02-28").plus(2).show(), "2024-03-01");
+        assert_eq!(day("2020-07-15T19:15:00.123456+02:00").show(), "2020-07-15");
         for bad in [
+            // Text after the date that is not a time of day (the deep review's improvement 6).
+            "2026-09-27 or so",
+            "2026-09-27x",
+            "2026-09-27T",
+            "2026-09-27T19:15",
+            "2026-09-27T19:15:00",
+            "2026-09-27T19:15:00Zjunk",
+            "2026-09-27T19:15:00.Z",
             "2023-02-29",
             "2020-13-01",
             "2020/07/15",
