@@ -1263,6 +1263,8 @@ another session is not a claim.
      app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
      Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+     **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
+     with its record as `proposed` (ADR-030).
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
