@@ -529,6 +529,12 @@ another session is not a claim.
     add up. Fix: every status, and a test that the rows sum to the applicable total.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r5-counts-add-up`.
+    **Done the same day** (DESIGN, "The counts add up to what applies"): every table and sentence that counts what
+    applies is made from one list of all seven statuses, so compliance.md's and report.html's tables, their opening
+    sentence, the terminal's summary, and the AI coding tool's summary each add up to the total, with somebody's word
+    in rows of its own that say whose. report.json was already whole and is unchanged. Reproduced first on a copy of
+    `examples/tested-notes` with a finding, a check, and the owner's and the tool's answers (8 + 118 of 130); tested
+    end to end on that app in every format; seven guards broken in turn, each caught.
   - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch

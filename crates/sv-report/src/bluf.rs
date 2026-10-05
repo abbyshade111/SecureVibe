@@ -144,43 +144,32 @@ pub fn headline(report: &Report) -> String {
 /// job now belongs entirely to the headline above, which names the number in a sentence rather than
 /// a row: `a_clean_run_is_never_reported_as_the_app_being_sound` is what holds it there.
 pub fn counted(report: &Report) -> Vec<(String, usize)> {
-    let c = &report.counts;
-    let mut rows = vec![
-        ("something found a problem".to_owned(), c.needs_attention),
-        (
-            "an automated check looked and found nothing wrong".to_owned(),
-            c.checked,
-        ),
-    ];
-    if c.documented > 0 {
-        rows.push((
-            "you answered the question in the security notes".to_owned(),
-            c.documented,
-        ));
-    }
-    if c.attested > 0 {
-        rows.push((
-            "you answered yes about how the app is built".to_owned(),
-            c.attested,
-        ));
-    }
-    if c.by_hand > 0 {
-        rows.push((
-            "you checked by hand and wrote down what you saw".to_owned(),
-            c.by_hand,
-        ));
-    }
-    if c.stated > 0 {
-        rows.push((
-            "your AI coding tool answered yes about how the app is built".to_owned(),
-            c.stated,
-        ));
-    }
-    rows.push((
-        "nothing has looked at these at all".to_owned(),
-        c.not_verified,
-    ));
-    rows
+    // Every status, from `Counts::by_status`, so the rows add up to what applies (deep review R5).
+    // The four that rest on somebody's word are shown only when there are any.
+    report
+        .counts
+        .by_status()
+        .into_iter()
+        .filter(|(status, n)| {
+            *n > 0
+                || matches!(
+                    status,
+                    Status::NeedsAttention | Status::Checked | Status::NotVerified
+                )
+        })
+        .map(|(status, n)| {
+            let label = match status {
+                Status::NeedsAttention => "something found a problem",
+                Status::Checked => "an automated check looked and found nothing wrong",
+                Status::Documented => "you answered the question in the security notes",
+                Status::ByHand => "you checked by hand and wrote down what you saw",
+                Status::Attested => "you answered yes about how the app is built",
+                Status::Stated => "your AI coding tool answered yes about how the app is built",
+                Status::NotVerified => "nothing has looked at these at all",
+            };
+            (label.to_owned(), n)
+        })
+        .collect()
 }
 
 /// How many applicable requirements no check can ever settle, so only a person can.

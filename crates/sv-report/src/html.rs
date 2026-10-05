@@ -53,6 +53,19 @@ details.bulk > summary strong { color: inherit; }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 ";
 
+/// The class a status is shown with, in the tables and the requirement lists alike.
+fn status_class(status: Status) -> &'static str {
+    match status {
+        Status::NeedsAttention => "needs-attention",
+        Status::Checked => "checked",
+        Status::Documented => "documented",
+        Status::Attested => "attested",
+        Status::Stated => "stated",
+        Status::ByHand => "by-hand",
+        Status::NotVerified => "not-verified",
+    }
+}
+
 pub fn page(report: &Report) -> String {
     let c = &report.counts;
     let mut b = String::new();
@@ -148,11 +161,8 @@ pub fn page(report: &Report) -> String {
         }
     }
     b.push_str(&format!(
-        "<p class=\"lede\">{} requirements apply to this app. \
-         <strong>{} have been looked at by something</strong> and <strong>{} have not</strong>.</p>\n",
-        c.applicable,
-        c.needs_attention + c.checked,
-        c.not_verified
+        "<p class=\"lede\">{}</p>\n",
+        crate::lede(c, "<strong>", "</strong>")
     ));
     if c.ai_process > 0 {
         b.push_str(&format!(
@@ -164,8 +174,11 @@ pub fn page(report: &Report) -> String {
     b.push_str(
         "<p>Nothing in this report says a requirement passed, because nothing here can establish \
          that. <em>Checked</em> means an automated check looked at it and found nothing wrong, \
-         which is worth having and is not the same as the requirement being met. Everything else \
-         that applies is <em>not verified</em>: nothing has produced evidence either way.</p>\n",
+         which is worth having and is not the same as the requirement being met. One marked as \
+         answered in the security notes, checked by hand, or answered yes rests on your word or \
+         your AI coding tool's, which is shown as exactly that and never as checked. Everything \
+         else that applies is <em>not verified</em>: nothing has produced evidence either \
+         way.</p>\n",
     );
     if c.not_assessed > 0 {
         b.push_str(&format!(
@@ -177,27 +190,15 @@ pub fn page(report: &Report) -> String {
     }
 
     b.push_str("<table>\n<tr><th>&nbsp;</th><th class=\"n\">count</th></tr>\n");
+    // Every status, so the rows add up to what applies: see `Counts::by_status`.
+    for (status, n) in c.by_status() {
+        b.push_str(&format!(
+            "<tr><td class=\"{}\">{}</td><td class=\"n\">{n}</td></tr>\n",
+            status_class(status),
+            escape(status.applies_row())
+        ));
+    }
     for (label, n, class) in [
-        (
-            "Applies, needs attention",
-            c.needs_attention,
-            "needs-attention",
-        ),
-        (
-            "Applies, checked by an automated check",
-            c.checked,
-            "checked",
-        ),
-        (
-            "Applies, you answered it in the security notes",
-            c.documented,
-            "documented",
-        ),
-        (
-            "Applies, not verified by anything",
-            c.not_verified,
-            "not-verified",
-        ),
         ("Does not apply", c.not_applicable, ""),
         (
             "Not assessed — nobody has answered",
@@ -297,15 +298,7 @@ pub fn page(report: &Report) -> String {
             "<table>\n<tr><th>requirement</th><th>status</th><th>what it asks for</th></tr>\n",
         );
         for line in group.lines {
-            let class = match line.status {
-                Status::NeedsAttention => "needs-attention",
-                Status::Checked => "checked",
-                Status::Documented => "documented",
-                Status::Attested => "attested",
-                Status::Stated => "stated",
-                Status::ByHand => "by-hand",
-                Status::NotVerified => "not-verified",
-            };
+            let class = status_class(line.status);
             let detail = match line.status {
                 Status::NeedsAttention => format!(" ({})", line.findings.join(", ")),
                 Status::Checked => format!(
