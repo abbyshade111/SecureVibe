@@ -16,24 +16,42 @@ use sv_run::RunPlan;
 use sv_scan::{Evidence, Signatures};
 
 mod bundle;
+mod exit;
 mod mcp;
 mod report_lock;
 mod review;
 
-fn main() -> Result<()> {
+/// Runs the command, and ends with its status: 3 for any error `sv` could not get past, whichever
+/// command met it, so a pipeline can tell "`sv` did not run" from anything a run found (DESIGN, "Exit
+/// codes for CI"). The error is printed as it always was, `Error:` and its causes.
+fn main() {
+    match run() {
+        Ok(exit::CLEAN) => {}
+        Ok(code) => exit::exit_with(code),
+        Err(error) => {
+            use std::io::Write;
+            let _ = std::io::stdout().flush();
+            eprintln!("Error: {error:?}");
+            exit::exit_with(exit::FAILED)
+        }
+    }
+}
+
+/// The command named on the command line, and the status it ends with when it finished.
+fn run() -> Result<i32> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let Some(first) = args.first().map(String::as_str) else {
         print_help();
-        return Ok(());
+        return Ok(exit::CLEAN);
     };
     match first {
         "--help" | "-h" | "help" => {
             print_help();
-            return Ok(());
+            return Ok(exit::CLEAN);
         }
         "--version" | "-V" | "version" => {
             println!("{}", version_line());
-            return Ok(());
+            return Ok(exit::CLEAN);
         }
         _ => {}
     }
@@ -44,29 +62,30 @@ fn main() -> Result<()> {
     let rest = &args[1..];
     if rest.iter().any(|a| a == "--help" || a == "-h") {
         print!("USAGE:\n{}", command.help);
-        return Ok(());
+        return Ok(exit::CLEAN);
     }
     check_args(command, rest)?;
+    let finished = |done: Result<()>| done.map(|()| exit::CLEAN);
     match command.name {
         "init" => {
             println!("{}", spec::STARTER_MANIFEST);
             println!("{}", spec::INSTRUCTIONS);
-            Ok(())
+            Ok(exit::CLEAN)
         }
-        "scope" => cmd_scope(rest.first().map(PathBuf::from)),
-        "notes" => cmd_notes(rest.first().map(PathBuf::from)),
-        "questions" => cmd_questions(rest.first().map(PathBuf::from)),
-        "rules" => cmd_rules(rest),
-        "prompts" => cmd_prompts(rest),
-        "probe" => cmd_probe(rest),
-        "run" => cmd_run(rest),
-        "check" => cmd_check(rest.first().map(PathBuf::from)),
-        "sbom" => cmd_sbom(rest.first().map(PathBuf::from)),
+        "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
+        "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
+        "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
+        "rules" => finished(cmd_rules(rest)),
+        "prompts" => finished(cmd_prompts(rest)),
+        "probe" => finished(cmd_probe(rest)),
+        "run" => finished(cmd_run(rest)),
+        "check" => cmd_check(rest),
+        "sbom" => finished(cmd_sbom(rest.first().map(PathBuf::from))),
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
-        "review" => review::cmd_review(rest.first().map(PathBuf::from)),
-        "bundle" => cmd_bundle(rest),
-        "mcp" => mcp::cmd_mcp(rest),
+        "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
+        "bundle" => finished(cmd_bundle(rest)),
+        "mcp" => finished(mcp::cmd_mcp(rest)),
         other => unreachable!("{other} is in COMMANDS and has no arm"),
     }
 }
@@ -146,8 +165,8 @@ const COMMANDS: &[Command] = &[
         name: "check",
         word: Some("PATH"),
         flags: &[],
-        valued: &[],
-        help: "  sv check [PATH]    credentials left in the code, and how it is set up\n",
+        valued: &["--fail-on"],
+        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, and how it is set up\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed), or any (both),\n                     several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know)\n",
     },
     Command {
         name: "sbom",
@@ -161,14 +180,14 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &[],
         valued: &["--advisories"],
-        help: "  sv audit [PATH] --advisories DIR\n                     match what the app ships against a local OSV database\n",
+        help: "  sv audit [PATH] --advisories DIR\n                     match what the app ships against a local OSV database\n                     exit status: 0 everything compared and nothing matched; 1 a known\n                     vulnerability; 2 the comparison did not cover the whole app (no\n                     database, an ecosystem it lacks, a list of packages not complete);\n                     3 sv itself failed (an unreadable database or manifest, no such folder)\n",
     },
     Command {
         name: "report",
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
-        valued: &["--out", "--advisories"],
-        help: "  sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR]\n                     write the reports: what applies, what was found, what nobody has answered\n",
+        valued: &["--out", "--advisories", "--fail-on"],
+        help: "  sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no securevibe.toml, a bad manifest, no such folder)\n",
     },
     Command {
         name: "review",
@@ -261,6 +280,9 @@ fn print_help() {
         text.push_str(command.help);
     }
     text.push_str("  sv --version       the version, and the commit it was built from\n");
+    text.push_str(
+        "\nEXIT STATUS:\n  0 finished; 1 needs attention (sv audit, or --fail-on); 2 not assessed (a check\n  could not run); 3 sv itself failed. `sv COMMAND --help` says what each means for it.\n",
+    );
     println!("{text}");
 }
 
@@ -1572,8 +1594,14 @@ fn cmd_run(args: &[String]) -> Result<()> {
 }
 
 /// Looks for credentials left in the code.
-fn cmd_check(path: Option<PathBuf>) -> Result<()> {
-    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+/// `sv check`, ending with its exit status (`exit`): 2 when a check could not run, 1 with
+/// `--fail-on attention` and a finding at its severity, and 0 otherwise.
+fn cmd_check(args: &[String]) -> Result<i32> {
+    let (fail_on, rest) = exit::FailOn::take(args)?;
+    let app_dir = rest
+        .first()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("."));
     if !app_dir.is_dir() {
         bail!("{} is not a folder", app_dir.display());
     }
@@ -1585,6 +1613,7 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
     let config = check_dir_in(&listing, &bill_of_materials);
     let ast_rules = ast::AstRules::load(&ast_rules_path())?;
     let code = ast::scan_listing(&ast_rules, &listing);
+    let gaps = exit::Gaps::of_files(&listing, &scan, &code);
 
     println!(
         "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.\n\
@@ -1797,13 +1826,17 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
         }
     }
 
+    let (status, reasons) = gaps.status(fail_on, scan.findings.iter().map(|f| f.severity));
     if scan.findings.is_empty() {
         println!(
             "\nNo credentials found in what was read. That is not the same as none being there: these \n\
              rules know a list of well-known formats and one heuristic, and a credential in a shape \n\
              nobody listed would not be found."
         );
-        return Ok(());
+        exit::explain(status, &reasons)
+            .iter()
+            .for_each(|l| println!("{l}"));
+        return Ok(status);
     }
 
     println!(
@@ -1835,7 +1868,10 @@ fn cmd_check(path: Option<PathBuf>) -> Result<()> {
             println!("     evidence about: {}", f.requirement_ids.join(", "));
         }
     }
-    Ok(())
+    exit::explain(status, &reasons)
+        .iter()
+        .for_each(|l| println!("{l}"));
+    Ok(status)
 }
 
 /// Writes the list of what the app ships.
@@ -1921,7 +1957,8 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
 /// points at an address by name. Fetching the database is the owner's step, done
 /// deliberately: the list of packages an app depends on is business-confidential, a fetch is a dependency
 /// on somebody else's uptime, and `sv` has to work where there is no network at all.
-fn cmd_audit(args: &[String]) -> Result<()> {
+/// Ends with its exit status: 0, 1 or 2 as `exit` says for audit; an error is 3, from `main`.
+fn cmd_audit(args: &[String]) -> Result<i32> {
     let mut app_dir = PathBuf::from(".");
     let mut advisories_dir: Option<PathBuf> =
         std::env::var("SV_ADVISORY_DIR").ok().map(PathBuf::from);
@@ -1982,7 +2019,7 @@ fn cmd_audit(args: &[String]) -> Result<()> {
                 names.join(", ")
             }
         );
-        exit_after_audit(AUDIT_NOT_ASSESSED);
+        return Ok(exit::NOT_ASSESSED);
     };
 
     let database = advisories::load_database(&dir)
@@ -1993,7 +2030,7 @@ fn cmd_audit(args: &[String]) -> Result<()> {
              An empty database and a healthy app look identical from here, and only one of them is good news.",
             dir.display()
         );
-        exit_after_audit(AUDIT_NOT_ASSESSED);
+        return Ok(exit::NOT_ASSESSED);
     }
 
     // The time frames are V15.1.1's document, as numbers. Without them every known vulnerability
@@ -2085,7 +2122,14 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         }
         let theirs = not_the_app_audit(&elsewhere, &database, &folders, time_frames.as_ref());
         let whole = !result.verified.is_empty() && sbom.is_complete();
-        exit_after_audit(worse(if whole { 0 } else { AUDIT_NOT_ASSESSED }, theirs));
+        return Ok(exit::worse(
+            if whole {
+                exit::CLEAN
+            } else {
+                exit::NOT_ASSESSED
+            },
+            theirs,
+        ));
     }
     println!(
         "\n{} known vulnerabilit{}:",
@@ -2148,34 +2192,7 @@ fn cmd_audit(args: &[String]) -> Result<()> {
         on_time.iter().for_each(|f| print(f));
     }
     not_the_app_audit(&elsewhere, &database, &folders, time_frames.as_ref());
-    exit_after_audit(AUDIT_FOUND);
-}
-
-/// `sv audit`'s exit status when the app has a known vulnerability. An error `sv` could not get past
-/// also exits with 1; either way, something needs a person.
-const AUDIT_FOUND: i32 = 1;
-/// `sv audit`'s exit status when the comparison did not cover the whole app: no database, an empty
-/// one, an ecosystem it holds nothing about, a version it could not compare, or a list of packages
-/// `sv` could not complete. Never 0, which is kept for "compared everything, and nothing matched".
-const AUDIT_NOT_ASSESSED: i32 = 2;
-
-/// Ends `sv audit` with its status, once what it printed is out.
-fn exit_after_audit(code: i32) -> ! {
-    use std::io::Write;
-    let _ = std::io::stdout().flush();
-    std::process::exit(code)
-}
-
-/// Of two `sv audit` statuses, the one that says more is wrong: a known vulnerability, then a
-/// comparison that did not cover everything, then clean.
-fn worse(a: i32, b: i32) -> i32 {
-    if a == AUDIT_FOUND || b == AUDIT_FOUND {
-        AUDIT_FOUND
-    } else if a == AUDIT_NOT_ASSESSED || b == AUDIT_NOT_ASSESSED {
-        AUDIT_NOT_ASSESSED
-    } else {
-        0
-    }
+    Ok(exit::ATTENTION)
 }
 
 /// What `sv audit` found in folders securevibe.toml says are not the app, listed after the app's own,
@@ -2207,18 +2224,18 @@ fn not_the_app_audit(
                 .collect::<Vec<_>>()
                 .join(", ")
         );
-        status = AUDIT_NOT_ASSESSED;
+        status = exit::NOT_ASSESSED;
     }
     if !result.uncomparable.is_empty() {
         println!(
             "  {} package version(s) could not be compared with any range.",
             result.uncomparable.len()
         );
-        status = AUDIT_NOT_ASSESSED;
+        status = exit::NOT_ASSESSED;
     }
     if !elsewhere.is_complete() {
         println!("  The list of packages there is incomplete; `sv sbom` says what is missing.");
-        status = AUDIT_NOT_ASSESSED;
+        status = exit::NOT_ASSESSED;
     }
     if result.findings.is_empty() {
         // Only when nothing above qualifies it: "none matches" beside "not compared" reads as clean.
@@ -2248,7 +2265,7 @@ fn not_the_app_audit(
     for f in &result.findings {
         println!("  [{}] {}", f.severity.name(), f.title);
     }
-    AUDIT_FOUND
+    exit::ATTENTION
 }
 
 /// `sv bundle`: the app, its report and the record of what was checked, in one zip (see `bundle.rs`).
@@ -4075,6 +4092,9 @@ fn assemble_report_saying(
         threats: Some((threat_rules, &ctx)),
     });
     report.examined = examined;
+    let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);
+    report.could_not_run = file_gaps.could_not_run;
+    report.partly_read = file_gaps.partly;
     report.run_record = Some(run_record);
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
@@ -4150,7 +4170,10 @@ fn parse_report_args(args: &[String], out_wants: &str) -> Result<ReportArgs> {
     Ok(parsed)
 }
 
-fn cmd_report(args: &[String]) -> Result<()> {
+/// `sv report`, ending with its exit status (`exit`, and DESIGN, "Exit codes for CI").
+fn cmd_report(args: &[String]) -> Result<i32> {
+    let (fail_on, args) = exit::FailOn::take(args)?;
+    let args = &args[..];
     let ReportArgs {
         app_dir,
         out,
@@ -4159,6 +4182,7 @@ fn cmd_report(args: &[String]) -> Result<()> {
         run_tools,
         advisories_dir,
     } = parse_report_args(args, "a directory")?;
+    let advisories_given = advisories_dir.is_some();
     let out_dir = out.unwrap_or_else(|| app_dir.join("securevibe-report"));
     // Taken before the run, and held until its report is written, so a second run at the same time
     // is refused at once rather than replacing this one's report when it finishes (BACKLOG, "What the
@@ -4309,7 +4333,57 @@ fn cmd_report(args: &[String]) -> Result<()> {
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
-    Ok(())
+    let gaps = report_gaps(&report, run_tools, advisories_given);
+    let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
+    exit::explain(status, &reasons)
+        .iter()
+        .for_each(|l| println!("{l}"));
+    Ok(status)
+}
+
+/// What a report could not do, for its exit status. Beyond the files the checks could not read:
+/// with `--run`, an app that could not be started, which always counts, because every check of the
+/// running app was asked for and none ran; with `--tools`, a tool that did not run or ran only in
+/// part, and with `--advisories`, a comparison that did not cover the whole app (`sv audit`'s 2),
+/// which count only with `--fail-on not-assessed`, being partial rather than absent.
+fn report_gaps(report: &sv_report::Report, run_tools: bool, advisories: bool) -> exit::Gaps {
+    let mut gaps = exit::Gaps {
+        could_not_run: report.could_not_run.clone(),
+        partly: report.partly_read.clone(),
+    };
+    if let Some(sv_report::RunStatus::CouldNotStart { why }) = &report.run_status {
+        gaps.could_not_run.push(format!(
+            "--run was given and the app could not be started: {why}"
+        ));
+    }
+    let tools: Vec<String> = if run_tools {
+        sv_check::adapters::Adapters::load(&adapters_path())
+            .map(|a| a.all().iter().map(|t| format!("{}.", t.id)).collect())
+            .unwrap_or_default()
+    } else {
+        Vec::new()
+    };
+    for examined in &report.examined {
+        let asked =
+            (advisories && examined.rules == "advisory.") || tools.contains(&examined.rules);
+        let short = matches!(
+            examined.state,
+            sv_report::ExaminedState::Partly | sv_report::ExaminedState::NotRun
+        );
+        if asked && short {
+            gaps.partly.push(format!(
+                "{} {}: {}",
+                examined.rules.trim_end_matches('.'),
+                if examined.state == sv_report::ExaminedState::NotRun {
+                    "did not run"
+                } else {
+                    "covered only part of the app"
+                },
+                examined.why.as_deref().unwrap_or("no reason was recorded")
+            ));
+        }
+    }
+    gaps
 }
 
 /// The terminal's account of rules that met a language they were not taught.

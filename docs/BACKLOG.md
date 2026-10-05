@@ -154,6 +154,12 @@ another session is not a claim.
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
     two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
     what this run made.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s10`.
+    **Done the same day** (DESIGN, "Each run removes only its own"; ADR-019, Later): a run's name ends in four
+    random bytes, everything it creates carries the label `org.securevibe.run` with that name, and its teardown
+    removes what Docker lists under the label, by id, falling back to the run's own names only when Docker will not
+    list them. Four guards broken in turn, each caught.
   - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
     in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
     an isolated world, storage read through DevTools' storage domains.
@@ -265,6 +271,15 @@ another session is not a claim.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h5-next-node-sinks`.
+    **Also claimed on 5 October 2026 by session securevibe-e9**, in branch `claude/securevibe-e9-h5`: the earlier
+    claim reached `main` after this session had checked the backlog, so both took it. securevibe-e9's was built and
+    tested first, and the owner chose it on 5 October 2026; the cato-pipeline session's branch had nothing pushed.
+    **Done the same day** (DESIGN, "Redirects and file calls the way Next.js and modern Node write them"): every
+    form the review named is found, Next.js's bare `redirect` and `NextResponse.redirect`, the browser's
+    `location` assignments and calls, `fs.promises.readFile`, and the bare `fs/promises` calls; a same-site path,
+    `new URL('/path', request.url)`, and an app's own function named `download` are not.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
@@ -336,6 +351,8 @@ another session is not a claim.
     that includes `docker exec`'s own time.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h17`.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
@@ -355,6 +372,8 @@ another session is not a claim.
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
     **`Pipfile.lock` done with H9 on 4 October 2026**: its packages with no version are named. pnpm v9 and Yarn
     are still open.
+    **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -366,6 +385,8 @@ another session is not a claim.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
+    **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
@@ -414,6 +435,20 @@ another session is not a claim.
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r6-exit-codes`.
+    **The owner's decision, 4 October 2026:** measured first, the convention as written would have failed every
+    pipeline (every app in `examples/` and from `sv init` exited 1 or 2 on a plain static run: the low security.txt
+    finding, checks needing a Dockerfile or a git repository, and 121 to 230 requirements "not verified by
+    anything"). So: by default `sv check` and `sv report` exit 0, and 2 only when a check could not run or no file
+    was read; `--fail-on attention[:SEVERITY]`, `not-assessed`, or `any` opts in to 1 and to a wider 2, never for
+    "not verified by anything"; and any run where `sv` itself fails exits 3, everywhere, `sv audit`'s errors moving
+    from 1 to 3 (ADR-029).
+    **Done the same day** (DESIGN, "Exit codes for CI"; ADR-029): `crates/sv-cli/src/exit.rs` holds the codes, the
+    exact list of what is a check that could not run, and `--fail-on`; `main` ends every error with 3; `sv audit`
+    shares the constants. Each command's `--help`, `sv --help`, the README, and GETTING-STARTED say what each code
+    means. Tested through the binary (`tests/exit_codes.rs`): 0, 1, 2, and 3 reached on purpose for `sv check`,
+    `sv report`, and `sv audit`. Seven guards broken in turn, each caught by one to seven tests. On the examples,
+    every default run exits 0; on five real apps with a manifest, four exit 0 and one exits 2 for a web page whose
+    script could not be read.
   - **R7. High, Reproduced.** `sv notes` and the MCP notes tool delete the owner's own text, though the tool says it
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch

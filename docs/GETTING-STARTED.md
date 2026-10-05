@@ -188,6 +188,14 @@ Those checks need `sv report --run` at a terminal, with SecureVibe installed dir
 Docker, because starting your app means starting containers of its own. That install is not yet
 something this guide can make easy.
 
+If you later run SecureVibe in an automatic check (CI) whenever the code changes, the number it ends with
+says what happened. 0: it finished. 2: some check could not run, such as a file it could not read or a
+language it does not read, so that run left part of the app unchecked. 3: SecureVibe itself failed (no
+`securevibe.toml`, or one it cannot read), so there is no result at all. 1 comes only from `sv audit` (a
+known vulnerability) or when you ask for it: `sv check . --fail-on attention:high` stops the check when
+anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
+exactly what each number covers.
+
 ## Known problems while this is new
 
 Found in the first real build. Each is in `docs/BACKLOG.md`. The two listed here before, a rate limiter

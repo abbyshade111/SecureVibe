@@ -36,8 +36,11 @@ fn report_with(name: &str, run: bool, manifest_extra: &str) -> (String, Value) {
         .args(&args)
         .output()
         .expect("sv runs");
-    assert!(
-        done.status.success(),
+    // With --run and an app that cannot be started, 2: the checks of the running app were asked for and
+    // none ran (DESIGN, "Exit codes for CI"). Without --run, 0.
+    assert_eq!(
+        done.status.code(),
+        Some(if run { 2 } else { 0 }),
         "{}",
         String::from_utf8_lossy(&done.stderr)
     );

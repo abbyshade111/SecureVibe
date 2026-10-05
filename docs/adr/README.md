@@ -72,6 +72,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-026](ADR-026.md) | The owner's word counts only when `sv review` recorded it (changes part of ADR-022 and ADR-023) |
 | [ADR-027](ADR-027.md) | `sv probe` asks only public addresses, and only the ones it checked |
 | [ADR-028](ADR-028.md) | Decide before you build: the design comes first, and nothing is credited for it |
+| [ADR-029](ADR-029.md) | Exit codes: 2 only when a check could not run, 1 only when asked, 3 when `sv` failed |
 
 ## Where v1's records disagree with what v1 built
 
