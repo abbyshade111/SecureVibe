@@ -23,6 +23,7 @@ fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: rule_id.into(),
         title: "something".into(),

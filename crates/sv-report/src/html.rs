@@ -254,7 +254,9 @@ pub fn page(report: &Report) -> String {
         if !report.reviews_not_counted.is_empty() {
             b.push_str(
                 "<p>These entries in <code>[[finding-review]]</code> do not count, so the findings \
-                 they name still do. To record one as your decision, run <code>sv review</code> in \
+                 they name still do. Each says why. One whose finding was not looked for this time, \
+                 or whose rule this version of <code>sv</code> does not have, is not a sign the \
+                 finding was fixed. To record one as your decision, run <code>sv review</code> in \
                  your own terminal.</p>\n<ul>\n",
             );
             for line in &report.reviews_not_counted {

@@ -529,6 +529,14 @@ another session is not a claim.
     matters. Fix: an occurrence index or the enclosing function; one entry matches one finding.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r3-a2-review-matching`.
+    **Done the same day**, with R3 (DESIGN, "A review names one finding, and says whether its rule looked"; ADR-023
+    and ADR-026, "Later, 5 October 2026"): today's fingerprint (`v2-...`) also reads the lines above that set a name
+    the flagged line uses, and which of the identical lines it is, so identical lines each need their own entry and
+    changing `sql = "...?"` to `sql = "..." + user` ends the false alarm. An entry in the earlier form still matches
+    the one finding it did; on identical lines it matches none and says so. Seals still verify (nothing rewrites a
+    sealed entry); `sv review` writes today's fingerprint when it records one in the earlier form. Tested with
+    identical lines, changed and unchanged lines above, an earlier-form entry sealed and unsealed, and family-hub's
+    25 entries on a copy (16 match as before, 2 on identical lines say so). Guards broken in turn: each caught.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -562,6 +570,13 @@ another session is not a claim.
     unknown to this version, gone.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r3-a2-review-matching`.
+    **Done the same day**, with A2 (same DESIGN section): an entry that matches nothing says "not looked for this
+    time" with why (needs `--run` or `--tools`, the file did not parse, no parser, not taught), "unknown to this
+    version", or, only when its rule read its file, that it is gone; the first two say they are not a sign of a fix,
+    in the report and over MCP. Decided from `examined`, which gained `tests.`, `design.`, and `hand.`. Each message
+    reached on purpose end to end; family-hub's 7 `tests.` entries now say "not looked for this time". Thirteen
+    guards (both items) broken in turn, each caught by one to three tests. Merged with R11's rule, which decides
+    duplicates and conflicts; neither is ever told its finding is gone.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.
@@ -571,6 +586,9 @@ another session is not a claim.
     shows it, so it tells nothing the report does not; a line with no credential keeps the fingerprint it had. A
     review recorded by an older `sv` for a credential line is said to be one, and to be recorded again. See DESIGN,
     "A credential's fingerprint says nothing the report does not".
+    **Merged with A2 the same day**: today's fingerprint masks the flagged line and every line above it that it
+    reads, and `earlier_fingerprints` gives only the masked earlier form, never the hash an `sv` before R4 gave a
+    credential's line (ADR-023, Later). Tested in `report.json`, the SARIF, both reports, and the MCP reply.
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
@@ -644,6 +662,10 @@ another session is not a claim.
     `claude/securevibe-e9-r11`.
     **Done the same day** (DESIGN, "One entry answers for one finding"; ADR-023, Later): a repeated answer does not
     count again, and two that disagree leave the finding standing until one is removed.
+    **The owner's decision, 5 October 2026**, merging this with A2: one case changed. An entry whose fingerprint is
+    in the earlier form and matches findings on several identical lines answers for none of them and says so,
+    rather than taking the first in order; everything else in R11 stands, and its test passes unchanged (ADR-023,
+    "Later, 5 October 2026: an earlier fingerprint on identical lines answers for none of them").
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -1237,8 +1259,17 @@ another session is not a claim.
       decisions above stand, and the item is open for whoever takes it up. Done in that branch first, and merged: the
       probes' request bodies are bytes, and each request reaches the probe container as input rather than as an
       argument (DESIGN, "Requests reach the app as input"), so an archive can now be sent as it is.
-      **V5.2.3 (compressed bombs) Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
-      `claude/v523-archive-limits`.
+      **V5.2.3 (compressed bombs) claimed on 5 October 2026 by the cato-pipeline session and released the same day, not
+      built**: its helper agent was stopped by a safety classifier while working on the archives that unpack past the
+      owner's limit, which is the heart of the check, so this session left it rather than work around that. The
+      owner's decisions above stand, and the item is open. Two points from the reading, for whoever takes it: a single
+      yes/no "unpacks archives" could make a finding of an app that unpacks zip but not gzip (a list such as
+      `unpacks-archives = ["zip", "gzip"]` would not), and each archive must itself stay under `max-bytes`, or a
+      refusal cannot be told from a size refusal. Where the rest goes: `UploadSection` (`crates/sv-manifest/src/lib.rs`)
+      and the `upload` template line (`spec.rs`, which `securevibe_spec` sends); the check in
+      `crates/sv-check/src/signed_in/uploads.rs`, its rule in `rules.rs` and `RESTS_ON_A_REFUSAL`; the fake app's upload
+      handler reads text today; and a place just before step 10 of `run_checks`, with a fresh sign-in, fits "takes no
+      other check with it" better than step 6b.
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
@@ -1497,6 +1528,16 @@ another session is not a claim.
   5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
      which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
      design-time prompts above, made a check; and a per-app record of decisions like v1's.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word, in branch
+     `claude/securevibe-e2-planned-decisions`. **The owner's decisions, 5 October 2026:** a fourth design answer,
+     `planned`, with an optional `where` naming the file it will be in, which credits nothing; and `sv` does not read
+     `design-decisions.md` in this item (a separate item below).
+     **Done the same day** (ADR-022 and ADR-028, "Later, 5 October 2026"; DESIGN, "`planned`: decisions held to the
+     code"). `planned` credits nothing. With no code yet (no source file and no dependency manifest read) it is listed
+     as planned, not built yet; with code, a named file that is not there is a low finding,
+     `design.planned-never-built`, one that is there asks for yes or no, and one with no `where` is reported as one
+     `sv` cannot follow. Nine guards broken in turn, each caught. Not done: the design-time prompts do not ask for
+     `planned` (the third trial tested their present wording), and v1's per-app record of decisions is item 9.
   6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
      form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
      tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
@@ -1521,6 +1562,12 @@ another session is not a claim.
      not to generalize.
   8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
      checklist" above, which the owner approved on 4 October and nobody has claimed.
+  9. **Decisions in `design-decisions.md`, held to the code.** Split from item 5 by the owner on 5 October 2026. Four
+     design-time prompts write decisions there (who to bring in, safe defaults, what we do if, which rules apply) and
+     a fifth reads them before a change, and `sv` reads none of it. A per-app record like v1's eight, read by `sv`, could say which
+     decisions are written down and, where a decision names something the code can show (a debug switch off, a page
+     removed), whether the code agrees. What the file's sections must look like for that, and which decisions a check
+     can speak to at all, is for whoever builds it to propose to the owner first.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
   **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
@@ -1562,6 +1609,10 @@ another session is not a claim.
      beyond what the server itself says. Its transcript (`--output-format stream-json`) records every tool call. About
      four builds, to prove the setup before spending more. Other tools with MCP (Codex CLI, Gemini CLI, Cursor's agent)
      where the owner has them.
+     **Claimed on 5 October 2026 by session paper-facts**, with item 4, at the owner's word, in branch
+     `claude/loop-pilot`. Builder: the Claude Code program the desktop app carries (2.1.286), headless, with
+     `--restricted`, `--strict-mcp-config`, `--no-session-persistence`, and `--max-budget-usd` on each build; the shell
+     allowed only for `python3`, which is not confined to the build's folder, and said so with the results.
   3. **Which part of the loop does the work.** Arms: the server's instructions with no `sv`; `sv check` with no
      instructions; the plan only; the whole loop.
   4. **The loop's own measures,** from the transcripts: whether the brief and plan came before any code, how many
