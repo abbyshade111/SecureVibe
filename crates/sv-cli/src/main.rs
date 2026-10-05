@@ -3217,6 +3217,62 @@ pub(crate) const REPORT_STAGES: [&str; 7] = [
 ];
 
 /// `assemble_report`, calling `starting` with each stage's number (from 0) and name as it begins.
+/// What the design answers given as `planned` come to, when they are not a finding: each credits
+/// nothing, and the report says which are plans, which are due an answer, and which `sv` cannot
+/// follow (`sv_check::design`, "`planned`").
+fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
+    use sv_check::design::PlannedState;
+    let of = |state: PlannedState| -> Vec<String> {
+        planned
+            .iter()
+            .filter(|p| p.state == state)
+            .map(|p| match &p.location {
+                Some(path) => format!("{} (in `{path}`)", p.id),
+                None => p.id.clone(),
+            })
+            .collect()
+    };
+    let decisions = |n: usize| format!("{n} design decision{}", if n == 1 { "" } else { "s" });
+    let mut gaps = Vec::new();
+    let not_yet = of(PlannedState::NoCodeYet);
+    if !not_yet.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!("{} planned, not built yet", decisions(not_yet.len())),
+            why: format!(
+                "securevibe.toml answers these as planned, and the app has no code yet, so there is \
+                 nothing to check: {}. A plan counts for nothing until it is built; once the code \
+                 exists, a planned file that is not there is reported as decided, never built.",
+                not_yet.join(", ")
+            ),
+        });
+    }
+    let due = of(PlannedState::FileIsThere);
+    if !due.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!("{} planned, and the file is there now", decisions(due.len())),
+            why: format!(
+                "securevibe.toml still answers these as planned, and the file each names is in the \
+                 app now: {}. Look at it, then change the answer to yes if it does what was decided, \
+                 or to no if it does not. Until then it counts for nothing.",
+                due.join(", ")
+            ),
+        });
+    }
+    let blind = of(PlannedState::NothingToLookFor);
+    if !blind.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!("{} planned, with no file named", decisions(blind.len())),
+            why: format!(
+                "securevibe.toml answers these as planned without a `where`, and the app has code \
+                 now, so `sv` cannot tell whether they were built: {}. Change each answer to yes, \
+                 naming the file that does it, or to no.",
+                blind.join(", ")
+            ),
+        });
+    }
+    gaps
+}
+
 fn assemble_report_saying(
     app_dir: &Path,
     options: &ReportOptions,
@@ -4190,8 +4246,12 @@ fn assemble_report_saying(
         &design_answers,
         &|id| buckets.applicable.iter().any(|a| a == id),
         &|path| app_dir.join(path).exists(),
+        // The same test the technology answers use for a scan that read nothing: no source file and
+        // no dependency manifest is an app not written yet, which is when a decision is a plan.
+        scan_report.files_read > 0 || !scan_report.declared.is_empty(),
     );
     findings.extend(design.findings.iter().cloned());
+    gaps.extend(planned_gaps(&design.planned));
     if !design.unreadable.is_empty() {
         gaps.push(sv_report::Gap {
             what: format!(
@@ -4204,7 +4264,7 @@ fn assemble_report_saying(
                 }
             ),
             why: format!(
-                "securevibe.toml answers {} with a word that is not yes, no, or not-sure, or \
+                "securevibe.toml answers {} with a word that is not yes, no, not-sure, or planned, or \
                  says it was answered `by` somebody other than \"owner\" or \"ai-tool\", so \
                  nothing could be made of it: {}.",
                 if design.unreadable.len() == 1 {

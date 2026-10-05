@@ -3089,6 +3089,36 @@ C7.4, and an app with a document store would have lost C7.4.1. Each of the three
 conditions. Breaking that, dropping C12.1.4's rule, reading `web-search` as `rag`, and not reading the
 answer at all are each caught.
 
+### `planned`: decisions held to the code (5 October 2026)
+
+A brief written before the code (ADR-028) could answer a design question only as `yes`, which claims code that does not
+exist, or `not-sure`, which loses the decision. So a fourth answer, `planned`, with `where` naming the file the work
+will be in. The owner chose it over reading `design-decisions.md`, which is a backlog item of its own.
+
+`planned` credits nothing, whoever gives it, and is never evidence: a plan is not the app. What it is worth depends on
+whether the app has code, which `sv` decides the way the technology answers already do: the scan read a source file or
+a dependency manifest. Reading neither is an app not written yet.
+
+| The app | `where` | What the report says |
+|---|---|---|
+| no code yet | anything | planned, not built yet (a gap: nothing to check) |
+| has code | names a file that is not there | **decided, never built**: `design.planned-never-built`, low |
+| has code | names a file that is there | planned, and the file is there now: change the answer to yes or no |
+| has code | none | planned, with no file named: `sv` cannot tell whether it was built |
+
+The finding is low, like the stale pointer it resembles, and of medium confidence rather than high: the file named is
+certainly missing, but the work may have been built in another one, which the fix says. A planned file that is there
+is not credited, because a file existing is not the decision held to; the owner or the tool looks and changes the
+answer, and `yes` then goes through the tiers as before (ADR-022).
+
+Tested at both ends: `sv-check`'s unit tests take each row of the table for the owner, the tool, and an answer that
+names nobody, and `crates/sv-cli/tests/planned_decisions.rs` runs `sv report` on an app with no code, one with a
+source file, and one with only a dependency list. Nine guards broken in turn, each caught: the code test forced true,
+forced false, and blind to dependency lists; the no-code row removed; the finding not raised; the two
+nothing-credited rows swapped; `planned` read as unreadable; the report's lines dropped; and the finding raised as
+medium. The design-time prompts do not yet ask for `planned`: the third trial tested their present wording, and
+changing it would leave the results describing words no longer there.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

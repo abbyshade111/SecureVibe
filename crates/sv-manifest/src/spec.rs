@@ -228,7 +228,7 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # context-words = ["myapp", "myorganization"]
 
 # How the app is built. These are the questions no tool can settle, so a person has to answer them.
-# Each one is "yes", "no", or "not-sure", `where` names the file that does it, and `by` says who
+# Each one is "yes", "no", "not-sure", or "planned", `where` names the file that does it, and `by` says who
 # answered: "owner" for you, "ai-tool" for the AI coding tool that wrote the app.
 #   yes       — the word of whoever answered that the control is there. Yours is reported as
 #               "attested by the owner"; the AI tool's as "stated by the AI coding tool", which is
@@ -237,6 +237,10 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #   no        — the control is not there. The report says so, as something to fix.
 #   not-sure  — adds nothing, and is the right answer when you do not know. Leaving a question
 #               out entirely comes to the same thing.
+#   planned   — decided, and not built yet: the answer to give before there is code, with `where`
+#               naming the file it will be in. It counts for nothing. Once the app has code, a
+#               planned file that is not there is reported as decided, never built; once it is
+#               there, change the answer to yes or no.
 # An answer without `by` counts as the AI tool's: write by = "owner" only for an answer the
 # owner gave. It counts as the owner's only once they run `sv review` in their own terminal, which
 # records it with a `seal`; until then it counts as the AI tool's. Run `sv report` to see the
@@ -253,6 +257,7 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 [design]
 # "V8.3.1" = { answer = "yes", where = "server/auth.py", by = "owner" }
 # "V2.2.2" = { answer = "not-sure", by = "ai-tool" }
+# "V13.2.1" = { answer = "planned", where = "server/services.py", by = "owner" }
 # "V15.3.1" = { answer = "yes", where = "views/index.ejs", by = "ai-tool", confirmed = { by = "ai-tool", how = "Open a product page and its source; only the fields shown should be sent." } }
 
 # Checks made by hand: the ones no tool can make, such as the certificate on the live site or two
