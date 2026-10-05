@@ -642,6 +642,9 @@ another session is not a claim.
     `manifest-version`, refuse trailing text after dates, a stray `</details>` in `report.html`, let a false alarm
     lapse when nearby lines change. 7: refuse an option value starting `--`, do not overwrite a bundle without
     asking, one error for "outside the root" and "does not exist".
+    **Improvement 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-tool-limits`: a time limit on every outside tool, and an
+    environment with only what a tool needs to run, `GOTOOLCHAIN=local` among it.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
