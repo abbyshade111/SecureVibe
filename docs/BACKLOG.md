@@ -462,6 +462,9 @@ another session is not a claim.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a4`.
+    **Done the same day** (DESIGN, "A placeholder word in a key counts only where chance would not put it"): the
+    short markers `todo` and `xxx` count only as words of their own, the longer ones anywhere as before (AWS's
+    `AKIAEXAMPLEEXAMPLE12` shape needs it); of 20,000 random JWTs, 66 were dropped before and none now.
   - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
     `sk_test_` keys graded critical.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,

@@ -181,7 +181,16 @@ fn looks_like_placeholder(value: &str) -> bool {
         "generate_with",
         "insert",
     ];
-    if MARKERS.iter().any(|m| lower.contains(m)) {
+    // A short marker is spelled by chance among a real key's random characters often enough to
+    // matter (`xxx`, `todo`), so it counts only as a word of its own; a longer one practically
+    // never is, and counts anywhere, as `AKIAEXAMPLEEXAMPLE12` needs.
+    if MARKERS.iter().any(|m| {
+        if m.len() < 5 {
+            has_word(&lower, m)
+        } else {
+            lower.contains(m)
+        }
+    }) {
         return true;
     }
     // `[redacted: Qv7r… (16 more characters)]`: `sv`'s own redaction of a value, as `redact_text`
@@ -195,6 +204,22 @@ fn looks_like_placeholder(value: &str) -> bool {
     }
     // `${VAR}`, `<something>`, `{{ var }}` — a template, not a value.
     v.contains("${") || (v.starts_with('<') && v.ends_with('>')) || v.contains("{{")
+}
+
+/// Whether `word` appears in `text` as a word of its own: not after a letter or digit, and not
+/// before a letter (a digit may follow, as in `todo1`). A short marker found inside a run of random
+/// characters, `…aXxXb…` in a real key, is not a placeholder: until 5 October 2026 any occurrence
+/// counted, and about one random JWT in a hundred was dropped as one (A4 of the deep review).
+fn has_word(text: &str, word: &str) -> bool {
+    text.match_indices(word).any(|(at, _)| {
+        let before = text[..at].chars().next_back();
+        let after = text[at + word.len()..].chars().next();
+        let starts_word = !word.starts_with(|c: char| c.is_ascii_alphanumeric())
+            || !before.is_some_and(|c| c.is_ascii_alphanumeric());
+        let ends_word = !word.ends_with(|c: char| c.is_ascii_alphanumeric())
+            || !after.is_some_and(|c| c.is_ascii_alphabetic());
+        starts_word && ends_word
+    })
 }
 
 /// Shannon entropy in bits per character.
@@ -1375,6 +1400,62 @@ mod tests {
                 .contains("2 files (1 over 2 MB, read in pieces)"),
             "{}",
             clean.scope
+        );
+    }
+
+    #[test]
+    fn a_placeholder_word_counts_only_as_a_word_of_its_own() {
+        // A4: the markers matched anywhere, so a real key with `xxx` or `todo` among its random
+        // characters was taken for a placeholder.
+        for value in [
+            "your-api-key-here",
+            "YOUR_API_KEY",
+            "sk-ant-changeme",
+            "changeme123",
+            "TODO",
+            "todo: put the key here",
+            "xxx-xxx-xxx",
+            "https://api.example.com/v1",
+            "replace_me",
+            "insert-token",
+            "dummy",
+            "AKIAEXAMPLEEXAMPLE12",
+            "todo1",
+        ] {
+            assert!(looks_like_placeholder(value), "{value}");
+        }
+        for value in [
+            "aB3xXxQ9",
+            "kTodoZ7q",
+            "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ4eHgifQ.abcXXXdef",
+        ] {
+            assert!(!looks_like_placeholder(value), "{value}");
+        }
+        // How often random JWTs are taken for placeholders now: none in twenty thousand, made the
+        // same way each run so a failure can be looked at again.
+        let mut seed: u64 = 0x5eed_cafe_f00d_d00d;
+        let mut next = || {
+            seed ^= seed << 13;
+            seed ^= seed >> 7;
+            seed ^= seed << 17;
+            seed
+        };
+        const B64URL: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+        let mut part = |n: usize| -> String {
+            (0..n)
+                .map(|_| B64URL[(next() % 64) as usize] as char)
+                .collect()
+        };
+        let mut dropped = 0;
+        for _ in 0..20_000 {
+            let jwt = format!("eyJhbGciOiJIUzI1NiJ9.{}.{}", part(60), part(43));
+            if looks_like_placeholder(&jwt) {
+                dropped += 1;
+            }
+        }
+        assert_eq!(
+            dropped, 0,
+            "{dropped} of 20,000 random JWTs taken for placeholders"
         );
     }
 
