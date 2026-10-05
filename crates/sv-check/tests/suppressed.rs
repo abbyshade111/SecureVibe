@@ -5,6 +5,9 @@
 //! into SQL on exactly that line. The reports kept here are what the tools really wrote, over the
 //! small apps beside them (see `fixtures/suppressed/README.md`).
 
+mod scratch;
+
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use sv_check::adapters::{self, Adapters};
 
@@ -16,11 +19,8 @@ fn real_adapters() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json")
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-suppressed-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("suppressed-{name}"))
 }
 
 /// The real entry for one tool, with its rules and settings, made to "run" by copying a kept report

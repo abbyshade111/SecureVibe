@@ -4,6 +4,9 @@
 //! the only part that can be absent. Both are ways of arriving at a report that looks like a clean
 //! scan and is not one.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::collections::BTreeSet;
 use std::path::PathBuf;
 use sv_check::adapters::{self, Adapters, Outcome};
@@ -16,11 +19,8 @@ fn adapters() -> Adapters {
     Adapters::load(&data()).expect("the adapter file loads")
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-adapters-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("adapters-{name}"))
 }
 
 #[test]

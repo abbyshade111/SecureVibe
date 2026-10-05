@@ -8,6 +8,7 @@ use std::process::{Command, Output};
 const COMMANDS: &[&str] = &[
     "init",
     "scope",
+    "plan",
     "notes",
     "questions",
     "rules",
