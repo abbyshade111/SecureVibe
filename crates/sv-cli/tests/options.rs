@@ -256,3 +256,47 @@ fn help_writes_nothing_even_where_the_command_would() {
         text(&control)
     );
 }
+
+#[test]
+fn an_option_given_where_a_value_belongs_is_refused_and_nothing_is_written() {
+    // The deep review's improvement 7: `sv report --out --run` wrote the report to a folder named
+    // `--run`, and did not run the app it was asked to.
+    let dir: PathBuf =
+        std::env::temp_dir().join(format!("sv-options-value-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(dir.join("app")).unwrap();
+    std::fs::write(dir.join("app").join("app.py"), "print('hello')\n").unwrap();
+    std::fs::write(
+        dir.join("app").join("securevibe.toml"),
+        "manifest-version = 1\n[app]\nname = \"Valued\"\n[stack]\nlanguages = [\"python\"]\n",
+    )
+    .unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .args(["report", "app", "--out", "--run"])
+        .current_dir(&dir)
+        .output()
+        .unwrap();
+    let wrote = dir.join("--run").exists();
+    let said = text(&out);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(!out.status.success(), "{said}");
+    assert!(
+        said.contains("`--out` needs a value after it, and was given the option --run"),
+        "{said}"
+    );
+    assert!(said.contains("can be given as ./--run"), "{said}");
+    assert!(!wrote, "a folder named --run was written");
+    for (command, option) in [
+        ("audit", "--advisories"),
+        ("mcp", "--root"),
+        ("check", "--fail-on"),
+    ] {
+        let said = text(&sv(&[command, option, "--slow"]));
+        assert!(
+            said.contains(&format!(
+                "`{option}` needs a value after it, and was given the option --slow"
+            )),
+            "{command}: {said}"
+        );
+    }
+}
