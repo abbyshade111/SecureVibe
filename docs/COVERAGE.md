@@ -31,7 +31,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 163 (47%) | 10 | 172 |
+| OWASP ASVS 5.0 | 345 | 164 (48%) | 10 | 171 |
 | OWASP AISVS 1.0 | 191 | 37 (19%) | 0 | 154 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
@@ -42,11 +42,11 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 56 | 10 | 1 | 6 | 36 | 21 | 3 |
+| L1 | 70 | 57 | 11 | 1 | 6 | 36 | 21 | 3 |
 | L2 | 183 | 86 | 8 | 0 | 19 | 45 | 28 | 1 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 21 ASVS requirements can be settled. 30 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 22 ASVS requirements can be settled. 30 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -66,7 +66,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V6 Authentication | 47 | 23 | 1 | 23 |
 | V7 Session Management | 19 | 10 | 0 | 9 |
 | V8 Authorization | 13 | 4 | 1 | 8 |
-| V9 Self-contained Tokens | 7 | 4 | 0 | 3 |
+| V9 Self-contained Tokens | 7 | 5 | 0 | 2 |
 | V10 OAuth and OIDC | 36 | 8 | 0 | 28 |
 | V11 Cryptography | 24 | 11 | 1 | 12 |
 | V12 Secure Communication | 12 | 8 | 1 | 3 |
@@ -78,7 +78,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (21)
+### Settled by reading the code (22)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -90,6 +90,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Signed in: `probe.upload-path-traversal`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token` (sv only ever as a finding: `ast.token-key-source-from-token`) |
 | V9.2.3 | L2 | Reads the code: `ast.token-audience-not-checked` (sv only ever as a finding: `ast.token-audience-not-checked`) |
 | V10.4.4 | L1 | Reads the code: `config.retired-grant-enabled`; The running app: `probe.retired-grants-offered` (sv only ever as a finding: `config.retired-grant-enabled`, `probe.retired-grants-offered`) |
 | V11.2.4 | L3 | Reads the code: `ast.digest-compared-with-equals` (sv only ever as a finding: `ast.digest-compared-with-equals`) |
@@ -275,11 +276,11 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V14.2.2 | L2 | Signed in: `probe.private-page-shared-cache` (sv only ever as a finding: `probe.private-page-shared-cache`) |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` (sv only ever as a finding: `probe.account-details-sent-elsewhere`) |
 
-### Level 1 with no check at all (11)
+### Level 1 with no check at all (10)
 
 The baseline every app is assessed against, and where a new check does the most good.
 
-V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V9.1.3, V10.4.1, V10.4.2, V10.4.3, V10.4.5, V15.1.1
+V2.1.1, V2.2.1, V6.1.1, V7.2.2, V8.1.1, V10.4.1, V10.4.2, V10.4.3, V10.4.5, V15.1.1
 
 ## AISVS 1.0 by chapter
 

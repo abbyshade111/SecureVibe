@@ -651,6 +651,9 @@ another session is not a claim.
     **Improvement 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-tool-limits`: a time limit on every outside tool, and an
     environment with only what a tool needs to run, `GOTOOLCHAIN=local` among it.
+    **Done the same day** (DESIGN, "Outside tools run for at most half an hour, with only the environment they
+    need"; ADR-018, Later): stopped after half an hour with everything it started, not read when stopped, and
+    handed only a short list from the owner's environment, with `GOTOOLCHAIN=local`.
     **Improvement 7 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
     refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
@@ -919,6 +922,11 @@ another session is not a claim.
      rules: a finding where the pattern matches, never credit where it does not.
      **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-v913-rule`.
+     **Done the same day** (DESIGN, "A token that says where its own key comes from"): `ast.token-key-source-from-token`
+     reports a token header's `jku`, `x5u`, or `jwk` handed, in the same call, to something that fetches a key or
+     makes one, in each of the fourteen languages `sv` reads code in; shell has nothing to find, and says why. Only
+     ever a finding, at medium confidence: a check against a list on an earlier line is not seen, and a value saved
+     to a variable first is not followed.
 
 - **Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026.** Found
   by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
