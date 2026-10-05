@@ -1540,14 +1540,43 @@ another session is not a claim.
   **Done the same day**, at the owner's choice of "end a section at any heading, and say what was skipped" (ADR-022,
   "Later, 4 October 2026: a section ends at any heading"; DESIGN, "A heading of one's own ends the answer above it").
 
+- **The loop: `sv` as the MCP server an AI tool uses while it builds.** Proposed on 5 October 2026 by session
+  paper-facts, after the third prompts trial (`docs/prompts/trial-3/README.md`), where the MCP server's instructions
+  with the command line gave the most consistently testable builds. **The owner's decision, 5 October 2026: all six,
+  yes, and the trials' cost approved when each comes to be run.** Each numbered item can be claimed on its own.
+  1. **Clear the trial's confounds first.** Say in the spec when `seed` runs (the item below); correct the trials'
+     brief; and write the protocol of the next trial before it runs: the arms, the measures, the rule, and what makes
+     a build unusable (could not start, could not sign in, a check that needs `--slow` not given it). The third
+     trial's scoring changed twice after results were seen, each time for a stated reason; deciding it first is the
+     cleaner method.
+  2. **The real loop, a pilot.** Each build in a fresh folder by a headless AI coding tool (`claude -p`, with
+     `sv mcp` attached for that run only by `--mcp-config`, so no settings change), with no instruction to use `sv`
+     beyond what the server itself says. Its transcript (`--output-format stream-json`) records every tool call. About
+     four builds, to prove the setup before spending more. Other tools with MCP (Codex CLI, Gemini CLI, Cursor's agent)
+     where the owner has them.
+  3. **Which part of the loop does the work.** Arms: the server's instructions with no `sv`; `sv check` with no
+     instructions; the plan only; the whole loop.
+  4. **The loop's own measures,** from the transcripts: whether the brief and plan came before any code, how many
+     check-and-fix rounds, the findings after each round and whether they fell or were argued with, and the time and
+     tokens a loop costs.
+  5. **`securevibe_preflight`: the run settings checked against the code, without running it.** Most testability
+     failures in the third trial were sign-ins `sv` could not make: a seed that ignores the `SV_` accounts, a sign-in
+     path not where the settings say, tables made only by the seed. A static check of those, offered in the loop,
+     executes nothing, keeping the MCP server's rule that a model never starts the app.
+  6. **Scale.** About five builds a cell, the second brief (`docs/prompts/trial-2`), and security outcomes (the
+     running-app findings) as well as testability; other vendors' tools where available.
+  **Item 1 claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/loop-confounds`.
+
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
   the app's container after the app has answered its health path (`sv-run/src/docker.rs`, `seed`). The spec says only
   "creates them"; `docs/prompts/trial/brief.md` says "when run once before the app starts". An app that makes its
   tables only in its seed crashes on the first page `sv` asks for, and the run is reported as could not start: three
   Haiku builds in the trial did. Ways out, for the owner: say in the spec that the seed runs once the app is up, so
-  the app must make its own tables; or run the seed before the health check. Either way, correct the brief. Not
-  claimed.
+  the app must make its own tables; or run the seed before the health check. Either way, correct the brief.
+  **Claimed on 5 October 2026 by session paper-facts** with item 1 of "The loop", above, in branch
+  `claude/loop-confounds`: the spec will say when the seed runs, and how `sv` runs it is not changed (running it
+  earlier would break apps that make their tables when they start). Changing when it runs stays the owner's to choose.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
