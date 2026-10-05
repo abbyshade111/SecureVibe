@@ -1705,6 +1705,8 @@ another session is not a claim.
   near the end, and none checked again after fixing. The server's instructions say what the check is for, not when to
   call it. Saying when (after each feature, and again after fixing what it found) is the change to try, and item 6 can
   measure whether it is followed.
+  **Done the same day, at the owner's word:** the server's instructions now say to check after each feature, fix,
+  and check again before saying the work is done; item 6 runs on that `sv` and measures whether builders do.
 
 - **The loop trials cannot compare security with the arms that have no `sv`.** Found on 5 October 2026 by session
   paper-facts, in item 3: a build that never saw `sv`'s specification writes no manifest `sv` can read, so it cannot
