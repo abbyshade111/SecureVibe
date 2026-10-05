@@ -1660,6 +1660,7 @@ another session is not a claim.
   `claude/loop-arms`, run on the pilot's `sv` (`87404c8e`) so its loop arm is comparable with the pilot; 5 in branch
   `claude/loop-preflight`, with its decision record; 6 after 3, at a size the owner chooses from 3's cost. Each run's
   number of builds and estimate goes to the owner before it starts.
+  Item 5's record is written with its claim, as `proposed`: `docs/adr/ADR-035.md`.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
