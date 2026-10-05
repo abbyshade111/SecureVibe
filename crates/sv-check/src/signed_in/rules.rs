@@ -313,6 +313,21 @@ pub(super) const APP_TOKEN_EXPIRED: Rule = Rule {
           not switch that check off.",
 };
 
+pub(super) const APP_TOKEN_KEY_SOURCE: Rule = Rule {
+    rule_id: "probe.app-token-key-source-followed",
+    requirement_ids: &["V9.1.3"],
+    cwe: &["CWE-347", "CWE-918"],
+    impact: "Sent its own sign-in token with a header saying where the key that checks it is to \
+             be fetched from (`jku` or `x5u`), the app went to that address. The token chose where \
+             its own key comes from: anybody can make a key, sign a token as anybody with it, and \
+             point the token at it. The app also fetches whatever address a token names, on its \
+             own network included.",
+    fix: "Take the keys that check tokens only from your sign-in server's own address, written in \
+          the app's settings, and ignore `jku`, `x5u`, and `jwk` in the token. If the app must \
+          follow them, compare the whole address with a fixed list of your sign-in server's \
+          addresses before fetching anything.",
+};
+
 pub(super) const WS_WITHOUT_SESSION: Rule = Rule {
     rule_id: "probe.websocket-without-session",
     requirement_ids: &["V4.4.4"],

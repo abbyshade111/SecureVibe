@@ -204,14 +204,15 @@ fn changed_token(
 ///
 /// The first adds a field (`sv_probe`) to what the token says and keeps the signature: the
 /// signature no longer matches, and only an app that checks it notices. The second keeps what the
-/// token says, marks it as needing no signature (`alg: none`), and sends none.
+/// token says, marks it as needing no signature (`alg: none`), and sends none. Then whether the app
+/// follows the token to where its key is (V9.1.3, `key_source_check`).
 pub(super) fn app_token_checks(
     http: &mut dyn Http,
     signed_in: &SignedIn,
     confirm: Option<&str>,
     out: &mut Outcome,
 ) {
-    const IDS: &str = "V9.1.1, V9.1.2";
+    const IDS: &str = "V9.1.1, V9.1.2, V9.1.3";
     let Some(jwt) = Jwt::find(&signed_in.session) else {
         return;
     };
@@ -260,6 +261,105 @@ pub(super) fn app_token_checks(
         ),
         out,
     );
+    key_source_check(http, &jwt, confirm, out);
+}
+
+/// Whether the app lets its own token say where the key that checks it comes from (V9.1.3).
+///
+/// The real token is sent to `confirm` twice more, its header naming an address on the test
+/// model's server that this run made up, once as `jku` (where a set of keys is) and once as `x5u`
+/// (where a certificate is); the server is then asked whether the app came for either. The
+/// signature is left as it was, so no token here is one the app should accept: an app that follows
+/// the header goes before it can know that. Fetched is the finding. Not fetched is never credit:
+/// an app that ignores the header cannot be told from one that checks it against a list, so that
+/// is not assessed, and says why.
+fn key_source_check(http: &mut dyn Http, jwt: &Jwt, confirm: &str, out: &mut Outcome) {
+    const ID: &str = "V9.1.3";
+    const ASKED: &str = "Whether the app lets its sign-in token say where the key that checks it \
+                         comes from";
+    let Some(server) = http.model_address() else {
+        out.not_assessed.push((
+            ID.to_owned(),
+            format!(
+                "{ASKED}: the test server that records what the app fetches could not be \
+                 started, so nothing could see a fetch."
+            ),
+        ));
+        return;
+    };
+    let payload = jwt.raw.split('.').nth(1).unwrap_or_default();
+    let mut followed = Vec::new();
+    let mut unasked = Vec::new();
+    for (n, (field, what)) in [
+        ("jku", "the address of a set of keys"),
+        ("x5u", "the address of a certificate"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let tag = crate::fetch::tag(n as u32);
+        let mut header = jwt.header.clone();
+        header.insert(field.to_owned(), format!("{server}/_sv/keys/{tag}").into());
+        let token = format!("{}.{payload}.{}", part(&header), jwt.signature);
+        http.send(&get(
+            &format!("token-{field}"),
+            confirm,
+            &jwt.session_with(token),
+        ));
+        let came = crate::fetch::fetched(http, &tag);
+        out.steps.push(format!(
+            "asked for {confirm} with the app's own sign-in token naming {what} on the test \
+             server as `{field}`: {}",
+            match came {
+                Some(true) => "the app fetched it",
+                Some(false) => "the app did not fetch it",
+                None => "the test server could not be asked whether the app fetched it",
+            }
+        ));
+        match came {
+            Some(true) => followed.push(field),
+            Some(false) => {}
+            None => unasked.push(field),
+        }
+    }
+    if !followed.is_empty() {
+        let named = followed
+            .iter()
+            .map(|f| format!("`{f}`"))
+            .collect::<Vec<_>>()
+            .join(" and ");
+        out.findings.push(finding(
+            &APP_TOKEN_KEY_SOURCE,
+            "The app fetches the key for its sign-in token from an address the token names",
+            Severity::High,
+            format!(
+                "Sent its own sign-in token in {}, with {named} in the token's header naming an \
+                 address on a test server inside the fence that nobody else knew of, the app \
+                 fetched that address while answering {confirm}.",
+                jwt.where_carried()
+            ),
+        ));
+    } else if !unasked.is_empty() {
+        out.not_assessed.push((
+            ID.to_owned(),
+            format!(
+                "{ASKED}: the token was sent naming an address on the test server, but the server \
+                 could not then be asked whether the app fetched it."
+            ),
+        ));
+    } else {
+        out.not_assessed.push((
+            ID.to_owned(),
+            format!(
+                "{ASKED}: sent its own sign-in token naming an address on a test server inside \
+                 the fence, as `jku` and as `x5u`, the app fetched neither. That is not credit: an \
+                 app that ignores those headers, as the common token libraries are thought to unless \
+                 the app's own code follows them, cannot be told from one that checks them against \
+                 a list. \
+                 `ast.token-key-source-from-token` reads the code for it."
+            ),
+        ));
+    }
 }
 
 /// Whether the app refuses its own token once it has expired (V9.2.1), with a sign-in of its own.
@@ -421,6 +521,8 @@ mod tests {
         sent: Vec<String>,
         /// The names of the headers each request sent, by id.
         headers: Vec<(String, Vec<String>)>,
+        /// The test model's server is there, but every question put to it goes unanswered.
+        mute_model: bool,
     }
 
     impl Http for Refusing {
@@ -445,6 +547,15 @@ mod tests {
         }
         fn wait(&mut self, seconds: u64) {
             self.app.wait(seconds);
+        }
+        fn model(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            if self.mute_model {
+                return None;
+            }
+            self.app.model(r)
+        }
+        fn model_address(&mut self) -> Option<String> {
+            self.app.model_address()
         }
     }
 
@@ -474,6 +585,7 @@ mod tests {
         setup: fn(&mut FakeApp),
         slow: bool,
         refuse: Option<&'static str>,
+        mute_model: bool,
     }
 
     impl Default for Run {
@@ -484,6 +596,7 @@ mod tests {
                 setup: |app| app.jwt_lifetime = Some(30),
                 slow: false,
                 refuse: None,
+                mute_model: false,
             }
         }
     }
@@ -509,6 +622,7 @@ mod tests {
                 refuse: self.refuse,
                 sent: Vec::new(),
                 headers: Vec::new(),
+                mute_model: self.mute_model,
             };
             let u = if self.bearer { bearer_users() } else { users() };
             let out = run_with(&mut http, &u, &acc, true, &Default::default(), self.slow);
@@ -886,6 +1000,157 @@ mod tests {
                 o.not_assessed
             );
         }
+    }
+
+    /// A run whose test model's server answered, with tokens of 30 seconds.
+    fn with_model(app: &mut FakeApp) {
+        app.jwt_lifetime = Some(30);
+        app.model_up = true;
+    }
+
+    #[test]
+    fn an_app_that_fetches_the_key_its_token_names_is_found_carried_either_way() {
+        for bearer in [true, false] {
+            let (o, http) = Run {
+                flaws: Flaws {
+                    jwt_key_source_followed: true,
+                    ..Default::default()
+                },
+                bearer,
+                setup: with_model,
+                ..Default::default()
+            }
+            .go_with();
+            assert_eq!(
+                rule_ids(&o)
+                    .into_iter()
+                    .filter(|id| *id == APP_TOKEN_KEY_SOURCE.rule_id)
+                    .count(),
+                1,
+                "bearer {bearer}: {:?}",
+                o.steps
+            );
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == APP_TOKEN_KEY_SOURCE.rule_id)
+                .unwrap();
+            assert!(
+                f.description.contains("`jku` and `x5u`"),
+                "{}",
+                f.description
+            );
+            // Each was carried as the real token was, and with nothing else.
+            for id in ["token-jku", "token-x5u"] {
+                let names = &http.headers.iter().find(|(i, _)| i == id).unwrap().1;
+                let expected = if bearer { "Authorization" } else { "Cookie" };
+                assert_eq!(names, &[expected.to_owned()], "bearer {bearer}, {id}");
+            }
+            // Never credit, and the other token checks are untouched by it.
+            assert!(!verified_ids(&o).contains(&APP_TOKEN_KEY_SOURCE.rule_id));
+            assert!(
+                not_assessed(&o, "V9.1.3").is_empty(),
+                "{:?}",
+                o.not_assessed
+            );
+            assert_eq!(credited(&o), TOKEN_RULES.map(|r| r.rule_id).to_vec());
+        }
+    }
+
+    #[test]
+    fn an_app_that_does_not_fetch_is_not_assessed_and_never_credited() {
+        let (o, http) = Run {
+            setup: with_model,
+            ..Default::default()
+        }
+        .go_with();
+        // Setup: both tokens were sent, and the server was asked about each.
+        assert!(
+            http.sent.contains(&"token-jku".to_owned()),
+            "{:?}",
+            http.sent
+        );
+        assert!(
+            http.sent.contains(&"token-x5u".to_owned()),
+            "{:?}",
+            http.sent
+        );
+        assert_eq!(
+            o.steps
+                .iter()
+                .filter(|s| s.ends_with("the app did not fetch it"))
+                .count(),
+            2,
+            "{:?}",
+            o.steps
+        );
+        assert!(!rule_ids(&o).contains(&APP_TOKEN_KEY_SOURCE.rule_id));
+        assert!(!verified_ids(&o).contains(&APP_TOKEN_KEY_SOURCE.rule_id));
+        let why = not_assessed(&o, "V9.1.3");
+        assert_eq!(why.len(), 1, "{why:?}");
+        assert!(why[0].contains("fetched neither"), "{why:?}");
+        assert!(why[0].contains("That is not credit"), "{why:?}");
+    }
+
+    #[test]
+    fn with_no_test_server_nothing_is_sent_and_it_is_said() {
+        let (o, sent) = Run {
+            flaws: Flaws {
+                jwt_key_source_followed: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .go();
+        assert!(
+            !sent.iter().any(|id| id == "token-jku" || id == "token-x5u"),
+            "{sent:?}"
+        );
+        assert!(!rule_ids(&o).contains(&APP_TOKEN_KEY_SOURCE.rule_id));
+        let why = not_assessed(&o, "V9.1.3");
+        assert_eq!(why.len(), 1, "{why:?}");
+        assert!(why[0].contains("could not be started"), "{why:?}");
+    }
+
+    #[test]
+    fn a_test_server_that_cannot_be_asked_is_said_and_finds_nothing() {
+        let (o, sent) = Run {
+            flaws: Flaws {
+                jwt_key_source_followed: true,
+                ..Default::default()
+            },
+            setup: with_model,
+            mute_model: true,
+            ..Default::default()
+        }
+        .go();
+        assert!(sent.contains(&"token-jku".to_owned()), "{sent:?}");
+        assert!(!rule_ids(&o).contains(&APP_TOKEN_KEY_SOURCE.rule_id));
+        let why = not_assessed(&o, "V9.1.3");
+        assert_eq!(why.len(), 1, "{why:?}");
+        assert!(why[0].contains("could not then be asked"), "{why:?}");
+    }
+
+    #[test]
+    fn each_token_names_an_address_of_its_own_on_the_test_server() {
+        // A fetch an earlier question caused cannot stand in for this one: the two addresses
+        // differ, and an app that fetched only one is found for that one.
+        let (o, http) = Run {
+            flaws: Flaws {
+                jwt_key_source_followed: true,
+                ..Default::default()
+            },
+            setup: with_model,
+            ..Default::default()
+        }
+        .go_with();
+        assert_eq!(
+            http.app.model_fetched.len(),
+            2,
+            "{:?}",
+            http.app.model_fetched
+        );
+        assert!(rule_ids(&o).contains(&APP_TOKEN_KEY_SOURCE.rule_id));
     }
 
     #[test]

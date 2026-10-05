@@ -1,7 +1,8 @@
 //! The test model (`assets/model-provider.mjs`) run for real with Node, and asked what the AI checks
 //! rely on it for: that a reply's own id carries its tag (C11.3.2), that a HIDDEN reply hides what it
 //! says it hides (C7.3.4), that both ends of a long message are recorded (C2.1.4), and that its
-//! moderation endpoint flags a HARM reply and nothing else (C7.3.1).
+//! moderation endpoint flags a HARM reply and nothing else (C7.3.1), and that the address a sign-in
+//! token names as where its key is records the fetch and answers with public keys alone (V9.1.3).
 //!
 //! The judgment is tested in `sv_check::ai` against a fake written in Rust; this is the one place
 //! the real script is run, so a change to it that the fake does not copy is caught here. Without
@@ -207,6 +208,23 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     assert!(
         !seen_fetched(port, "5a5b-after"),
         "the redirect alone fetches nothing more"
+    );
+
+    // V9.1.3: the address a sign-in token names as where its key is records the fetch by its tag
+    // and answers with a real set of public keys, so an app that follows the token gets an ordinary
+    // answer; no private part of the key is in it.
+    assert!(!seen_fetched(port, "6a6b"));
+    let (status, keys) = call_with_status(port, "GET", "/_sv/keys/6a6b", "");
+    assert_eq!(status, 200);
+    assert!(seen_fetched(port, "6a6b"));
+    assert!(!seen_fetched(port, "6a6c"), "only the tag asked for");
+    let keys: serde_json::Value = serde_json::from_str(&keys).expect("a JWKS");
+    let key = &keys["keys"][0];
+    assert_eq!(key["kty"], "EC", "{keys}");
+    assert!(key["x"].is_string() && key["y"].is_string(), "{keys}");
+    assert!(
+        key.get("d").is_none(),
+        "the private part is never given out: {keys}"
     );
 
     // C5.2.2 and C5.2.4: RECALL records the private markers wherever the app put them (here, in

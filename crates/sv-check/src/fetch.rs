@@ -68,7 +68,7 @@ pub struct Context<'a> {
 }
 
 /// A value made for this run, so a fetch an earlier run caused cannot stand in for this one.
-fn tag(n: u32) -> String {
+pub(crate) fn tag(n: u32) -> String {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
@@ -76,7 +76,7 @@ fn tag(n: u32) -> String {
 }
 
 /// Whether the test server was asked for `/_sv/fetch/<tag>`.
-fn fetched(http: &mut dyn Http, tag: &str) -> Option<bool> {
+pub(crate) fn fetched(http: &mut dyn Http, tag: &str) -> Option<bool> {
     let answer = http.model(&ProbeRequest {
         id: format!("fetched-{tag}"),
         method: "GET".into(),

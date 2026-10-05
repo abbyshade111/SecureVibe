@@ -352,8 +352,10 @@ impl DockerBackend {
 
         // 1d½. A test model, when the app has an AI feature to ask. Before the app, which may read
         //      the model's address as it starts.
-        // The test model's server also records what a feature that fetches addresses fetches.
-        let model = ((plan.ai.is_some() || plan.fetch.is_some())
+        // The test model's server also records what a feature that fetches addresses fetches, and
+        // whether the app fetches the key a sign-in token names (V9.1.3): `sv` learns whether the
+        // app's tokens are JWTs only after signing in, so any run that signs in starts it.
+        let model = ((plan.ai.is_some() || plan.fetch.is_some() || plan.users.is_some())
             && self.start_model(&network, &model_name))
         .then_some(model_name.as_str());
 
@@ -517,11 +519,10 @@ impl DockerBackend {
                 users.totp.is_some() && users.seed.is_some(),
             )
         });
-        let signed_in = plan
-            .users
-            .as_ref()
-            .zip(accounts.as_ref())
-            .map(|pair| self.signed_in(&via, &app, mail, browser, plan, pair));
+        let signed_in = plan.users.as_ref().zip(accounts.as_ref()).map(|pair| {
+            let model = model.filter(|host| self.model_ready(&via, host));
+            self.signed_in(&via, &app, (mail, browser, model), plan, pair)
+        });
 
         // 4c. Signing in through the test provider, when the app signs in through another service.
         //     A provider that never came up leaves `provider` empty, and the check says so.
@@ -833,6 +834,10 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
     ) -> Option<sv_check::probes::ProbeResponse> {
         let host = self.model?;
         self.backend.probe(self.via, host, MODEL_PORT, request)
+    }
+
+    fn model_address(&mut self) -> Option<String> {
+        self.model.map(|host| format!("http://{host}:{MODEL_PORT}"))
     }
 
     fn browser(&mut self, job: &sv_check::browser::Job) -> Option<Vec<serde_json::Value>> {
@@ -1195,8 +1200,7 @@ impl DockerBackend {
         &self,
         via: &Via,
         app: &str,
-        mail: Option<&str>,
-        browser: Option<&str>,
+        (mail, browser, model): (Option<&str>, Option<&str>, Option<&str>),
         plan: &RunPlan,
         (users, accounts): (&sv_manifest::UsersSection, &sv_check::signed_in::Accounts),
     ) -> sv_check::signed_in::Outcome {
@@ -1208,7 +1212,7 @@ impl DockerBackend {
             mail,
             provider: None,
             browser,
-            model: None,
+            model,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
