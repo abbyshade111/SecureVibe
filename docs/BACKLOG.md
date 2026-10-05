@@ -689,6 +689,10 @@ another session is not a claim.
     and control characters stripped from everything `sv` prints to a terminal. The other three parts (two-factor
     codes from the container's clock, seed secrets through standard input, WebSockets and workers in the browser
     driver) are not claimed.
+    **Improvement 5's "seed secrets through standard input" claimed on 5 October 2026 by session securevibe-e9**,
+    in branch `claude/securevibe-e9-seed-env`: the run's passwords and two-factor secrets, and the test provider's
+    client secret, are handed to `docker` in its own environment, not on its command line, where another user of
+    the computer can read them.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
