@@ -869,6 +869,11 @@ another session is not a claim.
      rules: a finding where the pattern matches, never credit where it does not.
      **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-v913-rule`.
+     **Done the same day** (DESIGN, "A token that says where its own key comes from"): `ast.token-key-source-from-token`
+     reports a token header's `jku`, `x5u`, or `jwk` handed, in the same call, to something that fetches a key or
+     makes one, in Python, JavaScript, TypeScript, Go, Ruby, PHP, Java, C#, and Rust. Only ever a finding, at
+     medium confidence: a check against a list on an earlier line is not seen, and a value saved to a variable first
+     is not followed. Kotlin, Dart, Swift, C, and C++ are not taught, and say so; shell has nothing to find.
 
 - **Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026.** Found
   by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
