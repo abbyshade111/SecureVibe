@@ -4719,6 +4719,10 @@ mod tests {
             at("this server's prompts") > first,
             "the person can choose them too"
         );
+        assert!(
+            at("securevibe_plan") > at("for the app as it will be"),
+            "the plan after the brief"
+        );
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
     }
