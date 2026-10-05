@@ -940,6 +940,12 @@ another session is not a claim.
        not checked library by library.
      **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word ("go ahead"), in branch
      `claude/securevibe-e2-key-server`.
+     **Done the same day** (DESIGN, "A sign-in token caught naming where its key is"): when the app's own token is a
+     JWT, the token checks send it twice more with its header naming an address on the test model's server, as `jku`
+     and as `x5u`, and ask the server whether the app came for either. Fetched is `probe.app-token-key-source-followed`
+     (high); not fetched is not assessed, never credit. Any run that signs in now starts the test model. Eleven guards
+     broken in turn, each caught. Not shown in a real run: no container backend was available, so starting the test
+     model for a signed-in run is read in the code, not seen working.
   2. **A code-reading rule.** It flags an app that passes the token's own key address (`jku`, `x5u`, or a `jwk` in
      the header) to whatever fetches its keys. Cheaper, and it runs in every check without Docker, but it is weaker
      evidence than the app seen fetching. Today only Semgrep speaks to V9.1.3 by reading the code. Like the other code
