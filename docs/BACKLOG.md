@@ -2047,6 +2047,10 @@ another session is not a claim.
      AI tool left. Fix: one rule where `skip_dir` lives, applied by every walker: a link is not followed,
      and is listed once as not read, so a linked `vendor/` is a named gap rather than a silent one. Test
      with this fixture, and count: five walkers should go red when the rule is removed.
+     **Done on 27 September 2026 with item 7** (DESIGN, "One walk of the app"; noted here on 5 October 2026, when a
+     backlog sweep found this item still read as open): `sv_scan::files::Listing` is the one walk, a link is never
+     followed and is named once as a gap, and the fixture is the test
+     `a_link_out_of_the_app_and_a_loop_are_listed_once_and_never_followed` in `crates/sv-scan/src/files.rs`.
   2. **`sv run` has no time limit, and an interrupted run leaves its containers behind.** Every Docker
      call goes through `output_of` (`sv-run/src/lib.rs:327`), which waits forever; the app's own test
      suite is `docker exec sh -c <test>` (`docker.rs:424`) with nothing bounding it, so a suite that hangs
@@ -2070,6 +2074,9 @@ another session is not a claim.
      source file whole and keeps all of them in memory for the run (`files.push((language, relative,
      contents))`). Fix: the same cap, reported as *not read, too large* rather than skipped, which is the
      honesty rule; and the corroborators reading one file at a time.
+     **Done on 27 September 2026 with item 7** (DESIGN, "One walk of the app"; noted here on 5 October 2026): the
+     listing holds every file's size, and a file over `MAX_FILE_BYTES` (2 MB) is not read as text by any check and is
+     reported as not read, too large.
   4. **Options are read as folders.** `sv check --help` says "--help is not a folder"; `sv scope
      --nonsense` says "no securevibe.toml in --nonsense"; there is no `sv --version` at all (the version
      appears only in a bundle's listing). `main.rs` dispatches on the first word and hands the second to
