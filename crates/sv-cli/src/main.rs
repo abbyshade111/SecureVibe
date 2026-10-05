@@ -1698,6 +1698,22 @@ fn cmd_check(args: &[String]) -> Result<i32> {
             println!("  … and {} more", scan.coverage.skipped.len() - 10);
         }
     }
+    // Named too, so nobody goes looking for them: these hold no text for a credential to be in.
+    if !scan.coverage.no_written_text.is_empty() {
+        let n = scan.coverage.no_written_text.len();
+        println!(
+            "\n{n} file{} not read, being {} that hold{} no text a person writes:",
+            if n == 1 { " was" } else { "s were" },
+            if n == 1 { "one" } else { "ones" },
+            if n == 1 { "s" } else { "" }
+        );
+        for (file, what) in scan.coverage.no_written_text.iter().take(10) {
+            println!("  {file} — {what}");
+        }
+        if n > 10 {
+            println!("  … and {} more", n - 10);
+        }
+    }
 
     if !listing.links.is_empty() {
         println!(
@@ -3698,17 +3714,30 @@ fn assemble_report_saying(
         });
     }
     if !secrets.coverage.skipped.is_empty() {
+        // Each named, with why, so nobody has to go looking for which file it was.
+        const SHOWN: usize = 5;
+        let skipped = &secrets.coverage.skipped;
+        let mut named: Vec<String> = skipped
+            .iter()
+            .take(SHOWN)
+            .map(|(file, why)| format!("`{file}` ({why})"))
+            .collect();
+        if skipped.len() > SHOWN {
+            named.push(format!(
+                "and {} more, listed by `sv check`",
+                skipped.len() - SHOWN
+            ));
+        }
         gaps.push(sv_report::Gap {
             what: format!(
                 "{} file{} not read while looking for credentials",
-                secrets.coverage.skipped.len(),
-                if secrets.coverage.skipped.len() == 1 {
-                    ""
-                } else {
-                    "s"
-                }
+                skipped.len(),
+                if skipped.len() == 1 { "" } else { "s" }
             ),
-            why: "a credential in a file nothing read is a credential nothing found".to_owned(),
+            why: format!(
+                "{}. A credential in a file nothing read is a credential nothing found.",
+                named.join(", ")
+            ),
         });
     }
     if !code.unread_languages.is_empty() {

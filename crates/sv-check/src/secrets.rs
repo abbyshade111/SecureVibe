@@ -121,6 +121,10 @@ pub struct Coverage {
     pub read_in_pieces: Vec<String>,
     /// Files that exist but were not read, with the reason. A scan that skipped something is not a clean one.
     pub skipped: Vec<(String, String)>,
+    /// Files recognized by their contents as holding no text a person writes (an image, a font, a
+    /// `.DS_Store`), with what each is. Not read, and named, but not a gap: there is no text in them
+    /// for a credential to be written in.
+    pub no_written_text: Vec<(String, String)>,
 }
 
 #[derive(Debug, Default)]
@@ -781,6 +785,12 @@ pub fn scan_listing(rules: &SecretRules, listing: &sv_scan::files::Listing) -> S
             Err(Unread::TooLarge) => scan_large(rules, entry).inspect(|_| {
                 scan.coverage.read_in_pieces.push(entry.relative.clone());
             }),
+            Err(Unread::NoWrittenText(what)) => {
+                scan.coverage
+                    .no_written_text
+                    .push((entry.relative.clone(), what.to_owned()));
+                continue;
+            }
             Err(why) => Err(why),
         };
         match read {
@@ -840,7 +850,7 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
         "secrets.scan",
         &ids,
         format!(
-            "{} file{}{}, against {} known credential formats plus the assignment rule",
+            "{} file{}{}{}, against {} known credential formats plus the assignment rule",
             scan.coverage.files_read,
             if scan.coverage.files_read == 1 {
                 ""
@@ -850,6 +860,13 @@ fn clean_scan(rules: &SecretRules, scan: &SecretScan) -> Vec<crate::Verified> {
             match scan.coverage.read_in_pieces.len() {
                 0 => String::new(),
                 n => format!(" ({n} over 2 MB, read in pieces)"),
+            },
+            match scan.coverage.no_written_text.len() {
+                0 => String::new(),
+                n => format!(
+                    "; {n} more not read, being images, fonts, or other files that hold no text a \
+                     person writes"
+                ),
             },
             rules.len()
         ),
@@ -1153,6 +1170,83 @@ mod tests {
 
     fn aws_key(tail: &str) -> String {
         credential_shaped(&["AKIA", tail], "")
+    }
+
+    #[test]
+    fn a_key_in_utf16_or_latin1_text_is_found() {
+        // Text saved by Windows tools, or by an editor set to Latin-1, was not read at all.
+        let dir = big_scratch("encodings");
+        let key = aws_key("Q7RZ2KV9LP4WN8HE");
+        let mut utf16 = vec![0xFF, 0xFE];
+        for unit in format!("AWS_KEY={key}\n").encode_utf16() {
+            utf16.extend(unit.to_le_bytes());
+        }
+        std::fs::write(dir.join("config.ps1"), utf16).unwrap();
+        let mut latin1 = b"# Gr\xfc\xdfe\n".to_vec();
+        latin1.extend(format!("aws = {key}\n").as_bytes());
+        std::fs::write(dir.join("notes.txt"), latin1).unwrap();
+        let scan = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            scan.coverage.skipped.is_empty(),
+            "{:?}",
+            scan.coverage.skipped
+        );
+        let mut files: Vec<&str> = scan
+            .findings
+            .iter()
+            .filter(|f| f.rule_id.contains("aws"))
+            .map(|f| f.location.file.as_str())
+            .collect();
+        files.sort_unstable();
+        // The files are named, never the key.
+        assert_eq!(files, vec!["config.ps1", "notes.txt"]);
+    }
+
+    #[test]
+    fn an_image_or_ds_store_is_named_and_leaves_the_scan_whole() {
+        let dir = big_scratch("no-written-text");
+        std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+        std::fs::write(
+            dir.join(".DS_Store"),
+            b"\x00\x00\x00\x01Bud1\x00\x00\x10\x00",
+        )
+        .unwrap();
+        std::fs::write(dir.join("logo.png"), b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR").unwrap();
+        let clean = scan_dir(&rules(), &dir);
+        // The control: an unknown binary file is still a gap, and there is no clean claim.
+        std::fs::write(
+            dir.join("data.bin"),
+            b"\x7fELF\x02\x01\x01\x00\x00\xff\x80\x9c",
+        )
+        .unwrap();
+        let gap = scan_dir(&rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert!(
+            clean.coverage.skipped.is_empty(),
+            "{:?}",
+            clean.coverage.skipped
+        );
+        let named: Vec<&str> = clean
+            .coverage
+            .no_written_text
+            .iter()
+            .map(|(f, _)| f.as_str())
+            .collect();
+        assert_eq!(named, vec![".DS_Store", "logo.png"]);
+        assert_eq!(clean.verified.len(), 1, "{clean:?}");
+        assert!(
+            clean.verified[0].scope.contains("2 more not read"),
+            "{:?}",
+            clean.verified[0].scope
+        );
+
+        assert_eq!(
+            gap.coverage.skipped,
+            vec![("data.bin".to_owned(), "not a text file".to_owned())]
+        );
+        assert!(gap.verified.is_empty(), "{gap:?}");
     }
 
     #[test]
