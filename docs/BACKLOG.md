@@ -733,6 +733,10 @@ another session is not a claim.
     nothing, which ecosystems and lockfiles it compared and that development packages and the packages others need
     are among them; and each code rule's "nothing found" names, for each language, the calls it reads. The SQL
     rule's part was done with H1.
+    **Done the same day** (DESIGN, "A clean result names the calls it read and the lockfiles it compared"): each
+    code rule's clean result names, for each language, the calls its pattern reads, and the comparison with
+    advisories and the inventory name each ecosystem's count, the lockfiles, that the packages those need and
+    development packages are in it, and what no lockfile lists. Improvement 1 was A1's helper, built on 4 October.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with

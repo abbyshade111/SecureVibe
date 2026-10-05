@@ -328,6 +328,7 @@ fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
     let incomplete = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![Component {
             name: "flask".into(),
             version: "3.0.0".into(),
@@ -340,6 +341,7 @@ fn the_checks_that_hard_code_a_citation_are_about_what_they_cite() {
     let complete = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![Component {
             name: "flask".into(),
             version: "3.0.0".into(),

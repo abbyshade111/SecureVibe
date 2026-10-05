@@ -1888,7 +1888,25 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
             if n == 0 {
                 continue;
             }
-            let files = format!("{n} {language} file{}", if n == 1 { "" } else { "s" });
+            let mut files = format!("{n} {language} file{}", if n == 1 { "" } else { "s" });
+            // The calls the rule reads in this language, so "nothing found" says where it looked
+            // (deep review, improvement 2): a call not named is one it did not read. A language
+            // with words of its own (`looksForIn`) already says where the rule looks there.
+            if let Some((names, more)) = rule
+                .filter(|r| !r.looks_for_in.contains_key(*language))
+                .and_then(|r| r.function_patterns.get(*language))
+                .and_then(|p| calls_named(p))
+            {
+                let names: Vec<String> = names.into_iter().map(|n| format!("`{n}`")).collect();
+                files = if more {
+                    format!(
+                        "{files} (the calls it reads: {}, and others like them)",
+                        names.join(", ")
+                    )
+                } else {
+                    format!("{files} (the calls it reads: {})", and_list(&names))
+                };
+            }
             let phrase = rule
                 .and_then(|r| r.looks_for_in.get(*language))
                 .or(rule.map(|r| &r.looks_for))
@@ -1921,8 +1939,48 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
     out
 }
 
+/// The call names a `functionPatterns` entry stands for, when it is a list of names
+/// (`^(system|popen)$`), and whether it also stands for others that are not plain names, such as a
+/// shell named in quotes or a family of names. `None` when it names none plainly.
+fn calls_named(pattern: &str) -> Option<(Vec<String>, bool)> {
+    let body = pattern.strip_prefix('^')?.strip_suffix('$')?;
+    let body = body
+        .strip_prefix('(')
+        .and_then(|b| b.strip_suffix(')'))
+        .unwrap_or(body);
+    let mut alternatives = Vec::new();
+    let (mut depth, mut start) = (0usize, 0);
+    for (i, c) in body.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            '|' if depth == 0 => {
+                alternatives.push(&body[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    alternatives.push(&body[start..]);
+    let plain = |a: &str| {
+        let a = a.replace("\\$", "$");
+        let mut chars = a.chars();
+        chars
+            .next()
+            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_' || c == '$')
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+    };
+    let names: Vec<String> = alternatives
+        .iter()
+        .filter(|a| plain(a))
+        .map(|a| a.replace("\\$", "$"))
+        .collect();
+    let more = names.len() < alternatives.len();
+    (!names.is_empty()).then_some((names, more))
+}
+
 /// "a", "a and b", "a, b, and c".
-fn and_list(items: &[String]) -> String {
+pub(crate) fn and_list(items: &[String]) -> String {
     match items {
         [] => String::new(),
         [one] => one.clone(),
@@ -2452,6 +2510,28 @@ fn joined(source: &str, pieces: &[TemplatePiece]) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_pattern_of_names_is_read_as_its_names_and_anything_else_as_more() {
+        let names = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert_eq!(
+            calls_named("^(system|popen)$"),
+            Some((names(&["system", "popen"]), false))
+        );
+        assert_eq!(calls_named("^Command$"), Some((names(&["Command"]), false)));
+        assert_eq!(
+            calls_named("^(query|\\$queryRawUnsafe)$"),
+            Some((names(&["query", "$queryRawUnsafe"]), false))
+        );
+        assert_eq!(
+            calls_named("^(Command|\"(/bin/)?(sh|bash)\")$"),
+            Some((names(&["Command"]), true))
+        );
+        assert_eq!(calls_named("^(EVP_des\\w*|DES_\\w+)$"), None);
+        // Two groups, not one: neither half is read as a name.
+        assert_eq!(calls_named("^(a)|(b)$"), None);
+        assert_eq!(calls_named("system"), None);
+    }
+
     use super::*;
     use std::path::PathBuf;
 

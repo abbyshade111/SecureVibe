@@ -1451,6 +1451,7 @@ fn a_complete_bill_of_materials_says_so_and_an_empty_one_does_not() {
     let complete = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![],
     };
@@ -1462,6 +1463,7 @@ fn a_complete_bill_of_materials_says_so_and_an_empty_one_does_not() {
     let empty = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![],
         unread: vec![],
     };
@@ -1481,6 +1483,7 @@ fn an_unread_ecosystem_stops_the_bill_of_materials_claiming_anything() {
     let partial = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![("npm".into(), "package-lock.json could not be read".into())],
     };
@@ -1495,6 +1498,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
     let sbom = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![],
     };
@@ -1520,6 +1524,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
     let nothing = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![],
         unread: vec![],
     };
@@ -1532,6 +1537,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
     let two_ecosystems = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![
             locked("flask", "3.0.0", "Python"),
             locked("left-pad", "1.0.0", "npm"),
@@ -1546,6 +1552,7 @@ fn the_advisory_comparison_claims_nothing_unless_it_really_covered_the_app() {
     let incomplete = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![locked("flask", "3.0.0", "Python")],
         unread: vec![("npm".into(), "no lockfile".into())],
     };
@@ -1562,6 +1569,7 @@ fn a_version_that_cannot_be_compared_stops_the_claim() {
     let odd = Sbom {
         passed_over: Vec::new(),
         disagreements: Vec::new(),
+        lockfiles: Vec::new(),
         components: vec![locked("flask", "not-a-version", "Python")],
         unread: vec![],
     };
@@ -1603,8 +1611,8 @@ fn a_clean_result_says_what_the_rule_looked_for_and_where_it_looked_for_less() {
     assert_eq!(
         scope_of(&scan, "ast.file-path-from-value"),
         "a file opened, written, or deleted at a path built from a value rather than written out, \
-         in 1 python file; only commands such as cat, rm, or cp given a path from a web request \
-         variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not \
+         in 1 python file (the calls it reads: `open`, `send_file`, and `FileResponse`); only \
+         commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not \
          looked at, in 1 shell file"
     );
     // A rule whose shell reach is the same kind of thing still names it in shell's own terms.
@@ -1630,8 +1638,40 @@ fn languages_the_rule_reads_alike_share_one_phrase() {
     assert_eq!(
         scope_of(&scan, "ast.sql-built-by-hand"),
         "a database query, sent through the usual database libraries' query calls, joined together \
-         from text and values rather than sent with its values kept separate, in 1 go file, 2 python \
-         files, and 1 ruby file"
+         from text and values rather than sent with its values kept separate, in 1 go file (the \
+         calls it reads: `Query`, `QueryRow`, `Exec`, `QueryContext`, and `ExecContext`), 2 python \
+         files (the calls it reads: `execute`, `executemany`, `executescript`, `raw`, `read_sql`, and \
+         `read_sql_query`), and 1 ruby file (the calls it reads: `execute`, `exec_query`, \
+         `find_by_sql`, `select_all`, `select_rows`, `select_values`, `where`, `rewhere`, `order`, \
+         `reorder`, `having`, `group`, `joins`, `from`, `pluck`, and `count_by_sql`)"
+    );
+}
+
+#[test]
+fn a_clean_result_names_the_calls_it_read_in_each_language() {
+    // Deep review, improvement 2: "nothing found" is only as wide as the calls the rule reads, so it
+    // names them, language by language. Python's `subprocess.run(…, shell=True)` is not one of
+    // them, and the claim now shows it.
+    let scan = scan_files(
+        "calls-named",
+        &[
+            ("app.py", "def home():\n    return 'hello'\n"),
+            ("main.go", "package main\n\nfunc main() {}\n"),
+        ],
+    );
+    let scope = scope_of(&scan, "ast.shell-command");
+    assert!(
+        scope.contains(
+            "1 python file (the calls it reads: `system`, `popen`, `getoutput`, and \
+             `getstatusoutput`)"
+        ),
+        "{scope}"
+    );
+    // Go's pattern also takes a shell named in quotes, which is not a call's name: the list says it
+    // is not all of them.
+    assert!(
+        scope.contains("1 go file (the calls it reads: `Command`, and others like them)"),
+        "{scope}"
     );
 }
 
