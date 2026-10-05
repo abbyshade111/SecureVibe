@@ -2692,6 +2692,39 @@ mod tests {
     }
 
     #[test]
+    fn a_field_in_the_wrong_section_is_answered_with_the_section_and_where_it_belongs() {
+        // The loop pilot's line: Haiku 4.5 sent it back five times when told only the field.
+        let root = std::env::temp_dir().join(format!("sv-mcp-misplaced-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("app.py"), "print('hello')\n").unwrap();
+        std::fs::write(
+            root.join("securevibe.toml"),
+            "manifest-version = 1\n[app]\nname = \"Club\"\n\n[stack.run.ai]\nenabled = true\n",
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let results: Vec<(&str, Value)> = ["securevibe_check", "securevibe_plan"]
+            .into_iter()
+            .map(|tool| (tool, call(&server, tool, json!({}))))
+            .collect();
+        std::fs::remove_dir_all(&root).ok();
+        for (tool, result) in results {
+            let said = text(&result);
+            assert_eq!(result["isError"], true, "{tool}: {said}");
+            assert!(
+                said.contains("`enabled` is not a field of [stack.run.ai]"),
+                "{tool}: {said}"
+            );
+            assert!(
+                said.contains("Did you mean [capabilities.ai]?"),
+                "{tool}: {said}"
+            );
+            assert!(said.contains("line 6"), "{tool}: {said}");
+        }
+    }
+
+    #[test]
     fn an_app_with_no_manifest_is_pointed_at_the_spec() {
         let root = std::env::temp_dir().join(format!("sv-mcp-empty-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();

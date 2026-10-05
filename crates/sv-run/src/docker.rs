@@ -880,13 +880,12 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
         self.backend.probe(self.via, self.app, self.port, request)
     }
 
-    fn send_at_once(
+    fn send_together(
         &mut self,
-        request: &sv_check::probes::ProbeRequest,
-        times: usize,
+        requests: &[sv_check::probes::ProbeRequest],
     ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
         self.backend
-            .probe_at_once(self.via, self.app, self.port, request, times)
+            .probe_together(self.via, self.app, self.port, requests)
     }
 
     fn provider(
@@ -2136,28 +2135,71 @@ fn at_once_mark() -> String {
     format!("{AT_ONCE_MARK}{}-", crate::random_hex(8))
 }
 
-/// `exchange_script`, for one request sent `times` times at once: every connection is started in
-/// the background before any is waited for, so they reach the app together rather than one after
-/// another, each answer kept in its own file and printed in order after all have finished.
-fn at_once_script(host: &str, port: u16, times: usize, mark: &str) -> String {
-    let numbers: Vec<String> = (1..=times).map(|i| i.to_string()).collect();
+/// What `at_once_script` reads for `requests`: each different request once, one after another;
+/// their sizes; and, for each copy in the order given, which of them it is, counting from 1. Two
+/// users' copies of one action are two requests, and sending each once keeps the input small.
+fn together_input(
+    requests: &[sv_check::probes::ProbeRequest],
+    host: &str,
+) -> Option<(Vec<u8>, Vec<usize>, Vec<usize>)> {
+    let mut distinct: Vec<Vec<u8>> = Vec::new();
+    let mut which = Vec::with_capacity(requests.len());
+    for request in requests {
+        let raw = request_bytes(request, host)?;
+        let k = match distinct.iter().position(|d| *d == raw) {
+            Some(k) => k,
+            None => {
+                distinct.push(raw);
+                distinct.len() - 1
+            }
+        };
+        which.push(k + 1);
+    }
+    let sizes = distinct.iter().map(Vec::len).collect();
+    Some((distinct.concat(), sizes, which))
+}
+
+/// `exchange_script`, for requests sent together. The input, the requests of `sizes` one after
+/// another, is cut into a file each; then every connection is started in the background before any
+/// is waited for, so they reach the app together rather than one after another, copy `i` sending
+/// request `which[i]`. Each answer is kept in its own file and printed in order after all have
+/// finished. The cutting reads a file, not the pipe, so no request takes bytes of the next.
+fn at_once_script(host: &str, port: u16, sizes: &[usize], which: &[usize], mark: &str) -> String {
+    let mut offset = 0;
+    let mut cut = String::new();
+    for (k, size) in sizes.iter().enumerate() {
+        cut.push_str(&format!(
+            "tail -c +{} \"$d/all\" | head -c {size} > \"$d/r{}\" && ",
+            offset + 1,
+            k + 1
+        ));
+        offset += size;
+    }
+    let pairs: Vec<String> = which
+        .iter()
+        .enumerate()
+        .map(|(i, k)| format!("{}:{k}", i + 1))
+        .collect();
+    let pairs = pairs.join(" ");
+    let numbers: Vec<String> = (1..=which.len()).map(|i| i.to_string()).collect();
     let numbers = numbers.join(" ");
     format!(
-        "d=$(mktemp -d) && cat > \"$d/r\" && \
-         for i in {numbers}; do timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
+        "d=$(mktemp -d) && cat > \"$d/all\" && {cut}\
+         for p in {pairs}; do i=${{p%:*}}; k=${{p#*:}}; timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r$k; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
          wait; for i in {numbers}; do printf '\\n{mark}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
     )
 }
 
-/// The answers in the output of `at_once_script`, in order: `None` for a copy that got none.
+/// The answers in the output of `at_once_script`, in order, each under its request's id: `None`
+/// for a copy that got none.
 fn parse_at_once(
-    id: &str,
+    ids: &[&str],
     out: &str,
-    times: usize,
     mark: &str,
 ) -> Vec<Option<sv_check::probes::ProbeResponse>> {
-    (1..=times)
+    (1..=ids.len())
         .map(|i| {
+            let id = ids[i - 1];
             let start = format!("\n{mark}{i}@@\n");
             let next = format!("\n{mark}{}@@\n", i + 1);
             let from = out.find(&start)? + start.len();
@@ -2453,26 +2495,26 @@ impl DockerBackend {
         parse_response(&request.id, &out)
     }
 
-    /// `probe`, for one request sent `times` times at once. `None` when the request cannot be
-    /// sent at all or the container that sends it did not run.
-    fn probe_at_once(
+    /// `probe`, for requests sent together. `None` when one of them cannot be sent at all or the
+    /// container that sends them did not run.
+    fn probe_together(
         &self,
         via: &Via,
         app: &str,
         port: u16,
-        request: &sv_check::probes::ProbeRequest,
-        times: usize,
+        requests: &[sv_check::probes::ProbeRequest],
     ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
-        let raw = request_bytes(request, app)?;
+        let (input, sizes, which) = together_input(requests, app)?;
         let mark = at_once_mark();
-        let script = at_once_script(app, port, times, &mark);
+        let script = at_once_script(app, port, &sizes, &which, &mark);
         let (_, out) = self
-            .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
+            .inside_fence_with_input(via, &["sh", "-c", &script], &input)
             .ok()?;
         if !out.contains(&mark) {
             return None;
         }
-        Some(parse_at_once(&request.id, &out, times, &mark))
+        let ids: Vec<&str> = requests.iter().map(|r| r.id.as_str()).collect();
+        Some(parse_at_once(&ids, &out, &mark))
     }
 }
 
@@ -3990,14 +4032,14 @@ mod at_once_tests {
     #[test]
     fn every_copy_is_started_before_any_is_waited_for() {
         let mark = at_once_mark();
-        let script = at_once_script("app", 8080, 12, &mark);
+        let script = at_once_script("app", 8080, &[40], &[1; 12], &mark);
         let (start, rest) = script
             .split_once("; wait;")
             .expect("one wait, after the starts");
         // Each connection is started in the background within the loop that comes before the
         // wait: one after another would show no race.
         assert!(
-            start.contains("for i in 1 2 3 4 5 6 7 8 9 10 11 12; do"),
+            start.contains("for p in 1:1 2:1 3:1 4:1 5:1 6:1 7:1 8:1 9:1 10:1 11:1 12:1; do"),
             "{start}"
         );
         assert!(
@@ -4026,7 +4068,7 @@ mod at_once_tests {
                 _ => out.push_str(&answer(409, &format!("Sold out {i}"))),
             }
         }
-        let answers = parse_at_once("once", &out, 12, &mark);
+        let answers = parse_at_once(&["once"; 12], &out, &mark);
         assert_eq!(answers.len(), 12);
         assert!(answers[1].is_none(), "{:?}", answers[1]);
         let first = answers[0].as_ref().expect("an answer");
@@ -4037,6 +4079,57 @@ mod at_once_tests {
             answers[11].as_ref().map(|r| r.body.as_str()),
             Some("Sold out 12")
         );
+    }
+
+    #[test]
+    fn two_requests_are_cut_apart_and_each_copy_sends_its_own() {
+        let request = |id: &str, cookie: &str| sv_check::probes::ProbeRequest {
+            id: id.to_owned(),
+            method: "POST".to_owned(),
+            path: "/book".to_owned(),
+            headers: vec![("Cookie".to_owned(), cookie.to_owned())],
+            body: Some(b"seat=1".to_vec()),
+        };
+        let a = request("once-a", "s=aaaa");
+        let b = request("once-b", "s=bbbbbbbb");
+        let (input, sizes, which) =
+            together_input(&[a.clone(), b.clone(), a.clone(), b.clone()], "app").expect("sendable");
+        // Each different request once, in the order first given, and each copy pointing at its own.
+        assert_eq!(which, [1, 2, 1, 2]);
+        let raw_a = request_bytes(&a, "app").unwrap();
+        let raw_b = request_bytes(&b, "app").unwrap();
+        assert_eq!(sizes, [raw_a.len(), raw_b.len()]);
+        assert_eq!(input, [raw_a.clone(), raw_b.clone()].concat());
+        let mark = at_once_mark();
+        let script = at_once_script("app", 8080, &sizes, &which, &mark);
+        // The second request starts one byte after the first ends, and is cut to its own size.
+        assert!(
+            script.contains(&format!(
+                "tail -c +1 \"$d/all\" | head -c {} > \"$d/r1\"",
+                raw_a.len()
+            )),
+            "{script}"
+        );
+        assert!(
+            script.contains(&format!(
+                "tail -c +{} \"$d/all\" | head -c {} > \"$d/r2\"",
+                raw_a.len() + 1,
+                raw_b.len()
+            )),
+            "{script}"
+        );
+        assert!(script.contains("for p in 1:1 2:2 3:1 4:2; do"), "{script}");
+        assert!(script.contains("cat $d/r$k;"), "{script}");
+    }
+
+    #[test]
+    fn each_answer_carries_its_own_requests_id() {
+        let mark = at_once_mark();
+        let answer = "HTTP/1.0 200 X\r\nContent-Length: 6\r\n\r\nBooked";
+        let out = format!("\n{mark}1@@\n{answer}\n{mark}2@@\n{answer}");
+        let answers = parse_at_once(&["once-a", "once-b"], &out, &mark);
+        let ids: Vec<&str> = answers.iter().flatten().map(|r| r.id.as_str()).collect();
+        assert_eq!(ids, ["once-a", "once-b"]);
     }
 
     #[test]
@@ -4061,7 +4154,7 @@ mod at_once_tests {
         let mut out = String::new();
         out.push_str(&format!("\n{mark}1@@\n{forged}"));
         out.push_str(&format!("\n{mark}2@@\n{}", answer(409, "Sold out")));
-        let answers = parse_at_once("once", &out, 2, &mark);
+        let answers = parse_at_once(&["once"; 2], &out, &mark);
         let second = answers[1].as_ref().expect("an answer");
         assert_eq!((second.status, second.body.as_str()), (409, "Sold out"));
     }
