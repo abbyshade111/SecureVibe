@@ -651,6 +651,9 @@ another session is not a claim.
     **Improvement 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-tool-limits`: a time limit on every outside tool, and an
     environment with only what a tool needs to run, `GOTOOLCHAIN=local` among it.
+    **Done the same day** (DESIGN, "Outside tools run for at most half an hour, with only the environment they
+    need"; ADR-018, Later): stopped after half an hour with everything it started, not read when stopped, and
+    handed only a short list from the owner's environment, with `GOTOOLCHAIN=local`.
     **Improvement 7 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
     refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
