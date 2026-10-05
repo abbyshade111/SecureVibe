@@ -260,11 +260,7 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
         );
     };
 
-    let covered = text
-        .lines()
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
-        .any(|l| matches!(l, ".env" | ".env*" | ".env.*" | "*.env" | "**/.env"));
+    let covered = gitignore_ignores(&text, ".env");
 
     if covered {
         Outcome::Passed(&["V13.3.1"])
@@ -275,6 +271,93 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
                 .to_owned(),
         )))
     }
+}
+
+/// Whether a `.gitignore` at the app's root leaves out the file at `path` (a file at the root, such
+/// as `.env`), read the way git reads it: blank lines and `#` comments skipped, the last pattern
+/// that matches decides, `!` brings a file back, and a pattern with a `/` in it is anchored to the
+/// root (one ending in `/` names only folders, and so never matches a file's path). Until 5 October
+/// 2026 only a few whole lines were recognized, so `/.env` failed, `.env` followed by `!.env`
+/// passed, and `.env.*` alone, which git does not apply to `.env`, passed too (H23 of the deep
+/// review).
+fn gitignore_ignores(text: &str, path: &str) -> bool {
+    let mut ignored = false;
+    for raw in text.lines() {
+        let line = raw.trim_end_matches(['\r', '\n']);
+        // Trailing spaces are dropped unless the last is escaped.
+        let line = if line.ends_with("\\ ") {
+            line
+        } else {
+            line.trim_end_matches(' ')
+        };
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (negate, pattern) = match line.strip_prefix('!') {
+            Some(rest) => (true, rest),
+            None => (false, line.strip_prefix('\\').unwrap_or(line)),
+        };
+        let anchored = pattern.contains('/');
+        let pattern = pattern.strip_prefix('/').unwrap_or(pattern);
+        let matches = if anchored {
+            glob_matches(pattern, path)
+        } else {
+            glob_matches(pattern, path.rsplit('/').next().unwrap_or(path))
+        };
+        if matches {
+            ignored = !negate;
+        }
+    }
+    ignored
+}
+
+/// Git's wildcards: `*` and `?` within one part of a path, `**` across parts, `[...]` a set of
+/// characters (with `!` or `^` for its opposite), and `\` taking the next character as it is.
+fn glob_matches(pattern: &str, text: &str) -> bool {
+    fn go(p: &[char], t: &[char]) -> bool {
+        match p.split_first() {
+            None => t.is_empty(),
+            Some(('*', rest)) if rest.first() == Some(&'*') => {
+                let rest = &rest[1..];
+                let rest = rest.strip_prefix(&['/']).unwrap_or(rest);
+                (0..=t.len()).any(|i| go(rest, &t[i..]))
+            }
+            Some(('*', rest)) => (0..=t.len())
+                .take_while(|i| *i == 0 || t[i - 1] != '/')
+                .any(|i| go(rest, &t[i..])),
+            Some(('?', rest)) => t.first().is_some_and(|c| *c != '/') && go(rest, &t[1..]),
+            Some(('[', rest)) => {
+                let Some(close) = rest.iter().skip(1).position(|c| *c == ']').map(|i| i + 1) else {
+                    return t.first() == Some(&'[') && go(rest, &t[1..]);
+                };
+                let (set, after) = (&rest[..close], &rest[close + 1..]);
+                let (negated, set) = match set.first() {
+                    Some('!' | '^') => (true, &set[1..]),
+                    _ => (false, set),
+                };
+                let Some(c) = t.first() else { return false };
+                let mut inside = false;
+                let mut i = 0;
+                while i < set.len() {
+                    if i + 2 < set.len() && set[i + 1] == '-' {
+                        inside |= set[i] <= *c && *c <= set[i + 2];
+                        i += 3;
+                    } else {
+                        inside |= set[i] == *c;
+                        i += 1;
+                    }
+                }
+                inside != negated && *c != '/' && go(after, &t[1..])
+            }
+            Some(('\\', rest)) if !rest.is_empty() => {
+                t.first() == Some(&rest[0]) && go(&rest[1..], &t[1..])
+            }
+            Some((c, rest)) => t.first() == Some(c) && go(rest, &t[1..]),
+        }
+    }
+    let p: Vec<char> = pattern.chars().collect();
+    let t: Vec<char> = text.chars().collect();
+    go(&p, &t)
 }
 
 fn env_not_ignored_finding(file: &str, description: String) -> Finding {
@@ -466,15 +549,42 @@ fn listed(versions: &[sv_scan::jvm::VersionAt]) -> String {
     parts.join(", ")
 }
 
+/// Whether the app says how to report a security problem: a `SECURITY` file (`.md`, `.txt`, `.rst`,
+/// `.adoc`, or none) at its root, in `.github/`, or in `docs/`, or a `security.txt` where a site
+/// serves it from (RFC 9116: `.well-known/`, also under `public/` or `static/`, and at the root).
+/// Any capitalization. Until 5 October 2026 only four exact paths counted (H23 of the deep review).
+fn has_security_contact(app_dir: &Path) -> bool {
+    const FOLDERS: &[&str] = &[
+        "",
+        ".github",
+        "docs",
+        ".well-known",
+        "public/.well-known",
+        "static/.well-known",
+        "public",
+        "static",
+    ];
+    const NAMES: &[&str] = &[
+        "security.md",
+        "security.txt",
+        "security.rst",
+        "security.adoc",
+        "security",
+    ];
+    FOLDERS.iter().any(|folder| {
+        let Ok(entries) = std::fs::read_dir(app_dir.join(folder)) else {
+            return false;
+        };
+        entries.flatten().any(|e| {
+            let name = e.file_name().to_string_lossy().to_lowercase();
+            NAMES.contains(&name.as_str()) && e.file_type().is_ok_and(|k| k.is_file())
+        })
+    })
+}
+
 /// Whether there is a way to report a security problem. Not a vulnerability; an absence.
 fn security_contact(app_dir: &Path) -> Outcome {
-    const PLACES: &[&str] = &[
-        "SECURITY.md",
-        "security.md",
-        ".github/SECURITY.md",
-        "docs/SECURITY.md",
-    ];
-    if PLACES.iter().any(|p| app_dir.join(p).exists()) {
+    if has_security_contact(app_dir) {
         // Deliberately empty. Nothing in ASVS, AISVS or Appendix C requires a way to report a
         // vulnerability; it is an organizational control rather than an application one. This check
         // is worth running and is evidence about no requirement in particular, which the reports
@@ -496,9 +606,10 @@ fn security_contact(app_dir: &Path) -> Outcome {
         secret: None,
         requirement_ids: vec![],
         cwe: vec![],
-        description: "No SECURITY.md was found, so somebody who finds a problem in this app has \
-                      nowhere obvious to say so."
-            .into(),
+        description:
+            "No SECURITY.md or security.txt was found, so somebody who finds a problem in \
+                      this app has nowhere obvious to say so."
+                .into(),
         impact: "Problems found by outsiders get reported publicly, or not at all.".into(),
         fix: "Add a SECURITY.md saying where to send a report and how long a reply should take."
             .into(),
@@ -757,9 +868,102 @@ mod tests {
     }
 
     #[test]
+    fn a_gitignore_is_read_the_way_git_reads_it() {
+        // H23: `/.env` failed, and `.env` followed by `!.env` passed. Each case is what git itself
+        // does with the file at the root called `.env`.
+        for (text, ignored) in [
+            ("/.env\n", true),
+            (".env\n!.env\n", false),
+            (".env*\n!.env.example\n", true),
+            ("!.env\n.env\n", true),
+            ("*\n!.gitignore\n", true),
+            ("*\n!*.env\n", false),
+            ("**/.env\n", true),
+            (".en?\n", true),
+            (".[e]nv\n", true),
+            (".[!e]nv\n", false),
+            ("*.env\n", true),
+            (".env/\n", false),
+            ("config/.env\n", false),
+            ("/config/.env\n", false),
+            ("# .env\n", false),
+            ("\\#.env\n", false),
+            (".env   \n", true),
+            ("node_modules\ndist\n", false),
+            (".envrc\n", false),
+            ("", false),
+        ] {
+            assert_eq!(gitignore_ignores(text, ".env"), ignored, "{text:?}");
+        }
+        // And through the check itself, both ways.
+        let dir = scratch("gitignore-git");
+        fs::write(dir.join(".gitignore"), "/.env\n").unwrap();
+        assert!(
+            check_dir(&dir)
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.gitignore-covers-env")
+        );
+        fs::write(dir.join(".gitignore"), ".env\n!.env\n").unwrap();
+        assert!(
+            check_dir(&dir)
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.gitignore-covers-env")
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_security_contact_is_found_however_it_is_spelled_and_wherever_a_site_serves_it() {
+        // H23: `.well-known/security.txt` and other spellings were not recognized.
+        for place in [
+            "SECURITY.md",
+            "Security.md",
+            "SECURITY.txt",
+            "SECURITY",
+            "SECURITY.rst",
+            ".github/security.md",
+            "docs/Security.md",
+            ".well-known/security.txt",
+            "public/.well-known/security.txt",
+            "static/.well-known/security.txt",
+            "security.txt",
+        ] {
+            let dir = scratch("security-places");
+            let path = dir.join(place);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, "Contact: mailto:security@example.com\n").unwrap();
+            assert!(
+                check_dir(&dir)
+                    .passed
+                    .iter()
+                    .any(|p| p.check_id == "config.security-contact"),
+                "{place}"
+            );
+            fs::remove_dir_all(&dir).ok();
+        }
+        // A folder by that name, or the name somewhere it is not served from, is not one.
+        for place in ["SECURITY/notes.txt", "src/security.txt", "security.py"] {
+            let dir = scratch("security-not");
+            let path = dir.join(place);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, "x").unwrap();
+            assert!(
+                check_dir(&dir)
+                    .findings
+                    .iter()
+                    .any(|f| f.rule_id == "config.security-contact"),
+                "{place}"
+            );
+            fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
     fn a_wildcard_env_entry_counts() {
         let dir = scratch("wildcard");
-        for pattern in [".env*", ".env.*", "*.env", "**/.env"] {
+        for pattern in [".env*", "*.env", "**/.env", "/.env", ".env\n.env.*"] {
             fs::write(dir.join(".gitignore"), format!("{pattern}\n")).unwrap();
             assert!(
                 check_dir(&dir)
@@ -769,6 +973,15 @@ mod tests {
                 "{pattern} should count as covering .env"
             );
         }
+        // `.env.*` alone needs a dot after `env`, so git still commits the file called `.env`.
+        // Until 5 October 2026 this was counted as covering it.
+        fs::write(dir.join(".gitignore"), ".env.*\n").unwrap();
+        assert!(
+            check_dir(&dir)
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.gitignore-covers-env")
+        );
         fs::remove_dir_all(&dir).ok();
     }
 

@@ -395,6 +395,10 @@ another session is not a claim.
     `.well-known/security.txt` and other spellings are not recognized.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h23`.
+    **Done the same day** (DESIGN, "A .gitignore read the way git reads it, and a security contact however it is
+    spelled"): `/.env` passes, `.env` then `!.env` fails, and `.env.*` alone, which git does not apply to `.env`
+    and which used to pass, now fails; a `SECURITY` file in any spelling at the root, in `.github/` or `docs/`, and a
+    `security.txt` in `.well-known/` (also under `public/` or `static/`) or at the root count as a contact.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
