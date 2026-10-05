@@ -407,6 +407,8 @@ another session is not a claim.
     broken in turn, each caught.
   - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
     that includes `docker exec`'s own time.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h16`.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
