@@ -227,7 +227,7 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 > under "When to bring in a person". Do not add headings to security-notes.md for this. Do not decide
 > for me that the review can be skipped.
 
-*Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, and the checklist's escalation triggers it draws on are not controls, so it names none. sv does not read design-decisions.md.
+*Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, and the checklist's escalation triggers it draws on are not controls, so it names none. sv repeats what this section says in its report, where what was not examined is listed, and credits nothing for it.
 
 ### List the app's data, and keep only what it needs
 
@@ -278,9 +278,15 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 >   written for this app.
 >
 > Write the list, and what was removed or turned off, in design-decisions.md, under "Safe defaults".
+> Start that section with these three lines, changing a value only if we decided otherwise:
+>
+> - debug mode: off
+> - cross-site access: own site only
+> - default accounts: none
+>
 > Do not add headings to security-notes.md for this.
 
-*Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, though its debug-mode, cross-site access, and header checks reach parts of it. It draws on the checklist's principles rather than one control, so it names none. sv does not read design-decisions.md.
+*Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, though its debug-mode, cross-site access, and header checks reach parts of it. It draws on the checklist's principles rather than one control, so it names none. sv reads the section's three fixed lines and holds each, when the app is run, to the check that sees it: a switch decided the safe way that the check finds otherwise is a finding, decided, not held to. Nothing is credited for a decision kept.
 
 ### Write "what we do if..." on one page
 
@@ -297,7 +303,7 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 > Write it in design-decisions.md, under "What we do if something goes wrong", and remind me once
 > a year to read it again. Do not add headings to security-notes.md for this.
 
-*Helps you answer:* Secure by Design MT-06. *Not tried:* No check in sv shows this prompt working; whether a plan exists, is right, and has been rehearsed is for a person to answer. sv does not read design-decisions.md.
+*Helps you answer:* Secure by Design MT-06. *Not tried:* No check in sv shows this prompt working; whether a plan exists, is right, and has been rehearsed is for a person to answer. sv reads the section as a written answer toward SBD-MT-06: documented, or stated by the AI coding tool, never checked. That shows a plan is written, not that it works.
 
 ### Flag the rules that might apply
 
@@ -315,7 +321,7 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 > in design-decisions.md, under "Rules that might apply". Do not add headings to security-notes.md
 > for this.
 
-*Helps you answer:* Secure by Design AC-06. *Not tried:* No check in sv shows this prompt working; which rules apply is a question for a person, and a qualified one. sv does not read design-decisions.md.
+*Helps you answer:* Secure by Design AC-06. *Not tried:* No check in sv shows this prompt working; which rules apply is a question for a person, and a qualified one. sv reads the section as a written answer toward SBD-AC-06: documented, or stated by the AI coding tool, never checked. That shows the rules were written down, not that the design follows them.
 
 ### Before changing the design, re-read what was decided
 
