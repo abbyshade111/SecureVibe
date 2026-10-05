@@ -123,7 +123,8 @@ pub(crate) fn run_needs(manifest: &Manifest) -> Vec<RunNeed> {
             "[stack.run.users]",
             "seed",
             "a command that makes two ordinary test accounts (and an admin, if there are admin pages) \
-             from the names and passwords `sv` gives it, so it can sign in as each",
+             from the names and passwords `sv` gives it, so it can sign in as each; it runs after the \
+             app is up, so the app must make its own tables when it starts",
             users.is_some_and(|u| u.seed.is_some()),
         );
         need(
