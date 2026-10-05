@@ -171,6 +171,16 @@ pub struct Section {
     /// the question already implies it.
     #[serde(rename = "howToFindOut", default)]
     pub how_to_find_out: Option<String>,
+    /// The heading the section goes by in a file whose headings carry no id, such as
+    /// `design-decisions.md`'s "What we do if something goes wrong", which the design-time prompts
+    /// write. Matched as the whole heading, in any case, with a trailing colon or full stop
+    /// ignored. A section without one is found only by the id its heading starts with.
+    #[serde(default)]
+    pub heading: Option<String>,
+    /// What an answer here does not show, said beside the credit: for an incident plan, that it has
+    /// been rehearsed.
+    #[serde(rename = "notCovered", default)]
+    pub not_covered: Option<String>,
 }
 
 /// A requirement whose words mention documentation and that has no section, with why.
@@ -185,7 +195,7 @@ pub struct Elsewhere {
     pub why: String,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Catalog {
     pub file: String,
     pub sections: Vec<Section>,
@@ -214,6 +224,41 @@ impl Catalog {
     pub fn section(&self, id: &str) -> Option<&Section> {
         self.sections.iter().find(|s| s.id == id)
     }
+
+    /// The section a heading line belongs to: by the id it starts with, or, for a section that
+    /// goes by a heading of its own, by that heading.
+    fn section_of(&self, line: &str) -> Option<String> {
+        section_id(line).or_else(|| {
+            let rest = line
+                .strip_prefix("## ")
+                .or_else(|| line.strip_prefix("### "))?;
+            let said = plain_heading(rest);
+            self.sections
+                .iter()
+                .find(|s| {
+                    s.heading
+                        .as_deref()
+                        .is_some_and(|h| plain_heading(h) == said)
+                })
+                .map(|s| s.id.clone())
+        })
+    }
+
+    /// Where a section is, for a person: its heading as `sv` writes it.
+    fn place(&self, section: &Section) -> String {
+        match &section.heading {
+            Some(heading) => heading.clone(),
+            None => format!("{} — {}", section.id, section.title),
+        }
+    }
+}
+
+/// A heading as compared: trimmed, without a trailing colon or full stop, in lower case.
+fn plain_heading(text: &str) -> String {
+    text.trim()
+        .trim_end_matches([':', '.'])
+        .trim()
+        .to_lowercase()
 }
 
 /// What `sv` found that belongs in the notes, so the owner starts from the app rather than a blank
@@ -769,7 +814,7 @@ pub fn read_answers(catalog: &Catalog, text: &str) -> Answers {
     // Split on `\n` alone, so a line keeps a `\r` it ends in, and is kept as it was.
     for (n, raw) in text.split('\n').enumerate() {
         let t = raw.trim();
-        if let Some(id) = section_id(raw) {
+        if let Some(id) = catalog.section_of(raw) {
             if let Some(done) = open.take() {
                 done.close(&mut answers, &mut kept);
             }
@@ -974,10 +1019,15 @@ impl<'a> Open<'a> {
 /// taken out, and the new one put straight after its `Written by:` line. `None` when there is no
 /// such section, or it has no `Written by:` line to put the seal under. Nothing else changes.
 pub fn with_seal(text: &str, id: &str, seal: &str) -> Option<String> {
+    with_seal_in(&Catalog::default(), text, id, seal)
+}
+
+/// `with_seal`, for a file whose sections may go by a heading of their own (`Section::heading`).
+pub fn with_seal_in(catalog: &Catalog, text: &str, id: &str, seal: &str) -> Option<String> {
     let lines: Vec<&str> = text.lines().collect();
     let start = lines
         .iter()
-        .position(|l| section_id(l).as_deref() == Some(id))?;
+        .position(|l| catalog.section_of(l).as_deref() == Some(id))?;
     let end = lines[start + 1..]
         .iter()
         .position(|l| ends_section(l))
@@ -1065,13 +1115,21 @@ pub fn evidence(
         let Some(section) = catalog.section(&id) else {
             continue;
         };
-        let place = format!("{file}, under \"{} — {}\"", section.id, section.title);
+        let place = format!("{file}, under \"{}\"", catalog.place(section));
+        // What the answer does not show, after the credit as its own sentence.
+        let not_covered = section
+            .not_covered
+            .as_ref()
+            .map_or(String::new(), |n| format!(". {n}"));
         match who {
             Writer::Owner => match answers.recorded(&id, seals) {
                 Ok(sealed) => out.documented.push(Verified::new(
                     "notes.documented",
                     &[id.as_str()],
-                    format!("{place}{}", crate::seal::recorded_where(&sealed)),
+                    format!(
+                        "{place}{}{not_covered}",
+                        crate::seal::recorded_where(&sealed)
+                    ),
                 )),
                 Err(why) => out.stated.push(Verified::new(
                     "notes.stated-by-ai",
@@ -1089,7 +1147,7 @@ pub fn evidence(
                 format!(
                     "{place}: {}. This is the word of the tool that wrote the code, not a decision \
                      you made; read it, and if you agree, mark it `{WRITTEN_BY} {BY_OWNER}` and \
-                     run `sv review` in your own terminal to record it as yours.",
+                     run `sv review` in your own terminal to record it as yours{not_covered}.",
                     if who == Writer::AiTool {
                         "your AI coding tool wrote it"
                     } else {
@@ -1205,6 +1263,8 @@ mod tests {
                     asks: "How the app defends against someone trying many passwords.".into(),
                     facts: vec!["sign-in".into()],
                     how_to_find_out: None,
+                    heading: None,
+                    not_covered: None,
                 },
                 Section {
                     id: "V8.1.1".into(),
@@ -1212,10 +1272,125 @@ mod tests {
                     asks: "Which kinds of users may use which functions.".into(),
                     facts: vec!["data".into()],
                     how_to_find_out: None,
+                    heading: None,
+                    not_covered: None,
                 },
             ],
             elsewhere: Vec::new(),
         }
+    }
+
+    /// A catalog like design-decisions.json's: a section that goes by a heading of its own.
+    fn by_heading() -> Catalog {
+        Catalog {
+            file: "design-decisions.md".into(),
+            sections: vec![Section {
+                id: "SBD-MT-06".into(),
+                title: "What we do if something goes wrong".into(),
+                asks: "What is the plan when something goes wrong?".into(),
+                facts: Vec::new(),
+                how_to_find_out: None,
+                heading: Some("What we do if something goes wrong".into()),
+                not_covered: Some("Whether the plan has been rehearsed is not covered.".into()),
+            }],
+            elsewhere: Vec::new(),
+        }
+    }
+
+    const PLAN: &str = "Take the app offline from the hosting dashboard, rotate the database \
+                        password, and email everyone affected within three days.";
+
+    #[test]
+    fn a_section_is_found_by_its_own_heading_in_any_case_and_with_a_colon() {
+        for heading in [
+            "## What we do if something goes wrong",
+            "### what we do if something goes wrong:",
+            "## What we do if something goes wrong.",
+        ] {
+            let text = format!(
+                "# Design decisions\n\n{heading}\n\nWritten by: AI coding tool\n\n{PLAN}\n"
+            );
+            let answers = read_answers(&by_heading(), &text);
+            assert_eq!(
+                answers.answered(),
+                vec![("SBD-MT-06".to_owned(), Writer::AiTool)],
+                "{heading}"
+            );
+            assert!(
+                answers
+                    .prose_of("SBD-MT-06")
+                    .unwrap()
+                    .contains("rotate the database")
+            );
+        }
+        // A heading that only starts with the words, or a deeper one, is not the section.
+        for heading in [
+            "## What we do if something goes wrong, later",
+            "#### What we do if something goes wrong",
+        ] {
+            let text = format!("{heading}\n\nWritten by: AI coding tool\n\n{PLAN}\n");
+            assert!(
+                read_answers(&by_heading(), &text).answered().is_empty(),
+                "{heading}"
+            );
+        }
+        // The notes are unchanged: a catalog without headings finds nothing by words alone.
+        let text = format!(
+            "## How sign-in is protected against guessing\n\nWritten by: AI coding tool\n\n{PLAN}\n"
+        );
+        assert!(read_answers(&catalog(), &text).answered().is_empty());
+    }
+
+    #[test]
+    fn a_section_by_heading_says_where_it_is_and_what_it_does_not_cover() {
+        let text = format!(
+            "## What we do if something goes wrong\n\nWritten by: AI coding tool\n\n{PLAN}\n"
+        );
+        let catalog = by_heading();
+        let out = evidence(
+            &catalog,
+            &read_answers(&catalog, &text),
+            "design-decisions.md",
+        );
+        assert_eq!(out.stated.len(), 1);
+        let scope = &out.stated[0].scope;
+        assert!(
+            scope.starts_with("design-decisions.md, under \"What we do if something goes wrong\""),
+            "{scope}"
+        );
+        assert!(scope.contains("rehearsed is not covered"), "{scope}");
+        // The owner's, recorded: documented, and still saying what it does not cover.
+        let text = text.replace("AI coding tool", "owner");
+        let out = evidence(
+            &catalog,
+            &read_answers(&catalog, &text),
+            "design-decisions.md",
+        );
+        assert_eq!(out.documented.len(), 1, "{out:?}");
+        assert!(out.documented[0].scope.contains("rehearsed is not covered"));
+        assert!(
+            out.documented[0]
+                .scope
+                .contains("recorded through `sv review`")
+        );
+    }
+
+    #[test]
+    fn a_seal_goes_under_a_section_found_by_its_heading() {
+        let text = format!(
+            "## Safe defaults\n\nDebug off.\n\n## What we do if something goes wrong\n\nWritten by: owner\n\n{PLAN}\n"
+        );
+        let sealed = with_seal_in(&by_heading(), &text, "SBD-MT-06", "v1:abc").expect("placed");
+        let at = sealed.find("Sealed by sv review: v1:abc").unwrap();
+        assert!(at > sealed.find("## What we do if").unwrap(), "{sealed}");
+        assert_eq!(
+            read_answers(&by_heading(), &sealed)
+                .seal_of("SBD-MT-06")
+                .as_deref(),
+            Some("v1:abc")
+        );
+        // Without the catalog, the heading is nobody's section.
+        assert_eq!(with_seal(&text, "SBD-MT-06", "v1:abc"), None);
     }
 
     fn applicable(ids: &[&str]) -> BTreeSet<String> {

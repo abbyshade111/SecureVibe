@@ -3119,6 +3119,74 @@ nothing-credited rows swapped; `planned` read as unreadable; the report's lines 
 medium. The design-time prompts do not yet ask for `planned`: the third trial tested their present wording, and
 changing it would leave the results describing words no longer there.
 
+
+### `design-decisions.md`: two sections as written answers, and a review repeated (5 October 2026)
+
+Four design-time prompts write their decisions into `design-decisions.md`, each under a heading of its own words, and
+until now `sv` read none of it (backlog, design-time item 9). The owner chose, on a proposal, what each section is
+worth:
+
+| Section the prompt writes | What `sv` makes of it |
+|---|---|
+| "What we do if something goes wrong" | a written answer toward SBD-MT-06 (an incident plan, a critical control) |
+| "Rules that might apply" | a written answer toward SBD-AC-06 (the regulatory controls identified) |
+| "When to bring in a person" | repeated in the report where what was not examined is listed; credits nothing |
+| "Safe defaults" | held to the code in a later change |
+
+**Read as the notes are.** The two controls had no ASVS counterpart, so nothing could ever move them from *not
+verified*. Their sections are now read by the security notes' own reader, with a second catalog,
+`data/design-decisions.json`: an answer of forty characters or more makes the control *documented* when it is the
+owner's and `sv review` sealed it, and *stated by the AI coding tool* otherwise, by the rules of ADR-022; never
+*checked*. The catalog's sections name the heading they go by (`heading`), since the prompts write no id, matched as
+the whole heading in any case with a trailing colon or full stop ignored; a section without one is found by its id, as
+before, so the notes read exactly as they did. Each says what a written section cannot show (`notCovered`), and the
+report says it beside the credit: that the plan was rehearsed, or that the design follows the rules. `sv review`
+offers the owner's sections of both files, and seals each under its own heading (`with_seal_in`). SBD-MT-05 (records
+kept current) is not credited: whether a decision was re-read before a change is not something a file shows.
+
+**The review, repeated.** No tool can make a person's review, and the prompt asks the tool to say whether one is
+needed. What the section says is repeated, cut at six hundred characters, as a row of "What was not examined", near the
+top of the report. Its words are not read for a yes or a no.
+
+**Held to what they stand on.** `crates/sv-check/tests/decisions.rs` holds each section of the catalog to a real
+checklist control, to the one prompt that writes its heading into the file, and to that prompt naming the control; and
+the reminder's heading to the prompt that writes it. The prompts' own notes in `design-prompts.json` and
+`docs/prompts/design-time.md` say what `sv` now does with each section.
+
+**Tested.** Twelve guards broken in turn, each caught: sections found by id only (five tests), headings compared as
+written, the not-covered sentence left off either tier, either tier left out of the report, the reminder not given,
+who wrote a section repeated in the reminder, a section running past the next heading, `sv review` reading only the
+notes or placing the seal as in the notes, and a heading other than the prompt's. The two report tiers are caught
+only by the end-to-end test, which is where they are joined.
+
+**Later the same day: safe defaults, held to the running app.** The second part of the owner's choice. The
+safe-defaults prompt now starts its section with three lines, `- debug mode: off`, `- cross-site access: own site
+only`, and `- default accounts: none`, a value changed only where the owner decided otherwise. `sv` reads those three
+(`decisions::safe_defaults`), each to one check of the running app that sees it:
+
+| Line | Held to | Why that check and no other |
+|---|---|---|
+| debug mode | `probe.development-console-open` | a development console answers only with debug on; an error page with a stack trace can have other causes |
+| cross-site access | `probe.cors-any-origin` | the app answering any site's request for its data is the opposite of "own site only" |
+| default accounts | `probe.default-account` | a default name and password signing in is the opposite of "none" |
+
+A switch decided the safe way whose check found otherwise is a finding of its own, *decided, not held to*
+(`decisions.not-held-to`): low, at the check's confidence, citing the check's own requirements, on its line of the
+decisions file, beside the check's finding, which stays the thing to fix. It is made after the findings a person set
+aside are taken out, so a false alarm set aside is not held against a decision either. A switch decided the other way
+(`on`, `any site`, `some`) is the owner's call and is not held against the code; a line with any other value is named
+as unreadable, not guessed at; the rest of the section is for a person. Nothing is credited for a decision kept: the
+check's own credit already says what it saw. All three checks need the app running, so without `--run` the report
+says how many safe defaults were decided and not looked at, and `examined` gives the `decisions.` family as partly
+run. `decisions.` joins `sv`'s own families, and its findings are never taken for a line of code.
+
+Twelve guards broken in turn, each caught: the owner's other value held against the code, any finding counted against
+any switch, debug mode held to the cross-site check, a switch read past its section, every line about a switch
+counted, backticks kept, another value taken as the other, the "not looked at" and "unreadable" lines not given,
+`examined` saying ran without the app, and the family taken for a line of code or for a tool's. A test holds the
+prompt's three lines to the switches `sv` reads. **Not tested here:** the line that adds the finding to the report
+runs only with the app running, and this environment has no Docker; the finding itself is tested directly.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

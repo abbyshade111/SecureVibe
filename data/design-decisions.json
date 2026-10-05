@@ -1,0 +1,21 @@
+{
+  "_comment": "The sections of design-decisions.md that count toward a Secure by Design checklist control, read the way security-notes.json's are (crates/sv-check/src/notes.rs): a section with an answer and a `Written by:` line makes its control *documented* (the owner's, once recorded through `sv review`) or *stated by the AI coding tool*, never *checked*. The design-time prompts in design-prompts.json write these headings, without an id, so each section names the heading it goes by (`heading`), and a test holds each to the words its prompt uses. `notCovered` is said beside the credit: what the control asks that a written section cannot show. The file's other sections (\"When to bring in a person\", \"Safe defaults\") count toward no control and are read in crates/sv-check/src/decisions.rs. SBD-MT-05 (records kept current) is not here: whether a decision was re-read before a change is not something a file shows. The owner's decisions of 5 October 2026 (BACKLOG, design-time item 9).",
+  "file": "design-decisions.md",
+  "sections": [
+    {
+      "id": "SBD-MT-06",
+      "title": "What we do if something goes wrong",
+      "heading": "What we do if something goes wrong",
+      "asks": "What is the plan when something goes wrong: how to take the app offline, what to do if a key leaks, what to do if someone else's data may have been seen, and who to ask for help?",
+      "notCovered": "Whether the plan has been rehearsed, and whether it would work, is not covered: a written plan is all a file can show."
+    },
+    {
+      "id": "SBD-AC-06",
+      "title": "Rules that might apply",
+      "heading": "Rules that might apply",
+      "asks": "Which laws or industry rules might apply to this app, from what it keeps and who uses it, and what each would mean for the design?",
+      "notCovered": "Whether the design really follows those rules is not covered: that takes a person who knows them."
+    }
+  ],
+  "elsewhere": []
+}

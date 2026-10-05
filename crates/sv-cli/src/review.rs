@@ -31,8 +31,9 @@ enum Waiting {
     DesignAnswer(String),
     /// A result under `[checked-by-hand]` given as the owner's.
     HandAnswer(String),
-    /// A section of the security notes marked `Written by: owner`.
-    Notes(String),
+    /// A section marked `Written by: owner`, in the security notes (0) or design-decisions.md (1):
+    /// the index into the files `review` reads sections from.
+    Notes(usize, String),
 }
 
 pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
@@ -164,14 +165,27 @@ fn review(
             waiting.push(Waiting::HandAnswer(id.clone()));
         }
     }
+    // The files whose sections say who wrote them: the security notes, and the decisions the
+    // design-time prompts write, read the same way (`sv_check::decisions`).
     let notes_catalog = sv_check::notes::Catalog::load(&super::notes_path())?;
-    let notes_path = app_dir.join(&notes_catalog.file);
-    let notes = notes_text(&notes_path)?;
-    if let Some(text) = &notes {
-        let answers = sv_check::notes::read_answers(&notes_catalog, text);
-        for (id, who) in answers.answered() {
-            if who == sv_check::notes::Writer::Owner && answers.recorded(&id, &checker).is_err() {
-                waiting.push(Waiting::Notes(id));
+    let files: Vec<(sv_check::notes::Catalog, PathBuf)> = [
+        notes_catalog.clone(),
+        sv_check::notes::Catalog::load(&super::decisions_path())?,
+    ]
+    .into_iter()
+    .map(|catalog| {
+        let path = app_dir.join(&catalog.file);
+        (catalog, path)
+    })
+    .collect();
+    for (which, (catalog, path)) in files.iter().enumerate() {
+        if let Some(text) = notes_text(path)? {
+            let answers = sv_check::notes::read_answers(catalog, &text);
+            for (id, who) in answers.answered() {
+                if who == sv_check::notes::Writer::Owner && answers.recorded(&id, &checker).is_err()
+                {
+                    waiting.push(Waiting::Notes(which, id));
+                }
             }
         }
     }
@@ -284,13 +298,15 @@ fn review(
                     None => None,
                 }
             }
-            Waiting::Notes(id) => {
-                let text = notes_text(&notes_path)?.context("the notes file is gone")?;
-                let answers = sv_check::notes::read_answers(&notes_catalog, &text);
+            Waiting::Notes(which, id) => {
+                let (catalog, path) = &files[which];
+                let text =
+                    notes_text(path)?.with_context(|| format!("{} is gone", catalog.file))?;
+                let answers = sv_check::notes::read_answers(catalog, &text);
                 let prose = answers.prose_of(&id).unwrap_or_default();
                 let what = format!(
                     "Your answer to requirement {id} in {}, marked `Written by: owner`:\n\n{}\n",
-                    notes_catalog.file,
+                    catalog.file,
                     prose
                         .lines()
                         .map(|l| format!("    {l}"))
@@ -299,11 +315,11 @@ fn review(
                 );
                 let fields = sv_check::seal::notes_fields(&id, &prose);
                 if let Some(seal) = record_own(&what, &fields, &key, input, out)? {
-                    let sealed = sv_check::notes::with_seal(&text, &id, &seal)
+                    let sealed = sv_check::notes::with_seal_in(catalog, &text, &id, &seal)
                         .context("the section is not where it was")?;
-                    save_text(&notes_path, &sealed, &|| {
-                        notes_text(&notes_path).ok().flatten().is_some_and(|t| {
-                            sv_check::notes::read_answers(&notes_catalog, &t)
+                    save_text(path, &sealed, &|| {
+                        notes_text(path).ok().flatten().is_some_and(|t| {
+                            sv_check::notes::read_answers(catalog, &t)
                                 .recorded(&id, &checker)
                                 .is_ok()
                         })
@@ -740,7 +756,7 @@ fn counts(manifest: &sv_manifest::Manifest, which: &Waiting, checker: &Checker) 
             )
             .is_ok()
         }),
-        Waiting::Notes(_) => false,
+        Waiting::Notes(..) => false,
         Waiting::Confirmation { section, id } => {
             let c = match *section {
                 "design" => manifest.design.get(id).and_then(|a| a.confirmed.as_ref()),
@@ -1123,6 +1139,57 @@ mod tests {
                 .all(|l| l.starts_with(sv_check::notes::SEALED_BY))
         );
         // Nothing waits the second time.
+        let (result, out) = s.run("");
+        result.unwrap();
+        assert!(out.contains("Nothing in"), "{out}");
+    }
+
+    #[test]
+    fn an_owners_section_of_the_decisions_file_is_recorded_under_its_own_heading() {
+        // design-decisions.md's sections go by headings with no id (`sv_check::decisions`); the one
+        // marked as the owner's is offered and sealed, the tool's is not, and a section that counts
+        // toward nothing is never offered.
+        let s = Scratch::new("decisions");
+        with_app(&s, HEAD);
+        let decisions = "# Design decisions\n\n## When to bring in a person\n\nWritten by: owner\n\n\
+                         The app keeps health data, so a person should review the design.\n\n\
+                         ## What we do if something goes wrong\n\nWritten by: owner\n\nTake the app \
+                         offline from the hosting dashboard, rotate the database password, and email \
+                         everyone affected within three days.\n\n## Rules that might apply\n\n\
+                         Written by: AI coding tool\n\nHealth data of people in Europe: the GDPR may \
+                         apply, so ask someone qualified.\n";
+        std::fs::write(s.app().join(sv_check::decisions::FILE), decisions).unwrap();
+        let (result, out) = s.run("owner\n");
+        result.unwrap();
+        assert!(
+            out.contains("SBD-MT-06") && out.contains("Take the app"),
+            "{out}"
+        );
+        assert!(
+            !out.contains("SBD-AC-06") && !out.contains("health data, so a person"),
+            "{out}"
+        );
+        assert!(out.contains("Recorded 1 of 1"), "{out}");
+        let after = std::fs::read_to_string(s.app().join(sv_check::decisions::FILE)).unwrap();
+        let catalog = sv_check::notes::Catalog::load(&crate::decisions_path()).unwrap();
+        let answers = sv_check::notes::read_answers(&catalog, &after);
+        assert!(
+            answers.recorded("SBD-MT-06", &s.checker()).is_ok(),
+            "{after}"
+        );
+        assert!(answers.recorded("SBD-AC-06", &s.checker()).is_err());
+        // Only the seal line was added, under the section it is for.
+        let added: Vec<&str> = after
+            .lines()
+            .filter(|l| !decisions.lines().any(|n| n == *l))
+            .collect();
+        assert_eq!(added.len(), 1, "{after}");
+        let seal_at = after.find(sv_check::notes::SEALED_BY).unwrap();
+        assert!(
+            after.find("## What we do if").unwrap() < seal_at
+                && seal_at < after.find("## Rules that might apply").unwrap(),
+            "{after}"
+        );
         let (result, out) = s.run("");
         result.unwrap();
         assert!(out.contains("Nothing in"), "{out}");
