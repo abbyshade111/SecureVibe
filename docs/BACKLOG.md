@@ -696,6 +696,7 @@ another session is not a claim.
     **Improvement 5's "two-factor codes from the container's clock" claimed on 5 October 2026 by session
     securevibe-e9**, in branch `claude/securevibe-e9-container-clock`: the signed-in checks' clock read as the app's
     containers read it, not this computer's, where Docker runs in a virtual machine whose clock can drift.
+    **Done the same day** (DESIGN, "Two-factor codes made for the containers' clock").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
