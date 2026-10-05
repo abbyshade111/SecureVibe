@@ -1124,18 +1124,31 @@ impl Server {
     }
 }
 
-/// Why a root is too wide to serve, if it is: the whole computer, or the whole home folder, where an
-/// AI tool talked into it could read keys, mail, and every other project. `sv mcp` with no `--root`
-/// serves the folder it was started in, which is often the home folder (BACKLOG, "Hardening the MCP
-/// server", item 5). Both are canonical paths.
+/// Why a root is too wide to serve, if it is: the whole computer, the whole home folder, or any
+/// folder that holds the home folder (`/home`, `/Users`), where an AI tool talked into it could read
+/// keys, mail, and every other project, other people's included. `sv mcp` with no `--root` serves
+/// the folder it was started in, which is often the home folder (BACKLOG, "Hardening the MCP
+/// server", item 5). Until 5 October 2026 only `/` and the home folder itself were refused (R10 of
+/// the deep review). Both are canonical paths. With no home folder known, a folder just below the
+/// top, such as `/home`, is refused too, since it is where home folders are kept.
 fn too_wide(root: &Path, home: Option<&Path>) -> Option<&'static str> {
     if root.parent().is_none() {
         return Some("it is the top of the computer's files");
     }
-    if home == Some(root) {
-        return Some("it is your whole home folder, where your keys and other projects are");
+    match home {
+        Some(home) if home == root => {
+            Some("it is your whole home folder, where your keys and other projects are")
+        }
+        Some(home) if home.starts_with(root) => Some(
+            "it holds your home folder, and so your keys and other projects, and other people's \
+             home folders too",
+        ),
+        None if root.parent().is_some_and(|p| p.parent().is_none()) => Some(
+            "it is a folder at the top of the computer's files, where home folders are kept, and \
+             this computer's home folder could not be found to tell it apart",
+        ),
+        _ => None,
     }
-    None
 }
 
 enum Refusal {
@@ -3271,8 +3284,20 @@ mod tests {
         assert!(too_wide(Path::new("/"), Some(home)).is_some());
         assert!(too_wide(home, Some(home)).is_some());
         assert!(too_wide(&home.join("code"), Some(home)).is_none());
-        assert!(too_wide(Path::new("/home"), Some(home)).is_none());
+        // R10: a folder above the home folder holds it, and every other user's.
+        assert!(too_wide(Path::new("/home"), Some(home)).is_some());
+        let mac = Path::new("/Users/someone");
+        assert!(too_wide(Path::new("/Users"), Some(mac)).is_some());
+        let deep = Path::new("/srv/people/someone");
+        assert!(too_wide(Path::new("/srv/people"), Some(deep)).is_some());
+        assert!(too_wide(Path::new("/srv"), Some(deep)).is_some());
+        // A folder beside the home folder, or one sharing the start of its name, is not above it.
+        assert!(too_wide(Path::new("/srv/apps"), Some(deep)).is_none());
+        assert!(too_wide(Path::new("/home/some"), Some(home)).is_none());
+        assert!(too_wide(Path::new("/home/someone-else/code"), Some(home)).is_none());
+        // With no home folder known, a project folder is served and a folder at the top is not.
         assert!(too_wide(&home.join("code"), None).is_none());
+        assert!(too_wide(Path::new("/home"), None).is_some());
         // And the server itself refuses, with the reason.
         let err = Server::new(Path::new("/"))
             .err()
