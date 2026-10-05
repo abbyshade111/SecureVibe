@@ -1,0 +1,220 @@
+{
+  "_comment": "The features `sv brief` and `securevibe_before` write a brief for, before the feature is built. Each names the conditions whose requirements it brings (any requirement the applicability rules gate on one of them), any requirements it brings that no condition gates (`requirements`), the design-time prompts in design-prompts.json for the decisions to make first, the topics of coding-rules.json whose rules bear on building it (`guidance`), and the settings `sv run` needs to test it, as table and key in the starter securevibe.toml. A brief gives the requirements that apply to the app now, those its conditions will bring once securevibe.toml says the app has the feature, and the tests to write for those that apply. Tests hold every id here to the frameworks, every prompt to design-prompts.json, every topic to coding-rules.json, and every table and key to the starter securevibe.toml.",
+  "features": [
+    {
+      "id": "sign-in",
+      "name": "Sign-in with the app's own accounts",
+      "conditions": [
+        "auth"
+      ],
+      "requirements": [],
+      "prompts": [
+        "design-sign-in",
+        "design-limits"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.users",
+          "key": "seed"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "signup"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "login"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "logout"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "private"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "owned"
+        },
+        {
+          "table": "policy",
+          "key": "failed-sign-ins"
+        }
+      ]
+    },
+    {
+      "id": "sign-in-elsewhere",
+      "name": "Sign-in through another service (\"Sign in with Google\" and the like)",
+      "conditions": [
+        "oauth"
+      ],
+      "requirements": [],
+      "prompts": [
+        "design-sign-in"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.oidc",
+          "key": "start"
+        },
+        {
+          "table": "stack.run.oidc",
+          "key": "private"
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "name": "Admin pages",
+      "conditions": [],
+      "requirements": [
+        "V8.2.1",
+        "V8.2.2",
+        "V8.3.1"
+      ],
+      "prompts": [
+        "design-who-may-do-what",
+        "design-logging"
+      ],
+      "guidance": [],
+      "settings": [
+        {
+          "table": "stack.run.users",
+          "key": "seed"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "admin"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "admin-actions"
+        }
+      ]
+    },
+    {
+      "id": "uploads",
+      "name": "File uploads",
+      "conditions": [
+        "uploads"
+      ],
+      "requirements": [],
+      "prompts": [],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.users",
+          "key": "upload"
+        }
+      ]
+    },
+    {
+      "id": "payments",
+      "name": "Payments, bookings, and other things that must happen once",
+      "conditions": [
+        "payments"
+      ],
+      "requirements": [
+        "V2.3.4"
+      ],
+      "prompts": [
+        "design-actions-once"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.users",
+          "key": "once"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "flow"
+        }
+      ]
+    },
+    {
+      "id": "email",
+      "name": "Email the app sends (password resets, sign-in codes, activation)",
+      "conditions": [
+        "email"
+      ],
+      "requirements": [],
+      "prompts": [],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.users",
+          "key": "reset"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "email-code"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "activation"
+        }
+      ]
+    },
+    {
+      "id": "ai",
+      "name": "An AI feature",
+      "conditions": [
+        "ai",
+        "ai-actions"
+      ],
+      "requirements": [],
+      "prompts": [
+        "design-what-the-app-talks-to",
+        "design-when-things-fail"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.ai",
+          "key": "chat"
+        },
+        {
+          "table": "policy",
+          "key": "ai-requests-per-minute"
+        }
+      ]
+    },
+    {
+      "id": "fetch",
+      "name": "Fetching a web address a person gives (a link preview, an import)",
+      "conditions": [],
+      "requirements": [
+        "V1.3.6",
+        "V13.2.4",
+        "V15.3.2"
+      ],
+      "prompts": [
+        "design-what-the-app-talks-to",
+        "design-when-things-fail"
+      ],
+      "guidance": [],
+      "settings": [
+        {
+          "table": "stack.run.fetch",
+          "key": "request"
+        }
+      ]
+    }
+  ]
+}
