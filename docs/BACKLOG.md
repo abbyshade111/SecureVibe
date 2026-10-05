@@ -604,6 +604,12 @@ another session is not a claim.
     `claude/securevibe-e9-r12`. Record: ADR-031 (proposed).
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r12-not-the-app-warning`.
+    **The two claims crossed:** securevibe-e9's was committed at 03:48 UTC and open as #674 from 03:49, and the
+    cato-pipeline session's (#677) was made at 03:55, before #674 reached `main`. securevibe-e9's was built, so it
+    is the one that went in; nothing of the other had been pushed.
+    **Done the same day** (DESIGN, "A `not-the-app` list that would set apart all the code is not used"; ADR-031,
+    accepted): a list that would leave none of the app's code files outside it is not used, in every command, and
+    the report says why; a list that is used is shown with how many of the code files it set apart.
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
