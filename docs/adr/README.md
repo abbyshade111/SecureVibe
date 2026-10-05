@@ -73,10 +73,11 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-027](ADR-027.md) | `sv probe` asks only public addresses, and only the ones it checked |
 | [ADR-028](ADR-028.md) | Decide before you build: the design comes first, and nothing is credited for it |
 | [ADR-029](ADR-029.md) | Exit codes: 2 only when a check could not run, 1 only when asked, 3 when `sv` failed |
-| [ADR-030](ADR-030.md) | A plan before any code (proposed) |
-| [ADR-031](ADR-031.md) | A `not-the-app` list that would set apart all of the app's code is not used (proposed) |
 | [ADR-030](ADR-030.md) | A plan before any code: `sv plan` and `securevibe_plan`, crediting nothing |
-| [ADR-032](ADR-032.md) | A report is offered as `sv`'s only when its seal shows `sv` wrote it |
+| [ADR-031](ADR-031.md) | A `not-the-app` list that would set apart all of the app's code is not used |
+| [ADR-032](ADR-032.md) | Git, run in the app's folder, runs no program the app's repository names |
+| [ADR-033](ADR-033.md) | CVSS v4 scores, computed with FIRST's own tables |
+| [ADR-034](ADR-034.md) | A report is offered as `sv`'s only when its seal shows `sv` wrote it |
 
 ## Where v1's records disagree with what v1 built
 

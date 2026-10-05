@@ -253,13 +253,13 @@ pub(super) fn email_code_guessing(
     policy: &sv_manifest::PolicySection,
     out: &mut Outcome,
 ) {
-    const MOST_ATTEMPTS: u32 = 25;
+    const MOST_ATTEMPTS: u32 = 26;
     if users.email_code.is_none() {
         return;
     }
     let Some(allowed) = policy
         .failed_codes
-        .filter(|n| (1..MOST_ATTEMPTS).contains(n))
+        .filter(|n| (1..MOST_ATTEMPTS - 1).contains(n))
     else {
         out.not_assessed.push((
             "V6.6.3".to_owned(),
@@ -267,12 +267,12 @@ pub(super) fn email_code_guessing(
                 None => {
                     "Whether emailed sign-in codes can be guessed: say how many wrong codes in \
                          a row the app should allow, as `failed-codes` under [policy] in \
-                         securevibe.toml, and this will make one more attempt than that."
+                         securevibe.toml, and this will make two more attempts than that."
                         .to_owned()
                 }
                 Some(n) => format!(
-                    "[policy] failed-codes is {n}; this check makes between 2 and {MOST_ATTEMPTS} \
-                     attempts, so it cannot hold the app to that number."
+                    "[policy] failed-codes is {n}; this check makes between 3 and {MOST_ATTEMPTS} \
+                     attempts, the number allowed plus two, so it cannot hold the app to that number."
                 ),
             },
         ));
@@ -314,7 +314,8 @@ pub(super) fn email_code_guessing(
             return;
         }
     };
-    let attempts = allowed + 1;
+    // One past the limit, and one more to confirm a delay (`slowing`).
+    let attempts = allowed + 2;
     let mut answers: Vec<(u16, u128)> = Vec::new();
     for n in 0..attempts {
         let wrong = wrong_code(&code, n);
@@ -337,11 +338,33 @@ pub(super) fn email_code_guessing(
         ));
         return;
     }
-    let last = answers.last().copied().unwrap_or((0, 0));
+    // The first wrong code past the limit, whose answer says whether the app pushed back.
+    let last = answers[allowed as usize];
     let right_still_works = flow.signs_in(http, &code, &mut session, "after-guesses", out);
     let status_changed = last.0 != first_status;
     let refused = matches!(last.0, 0 | 423 | 429);
-    let slowed = last.1 >= first_ms.saturating_mul(4).max(first_ms + 900);
+    let times: Vec<u128> = answers.iter().map(|a| a.1).collect();
+    let (within, past) = times.split_at(allowed as usize);
+    let slowing = super::signin::slowing(within, past, &[]);
+    if right_still_works
+        && !(status_changed || refused)
+        && let super::signin::Slowing::Unclear(why) = &slowing
+    {
+        out.steps.push(format!(
+            "sent {attempts} wrong emailed codes in a row, then the right one; the app \
+             answered {first_status} to each, and the times could not say whether it slowed"
+        ));
+        out.not_assessed.push((
+            "V6.6.3".to_owned(),
+            format!(
+                "Whether emailed sign-in codes can be guessed: the app answered \
+                 {first_status} to all {attempts} wrong codes and then took the right one, \
+                 and {why}."
+            ),
+        ));
+        return;
+    }
+    let slowed = slowing == super::signin::Slowing::Slowed;
     let how = if !right_still_works {
         "then refused the right code".to_owned()
     } else if refused {
@@ -353,8 +376,11 @@ pub(super) fn email_code_guessing(
         )
     } else if slowed {
         format!(
-            "took {}ms over the last wrong code against {first_ms}ms",
-            last.1
+            "took {}ms and {}ms over the two wrong codes past the limit, against {}ms at the \
+             quickest before it",
+            past[0],
+            past[1],
+            within.iter().copied().min().unwrap_or(first_ms)
         )
     } else {
         String::new()
@@ -384,7 +410,7 @@ pub(super) fn email_code_guessing(
             EMAIL_CODE_GUESSING.rule_id,
             EMAIL_CODE_GUESSING.requirement_ids,
             format!(
-                "{attempts} wrong emailed codes in a row, the number you stated plus one: the app \
+                "{attempts} wrong emailed codes in a row, the number you stated plus two: the app \
                  {how}"
             ),
         ));
@@ -1422,5 +1448,59 @@ mod tests {
         assert!(code_findings(&o).is_empty(), "{:#?}", o.findings);
         assert!(code_credits(&o).contains(&EMAIL_CODE_UNBOUND.rule_id));
         assert!(code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
+    }
+
+    /// An app that lets codes be guessed but answers these wrong ones this many real milliseconds
+    /// late, with three wrong codes allowed: `guess-0` to `guess-4`, the last two past the limit.
+    fn codes_timed(slow: &[(&str, u64)]) -> Outcome {
+        let mut app = FakeApp::new(Flaws {
+            code_guessing_unlimited: true,
+            ..Default::default()
+        });
+        app.slow_ms = slow
+            .iter()
+            .map(|(n, ms)| (format!("email-code-use-{n}"), *ms))
+            .collect();
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        let o = run(&mut app, &with_signup(), &acc, false, &codes_policy(3));
+        for (id, _) in &app.slow_ms {
+            assert!(
+                app.clock_log.iter().any(|(sent, _)| sent == id),
+                "no request {id} was sent"
+            );
+        }
+        o
+    }
+
+    #[test]
+    fn a_code_guessing_delay_counts_only_when_both_codes_past_the_limit_show_it() {
+        // Deep review H16, as for passwords: the times include `docker exec`'s own.
+        let o = codes_timed(&[("guess-3", 1000), ("guess-4", 1000)]);
+        assert!(
+            code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+            "{:?}\n{:?}",
+            o.steps,
+            o.not_assessed
+        );
+        for slow in ["guess-3", "guess-4"] {
+            let o = codes_timed(&[(slow, 1000)]);
+            assert!(
+                !code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+                "{slow}"
+            );
+            assert!(
+                !code_findings(&o).contains(&EMAIL_CODE_GUESSING.rule_id),
+                "{slow}"
+            );
+            assert!(
+                code_not_assessed(&o)
+                    .iter()
+                    .any(|w| w.contains("can be guessed") && w.contains("one slow attempt")),
+                "{slow}: {:?}",
+                code_not_assessed(&o)
+            );
+        }
     }
 }

@@ -42,7 +42,7 @@ pub fn key_folder_for_tests(folder: PathBuf) -> &'static Path {
 pub const KEY_FILE: &str = "review-key";
 
 /// The file of the key `sv report` seals its report folders with, beside the review key and kept
-/// apart from it (deep review R9, ADR-032). Apart, because the review key exists only where a person
+/// apart from it (deep review R9, ADR-034). Apart, because the review key exists only where a person
 /// has run `sv review`, and a computer with none counts sealed entries unchecked (ADR-026): `sv
 /// report` making that key on CI would make every entry sealed elsewhere a proposal there.
 pub const REPORT_KEY_FILE: &str = "report-key";

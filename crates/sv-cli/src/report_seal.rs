@@ -1,4 +1,4 @@
-//! The proof that a report folder is one `sv` wrote (deep review R9, ADR-032).
+//! The proof that a report folder is one `sv` wrote (deep review R9, ADR-034).
 //!
 //! The MCP server offers the reports below its root as resources, "a report sv wrote". It took any
 //! folder holding the marker, `.securevibe-report`, as one, and anything can write that marker: the
