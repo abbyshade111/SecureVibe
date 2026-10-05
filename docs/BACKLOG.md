@@ -163,6 +163,8 @@ another session is not a claim.
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
     two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
     what this run made.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s10`.
   - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
     in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
     an isolated world, storage read through DevTools' storage domains.
@@ -274,6 +276,8 @@ another session is not a claim.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h5-next-node-sinks`.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
@@ -349,16 +353,23 @@ another session is not a claim.
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
+    **Done on 4 October 2026** (DESIGN, "Advisory versions: in order, gaps kept, gems as gems"): a range's events are
+    read in version order; two at one version are not compared.
   - **H19. Medium, Read.** A matching advisory clears the "could not compare" flag earlier advisories left.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
+    **Done on 4 October 2026** (same DESIGN section): the could-not-compare is kept per advisory.
   - **H20. Medium, Reproduced.** RubyGems platform versions (`1.15.4-x86_64-linux`) are compared as semver.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-versions`.
+    **Done on 4 October 2026** (same DESIGN section): the platform is taken off a gem's version, and RubyGems
+    versions are compared by `Gem::Version`'s rules.
   - **H21. Medium, Read.** Packages with no version are dropped silently from `Pipfile.lock`, pnpm v9, and Yarn,
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
     **`Pipfile.lock` done with H9 on 4 October 2026**: its packages with no version are named. pnpm v9 and Yarn
     are still open.
+    **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -370,6 +381,8 @@ another session is not a claim.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
+    **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
