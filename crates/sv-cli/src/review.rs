@@ -904,13 +904,20 @@ mod tests {
                 format!(
                     "{HEAD}[[finding-review]]\nrule = \"{rule}\"\nfile = \"app.py\"\n\
                      fingerprint = \"{}\"\nverdict = \"false-alarm\"\nwhy = \"short\"\n",
-                    sv_check::review::named(rule, "app.py", &line)
+                    sv_check::review::named(rule, "app.py", &sv_check::review::masked(&line))
                 ),
             )
             .unwrap();
             let (result, out) = s.run("\n");
             result.unwrap();
-            assert!(out.contains("Line 1, not shown"), "{rule}: the setup");
+            // A secrets finding's line is not shown at all; any other is shown masked, as the
+            // report shows it.
+            let shown = if rule.starts_with("secrets.") {
+                "Line 1, not shown".to_owned()
+            } else {
+                format!("Line 1: {}", sv_check::review::masked(&line))
+            };
+            assert!(out.contains(&shown), "{rule}: the setup\n{out}");
             assert!(!out.contains(&key[4..]), "{rule}: the key was shown");
         }
     }
