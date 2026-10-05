@@ -9,6 +9,9 @@
 //!
 //! The one test that runs the real tool is skipped when `codeql` is not on the PATH, and says so.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use sv_check::adapters::{self, Adapters};
@@ -34,11 +37,8 @@ fn real(id: &str) -> adapters::Adapter {
         .clone()
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-codeql-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("codeql-{name}"))
 }
 
 /// Plays `codeql database create` and `codeql database analyze`. The database is a folder holding

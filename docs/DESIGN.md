@@ -7454,14 +7454,58 @@ without regard to capitals, plain files only). A marker beside anything else is 
 run code from its template (`on:click={() => eval(code)}`, `@click="..."`, `{{ ... }}`), and that code was never
 read, yet the page counted as read, so a rule could be credited a clean result it had not earned. For now, a
 `.svelte` page with any `{...}` outside its `<script>` and `<style>`, and a `.vue` page with `{{ }}` or an
-attribute starting `@`, `:`, or `v-`, is named among the files not fully read; no rule claims a clean result for
-it, and its `<script>` is still read and its findings still stand. A page whose template is plain markup is fully
-read, as before. Reading template code as code, so the problem is found and not only owned up to, is still to do.
+attribute starting `@`, `:`, or `v-`, is named among the files not fully read, and its `<script>` is still read
+and its findings still stand. A page whose template is plain markup is fully read, as before. **Corrected the same
+day:** this said no rule then claims a clean result for the page, and that was not so. Naming a file as not fully
+read does not hold a rule back; `hold_back` does, and this step did not call it, so the rule could still be
+credited. Its test checked only that the page was named. The next section reads the template code, and holds the
+rules back when it cannot.
 
 Ten guards broken in turn, each caught: for the folders, an output folder left out wherever it is, a folder left
 out without a record, the marker believed whatever the folder holds, `sv`'s own default report name forgotten,
 capitals compared, and a refused marker not mentioned; for templates, templates never looked at, scripts and styles
 not cut out first, and each of Vue's two signs of code ignored in turn.
+
+## Svelte and Vue template code read as code (4 October 2026)
+
+The rest of H2. A Svelte or Vue page's template runs code of its own, and `sv`'s rules now read it, with the page's
+scripts, as JavaScript, or TypeScript when the page's script says `lang="ts"`.
+
+**What is taken out.** In a Svelte page, every `{...}` outside the page's scripts, styles, and comments, in text and
+in attributes alike, as Svelte's compiler reads them: an expression, `{#if}` and `{:else if}`, `{#each}` with its
+list, its names, and its key, `{#await}` with its promise, `{#key}`, `{@html}`, `{@render}`, `{@const}`,
+`{@debug}`, `{#snippet}`, and `{...spread}`. A brace inside a string or a template string does not end one. In a Vue
+page, every `{{ }}`, and the value of every attribute named `@…`, `v-on:…`, `:…`, `.…`, `#…`, or `v-…`: a handler is
+read as the body of a function, `v-for` as its names and its list, a slot's value as names, and the rest as
+expressions, with character references such as `&quot;` decoded first, as Vue does. Names a block or a slot gives
+values (`{#each items as { id }}`) are read as a function's parameters, so a default value in them is read too.
+Each piece must be code the grammar reads. All of them are read as one program, each on its own line in the page, so a
+finding names the page's line.
+
+**Svelte's braces come before its markup.** The page's markup is read by a tokenizer that works the way a browser's
+does, and a browser does not know Svelte: given `<button onclick={() => go()}>`, it reads a handler `{()` that ends
+at the space, and the `>` of `=>` closes the tag. A handler that does not parse leaves the whole page unread, which
+kept every rule silent for any Svelte 5 app with a handler written as an arrow function with a space in it. So each `{...}` is blanked out before the markup is read, as Svelte
+itself reads it first.
+
+**What is not read, and what that does.** A Vue template written in Pug or another language, a directive whose name
+is worked out when the page runs (`:[key]`), a `{` never closed, a Svelte block this does not know, and a piece the
+grammar cannot read. Such a page is named among the files not fully read, and, the part the first step left out,
+each rule whose call is named in the page is held back, so it cannot say the app is clean. The page's scripts and
+whatever else was read still count. As a check on the extraction, a page that the earlier test still says holds
+template code, and from which nothing was taken out, is treated the same way.
+
+**What this is not.** No rule looks for HTML put into a page unescaped, so `{@html}` and `v-html` are read only for
+the code inside them; reading them is not a check of what they insert. The rules that read JavaScript now read more
+of it in these pages, so a Svelte or Vue app may get findings it did not get before; each is in code the page runs.
+
+Sixteen guards broken in turn, each caught in the end: the rules not held back, Svelte's braces not blanked out,
+`{#each}`'s key dropped, `{:else if}` not known, Vue's handlers read as expressions, `v-for`'s list dropped, `{{ }}`
+not read, character references not decoded, strings not skipped inside braces, comments not skipped, the template
+always read as JavaScript, pieces not put on their own lines, a directive with a worked-out name believed, a Pug
+template believed, an unreadable piece not counted, and the check on the extraction removed. The last two were
+caught by nothing at first, because each covered for the other on a page with one piece; a page with one piece read
+and one not, and a Vue page whose `<textarea>` holds an `@click` that Vue does not run, now catch each alone.
 
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
@@ -7994,6 +8038,43 @@ the "not tried yet" mark caught by nothing, because every design-time prompt the
 ones it is caught by two tests. The headings guard was broken twice (the incident plan written into the notes, and a
 heading misspelled), and each was caught.
 
+
+## A plan before any code: `sv plan` and `securevibe_plan` (4 October 2026)
+
+Item 3 of the backlog's "Design-time help before any code"; the decision is ADR-030, written first as `proposed` with
+the claim (#659) and accepted with the build.
+
+`sv plan [PATH]` prints, and the MCP tool `securevibe_plan` returns, the plan for an app from its `securevibe.toml`:
+the requirements that will apply, grouped by chapter; the design-time prompts for the decisions before each feature,
+marked shown to work or not tested, with the questions only the person can answer; the tests worth writing, named by
+requirement id; what the app must give `sv run`, worked out from the brief's answers; and the threats those answers
+raise. It writes nothing, ends clean (a plan is not a check), and credits nothing, which it says in its first lines
+and in `creditsNothing` in the tool's result.
+
+**Built from the report.** `plan::from_report` takes the parts `assemble_report` already makes (`requirements`,
+`tests_to_write`, `questions_for_you`, `threats`), so the plan and a later report cannot disagree about what
+applies; two tests compare them, one through `sv report`'s `report.json` and one through `securevibe_check`. The
+report's assembly reads the app's files when there are any, which only ever adds requirements; on a folder holding
+only the brief it reads nothing. The MCP tool goes through the same time limit and progress as a check.
+
+**What `sv run` needs.** `plan::run_needs` maps the brief's answers to the settings each check of the running app
+reads: `image`, `start`, `health`, and `test` always; for sign-in, `seed`, `login`, `logout`, `private`, `owned`, and
+`admin` under `[stack.run.users]`; and `[stack.run.oidc]`, `upload`, `reset`, `once`, `[stack.run.ai]`,
+`[stack.run.fetch]`, and `[stack.run.mcp-server]` for the answers that bring them. An unanswered capability is planned
+for, as the spec's rule 2 asks; one answered no asks for nothing; one the brief already gives is marked given. Each
+reason was read against the checks it serves (the upload entry, for one, says what is really sent: a file over
+`max-bytes`, a page, a script, an SVG with a script, a name that climbs out of its folder), and a test refuses a table
+or setting the spec does not describe.
+
+**Text from the app.** The app's name comes from its folder, so it is written on one line, with its line breaks and
+invisible characters as escapes, as everywhere else such text reaches the AI coding tool.
+
+**Broken in turn.** Thirteen guards: a requirement or a test left out of the plan (each caught by a comparison with the
+report), the plan not saying it credits nothing (in its text, and in its result), the plan ending as a failed check or
+writing into the app's folder, an unanswered capability read as no, sign-in asked of an app without it, a setting the
+spec does not have, a given setting not marked, no design-time prompt given, the app's name not put on one line, and
+the instructions not naming the plan. Each was caught.
+
 ## The notes file keeps what the owner wrote outside the answers (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 3, R7) found that `sv notes`, and the MCP tools
@@ -8238,6 +8319,28 @@ ADR-019.
 How it is held: `two_runs_never_share_a_name`, `everything_a_run_creates_carries_its_label_and_nothing_else_does`, and
 `a_teardown_removes_what_docker_lists_under_its_label` (`crates/sv-run/src/docker.rs`). Four guards were undone in
 turn, and each turned its test red.
+
+## The tests' scratch folders, one per run and per call (5 October 2026)
+
+The same fault in `sv`'s own tests. Twelve helpers made their scratch folder at a fixed name in the computer's
+shared temporary folder (`sv-clean-<test>` and the like), emptying it first. Two `cargo test --workspace` runs at
+once, from two sessions or a session and the owner, used the same folder, and one run's emptying deleted the
+other's files in the middle of a test. On 5 October 2026 two `clean_coverage` tests failed so, their second scan
+finding nothing, while another session's full run was going; with `TMPDIR` pointed at a folder of their own they
+passed. A failure of that kind says something false about `sv`.
+
+- **The name carries the process id and a count**: `sv-clean-<test>-<process id>-<n>`. No two processes running at
+  once share an id, and the count keeps two calls with one name in one run apart.
+- **The folder goes when the test lets go of it.** A fixed name was emptied by the next run; a name of the run's own
+  never would be, so the helpers return a `Scratch` that removes its folder when dropped. One whose test panicked is
+  kept, so the files it failed on can be looked at.
+- One copy serves `sv-check`'s test files (`crates/sv-check/tests/scratch/mod.rs`); `sv-scan`'s single test file
+  has its own. The unit-test helper in `sv-check/src/config.rs` already removed its folders, and gained the
+  process id only. Helpers that already named their folder by process id were left as they were.
+
+How it is held: `a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go`, in `clean_coverage.rs` and
+in `sv-scan`'s `scan.rs`. With the count taken out, the process id taken out, or the removal taken out, it failed
+each time, on the assertion written for that guard.
 
 ## Advisory versions: in order, gaps kept, gems as gems (4 October 2026)
 
