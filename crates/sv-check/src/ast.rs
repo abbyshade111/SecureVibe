@@ -108,6 +108,17 @@ pub struct AstRule {
     /// call itself (an f-string, a `+`, a template) keeps the rule's confidence.
     #[serde(default)]
     pub bound_parameters_lower_confidence: bool,
+    /// When the argument is built only from fixed text and values read back from the app's database
+    /// (`os.path.join(UPLOAD_DIR, row["id"])`, with `row` from `fetchone`), the finding says so: such
+    /// a value is usually one the app made itself. Read in Python, JavaScript, and TypeScript, the
+    /// languages whose bindings `Fixed` reads. The finding stays, at the rule's own confidence.
+    #[serde(default)]
+    pub says_when_read_from_database: bool,
+    /// When the argument is a call to a function whose name says it checks what it is given
+    /// (`redirect(safe_next(url))`), or a name only ever bound to one, the finding names the
+    /// function: no rule can read every such function, and one named so usually does what it says.
+    #[serde(default)]
+    pub says_when_checked: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
@@ -1101,6 +1112,13 @@ fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
 pub(crate) struct Fixed {
     names: BTreeSet<String>,
     tables: BTreeSet<String>,
+    /// Names every binding of which is a value read back from the app's database (`row =
+    /// cur.fetchone()`, `for row in rows`), or text built only from those and fixed text: a path
+    /// made of them is the app's own id, usually, not what a person typed (A1's leftovers).
+    from_database: BTreeSet<String>,
+    /// Names every binding of which is a call to a function whose name says it checks what it is
+    /// given (`next_url = safe_next(raw)`), with those functions' names, ready to be shown.
+    checked: BTreeMap<String, String>,
 }
 
 /// One binding of a name: the value it was given, when the code says, and whether it sits at the top
@@ -1108,6 +1126,8 @@ pub(crate) struct Fixed {
 struct Binding<'a> {
     value: Option<tree_sitter::Node<'a>>,
     top: bool,
+    /// For a loop variable, what the loop goes over.
+    over: Option<tree_sitter::Node<'a>>,
 }
 
 impl Fixed {
@@ -1140,7 +1160,62 @@ impl Fixed {
                 break;
             }
         }
+        // Names read back from the database, and what is built from them alone, the same way.
+        loop {
+            let mut found = false;
+            for (name, binds) in &bindings {
+                if fixed.from_database.contains(name) || fixed.names.contains(name) {
+                    continue;
+                }
+                let read_back = |b: &Binding| match (b.value, b.over) {
+                    (Some(value), _) => {
+                        is_database_read(value, source)
+                            || built_from_database(value, source, &fixed)
+                    }
+                    (None, Some(over)) => {
+                        is_database_read(over, source)
+                            || (over.kind() == "identifier"
+                                && fixed
+                                    .from_database
+                                    .contains(over.utf8_text(source).unwrap_or("")))
+                    }
+                    (None, None) => false,
+                };
+                if !binds.is_empty() && binds.iter().all(read_back) {
+                    fixed.from_database.insert(name.clone());
+                    found = true;
+                }
+            }
+            if !found {
+                break;
+            }
+        }
+        for (name, binds) in &bindings {
+            let checkers: Option<BTreeSet<String>> = binds
+                .iter()
+                .map(|b| b.value.and_then(|v| checker_called(v, source)))
+                .collect();
+            if let Some(checkers) = checkers {
+                let named: Vec<String> = checkers.iter().map(|c| format!("`{c}`")).collect();
+                fixed.checked.insert(name.clone(), named.join(" or "));
+            }
+        }
         fixed
+    }
+
+    /// Whether `node` is built only from fixed text and values read back from the database, with at
+    /// least one of the second.
+    pub(crate) fn read_back(&self, node: tree_sitter::Node, source: &[u8]) -> bool {
+        built_from_database(node, source, self)
+    }
+
+    /// The checking function `node` passed through, when it is a call to one or a name that only
+    /// ever holds what one returned.
+    pub(crate) fn checked_by(&self, node: tree_sitter::Node, source: &[u8]) -> Option<String> {
+        if node.kind() == "identifier" {
+            return self.checked.get(node.utf8_text(source).ok()?).cloned();
+        }
+        checker_called(node, source).map(|c| format!("`{c}`"))
     }
 
     /// Whether this node is a fixed name, or a lookup in a fixed table.
@@ -1181,6 +1256,117 @@ impl Fixed {
             _ => false,
         }
     }
+}
+
+/// The name a call is made by: `f` in `f(x)`, `fetchone` in `cur.execute(q).fetchone()`. An
+/// `await` in front is looked through.
+fn called_name<'a>(node: tree_sitter::Node, source: &'a [u8]) -> Option<&'a str> {
+    let node = if node.kind() == "await" || node.kind() == "await_expression" {
+        node.named_child(u32::try_from(node.named_child_count().checked_sub(1)?).ok()?)?
+    } else {
+        node
+    };
+    if !matches!(node.kind(), "call" | "call_expression") {
+        return None;
+    }
+    let function = node.child_by_field_name("function")?;
+    let name = match function.kind() {
+        "identifier" => function,
+        "attribute" => function.child_by_field_name("attribute")?,
+        "member_expression" => function.child_by_field_name("property")?,
+        _ => return None,
+    };
+    name.utf8_text(source).ok()
+}
+
+/// A call that reads rows back from a database: DB-API's `fetchone`, SQLAlchemy's `first` and
+/// `scalar`, Flask-SQLAlchemy's `get_or_404`, and the ORMs' `findOne`, `findUnique`, and the like.
+/// `get` is not one: `request.args.get("f")` is the very thing the rule is for.
+fn is_database_read(node: tree_sitter::Node, source: &[u8]) -> bool {
+    called_name(node, source).is_some_and(|name| {
+        matches!(
+            name,
+            "fetchone"
+                | "fetchall"
+                | "fetchmany"
+                | "fetchrow"
+                | "fetchval"
+                | "first"
+                | "one"
+                | "one_or_none"
+                | "scalar"
+                | "scalar_one"
+                | "scalar_one_or_none"
+                | "get_or_404"
+                | "first_or_404"
+                | "one_or_404"
+                | "findOne"
+                | "findOneBy"
+                | "findUnique"
+                | "findFirst"
+                | "findById"
+                | "findByPk"
+        )
+    })
+}
+
+/// The name of the function `node` calls, when that name says it checks what it is given:
+/// `safe_next`, `is_safe_url`, `validate_redirect`, `allowed_destination`, `clean_path`.
+fn checker_called(node: tree_sitter::Node, source: &[u8]) -> Option<String> {
+    let name = called_name(node, source)?;
+    let lower = name.to_ascii_lowercase();
+    [
+        "safe", "valid", "allowed", "check", "clean", "saniti", "verif", "trusted",
+    ]
+    .iter()
+    .any(|word| lower.contains(word))
+    .then(|| name.to_owned())
+}
+
+/// Whether `node` is built only from fixed text and values read back from the database, with at
+/// least one of the second. A call's function is not a value (`os.path.join` builds; it is not
+/// built from), nor is an attribute's or a keyword's name.
+fn built_from_database(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
+    fn walk(node: tree_sitter::Node, source: &[u8], fixed: &Fixed, seen: &mut bool) -> bool {
+        if is_database_read(node, source) {
+            *seen = true;
+            return true;
+        }
+        if is_literal(node, source, fixed) {
+            return true;
+        }
+        let text = node.utf8_text(source).unwrap_or("");
+        match node.kind() {
+            "identifier" => {
+                let read_back = fixed.from_database.contains(text);
+                *seen |= read_back;
+                read_back
+            }
+            "call" | "call_expression" => node
+                .child_by_field_name("arguments")
+                .is_some_and(|a| walk(a, source, fixed, seen)),
+            "attribute" => node
+                .child_by_field_name("object")
+                .is_some_and(|o| walk(o, source, fixed, seen)),
+            "member_expression" => node
+                .child_by_field_name("object")
+                .is_some_and(|o| walk(o, source, fixed, seen)),
+            "keyword_argument" => node
+                .child_by_field_name("value")
+                .is_some_and(|v| walk(v, source, fixed, seen)),
+            // The text between the braces of an f-string or a template, and the parts of a string
+            // around them.
+            "string_content" | "string_start" | "string_end" | "string_fragment"
+            | "escape_sequence" | "comment" => true,
+            _ => {
+                let mut cursor = node.walk();
+                let children: Vec<_> = node.named_children(&mut cursor).collect();
+                !children.is_empty() && children.into_iter().all(|c| walk(c, source, fixed, seen))
+            }
+        }
+    }
+    let mut seen = false;
+    walk(node, source, fixed, &mut seen) && seen
 }
 
 /// `QUERY`, `UPLOAD_DIR`: the way a module's constants are named.
@@ -1240,9 +1426,11 @@ fn collect_bindings<'a>(
 ) {
     let mut add = |name: tree_sitter::Node<'a>, value: Option<tree_sitter::Node<'a>>, top: bool| {
         if let Ok(text) = name.utf8_text(source) {
-            out.entry(text.to_owned())
-                .or_default()
-                .push(Binding { value, top });
+            out.entry(text.to_owned()).or_default().push(Binding {
+                value,
+                top,
+                over: None,
+            });
         }
     };
     // Every identifier under a node, each as a binding with no known value: tuple unpacking, loop
@@ -1305,13 +1493,20 @@ fn collect_bindings<'a>(
                 add(name, None, false);
             }
         }
-        // Loop variables, in statements and comprehensions.
+        // Loop variables, in statements and comprehensions, with what the loop goes over.
         "for_statement" | "for_in_statement" | "for_in_clause" => {
             if let Some(left) = field("left") {
                 let mut names = Vec::new();
                 names_under(left, &mut names);
+                let over = field("right");
                 for n in names {
-                    add(n, None, false);
+                    if let Ok(text) = n.utf8_text(source) {
+                        out.entry(text.to_owned()).or_default().push(Binding {
+                            value: None,
+                            top: false,
+                            over,
+                        });
+                    }
                 }
             }
         }
@@ -1635,6 +1830,15 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                             > 1
                     })
                 });
+            // A path made of the app's own stored values, or a value a checking function returned:
+            // the finding stays, and says why it may be safe (A1's leftovers).
+            let read_back = compiled.rule.says_when_read_from_database
+                && arg_node.is_some_and(|arg| fixed.read_back(arg, source.as_bytes()));
+            let checked_by = compiled
+                .rule
+                .says_when_checked
+                .then(|| arg_node.and_then(|arg| fixed.checked_by(arg, source.as_bytes())))
+                .flatten();
             let node = hit_index
                 .and_then(|index| m.captures().iter().find(|c| c.index == index))
                 .map(|c| c.node)
@@ -1665,6 +1869,22 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                         "{} The query here is a name, handed over with values beside it, which is \
                          how placeholders are used, so it may already be safe: read where the \
                          name is given its text before changing anything.",
+                        compiled.rule.description
+                    )
+                } else if read_back {
+                    format!(
+                        "{} The path here is built from fixed text and a value read back from the \
+                         app's own database, which is usually one the app made itself, such as the \
+                         id it gave a file when it saved it, so it may already be safe: check that \
+                         nothing a person typed is ever stored in that field before changing \
+                         anything.",
+                        compiled.rule.description
+                    )
+                } else if let Some(checker) = &checked_by {
+                    format!(
+                        "{} The value here passed through {checker} first, whose name says it \
+                         checks it, so it may already be safe: read that function to be sure it \
+                         lets through only what it should before changing anything.",
                         compiled.rule.description
                     )
                 } else {
@@ -2699,6 +2919,140 @@ mod tests {
 
     fn scan(language: &str, source: &str) -> Vec<Finding> {
         scan_file(&rules(), language, &format!("src/app.{language}"), source)
+    }
+
+    /// The one finding `rule` makes in `source`, read as `file`.
+    fn only_finding(rule: &str, language: &str, file: &str, source: &str) -> Finding {
+        let found: Vec<Finding> = scan_file(&rules(), language, file, source)
+            .into_iter()
+            .filter(|f| f.rule_id == rule)
+            .collect();
+        assert_eq!(found.len(), 1, "{rule} in {source}: {found:?}");
+        found.into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn a_path_made_of_the_app_s_own_stored_values_says_so() {
+        // A1's leftover 2, from the owner's study: an attachment's file name is the id the app gave
+        // it when it was saved, read back from the database. The finding stays, and says so; a path
+        // with anything else in it does not.
+        let rule = "ast.file-path-from-value";
+        const SAYS: &str = "read back from the app's own database";
+        let head = "import os\nfrom flask import request, send_file\nUPLOAD_DIR = 'uploads'\n";
+        let read_back = [
+            "def get(aid):\n    row = db().execute('SELECT id FROM files WHERE id = ?', (aid,)).fetchone()\n    return send_file(os.path.join(UPLOAD_DIR, row['id']))\n",
+            "def get(aid):\n    row = db().execute('SELECT id FROM files WHERE id = ?', (aid,)).fetchone()\n    path = os.path.join(UPLOAD_DIR, row['id'])\n    return send_file(path)\n",
+            "def all_files():\n    for row in db().execute('SELECT id FROM files').fetchall():\n        open(os.path.join(UPLOAD_DIR, f\"{row['id']}.pdf\"))\n",
+            "def get(aid):\n    attachment = Attachment.query.get_or_404(aid)\n    return send_file(os.path.join(UPLOAD_DIR, attachment.stored_name))\n",
+        ];
+        for body in read_back {
+            let finding = only_finding(rule, "python", "app.py", &format!("{head}{body}"));
+            assert!(
+                finding
+                    .description
+                    .contains("read back from the app's own database"),
+                "{body}: {}",
+                finding.description
+            );
+        }
+        let typed = [
+            // What a person sent.
+            "def get():\n    return send_file(os.path.join(UPLOAD_DIR, request.args['f']))\n",
+            // A stored value and what a person sent, together.
+            "def get(aid):\n    row = db().execute('SELECT id FROM files WHERE id = ?', (aid,)).fetchone()\n    return send_file(os.path.join(UPLOAD_DIR, row['id'], request.args['f']))\n",
+            // A name set from the database in one place and from the request in another.
+            "def get(aid):\n    row = db().execute('SELECT id FROM files').fetchone()\n    return send_file(os.path.join(UPLOAD_DIR, row['id']))\n\ndef put():\n    row = request.get_json()\n    open(os.path.join(UPLOAD_DIR, row['id']), 'w')\n",
+            // `get` is a dictionary's, not a database's.
+            "def get():\n    name = request.args.get('f')\n    return send_file(os.path.join(UPLOAD_DIR, name))\n",
+        ];
+        for body in typed {
+            let found: Vec<Finding> =
+                scan_file(&rules(), "python", "app.py", &format!("{head}{body}"))
+                    .into_iter()
+                    .filter(|f| f.rule_id == rule)
+                    .collect();
+            assert!(!found.is_empty(), "{body}: the control found nothing");
+            assert!(
+                found.iter().all(|f| !f.description.contains(SAYS)),
+                "{body}: {found:?}"
+            );
+        }
+        // The same in JavaScript, through an ORM's read.
+        let finding = only_finding(
+            rule,
+            "javascript",
+            "app.js",
+            "const path = require('path');\nconst UPLOAD_DIR = 'uploads';\napp.get('/f/:id', async (req, res) => {\n  const file = await prisma.attachment.findUnique({ where: { id: req.params.id } });\n  res.sendFile(path.join(UPLOAD_DIR, file.storedName));\n});\n",
+        );
+        assert!(finding.description.contains(SAYS), "{finding:?}");
+    }
+
+    #[test]
+    fn a_destination_that_passed_through_a_checking_function_names_it() {
+        // A1's leftover 3: `safe_next` sends anything but a path on this site to the home page. No
+        // rule can read every such function; one named so usually does what it says, so the finding
+        // stays and names it.
+        let rule = "ast.open-redirect";
+        const SAYS: &str = "first, whose name says it checks it";
+        let head = "from flask import redirect, request\n";
+        let checked = [
+            "def done():\n    return redirect(safe_next(request.args.get('next')))\n",
+            "def done():\n    next_url = safe_next(request.args.get('next'))\n    return redirect(next_url)\n",
+        ];
+        for body in checked {
+            let finding = only_finding(rule, "python", "app.py", &format!("{head}{body}"));
+            assert!(
+                finding
+                    .description
+                    .contains("passed through `safe_next` first"),
+                "{body}: {}",
+                finding.description
+            );
+        }
+        // Checked by one function in one place and another in another: both are named.
+        let both = "def done():\n    next_url = safe_next(request.args.get('next'))\n    return redirect(next_url)\n\ndef other():\n    next_url = clean_url(request.args.get('next'))\n    return redirect(next_url)\n";
+        let found: Vec<Finding> = scan_file(&rules(), "python", "app.py", &format!("{head}{both}"))
+            .into_iter()
+            .filter(|f| f.rule_id == rule)
+            .collect();
+        assert_eq!(found.len(), 2, "{found:?}");
+        assert!(
+            found.iter().all(|f| f
+                .description
+                .contains("passed through `clean_url` or `safe_next` first")),
+            "{found:?}"
+        );
+        let unchecked = [
+            "def done():\n    return redirect(request.args.get('next'))\n",
+            // Checked in one place and not in another: which one reaches the call is not known.
+            "def done():\n    next_url = safe_next(request.args.get('next'))\n    return redirect(next_url)\n\ndef other():\n    next_url = request.args.get('next')\n    return redirect(next_url)\n",
+            // A function named for something else.
+            "def done():\n    return redirect(build_url(request.args.get('next')))\n",
+        ];
+        for body in unchecked {
+            let found: Vec<Finding> =
+                scan_file(&rules(), "python", "app.py", &format!("{head}{body}"))
+                    .into_iter()
+                    .filter(|f| f.rule_id == rule)
+                    .collect();
+            assert!(!found.is_empty(), "{body}: the control found nothing");
+            assert!(
+                found.iter().all(|f| !f.description.contains(SAYS)),
+                "{body}: {found:?}"
+            );
+        }
+        let finding = only_finding(
+            rule,
+            "javascript",
+            "app.js",
+            "app.get('/done', (req, res) => {\n  res.redirect(isSafeRedirect(req.query.next));\n});\n",
+        );
+        assert!(
+            finding
+                .description
+                .contains("passed through `isSafeRedirect` first"),
+            "{finding:?}"
+        );
     }
 
     fn ids(findings: &[Finding]) -> Vec<&str> {

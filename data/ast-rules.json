@@ -374,6 +374,7 @@
       "impact": "If any part of the path comes from a request, a name like ../../etc/passwd reads or overwrites a file outside the folder the app meant to use.",
       "fix": "Keep user-submitted file names out of file paths: store files under names the app generates, and look them up by id. Where a submitted name has to be used, reduce it to a bare name (secure_filename in Flask, path.basename in Node) and check that the resolved path is still inside the folder it should be in.",
       "literalArgumentIsSafe": true,
+      "saysWhenReadFromDatabase": true,
       "queries": {
         "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
         "javascript": "[(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (member_expression object: (member_expression property: (property_identifier) @mod) property: (property_identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (identifier) @fn @mod\n                  arguments: (arguments . (_) @arg))] @hit",
@@ -672,6 +673,7 @@
       "impact": "If the destination comes from the request, as a ?next= parameter usually does, a link on the app's own domain can send somebody to a lookalike sign-in page on another domain, and the address they clicked was genuine.",
       "fix": "Redirect only to the app's own routes, built with its router (url_for, reverse, a Rails _path helper), or check the destination against a short list of allowed hosts. For a return-to address, accept only a path that starts with a single / and not //.",
       "literalArgumentIsSafe": true,
+      "saysWhenChecked": true,
       "queries": {
         "python": "(call function: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
         "javascript": "(call_expression function: (member_expression object: (identifier) property: (property_identifier) @fn) @mod\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (identifier) property: (property_identifier) @fn) @mod\n                 arguments: (arguments . (number) . (_) @arg)) @hit\n(call_expression function: (member_expression object: (member_expression) property: (property_identifier) @fn) @mod\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod\n                 arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (identifier) @fn @mod\n                 arguments: (arguments . (number) . (_) @arg)) @hit\n(assignment_expression left: (member_expression property: (property_identifier) @fn) @mod\n                       right: (_) @arg) @hit",
