@@ -132,6 +132,11 @@ another session is not a claim.
     are Bandit's; handing it the folder is `sv`'s choice. S7's fix, `sv`'s own file list, takes these out too.
     **Claimed on 4 October 2026 by session securevibe-e10**, with H7, at the owner's asking to work through the
     review's open items, in branch `claude/s7-h7-bandit`.
+    **Done the same day** (DESIGN, "Bandit handed the app's own Python files, and a run that did not finish"):
+    Bandit is handed `sv`'s listing of the app's Python files by name, so links out of the app and `vendor/` are not
+    read; `{files}` gives a tool that reads one language only that language's files. Brakeman still takes the folder,
+    since it reads a Rails app as a whole. Tested with stand-in programs; Bandit itself is not installed where this
+    was written, so its first real run is CI's or the owner's.
   - **S8. High, Reproduced. A bundle leaves out a file for holding a secret, but carries the secret in its
     report**: Bandit's B105 message quotes the password, and adapter messages are not redacted. Fix: redact every
     adapter finding's text, and scan the report files for secrets before zipping.
@@ -233,8 +238,9 @@ another session is not a claim.
   - **H2. High, Reproduced.** Code in Svelte and Vue templates is never read, yet the page counts as read
     (`on:click={() => eval(code)}` gave none, V1.3.2 checked). Fix: read `{...}`, `on:*`, `@*`, `v-*`, `:*` as code,
     or mark the page left behind.
-    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
-    `claude/h2-svelte-vue`.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with H6, at the owner's asking to work through the
+    review's open items, in branch `claude/h6-h2`: first, a page whose template holds code no longer counts as read;
+    then, if it fits, that template code read as code.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -265,9 +271,14 @@ another session is not a claim.
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
     it; skip build folders only where an ecosystem puts them.
+    **Claimed on 4 October 2026 by session securevibe-e10**, with H2, at the owner's asking to work through the
+    review's open items, in branch `claude/h6-h2`, for all three parts of the fix.
   - **H7. High, Reproduced.** Bandit skipped a file it could not parse and the clean result was credited: SARIF
     `toolConfigurationNotifications` and `executionSuccessful` are ignored.
     **Claimed on 4 October 2026 by session securevibe-e10**, with S7, in branch `claude/s7-h7-bandit`.
+    **Done the same day** (same DESIGN section): a tool's SARIF that marks its run unsuccessful, or names an
+    error-level problem in `toolExecutionNotifications` or `toolConfigurationNotifications`, keeps the run from
+    counting as clean, for every outside tool; the findings stand, and the report names up to five problems.
   - **H8. High, Reproduced.** PyPI names are not normalized (PEP 503) in the advisory comparison: `jupyter_server`
     never matches `jupyter-server`. A normalizer exists in `manifest_lock.rs`.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
@@ -355,6 +366,9 @@ another session is not a claim.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
+    **Done the same day** (DESIGN, "A broken file holds back only the rules it could hide something from"; ADR-018,
+    Later): a file that did not parse cleanly now holds back only the rules whose call it names anywhere, judged
+    word by word and only for name patterns made of words; everything else is held back as before.
 
 - **The deep review of `sv` at `eff3f17`, part 3 of 3: accuracy (A1 to A6), reviews and reports (R3 to R14), and
   improvements.** Same sender. **Each item can be claimed on its own.** R1 and R2 are in part 1.
@@ -401,6 +415,13 @@ another session is not a claim.
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r7-notes-keep-owner-text`.
+    **Done the same day** (DESIGN, "The notes file keeps what the owner wrote outside the answers"): the reader drops
+    only what `sv` writes, everything else under a question stays its answer as written, and any other text is kept
+    word for word, in order, in a section of its own near the top that the report does not read; a file that is not
+    UTF-8 or has two sections for one question is refused with why, and nothing is written. Covers `sv notes` and both
+    MCP notes tools, which share the writer; R8's own fault is not changed. Tested with the review's case reproduced
+    on a copy of `examples/tested-notes` (the review's write-up does not include its fixture), unit, end-to-end, and MCP tests, including a byte-for-byte round trip and a five-megabyte
+    file; sixteen guards broken in turn were each caught.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
