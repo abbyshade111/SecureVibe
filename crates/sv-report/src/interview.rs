@@ -30,6 +30,7 @@ How to ask them. These are for the person you are building this app with, not fo
   The \"where to look\" line under each question says where the answer is usually found.
 - Record the answer as the person gave it, as described in each part below. \"Not sure\" is a good
   answer, and is recorded as not-sure. A \"no\" is useful too: the report lists it as something to fix.
+  Before there is code, a decision made now is recorded as planned, naming the file it will be in.
 - Write by = \"owner\" only for an answer the person gave or confirmed. It counts as theirs only once
   they run `sv review` in their own terminal, which records it; never run it for them. If they ask you
   to answer, say what the code does, answer from that, and write by = \"ai-tool\". The report shows
@@ -84,8 +85,8 @@ pub fn text_with(report: &Report, fence: &crate::fence::Fence) -> String {
         out.push_str(&format!(
             "\n1. HOW THE APP IS BUILT ({}). Record each answer in securevibe.toml, in the [design] \
              section, keyed by its id:\n   \"V8.3.1\" = {{ answer = \"yes\", where = \"server/auth.py\", \
-             by = \"owner\" }}\n   `answer` is yes, no, or not-sure; `where` names the file that does \
-             it, and is left out when there is none.\n",
+             by = \"owner\" }}\n   `answer` is yes, no, not-sure, or planned (decided, not built yet); \
+             `where` names the file that does it, or will, and is left out when there is none.\n",
             design.len()
         ));
         for item in &design {
