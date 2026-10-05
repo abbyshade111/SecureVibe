@@ -1484,6 +1484,8 @@ another session is not a claim.
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
      by requirement id. `securevibe_guidance` takes topics of process (secrets, dependencies, CI), not features.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+     branch `claude/securevibe-e2-feature-briefs`.
   5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
      which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
      design-time prompts above, made a check; and a per-app record of decisions like v1's.
