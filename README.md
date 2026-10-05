@@ -328,8 +328,8 @@ or, for a tool configured with JSON:
 { "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers eleven tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
-app from it, below), `securevibe_guidance` (the
+It offers twelve tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
+app from it, below), `securevibe_before` (one feature's brief before it is built, below), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
 `securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
 work),
@@ -356,6 +356,14 @@ worth writing (named so they count once they pass), what the app must give `sv r
 from your answers), and the threats your answers raise. It needs no code, writes nothing, and credits nothing: a plan
 is what the app will be held to, not evidence that anything was built. It is built from the same parts as the report,
 so the two agree about what applies.
+
+**Before each feature.** `sv brief --feature uploads` (and `securevibe_before`, for the tool) gives one feature's brief
+before it is built: sign-in, sign-in through another service, admin pages, uploads, payments, email, an AI feature,
+or fetching a web address (`sv brief` with no feature lists them). It gives the requirements the feature brings that
+apply to the app now, and, if `securevibe.toml` does not say yet that the app has the feature, those that will apply
+once it does; the design-time prompts for the decisions to make first, in full; the coding rules that bear on it; the
+tests to write; and the settings `sv run` needs to test it, quoted from the spec. Like the plan, it writes nothing and
+credits nothing.
 
 A check that takes longer than 50 seconds is stopped waiting for, and the tool is told it did not finish and that
 nothing was assessed, rather than being left waiting. Checking this whole repository takes about six seconds.

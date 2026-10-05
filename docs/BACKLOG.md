@@ -1481,6 +1481,12 @@ another session is not a claim.
      by requirement id. `securevibe_guidance` takes topics of process (secrets, dependencies, CI), not features.
      **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
      branch `claude/securevibe-e2-feature-briefs`.
+     **Done the same day** (DESIGN, "Before each feature: `sv brief` and `securevibe_before`"): eight features in
+     `data/feature-briefs.json`, each with the conditions and requirements it brings, its design-time prompts, the
+     coding-rule topics that bear on it, and its `securevibe.toml` settings. A brief gives what applies now, what will
+     once `securevibe.toml` says the app has the feature, the prompts in full, the rules, the tests to write, and the
+     settings quoted from the spec; it credits nothing. Uploads and email have no design-time prompt yet, and admin
+     pages and fetching name no coding-rule topic: each brief says so.
   5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
      which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
      design-time prompts above, made a check; and a per-app record of decisions like v1's.
