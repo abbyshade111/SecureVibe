@@ -1,0 +1,12 @@
+sonnet-plainbase-1       ran=started      probe-credited= 12 probe-findings=  2 gave=12/12 
+sonnet-plainbase-2       ran=started      probe-credited= 24 probe-findings=  6 gave=12/12 
+sonnet-plainplan-1       ran=started      probe-credited= 26 probe-findings=  6 gave=12/12 
+sonnet-plainplan-2       ran=started      probe-credited= 27 probe-findings=  5 gave=12/12 
+sonnet-plainmcp-1        ran=started      probe-credited= 16 probe-findings=  4 gave=12/12 
+sonnet-plainmcp-2        ran=started      probe-credited= 31 probe-findings=  6 gave=12/12 
+haiku-plainbase-1        ran=started      probe-credited= 14 probe-findings= 14 gave=12/12 
+haiku-plainbase-2        ran=started      probe-credited=  4 probe-findings=  3 gave=12/12 
+haiku-plainplan-1        ran=started      probe-credited=  5 probe-findings=  3 gave=11/12 
+haiku-plainplan-2        ran=started      probe-credited=  9 probe-findings=  3 gave=12/12 
+haiku-plainmcp-1         ran=started      probe-credited= 21 probe-findings=  7 gave=12/12 
+haiku-plainmcp-2         ran=started      probe-credited= 15 probe-findings= 10 gave=11/12 

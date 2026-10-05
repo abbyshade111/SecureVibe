@@ -1,0 +1,252 @@
+[
+ {
+  "build": "sonnet-plainbase-1",
+  "ran": "started",
+  "probe_credited": 12,
+  "probe_findings": 2,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "sonnet-plainbase-2",
+  "ran": "started",
+  "probe_credited": 24,
+  "probe_findings": 6,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "sonnet-plainplan-1",
+  "ran": "started",
+  "probe_credited": 26,
+  "probe_findings": 6,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "sonnet-plainplan-2",
+  "ran": "started",
+  "probe_credited": 27,
+  "probe_findings": 5,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "sonnet-plainmcp-1",
+  "ran": "started",
+  "probe_credited": 16,
+  "probe_findings": 4,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "sonnet-plainmcp-2",
+  "ran": "started",
+  "probe_credited": 31,
+  "probe_findings": 6,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "haiku-plainbase-1",
+  "ran": "started",
+  "probe_credited": 14,
+  "probe_findings": 14,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "haiku-plainbase-2",
+  "ran": "started",
+  "probe_credited": 4,
+  "probe_findings": 3,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "haiku-plainplan-1",
+  "ran": "started",
+  "probe_credited": 5,
+  "probe_findings": 3,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "haiku-plainplan-2",
+  "ran": "started",
+  "probe_credited": 9,
+  "probe_findings": 3,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "haiku-plainmcp-1",
+  "ran": "started",
+  "probe_credited": 21,
+  "probe_findings": 7,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once",
+   "ai.chat"
+  ],
+  "note": ""
+ },
+ {
+  "build": "haiku-plainmcp-2",
+  "ran": "started",
+  "probe_credited": 15,
+  "probe_findings": 10,
+  "gave": [
+   "run.image",
+   "run.start",
+   "run.health",
+   "run.test",
+   "users.seed",
+   "users.login",
+   "users.logout",
+   "users.private",
+   "users.owned",
+   "users.admin",
+   "users.once"
+  ],
+  "note": ""
+ }
+]

@@ -1,0 +1,6 @@
+sonnet plainbase 9 and 30
+sonnet plainplan 32 and 31
+sonnet plainmcp 22 and 36
+haiku plainbase 29 and 6 (sign-in failed)
+haiku plainplan 7 (sign-in failed) and 8 (sign-in failed)
+haiku plainmcp 26 and 26
