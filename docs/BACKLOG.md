@@ -448,6 +448,8 @@ another session is not a claim.
     `claude/r3-a2-review-matching`.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a3`.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
