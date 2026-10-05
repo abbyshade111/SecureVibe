@@ -93,6 +93,8 @@ pub struct DockerBackend {
     /// The run under way, if one is: everything started while it is set carries it as `RUN_LABEL`,
     /// and its teardown removes exactly what carries it.
     run: std::sync::Mutex<Option<String>>,
+    /// How far the containers' clock is ahead of this computer's, in seconds, measured once (`clock_offset`).
+    clock_offset: OnceLock<i64>,
 }
 
 /// The label naming the one run a container or network belongs to. The owner label says which
@@ -113,6 +115,32 @@ impl DockerBackend {
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
+            clock_offset: OnceLock::new(),
+        }
+    }
+
+    /// How far the clock the app's containers read is ahead of this computer's, in seconds, asked of the
+    /// fence's container once. On a Mac, Docker runs in a virtual machine whose clock can fall behind
+    /// after the computer sleeps, and a two-factor code made by this computer's clock is then one the
+    /// app, reading the machine's, refuses (the deep review's improvement 5). 0 when it cannot be read.
+    fn clock_offset(&self, via: &Via) -> i64 {
+        *self
+            .clock_offset
+            .get_or_init(|| self.read_clock_offset(via).unwrap_or(0))
+    }
+
+    /// One reading of the containers' clock against this computer's: `None` when it could not be read.
+    fn read_clock_offset(&self, via: &Via) -> Option<i64> {
+        let before = host_now();
+        let read = self.inside_fence(via, &["date", "+%s"]);
+        let after = host_now();
+        match read {
+            Ok((0, out)) => out
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .map(|theirs| offset_from(before, theirs, after)),
+            _ => None,
         }
     }
 
@@ -805,7 +833,33 @@ struct DockerHttp<'a> {
     model: Option<&'a str>,
 }
 
+/// Now, in seconds since 1970, by this computer's clock.
+fn host_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+/// The containers' clock against this computer's, from a reading taken between `before` and `after`: the
+/// difference from the middle of the two, and none when it is a second or less, which is the reading's
+/// own uncertainty.
+fn offset_from(before: u64, theirs: u64, after: u64) -> i64 {
+    let middle = (i128::from(before) + i128::from(after)) / 2;
+    let offset = i128::from(theirs) - middle;
+    if offset.abs() <= 1 {
+        0
+    } else {
+        i64::try_from(offset).unwrap_or(0)
+    }
+}
+
 impl sv_check::signed_in::Http for DockerHttp<'_> {
+    /// Now by the clock the app reads: this computer's, moved by how far the containers' differs, so a
+    /// two-factor code is made for the time the app checks it against.
+    fn now(&mut self) -> u64 {
+        host_now().saturating_add_signed(self.backend.clock_offset(self.via))
+    }
+
     /// The waits `--slow` makes can last an hour and a half, so they are taken in short steps that
     /// end at Ctrl-C, when the run goes on to remove its containers instead of waiting them out.
     fn wait(&mut self, seconds: u64) {
@@ -1881,6 +1935,7 @@ mod tests {
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
+            clock_offset: OnceLock::new(),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -1888,6 +1943,17 @@ mod tests {
                 assert!(checked.contains("could not be started"), "{checked}")
             }
             other => panic!("expected NoBackend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_containers_clock_is_read_against_the_middle_of_the_reading() {
+        // The deep review's improvement 5: a Docker machine 47 seconds behind this computer.
+        assert_eq!(offset_from(1_000, 953, 1_002), -48);
+        assert_eq!(offset_from(1_000, 1_090, 1_000), 90);
+        // A second either way is the reading's own uncertainty, not a clock that differs.
+        for theirs in [999, 1_000, 1_001] {
+            assert_eq!(offset_from(1_000, theirs, 1_001), 0, "{theirs}");
         }
     }
 
@@ -3081,6 +3147,46 @@ http.createServer((q, s) => {
         );
         assert_eq!(answers[7]["found"], true, "{answers:?}");
         assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
+    }
+
+    #[test]
+    fn two_factor_codes_are_made_for_the_time_the_containers_read() {
+        // The deep review's improvement 5. The clock is read once, from the fence's container; here it
+        // shares this computer's, as on Linux, and must be read as no different. Needs a container
+        // backend; with one, a failed reading fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-clocktest-{}", std::process::id());
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let via = Via::FreshContainer(&network);
+        let read = backend.read_clock_offset(&via);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert_eq!(
+            read,
+            Some(0),
+            "the containers' clock was not read, or read wrong"
+        );
+
+        // And `now` is moved by what was measured: a machine 48 seconds behind.
+        let behind = DockerBackend::new();
+        behind.clock_offset.set(-48).unwrap();
+        let via = Via::FreshContainer("unused");
+        let mut http = DockerHttp {
+            backend: &behind,
+            via: &via,
+            app: "app",
+            port: 8080,
+            mail: None,
+            provider: None,
+            browser: None,
+            model: None,
+        };
+        use sv_check::signed_in::Http;
+        let (ours, theirs) = (host_now(), http.now());
+        assert!((ours - 48..=ours - 47).contains(&theirs), "{ours} {theirs}");
     }
 
     #[test]

@@ -9,6 +9,14 @@ another session is not a claim.
 
 ## Next
 
+- **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
+  2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
+  closed as #682; this finding was not on `main`). `question_for` in `crates/sv-report/src/lib.rs` says it turns the
+  condition's reason "round" into a question, but returns `default_not_applicable_reason()` unchanged, so the table
+  of requirements nobody has placed asks, for example, "No WebSocket library is used" instead of "Does the app use
+  WebSockets?". *Read*, and seen in the report of a one-file WebSocket app. Fix: a question per condition (in the
+  data beside the reason, or derived from the condition), and a test that no row of that table reads as a statement.
+  Not claimed.
 - **`git ls-files` runs a program the app's repository names.** Found on 5 October 2026 by session securevibe-e9,
   while looking at how `sv` runs outside programs. The committed-secrets check runs `git ls-files` in the app's
   folder (`crates/sv-check/src/config.rs`), and git honors the repository's own `.git/config`. A `core.fsmonitor`
@@ -695,6 +703,10 @@ another session is not a claim.
     in branch `claude/securevibe-e9-seed-env`: the run's passwords and two-factor secrets, and the test provider's
     client secret, are handed to `docker` in its own environment, not on its command line, where another user of
     the computer can read them.
+    **Improvement 5's "two-factor codes from the container's clock" claimed on 5 October 2026 by session
+    securevibe-e9**, in branch `claude/securevibe-e9-container-clock`: the signed-in checks' clock read as the app's
+    containers read it, not this computer's, where Docker runs in a virtual machine whose clock can drift.
+    **Done the same day** (DESIGN, "Two-factor codes made for the containers' clock").
     **Done the same day** (DESIGN, "The run's passwords never stand on a command line").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
