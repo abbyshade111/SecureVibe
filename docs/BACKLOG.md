@@ -1674,6 +1674,8 @@ another session is not a claim.
   `sv report` on a copy that had been made a repository, and the `sv check` during the build, in a plain folder, said
   nothing. A builder that checks before `git init` never hears it. Either say it in a plain folder too, or say that it
   was not looked at.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take one of the pilot's
+  findings, in branch `claude/env-plain-folder`.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
