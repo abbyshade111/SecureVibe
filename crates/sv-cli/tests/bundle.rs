@@ -67,6 +67,13 @@ fn app(root: &Path) -> PathBuf {
     )
     .unwrap();
     std::fs::write(dir.join("blob.bin"), [0xffu8, 0xfe, 0x00, 0x80]).unwrap();
+    // A Finder settings file: known by its contents since H22, and still not something a bundle
+    // carries, since nothing read it and its name says nothing harmless.
+    std::fs::write(
+        dir.join(".DS_Store"),
+        b"\x00\x00\x00\x01Bud1\x00\x00\x10\x00",
+    )
+    .unwrap();
     std::fs::write(dir.join("big.txt"), vec![b'x'; 3 * 1024 * 1024]).unwrap();
     // Over 2 MB with a key past the 2 MB mark: read in pieces since 28 September 2026, so the scan
     // finds the key and the file stays out as one holding a credential.
@@ -332,6 +339,14 @@ fn a_file_the_scan_could_not_read_stays_out_unless_it_is_a_plain_image_or_font_a
     assert!(
         made.has("app/static/logo.png"),
         "a plain image is left out too"
+    );
+    assert!(
+        !made.has("app/.DS_Store")
+            && made
+                .left_out(".DS_Store")
+                .is_some_and(|r| r.contains("Finder settings file")),
+        "{:?}",
+        made.left_out(".DS_Store")
     );
 }
 

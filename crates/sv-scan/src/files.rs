@@ -124,7 +124,20 @@ pub fn decode(bytes: Vec<u8>) -> Result<String, Unread> {
             _ => Err(Unread::NotText),
         });
         let units: Vec<u16> = units.collect::<Result<_, _>>()?;
-        String::from_utf16(&units).map_err(|_| Unread::NotText)
+        let text = String::from_utf16(&units).map_err(|_| Unread::NotText)?;
+        // Two bytes can look like the mark by chance at the start of a binary file, and read as
+        // UTF-16 it gives characters, but not the ones an app's text is written in: a key written
+        // in it as plain letters would read as nonsense and be missed. What an app keeps in UTF-16
+        // (a script or a settings file saved by a Windows tool) is mostly ASCII, with no control
+        // characters, so only that is taken as text; anything else stays not text, and a gap.
+        let control = text
+            .chars()
+            .any(|c| c.is_control() && !matches!(c, '\t' | '\n' | '\r' | '\x0c'));
+        let ascii = text.chars().filter(char::is_ascii).count();
+        if control || ascii * 2 < text.chars().count() {
+            return Err(Unread::NotText);
+        }
+        Ok(text)
     };
     match bytes.get(..2) {
         Some([0xFF, 0xFE]) => return utf16(true, 2),
@@ -563,6 +576,12 @@ mod tests {
             .collect();
         assert_eq!(decode(le).unwrap(), "key = abc");
         assert_eq!(decode(be).unwrap(), "key = abc");
+        // Two bytes that look like the mark at the start of a binary file: what follows reads as
+        // UTF-16 into characters an app's text is not written in, so it stays not text.
+        assert_eq!(decode(vec![0xFF, 0xFE, 0x00, 0x80]), Err(Unread::NotText));
+        let mut binary = vec![0xFF, 0xFE];
+        binary.extend(b"AKIA\x01\x02\x03\x04");
+        assert_eq!(decode(binary), Err(Unread::NotText));
         // Zero bytes that are not UTF-16: valid UTF-8, and still not text a person writes.
         assert_eq!(
             decode(b"head\x00\x00\x00\x07tail".to_vec()),

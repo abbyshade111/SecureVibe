@@ -334,9 +334,10 @@ fn a_file_not_opened_holds_back_every_rule_that_reads_its_language() {
     );
     let dir = scratch("ast-unopened-2");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    // Not UTF-8, not UTF-16, and with a zero byte, so not Latin-1 either: a file nothing reads.
     std::fs::write(
         dir.join("worker.py"),
-        [0xffu8, 0xfe, 0x00, 0x9f, 0x92, 0x96],
+        [0x9fu8, 0x00, 0x92, 0x96, 0x00, 0x00, 0x01],
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
@@ -1139,8 +1140,9 @@ fn a_page_that_cannot_be_opened_still_silences_them() {
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     let page = dir.join("index.html");
     std::fs::write(&page, "<html></html>\n").unwrap();
-    // Invalid UTF-8 is the readable-but-not-as-text case, which `read_to_string` refuses.
-    std::fs::write(&page, [0x3c, 0x68, 0xff, 0xfe, 0x3e]).unwrap();
+    // Readable, but not as text: not UTF-8, not UTF-16, and with a zero byte, so not Latin-1
+    // either. (Bytes with no zero in them are read as Latin-1 since H22.)
+    std::fs::write(&page, [0x3c, 0x68, 0xff, 0x00, 0xfe, 0x3e, 0x00]).unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
     std::fs::remove_dir_all(&dir).ok();
