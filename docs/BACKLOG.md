@@ -258,13 +258,21 @@ another session is not a claim.
     then, if it fits, that template code read as code.
     **First step done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): a
     `.svelte` page with any `{...}` outside its `<script>` and `<style>`, or a `.vue` page with `{{ }}` or an `@`, `:`,
-    or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
-    guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
+    or `v-` attribute, is named among the files not fully read. Four guards broken in turn, each caught. (This
+    said no rule is then credited a clean result for the page. That was wrong, corrected in the rest below: naming
+    the page did not hold the rules back.) **Still open:** reading that template code as code, so `on:click={() =>
     eval(code)}` is found rather than only owned up to.
     **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
     TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
     read.
+    **Done the same day** (DESIGN, "Svelte and Vue template code read as code"): every Svelte `{...}` (expressions,
+    `{#if}`, `{#each}` and its key, `{#await}`, `{@html}`, `{@const}`, spreads, and Svelte 5's `onclick={...}`) and
+    every Vue `{{ }}`, `@`, `v-on:`, `:`, `v-bind:`, `v-if`, `v-for`, `v-html`, slot, and other `v-` value is read as
+    JavaScript, or TypeScript when the page's script is, and `on:click={() => eval(code)}` is found on its line. A
+    template that cannot all be taken out or read now holds back each rule whose call it names, which the first step
+    claimed and did not do. **Not read:** Vue templates in Pug or another language, and directives whose names are
+    worked out when the page runs; such a page is named as not fully read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
