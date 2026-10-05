@@ -496,6 +496,9 @@ another session is not a claim.
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a6`.
+    **Done the same day** (DESIGN, "The bundle leaves out the secret files the review named"): every file the
+    review named stays out of the zip, `example.env` and the like still go in, and a `database.yml` with a password
+    written in it stays out even when the credential scan does not flag it.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
@@ -544,7 +547,11 @@ another session is not a claim.
   - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r10`.
+    **Done the same day** (DESIGN, "`sv mcp` will not serve a folder that holds the home folder"): a root that holds
+    the home folder is refused, and with no home folder known, a folder just below the top is too.
   - **R11. Low to medium, Reproduced.** Duplicate or conflicting reviews are each applied.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r11`.
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
