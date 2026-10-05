@@ -1563,6 +1563,10 @@ another session is not a claim.
      form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
      tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
      protocol may change it, so it is to be tried first; `sv review` at a terminal stays the sure path.
+     **The owner's decision, 5 October 2026:** research it first: which AI tools support elicitation today, what the protocol says it
+     may be used for, and whether an answer given through it could fairly count as the owner's.
+     **Claimed the same day by session securevibe-e2**, at the owner's word, for that research only, in branch
+     `claude/securevibe-e2-elicitation-research`; nothing is built until the owner has read it.
   7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
@@ -1709,12 +1713,16 @@ another session is not a claim.
   be run, and the protocol's security measures leave it out. Two ways, for the owner to choose before item 6: a
   tester writes the manifest for those builds from the code, as trial 3 did, so the comparison is of the apps; or
   every arm's request includes the specification, so the comparison is of what the loop adds beyond it.
+  **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
+  is of the apps. For session paper-facts, which runs the trials.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
   signed-in checks had nothing to work with. A correct limit is what the owner wants; `sv` signs in many times in a
   run from one address. The spec could say how many, so a builder can set the limit to allow them in a test copy, or
   `sv` could say which sign-in hit the limit and stop counting the checks it blocked as unanswered.
+  **The owner's decision, 5 October 2026:** both. **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
+  `claude/securevibe-e2-signin-limit`.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
@@ -1767,6 +1775,7 @@ another session is not a claim.
   earlier would break apps that make their tables when they start). Changing when it runs stays the owner's to choose.
   **Done the same day**, as said: the spec and the plan say when the seed runs, and the brief is corrected. How `sv`
   runs it is unchanged.
+  **The owner's decision, 5 October 2026:** leave when the seed runs as it is.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
@@ -3388,6 +3397,8 @@ another session is not a claim.
   asking. **Done the same day:** `.github/ISSUE_TEMPLATE/false_alarm.yml`, and a link beside each
   false alarm in `security.md`, `report.html`, and the MCP summary. See DESIGN, "False alarms, part 3".
   It uses the existing `bug` label; a `false alarm` label of its own is the owner's to add.
+  **The owner's decision, 5 October 2026:** add it. The label `false alarm` was made the same day, and the template now puts it on
+  every report beside `bug`.
 
 - ~~**Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).**~~ **The admin actions are
   done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a
@@ -3403,6 +3414,7 @@ another session is not a claim.
   enforced, and that actions sent straight to an API are not tried (DESIGN, "The admin page, as support
   for V8.3.1"). This probe answers the second reason. The first stays, and whether V8.3.1 can ever leave
   `manualOnly` is the owner's decision, not this probe's.
+  **The owner's decision, 5 October 2026:** leave V8.3.1 on `manualOnly`.
 
   **What the owner writes.** A list under `[stack.run.users]`, `admin-actions`, each entry a request only
   an admin should be able to make, in the same shape as the other requests there (method, path, form or
@@ -4210,6 +4222,8 @@ another session is not a claim.
   third-party action. The README now pulls the published image. Whether the package can be pulled
   without signing in to GitHub depends on its visibility, which is set in the package's settings on
   GitHub, and is the owner's to set.
+  **The owner's decision, 5 October 2026:** let it be pulled without signing in. GitHub's API cannot change a package's visibility,
+  so the owner sets it in the package's settings on GitHub.
 
   **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
   everything except `--run`. It needs the data either compiled in (`include_str!`, as
@@ -6118,6 +6132,7 @@ another session is not a claim.
     file's rule is SARIF only, so adding it means either a second report reader or a SARIF report class shipped
     with `sv` for PHP_CodeSniffer to load. Either is the owner's decision, made knowing that the package is no
     longer maintained. Semgrep already runs on a PHP app, with 45 PHP rules mapped to requirements.
+    **The owner's decision, 5 October 2026:** no; phpcs-security-audit is not added.
   `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
   already include its rules under their own names (`detect-child-process`,
   `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,
