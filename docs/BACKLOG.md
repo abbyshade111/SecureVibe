@@ -1589,6 +1589,9 @@ another session is not a claim.
      decisions are written down and, where a decision names something the code can show (a debug switch off, a page
      removed), whether the code agrees. What the file's sections must look like for that, and which decisions a check
      can speak to at all, is for whoever builds it to propose to the owner first.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word ("Yes please", to drafting the
+     proposal), in branch `claude/securevibe-e2-decisions-file`: the proposal first, for the owner to choose from;
+     nothing is built until they have.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
   **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
