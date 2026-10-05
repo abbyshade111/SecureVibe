@@ -470,6 +470,11 @@ another session is not a claim.
     `AKIAEXAMPLEEXAMPLE12` shape needs it); of 20,000 random JWTs, 66 were dropped before and none now.
   - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
     `sk_test_` keys graded critical.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a5`.
+    **Done the same day** (DESIGN, "The secret rules find what they promise, and grade a test key below a live
+    one"): `xapp-` tokens and PGP private key blocks are found; a Stripe test key has its own rule at medium, and
+    `secrets.stripe-key` is for live keys only.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
@@ -1261,6 +1266,8 @@ another session is not a claim.
      app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
      Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+     **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
+     with its record as `proposed` (ADR-030).
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
