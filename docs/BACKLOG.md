@@ -1495,6 +1495,10 @@ another session is not a claim.
   5. **Decisions as planned, then held to.** A design answer of "yes, planned" before there is a file to point to,
      which becomes a finding when the code exists and nothing does it: decided, never built. Item 15 of the
      design-time prompts above, made a check; and a per-app record of decisions like v1's.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word, in branch
+     `claude/securevibe-e2-planned-decisions`. **The owner's decisions, 5 October 2026:** a fourth design answer,
+     `planned`, with an optional `where` naming the file it will be in, which credits nothing; and `sv` does not read
+     `design-decisions.md` in this item (a separate item below).
   6. **The owner's answers asked by the server itself, where the client allows it.** MCP elicitation shows the person a
      form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
      tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
