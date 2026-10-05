@@ -312,9 +312,22 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
                 ))],
             ));
         }
+        let started = files_in_command(&start, source).0;
         if let (Some(file), Some(text)) = (seed_file.as_deref(), seed_text) {
             let makes = |t: &str| t.to_ascii_lowercase().contains("create table");
-            if makes(text) && source.find(Some(file), makes).is_none() {
+            if started.iter().any(|f| f == file) {
+                // `python app.py seed`: the seed is the app's own file, so whether it makes its
+                // tables when it starts or only when it seeds is not in the text.
+                items.push(Item::new(
+                    "tables",
+                    Answer::Unknown,
+                    vec![
+                        sv("The seed runs "),
+                        app(file),
+                        sv(", the file the app starts from, so whether the app makes its tables when it starts, or only when it seeds, could not be told. `sv` runs the seed after the app answers on `health`: the tables must be there before."),
+                    ],
+                ));
+            } else if makes(text) && source.find(Some(file), makes).is_none() {
                 items.push(Item::new(
                     "tables",
                     Answer::Look,
@@ -499,6 +512,17 @@ mod tests {
         let seed = format!("{GOOD_SEED}db.execute('create table users (id)')\n");
         let items = preflight(&manifest(RUN), &source(&[("app.py", &app), ("seed.py", &seed)]));
         assert_eq!(answers(&items, "tables"), vec![Answer::Look]);
+    }
+
+    #[test]
+    fn a_seed_that_is_the_app_itself_cannot_say_where_the_tables_are_made() {
+        // Found on the first loop builds: `seed = "python app.py seed"` was read as tables made
+        // only by the seed, because the seed's file and the app's are the same file.
+        let run = RUN.replace("seed = \"python seed.py\"", "seed = \"python app.py seed\"");
+        let app = format!("{GOOD_APP}{GOOD_SEED}");
+        let items = preflight(&manifest(&run), &source(&[("app.py", &app)]));
+        assert_eq!(answers(&items, "tables"), vec![Answer::Unknown]);
+        assert_eq!(answers(&items, "accounts"), vec![Answer::Looks]);
     }
 
     #[test]
