@@ -603,7 +603,7 @@ another session is not a claim.
     file's URI is percent-encoded as an RFC 3986 relative reference; a running-app finding points at
     `securevibe.toml`, which says how the app was run, with the place named in the location's message, a logical
     location, and `properties.place`, since GitHub shows no result without a file; a rule kept as data is described
-    in its own words, any other by what all its findings share. Four tests, each failing before; four guards
+    in its own words, any other by what all its findings share. Four tests, each failing before; six guards
     undone in turn, each caught.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
     2: clean claims that name their limits (the calls per language, the ecosystems, transitive and development

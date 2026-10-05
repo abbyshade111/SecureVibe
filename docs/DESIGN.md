@@ -8689,6 +8689,7 @@ How it is held, in `crates/sv-report/src/sarif.rs`: `a_file_path_is_written_as_a
 (spaces, accents, Japanese, `#?%[]`, a colon, `C:/`, `../`, `//`, each checked against RFC 3986's grammar and decoded
 back to the path), `a_finding_about_the_running_app_gets_an_honest_place_github_will_take`,
 `a_rule_is_described_the_same_whichever_of_its_findings_comes_first` (a probe rule, a data rule, and a tool's, in
-both orders), and `a_secret_rule_is_described_from_its_own_data`. All four failed before the change. Undone in turn,
-no encoding, no catalog, the first finding's text instead of the text all share, and the first finding's tags
-instead of all of them were each caught.
+both orders), and `a_secret_rule_is_described_from_its_own_data`. All four failed before the change. Six guards
+were undone in turn, and each was caught: no encoding, no `./` before `//`, every place taken for a file, no
+catalog, the first finding's text instead of the text all share, and the first finding's tags instead of all of
+them.
