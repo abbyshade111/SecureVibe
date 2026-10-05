@@ -31,6 +31,7 @@ macro_rules! print {
     ($($arg:tt)*) => { ::std::print!("{}", ::sv_report::visible(&::std::format!($($arg)*))) };
 }
 
+mod brief;
 mod bundle;
 mod exit;
 mod mcp;
@@ -92,6 +93,7 @@ fn run() -> Result<i32> {
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
         "plan" => finished(cmd_plan(rest.first().map(PathBuf::from))),
+        "brief" => finished(cmd_brief(rest)),
         "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
         "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
         "rules" => finished(cmd_rules(rest)),
@@ -144,6 +146,17 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &[],
         help: "  sv plan [PATH]     before any code: what applies, what to decide, the tests to write,\n                     and what the app must give `sv run`; credits nothing\n",
+    },
+    Command {
+        name: "brief",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &["--feature"],
+        help: "  sv brief [PATH] --feature FEATURE
+                     before building one feature (sign-in, uploads, payments, ai, ...):
+                     its requirements, what to decide, the rules to code by, the tests to
+                     write, and what `sv run` needs; credits nothing. No --feature lists them
+",
     },
     Command {
         name: "notes",
@@ -482,6 +495,66 @@ pub(crate) fn plan_options() -> ReportOptions {
         why_no_advisories: "`sv plan` does not compare packages with known vulnerabilities."
             .to_owned(),
     }
+}
+
+/// The features a brief can be written for (`sv brief`, `securevibe_before`).
+pub(crate) fn feature_briefs_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/feature-briefs.json")
+}
+
+/// The brief for one feature of an app, from the report's own parts, as the plan is.
+pub(crate) fn brief_for(
+    report: &sv_report::Report,
+    feature: &str,
+    loaded: &Loaded,
+) -> Result<brief::Brief> {
+    let features = brief::Features::load(&feature_briefs_path())?;
+    let feature = features.get(feature)?;
+    let brought = brief::brought(feature, &loaded.frameworks, &loaded.config_rules);
+    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    Ok(brief::from_report(
+        report,
+        feature,
+        &brought,
+        &loaded.frameworks,
+        &design_prompts()?,
+        &rules,
+    ))
+}
+
+/// Prints one feature's brief, or the features there are when none is named. Like the plan, it
+/// is not a check, so it ends clean whatever the app holds.
+fn cmd_brief(args: &[String]) -> Result<()> {
+    let feature = args
+        .iter()
+        .position(|a| a == "--feature")
+        .and_then(|i| args.get(i + 1));
+    let path = args
+        .iter()
+        .enumerate()
+        .find(|(i, a)| !a.starts_with("--") && (*i == 0 || args[i - 1] != "--feature"))
+        .map(|(_, a)| PathBuf::from(a));
+    let Some(feature) = feature else {
+        let features = brief::Features::load(&feature_briefs_path())?;
+        println!("Name a feature with --feature:");
+        for f in &features.features {
+            println!("  {:<18} {}", f.id, f.name);
+        }
+        return Ok(());
+    };
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let loaded = Loaded::load()?;
+    // The feature is checked before the report is built, so a misspelt name is said at once.
+    brief::Features::load(&feature_briefs_path())?.get(feature)?;
+    let report = assemble_report(&app_dir, &plan_options(), &loaded)?;
+    print!(
+        "{}",
+        brief::markdown_with(
+            &brief_for(&report, feature, &loaded)?,
+            &sv_report::fence::Fence::none()
+        )
+    );
+    Ok(())
 }
 
 /// Prints the plan. A plan is not a check, so it ends clean whatever the app holds.

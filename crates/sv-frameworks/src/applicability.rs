@@ -270,6 +270,29 @@ fn not_applicable_for(req: &RequirementInfo, matching: &[&Rule]) -> NotApplicabl
     }
 }
 
+/// The requirements, at every level, that a rule of the applicability data turns on `condition`:
+/// what a feature resting on that condition brings. Sorted, so a list made from it reads the same
+/// every time.
+pub fn requirement_ids_gated_on(
+    frameworks: &Frameworks,
+    config: &ApplicabilityConfig,
+    condition: Condition,
+) -> Vec<String> {
+    let mut ids: Vec<String> = frameworks
+        .requirements
+        .values()
+        .filter(|r| {
+            config
+                .rules_for(&r.id)
+                .iter()
+                .any(|rule| rule.condition == condition)
+        })
+        .map(|r| r.id.clone())
+        .collect();
+    ids.sort();
+    ids
+}
+
 /// How many in-scope requirements turn on a condition.
 ///
 /// Some conditions gate nothing at all: `payments` and `scheduler` are asked about, have

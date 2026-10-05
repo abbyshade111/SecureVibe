@@ -87,7 +87,11 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     logging, or a call to anything outside the app, get the design-time prompt for it from \
     securevibe_prompts, work through it with the person, and write down what was decided where it \
     says, before the code. securevibe_plan turns the brief into a plan: what to decide, the tests to \
-    write, and what the app must give `sv run` so it can be tested running. The person can choose \
+    write, and what the app must give `sv run` so it can be tested running. Before you build \
+    sign-in, admin pages, uploads, payments, email, an AI feature, or a feature that fetches a web \
+    address, call securevibe_before for it: the requirements that feature brings, what to decide \
+    first, the rules to code by, the tests to write, and what `sv run` needs, in one place. The \
+    person can choose \
     the design-time prompts from this server's prompts too. If \
     the app already has code and no securevibe.toml, call securevibe_spec and write one from the \
     code that is there. Call securevibe_guidance once before you start writing code, and again \
@@ -727,6 +731,7 @@ impl Server {
             "securevibe_guidance" => self.guidance(&args),
             "securevibe_prompts" => self.prompts(&args),
             "securevibe_plan" => self.plan(&args, progress),
+            "securevibe_before" => self.before(&args, progress),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
         // A tool that could not do its job says so as its result, which the model reads; a protocol
@@ -864,6 +869,27 @@ impl Server {
                 "text": sv_report::fence::fenced(|fence| crate::plan::markdown_with(&plan, fence)),
             }],
             "structuredContent": crate::plan::to_json(&plan),
+            "isError": false,
+        }))
+    }
+
+    /// One feature's brief, before it is built: built from the same report as the plan, crediting
+    /// nothing. The feature is checked before the report is built, so a misspelt one is said at once.
+    fn before(&self, args: &Value, progress: &Progress) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let feature = args
+            .get("feature")
+            .and_then(Value::as_str)
+            .context("securevibe_before needs `feature`")?;
+        crate::brief::Features::load(&crate::feature_briefs_path())?.get(feature)?;
+        let report = self.report_for(&app_dir, progress)?;
+        let brief = crate::brief_for(&report, feature, &self.loaded)?;
+        Ok(json!({
+            "content": [{
+                "type": "text",
+                "text": sv_report::fence::fenced(|fence| crate::brief::markdown_with(&brief, fence)),
+            }],
+            "structuredContent": crate::brief::to_json(&brief),
             "isError": false,
         }))
     }
@@ -1615,6 +1641,45 @@ fn output_schema(tool: &str) -> Option<Value> {
                 ],
             )
         }
+        "securevibe_before" => {
+            let item = |fields: &[(&str, Value)]| {
+                let properties: serde_json::Map<String, Value> = fields
+                    .iter()
+                    .map(|(f, kind)| ((*f).to_owned(), kind.clone()))
+                    .collect();
+                let names: Vec<&str> = fields.iter().map(|(f, _)| *f).collect();
+                json!({ "type": "array", "items": object(Value::Object(properties), &names) })
+            };
+            object(
+                json!({
+                    "app": string, "level": count, "feature": string, "name": string,
+                    "requirements": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
+                    "pending": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
+                    "conditions": strings,
+                    "notApplying": count,
+                    "prompts": item(&[("id", string.clone()), ("title", string.clone()), ("status", string.clone()), ("text", string.clone())]),
+                    "rules": item(&[("id", string.clone()), ("topic", string.clone()), ("rule", string.clone())]),
+                    "tests": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
+                    "settings": item(&[("table", string.clone()), ("key", string.clone()), ("lines", string.clone())]),
+                    "creditsNothing": { "type": "boolean" },
+                }),
+                &[
+                    "app",
+                    "level",
+                    "feature",
+                    "name",
+                    "requirements",
+                    "pending",
+                    "conditions",
+                    "notApplying",
+                    "prompts",
+                    "rules",
+                    "tests",
+                    "settings",
+                    "creditsNothing",
+                ],
+            )
+        }
         "securevibe_prompts" => object(
             json!({
                 "prompts": { "type": "array", "items": object(
@@ -1850,6 +1915,24 @@ fn tool_list() -> Value {
             "title": "Plan the app before writing it",
             "description": "The plan for the app from its securevibe.toml, before any code and at any time after: the requirements that will apply, the design-time prompts to work through before each feature, the questions only the person can answer, the tests worth writing named by requirement id, what the app must give `sv run` in securevibe.toml so it can be tested running, and the threats the answers raise. Built from the same report as securevibe_check, so the two agree. A plan credits nothing and never says a requirement is met. Reads files only; never starts the app.",
             "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_before",
+            "title": "Before building one feature",
+            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules that cite its requirements, the tests to write named by requirement id, and the settings `sv run` needs in securevibe.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. A brief credits nothing. Reads files only; never starts the app.",
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": path.clone(),
+                    "feature": {
+                        "type": "string",
+                        "enum": ["sign-in", "sign-in-elsewhere", "admin", "uploads", "payments", "email", "ai", "fetch"],
+                        "description": "The feature about to be built."
+                    }
+                },
+                "required": ["feature"]
+            },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         }
     ])
@@ -2639,6 +2722,123 @@ mod tests {
     }
 
     #[test]
+    fn the_features_offered_are_the_data_files_features() {
+        // As for the guidance topics: a feature added to the data file and not here could never be
+        // asked for by a client that keeps to the schema.
+        let tools = tools();
+        let before = tools
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "securevibe_before")
+            .expect("offered");
+        let offered: Vec<&str> = before["inputSchema"]["properties"]["feature"]["enum"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        let features = crate::brief::Features::load(&crate::feature_briefs_path()).unwrap();
+        assert_eq!(offered, features.ids());
+    }
+
+    #[test]
+    fn a_feature_brief_agrees_with_the_plan_and_keeps_to_its_feature() {
+        let root = scratch_app("before-agrees", "flask-booking");
+        let server = Server::new(&root).unwrap();
+        let plan = call(&server, "securevibe_plan", json!({ "path": "app" }));
+        let ids = |v: &Value, part: &str| -> std::collections::BTreeSet<String> {
+            v["structuredContent"][part]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| r["id"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        let (planned, plan_tests) = (ids(&plan, "requirements"), ids(&plan, "tests"));
+        let sign_in = call(
+            &server,
+            "securevibe_before",
+            json!({ "path": "app", "feature": "sign-in" }),
+        );
+        let ai = call(
+            &server,
+            "securevibe_before",
+            json!({ "path": "app", "feature": "ai" }),
+        );
+        std::fs::remove_dir_all(&root).ok();
+        // Setup: the example signs people in and has no AI feature.
+        let brought = ids(&sign_in, "requirements");
+        assert!(brought.contains("V6.2.1"), "{brought:?}");
+        // Only what applies, and only the feature's own: every requirement and test is the plan's,
+        // and a password requirement is not an AI feature's.
+        assert!(
+            brought.is_subset(&planned),
+            "{:?}",
+            brought.difference(&planned)
+        );
+        let tests = ids(&sign_in, "tests");
+        assert!(!tests.is_empty());
+        assert!(tests.is_subset(&plan_tests));
+        assert!(
+            tests.is_subset(&brought),
+            "a test for another feature's requirement"
+        );
+        assert!(
+            brought.len() < planned.len(),
+            "the whole plan, not one feature"
+        );
+        // A feature the app does not have yet: what it would bring is pending, never said to apply,
+        // and none of it is in the plan; what does apply is the plan's, for another feature's reason.
+        let pending = ids(&ai, "pending");
+        assert!(!pending.is_empty(), "{}", text(&ai));
+        assert!(
+            pending.is_disjoint(&planned),
+            "{:?}",
+            pending.intersection(&planned)
+        );
+        assert!(ids(&ai, "requirements").is_subset(&planned));
+        assert!(text(&ai).contains("does not say yet that the app has this feature"));
+        assert_eq!(
+            ai["structuredContent"]["conditions"],
+            json!(["ai", "ai-actions"])
+        );
+        // Nothing above the app's level, and the rules to code by cite only the feature's own.
+        let level = ai["structuredContent"]["level"].as_u64().unwrap();
+        for r in ai["structuredContent"]["pending"].as_array().unwrap() {
+            assert!(r["level"].as_u64().unwrap() <= level, "{r}");
+        }
+        // The rules on the feature's own topics, and only those: keys and people's data.
+        let rules = ai["structuredContent"]["rules"].as_array().unwrap();
+        assert!(!rules.is_empty(), "the AI feature's rules: {}", text(&ai));
+        assert!(rules.iter().all(|r| r["topic"] == "secrets"), "{rules:?}");
+        // The example has sign-in, so nothing of sign-in's waits on securevibe.toml.
+        assert!(ids(&sign_in, "pending").is_empty(), "{}", text(&sign_in));
+    }
+
+    #[test]
+    fn a_feature_brief_is_refused_for_a_feature_with_none_before_any_check() {
+        let root = scratch_app("before-unknown", "flask-booking");
+        // A check given no time at all: the refusal comes before one is started.
+        let server = Server::new(&root)
+            .unwrap()
+            .with_time_limit(std::time::Duration::from_nanos(1));
+        let answer = call(
+            &server,
+            "securevibe_before",
+            json!({ "path": "app", "feature": "bookings" }),
+        );
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(answer["isError"], true);
+        let said = text(&answer);
+        assert!(said.contains("no brief for `bookings`"), "{said}");
+        assert!(
+            said.contains("sign-in, sign-in-elsewhere"),
+            "names them: {said}"
+        );
+    }
+
+    #[test]
     fn the_guidance_topics_offered_are_the_data_files_topics() {
         // The schema names them for the tool; a topic added to the data file and not here could
         // never be asked for, and one here and not there is refused.
@@ -3173,6 +3373,10 @@ mod tests {
             ("securevibe_prompts", json!({})),
             ("securevibe_spec", json!({})),
             ("securevibe_plan", json!({ "path": "app" })),
+            (
+                "securevibe_before",
+                json!({ "path": "app", "feature": "sign-in" }),
+            ),
         ];
         let mut results = Vec::new();
         for (name, args) in &calls {
@@ -4031,6 +4235,10 @@ mod tests {
             ("securevibe_write_report", json!({ "path": "app" })),
             ("securevibe_bundle", json!({ "path": "app" })),
             ("securevibe_plan", json!({ "path": "app" })),
+            (
+                "securevibe_before",
+                json!({ "path": "app", "feature": "uploads" }),
+            ),
         ] {
             let mut server = Server::new(&root)
                 .unwrap()
@@ -4637,7 +4845,8 @@ mod tests {
                 "securevibe_guidance",
                 "securevibe_prompts",
                 "securevibe_spec",
-                "securevibe_plan"
+                "securevibe_plan",
+                "securevibe_before"
             ]
         );
         let unknown = server
@@ -5002,6 +5211,9 @@ mod tests {
             at("securevibe_plan") > at("for the app as it will be"),
             "the plan after the brief"
         );
+        // Each feature's brief after the plan, and before the rules for coding.
+        assert!(at("securevibe_before") > at("securevibe_plan"));
+        assert!(at("securevibe_before") < at("securevibe_guidance"));
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
     }
