@@ -8131,3 +8131,11 @@ At the owner's choice ("end a section at any heading, and say what was skipped";
   owner's text was R7's point, and the text is still kept; whether it counts as the answer is this decision. The test
   keeps its other two heading-like lines, which stay in the answer.
 
+
+**Broken in turn.** Eleven guards: the old reader (5 tests red, the end-to-end one among them), `###` and `#` not ending
+a section, `####` ending one (caught by this test and by R7's own), the reader ignoring a heading of one's own, the
+heading not listed, the heading line itself not kept, the seal placed by the old boundary, the evidence and the report
+each saying nothing, and headings before the first section taken as somebody's (13 red, most of them R7's). Each was
+caught. A first run, before R7 was merged, reported the end-to-end test as catching nothing: the script named a test
+file in the wrong crate, cargo refused to start, and the script read that as no failures. It now stops when a run
+reports no tests.
