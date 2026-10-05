@@ -1,0 +1,201 @@
+[
+ {
+  "build": "sonnet-loop-1",
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.40910799999999997,
+  "seconds": 125.57,
+  "turns": 16,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-loop-2",
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 38,
+  "running_findings": 8,
+  "own_high": 1,
+  "cost_usd": 0.3871797,
+  "seconds": 120.833,
+  "turns": 16,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-1",
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_questions",
+   "securevibe_questions",
+   "securevibe_questions"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 1,
+  "cost_usd": 0.06348480000000001,
+  "seconds": 41.893,
+  "turns": 7,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-2",
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_notes_file"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 1,
+  "cost_usd": 0.10818335,
+  "seconds": 53.967,
+  "turns": 11,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-3",
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_plan",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_check",
+   "securevibe_questions",
+   "securevibe_notes_file",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 1,
+  "attention_per_check": [
+   null
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 21,
+  "running_findings": 8,
+  "own_high": 1,
+  "cost_usd": 0.44943825000000004,
+  "seconds": 248.352,
+  "turns": 58,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-4",
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_guidance",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_guidance",
+   "securevibe_guidance",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_guidance",
+   "securevibe_notes_file",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 27,
+  "running_findings": 6,
+  "own_high": 3,
+  "cost_usd": 0.43937305,
+  "seconds": 319.833,
+  "turns": 46,
+  "stopped": "success"
+ }
+]
