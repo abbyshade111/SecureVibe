@@ -72,4 +72,14 @@ spending more.
 
 ## Amendments
 
-None yet.
+1. **5 October 2026, after the pilot's first four builds: a request with no owner to answer.** Both Haiku builds
+   followed the server's instruction to settle the design with the owner, asked their questions, and ended before
+   writing an app. A headless build has no owner. From then on every build's request, in every arm, ends with: *"I
+   won't be around to answer questions while you build; where something needs deciding, choose the safer option and
+   write down what you chose."* The two Haiku builds were made again with it, and the pilot reports both
+   (`loop-pilot/README.md`). The Sonnet builds were not made again: neither had stopped to ask.
+2. **5 October 2026, before the first build ran: the builds use the owner's API credit, not a sign-in.** The Claude
+   program run from a terminal had no sign-in of its own. At the owner's word the builds use the Anthropic key from
+   `.env`, handed to the program by an `apiKeyHelper` (`loop-pilot/key_helper.sh`) so it is in no other program's
+   environment, and every transcript is searched for it afterwards. The cost each build reports is then what it was
+   charged.

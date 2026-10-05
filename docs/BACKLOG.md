@@ -1637,6 +1637,29 @@ another session is not a claim.
   the order in `sv-run`. The trials' brief is corrected, with a note that the first three trials used the old
   sentence. The next trials' protocol is `docs/prompts/loop-protocol.md`: the arms, the measures, what makes a build
   unusable, what may be said, and the cost guard, fixed before any build.
+  **Items 2 and 4 done the same day** (DESIGN, "The loop, a pilot"; `docs/prompts/loop-pilot/README.md`): six
+  loop-arm builds, Sonnet 5.5 and Haiku 4.5, $1.86 of the owner's API credit. Every build used `sv` before any code
+  without being asked; Haiku stopped to ask the owner until the request said the owner was away (protocol amendment
+  1); all four builds that wrote an app could be started and signed in to (34, 38, 21, 27 checks answered). Only three
+  ran `sv check`, each once: no check-and-fix round was seen. The measures are `loop_measures.py`.
+
+- **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
+  paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
+  to a file instead of passing it on; `securevibe_check` gave 50 KB for one build, handled the same way. The builder
+  then read them in parts with a script. A short answer first (what to build, the run settings, the decisions to
+  make) with the rest by section, or a size the common tools pass whole, would let a builder read what it is given.
+
+- **A `securevibe.toml` field in the wrong section: the message names the field, not the section.** Found on 5 October
+  2026 by session paper-facts, in the loop pilot. Haiku 4.5 wrote `enabled = true` under `[stack.run.ai]`; `sv`
+  answered with the line, the field, and the fields allowed, and the builder sent the same mistake back five times,
+  rewriting the file twice, before it put the field where it belongs. Naming the section the line was read in (`in [stack.run.ai]`) would say where
+  it went wrong.
+
+- **`sv check` does not say `.env` can be committed until the folder is a git repository.** Found on 5 October 2026
+  by session paper-facts, in the loop pilot: every build was flagged `config.gitignore-covers-env` (high) by
+  `sv report` on a copy that had been made a repository, and the `sv check` during the build, in a plain folder, said
+  nothing. A builder that checks before `git init` never hears it. Either say it in a plain folder too, or say that it
+  was not looked at.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
