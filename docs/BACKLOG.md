@@ -1560,6 +1560,10 @@ another session is not a claim.
      beyond what the server itself says. Its transcript (`--output-format stream-json`) records every tool call. About
      four builds, to prove the setup before spending more. Other tools with MCP (Codex CLI, Gemini CLI, Cursor's agent)
      where the owner has them.
+     **Claimed on 5 October 2026 by session paper-facts**, with item 4, at the owner's word, in branch
+     `claude/loop-pilot`. Builder: the Claude Code program the desktop app carries (2.1.286), headless, with
+     `--restricted`, `--strict-mcp-config`, `--no-session-persistence`, and `--max-budget-usd` on each build; the shell
+     allowed only for `python3`, which is not confined to the build's folder, and said so with the results.
   3. **Which part of the loop does the work.** Arms: the server's instructions with no `sv`; `sv check` with no
      instructions; the plan only; the whole loop.
   4. **The loop's own measures,** from the transcripts: whether the brief and plan came before any code, how many
