@@ -218,11 +218,17 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
 }
 
 /// Whether `.gitignore` excludes the environment file, so the next person does not commit it.
+///
+/// Whether `.gitignore` leaves `.env` out is read from the file itself (`gitignore_ignores`), so it
+/// needs no repository. Until 5 October 2026 a folder that was not yet one and had no `.gitignore`
+/// was "not assessed" even with a `.env` in it, so a builder who ran `sv check` before `git init`
+/// never heard what `sv report` said once the folder was a repository (the loop pilot). Such a
+/// folder with an environment file in it is now a finding, worded for a folder not yet in git;
+/// with none, there is still nothing to read.
 fn gitignore_covers_env(app_dir: &Path) -> Outcome {
+    let root = repository_root(app_dir);
     let path = app_dir.join(".gitignore");
     let Ok(text) = std::fs::read_to_string(&path) else {
-        // No .gitignore is only a problem if this is a repository at all.
-        let root = repository_root(app_dir);
         let full = std::fs::canonicalize(app_dir).unwrap_or_else(|_| app_dir.to_path_buf());
         if root.as_deref() == Some(full.as_path()) {
             return Outcome::Failed(Box::new(env_not_ignored_finding(
@@ -242,17 +248,38 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
                     .to_owned(),
             );
         }
-        return Outcome::NotAssessed(
-            "There is no .gitignore and this folder is not a git repository, so there is nothing for \
-             this check to read."
-                .to_owned(),
-        );
+        // Not a repository yet. `git init` and `git add .` would take every file here, so an
+        // environment file with no .gitignore is the same risk it is in a repository.
+        return match env_files_at_root(app_dir).first() {
+            Some(first) => Outcome::Failed(Box::new(env_not_ignored_finding(
+                first,
+                format!(
+                    "This folder is not a git repository yet and has no .gitignore. When it becomes \
+                     one, the usual first commit (`git add .`) would save `{first}` in it, unless a \
+                     git ignore file kept outside this folder (a global one on that computer) \
+                     leaves it out, which `sv` does not read."
+                ),
+            ))),
+            None => Outcome::NotAssessed(
+                "There is no .gitignore and no .env file here, and this folder is not a git \
+                 repository, so there is nothing for this check to read. Before adding a .env, add \
+                 a .gitignore that leaves it out."
+                    .to_owned(),
+            ),
+        };
     };
 
     let covered = gitignore_ignores(&text, ".env");
 
     if covered {
         Outcome::Passed(&["V13.3.1"])
+    } else if root.is_none() {
+        Outcome::Failed(Box::new(env_not_ignored_finding(
+            ".gitignore",
+            "The .gitignore file does not leave out `.env`. This folder is not a git repository \
+             yet; when it becomes one, nothing in it stops `.env` being committed."
+                .to_owned(),
+        )))
     } else {
         Outcome::Failed(Box::new(env_not_ignored_finding(
             ".gitignore",
@@ -260,6 +287,21 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
                 .to_owned(),
         )))
     }
+}
+
+/// The environment files at the app's root (`.env` and `.env.*`, not a template such as
+/// `.env.example`), in name order so the finding names the same one each time.
+fn env_files_at_root(app_dir: &Path) -> Vec<String> {
+    let mut names: Vec<String> = std::fs::read_dir(app_dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|entry| entry.path().is_file())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter(|name| !is_example_file(name) && (name == ".env" || name.starts_with(".env.")))
+        .collect();
+    names.sort();
+    names
 }
 
 /// Whether a `.gitignore` at the app's root leaves out the file at `path` (a file at the root, such
@@ -951,6 +993,152 @@ mod tests {
             );
             fs::remove_dir_all(&dir).ok();
         }
+    }
+
+    /// What `config.gitignore-covers-env` concluded for a folder: a finding's description, a
+    /// pass, or why it was not assessed.
+    fn env_outcome(dir: &Path) -> Outcome {
+        let report = check_dir(dir);
+        if let Some(f) = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.gitignore-covers-env")
+        {
+            return Outcome::Failed(Box::new(f.clone()));
+        }
+        if report
+            .passed
+            .iter()
+            .any(|p| p.check_id == "config.gitignore-covers-env")
+        {
+            return Outcome::Passed(&["V13.3.1"]);
+        }
+        let (_, why) = report
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.gitignore-covers-env")
+            .expect("the check says one of three things");
+        Outcome::NotAssessed(why.clone())
+    }
+
+    #[test]
+    fn a_folder_not_yet_in_git_with_an_environment_file_and_nothing_leaving_it_out_is_a_finding() {
+        // The loop pilot (5 October 2026): `sv report` on a copy made a repository flagged every
+        // build, and `sv check` in the plain folder during the build said nothing.
+        let dir = scratch("plain-env");
+        // The setup: this really is a folder outside any repository, and the file is there.
+        assert!(
+            repository_root(&dir).is_none(),
+            "{} is in a repository",
+            dir.display()
+        );
+        fs::write(dir.join(".env"), "SESSION_SECRET=x\n").unwrap();
+        fs::write(dir.join(".env.example"), "SESSION_SECRET=\n").unwrap();
+        match env_outcome(&dir) {
+            Outcome::Failed(f) => {
+                assert_eq!(f.location.file, ".env");
+                assert!(
+                    f.description.contains("not a git repository yet"),
+                    "{}",
+                    f.description
+                );
+                assert!(f.description.contains("`git add .`"), "{}", f.description);
+                assert_eq!(f.severity, Severity::High);
+            }
+            other => panic!("expected a finding, got {other:?}"),
+        }
+
+        // A .gitignore that leaves it out: passes, as it would in a repository.
+        fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        assert_eq!(env_outcome(&dir), Outcome::Passed(&["V13.3.1"]));
+
+        // One that does not: a finding, worded for a folder not yet in git.
+        fs::write(dir.join(".gitignore"), "node_modules\n").unwrap();
+        match env_outcome(&dir) {
+            Outcome::Failed(f) => {
+                assert_eq!(f.location.file, ".gitignore");
+                assert!(
+                    f.description.contains("not a git repository yet"),
+                    "{}",
+                    f.description
+                );
+            }
+            other => panic!("expected a finding, got {other:?}"),
+        }
+        fs::remove_dir_all(&dir).ok();
+
+        // Any environment file counts, not only `.env`, and the one named is the same every time.
+        let dir = scratch("plain-env-local");
+        fs::write(dir.join(".env.production"), "SESSION_SECRET=x\n").unwrap();
+        fs::write(dir.join(".env.local"), "SESSION_SECRET=x\n").unwrap();
+        match env_outcome(&dir) {
+            Outcome::Failed(f) => assert_eq!(f.location.file, ".env.local"),
+            other => panic!("expected a finding, got {other:?}"),
+        }
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_not_yet_in_git_with_no_environment_file_has_nothing_to_read() {
+        for (name, files) in [
+            ("plain-none", &[][..]),
+            ("plain-example-only", &[".env.example"][..]),
+            ("plain-env-folder", &[".env/readme"][..]),
+        ] {
+            let dir = scratch(name);
+            assert!(repository_root(&dir).is_none());
+            for file in files {
+                let path = dir.join(file);
+                fs::create_dir_all(path.parent().unwrap()).unwrap();
+                fs::write(&path, "SESSION_SECRET=\n").unwrap();
+                assert!(path.is_file(), "{file}");
+            }
+            match env_outcome(&dir) {
+                Outcome::NotAssessed(why) => assert!(why.contains("no .env file"), "{name}: {why}"),
+                other => panic!("{name}: expected not assessed, got {other:?}"),
+            }
+            fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
+    fn in_a_repository_the_environment_file_check_is_unchanged() {
+        let Some(dir) = git_repo("repo-env") else {
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        assert!(
+            repository_root(&dir).is_some(),
+            "git init made a repository"
+        );
+        fs::write(dir.join(".env"), "SESSION_SECRET=x\n").unwrap();
+        match env_outcome(&dir) {
+            Outcome::Failed(f) => {
+                assert_eq!(f.location.file, ".gitignore");
+                assert!(
+                    f.description.contains("is in version control"),
+                    "{}",
+                    f.description
+                );
+            }
+            other => panic!("expected a finding, got {other:?}"),
+        }
+        fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        assert_eq!(env_outcome(&dir), Outcome::Passed(&["V13.3.1"]));
+        fs::write(dir.join(".gitignore"), "node_modules\n").unwrap();
+        match env_outcome(&dir) {
+            Outcome::Failed(f) => assert_eq!(
+                f.description,
+                "The .gitignore file does not list `.env`, so nothing stops it being committed."
+            ),
+            other => panic!("expected a finding, got {other:?}"),
+        }
+        // And with no environment file at all, a repository with no .gitignore is still a finding:
+        // the next `.env` would be committed.
+        fs::remove_file(dir.join(".env")).unwrap();
+        fs::remove_file(dir.join(".gitignore")).unwrap();
+        assert!(matches!(env_outcome(&dir), Outcome::Failed(_)));
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

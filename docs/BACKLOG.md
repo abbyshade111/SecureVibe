@@ -1662,6 +1662,8 @@ another session is not a claim.
   to a file instead of passing it on; `securevibe_check` gave 50 KB for one build, handled the same way. The builder
   then read them in parts with a script. A short answer first (what to build, the run settings, the decisions to
   make) with the rest by section, or a size the common tools pass whole, would let a builder read what it is given.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take the last of the
+  pilot's findings, in branch `claude/plan-in-parts`.
 
 - **A `securevibe.toml` field in the wrong section: the message names the field, not the section.** Found on 5 October
   2026 by session paper-facts, in the loop pilot. Haiku 4.5 wrote `enabled = true` under `[stack.run.ai]`; `sv`
@@ -1687,6 +1689,12 @@ another session is not a claim.
   was not looked at.
   **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take one of the pilot's
   findings, in branch `claude/env-plain-folder`.
+  **Done the same day** (DESIGN, "`.env` with nothing leaving it out, in a folder not yet in git"): it is said. A
+  `.gitignore` is read the way git reads it (H23), so only a folder with no `.gitignore` needed a repository; now a
+  plain folder with no `.gitignore` and a `.env` or `.env.*` at its root is a finding, worded for a folder not yet
+  in git, and naming the one thing `sv` cannot read (a global git ignore file on the computer). With no environment
+  file it is still not assessed. Repositories are unchanged. Tested in `config.rs` and through `sv check`,
+  `sv report`, and the MCP check together (`tests/env_plain_folder.rs`); four guards undone in turn were each caught.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
