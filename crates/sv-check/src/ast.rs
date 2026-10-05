@@ -1411,9 +1411,19 @@ pub struct AstScan {
     /// it cannot do is support a claim that something is absent.
     pub unparsed_files: Vec<String>,
     /// Files in a language `sv` reads that were not read at all, with the reason: over the size
-    /// limit, not text, or unreadable. Like `unparsed_files`, these keep every rule from claiming
+    /// limit, not text, or unreadable. Like `unparsed_files`, these keep a rule from claiming
     /// anything is absent; unlike a skipped folder, which is a choice, an unread file is a hole.
     pub unread_files: Vec<(String, String)>,
+    /// The rules the files above keep from claiming anything is absent, each with the first file
+    /// that does.
+    ///
+    /// A file that was not opened holds back every rule that reads its language. A file that did not
+    /// parse cleanly holds back only the rules whose call could be in it: a rule reports a call only
+    /// when the call's name matches its pattern, so if no word in the file matches, even a perfect
+    /// parse would have found nothing there. Until 4 October 2026 one such file held back every rule
+    /// for the whole app (H25 of the deep review), and since every rule reads JavaScript, one
+    /// vendored script the parser choked on silenced the report's every code claim.
+    pub held_back: BTreeMap<String, String>,
     /// Rules that met a language `sv` reads but the rule has not been taught, and so claim nothing.
     ///
     /// A shell-command rule with no Rust query that met a Rust file has not ruled out a shell
@@ -1720,6 +1730,7 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
             Err(why) => {
                 scan.unread_files
                     .push((entry.relative.clone(), why.explain().to_owned()));
+                hold_back(rules, &mut scan, language, &entry.relative, None);
                 continue;
             }
         };
@@ -1731,6 +1742,7 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
         let read = read_file(rules, language, &entry.relative, &source);
         if read.parse_error {
             scan.unparsed_files.push(entry.relative.clone());
+            hold_back(rules, &mut scan, language, &entry.relative, Some(&source));
         }
         scan.findings.extend(read.findings);
         note_broken(&mut scan, read.broken);
@@ -1744,6 +1756,66 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
     scan.untaught = untaught(rules, &scan);
     scan.verified = clean_rules(rules, &scan);
     scan
+}
+
+/// Records the rules a file not read in full keeps from claiming anything is absent: every rule that
+/// reads `language` when the file was not opened (`source` is `None`), and when it was opened and
+/// did not parse cleanly, every such rule whose call could be in it.
+fn hold_back(
+    rules: &AstRules,
+    scan: &mut AstScan,
+    language: &str,
+    relative: &str,
+    source: Option<&str>,
+) {
+    for compiled in &rules.compiled {
+        if !compiled.queries.contains_key(language) {
+            continue;
+        }
+        let could_be_there = match (source, compiled.function.get(language)) {
+            (Some(source), Some(pattern)) if names_only(pattern.as_str()) => {
+                names_in(source).any(|n| pattern.is_match(n))
+            }
+            // Not opened, a rule that does not narrow by name, or a name pattern that can match
+            // more than one word: anything could be there.
+            _ => true,
+        };
+        if could_be_there {
+            scan.held_back
+                .entry(compiled.rule.id.clone())
+                .or_insert_with(|| relative.to_owned());
+        }
+    }
+}
+
+/// Every word in `source` that a call's name could be, whatever the parser made of the rest.
+///
+/// A name in every grammar `sv` reads is letters, digits, `_`, and `$`, with Ruby's `?` or `!` at
+/// the end. Each run of those is given, and each part of a run joined by `-` as well as the whole,
+/// since a shell command's name may hold one and elsewhere it is an operator. A word given here that
+/// is not a name only makes a rule more cautious, never less.
+fn names_in(source: &str) -> impl Iterator<Item = &str> {
+    static WORD: OnceLock<regex::Regex> = OnceLock::new();
+    let word = WORD.get_or_init(|| {
+        regex::Regex::new(r"[A-Za-z0-9_$]+(?:-[A-Za-z0-9_$]+)*[?!]?").expect("a fixed pattern")
+    });
+    word.find_iter(source).flat_map(|m| {
+        let whole = m.as_str();
+        let parts = whole.contains('-').then(|| whole.split('-'));
+        std::iter::once(whole).chain(parts.into_iter().flatten())
+    })
+}
+
+/// Whether a name pattern can match only what `names_in` gives: a single word. Only patterns made of
+/// letters, digits, `_`, alternatives, groups, anchors, and `?`, `!`, `*`, `+` (with `\$` for a
+/// literal dollar) count. Anything else, such as a quoted path (`"/bin/sh"`), the shell's `.`, a
+/// name with its module (`hashlib.pbkdf2_hmac`), or a character class, may match text no word is,
+/// so the words in a file cannot rule it out.
+fn names_only(pattern: &str) -> bool {
+    pattern
+        .replace("\\$", "")
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || "_|()^$?!*+".contains(c))
 }
 
 /// Records each rule-and-language whose query would not compile, once, however many files met it.
@@ -1788,13 +1860,10 @@ fn untaught(rules: &AstRules, scan: &AstScan) -> Vec<Untaught> {
 /// that the app builds no queries by hand. No rule says anything at all while a language present in
 /// the app goes unread, because the injection it looks for could be sitting in the Ruby nobody
 /// parsed. And a rule says nothing while a language that *was* read is one it was never taught:
-/// the parser having read the Swift does not mean this rule looked in it.
+/// the parser having read the Swift does not mean this rule looked in it. Nor while a file it reads
+/// was not opened, or did not parse cleanly and holds a word its call could be named (`held_back`).
 fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
-    if !scan.unread_languages.is_empty()
-        || !scan.unparsed_files.is_empty()
-        || !scan.unread_files.is_empty()
-        || !scan.broken_queries.is_empty()
-    {
+    if !scan.unread_languages.is_empty() || !scan.broken_queries.is_empty() {
         return Vec::new();
     }
     let mut out = Vec::new();
@@ -1804,6 +1873,7 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
         }
         if scan.findings.iter().any(|f| f.rule_id == rule_id)
             || scan.untaught.iter().any(|u| u.rule_id == rule_id)
+            || scan.held_back.contains_key(rule_id)
         {
             continue;
         }
@@ -2034,6 +2104,52 @@ mod tests {
 
     fn ids(findings: &[Finding]) -> Vec<&str> {
         findings.iter().map(|f| f.rule_id.as_str()).collect()
+    }
+
+    #[test]
+    fn the_words_in_a_file_rule_out_only_what_a_name_pattern_can_match() {
+        let words: Vec<&str> =
+            names_in("x = a.eval(q)\nclickhouse-client --query \"$Q\" && ok? go!").collect();
+        for w in [
+            "x",
+            "a",
+            "eval",
+            "q",
+            "clickhouse-client",
+            "clickhouse",
+            "client",
+            "query",
+            "$Q",
+            "ok?",
+            "go!",
+        ] {
+            assert!(words.contains(&w), "{w}: {words:?}");
+        }
+        assert!(names_only("^(eval|Function)$"));
+        assert!(names_only("^(query|\\$queryRawUnsafe)$"));
+        for wider in [
+            "^(Command|\"(/bin/|/usr/bin/)?(sh|bash)\")$",
+            "^(cat|\\.)$",
+            "(^|\\.)(pbkdf2_hmac)$",
+            "(^|::)(pbkdf2)$",
+            "^ev.l$",
+            "^[a-z]+$",
+            "^exists\\?$",
+        ] {
+            assert!(!names_only(wider), "{wider}");
+        }
+        // The real rules: most name patterns are words, so a broken file holds back only what it
+        // names; the shell's are not, and are always held back.
+        let rules = rules();
+        let by_rule = |id: &str, language: &str| {
+            let c = rules.compiled.iter().find(|c| c.rule.id == id).unwrap();
+            names_only(c.function[language].as_str())
+        };
+        assert!(by_rule("ast.dynamic-code-execution", "javascript"));
+        assert!(by_rule("ast.sql-built-by-hand", "typescript"));
+        assert!(by_rule("ast.sql-built-by-hand", "python"));
+        assert!(!by_rule("ast.shell-command", "shell"));
+        assert!(!by_rule("ast.weak-password-key-derivation", "python"));
     }
 
     #[test]

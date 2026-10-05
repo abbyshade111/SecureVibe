@@ -148,7 +148,7 @@ fn review(
     let notes_path = app_dir.join(&notes_catalog.file);
     let notes = notes_text(&notes_path)?;
     if let Some(text) = &notes {
-        let answers = sv_check::notes::read_answers(text);
+        let answers = sv_check::notes::read_answers(&notes_catalog, text);
         for (id, who) in answers.answered() {
             if who == sv_check::notes::Writer::Owner && answers.recorded(&id, &checker).is_err() {
                 waiting.push(Waiting::Notes(id));
@@ -267,7 +267,7 @@ fn review(
             }
             Waiting::Notes(id) => {
                 let text = notes_text(&notes_path)?.context("the notes file is gone")?;
-                let answers = sv_check::notes::read_answers(&text);
+                let answers = sv_check::notes::read_answers(&notes_catalog, &text);
                 let prose = answers.prose_of(&id).unwrap_or_default();
                 let what = format!(
                     "Your answer to requirement {id} in {}, marked `Written by: owner`:\n\n{}\n",
@@ -284,7 +284,7 @@ fn review(
                         .context("the section is not where it was")?;
                     save_text(&notes_path, &sealed, &|| {
                         notes_text(&notes_path).ok().flatten().is_some_and(|t| {
-                            sv_check::notes::read_answers(&t)
+                            sv_check::notes::read_answers(&notes_catalog, &t)
                                 .recorded(&id, &checker)
                                 .is_ok()
                         })
@@ -1028,7 +1028,8 @@ mod tests {
         assert!(m.design["V2.2.2"].seal.is_none());
         assert!(s.manifest().contains("# Kept as written."));
         let after = std::fs::read_to_string(s.app().join("security-notes.md")).unwrap();
-        let answers = sv_check::notes::read_answers(&after);
+        let catalog = sv_check::notes::Catalog::load(&crate::notes_path()).unwrap();
+        let answers = sv_check::notes::read_answers(&catalog, &after);
         assert!(answers.recorded("V6.1.1", &s.checker()).is_ok(), "{after}");
         assert!(answers.recorded("V8.1.1", &s.checker()).is_err());
         // A seal that did not hold was replaced, not added to.
