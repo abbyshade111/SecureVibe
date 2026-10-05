@@ -17,6 +17,7 @@ pub mod confirm;
 pub mod cvss;
 pub mod cvss4;
 mod cvss4_tables;
+pub mod decisions;
 pub mod design;
 pub mod fetch;
 pub mod finding;

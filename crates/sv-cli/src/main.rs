@@ -974,6 +974,11 @@ fn notes_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/security-notes.json")
 }
 
+/// The sections of design-decisions.md that count toward a checklist control (`sv_check::decisions`).
+fn decisions_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-decisions.json")
+}
+
 /// What `sv` found that belongs in the notes, so the owner starts from their app, not a blank page.
 fn notes_facts(
     manifest: &Manifest,
@@ -4214,7 +4219,71 @@ fn assemble_report_saying(
             ),
         });
     }
-    let documented = notes.documented;
+    // The decisions the design-time prompts write down (`sv_check::decisions`). Two sections count
+    // toward Secure by Design controls, read as the notes are; the file's other sections are not
+    // questions, so a heading `sv` does not read for credit is not reported as one left unread.
+    let decisions_catalog = sv_check::notes::Catalog::load(&decisions_path())?;
+    let decisions_text = std::fs::read_to_string(app_dir.join(&decisions_catalog.file)).ok();
+    let decisions =
+        decisions_text
+            .as_deref()
+            .map_or_else(sv_check::notes::Evidence::default, |text| {
+                sv_check::notes::evidence(
+                    &decisions_catalog,
+                    &sv_check::notes::read_answers(&decisions_catalog, text),
+                    &decisions_catalog.file,
+                    &seals,
+                )
+            });
+    if !decisions.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "who wrote {} section{} of {}",
+                decisions.unreadable.len(),
+                if decisions.unreadable.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                decisions_catalog.file
+            ),
+            why: format!(
+                "Each section says who wrote it on one line, `{} {}` or `{} {}`, and {} names \
+                 somebody else or says both, so nothing was made of it: {}.",
+                sv_check::notes::WRITTEN_BY,
+                sv_check::notes::BY_OWNER,
+                sv_check::notes::WRITTEN_BY,
+                sv_check::notes::BY_AI_TOOL,
+                if decisions.unreadable.len() == 1 {
+                    "this one"
+                } else {
+                    "these"
+                },
+                decisions.unreadable.join(", ")
+            ),
+        });
+    }
+    // A review by a person is the one thing that section can ask for, and no tool can do it, so
+    // what it says is repeated here, where what was not examined is listed. Its words are not read
+    // for a yes or a no, and credit nothing.
+    if let Some(said) = decisions_text
+        .as_deref()
+        .and_then(|text| sv_check::decisions::section(text, sv_check::decisions::BRING_IN_A_PERSON))
+    {
+        gaps.push(sv_report::Gap {
+            what: "a person's security review of the design".to_owned(),
+            why: format!(
+                "No tool can make it. Your {} says, under \"{}\": \"{said}\"",
+                sv_check::decisions::FILE,
+                sv_check::decisions::BRING_IN_A_PERSON
+            ),
+        });
+    }
+    let documented: Vec<sv_check::Verified> = notes
+        .documented
+        .into_iter()
+        .chain(decisions.documented)
+        .collect();
 
     // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
     // tier here; `no`, and a `where` naming a file the app does not have, are findings.
@@ -4502,6 +4571,7 @@ fn assemble_report_saying(
         .iter()
         .chain(hand.stated.iter())
         .chain(notes.stated.iter())
+        .chain(decisions.stated.iter())
         .cloned()
         .collect();
 

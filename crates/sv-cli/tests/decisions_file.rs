@@ -1,0 +1,116 @@
+//! design-decisions.md end to end (backlog, design-time item 9): two sections count toward Secure by
+//! Design controls the way the security notes count toward ASVS ones, never as checked; a person's
+//! review the file asks for is repeated where what was not examined is listed.
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+/// The status column of the row for `id` in compliance.md.
+fn status_of<'a>(compliance: &'a str, id: &str) -> &'a str {
+    let row = compliance
+        .lines()
+        .find(|line| line.starts_with(&format!("| {id} |")))
+        .unwrap_or_else(|| panic!("no row for {id} in the report:\n{compliance}"));
+    row.split('|').nth(2).unwrap_or("").trim()
+}
+
+fn fresh(name: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("sv-decisions-{name}-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
+    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/tested-notes/securevibe.toml");
+    std::fs::copy(example, dir.join("securevibe.toml")).unwrap();
+    dir
+}
+
+/// `sv report` on `dir`, with `config` as where this computer's review key lives: compliance.md and
+/// report.json.
+fn report(dir: &Path, config: &Path) -> (String, String) {
+    let out_dir = dir.join("report");
+    let out = Command::new(env!("CARGO_BIN_EXE_sv"))
+        .env("XDG_CONFIG_HOME", config)
+        .arg("report")
+        .arg(dir)
+        .arg("--out")
+        .arg(&out_dir)
+        .output()
+        .expect("sv runs");
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (
+        std::fs::read_to_string(out_dir.join("compliance.md")).unwrap(),
+        std::fs::read_to_string(out_dir.join("report.json")).unwrap(),
+    )
+}
+
+const DECISIONS: &str = "# Design decisions\n\n## When to bring in a person\n\nWritten by: AI coding tool\n\n\
+     The app keeps health data, so ask someone who knows security to review the design before it \
+     goes live.\n\n## What we do if something goes wrong\n\nWritten by: owner\n\nTake the app offline \
+     from the hosting dashboard, rotate the database password, and email everyone affected within \
+     three days.\n\n## Rules that might apply\n\nWritten by: AI coding tool\n\nHealth data of people in \
+     Europe: the GDPR may apply, so ask someone qualified before going live.\n";
+
+#[test]
+fn the_two_sections_count_as_written_answers_and_the_review_is_repeated() {
+    let dir = fresh("written");
+    let config = dir.join("config");
+    let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    // The owner's section, sealed as `sv review` would seal it.
+    let catalog = sv_check::notes::Catalog::load(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-decisions.json"),
+    )
+    .unwrap();
+    let prose = sv_check::notes::read_answers(&catalog, DECISIONS)
+        .prose_of("SBD-MT-06")
+        .expect("the setup: the section is read");
+    let seal = key.seal(&sv_check::seal::as_strs(&sv_check::seal::notes_fields(
+        "SBD-MT-06",
+        &prose,
+    )));
+    let sealed = sv_check::notes::with_seal_in(&catalog, DECISIONS, "SBD-MT-06", &seal).unwrap();
+    std::fs::write(dir.join(sv_check::decisions::FILE), sealed).unwrap();
+
+    let (compliance, json) = report(&dir, &config);
+    std::fs::remove_dir_all(&dir).ok();
+
+    let plan = status_of(&compliance, "SBD-MT-06");
+    assert!(
+        plan.starts_with("documented by the owner") && plan.contains("rehearsed"),
+        "SBD-MT-06: {plan}"
+    );
+    let rules = status_of(&compliance, "SBD-AC-06");
+    assert!(
+        rules.starts_with("stated by the AI coding tool") && rules.contains("not covered"),
+        "SBD-AC-06: {rules}"
+    );
+    for id in ["SBD-MT-06", "SBD-AC-06"] {
+        assert!(!status_of(&compliance, id).starts_with("checked"), "{id}");
+    }
+    assert!(
+        json.contains("a person's security review of the design")
+            && json.contains("The app keeps health data, so ask someone"),
+        "{json}"
+    );
+    // The file's other sections are not reported as headings left unread.
+    assert!(!json.contains("headings of your own"), "{json}");
+}
+
+#[test]
+fn without_the_file_the_controls_stay_unverified_and_nothing_is_repeated() {
+    let dir = fresh("absent");
+    let (compliance, json) = report(&dir, &dir.join("config"));
+    std::fs::remove_dir_all(&dir).ok();
+    for id in ["SBD-MT-06", "SBD-AC-06"] {
+        let status = status_of(&compliance, id);
+        assert!(
+            !status.starts_with("documented") && !status.starts_with("stated"),
+            "{id}: {status}"
+        );
+    }
+    assert!(!json.contains("a person's security review of the design"));
+}
