@@ -263,7 +263,8 @@ that, the answer is *not assessed*, not a pass. `examples/notes-with-users` is a
 
 If you are not a programmer and want to build an app with an AI coding tool, start with
 [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md): installing Docker, connecting SecureVibe to your
-tool, a prompt to start the build with, and what is and is not checked.
+tool, a prompt to start the build with, what is and is not checked, and how to build `sv` on your own
+computer for `sv report --run`, step by step.
 
 ## Rules your AI coding tool follows while it codes
 
