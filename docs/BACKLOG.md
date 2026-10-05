@@ -4087,6 +4087,10 @@ another session is not a claim.
      went with its folder. What helps is an install that does not live in a folder somebody works in. Still the case
      on `main` at 6d4ce3f (`crates/sv-cli/src/main.rs`, lines 264 to 350 and others, read data through
      `CARGO_MANIFEST_DIR`).
+     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-movable`: every data file found through one place, `SV_DATA_DIR`, then beside the program,
+     then the build folder; and an install script that keeps `sv` and its data out of any working folder. Record:
+     ADR-036 (proposed).
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
