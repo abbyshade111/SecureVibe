@@ -1449,6 +1449,7 @@ pub fn parse_sarif_relative_to(
             out.push(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
+                earlier_fingerprints: Vec::new(),
                 marked_test_code: false,
                 rule_id: format!("{}.{}", adapter.id, rule_id),
                 title: if short.is_empty() {

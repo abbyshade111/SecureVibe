@@ -442,6 +442,7 @@ fn finding_on(requirement: &str) -> sv_check::Finding {
     sv_check::Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: "probe.short-password-accepted".into(),
         title: "t".into(),

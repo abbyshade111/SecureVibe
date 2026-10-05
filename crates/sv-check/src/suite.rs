@@ -461,6 +461,7 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
     Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: NAME_MISMATCH.into(),
         title: format!("A test named for {requirement_id} shares no words with it"),

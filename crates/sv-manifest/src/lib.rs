@@ -985,11 +985,12 @@ pub struct FixWithinDays {
 /// not the property, so it never becomes *checked* and never settles a threat. `no` is the owner
 /// saying the control is missing, which is a finding on their own word. Silence and `not-sure` add
 /// nothing at all, which is the point of having a third answer: a question the owner cannot answer
-/// must not be rounded down to "no" or up to "yes".
+/// must not be rounded down to "no" or up to "yes". `planned` is a decision made before the code,
+/// which credits nothing and is held to once the code exists (`sv-check::design`).
 #[derive(Debug, Clone, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct DesignAnswer {
-    /// `yes`, `no`, or `not-sure`. Anything else is refused at load.
+    /// `yes`, `no`, `not-sure`, or `planned`. Anything else is reported as unreadable.
     pub answer: String,
     /// The file that does it, so somebody can go and look, and so a stale pointer can be caught.
     #[serde(default)]

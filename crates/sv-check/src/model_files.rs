@@ -137,6 +137,7 @@ pub fn check(listing: &Listing, report: &mut ConfigReport) {
     report.findings.push(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         rule_id: "config.model-file-can-run-code".into(),
         title: "A model file in the app is stored in a format that can run code when loaded".into(),

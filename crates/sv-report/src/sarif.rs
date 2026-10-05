@@ -365,6 +365,7 @@ mod tests {
             fix: format!("How to fix {title}."),
             also_reported_by: Vec::new(),
             fingerprint: "0123456789abcdef".into(),
+            earlier_fingerprints: Vec::new(),
             marked_test_code: false,
         }
     }
