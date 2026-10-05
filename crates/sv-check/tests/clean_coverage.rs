@@ -1584,3 +1584,44 @@ fn a_phrase_for_a_language_the_rule_has_no_query_for_is_refused() {
     };
     assert!(e.to_string().contains("has no ruby query"), "{e}");
 }
+
+#[test]
+fn a_clean_javascript_and_typescript_result_names_the_redirect_and_file_calls_it_read() {
+    // The H5 follow-up: "a redirect to a destination built from a value" beside a Next.js app's files
+    // said nothing about which calls were read, so a redirect the rule does not know looked checked.
+    let scan = scan_files(
+        "looks-for-node",
+        &[
+            ("app.js", "export function two() {\n  return 2;\n}\n"),
+            ("page.ts", "export const three: number = 3;\n"),
+        ],
+    );
+    let redirect = scope_of(&scan, "ast.open-redirect");
+    for call in [
+        "`res.redirect`",
+        "`permanentRedirect()`",
+        "`NextResponse.redirect`",
+        "`Response.redirect`",
+        "`res.location`",
+        "`location.href`",
+    ] {
+        assert!(redirect.contains(call), "{call} is not named: {redirect}");
+    }
+    assert!(
+        redirect.ends_with("in 1 javascript file and 1 typescript file"),
+        "{redirect}"
+    );
+    let file = scope_of(&scan, "ast.file-path-from-value");
+    for call in [
+        "`readFile`",
+        "`fs.promises`",
+        "`fs/promises`",
+        "`res.sendFile`",
+    ] {
+        assert!(file.contains(call), "{call} is not named: {file}");
+    }
+    assert!(
+        file.ends_with("in 1 javascript file and 1 typescript file"),
+        "{file}"
+    );
+}
