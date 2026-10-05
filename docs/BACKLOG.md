@@ -576,6 +576,9 @@ another session is not a claim.
     requirement from applicable to "does not apply".
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r12`. Record: ADR-031 (proposed).
+    **Done the same day** (DESIGN, "A `not-the-app` list that would set apart all the code is not used"; ADR-031,
+    accepted): a list that would leave none of the app's code files outside it is not used, in every command, and
+    the report says why; a list that is used is shown with how many of the code files it set apart.
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch

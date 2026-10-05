@@ -143,8 +143,13 @@ pub struct ScanReport {
     /// at all, or one only the code rules read (`ecosystems::NO_TECHNOLOGY_READER`).
     pub unread_extensions: BTreeSet<String>,
     pub answers: Vec<Answer>,
-    /// The folders the manifest says are not the app (`[repository] not-the-app`), as given.
+    /// The folders the manifest says are not the app (`[repository] not-the-app`), as used: empty when
+    /// the list was not used (`not_the_app_refused`).
     pub not_the_app: Vec<String>,
+    /// Why the list was not used, when it would have set apart every code file the app has.
+    pub not_the_app_refused: Option<String>,
+    /// How many of the app's code files the list set apart, and how many the app has.
+    pub code_set_apart: (usize, usize),
     /// The folders in the app that one of those matched, and so were not looked in for evidence.
     pub set_apart: BTreeSet<String>,
 }
@@ -180,6 +185,8 @@ pub fn scan_listing_app(
     not_the_app: &[String],
 ) -> Result<ScanReport> {
     let app_dir = listing.root.as_path();
+    let (not_the_app, not_the_app_refused, code_set_apart) = not_the_app_in(listing, not_the_app);
+    let not_the_app = not_the_app.as_slice();
     let ours = |path: &str| !under_any(path, not_the_app);
     let mut report = ScanReport {
         ecosystems: ecosystems::detect_in(listing)
@@ -200,6 +207,8 @@ pub fn scan_listing_app(
             .filter(|p| ours(p))
             .collect(),
         not_the_app: not_the_app.to_vec(),
+        not_the_app_refused,
+        code_set_apart,
         // The outermost folder each entry matched, so the report can name what it set apart.
         set_apart: listing
             .dirs
@@ -541,6 +550,32 @@ fn package_matches(ecosystem: &str, signature: &str, declared: &str) -> bool {
 
 fn eq_ignore_case(a: &str, b: &str) -> bool {
     a.len() == b.len() && a.to_lowercase() == b.to_lowercase()
+}
+
+/// The folders of `[repository] not-the-app` as they are used for this app: as given, or none when,
+/// taken together, they would set apart every code file the app has, with why (ADR-031). The list is
+/// written by the AI coding tool, and one that held all the app's code would leave nothing to say
+/// what the app uses, so requirements its code shows to apply would read "does not apply". The whole
+/// list goes, not one entry, since `src` and `lib` together can cover an app neither covers alone.
+/// Also how many of the app's code files the list set apart, and how many it has.
+pub fn not_the_app_in(
+    listing: &files::Listing,
+    folders: &[String],
+) -> (Vec<String>, Option<String>, (usize, usize)) {
+    let total = listing.code_files().count();
+    let apart = listing
+        .code_files()
+        .filter(|f| under_any(&f.relative, folders))
+        .count();
+    if total > 0 && apart == total {
+        let why = format!(
+            "together they would set apart all {total} of the app's code file{}, leaving nothing to say \
+             what the app uses, so the list is not used and every folder is read as the app",
+            if total == 1 { "" } else { "s" }
+        );
+        return (Vec::new(), Some(why), (0, total));
+    }
+    (folders.to_vec(), None, (apart, total))
 }
 
 /// Whether a path from the app folder is inside one of `folders`, where `*` stands for one whole
