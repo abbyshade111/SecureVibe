@@ -1,0 +1,574 @@
+[
+ {
+  "model": "sonnet",
+  "prompt": "p1",
+  "rule": "probe.private-page-anonymous",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p1",
+  "rule": "probe.admin-page-ordinary-user",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p1",
+  "rule": "probe.admin-action-ordinary-user",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p1",
+  "rule": "probe.other-users-data",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p3",
+  "rule": "probe.create-rate-unlimited",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p3",
+  "rule": "probe.failed-sign-ins-unlimited",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p4",
+  "rule": "probe.error-detail-leak",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p4",
+  "rule": "probe.ai-service-failure-handled",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p4",
+  "rule": "probe.ai-service-error-shown",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p6",
+  "rule": "probe.log-line-metadata",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p6",
+  "rule": "probe.log-timestamp-zoned",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p6",
+  "rule": "probe.authorization-failure-logged",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p7",
+  "rule": "probe.session-idle-timeout",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p7",
+  "rule": "probe.session-lifetime",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p7",
+  "rule": "probe.logout-keeps-session",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p7",
+  "rule": "probe.app-token-signature-not-checked",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p7",
+  "rule": "probe.app-token-alg-none",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "sonnet",
+  "prompt": "p7",
+  "rule": "probe.app-token-expired-accepted",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p1",
+  "rule": "probe.private-page-anonymous",
+  "with": [
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 1,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p1",
+  "rule": "probe.admin-page-ordinary-user",
+  "with": [
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 1,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p1",
+  "rule": "probe.admin-action-ordinary-user",
+  "with": [
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 1,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p1",
+  "rule": "probe.other-users-data",
+  "with": [
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 1,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p3",
+  "rule": "probe.create-rate-unlimited",
+  "with": [
+   "credited",
+   "-"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p3",
+  "rule": "probe.failed-sign-ins-unlimited",
+  "with": [
+   "credited",
+   "found"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p4",
+  "rule": "probe.error-detail-leak",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p4",
+  "rule": "probe.ai-service-failure-handled",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p4",
+  "rule": "probe.ai-service-error-shown",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p6",
+  "rule": "probe.log-line-metadata",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p6",
+  "rule": "probe.log-timestamp-zoned",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p6",
+  "rule": "probe.authorization-failure-logged",
+  "with": [
+   "-",
+   "credited"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p7",
+  "rule": "probe.session-idle-timeout",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "SHOWN"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p7",
+  "rule": "probe.session-lifetime",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "found",
+   "found"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p7",
+  "rule": "probe.logout-keeps-session",
+  "with": [
+   "credited",
+   "credited"
+  ],
+  "without": [
+   "credited",
+   "credited"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "no difference (both credited)"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p7",
+  "rule": "probe.app-token-signature-not-checked",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p7",
+  "rule": "probe.app-token-alg-none",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ },
+ {
+  "model": "haiku",
+  "prompt": "p7",
+  "rule": "probe.app-token-expired-accepted",
+  "with": [
+   "-",
+   "-"
+  ],
+  "without": [
+   "-",
+   "-"
+  ],
+  "with_not_started": 0,
+  "without_not_started": 0,
+  "verdict": "not shown"
+ }
+]

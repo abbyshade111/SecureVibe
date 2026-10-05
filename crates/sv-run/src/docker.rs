@@ -93,6 +93,8 @@ pub struct DockerBackend {
     /// The run under way, if one is: everything started while it is set carries it as `RUN_LABEL`,
     /// and its teardown removes exactly what carries it.
     run: std::sync::Mutex<Option<String>>,
+    /// How far the containers' clock is ahead of this computer's, in seconds, measured once (`clock_offset`).
+    clock_offset: OnceLock<i64>,
 }
 
 /// The label naming the one run a container or network belongs to. The owner label says which
@@ -113,12 +115,53 @@ impl DockerBackend {
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
+            clock_offset: OnceLock::new(),
+        }
+    }
+
+    /// How far the clock the app's containers read is ahead of this computer's, in seconds, asked of the
+    /// fence's container once. On a Mac, Docker runs in a virtual machine whose clock can fall behind
+    /// after the computer sleeps, and a two-factor code made by this computer's clock is then one the
+    /// app, reading the machine's, refuses (the deep review's improvement 5). 0 when it cannot be read.
+    fn clock_offset(&self, via: &Via) -> i64 {
+        *self
+            .clock_offset
+            .get_or_init(|| self.read_clock_offset(via).unwrap_or(0))
+    }
+
+    /// One reading of the containers' clock against this computer's: `None` when it could not be read.
+    fn read_clock_offset(&self, via: &Via) -> Option<i64> {
+        let before = host_now();
+        let read = self.inside_fence(via, &["date", "+%s"]);
+        let after = host_now();
+        match read {
+            Ok((0, out)) => out
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .map(|theirs| offset_from(before, theirs, after)),
+            _ => None,
         }
     }
 
     fn docker(&self, args: &[&str]) -> Result<(i32, String), String> {
         let mut c = Command::new(&self.binary);
         c.args(self.prepared(args));
+        output_of(&mut c)
+    }
+
+    /// As `docker`, with `secrets` in the Docker program's own environment, for arguments that name
+    /// them with `-e NAME` and no value: Docker then copies each from its own environment. A value on
+    /// the command line can be read by any other user of the computer while the command runs; a
+    /// process's environment only by its own user (the deep review's improvement 5).
+    fn docker_with_secrets(
+        &self,
+        args: &[&str],
+        secrets: &[(&str, String)],
+    ) -> Result<(i32, String), String> {
+        let mut c = Command::new(&self.binary);
+        c.args(self.prepared(args));
+        c.envs(secrets.iter().map(|(k, v)| (*k, v.as_str())));
         output_of(&mut c)
     }
 
@@ -352,8 +395,10 @@ impl DockerBackend {
 
         // 1d½. A test model, when the app has an AI feature to ask. Before the app, which may read
         //      the model's address as it starts.
-        // The test model's server also records what a feature that fetches addresses fetches.
-        let model = ((plan.ai.is_some() || plan.fetch.is_some())
+        // The test model's server also records what a feature that fetches addresses fetches, and
+        // whether the app fetches the key a sign-in token names (V9.1.3): `sv` learns whether the
+        // app's tokens are JWTs only after signing in, so any run that signs in starts it.
+        let model = ((plan.ai.is_some() || plan.fetch.is_some() || plan.users.is_some())
             && self.start_model(&network, &model_name))
         .then_some(model_name.as_str());
 
@@ -517,11 +562,10 @@ impl DockerBackend {
                 users.totp.is_some() && users.seed.is_some(),
             )
         });
-        let signed_in = plan
-            .users
-            .as_ref()
-            .zip(accounts.as_ref())
-            .map(|pair| self.signed_in(&via, &app, mail, browser, plan, pair));
+        let signed_in = plan.users.as_ref().zip(accounts.as_ref()).map(|pair| {
+            let model = model.filter(|host| self.model_ready(&via, host));
+            self.signed_in(&via, &app, (mail, browser, model), plan, pair)
+        });
 
         // 4c. Signing in through the test provider, when the app signs in through another service.
         //     A provider that never came up leaves `provider` empty, and the check says so.
@@ -789,7 +833,33 @@ struct DockerHttp<'a> {
     model: Option<&'a str>,
 }
 
+/// Now, in seconds since 1970, by this computer's clock.
+fn host_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+/// The containers' clock against this computer's, from a reading taken between `before` and `after`: the
+/// difference from the middle of the two, and none when it is a second or less, which is the reading's
+/// own uncertainty.
+fn offset_from(before: u64, theirs: u64, after: u64) -> i64 {
+    let middle = (i128::from(before) + i128::from(after)) / 2;
+    let offset = i128::from(theirs) - middle;
+    if offset.abs() <= 1 {
+        0
+    } else {
+        i64::try_from(offset).unwrap_or(0)
+    }
+}
+
 impl sv_check::signed_in::Http for DockerHttp<'_> {
+    /// Now by the clock the app reads: this computer's, moved by how far the containers' differs, so a
+    /// two-factor code is made for the time the app checks it against.
+    fn now(&mut self) -> u64 {
+        host_now().saturating_add_signed(self.backend.clock_offset(self.via))
+    }
+
     /// The waits `--slow` makes can last an hour and a half, so they are taken in short steps that
     /// end at Ctrl-C, when the run goes on to remove its containers instead of waiting them out.
     fn wait(&mut self, seconds: u64) {
@@ -833,6 +903,10 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
     ) -> Option<sv_check::probes::ProbeResponse> {
         let host = self.model?;
         self.backend.probe(self.via, host, MODEL_PORT, request)
+    }
+
+    fn model_address(&mut self) -> Option<String> {
+        self.model.map(|host| format!("http://{host}:{MODEL_PORT}"))
     }
 
     fn browser(&mut self, job: &sv_check::browser::Job) -> Option<Vec<serde_json::Value>> {
@@ -1195,8 +1269,7 @@ impl DockerBackend {
         &self,
         via: &Via,
         app: &str,
-        mail: Option<&str>,
-        browser: Option<&str>,
+        (mail, browser, model): (Option<&str>, Option<&str>, Option<&str>),
         plan: &RunPlan,
         (users, accounts): (&sv_manifest::UsersSection, &sv_check::signed_in::Accounts),
     ) -> sv_check::signed_in::Outcome {
@@ -1208,7 +1281,7 @@ impl DockerBackend {
             mail,
             provider: None,
             browser,
-            model: None,
+            model,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
@@ -1262,20 +1335,11 @@ impl DockerBackend {
         seed: &str,
         accounts: &sv_check::signed_in::Accounts,
     ) -> Result<(), String> {
-        let mut args: Vec<String> = vec!["exec".into()];
         let env = seed_env(accounts);
-        for (k, v) in env {
-            args.push("-e".into());
-            args.push(format!("{k}={v}"));
-        }
-        args.extend([
-            app.to_owned(),
-            "sh".into(),
-            "-c".into(),
-            format!("cd /app && {seed}"),
-        ]);
+        let names: Vec<&str> = env.iter().map(|(k, _)| *k).collect();
+        let args = seed_args(app, seed, &names);
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
-        match self.docker(&args) {
+        match self.docker_with_secrets(&args, &env) {
             Ok((0, _)) => Ok(()),
             Ok((code, out)) => Err(seed_failed(code, &out, accounts)),
             Err(e) => Err(format!("The seed command could not be started: {e}.")),
@@ -1446,18 +1510,9 @@ impl DockerBackend {
     }
 
     fn start_provider(&self, network: &str, name: &str, secret: &str) -> bool {
-        let issuer = format!("ISSUER=http://{name}:{PROVIDER_PORT}");
-        let port = format!("PORT={PROVIDER_PORT}");
-        let client = format!("CLIENT_ID={PROVIDER_CLIENT_ID}");
-        let secret = format!("CLIENT_SECRET={secret}");
-        matches!(
-            self.docker(&provider_args(
-                network,
-                name,
-                [&issuer, &port, &client, &secret]
-            )),
-            Ok((0, _))
-        )
+        let (args, secrets) = provider_start(network, name, secret);
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        matches!(self.docker_with_secrets(&args, &secrets), Ok((0, _)))
     }
 
     /// Starts a copy of the app under another name with one more setting in its environment: the
@@ -1745,6 +1800,40 @@ fn to_remove(listed: Option<&str>, names: &[String]) -> Vec<String> {
     }
 }
 
+/// How the test provider is started, and the secret Docker hands it from its own environment: the
+/// client secret by name only on the command line, as the seed's passwords are.
+fn provider_start(
+    network: &str,
+    name: &str,
+    secret: &str,
+) -> (Vec<String>, Vec<(&'static str, String)>) {
+    let issuer = format!("ISSUER=http://{name}:{PROVIDER_PORT}");
+    let port = format!("PORT={PROVIDER_PORT}");
+    let client = format!("CLIENT_ID={PROVIDER_CLIENT_ID}");
+    let args = provider_args(network, name, [&issuer, &port, &client, "CLIENT_SECRET"])
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    (args, vec![("CLIENT_SECRET", secret.to_owned())])
+}
+
+/// `docker exec` for the owner's `seed`, naming each of `names` with `-e` and no value, so the values
+/// come from Docker's own environment (`docker_with_secrets`) and never stand on its command line.
+fn seed_args(app: &str, seed: &str, names: &[&str]) -> Vec<String> {
+    let mut args: Vec<String> = vec!["exec".into()];
+    for name in names {
+        args.push("-e".into());
+        args.push((*name).to_owned());
+    }
+    args.extend([
+        app.to_owned(),
+        "sh".into(),
+        "-c".into(),
+        format!("cd /app && {seed}"),
+    ]);
+    args
+}
+
 /// What `seed` is given: the run's accounts, their passwords, and the two-factor secrets in base32.
 fn seed_env(accounts: &sv_check::signed_in::Accounts) -> Vec<(&'static str, String)> {
     let mut env = vec![
@@ -1846,6 +1935,7 @@ mod tests {
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
+            clock_offset: OnceLock::new(),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -1857,10 +1947,51 @@ mod tests {
     }
 
     #[test]
+    fn the_containers_clock_is_read_against_the_middle_of_the_reading() {
+        // The deep review's improvement 5: a Docker machine 47 seconds behind this computer.
+        assert_eq!(offset_from(1_000, 953, 1_002), -48);
+        assert_eq!(offset_from(1_000, 1_090, 1_000), 90);
+        // A second either way is the reading's own uncertainty, not a clock that differs.
+        for theirs in [999, 1_000, 1_001] {
+            assert_eq!(offset_from(1_000, theirs, 1_001), 0, "{theirs}");
+        }
+    }
+
+    #[test]
     fn the_fence_explains_itself_without_overstating() {
         let text = Fence::DockerInternalNetwork.explain();
         assert!(text.contains("could not reach the internet"));
         assert!(Fence::None.explain().contains("No network fence"));
+    }
+
+    #[test]
+    fn no_password_or_secret_stands_on_docker_s_command_line() {
+        // The deep review's improvement 5: `-e SV_PASSWORD_A=...` was readable by any user of the
+        // computer while `docker exec` ran. Only the names are on the command line now.
+        let accounts = crate::new_accounts(true, true);
+        let env = seed_env(&accounts);
+        let names: Vec<&str> = env.iter().map(|(k, _)| *k).collect();
+        let args = seed_args("app", "./seed.sh", &names);
+        for (name, value) in &env {
+            assert!(args.iter().any(|a| a == name), "{name} is not named");
+            // Compared, never printed: the message names the variable only.
+            assert!(
+                !args.iter().any(|a| a.contains(value.as_str())),
+                "{name}'s value is on the command line"
+            );
+        }
+        let secret = crate::random_hex(16);
+        let (provider, secrets) = provider_start("net", "idp", &secret);
+        assert!(
+            !provider.iter().any(|a| a.contains(&secret)),
+            "the provider's secret is on the command line"
+        );
+        let at = provider
+            .iter()
+            .position(|a| a == "CLIENT_SECRET")
+            .expect("named");
+        assert_eq!(provider[at - 1], "-e");
+        assert_eq!(secrets, vec![("CLIENT_SECRET", secret)]);
     }
 
     #[test]
@@ -1992,20 +2123,29 @@ fn exchange_script(host: &str, port: u16) -> String {
     )
 }
 
-/// What starts each copy's answer in the output of `at_once_script`. Printed on a line of its own
-/// before each, so an answer that never came still has its place.
+/// What starts each copy's answer in the output of `at_once_script`, before a part made fresh for each
+/// call (`at_once_mark`). Printed on a line of its own before each, so an answer that never came still
+/// has its place.
 const AT_ONCE_MARK: &str = "@@sv-at-once-";
+
+/// The marker for one call of `at_once_script`: `AT_ONCE_MARK` and a random part. With the marker
+/// fixed, an app could print `@@sv-at-once-2@@` and an answer of its own inside its first answer, and
+/// that would be read as the second copy's: a race check fooled into a pass (the deep review's
+/// improvement 5). The app cannot know a marker made after it started.
+fn at_once_mark() -> String {
+    format!("{AT_ONCE_MARK}{}-", crate::random_hex(8))
+}
 
 /// `exchange_script`, for one request sent `times` times at once: every connection is started in
 /// the background before any is waited for, so they reach the app together rather than one after
 /// another, each answer kept in its own file and printed in order after all have finished.
-fn at_once_script(host: &str, port: u16, times: usize) -> String {
+fn at_once_script(host: &str, port: u16, times: usize, mark: &str) -> String {
     let numbers: Vec<String> = (1..=times).map(|i| i.to_string()).collect();
     let numbers = numbers.join(" ");
     format!(
         "d=$(mktemp -d) && cat > \"$d/r\" && \
          for i in {numbers}; do timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
-         wait; for i in {numbers}; do printf '\\n{AT_ONCE_MARK}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
+         wait; for i in {numbers}; do printf '\\n{mark}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
     )
 }
 
@@ -2014,11 +2154,12 @@ fn parse_at_once(
     id: &str,
     out: &str,
     times: usize,
+    mark: &str,
 ) -> Vec<Option<sv_check::probes::ProbeResponse>> {
     (1..=times)
         .map(|i| {
-            let start = format!("\n{AT_ONCE_MARK}{i}@@\n");
-            let next = format!("\n{AT_ONCE_MARK}{}@@\n", i + 1);
+            let start = format!("\n{mark}{i}@@\n");
+            let next = format!("\n{mark}{}@@\n", i + 1);
             let from = out.find(&start)? + start.len();
             let to = out[from..].find(&next).map_or(out.len(), |n| from + n);
             let raw = &out[from..to];
@@ -2323,14 +2464,15 @@ impl DockerBackend {
         times: usize,
     ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
         let raw = request_bytes(request, app)?;
-        let script = at_once_script(app, port, times);
+        let mark = at_once_mark();
+        let script = at_once_script(app, port, times, &mark);
         let (_, out) = self
             .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
             .ok()?;
-        if !out.contains(AT_ONCE_MARK) {
+        if !out.contains(&mark) {
             return None;
         }
-        Some(parse_at_once(&request.id, &out, times))
+        Some(parse_at_once(&request.id, &out, times, &mark))
     }
 }
 
@@ -3008,6 +3150,117 @@ http.createServer((q, s) => {
     }
 
     #[test]
+    fn two_factor_codes_are_made_for_the_time_the_containers_read() {
+        // The deep review's improvement 5. The clock is read once, from the fence's container; here it
+        // shares this computer's, as on Linux, and must be read as no different. Needs a container
+        // backend; with one, a failed reading fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-clocktest-{}", std::process::id());
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let via = Via::FreshContainer(&network);
+        let read = backend.read_clock_offset(&via);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert_eq!(
+            read,
+            Some(0),
+            "the containers' clock was not read, or read wrong"
+        );
+
+        // And `now` is moved by what was measured: a machine 48 seconds behind.
+        let behind = DockerBackend::new();
+        behind.clock_offset.set(-48).unwrap();
+        let via = Via::FreshContainer("unused");
+        let mut http = DockerHttp {
+            backend: &behind,
+            via: &via,
+            app: "app",
+            port: 8080,
+            mail: None,
+            provider: None,
+            browser: None,
+            model: None,
+        };
+        use sv_check::signed_in::Http;
+        let (ours, theirs) = (host_now(), http.now());
+        assert!((ours - 48..=ours - 47).contains(&theirs), "{ours} {theirs}");
+    }
+
+    #[test]
+    fn the_seed_command_is_given_the_passwords_though_they_are_not_on_the_command_line() {
+        // The deep review's improvement 5: the passwords reach the seed from Docker's environment,
+        // named with `-e` and no value. Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let name = format!("sv-seedtest-{}", std::process::id());
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &name,
+            PROBE_IMAGE,
+            "sh",
+            "-c",
+            "mkdir -p /app; sleep 120",
+        ]);
+        let accounts = crate::new_accounts(true, true);
+        // The seed passes only if each value arrived whole; it compares, and prints nothing.
+        let check = format!(
+            "test \"$SV_PASSWORD_A\" = '{}' && test \"$SV_PASSWORD_B\" = '{}' && test -n \"$SV_TOTP_SECRET\"",
+            accounts.a.password, accounts.b.password
+        );
+        let seeded = matches!(started, Ok((0, _))).then(|| backend.seed(&name, &check, &accounts));
+        let refused = matches!(started, Ok((0, _)))
+            .then(|| backend.seed(&name, "test \"$SV_PASSWORD_A\" = 'not it'", &accounts));
+        let _ = backend.docker(&["rm", "-f", &name]);
+        assert!(
+            matches!(started, Ok((0, _))),
+            "the container did not start: {started:?}"
+        );
+        assert!(
+            seeded.unwrap().is_ok(),
+            "the seed did not get the passwords"
+        );
+        assert!(refused.unwrap().is_err(), "the seed's check proves nothing");
+    }
+
+    #[test]
+    fn the_test_provider_is_given_its_secret_though_it_is_not_on_the_command_line() {
+        // As the seed's passwords: the client secret reaches the provider from Docker's environment.
+        // Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-providertest-{}", std::process::id());
+        let name = format!("{network}-idp");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let secret = crate::random_hex(16);
+        let started = backend.start_provider(&network, &name, &secret);
+        let has = |value: &str| {
+            let check = format!("test \"$CLIENT_SECRET\" = '{value}'");
+            matches!(
+                backend.docker(&["exec", &name, "sh", "-c", &check]),
+                Ok((0, _))
+            )
+        };
+        let (given, other) = (started && has(&secret), started && has("not it"));
+        let _ = backend.docker(&["rm", "-f", &name]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(started, "the provider did not start");
+        assert!(given, "the provider did not get its secret");
+        assert!(!other, "the check proves nothing");
+    }
+
+    #[test]
     fn the_app_cannot_reach_the_browser_s_devtools_or_hide_its_storage_from_the_driver() {
         // Deep review S11. The image's own script forwarded DevTools on every address, so the app,
         // on the same fenced network, could drive the browser that checks it; and the driver read
@@ -3136,6 +3389,129 @@ http.createServer((q, s) => {
         assert_eq!(answers[1]["value"], "hidden", "{answers:?}");
         assert_eq!(answers[2]["value"], "kept-after-sign-out", "{answers:?}");
         assert_eq!(answers[3]["value"], "token", "{answers:?}");
+    }
+
+    #[test]
+    fn what_a_page_sends_elsewhere_from_a_worker_or_over_a_websocket_is_recorded() {
+        // Deep review, improvement 5: the driver watched the tab's own requests only, so a page
+        // that sent an address elsewhere from a worker, or over a WebSocket, was not seen sending
+        // it. Here a page does each, from a worker, a worker's own worker, a shared worker, and a
+        // service worker, and a request from the page itself is the control. Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-wsworkers-{}", std::process::id());
+        let server = format!("{network}-app");
+        let browser = format!("{network}-browser");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let app = r#"
+const http = require('http');
+const scripts = {
+  '/worker.js': `fetch('http://collect.example/from-worker?em=a%40example.test').catch(() => {});
+                 new Worker('/inner.js');`,
+  '/inner.js': `fetch('http://collect.example/from-inner').catch(() => {});`,
+  '/sw.js': `fetch('http://collect.example/from-service-worker').catch(() => {});`,
+  '/shared.js': `fetch('http://collect.example/from-shared-worker').catch(() => {});`,
+};
+http.createServer((q, s) => {
+  if (scripts[q.url]) {
+    s.setHeader('content-type', 'text/javascript');
+    return s.end(scripts[q.url]);
+  }
+  s.setHeader('content-type', 'text/html');
+  s.end(`<script>
+    fetch('http://collect.example/from-page').catch(() => {});
+    new WebSocket('ws://socket.example/live?em=a%40example.test');
+    new Worker('/worker.js');
+    new SharedWorker('/shared.js');
+    navigator.serviceWorker.register('/sw.js');
+  </script>`);
+}).listen(8080);"#;
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            app,
+        ]);
+        let ready = matches!(started, Ok((0, _))) && backend.start_browser(&network, &browser) && {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            backend.forward_browser(&browser, &server, 8080)
+        };
+        let answers = ready.then(|| {
+            let via = Via::FreshContainer(&network);
+            let mut http = DockerHttp {
+                backend: &backend,
+                via: &via,
+                app: &server,
+                port: 8080,
+                mail: None,
+                provider: None,
+                browser: Some(&browser),
+                model: None,
+            };
+            use sv_check::browser::{Action, Job};
+            use sv_check::signed_in::Http;
+            http.browser(&Job {
+                actions: vec![
+                    Action::Goto("/account".into()),
+                    Action::Wait(2000),
+                    Action::Outside,
+                ],
+            })
+        });
+        let _ = backend.docker(&["rm", "-f", &server, &browser]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(
+            ready,
+            "the app, the browser, or the forwarder did not start: {started:?}"
+        );
+        let answers = answers.flatten().expect("the driver gave no answer");
+        let requests = answers[2]["requests"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let sent = |url: &str| requests.iter().find(|r| r["url"] == url).cloned();
+        // Each is recorded once, though a service worker reaches the driver twice.
+        let mut urls: Vec<&str> = requests.iter().filter_map(|r| r["url"].as_str()).collect();
+        let all = urls.len();
+        urls.sort_unstable();
+        urls.dedup();
+        assert_eq!(urls.len(), all, "{requests:#?}");
+        // The control: the page's own request, as before.
+        assert!(
+            sent("http://collect.example/from-page").is_some(),
+            "{answers:?}"
+        );
+        let socket = sent("ws://socket.example/live?em=a%40example.test")
+            .unwrap_or_else(|| panic!("the WebSocket was not recorded: {requests:#?}"));
+        assert_eq!(
+            (&socket["type"], &socket["page"]),
+            (&"WebSocket".into(), &"/account".into())
+        );
+        let worker = sent("http://collect.example/from-worker?em=a%40example.test")
+            .unwrap_or_else(|| panic!("the worker's request was not recorded: {requests:#?}"));
+        assert_eq!(worker["page"], "/worker.js", "{worker:?}");
+        assert!(
+            sent("http://collect.example/from-inner").is_some(),
+            "the worker's own worker's request was not recorded: {requests:#?}"
+        );
+        assert!(
+            sent("http://collect.example/from-service-worker").is_some(),
+            "the service worker's request was not recorded: {requests:#?}"
+        );
+        assert!(
+            sent("http://collect.example/from-shared-worker").is_some(),
+            "the shared worker's request was not recorded: {requests:#?}"
+        );
     }
 
     #[test]
@@ -3613,7 +3989,8 @@ mod at_once_tests {
 
     #[test]
     fn every_copy_is_started_before_any_is_waited_for() {
-        let script = at_once_script("app", 8080, 12);
+        let mark = at_once_mark();
+        let script = at_once_script("app", 8080, 12, &mark);
         let (start, rest) = script
             .split_once("; wait;")
             .expect("one wait, after the starts");
@@ -3627,10 +4004,7 @@ mod at_once_tests {
             start.contains("-e sh -c") && start.ends_with("2>&1 & done"),
             "{start}"
         );
-        assert!(
-            rest.contains(AT_ONCE_MARK) && rest.contains("rm -rf"),
-            "{rest}"
-        );
+        assert!(rest.contains(&mark) && rest.contains("rm -rf"), "{rest}");
     }
 
     #[test]
@@ -3642,16 +4016,17 @@ mod at_once_tests {
             )
         };
         // Twelve copies: the second got no answer, and the first and tenth must not be mixed up.
+        let mark = at_once_mark();
         let mut out = String::from("noise before the first mark");
         for i in 1..=12 {
-            out.push_str(&format!("\n{AT_ONCE_MARK}{i}@@\n"));
+            out.push_str(&format!("\n{mark}{i}@@\n"));
             match i {
                 2 => {}
                 1 => out.push_str(&answer(200, "Booked")),
                 _ => out.push_str(&answer(409, &format!("Sold out {i}"))),
             }
         }
-        let answers = parse_at_once("once", &out, 12);
+        let answers = parse_at_once("once", &out, 12, &mark);
         assert_eq!(answers.len(), 12);
         assert!(answers[1].is_none(), "{:?}", answers[1]);
         let first = answers[0].as_ref().expect("an answer");
@@ -3662,5 +4037,32 @@ mod at_once_tests {
             answers[11].as_ref().map(|r| r.body.as_str()),
             Some("Sold out 12")
         );
+    }
+
+    #[test]
+    fn an_answer_cannot_forge_the_marker_of_the_next() {
+        // The deep review's improvement 5: with the marker fixed, the first answer could carry the
+        // marker for the second, and an answer of its own after it, which was read as the second's.
+        let answer = |status: u16, body: &str| {
+            format!(
+                "HTTP/1.0 {status} X\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let mark = at_once_mark();
+        assert_ne!(mark, at_once_mark(), "a marker is made fresh for each call");
+        assert!(mark.len() > AT_ONCE_MARK.len() + 8, "{mark}");
+        // What an app that knows the fixed part can do: put it, with the next number, in its answer.
+        let forged = format!(
+            "{}\n{AT_ONCE_MARK}2@@\n{}",
+            answer(200, "Booked"),
+            answer(200, "Booked again")
+        );
+        let mut out = String::new();
+        out.push_str(&format!("\n{mark}1@@\n{forged}"));
+        out.push_str(&format!("\n{mark}2@@\n{}", answer(409, "Sold out")));
+        let answers = parse_at_once("once", &out, 2, &mark);
+        let second = answers[1].as_ref().expect("an answer");
+        assert_eq!((second.status, second.body.as_str()), (409, "Sold out"));
     }
 }

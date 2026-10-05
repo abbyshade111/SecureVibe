@@ -316,13 +316,19 @@ pub(crate) fn to_json(plan: &Plan) -> Value {
 
 /// The plan as Markdown, for a person or the AI coding tool.
 pub(crate) fn markdown(plan: &Plan) -> String {
+    markdown_with(plan, &sv_report::fence::Fence::none())
+}
+
+/// The same, with the app's own text, its name and the threats its brief raises (which name the
+/// parts of the app it describes), put through `fence`, for the AI coding tool (deep review R9).
+pub(crate) fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> String {
     let mut out = String::new();
     // The name comes from the app's folder, so its line breaks and invisible characters are
     // written as escapes, as everywhere else text from the app reaches the AI coding tool.
     let name = if plan.app.is_empty() {
         "this app".to_owned()
     } else {
-        sv_report::one_line(&plan.app)
+        fence.wrap(&plan.app)
     };
     out.push_str(&format!(
         "# A plan for {name}, at ASVS level {}\n\n",
@@ -417,7 +423,7 @@ pub(crate) fn markdown(plan: &Plan) -> String {
         out.push_str(&format!(
             "- {}: {}{}\n",
             t.id,
-            t.description,
+            fence.wrap(&t.description),
             if t.status == "cannot-place" {
                 " (whether it applies depends on a question not yet answered)"
             } else {

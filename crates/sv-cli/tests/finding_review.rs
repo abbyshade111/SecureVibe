@@ -344,7 +344,22 @@ fn mcp_check(app: &Path) -> String {
     mcp_reply(app)["result"]["content"][0]["text"]
         .as_str()
         .map(str::to_owned)
+        .map(unfenced)
         .expect("a reply to the check")
+}
+
+/// What the check says with its fence's tags taken out (deep review R9): this test is about what is
+/// said, and the app's text is fenced as data.
+fn unfenced(text: String) -> String {
+    let Some(tag) = text
+        .strip_prefix("Text between <")
+        .and_then(|rest| rest.split_once('>'))
+        .map(|(tag, _)| tag.to_owned())
+    else {
+        return text;
+    };
+    text.replace(&format!("</{tag}>"), "")
+        .replace(&format!("<{tag}>"), "")
 }
 
 /// The whole reply to `securevibe_check` over MCP, text and structured results alike.

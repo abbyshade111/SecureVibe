@@ -45,13 +45,31 @@ pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
     }
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
-    let mut out = std::io::stdout();
+    let mut out = Visible(std::io::stdout());
     review(
         &path.unwrap_or_else(|| PathBuf::from(".")),
         Key::folder(),
         &mut input,
         &mut out,
     )
+}
+
+/// A terminal written through `sv_report::visible`, as everything `sv` prints is: `sv review` shows
+/// findings in the app's own words, and an escape character in one could rewrite what the owner is
+/// asked to agree to (the deep review's improvement 5).
+struct Visible<W: Write>(W);
+
+impl<W: Write> Write for Visible<W> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        // `write!` hands over whole pieces of text, so no character is split across two writes.
+        let text = String::from_utf8_lossy(buf);
+        self.0.write_all(sv_report::visible(&text).as_bytes())?;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.flush()
+    }
 }
 
 /// The review itself, reading the person's answers from `input`.
@@ -1195,5 +1213,16 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
         }
+    }
+
+    #[test]
+    fn what_the_review_writes_shows_control_characters_rather_than_sending_them() {
+        let mut out = Visible(Vec::new());
+        write!(out, "Set aside \u{1b}]52;c;cHduZWQ=\u{7}this?\n\tyes\r").unwrap();
+        let shown = String::from_utf8(out.0).unwrap();
+        assert_eq!(
+            shown,
+            "Set aside \\u{001b}]52;c;cHduZWQ=\\u{0007}this?\n\tyes\\u{000d}"
+        );
     }
 }

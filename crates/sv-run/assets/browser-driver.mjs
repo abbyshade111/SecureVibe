@@ -19,7 +19,8 @@
 //       sets them for the app, with the attributes given, and answers which the browser would not
 //       keep and why. A browser refuses a `__Host-` cookie that is not `Secure`, for one.
 //   {"outside": true}                     -> {"requests": [{"url", "method", "type", "page", "body", "headers"}]}
-//       every request the tab tried to send to a host other than the app's, since the job began.
+//       every request the tab tried to send to a host other than the app's, since the job began,
+//       from the page or a worker it started, and each WebSocket it opened to one.
 //       The fence stops each one leaving; the browser records it before it tries.
 
 const job = JSON.parse(Buffer.from(process.env.SV_JOB || '', 'base64').toString('utf8'));
@@ -120,21 +121,81 @@ const bodyOf = (request) => {
   }
   return '';
 };
-listeners.add((d) => {
-  if (d.sessionId !== sessionId || d.method !== 'Network.requestWillBeSent') return;
-  const request = d.params.request;
-  let url;
+const pathOf = (address) => {
   try {
-    url = new URL(request.url);
+    return new URL(address).pathname;
   } catch {
+    return '';
+  }
+};
+const elsewhere = (address) => {
+  try {
+    const url = new URL(address);
+    return ['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol) && url.host !== APP_HOST;
+  } catch {
+    return false;
+  }
+};
+
+// The sessions whose sending is watched: the tab's, and each worker or frame of its own process the
+// tab starts, and each one those start, with where each one is. Each is held paused until its
+// network is watched, so not even its first request goes unseen (deep review, improvement 5).
+const watched = new Map([[sessionId, '']]);
+const targets = new Set();
+const AUTO_ATTACH = { autoAttach: true, waitForDebuggerOnStart: true, flatten: true };
+listeners.add((d) => {
+  if (d.sessionId && !watched.has(d.sessionId)) return;
+  if (d.method === 'Page.frameNavigated' && !d.params.frame.parentId) {
+    watched.set(d.sessionId, pathOf(d.params.frame.url));
+  }
+  if (d.method !== 'Target.attachedToTarget') return;
+  const child = d.params.sessionId;
+  const target = d.params.targetInfo;
+  // A service or shared worker belongs to no one tab, so the browser itself reports it: one of
+  // the job's own is watched, one from anywhere else is let go. A service worker is reported by
+  // the tab as well, and is watched once, so nothing it sends is counted twice.
+  if (
+    (!d.sessionId && target.browserContextId !== browserContextId) ||
+    targets.has(target.targetId)
+  ) {
+    send('Runtime.runIfWaitingForDebugger', {}, child);
+    send('Target.detachFromTarget', { sessionId: child }, d.sessionId);
     return;
   }
-  if (!['http:', 'https:', 'ws:', 'wss:'].includes(url.protocol) || url.host === APP_HOST) return;
-  if (outside.length >= OUTSIDE_MAX) return;
-  let page = '';
-  try {
-    page = new URL(d.params.documentURL).pathname;
-  } catch {}
+  targets.add(target.targetId);
+  watched.set(child, pathOf(target.url));
+  // Sent together, in order, without waiting for each answer: a service worker reaches the
+  // driver twice, from the tab and from the browser, and answers neither until both let it go.
+  send('Target.setAutoAttach', AUTO_ATTACH, child);
+  send('Network.enable', {}, child);
+  send('Runtime.runIfWaitingForDebugger', {}, child);
+});
+await page('Target.setAutoAttach', AUTO_ATTACH);
+await send('Target.setAutoAttach', {
+  ...AUTO_ATTACH,
+  filter: [{ type: 'service_worker' }, { type: 'shared_worker' }, { exclude: true }],
+});
+
+// A WebSocket's opening is not a request the browser reports as one, so it is recorded when the
+// page makes it. Nothing is ever sent over one: the fence stops it opening.
+listeners.add((d) => {
+  if (!watched.has(d.sessionId) || d.method !== 'Network.webSocketCreated') return;
+  if (!elsewhere(d.params.url) || outside.length >= OUTSIDE_MAX) return;
+  outside.push({
+    url: d.params.url.slice(0, 8192),
+    method: 'GET',
+    type: 'WebSocket',
+    page: watched.get(d.sessionId),
+    body: '',
+    headers: '',
+  });
+});
+
+listeners.add((d) => {
+  if (!watched.has(d.sessionId) || d.method !== 'Network.requestWillBeSent') return;
+  const request = d.params.request;
+  if (!elsewhere(request.url) || outside.length >= OUTSIDE_MAX) return;
+  const page = pathOf(d.params.documentURL) || watched.get(d.sessionId);
   outside.push({
     url: request.url.slice(0, 8192),
     method: request.method,

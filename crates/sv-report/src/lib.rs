@@ -21,6 +21,7 @@
 
 pub mod bluf;
 pub mod chapters;
+pub mod fence;
 pub mod groups;
 pub mod html;
 pub mod interview;
@@ -834,6 +835,27 @@ pub fn one_line(text: &str) -> String {
 /// Characters that end a line without being a control character, or change the order or visibility
 /// of the text around them: the line and paragraph separators, zero-width characters, and the
 /// direction marks, embeddings, overrides, and isolates.
+/// `text` as a terminal can show it safely: line breaks and tabs kept, and every other control
+/// character, and every character that hides or reorders text, written out as `\u{...}`. Text from the
+/// app reaches the terminal in file names, findings, and what its tests printed, and an escape
+/// character there can move the cursor, rewrite what is on screen, retitle the window, or on some
+/// terminals set the clipboard (the deep review's improvement 5). `sv` prints no colors of its own.
+pub fn visible(text: &str) -> std::borrow::Cow<'_, str> {
+    let unsafe_char = |c: char| (c.is_control() && c != '\n' && c != '\t') || hides_or_reorders(c);
+    if !text.chars().any(unsafe_char) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len() + 16);
+    for c in text.chars() {
+        if unsafe_char(c) {
+            out.push_str(&format!("\\u{{{:04x}}}", u32::from(c)));
+        } else {
+            out.push(c);
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 fn hides_or_reorders(c: char) -> bool {
     matches!(
         c,
@@ -1658,12 +1680,11 @@ fn claim_line(claim: &ResolvedClaim) -> ClaimLine {
     }
 }
 
-/// The question a condition really asks, for a reader who has never seen its name.
+/// The question a condition really asks, for a reader who has never seen its name. The condition's
+/// reason is written as the exclusion ("This app has no sign-in, so…"), the wrong voice for a list of
+/// open questions; each condition carries its question beside its reason, so the two cannot drift.
 fn question_for(condition: Condition) -> &'static str {
-    // The condition's own reason is written as the *exclusion* — "this app has no sign-in, so…" —
-    // which is the wrong voice for a list of open questions. Turning it round here keeps one
-    // wording in the data and the right one in the report.
-    condition.default_not_applicable_reason()
+    condition.question()
 }
 
 /// Where a requirement's level puts its question in the interview: level 1, the baseline every app
