@@ -9,6 +9,7 @@ const COMMANDS: &[&str] = &[
     "init",
     "scope",
     "plan",
+    "preflight",
     "brief",
     "notes",
     "questions",
