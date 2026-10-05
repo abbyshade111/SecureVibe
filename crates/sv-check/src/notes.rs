@@ -405,7 +405,11 @@ pub fn write_template_with(
         .map(|s| s.id.as_str())
         .chain(orphan_ids.iter().map(|id| id.as_str()))
         .collect();
-    for block in answers.loose.iter().filter(|b| !written.contains(b.after.as_str())) {
+    for block in answers
+        .loose
+        .iter()
+        .filter(|b| !written.contains(b.after.as_str()))
+    {
         out.push_str(&block.text);
         out.push_str("\n\n");
     }
@@ -1398,7 +1402,8 @@ mod tests {
         }
     }
 
-    const LONG: &str = "Each of these is decided and written down here, with enough words to be an answer.";
+    const LONG: &str =
+        "Each of these is decided and written down here, with enough words to be an answer.";
 
     /// The two-section template with V6.1.1 left unanswered and `extra` written under it.
     fn first_unanswered_with(extra: &str) -> String {
@@ -1418,13 +1423,24 @@ mod tests {
         let plain = first_unanswered_with(&format!("Written by: AI coding tool\n\n{LONG}"));
         assert!(read_answers(&plain).stated().contains("V6.1.1"));
         for heading in ["# Mine", "## A note from me", "### Things to do later"] {
-            let text = first_unanswered_with(&format!("{heading}\n\nWritten by: AI coding tool\n\n{LONG}"));
+            let text = first_unanswered_with(&format!(
+                "{heading}\n\nWritten by: AI coding tool\n\n{LONG}"
+            ));
             let answers = read_answers(&text);
-            assert!(answers.answered().is_empty(), "{heading}: {:?}", answers.answered());
+            assert!(
+                answers.answered().is_empty(),
+                "{heading}: {:?}",
+                answers.answered()
+            );
             assert_eq!(answers.loose.len(), 1, "{heading}");
             assert_eq!(answers.loose[0].after, "V6.1.1");
-            assert_eq!(answers.loose[0].heading, heading.trim_start_matches('#').trim());
-            assert!(answers.loose[0].text.starts_with(heading) && answers.loose[0].text.ends_with(LONG));
+            assert_eq!(
+                answers.loose[0].heading,
+                heading.trim_start_matches('#').trim()
+            );
+            assert!(
+                answers.loose[0].text.starts_with(heading) && answers.loose[0].text.ends_with(LONG)
+            );
         }
     }
 
@@ -1438,7 +1454,10 @@ mod tests {
         let answers = read_answers(&text);
         assert!(answers.loose.is_empty());
         let prose = answers.prose_of("V6.1.1").unwrap();
-        assert!(prose.contains("#### Second") && prose.ends_with("More."), "{prose}");
+        assert!(
+            prose.contains("#### Second") && prose.ends_with("More."),
+            "{prose}"
+        );
     }
 
     #[test]
@@ -1446,13 +1465,30 @@ mod tests {
         let note = format!("## A note from me\n\n{LONG}");
         let written = first_unanswered_with(&note);
         let again = |text: &str, ids: &[&str]| {
-            write_template(&catalog(), &applicable(ids), &Facts::default(), Some(text), &no_descriptions())
+            write_template(
+                &catalog(),
+                &applicable(ids),
+                &Facts::default(),
+                Some(text),
+                &no_descriptions(),
+            )
         };
         let second = again(&written, &["V6.1.1", "V8.1.1"]);
-        assert_eq!(second.matches(note.as_str()).count(), 1, "kept once: {second}");
+        assert_eq!(
+            second.matches(note.as_str()).count(),
+            1,
+            "kept once: {second}"
+        );
         let at = |t: &str, what: &str| t.find(what).unwrap();
-        assert!(at(&second, "## V6.1.1") < at(&second, &note) && at(&second, &note) < at(&second, "## V8.1.1"));
-        assert_eq!(again(&second, &["V6.1.1", "V8.1.1"]), second, "writing it again changes nothing more");
+        assert!(
+            at(&second, "## V6.1.1") < at(&second, &note)
+                && at(&second, &note) < at(&second, "## V8.1.1")
+        );
+        assert_eq!(
+            again(&second, &["V6.1.1", "V8.1.1"]),
+            second,
+            "writing it again changes nothing more"
+        );
         assert!(read_answers(&second).answered().is_empty());
         // After a section no longer written, it is kept at the end, never dropped.
         let third = again(&written, &["V8.1.1"]);
@@ -1464,25 +1500,49 @@ mod tests {
     fn the_heading_sv_writes_for_answers_that_no_longer_apply_is_nobodys_answer() {
         // V8.1.1 answered, then no longer applying, so `sv` writes its heading and sentence after
         // V6.1.1, which nobody answered.
-        let first = write_template(&catalog(), &applicable(&["V6.1.1", "V8.1.1"]), &Facts::default(), None, &no_descriptions());
+        let first = write_template(
+            &catalog(),
+            &applicable(&["V6.1.1", "V8.1.1"]),
+            &Facts::default(),
+            None,
+            &no_descriptions(),
+        );
         let at = first.rfind(PLACEHOLDER).unwrap();
         let written = format!(
             "{}Written by: owner\n\n{LONG}{}",
             &first[..at],
             &first[at + PLACEHOLDER.len()..]
         );
-        let second = write_template(&catalog(), &applicable(&["V6.1.1"]), &Facts::default(), Some(&written), &no_descriptions());
+        let second = write_template(
+            &catalog(),
+            &applicable(&["V6.1.1"]),
+            &Facts::default(),
+            Some(&written),
+            &no_descriptions(),
+        );
         assert!(second.contains(NO_LONGER_APPLY), "the setup: {second}");
         let answers = read_answers(&second);
-        assert!(!answers.documented().contains("V6.1.1") && !answers.stated().contains("V6.1.1"), "{:?}", answers.answered());
+        assert!(
+            !answers.documented().contains("V6.1.1") && !answers.stated().contains("V6.1.1"),
+            "{:?}",
+            answers.answered()
+        );
         assert!(answers.loose.is_empty(), "{:?}", answers.loose);
-        assert!(answers.documented().contains("V8.1.1"), "the answer that stopped applying is still read");
+        assert!(
+            answers.documented().contains("V8.1.1"),
+            "the answer that stopped applying is still read"
+        );
     }
 
     #[test]
     fn a_seal_is_never_placed_under_a_heading_of_somebodys_own() {
-        let text = first_unanswered_with(&format!("## A note from me\n\nWritten by: owner\n\n{LONG}"));
-        assert_eq!(with_seal(&text, "V6.1.1", "v1:0:0"), None, "V6.1.1 has no line of its own to seal");
+        let text =
+            first_unanswered_with(&format!("## A note from me\n\nWritten by: owner\n\n{LONG}"));
+        assert_eq!(
+            with_seal(&text, "V6.1.1", "v1:0:0"),
+            None,
+            "V6.1.1 has no line of its own to seal"
+        );
         // The control: with its own line, the seal goes under it.
         let own = text.replacen(PLACEHOLDER, &format!("Written by: owner\n\n{LONG}"), 1);
         let sealed = with_seal(&own, "V6.1.1", "v1:0:0").unwrap();
@@ -1494,7 +1554,10 @@ mod tests {
     fn evidence_names_what_was_not_read_as_an_answer() {
         let text = first_unanswered_with(&format!("## A note from me\n\n{LONG}"));
         let out = evidence(&catalog(), &read_answers(&text), "security-notes.md");
-        assert_eq!(out.not_read, vec!["\"A note from me\", after V6.1.1".to_owned()]);
+        assert_eq!(
+            out.not_read,
+            vec!["\"A note from me\", after V6.1.1".to_owned()]
+        );
         assert!(out.stated.is_empty() && out.documented.is_empty());
     }
 }

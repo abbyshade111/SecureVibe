@@ -51,7 +51,11 @@ fn app(name: &str) -> (PathBuf, String) {
         .join("../../examples/tested-notes/securevibe.toml");
     std::fs::copy(manifest, dir.join("securevibe.toml")).unwrap();
     let made = sv(&["notes"], &dir);
-    assert!(made.status.success(), "{}", String::from_utf8_lossy(&made.stderr));
+    assert!(
+        made.status.success(),
+        "{}",
+        String::from_utf8_lossy(&made.stderr)
+    );
     let notes = std::fs::read_to_string(dir.join("security-notes.md")).unwrap();
     (dir, notes)
 }
@@ -69,7 +73,11 @@ fn compliance(dir: &Path, notes: &str) -> String {
         .arg(&out_dir)
         .output()
         .expect("sv runs");
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     std::fs::read_to_string(out_dir.join("compliance.md")).unwrap()
 }
 
@@ -92,8 +100,15 @@ fn a_heading_of_the_owners_own_does_not_answer_the_section_above_it() {
     // The control: unanswered, the first section is not verified, and answered by the tool it is
     // stated by the tool. So the report does read this section, and an answer here would show.
     let untouched = compliance(&dir, &notes);
-    assert!(status_of(&untouched, &ids[0]).starts_with("not verified"), "{untouched}");
-    let answered = notes.replacen(PLACEHOLDER, &format!("Written by: AI coding tool\n\n{PROSE}"), 1);
+    assert!(
+        status_of(&untouched, &ids[0]).starts_with("not verified"),
+        "{untouched}"
+    );
+    let answered = notes.replacen(
+        PLACEHOLDER,
+        &format!("Written by: AI coding tool\n\n{PROSE}"),
+        1,
+    );
     let answered = compliance(&dir, &answered);
     assert!(
         status_of(&answered, &ids[0]).starts_with("stated by the AI coding tool"),
@@ -123,13 +138,24 @@ fn a_heading_of_the_owners_own_does_not_answer_the_section_above_it() {
         "{report}"
     );
     // `sv notes` writes the file again and keeps the note, once, where it was.
-    std::fs::write(dir.join("security-notes.md"), under_first(&notes, &ids, &note)).unwrap();
+    std::fs::write(
+        dir.join("security-notes.md"),
+        under_first(&notes, &ids, &note),
+    )
+    .unwrap();
     let again = sv(&["notes"], &dir);
-    assert!(again.status.success(), "{}", String::from_utf8_lossy(&again.stderr));
+    assert!(
+        again.status.success(),
+        "{}",
+        String::from_utf8_lossy(&again.stderr)
+    );
     let rewritten = std::fs::read_to_string(dir.join("security-notes.md")).unwrap();
     assert_eq!(rewritten.matches(note.as_str()).count(), 1, "{rewritten}");
     let pos = |what: &str| rewritten.find(what).unwrap();
-    assert!(pos(&format!("## {} — ", ids[0])) < pos(&note) && pos(&note) < pos(&format!("## {} — ", ids[1])));
+    assert!(
+        pos(&format!("## {} — ", ids[0])) < pos(&note)
+            && pos(&note) < pos(&format!("## {} — ", ids[1]))
+    );
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         counted.is_empty(),

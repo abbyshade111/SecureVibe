@@ -7968,3 +7968,34 @@ version in `Pipfile.lock` dropped (two), a `Pipfile`'s ranges dropped (two), the
 and `develop` read (one), the app's own folder named (one), a hashed `requirements-dev.txt` not read (one), and every
 `setup.cfg` counted (one).
 
+
+## A heading of one's own ends the answer above it (4 October 2026)
+
+Found writing the design-time prompts, and reproduced the same day (BACKLOG, "A heading of the owner's own in
+`security-notes.md`"). `read_answers` ended a section only at the next section's heading, so a heading of anyone
+else's, and everything under it, became the answer to the section above. With `## A note from me` under V2.1.1, which
+nobody had answered, the report called V2.1.1 *stated by the AI coding tool*: with or without a `Written by:` line in the
+note, and the same under `###`. `sv`'s own heading for answers that no longer apply, and the sentence it writes under
+it, were read the same way into the last section above them.
+
+At the owner's choice ("end a section at any heading, and say what was skipped"; ADR-022, "Later, 4 October 2026"):
+
+- **A heading of the first three levels ends the section above it.** What follows a heading of somebody's own is kept
+  as `Answers::loose`, with the section it followed, and is part of no answer. A `####` heading stays inside the answer
+  it is in. Headings before the first section are `sv`'s own title and introduction, as before. `sv`'s heading for
+  answers that no longer apply is `sv`'s, and nobody's answer.
+- **It is never dropped.** `sv notes`, and the AI tool recording an answer, write the file again from what was read; a
+  note of one's own is written back after the same section, and one after a section no longer written goes at the end.
+  Writing the file twice gives the same file.
+- **The seal is held to the same boundary**, so `sv review` never places one under a `Written by:` line in somebody's
+  note below a section.
+- **The report names each such heading, and the section it followed, as a gap**, saying the text was not read as an
+  answer, that notes of one's own are fine there, and how to make one part of an answer. The gaps already say the same
+  of a `Written by:` line nothing was made of.
+
+**Broken in turn.** Eleven guards: the old reader (6 tests red, the end-to-end one among them), `###` and `#` not ending
+a section, `####` ending one, `sv`'s own heading read as somebody's, a note not written back after its section or
+dropped after one no longer written, the seal placed by the old boundary, the evidence and the report each saying
+nothing, and headings before the first section taken as somebody's (6 red). Each was caught. The first run reported
+the end-to-end test as catching nothing: the script named a test file in the wrong crate, cargo refused to start, and
+the script read that as no failures. It now stops when a run reports no tests.

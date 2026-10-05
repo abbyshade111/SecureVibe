@@ -1183,6 +1183,11 @@ another session is not a claim.
   **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/notes-headings`. First
   step: reproduce it end to end, with a test, before any fix; the way out is then the owner's to choose, and its
   record is written with it.
+  **Reproduced the same day** (`crates/sv-cli/tests/notes_headings.rs`): with `## A note from me` under V2.1.1, which
+  nobody answered, the report called V2.1.1 *stated by the AI coding tool*, with or without a `Written by:` line in the
+  note, and the same under a `###` heading. `sv`'s own heading for answers that no longer apply did it too.
+  **Done the same day**, at the owner's choice of "end a section at any heading, and say what was skipped" (ADR-022,
+  "Later, 4 October 2026: a section ends at any heading"; DESIGN, "A heading of one's own ends the answer above it").
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
