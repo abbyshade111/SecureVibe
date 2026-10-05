@@ -154,6 +154,8 @@ another session is not a claim.
   - **S10. Medium, Read. Run names come from the process id alone, and teardown removes containers by name**, so
     two jobs on one Docker daemon can remove each other's containers. Fix: randomness in the run id; tear down only
     what this run made.
+    **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s10`.
   - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
     in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
     an isolated world, storage read through DevTools' storage domains.
