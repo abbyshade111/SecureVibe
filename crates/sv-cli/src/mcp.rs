@@ -2168,7 +2168,19 @@ mod tests {
             let asked = path.to_str().unwrap();
             let result = call(&server, "securevibe_check", json!({ "path": asked }));
             assert_eq!(result["isError"], true, "{asked} was not refused");
-            text(&result).replace(asked, "PATH")
+            // The fence's tag is named from the whole text, path included (R9), so it differs with
+            // the path asked about, never with whether that path exists: compared with both set aside.
+            let text = text(&result).replace(asked, "PATH");
+            let mut same = String::new();
+            let mut rest = text.as_str();
+            while let Some(at) = rest.find("app-text-") {
+                let (before, after) = rest.split_at(at + "app-text-".len());
+                same.push_str(before);
+                same.push_str("TAG");
+                rest = after.trim_start_matches(|c: char| c.is_ascii_hexdigit());
+            }
+            same.push_str(rest);
+            same
         };
         assert_eq!(answer(&there), answer(&missing));
         // Inside the root, a folder that is not there is refused the same way too.
