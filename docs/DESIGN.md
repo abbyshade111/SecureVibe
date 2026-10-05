@@ -7217,6 +7217,28 @@ committable `.env` until the folder is a git repository. Each is in the backlog.
 The key reaches only the Claude program, through an `apiKeyHelper`, never the environment of the builder's shell, the
 app, or `sv`, and no transcript holds it.
 
+## A preflight of the run settings (5 October 2026)
+
+Item 5 of "The loop", and ADR-035. `sv run` can test an app only if the code gives it what `[stack.run]` says, and in
+the trials it was the run, after the build, that found it did not. `sv preflight [PATH]` and `securevibe_preflight`
+read the app's files against the settings, with nothing run, and answer for each thing the run will need: the start
+command and image; listening on `0.0.0.0` and reading `PORT`; the seed's file, and the `SV_` accounts it is given
+(the admin's only when there are admin pages); tables made by the app and not only by the seed; and every path and
+sign-in field the settings name. Each answer is "looks right", "look at this", or "could not tell", and the result
+opens by saying that "looks right" means the text was found, not that it works. It credits nothing.
+
+**How it was checked.** Each of its eleven rules was broken in turn and the suite run; each was caught by the test
+named for it. On the examples, `notes-with-users` has nothing to look at, and `flask-booking`, whose start command
+binds `127.0.0.1`, has exactly that to look at. On the loop builds it found its own first mistake: two Sonnet builds
+seed with `python app.py seed`, and it read that as tables made only by the seed; where the seed is the app's own
+file, the answer is now "could not tell". What only describes the app (`securevibe.toml`, Markdown, plain text) is not
+read, so a path named in prose does not count as found.
+
+**What it cannot do.** A route built from parts reads as "look at this", and a name in a comment as "looks right";
+each answer says what was looked for, so a person can judge. Whether builders use it, and whether it raises how many
+builds `sv run` can test, is for the loop's next trial: item 3 ran on the pilot's `sv`, without it.
+
+
 ## Which part of the loop does the work (5 October 2026)
 
 Item 3 of "The loop", to the protocol with both amendments (`docs/prompts/loop-arms/README.md`): five arms, Sonnet 5.5
@@ -7234,6 +7256,8 @@ check by three of eight, once each, with no second round. What the testable buil
 rarely; the next trial should try saying when. The arms without `sv` can be compared on security only if somebody
 writes their manifest, or every arm is given the specification: the owner's choice before item 6. An app's own
 sign-in limit locked `sv` out again, as in trial 3. Each is in the backlog.
+
+
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files

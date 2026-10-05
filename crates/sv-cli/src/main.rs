@@ -36,6 +36,7 @@ mod bundle;
 mod exit;
 mod mcp;
 mod plan;
+mod preflight;
 mod report_lock;
 mod report_seal;
 mod review;
@@ -93,6 +94,7 @@ fn run() -> Result<i32> {
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
         "plan" => finished(cmd_plan(rest.first().map(PathBuf::from))),
+        "preflight" => finished(cmd_preflight(rest.first().map(PathBuf::from))),
         "brief" => finished(cmd_brief(rest)),
         "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
         "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
@@ -146,6 +148,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &[],
         help: "  sv plan [PATH]     before any code: what applies, what to decide, the tests to write,\n                     and what the app must give `sv run`; credits nothing\n",
+    },
+    Command {
+        name: "preflight",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv preflight [PATH]\n                     once there is code: whether it gives `sv run` what securevibe.toml\n                     says, read from the files and never run; credits nothing\n",
     },
     Command {
         name: "brief",
@@ -562,6 +571,13 @@ fn cmd_plan(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let report = assemble_report(&app_dir, &plan_options(), &Loaded::load()?)?;
     print!("{}", plan::markdown(&plan_for(&app_dir, &report)?));
+    Ok(())
+}
+
+fn cmd_preflight(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let (items, unread) = preflight::of(&app_dir)?;
+    print!("{}", preflight::markdown(&items, &unread));
     Ok(())
 }
 
