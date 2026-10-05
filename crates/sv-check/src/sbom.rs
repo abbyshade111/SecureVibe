@@ -297,7 +297,29 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         Some("composer.lock") => read("composer.lock").as_deref().map(from_composer_lock),
         Some("Gemfile.lock") => read("Gemfile.lock").as_deref().map(from_gemfile_lock),
         Some("pnpm-lock.yaml") => read("pnpm-lock.yaml").as_deref().map(from_pnpm_lock),
-        Some("go.sum") => read("go.sum").as_deref().map(from_go_sum),
+        Some("go.sum") => {
+            let sum = read("go.sum");
+            let modules = match read("go.mod") {
+                Some(go_mod) => from_go_mod(&go_mod, sum.as_deref()),
+                // No go.mod to say which version is used: every version go.sum holds, as before.
+                None => GoModules {
+                    pairs: sum.as_deref().map(from_go_sum).unwrap_or_default(),
+                    local: Vec::new(),
+                },
+            };
+            if !modules.local.is_empty() {
+                sbom.unread.push((
+                    eco.name.clone(),
+                    format!(
+                        "{} module(s) in go.mod are replaced by a folder on this computer ({}), so \
+                         they have no published version and are not listed; the rest are",
+                        modules.local.len(),
+                        modules.local.join(", ")
+                    ),
+                ));
+            }
+            sum.map(|_| modules.pairs)
+        }
         Some("requirements.lock") => read("requirements.lock")
             .as_deref()
             .map(from_pinned_requirements),
@@ -886,6 +908,108 @@ fn from_gemfile_lock(text: &str) -> Vec<(String, String)> {
         {
             let version = version.split('-').next().unwrap_or(version);
             out.push((name.to_owned(), version.to_owned()));
+        }
+    }
+    out
+}
+
+/// What go.mod says is built: one version of each module, and the modules swapped for a folder.
+#[derive(Debug, Default)]
+struct GoModules {
+    pairs: Vec<(String, String)>,
+    local: Vec<String>,
+}
+
+/// The modules a Go app is built from, and the one version of each, from go.mod: its `require`
+/// lines, with its `replace` lines applied. go.sum keeps a checksum for every version Go has looked
+/// at, older ones included, so reading it as the versions in use reported versions the app no
+/// longer builds with (A3 of the deep review).
+///
+/// From Go 1.17 on, go.mod lists every module in the build, indirect ones too. Before it, or with no
+/// `go` line, which Go reads as 1.16, it may not, and a module named only in go.sum is given the
+/// highest version there: the one Go would choose whenever go.sum holds the version it chose.
+fn from_go_mod(go_mod: &str, go_sum: Option<&str>) -> GoModules {
+    let words = |line: &str| -> Vec<String> {
+        let line = line.split("//").next().unwrap_or("");
+        line.split_whitespace()
+            .map(|w| w.trim_matches('"').to_owned())
+            .collect()
+    };
+    let (mut required, mut replaces) = (Vec::<(String, String)>::new(), Vec::new());
+    let mut go_version: Option<String> = None;
+    let mut block: Option<String> = None;
+    for raw in go_mod.lines() {
+        let w = words(raw);
+        if w.is_empty() {
+            continue;
+        }
+        if block.is_some() && w[0] == ")" {
+            block = None;
+            continue;
+        }
+        if block.is_none() && w.get(1).is_some_and(|x| x == "(") {
+            block = Some(w[0].clone());
+            continue;
+        }
+        let (verb, rest): (&str, &[String]) = match &block {
+            Some(verb) => (verb.as_str(), &w[..]),
+            None => (w[0].as_str(), &w[1..]),
+        };
+        match verb {
+            "go" => go_version = rest.first().cloned(),
+            "require" if rest.len() >= 2 => required.push((rest[0].clone(), rest[1].clone())),
+            "replace" => {
+                if let Some(arrow) = rest.iter().position(|x| x == "=>") {
+                    let old = &rest[..arrow];
+                    let new = &rest[arrow + 1..];
+                    if let (Some(old_path), Some(new_path)) = (old.first(), new.first()) {
+                        replaces.push((
+                            old_path.clone(),
+                            old.get(1).cloned(),
+                            new_path.clone(),
+                            new.get(1).cloned(),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    // Before 1.17, go.mod may leave out the indirect modules; go.sum names them.
+    let lists_everything = go_version.as_deref().is_some_and(|v| {
+        crate::advisories::compare(v, "1.17").is_some_and(|o| o != std::cmp::Ordering::Less)
+    });
+    if !lists_everything && let Some(sum) = go_sum {
+        let mut highest: Vec<(String, String)> = Vec::new();
+        for (name, version) in from_go_sum(sum) {
+            if required.iter().any(|(r, _)| *r == name) {
+                continue;
+            }
+            match highest.iter_mut().find(|(n, _)| *n == name) {
+                Some((_, kept)) => {
+                    if crate::advisories::compare(&version, kept)
+                        == Some(std::cmp::Ordering::Greater)
+                    {
+                        *kept = version;
+                    }
+                }
+                None => highest.push((name, version)),
+            }
+        }
+        required.extend(highest);
+    }
+    let mut out = GoModules::default();
+    for (name, version) in required {
+        let replaced = replaces
+            .iter()
+            .find(|(old, old_version, _, _)| {
+                *old == name && old_version.as_ref().is_none_or(|v| *v == version)
+            })
+            .map(|(_, _, new, new_version)| (new.clone(), new_version.clone()));
+        match replaced {
+            None => out.pairs.push((name, version)),
+            Some((new, Some(new_version))) => out.pairs.push((new, new_version)),
+            Some((_, None)) => out.local.push(name),
         }
     }
     out
@@ -2283,6 +2407,84 @@ __metadata:
             );
             fs::remove_dir_all(&dir).ok();
         }
+    }
+
+    #[test]
+    fn go_mod_names_the_version_built_and_go_sum_s_older_ones_are_not_listed() {
+        // A3: go.sum keeps checksums for versions Go has since moved past. Only go.mod's own
+        // `require` lines say which one the app is built with.
+        let go_mod = "module example.com/app\n\ngo 1.21\n\nrequire (\n\tgithub.com/gorilla/websocket v1.5.1\n\tgolang.org/x/net v0.23.0 // indirect\n)\n\nrequire github.com/google/uuid v1.6.0\n";
+        let go_sum = "github.com/gorilla/websocket v1.4.2 h1:a=\ngithub.com/gorilla/websocket v1.4.2/go.mod h1:b=\ngithub.com/gorilla/websocket v1.5.1 h1:c=\ngolang.org/x/net v0.17.0/go.mod h1:d=\ngolang.org/x/net v0.23.0 h1:e=\ngithub.com/google/uuid v1.6.0 h1:f=\nexample.com/dropped v1.0.0 h1:g=\n";
+        let got = from_go_mod(go_mod, Some(go_sum));
+        let mut pairs = got.pairs.clone();
+        pairs.sort();
+        assert_eq!(
+            pairs,
+            [
+                ("github.com/google/uuid".to_owned(), "v1.6.0".to_owned()),
+                (
+                    "github.com/gorilla/websocket".to_owned(),
+                    "v1.5.1".to_owned()
+                ),
+                ("golang.org/x/net".to_owned(), "v0.23.0".to_owned()),
+            ]
+        );
+        assert!(got.local.is_empty());
+
+        // `replace` decides what is built: another module at a version, or a folder of the app's own.
+        let replaced = "module x\ngo 1.22\nrequire (\n  a.example/one v1.0.0\n  b.example/two v1.0.0\n  c.example/three v2.0.0\n)\nreplace (\n  a.example/one => a.example/fork v1.0.5\n  b.example/two v1.0.0 => ../two\n  c.example/three v9.9.9 => ../never\n)\n";
+        let got = from_go_mod(replaced, None);
+        assert!(
+            got.pairs
+                .contains(&("a.example/fork".to_owned(), "v1.0.5".to_owned())),
+            "{got:?}"
+        );
+        assert!(
+            got.pairs
+                .contains(&("c.example/three".to_owned(), "v2.0.0".to_owned())),
+            "a replace for another version leaves this one: {got:?}"
+        );
+        assert_eq!(got.local, ["b.example/two"]);
+
+        // Before Go 1.17 go.mod may leave the indirect modules out, so go.sum names them, at the
+        // highest version it holds.
+        let old = "module x\ngo 1.16\nrequire github.com/a/direct v1.2.0\n";
+        let sum = "github.com/a/direct v1.1.0 h1:x=\ngithub.com/a/direct v1.2.0 h1:x=\ngithub.com/b/indirect v0.9.0 h1:x=\ngithub.com/b/indirect v0.10.0 h1:x=\ngithub.com/b/indirect v0.11.0/go.mod h1:x=\n";
+        let mut got = from_go_mod(old, Some(sum)).pairs;
+        got.sort();
+        assert_eq!(
+            got,
+            [
+                ("github.com/a/direct".to_owned(), "v1.2.0".to_owned()),
+                ("github.com/b/indirect".to_owned(), "v0.10.0".to_owned()),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_go_app_is_listed_from_go_mod_and_says_what_a_folder_replaced() {
+        let dir = scratch("go-mod");
+        fs::write(
+            dir.join("go.mod"),
+            "module x\ngo 1.21\nrequire (\n  github.com/gorilla/websocket v1.5.1\n  example.com/local v0.1.0\n)\nreplace example.com/local => ./local\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("go.sum"),
+            "github.com/gorilla/websocket v1.4.2 h1:a=\ngithub.com/gorilla/websocket v1.5.1 h1:b=\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let versions: Vec<&str> = sbom.components.iter().map(|c| c.version.as_str()).collect();
+        assert_eq!(versions, ["v1.5.1"], "{sbom:?}");
+        assert!(
+            sbom.unread
+                .iter()
+                .any(|(_, why)| why.contains("example.com/local")),
+            "{:?}",
+            sbom.unread
+        );
+        fs::remove_dir_all(&dir).ok();
     }
 
     #[test]

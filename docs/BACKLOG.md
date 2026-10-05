@@ -447,6 +447,9 @@ another session is not a claim.
     Fix: take `go.mod`'s `require` lines.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a3`.
+    **Done the same day** (DESIGN, "A Go app's modules are read from go.mod"): go.mod's `require` lines with its
+    `replace` lines applied; a module replaced by a folder is named as not listed; before Go 1.17, a module in
+    go.sum alone is listed at its highest version there.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
