@@ -23,10 +23,7 @@ pub(crate) fn finding(
         title: title.to_owned(),
         severity,
         confidence: Confidence::High,
-        location: Location {
-            file: "the running app".into(),
-            line: 1,
-        },
+        location: Location::running_app(),
         secret: None,
         requirement_ids: rule
             .requirement_ids

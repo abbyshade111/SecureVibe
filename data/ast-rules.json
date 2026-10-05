@@ -1286,6 +1286,91 @@
         "cpp": "No setting that switches the audience check off is known for C++'s common token libraries, so there is no switch to look for. A check that is never given an audience is not looked for either: leaving it out is only a fault for tokens another service signed, and telling those from the app's own needs more than one file.",
         "shell": "Tokens are not checked in shell scripts in any way this rule can speak to."
       }
+    },
+    {
+      "id": "ast.token-key-source-from-token",
+      "title": "A sign-in token is allowed to say where the key that checks it comes from",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V9.1.3"
+      ],
+      "cwe": [
+        "CWE-347",
+        "CWE-918"
+      ],
+      "description": "The code reads, from a signed token (such as a JWT) it has not yet checked, where its key is to come from: the `jku` header (the address of a set of keys), `x5u` (the address of a certificate), or `jwk` (the key itself), and hands that straight to something that fetches a key or makes one. The token is choosing the key it will be checked with.",
+      "impact": "Anybody can make a key of their own, sign a token saying they are any user or an admin, and point the token at their own key: the app fetches it, the signature checks out, and they are in. A `jku` or `x5u` address also makes the app fetch whatever address an outsider writes.",
+      "fix": "Take keys only from your sign-in server's own address, written in your settings, never from the token: for example `PyJWKClient(JWKS_URL)` in Python, `createRemoteJWKSet(new URL(JWKS_URL))` with `jose` or `jwksClient({ jwksUri: JWKS_URL })` in Node.js, and choose the key from that set by the token's `kid`. Ignore `jku`, `x5u`, and `jwk` in the token. If the app must follow them, compare the whole address with a fixed list of your sign-in server's addresses before fetching anything; if this line already comes after such a check, the finding is wrong, and `sv review` can record that.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list) @arg) @hit",
+        "javascript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) (new_expression constructor: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg)] @hit",
+        "go": "(call_expression function: [(identifier) @fn (selector_expression field: (field_identifier) @fn)] arguments: (argument_list) @arg) @hit",
+        "ruby": "(call method: [(identifier) (constant)] @fn arguments: (argument_list) @arg) @hit",
+        "php": "[(function_call_expression function: (name) @fn arguments: (arguments) @arg) (member_call_expression name: (name) @fn arguments: (arguments) @arg) (scoped_call_expression name: (name) @fn arguments: (arguments) @arg)] @hit",
+        "java": "[(method_invocation name: (identifier) @fn arguments: (argument_list) @arg) (object_creation_expression type: [(type_identifier) @fn (generic_type (type_identifier) @fn)] arguments: (argument_list) @arg)] @hit",
+        "csharp": "[(invocation_expression function: [(identifier) @fn (member_access_expression name: [(identifier) @fn (generic_name (identifier) @fn)])] arguments: (argument_list) @arg) (object_creation_expression type: [(identifier) @fn (generic_name (identifier) @fn)] arguments: (argument_list) @arg)] @hit",
+        "rust": "(call_expression function: [(identifier) @fn (field_expression field: (field_identifier) @fn) (scoped_identifier name: (identifier) @fn)] arguments: (arguments) @arg) @hit",
+        "typescript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) (new_expression constructor: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg)] @hit",
+        "kotlin": "[(call_expression (identifier) @fn (value_arguments) @arg) (call_expression (navigation_expression (_) (identifier) @fn) (value_arguments) @arg) (binary_expression left: (binary_expression left: (identifier) @fn) right: (parenthesized_expression) @arg)] @hit",
+        "dart": "(call_expression function: [(identifier) @fn (member_expression property: (identifier) @fn)] arguments: (arguments) @arg) @hit",
+        "swift": "[(call_expression (simple_identifier) @fn (call_suffix (value_arguments) @arg)) (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn)) (call_suffix (value_arguments) @arg))] @hit",
+        "c": "(call_expression function: (identifier) @fn arguments: (argument_list) @arg) @hit",
+        "cpp": "(call_expression function: [(identifier) @fn (qualified_identifier name: (identifier) @fn) (field_expression field: (field_identifier) @fn)] arguments: (argument_list) @arg) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(get|post|request|stream|urlopen|urlretrieve|Request|PyJWKClient|PyJWK|PyJWKSet|JWK|JWKSet|from_jwk|from_json|from_dict|construct|import_key|import_key_set|decode|load_pem_x509_certificate|load_der_x509_certificate)$",
+        "javascript": "^(fetch|get|request|got|axios|needle|jwksClient|JwksClient|createRemoteJWKSet|createLocalJWKSet|importJWK|importX509|createPublicKey|jwkToPem|jwkToPEM|asKey|verify|jwtVerify|compactVerify)$",
+        "go": "^(Get|Post|NewRequest|NewRequestWithContext|Fetch|Register|ParseKey|ParseRawKey|NewDefault|NewRemoteKeySet|ParseCertificate)$",
+        "ruby": "^(get|get_response|post|request|open|import)$",
+        "php": "^(file_get_contents|curl_init|fopen|get|request|parseKey|parseKeySet)$",
+        "java": "^(URL|create|openConnection|openStream|send|uri|UrlJwkProvider|JwkProviderBuilder|RemoteJWKSet|RSASSAVerifier|ECDSAVerifier|parse|load|getForObject|getForEntity|retrieveResource)$",
+        "csharp": "^(GetAsync|GetStringAsync|GetStreamAsync|GetByteArrayAsync|GetFromJsonAsync|SendAsync|HttpRequestMessage|DownloadString|DownloadStringTaskAsync|Create|JsonWebKey|JsonWebKeySet|ConfigurationManager|X509Certificate2|CreateFromCertFile)$",
+        "rust": "^(get|post|request|fetch|from_jwk)$",
+        "typescript": "^(fetch|get|request|got|axios|needle|jwksClient|JwksClient|createRemoteJWKSet|createLocalJWKSet|importJWK|importX509|createPublicKey|jwkToPem|jwkToPEM|asKey|verify|jwtVerify|compactVerify)$",
+        "kotlin": "^(URL|get|create|openConnection|openStream|send|uri|UrlJwkProvider|JwkProviderBuilder|RemoteJWKSet|RSASSAVerifier|ECDSAVerifier|parse|load|getForObject|getForEntity|retrieveResource|readText|readBytes)$",
+        "dart": "^(get|read|readBytes|getUrl|openUrl|fromJWK)$",
+        "swift": "^(data|dataTask|download|downloadTask|get|send|Data)$",
+        "c": "^(curl_easy_setopt|cjose_jwk_import|cjose_jwk_import_json)$",
+        "cpp": "^(curl_easy_setopt|Get|get|fetch|cjose_jwk_import|cjose_jwk_import_json)$"
+      },
+      "argumentPatterns": {
+        "python": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "javascript": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "go": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "ruby": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "php": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "java": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "csharp": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "rust": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "typescript": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "kotlin": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "dart": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "swift": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "c": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b",
+        "cpp": "\\[\\s*[\"'](?:jku|x5u|jwk)[\"']\\s*\\]|\\[\\s*:(?:jku|x5u|jwk)\\s*\\]|\\.(?:get|Get|fetch)\\w*(?:<[^<>()]*>)?\\(\\s*[\"'](?:jku|x5u|jwk)[\"']|(?:\\.|->)(?:jku|x5u)\\b|[Hh]eaders?(?:\\(\\))?\\??(?:\\.|->)jwk\\b|\\.get(?:JWKURL|X509CertURL|JWK|JwkSetUrl|Jwk|X509Url)\\(\\)|\\.(?:jwkurl|x509CertURL|jwkSetUrl|x509Url)\\b|(?:get_header|header_get)\\w*\\(\\s*[^()]*\"(?:jku|x5u|jwk)\\b"
+      },
+      "looksFor": "a token header's `jku`, `x5u`, or `jwk` read and handed, in the same call, to something that fetches a key or makes one; a value saved to a variable first and fetched later is not followed, and a check against a list on an earlier line is not seen, so finding none credits nothing",
+      "looksForIn": {
+        "python": "`header[\"jku\"]`, `header.get(\"x5u\")`, or `header[\"jwk\"]` given to `requests.get`, `urlopen`, `PyJWKClient`, `PyJWK`, `jwk.construct`, `from_jwk`, or `jwt.decode`",
+        "javascript": "`decoded.header.jku`, `.x5u`, or `header.jwk` given to `fetch`, `axios`, `got`, `jwksClient`, `createRemoteJWKSet`, `importJWK`, `jwkToPem`, `createPublicKey`, or `jwt.verify`",
+        "typescript": "`decoded.header.jku`, `.x5u`, or `header.jwk` given to `fetch`, `axios`, `got`, `jwksClient`, `createRemoteJWKSet`, `importJWK`, `jwkToPem`, `createPublicKey`, or `jwt.verify`",
+        "go": "`token.Header[\"jku\"]`, `[\"x5u\"]`, or `[\"jwk\"]` given to `http.Get`, `http.NewRequest`, `jwk.Fetch`, `jwk.ParseKey`, `keyfunc.NewDefault`, or `oidc.NewRemoteKeySet`",
+        "ruby": "`header[\"jku\"]` or `header[\"jwk\"]` given to `Net::HTTP.get`, `URI.open`, `HTTParty.get`, `Faraday.get`, or `JWT::JWK.import`",
+        "php": "`$header->jku`, `$header['x5u']`, or `$header['jwk']` given to `file_get_contents`, `curl_init`, an HTTP client's `get` or `request`, or `JWK::parseKey`",
+        "java": "Nimbus's `getJWKURL()`, `getX509CertURL()`, or `getJWK()`, jjwt's `getJwkSetUrl()` or `getJwk()`, or `getHeaderClaim(\"jku\")` given to `new URL`, `new UrlJwkProvider`, `new RemoteJWKSet`, `JWKSourceBuilder.create`, `HttpRequest`'s `uri`, or `RestTemplate`'s `getForObject`",
+        "csharp": "`token.Header[\"jku\"]`, `[\"x5u\"]`, or `[\"jwk\"]`, or `GetHeaderValue<string>(\"jku\")`, given to `HttpClient`'s `GetAsync` or `GetStringAsync`, `new HttpRequestMessage`, `new JsonWebKey`, or `new ConfigurationManager`",
+        "rust": "`header.jku`, `header.x5u`, or `header.jwk` given to `reqwest::get`, a client's `get`, or `DecodingKey::from_jwk`",
+        "kotlin": "Nimbus's `jwkurl`, `x509CertURL`, or `jwk` (or their `get` forms), jjwt's `jwkSetUrl`, or `getHeaderClaim(\"jku\")` given to `URL`, `UrlJwkProvider`, `RemoteJWKSet` (with its type arguments or without), `JWKSourceBuilder.create`, `RSASSAVerifier`, or a Ktor client's `get`",
+        "dart": "`header['jku']` or `header['jwk']` given to `http.get`, `http.read`, `HttpClient`'s `getUrl`, or `JWTKey.fromJWK`",
+        "swift": "`header.jku`, `header.x5u`, or `header.jwk` given to `URLSession`'s `data` or `dataTask`, `Data(contentsOf:)`, or a client's `get`",
+        "c": "libjwt's `jwt_get_header(jwt, \"jku\")` or cjose's `cjose_header_get(header, \"jwk\", ...)` given to `curl_easy_setopt` or `cjose_jwk_import`",
+        "cpp": "jwt-cpp's `get_header_claim(\"jku\")`, libjwt's `jwt_get_header`, or cjose's `cjose_header_get` given to `cpr::Get`, `curl_easy_setopt`, or `cjose_jwk_import`"
+      },
+      "nothingToFind": {
+        "shell": "Tokens are not checked in shell scripts in any way this rule can speak to."
+      }
     }
   ]
 }

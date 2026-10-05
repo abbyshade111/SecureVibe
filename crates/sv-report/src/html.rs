@@ -53,6 +53,19 @@ details.bulk > summary strong { color: inherit; }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
 ";
 
+/// The class a status is shown with, in the tables and the requirement lists alike.
+fn status_class(status: Status) -> &'static str {
+    match status {
+        Status::NeedsAttention => "needs-attention",
+        Status::Checked => "checked",
+        Status::Documented => "documented",
+        Status::Attested => "attested",
+        Status::Stated => "stated",
+        Status::ByHand => "by-hand",
+        Status::NotVerified => "not-verified",
+    }
+}
+
 pub fn page(report: &Report) -> String {
     let c = &report.counts;
     let mut b = String::new();
@@ -148,11 +161,8 @@ pub fn page(report: &Report) -> String {
         }
     }
     b.push_str(&format!(
-        "<p class=\"lede\">{} requirements apply to this app. \
-         <strong>{} have been looked at by something</strong> and <strong>{} have not</strong>.</p>\n",
-        c.applicable,
-        c.needs_attention + c.checked,
-        c.not_verified
+        "<p class=\"lede\">{}</p>\n",
+        crate::lede(c, "<strong>", "</strong>")
     ));
     if c.ai_process > 0 {
         b.push_str(&format!(
@@ -164,8 +174,11 @@ pub fn page(report: &Report) -> String {
     b.push_str(
         "<p>Nothing in this report says a requirement passed, because nothing here can establish \
          that. <em>Checked</em> means an automated check looked at it and found nothing wrong, \
-         which is worth having and is not the same as the requirement being met. Everything else \
-         that applies is <em>not verified</em>: nothing has produced evidence either way.</p>\n",
+         which is worth having and is not the same as the requirement being met. One marked as \
+         answered in the security notes, checked by hand, or answered yes rests on your word or \
+         your AI coding tool's, which is shown as exactly that and never as checked. Everything \
+         else that applies is <em>not verified</em>: nothing has produced evidence either \
+         way.</p>\n",
     );
     if c.not_assessed > 0 {
         b.push_str(&format!(
@@ -177,27 +190,15 @@ pub fn page(report: &Report) -> String {
     }
 
     b.push_str("<table>\n<tr><th>&nbsp;</th><th class=\"n\">count</th></tr>\n");
+    // Every status, so the rows add up to what applies: see `Counts::by_status`.
+    for (status, n) in c.by_status() {
+        b.push_str(&format!(
+            "<tr><td class=\"{}\">{}</td><td class=\"n\">{n}</td></tr>\n",
+            status_class(status),
+            escape(status.applies_row())
+        ));
+    }
     for (label, n, class) in [
-        (
-            "Applies, needs attention",
-            c.needs_attention,
-            "needs-attention",
-        ),
-        (
-            "Applies, checked by an automated check",
-            c.checked,
-            "checked",
-        ),
-        (
-            "Applies, you answered it in the security notes",
-            c.documented,
-            "documented",
-        ),
-        (
-            "Applies, not verified by anything",
-            c.not_verified,
-            "not-verified",
-        ),
         ("Does not apply", c.not_applicable, ""),
         (
             "Not assessed — nobody has answered",
@@ -299,15 +300,7 @@ pub fn page(report: &Report) -> String {
             "<table>\n<tr><th>requirement</th><th>status</th><th>what it asks for</th></tr>\n",
         );
         for line in group.lines {
-            let class = match line.status {
-                Status::NeedsAttention => "needs-attention",
-                Status::Checked => "checked",
-                Status::Documented => "documented",
-                Status::Attested => "attested",
-                Status::Stated => "stated",
-                Status::ByHand => "by-hand",
-                Status::NotVerified => "not-verified",
-            };
+            let class = status_class(line.status);
             let detail = match line.status {
                 Status::NeedsAttention => format!(" ({})", line.findings.join(", ")),
                 Status::Checked => format!(
@@ -555,6 +548,10 @@ pub fn page(report: &Report) -> String {
             ));
         }
         b.push_str("</table>\n");
+        // Closed here, where it was opened: closed after the next section, the collapsed list held
+        // that section too, and a report with nothing undecided had a `</details>` and no
+        // `<details>` (the deep review's improvement 6).
+        b.push_str("</details>\n");
     }
 
     if !report.satisfied_elsewhere.is_empty() {
@@ -578,8 +575,6 @@ pub fn page(report: &Report) -> String {
         }
         b.push_str("</table>\n");
     }
-
-    b.push_str("</details>\n");
 
     if !report.out_of_scope.is_empty() {
         b.push_str("<h2>Findings about requirements this app is not being assessed against</h2>\n");
@@ -636,9 +631,8 @@ pub fn page(report: &Report) -> String {
             ));
         }
         b.push_str("</table>\n");
+        b.push_str("</details>\n");
     }
-
-    b.push_str("</details>\n");
 
     b.push_str("</body>\n</html>\n");
     b
@@ -697,5 +691,108 @@ mod tests {
         assert_eq!(escape("<"), "&lt;");
         assert_eq!(escape("&lt;"), "&amp;lt;");
         assert!(!escape("&<").contains("&amp;amp;"));
+    }
+
+    fn report(undecided: bool, elsewhere: bool, excluded: bool) -> Report {
+        Report {
+            app_name: "test".into(),
+            target_level: 1,
+            generated: None,
+            sv: Default::default(),
+            run_record: None,
+            run_note: None,
+            run_steps: Vec::new(),
+            test_output: None,
+            run_status: None,
+            ai_process: Default::default(),
+            counts: crate::Counts::default(),
+            requirements: vec![],
+            excluded: if excluded {
+                vec![crate::ExcludedRequirement {
+                    id: "V1.1.1".into(),
+                    description: "d".into(),
+                    chapter: "V1".into(),
+                    reason: "r".into(),
+                    condition: "c".into(),
+                    rests_on: "claim",
+                }]
+            } else {
+                vec![]
+            },
+            undecided: if undecided {
+                vec![crate::UndecidedRequirement {
+                    id: "V2.1.1".into(),
+                    description: "d".into(),
+                    chapter: "V2".into(),
+                    blocked_on: vec!["q".into()],
+                }]
+            } else {
+                vec![]
+            },
+            claims: vec![],
+            findings: vec![],
+            set_aside: Vec::new(),
+            reviews_not_counted: Vec::new(),
+            out_of_scope: vec![],
+            checklist_above_level: vec![],
+            tests_to_write: vec![],
+            only_you_can_check: Vec::new(),
+            questions_for_you: Vec::new(),
+            no_instructions_yet: 0,
+            named_not_credited: vec![],
+            not_for_tests: 0,
+            threats: Vec::new(),
+            threat_parts: Vec::new(),
+            threat_atlas_release: None,
+            satisfied_elsewhere: if elsewhere {
+                vec![crate::SatisfiedElsewhere {
+                    check_id: "c".into(),
+                    scope: "s".into(),
+                    why: "w".into(),
+                }]
+            } else {
+                vec![]
+            },
+            gaps: vec![],
+            examined: Vec::new(),
+            could_not_run: Vec::new(),
+            partly_read: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn every_collapsed_list_is_closed_where_it_was_opened() {
+        // The deep review's improvement 6: a report with nothing undecided, or nothing excluded,
+        // had a `</details>` with no `<details>`, and the undecided list held the next section too.
+        for undecided in [false, true] {
+            for elsewhere in [false, true] {
+                for excluded in [false, true] {
+                    let page = page(&report(undecided, elsewhere, excluded));
+                    let case = format!(
+                        "undecided {undecided}, elsewhere {elsewhere}, excluded {excluded}"
+                    );
+                    // Every close follows an open, and the counts agree.
+                    let mut open = 0i32;
+                    for (i, _) in page.match_indices("details") {
+                        if page[..i].ends_with("</") {
+                            open -= 1;
+                        } else if page[..i].ends_with('<') {
+                            open += 1;
+                        }
+                        assert!((0..=1).contains(&open), "{case}: {page}");
+                    }
+                    assert_eq!(open, 0, "{case}");
+                    // The section of checks found clean elsewhere is never inside a collapsed list.
+                    if let Some(at) = page.find("Checks that ran and found nothing") {
+                        let before = &page[..at];
+                        assert_eq!(
+                            before.matches("<details").count(),
+                            before.matches("</details>").count(),
+                            "{case}: the section is inside a collapsed list"
+                        );
+                    }
+                }
+            }
+        }
     }
 }

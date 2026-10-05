@@ -341,6 +341,14 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
 
 /// `securevibe_check` over MCP, as the AI coding tool calls it; the text it is given.
 fn mcp_check(app: &Path) -> String {
+    mcp_reply(app)["result"]["content"][0]["text"]
+        .as_str()
+        .map(str::to_owned)
+        .expect("a reply to the check")
+}
+
+/// The whole reply to `securevibe_check` over MCP, text and structured results alike.
+fn mcp_reply(app: &Path) -> Value {
     use std::io::Write;
     let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
         .env("XDG_CONFIG_HOME", config())
@@ -369,11 +377,6 @@ fn mcp_check(app: &Path) -> String {
         .lines()
         .map(|l| serde_json::from_str::<Value>(l).unwrap())
         .find(|r| r["id"] == 2)
-        .and_then(|r| {
-            r["result"]["content"][0]["text"]
-                .as_str()
-                .map(str::to_owned)
-        })
         .expect("a reply to the check")
 }
 
@@ -554,4 +557,63 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
         "{}",
         after.security
     );
+}
+
+/// Deep review R4 with A2: no fingerprint the report or the AI coding tool is given for a credential
+/// finding, today's or the earlier one given beside it, is a hash over the credential as written,
+/// from which a short one could be guessed back.
+#[test]
+fn no_fingerprint_given_for_a_credential_is_over_its_value_as_written() {
+    let dir: PathBuf =
+        std::env::temp_dir().join(format!("sv-finding-review-r4-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    // A test password built at run time, so this file holds none.
+    let password: String = ["Xk7mQ92v", "LpR4sTzW"].concat();
+    let line = format!("db_password = \"{password}\"");
+    std::fs::write(
+        dir.join("app.py"),
+        format!("import sqlite3\n{line}\nconn = connect(db_password)\n"),
+    )
+    .unwrap();
+    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    let run = report(&dir);
+    let reply = mcp_reply(&dir).to_string();
+    std::fs::remove_dir_all(&dir).ok();
+
+    let rule = "secrets.credential-assignment";
+    // The fingerprint an `sv` before R4 gave this line: a hash over the password as written.
+    let unsafe_hash = sv_check::review::named(rule, "app.py", &line);
+    let leaks = |text: &str| text.contains(&unsafe_hash) || text.contains(&password);
+    // The control: the check finds a planted unsafe hash.
+    assert!(leaks(&format!("{{\"fingerprint\": \"{unsafe_hash}\"}}")));
+    // The setup: the credential was found, and given a fingerprint and an earlier one.
+    let found = run.json["findings"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|f| f["rule_id"] == rule)
+        .unwrap_or_else(|| panic!("no {rule} finding: {}", run.json["findings"]));
+    assert!(found["fingerprint"].as_str().unwrap().starts_with("v2-"));
+    assert_eq!(
+        found["earlier_fingerprints"][0].as_str().unwrap(),
+        sv_check::review::named(rule, "app.py", &sv_check::review::masked(&line)),
+        "the earlier one given is over the masked line"
+    );
+    assert!(
+        reply.contains(found["fingerprint"].as_str().unwrap()),
+        "the setup: MCP gives fingerprints"
+    );
+    for (what, text) in [
+        ("report.json", run.json.to_string()),
+        ("findings.sarif", run.sarif.to_string()),
+        ("security.md", run.security.clone()),
+        ("report.html", run.html.clone()),
+        ("the MCP reply", reply.clone()),
+    ] {
+        assert!(
+            !leaks(&text),
+            "{what} gives a fingerprint over the password as written"
+        );
+    }
 }

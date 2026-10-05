@@ -8,9 +8,9 @@
 //! So the vector is parsed and the base score computed to the specification, which is exact arithmetic
 //! and not a heuristic. Two deliberate limits:
 //!
-//! * **v3.0 and v3.1 only.** They share the base-score formula. CVSS v2 and v4 use different ones, and
-//!   scoring a v4 vector with the v3 formula would produce a confident number that is wrong. Those
-//!   return `None`.
+//! * **v3.0 and v3.1 here, v4.0 in `cvss4`.** v3.0 and v3.1 share the base-score formula. v4 has none: its
+//!   scores come from FIRST's tables (`cvss4`, ADR-033), and scoring a v4 vector with the v3 formula would
+//!   produce a confident number that is wrong. v2 is not scored, and returns `None`.
 //! * **Base metrics only.** Temporal and environmental metrics describe a particular deployment, which
 //!   is not something `sv` knows about. A vector carrying them is scored on its base, which is what
 //!   every advisory database publishes anyway.
@@ -147,7 +147,7 @@ pub fn band(score: f64) -> Severity {
 pub fn severity_of(vectors: impl IntoIterator<Item = impl AsRef<str>>) -> Option<(Severity, f64)> {
     vectors
         .into_iter()
-        .find_map(|v| base_score(v.as_ref()))
+        .find_map(|v| base_score(v.as_ref()).or_else(|| crate::cvss4::score(v.as_ref())))
         .map(|score| (band(score), score))
 }
 
@@ -323,10 +323,23 @@ mod tests {
     fn severity_of_takes_the_first_vector_it_can_score() {
         // An OSV record often carries several entries, and the first may be a version this cannot read.
         let vectors = [
-            "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N",
+            "AV:N/AC:L/Au:N/C:P/I:P/A:P",
             "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
         ];
         assert_eq!(severity_of(vectors), Some((Severity::Critical, 9.8)));
         assert_eq!(severity_of(["nothing", "readable"]), None);
+    }
+
+    #[test]
+    fn a_record_with_only_a_v4_vector_is_rated_by_it() {
+        // The deep review's improvement 4: 2,340 OSV records carry only v4, and each read as having no rating.
+        let v4 = "CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N";
+        assert_eq!(severity_of([v4]), Some((Severity::Critical, 9.3)));
+        assert_eq!(
+            severity_of(["CVSS:4.0/AV:L/AC:H/AT:P/PR:H/UI:A/VC:L/VI:N/VA:N/SC:N/SI:N/SA:N"]),
+            Some((Severity::Low, 1.0))
+        );
+        // The v3 base score is still v3 alone.
+        assert_eq!(base_score(v4), None);
     }
 }

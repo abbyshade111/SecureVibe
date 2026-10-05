@@ -168,7 +168,7 @@ pub(super) fn brute_force_check(
             "V6.3.1".to_owned(),
             "Whether the app resists password guessing: say how many wrong passwords in a row it \
              should allow, as `failed-sign-ins` under [policy] in securevibe.toml, and this will \
-             make one more attempt than that and watch what the app does."
+             make two more attempts than that and watch what the app does."
                 .to_owned(),
         ));
         return;
@@ -186,13 +186,13 @@ pub(super) fn brute_force_check(
     }
     // A cap, so a large number cannot turn one check into thousands of requests against somebody's
     // app. Above it the check says what it did rather than pretending to have tested the policy.
-    const MOST_ATTEMPTS: u32 = 25;
-    if allowed >= MOST_ATTEMPTS {
+    const MOST_ATTEMPTS: u32 = 26;
+    if allowed + 2 > MOST_ATTEMPTS {
         out.not_assessed.push((
             "V6.3.1".to_owned(),
             format!(
                 "[policy] failed-sign-ins is {allowed}. This check makes at most {MOST_ATTEMPTS} \
-                 attempts, so it cannot reach that number; a limit that high is worth reconsidering \
+                 attempts, the number allowed plus two, so it cannot reach that number; a limit that high is worth reconsidering \
                  on its own."
             ),
         ));
@@ -225,15 +225,21 @@ pub(super) fn brute_force_check(
         user: target.user.clone(),
         password: "Wrong-Password-For-This-Probe-1!".to_owned(),
     };
-    let attempts = allowed + 1;
+    // One past the limit, and one more to confirm a delay (`slowing`).
+    let attempts = allowed + 2;
     let mut answers: Vec<(u16, u128)> = Vec::new();
+    // How long the sign-in page took before each attempt: the same way in, `docker exec` included,
+    // to a page no limit on wrong passwords slows.
+    let mut pages: Vec<u128> = Vec::new();
     for n in 0..attempts {
         let mut session = Session::default();
         let mut csrf = None;
+        let started = std::time::Instant::now();
         if let Some(page) = http.send(&get(&format!("guess-page-{n}"), &login.path, &session)) {
             session.absorb(&page);
             csrf = csrf_token(&page, &session);
         }
+        pages.push(started.elapsed().as_millis());
         let values = Values {
             user: &wrong.user,
             password: &wrong.password,
@@ -278,23 +284,45 @@ pub(super) fn brute_force_check(
         ));
         return;
     }
-    let last = answers.last().copied().unwrap_or((0, 0));
-    // Pushing back is any of: a different status on the last attempt than the first, a status that
-    // says refused outright, or an attempt that took markedly longer than the first.
+    // The first attempt past the limit, whose answer says whether the app pushed back.
+    let last = answers[allowed as usize];
+    // Pushing back is any of: a different status past the limit than the first, a status that
+    // says refused outright, or both attempts past the limit markedly slower than any before it.
     let status_changed = last.0 != first_status;
     let refused = matches!(last.0, 0 | 423 | 429) || (last.0 >= 400 && first_status < 400);
-    // No `first_ms >= 1` guard: the `+ 900` floor already covers a zero measurement, and the guard
-    // only stopped an app whose first answer came back inside a millisecond — realistic in a local
-    // container — from ever being found to have slowed.
-    let slowed = last.1 >= first_ms.saturating_mul(4).max(first_ms + 900);
+    let times: Vec<u128> = answers.iter().map(|a| a.1).collect();
+    let (within, past) = times.split_at(allowed as usize);
+    let slowing = slowing(within, past, &pages[allowed as usize..]);
+    if !(status_changed || refused)
+        && let Slowing::Unclear(why) = &slowing
+    {
+        out.steps.push(format!(
+            "made {attempts} wrong sign-in attempts; the app answered {first_status} to each, \
+             and the times could not say whether it slowed"
+        ));
+        out.not_assessed.push((
+            "V6.3.1".to_owned(),
+            format!(
+                "Whether the app resists password guessing: it answered {first_status} to all \
+                 {attempts} wrong passwords, and {why}."
+            ),
+        ));
+        return;
+    }
+    let slowed = slowing == Slowing::Slowed;
     let pushed_back = status_changed || refused || slowed;
+    let quickest = within.iter().copied().min().unwrap_or(first_ms);
 
     let how = if refused {
         format!("refused it outright ({})", last.0)
     } else if status_changed {
         format!("answered {} where the first got {first_status}", last.0)
     } else {
-        format!("took {}ms against {first_ms}ms for the first", last.1)
+        format!(
+            "took {}ms and {}ms over the two attempts past the limit, against {quickest}ms at \
+             the quickest before it",
+            past[0], past[1]
+        )
     };
     let against = if real_account {
         "an account this check made for it"
@@ -323,7 +351,7 @@ pub(super) fn brute_force_check(
             NO_BRUTE_FORCE_LIMIT.requirement_ids,
             format!(
                 "{attempts} wrong passwords in a row against {against}, the number you stated plus \
-                 one: the app {how}. The count is what was tested; `within-minutes` was not, \
+                 two: the app {how}. The count is what was tested; `within-minutes` was not, \
                  because every attempt landed within a few seconds"
             ),
         ));
@@ -335,9 +363,9 @@ pub(super) fn brute_force_check(
             format!(
                 "securevibe.toml says the app should allow {allowed} wrong passwords in a row. \
                  Asked {attempts} times in a row with a wrong password, against {against}, the app \
-                 answered {} every time and the last attempt took {}ms against {first_ms}ms for \
-                 the first: nothing about it changed.",
-                first_status, last.1
+                 answered {first_status} every time, and the two attempts past the limit took {}ms \
+                 and {}ms against {quickest}ms at the quickest before it: nothing about it changed.",
+                past[0], past[1]
             ),
         ));
     }
@@ -725,10 +753,59 @@ pub(super) fn logout_check(
     }
 }
 
+/// What the times of wrong attempts say about whether the app slowed down past the limit.
+#[derive(Debug, PartialEq)]
+pub(super) enum Slowing {
+    Slowed,
+    Not,
+    /// The times disagree, and why, in a clause that follows "and".
+    Unclear(String),
+}
+
+/// Whether the attempts `past` the limit were slowed, against those `within` it, read from times
+/// that include `docker exec`'s own (deep review H16). That time is added to every request and
+/// never taken away, so the quickest attempt within the limit is the baseline, and a delay counts
+/// only when every attempt past the limit is markedly slower than it: four times as long, and at
+/// least 900ms longer. One slow attempt and one not, or a request a limit would not slow
+/// (`controls`, such as the sign-in page) as slow as they were, is unclear, never a pass or a fail.
+pub(super) fn slowing(within: &[u128], past: &[u128], controls: &[u128]) -> Slowing {
+    let Some(quickest) = within.iter().copied().min() else {
+        return Slowing::Unclear(
+            "no attempt within the limit was timed to compare with".to_owned(),
+        );
+    };
+    let markedly = quickest.saturating_mul(4).max(quickest + 900);
+    let slow = past.iter().filter(|&&ms| ms >= markedly).count();
+    if past.is_empty() || slow == 0 {
+        return Slowing::Not;
+    }
+    let shown = |ms: &[u128]| {
+        ms.iter()
+            .map(|m| format!("{m}ms"))
+            .collect::<Vec<_>>()
+            .join(" and ")
+    };
+    if slow < past.len() {
+        return Slowing::Unclear(format!(
+            "the attempts past the limit took {} against {quickest}ms at the quickest before it: \
+             one slow attempt cannot be told apart from a slow start of the container that sends it",
+            shown(past)
+        ));
+    }
+    if let Some(&page) = controls.iter().find(|&&ms| ms >= markedly) {
+        return Slowing::Unclear(format!(
+            "the attempts past the limit took {}, but a request no limit would slow took {page}ms \
+             beside them, so the delay was not the sign-in's own",
+            shown(past)
+        ));
+    }
+    Slowing::Slowed
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::fake_app::*;
-    use super::super::tests::{run_keeping_app, run_with, seeded_with};
+    use super::super::tests::{run_keeping_app, run_with, seeded_with, with_signup};
     use super::*;
 
     #[test]
@@ -1400,5 +1477,107 @@ mod tests {
         assert!(out.log_markers.failed_window.is_some());
         assert!(out.log_markers.successful_window.is_none());
         assert!(out.log_markers.successful_sign_in.is_none());
+    }
+
+    #[test]
+    fn a_delay_counts_only_when_every_attempt_past_the_limit_shows_it() {
+        // Deep review H16: the times include `docker exec`'s own, which only ever adds. So the
+        // quickest attempt within the limit is the baseline, and a delay needs both attempts past
+        // the limit markedly slower: four times as long, and at least 900ms longer.
+        assert_eq!(slowing(&[40, 300, 45], &[1100, 1300], &[]), Slowing::Slowed);
+        // The quickest is 40ms, not the first: a slow first answer no longer hides a limiter.
+        assert_eq!(slowing(&[900, 40], &[1000, 1000], &[]), Slowing::Slowed);
+        assert_eq!(slowing(&[40, 45], &[50, 60], &[]), Slowing::Not);
+        // Four times as long but not 900ms longer, and 900ms longer but not four times as long.
+        assert_eq!(slowing(&[40], &[800, 900], &[]), Slowing::Not);
+        assert_eq!(slowing(&[400], &[1400, 1500], &[]), Slowing::Not);
+        // One slow attempt is what one slow start of the sending container looks like.
+        for past in [[1500, 50], [50, 1500]] {
+            let Slowing::Unclear(why) = slowing(&[40], &past, &[]) else {
+                panic!("{past:?} was read as settled");
+            };
+            assert!(why.contains("one slow attempt"), "{why}");
+        }
+        // A page no limit slows was as slow beside them: the delay is not the sign-in's.
+        let Slowing::Unclear(why) = slowing(&[40], &[1500, 1500], &[30, 1400]) else {
+            panic!("a slow control was read as settled");
+        };
+        assert!(why.contains("no limit would slow took 1400ms"), "{why}");
+        assert_eq!(slowing(&[40], &[1500, 1500], &[30, 60]), Slowing::Slowed);
+        assert!(matches!(slowing(&[], &[1500], &[]), Slowing::Unclear(_)));
+    }
+
+    /// The sign-up fixture against an app that answers these requests this many real milliseconds
+    /// late, with three wrong passwords allowed: attempts `guess-0` to `guess-4`, the last two past
+    /// the limit, each after its own `guess-page-N`.
+    fn timed(slow: &[(&str, u64)]) -> Outcome {
+        let mut app = FakeApp::new(Flaws::default());
+        app.slow_ms = slow
+            .iter()
+            .map(|(id, ms)| ((*id).to_owned(), *ms))
+            .collect();
+        let mut acc = accounts();
+        acc.admin = None;
+        acc.totp = None;
+        let out = run(&mut app, &with_signup(), &acc, false, &policy(Some(3)));
+        // The ids are the ones this check sends, so the delays really landed on its requests.
+        for (id, _) in slow {
+            assert!(
+                app.clock_log.iter().any(|(sent, _)| sent == id),
+                "no request {id} was sent"
+            );
+        }
+        out
+    }
+
+    fn brute_force(out: &Outcome) -> (bool, bool, Option<&String>) {
+        (
+            out.verified
+                .iter()
+                .any(|v| v.check_id == "probe.failed-sign-ins-unlimited"),
+            finding_ids(out).contains(&"probe.failed-sign-ins-unlimited"),
+            out.not_assessed
+                .iter()
+                .find(|(ids, _)| ids.contains("V6.3.1"))
+                .map(|(_, why)| why),
+        )
+    }
+
+    #[test]
+    fn an_app_that_slows_every_attempt_past_the_limit_is_credited_and_one_slow_attempt_is_not() {
+        let out = timed(&[("guess-3", 1000), ("guess-4", 1000)]);
+        let (credited, found, _) = brute_force(&out);
+        assert!(credited && !found, "{:?}", out.verified);
+        let said = out
+            .verified
+            .iter()
+            .find(|v| v.check_id == "probe.failed-sign-ins-unlimited")
+            .unwrap();
+        assert!(
+            said.scope.contains("the two attempts past the limit"),
+            "{}",
+            said.scope
+        );
+
+        // Until H16 one slow last attempt was credited: the review's false *checked*.
+        for slow in ["guess-3", "guess-4"] {
+            let out = timed(&[(slow, 1000)]);
+            let (credited, found, why) = brute_force(&out);
+            assert!(!credited && !found, "{slow}: settled on one slow attempt");
+            assert!(
+                why.is_some_and(|w| w.contains("one slow attempt")),
+                "{slow}: {why:?}"
+            );
+        }
+
+        // Every attempt slow, and the sign-in page beside them too: the app, or the way in, was
+        // slow, not the sign-in.
+        let out = timed(&[("guess-3", 1000), ("guess-4", 1000), ("guess-page-4", 1000)]);
+        let (credited, found, why) = brute_force(&out);
+        assert!(!credited && !found);
+        assert!(
+            why.is_some_and(|w| w.contains("no limit would slow")),
+            "{why:?}"
+        );
     }
 }

@@ -242,10 +242,7 @@ fn finding(about: &Rule, title: &str, severity: Severity, description: String) -
         title: title.to_owned(),
         severity,
         confidence: about.confidence,
-        location: Location {
-            file: "the running app".into(),
-            line: 1,
-        },
+        location: Location::running_app(),
         secret: None,
         requirement_ids: about
             .requirement_ids
