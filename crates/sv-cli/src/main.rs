@@ -18,6 +18,7 @@ use sv_scan::{Evidence, Signatures};
 mod bundle;
 mod exit;
 mod mcp;
+mod plan;
 mod report_lock;
 mod review;
 
@@ -73,6 +74,7 @@ fn run() -> Result<i32> {
             Ok(exit::CLEAN)
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
+        "plan" => finished(cmd_plan(rest.first().map(PathBuf::from))),
         "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
         "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
         "rules" => finished(cmd_rules(rest)),
@@ -118,6 +120,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &[],
         help: "  sv scope [PATH]    show which requirements apply to the app, and why\n",
+    },
+    Command {
+        name: "plan",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv plan [PATH]     before any code: what applies, what to decide, the tests to write,\n                     and what the app must give `sv run`; credits nothing\n",
     },
     Command {
         name: "notes",
@@ -420,6 +429,41 @@ fn describe(evidence: &Evidence) -> String {
         Evidence::Incomplete { reason } => reason.clone(),
         Evidence::NoCheckExists { .. } => "no check for this is possible".to_owned(),
     }
+}
+
+/// The design-time prompts, read on their own: the second of the library's files.
+pub(crate) fn design_prompts() -> Result<sv_check::prompts::Prompts> {
+    let paths = prompts_paths();
+    sv_check::prompts::Prompts::load_all(&[&paths[1]])
+}
+
+/// The plan for an app from its brief, built from the report's own parts (ADR-030).
+pub(crate) fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
+    let manifest = Manifest::load(&app_dir.join("securevibe.toml"))?;
+    Ok(plan::from_report(report, &manifest, &design_prompts()?))
+}
+
+/// The options a plan's report is built with: nothing started and no tool run, since a plan reads
+/// the brief and needs no code.
+pub(crate) fn plan_options() -> ReportOptions {
+    ReportOptions {
+        run_the_app: false,
+        slow: false,
+        run_tools: false,
+        why_not_run: "`sv plan` does not start the app.".to_owned(),
+        why_no_tools: "`sv plan` does not run other people's tools.".to_owned(),
+        advisories: None,
+        why_no_advisories: "`sv plan` does not compare packages with known vulnerabilities."
+            .to_owned(),
+    }
+}
+
+/// Prints the plan. A plan is not a check, so it ends clean whatever the app holds.
+fn cmd_plan(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let report = assemble_report(&app_dir, &plan_options(), &Loaded::load()?)?;
+    print!("{}", plan::markdown(&plan_for(&app_dir, &report)?));
+    Ok(())
 }
 
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
@@ -1669,6 +1713,22 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         }
         if scan.coverage.skipped.len() > 10 {
             println!("  … and {} more", scan.coverage.skipped.len() - 10);
+        }
+    }
+    // Named too, so nobody goes looking for them: these hold no text for a credential to be in.
+    if !scan.coverage.no_written_text.is_empty() {
+        let n = scan.coverage.no_written_text.len();
+        println!(
+            "\n{n} file{} not read, being {} that hold{} no text a person writes:",
+            if n == 1 { " was" } else { "s were" },
+            if n == 1 { "one" } else { "ones" },
+            if n == 1 { "s" } else { "" }
+        );
+        for (file, what) in scan.coverage.no_written_text.iter().take(10) {
+            println!("  {file} — {what}");
+        }
+        if n > 10 {
+            println!("  … and {} more", n - 10);
         }
     }
 
@@ -3701,17 +3761,30 @@ fn assemble_report_saying(
         });
     }
     if !secrets.coverage.skipped.is_empty() {
+        // Each named, with why, so nobody has to go looking for which file it was.
+        const SHOWN: usize = 5;
+        let skipped = &secrets.coverage.skipped;
+        let mut named: Vec<String> = skipped
+            .iter()
+            .take(SHOWN)
+            .map(|(file, why)| format!("`{file}` ({why})"))
+            .collect();
+        if skipped.len() > SHOWN {
+            named.push(format!(
+                "and {} more, listed by `sv check`",
+                skipped.len() - SHOWN
+            ));
+        }
         gaps.push(sv_report::Gap {
             what: format!(
                 "{} file{} not read while looking for credentials",
-                secrets.coverage.skipped.len(),
-                if secrets.coverage.skipped.len() == 1 {
-                    ""
-                } else {
-                    "s"
-                }
+                skipped.len(),
+                if skipped.len() == 1 { "" } else { "s" }
             ),
-            why: "a credential in a file nothing read is a credential nothing found".to_owned(),
+            why: format!(
+                "{}. A credential in a file nothing read is a credential nothing found.",
+                named.join(", ")
+            ),
         });
     }
     if !code.unread_languages.is_empty() {

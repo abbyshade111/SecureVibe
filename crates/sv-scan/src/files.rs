@@ -77,6 +77,9 @@ pub enum Unread {
     NoDetails,
     /// Read, and not text.
     NotText,
+    /// Read, and recognized by its contents as a kind of file that holds no text a person writes:
+    /// an image, a font, a Finder settings file. Named, with what it is.
+    NoWrittenText(&'static str),
     /// Opening or reading it failed.
     Unreadable,
 }
@@ -88,9 +91,144 @@ impl Unread {
             Unread::TooLarge => "larger than 2 MB",
             Unread::NoDetails => "its details could not be read",
             Unread::NotText => "not a text file",
+            Unread::NoWrittenText(what) => what,
             Unread::Unreadable => "it could not be read",
         }
     }
+}
+
+/// A file's bytes as text, or why they are not.
+///
+/// A kind of file recognized by its first bytes that holds no text a person writes, first. Then
+/// UTF-8 with no zero byte, as nearly everything is. Then UTF-16, when the file starts with the mark
+/// that says so, as Windows tools write it, or when nearly every other byte is zero, as UTF-16 saved
+/// without its mark is. A file with a zero byte left after that is not text. Anything else is read
+/// as Latin-1, where every byte is one character, so letters, digits, and punctuation read as they
+/// were written and a credential written in them is found where it is.
+pub fn decode(bytes: Vec<u8>) -> Result<String, Unread> {
+    // First, since a small `.DS_Store` is valid UTF-8: a zero byte is a character too.
+    if let Some(what) = holds_no_written_text(&bytes) {
+        return Err(Unread::NoWrittenText(what));
+    }
+    let bytes = match String::from_utf8(bytes) {
+        // A zero byte is a character in UTF-8, but text a person writes has none: read on as
+        // something else, or a key in it would be read with a zero between each letter, and missed.
+        Ok(text) if !text.contains('\0') => return Ok(text),
+        Ok(text) => text.into_bytes(),
+        Err(e) => e.into_bytes(),
+    };
+    let utf16 = |little: bool, from: usize| -> Result<String, Unread> {
+        let units = bytes[from..].chunks(2).map(|pair| match (pair, little) {
+            ([a, b], true) => Ok(u16::from_le_bytes([*a, *b])),
+            ([a, b], false) => Ok(u16::from_be_bytes([*a, *b])),
+            _ => Err(Unread::NotText),
+        });
+        let units: Vec<u16> = units.collect::<Result<_, _>>()?;
+        let text = String::from_utf16(&units).map_err(|_| Unread::NotText)?;
+        // Two bytes can look like the mark by chance at the start of a binary file, and read as
+        // UTF-16 it gives characters, but not the ones an app's text is written in: a key written
+        // in it as plain letters would read as nonsense and be missed. What an app keeps in UTF-16
+        // (a script or a settings file saved by a Windows tool) is mostly ASCII, with no control
+        // characters, so only that is taken as text; anything else stays not text, and a gap.
+        let control = text
+            .chars()
+            .any(|c| c.is_control() && !matches!(c, '\t' | '\n' | '\r' | '\x0c'));
+        let ascii = text.chars().filter(char::is_ascii).count();
+        if control || ascii * 2 < text.chars().count() {
+            return Err(Unread::NotText);
+        }
+        Ok(text)
+    };
+    match bytes.get(..2) {
+        Some([0xFF, 0xFE]) => return utf16(true, 2),
+        Some([0xFE, 0xFF]) => return utf16(false, 2),
+        _ => {}
+    }
+    // UTF-16 saved without its mark: nearly every other byte is zero, the high half of a letter.
+    if bytes.len() >= 4 && bytes.len() % 2 == 0 {
+        let zero_at = |odd: usize| {
+            bytes
+                .iter()
+                .skip(odd)
+                .step_by(2)
+                .filter(|b| **b == 0)
+                .count()
+                * 10
+                >= (bytes.len() / 2) * 9
+        };
+        if zero_at(1) && !zero_at(0) {
+            return utf16(true, 0);
+        }
+        if zero_at(0) && !zero_at(1) {
+            return utf16(false, 0);
+        }
+    }
+    if bytes.contains(&0) {
+        return Err(Unread::NotText);
+    }
+    Ok(bytes.iter().map(|b| char::from(*b)).collect())
+}
+
+/// What a file is, when its first bytes say it is a kind that holds no text a person writes. By
+/// its contents, never its name: a file called `logo.png` holding text is read as text.
+fn holds_no_written_text(bytes: &[u8]) -> Option<&'static str> {
+    const KINDS: &[(&[u8], usize, &str)] = &[
+        (
+            b"\x89PNG\r\n\x1a\n",
+            0,
+            "a PNG image, which holds no text a person writes",
+        ),
+        (
+            b"\xff\xd8\xff",
+            0,
+            "a JPEG image, which holds no text a person writes",
+        ),
+        (
+            b"GIF87a",
+            0,
+            "a GIF image, which holds no text a person writes",
+        ),
+        (
+            b"GIF89a",
+            0,
+            "a GIF image, which holds no text a person writes",
+        ),
+        (
+            b"WEBP",
+            8,
+            "a WebP image, which holds no text a person writes",
+        ),
+        (
+            b"\x00\x00\x01\x00",
+            0,
+            "an icon, which holds no text a person writes",
+        ),
+        (
+            b"wOFF",
+            0,
+            "a web font, which holds no text a person writes",
+        ),
+        (
+            b"wOF2",
+            0,
+            "a web font, which holds no text a person writes",
+        ),
+        (
+            b"\x00\x01\x00\x00",
+            0,
+            "a font, which holds no text a person writes",
+        ),
+        (b"OTTO", 0, "a font, which holds no text a person writes"),
+        (
+            b"\x00\x00\x00\x01Bud1",
+            0,
+            "a macOS Finder settings file (.DS_Store), which holds no text a person writes",
+        ),
+    ];
+    KINDS
+        .iter()
+        .find(|(magic, at, _)| bytes.get(*at..at + magic.len()) == Some(*magic))
+        .map(|(_, _, what)| *what)
 }
 
 impl Entry {
@@ -111,7 +249,7 @@ impl Entry {
             Some(_) => {}
         }
         let bytes = std::fs::read(&self.path).map_err(|_| Unread::Unreadable)?;
-        String::from_utf8(bytes).map_err(|_| Unread::NotText)
+        decode(bytes)
     }
 
     /// The file in overlapping pieces of about `window` bytes, each handed to `each`, holding no more
@@ -391,6 +529,71 @@ fn walk(root: &Path, dir: &Path, in_editor: bool, out: &mut Listing) {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn text_is_read_in_the_encodings_people_save_it_in() {
+        // UTF-8, as nearly everything is.
+        assert_eq!(decode("naïve = 1\n".into()).unwrap(), "naïve = 1\n");
+        // UTF-16 with its mark, both byte orders, as Windows tools save it.
+        let mut le = vec![0xFF, 0xFE];
+        let mut be = vec![0xFE, 0xFF];
+        for unit in "key = abc\n".encode_utf16() {
+            le.extend(unit.to_le_bytes());
+            be.extend(unit.to_be_bytes());
+        }
+        assert_eq!(decode(le).unwrap(), "key = abc\n");
+        assert_eq!(decode(be).unwrap(), "key = abc\n");
+        // Latin-1: `ä` is one byte, not valid UTF-8, and every other character stays where it was.
+        let latin1 = b"name = M\xe4rz\npassword = x\n".to_vec();
+        assert!(String::from_utf8(latin1.clone()).is_err(), "the setup");
+        assert_eq!(decode(latin1).unwrap(), "name = März\npassword = x\n");
+    }
+
+    #[test]
+    fn a_file_is_known_by_its_contents_not_its_name() {
+        let png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR".to_vec();
+        assert!(matches!(decode(png), Err(Unread::NoWrittenText(w)) if w.contains("PNG")));
+        let ds_store = b"\x00\x00\x00\x01Bud1\x00\x00\x10\x00".to_vec();
+        assert!(
+            matches!(decode(ds_store), Err(Unread::NoWrittenText(w)) if w.contains(".DS_Store"))
+        );
+        let webp = b"RIFF\x10\x00\x00\x00WEBPVP8 ".to_vec();
+        assert!(matches!(decode(webp), Err(Unread::NoWrittenText(w)) if w.contains("WebP")));
+        // Binary that is none of those is not text, and stays a gap.
+        assert_eq!(
+            decode(b"\x7fELF\x02\x01\x01\x00\x00\xff\x80\x9c".to_vec()),
+            Err(Unread::NotText)
+        );
+        // UTF-16 saved without its mark: every other byte is zero, and it is read as UTF-16, in
+        // either order, where before it was read as UTF-8 with a zero between each letter.
+        let le: Vec<u8> = "key = abc"
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect();
+        let be: Vec<u8> = "key = abc"
+            .encode_utf16()
+            .flat_map(u16::to_be_bytes)
+            .collect();
+        assert_eq!(decode(le).unwrap(), "key = abc");
+        assert_eq!(decode(be).unwrap(), "key = abc");
+        // Two bytes that look like the mark at the start of a binary file: what follows reads as
+        // UTF-16 into characters an app's text is not written in, so it stays not text.
+        assert_eq!(decode(vec![0xFF, 0xFE, 0x00, 0x80]), Err(Unread::NotText));
+        let mut binary = vec![0xFF, 0xFE];
+        binary.extend(b"AKIA\x01\x02\x03\x04");
+        assert_eq!(decode(binary), Err(Unread::NotText));
+        // Zero bytes that are not UTF-16: valid UTF-8, and still not text a person writes.
+        assert_eq!(
+            decode(b"head\x00\x00\x00\x07tail".to_vec()),
+            Err(Unread::NotText)
+        );
+        // A text file whatever its name: the contents decide.
+        assert_eq!(
+            decode(b"not really a picture".to_vec()).unwrap(),
+            "not really a picture"
+        );
+    }
+
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {

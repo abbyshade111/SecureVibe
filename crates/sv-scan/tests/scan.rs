@@ -247,11 +247,69 @@ fn the_pinning_rule_is_not_a_python_quirk() {
     assert_eq!(answer(&report, Condition::Graphql).value, None);
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-scan-{name}"));
+/// A scratch folder no other test run can reach, removed when the test that made it ends.
+///
+/// Named after the test alone (`sv-scan-{name}`), two `cargo test` runs at once on one computer
+/// shared it, and one run's clean-up deleted the other's files mid-test. The process id and a count
+/// make the name this run's and this call's alone. A folder whose test panicked is kept, to be
+/// looked at.
+struct Scratch(PathBuf);
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        if !std::thread::panicking() {
+            std::fs::remove_dir_all(&self.0).ok();
+        }
+    }
+}
+
+impl std::ops::Deref for Scratch {
+    type Target = std::path::Path;
+    fn deref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+impl AsRef<std::path::Path> for Scratch {
+    fn as_ref(&self) -> &std::path::Path {
+        &self.0
+    }
+}
+
+fn scratch(name: &str) -> Scratch {
+    static MADE: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = MADE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("sv-scan-{name}-{}-{n}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    dir
+    Scratch(dir)
+}
+
+#[test]
+fn a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go() {
+    // Two `cargo test` runs at once used to share `sv-{prefix}-{name}`, and one run's clean-up
+    // deleted the other's files mid-test. Two calls with one name, in one process, get two folders,
+    // each named for this process, each there while held and gone after.
+    let first = scratch("same-name");
+    let second = scratch("same-name");
+    assert_ne!(first.to_path_buf(), second.to_path_buf());
+    let pid = std::process::id().to_string();
+    for dir in [&first, &second] {
+        assert!(dir.is_dir(), "{} was made", dir.display());
+        let name = dir.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.contains(&pid), "{name} names the run it belongs to");
+    }
+    std::fs::write(first.join("file"), "x").unwrap();
+    let (gone, kept) = (first.to_path_buf(), second.to_path_buf());
+    drop(first);
+    assert!(
+        !gone.exists(),
+        "{} is removed, with its file",
+        gone.display()
+    );
+    assert!(kept.is_dir(), "the other folder is left alone");
+    drop(second);
+    assert!(!kept.exists());
 }
 
 #[test]
