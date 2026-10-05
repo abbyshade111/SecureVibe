@@ -174,8 +174,32 @@ pub fn zip(entries: &[(String, Vec<u8>)]) -> Result<Vec<u8>> {
     out.extend_from_slice(&(entries.len() as u16).to_le_bytes());
     out.extend_from_slice(&(central.len() as u32).to_le_bytes());
     out.extend_from_slice(&central_offset.to_le_bytes());
-    out.extend_from_slice(&0u16.to_le_bytes());
+    out.extend_from_slice(&(MADE_BY_SV.len() as u16).to_le_bytes());
+    out.extend_from_slice(MADE_BY_SV.as_bytes());
     Ok(out)
+}
+
+/// The comment every bundle ends with, in the archive's own comment field, so `sv` can tell a zip it
+/// made from any other file of the same name. Any zip program shows it.
+pub const MADE_BY_SV: &str = "Made by SecureVibe (sv bundle). See README.txt inside.";
+
+/// Whether the file at `path` is a bundle `sv` made: it ends with the archive's last record and
+/// `MADE_BY_SV` as its comment. Only its last few bytes are read. Such a file is replaced by the next
+/// bundle; any other is not (the deep review's improvement 7).
+pub fn made_by_sv(path: &Path) -> bool {
+    use std::io::{Read, Seek, SeekFrom};
+    let tail = 22 + MADE_BY_SV.len();
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut end = vec![0u8; tail];
+    let read = file
+        .seek(SeekFrom::End(-(tail as i64)))
+        .and_then(|_| file.read_exact(&mut end));
+    read.is_ok()
+        && end[..4] == 0x0605_4b50u32.to_le_bytes()
+        && end[20..22] == (MADE_BY_SV.len() as u16).to_le_bytes()
+        && &end[22..] == MADE_BY_SV.as_bytes()
 }
 
 // ------------------------------------------------------------------------------------------------- the plan

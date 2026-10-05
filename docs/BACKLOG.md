@@ -655,6 +655,8 @@ another session is not a claim.
     off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
     refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
     outside its folder and one that does not exist.
+    **Done the same day** (DESIGN, "An option is never a value, a bundle replaces only its own, and one answer for a
+    path"; ADR-017, Later).
     **Improvement 6 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-validate`, for three of its four parts: `manifest-version`
     checked, text after a date refused, and the stray `</details>` in `report.html`. The fourth, a false alarm
