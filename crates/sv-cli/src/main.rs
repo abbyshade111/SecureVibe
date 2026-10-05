@@ -3771,6 +3771,23 @@ fn assemble_report_saying(
             ),
         });
     }
+    if !notes.not_read.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "what is under {} heading{} of your own in {}",
+                notes.not_read.len(),
+                if notes.not_read.len() == 1 { "" } else { "s" },
+                notes_catalog.file
+            ),
+            why: format!(
+                "A heading that is not one of the file's questions ends the answer above it, so \
+                 what is under it was not read as an answer to anything: {}. Keeping notes of your \
+                 own there is fine. If one of them is part of an answer, move it up into that \
+                 answer, or use a `####` heading inside the answer instead.",
+                notes.not_read.join("; ")
+            ),
+        });
+    }
     let documented = notes.documented;
 
     // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest

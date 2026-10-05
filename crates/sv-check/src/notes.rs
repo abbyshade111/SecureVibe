@@ -554,6 +554,10 @@ pub struct Answers {
     pub kept: String,
     /// A requirement with two sections, and the line each starts on (counted from 1).
     pub duplicates: Vec<(String, usize, usize)>,
+    /// Headings of somebody's own after a section, each with the section it followed. Each ends
+    /// that section, so what is under it is in `kept`, not in an answer (ADR-022, "Later, 4 October
+    /// 2026: a section ends at any heading").
+    pub not_read: Vec<(String, String)>,
 }
 
 impl Answers {
@@ -712,6 +716,8 @@ pub fn read_answers(catalog: &Catalog, text: &str) -> Answers {
     let mut first_line: std::collections::HashMap<String, usize> = Default::default();
     let mut open: Option<Open> = None;
     let mut before_any_heading = true;
+    // The section last seen, which a heading of somebody's own follows.
+    let mut last: Option<String> = None;
     // Split on `\n` alone, so a line keeps a `\r` it ends in, and is kept as it was.
     for (n, raw) in text.split('\n').enumerate() {
         let t = raw.trim();
@@ -730,6 +736,7 @@ pub fn read_answers(catalog: &Catalog, text: &str) -> Answers {
                 .trim_start_matches('#')
                 .trim_start()
                 .to_owned();
+            last = Some(id.clone());
             open = Some(Open::new(id, rest, catalog));
             kept.break_chunk();
             before_any_heading = false;
@@ -741,6 +748,18 @@ pub fn read_answers(catalog: &Catalog, text: &str) -> Answers {
             }
             kept.break_chunk();
             before_any_heading = false;
+            continue;
+        }
+        // A heading of somebody's own after a section ends it, and what follows is kept, not read
+        // as the answer above. Until 4 October 2026 it ended nothing, so a section nobody answered
+        // could count as answered.
+        if let (Some(after), Some(heading)) = (last.as_ref(), other_heading(raw)) {
+            if let Some(done) = open.take() {
+                done.close(&mut answers, &mut kept);
+            }
+            answers.not_read.push((heading, after.clone()));
+            kept.break_chunk();
+            kept.push(raw);
             continue;
         }
         match open.as_mut() {
@@ -913,7 +932,7 @@ pub fn with_seal(text: &str, id: &str, seal: &str) -> Option<String> {
         .position(|l| section_id(l).as_deref() == Some(id))?;
     let end = lines[start + 1..]
         .iter()
-        .position(|l| section_id(l).is_some())
+        .position(|l| ends_section(l))
         .map_or(lines.len(), |i| start + 1 + i);
     let mut out: Vec<String> = Vec::with_capacity(lines.len() + 1);
     let mut placed = false;
@@ -939,6 +958,25 @@ pub fn with_seal(text: &str, id: &str, seal: &str) -> Option<String> {
 }
 
 /// `## V6.1.1 — …` or `### V6.1.1 — …`, giving the requirement id.
+/// A heading of the first three levels, the ones `sv` writes, that is not a section's: the words
+/// after its `#`s. A deeper heading (`####`) stays part of the answer it is in, so an answer can
+/// have parts of its own.
+fn other_heading(line: &str) -> Option<String> {
+    if section_id(line).is_some() {
+        return None;
+    }
+    ["# ", "## ", "### "]
+        .iter()
+        .find_map(|prefix| line.trim_end().strip_prefix(prefix))
+        .map(|rest| rest.trim().to_owned())
+}
+
+/// Whether a line ends the section above it: another section's heading, or any other heading of
+/// the first three levels.
+fn ends_section(line: &str) -> bool {
+    section_id(line).is_some() || other_heading(line).is_some()
+}
+
 fn section_id(line: &str) -> Option<String> {
     let rest = line
         .strip_prefix("## ")
@@ -959,6 +997,9 @@ pub struct Evidence {
     pub stated: Vec<Verified>,
     /// Sections whose `Written by:` line names somebody else, or disagrees with itself.
     pub unreadable: Vec<String>,
+    /// Headings of somebody's own, each with the section it followed: what is under them was not
+    /// read as an answer.
+    pub not_read: Vec<String>,
 }
 
 /// Evidence for every requirement the notes answer.
@@ -1011,6 +1052,11 @@ pub fn evidence(
             Writer::Unreadable => out.unreadable.push(id),
         }
     }
+    out.not_read = answers
+        .not_read
+        .iter()
+        .map(|(heading, after)| format!("\"{heading}\", after {after}"))
+        .collect();
     out
 }
 
@@ -1040,6 +1086,7 @@ mod tests {
             }
             sealed.sections.push((id.clone(), body));
         }
+        sealed.not_read = answers.not_read.clone();
         super::evidence(catalog, &sealed, file, &crate::seal::Checker::Key(key()))
     }
 
@@ -1759,7 +1806,10 @@ mod tests {
     #[test]
     fn text_that_looks_like_a_section_heading_is_kept() {
         let first = rewrite(None, &["V6.1.1", "V8.1.1"]).unwrap();
-        let answer = "Written by: owner\n\n## Notes we keep\n\n#### V8.1.1 is related\n\n\
+        // A `####` heading and `##` with no space stay inside the answer. A `## ` heading of the
+        // owner's own would end it (ADR-022, "Later, 4 October 2026"), which
+        // `a_heading_of_somebodys_own_ends_the_section_above_it` holds.
+        let answer = "Written by: owner\n\n#### V8.1.1 is related\n\n\
                       ##V8.1.1 without a space\n\nFive wrong passwords and the account waits.";
         let edited = first
             .replacen(
@@ -1996,5 +2046,125 @@ mod tests {
         );
         assert_ne!(then, now, "the setup must hold the earlier paragraph");
         assert_eq!(rewrite(Some(&then), &["V6.1.1"]).unwrap(), now);
+    }
+
+    const LONG: &str =
+        "Each of these is decided and written down here, with enough words to be an answer.";
+
+    /// The two-section template with V6.1.1 left unanswered and `extra` written under it.
+    fn first_unanswered_with(extra: &str) -> String {
+        let template = write_template(
+            &catalog(),
+            &applicable(&["V6.1.1", "V8.1.1"]),
+            &Facts::default(),
+            None,
+            &no_descriptions(),
+        )
+        .unwrap();
+        template.replacen("## V8.1.1", &format!("{extra}\n\n## V8.1.1"), 1)
+    }
+
+    #[test]
+    fn a_heading_of_somebodys_own_ends_the_section_above_it() {
+        // The control: the same words, without a heading of their own, answer the section.
+        let plain = first_unanswered_with(&format!("Written by: AI coding tool\n\n{LONG}"));
+        assert!(read_answers(&catalog(), &plain).stated().contains("V6.1.1"));
+        for heading in ["# Mine", "## A note from me", "### Things to do later"] {
+            let text = first_unanswered_with(&format!(
+                "{heading}\n\nWritten by: AI coding tool\n\n{LONG}"
+            ));
+            let answers = read_answers(&catalog(), &text);
+            assert!(
+                answers.answered().is_empty(),
+                "{heading}: {:?}",
+                answers.answered()
+            );
+            let words = heading.trim_start_matches('#').trim().to_owned();
+            assert_eq!(
+                answers.not_read,
+                vec![(words, "V6.1.1".to_owned())],
+                "{heading}"
+            );
+            assert!(
+                answers.kept.contains(heading) && answers.kept.contains(LONG),
+                "kept: {}",
+                answers.kept
+            );
+        }
+    }
+
+    #[test]
+    fn a_deeper_heading_stays_part_of_the_answer_it_is_in() {
+        let text = first_unanswered_with("").replacen(
+            PLACEHOLDER,
+            &format!("Written by: AI coding tool\n\n#### First\n\n{LONG}\n\n#### Second\n\nMore."),
+            1,
+        );
+        let answers = read_answers(&catalog(), &text);
+        assert!(answers.not_read.is_empty());
+        let prose = answers.prose_of("V6.1.1").unwrap();
+        assert!(
+            prose.contains("#### Second") && prose.ends_with("More."),
+            "{prose}"
+        );
+    }
+
+    #[test]
+    fn writing_the_file_again_keeps_a_note_of_ones_own_and_answers_nothing_with_it() {
+        let note = format!("## A note from me\n\n{LONG}");
+        let written = first_unanswered_with(&note);
+        let again = |text: &str| {
+            write_template(
+                &catalog(),
+                &applicable(&["V6.1.1", "V8.1.1"]),
+                &Facts::default(),
+                Some(text),
+                &no_descriptions(),
+            )
+            .unwrap()
+        };
+        let second = again(&written);
+        assert_eq!(second.matches(LONG).count(), 1, "kept once: {second}");
+        assert!(second.contains("## A note from me"), "{second}");
+        assert!(
+            read_answers(&catalog(), &second).answered().is_empty(),
+            "{second}"
+        );
+        assert_eq!(
+            again(&second),
+            second,
+            "writing it again changes nothing more"
+        );
+    }
+
+    #[test]
+    fn a_seal_is_never_placed_under_a_heading_of_somebodys_own() {
+        let text =
+            first_unanswered_with(&format!("## A note from me\n\nWritten by: owner\n\n{LONG}"));
+        assert_eq!(
+            with_seal(&text, "V6.1.1", "v1:0:0"),
+            None,
+            "V6.1.1 has no line of its own to seal"
+        );
+        // The control: with its own line, the seal goes under it.
+        let own = text.replacen(PLACEHOLDER, &format!("Written by: owner\n\n{LONG}"), 1);
+        let sealed = with_seal(&own, "V6.1.1", "v1:0:0").unwrap();
+        assert!(sealed.find(SEALED_BY).unwrap() < sealed.find("## A note from me").unwrap());
+        assert_eq!(sealed.matches(SEALED_BY).count(), 1);
+    }
+
+    #[test]
+    fn evidence_names_what_was_not_read_as_an_answer() {
+        let text = first_unanswered_with(&format!("## A note from me\n\n{LONG}"));
+        let out = evidence(
+            &catalog(),
+            &read_answers(&catalog(), &text),
+            "security-notes.md",
+        );
+        assert_eq!(
+            out.not_read,
+            vec!["\"A note from me\", after V6.1.1".to_owned()]
+        );
+        assert!(out.stated.is_empty() && out.documented.is_empty());
     }
 }
