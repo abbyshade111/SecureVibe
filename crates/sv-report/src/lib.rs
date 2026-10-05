@@ -834,6 +834,27 @@ pub fn one_line(text: &str) -> String {
 /// Characters that end a line without being a control character, or change the order or visibility
 /// of the text around them: the line and paragraph separators, zero-width characters, and the
 /// direction marks, embeddings, overrides, and isolates.
+/// `text` as a terminal can show it safely: line breaks and tabs kept, and every other control
+/// character, and every character that hides or reorders text, written out as `\u{...}`. Text from the
+/// app reaches the terminal in file names, findings, and what its tests printed, and an escape
+/// character there can move the cursor, rewrite what is on screen, retitle the window, or on some
+/// terminals set the clipboard (the deep review's improvement 5). `sv` prints no colors of its own.
+pub fn visible(text: &str) -> std::borrow::Cow<'_, str> {
+    let unsafe_char = |c: char| (c.is_control() && c != '\n' && c != '\t') || hides_or_reorders(c);
+    if !text.chars().any(unsafe_char) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut out = String::with_capacity(text.len() + 16);
+    for c in text.chars() {
+        if unsafe_char(c) {
+            out.push_str(&format!("\\u{{{:04x}}}", u32::from(c)));
+        } else {
+            out.push(c);
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
 fn hides_or_reorders(c: char) -> bool {
     matches!(
         c,

@@ -93,6 +93,8 @@ pub struct DockerBackend {
     /// The run under way, if one is: everything started while it is set carries it as `RUN_LABEL`,
     /// and its teardown removes exactly what carries it.
     run: std::sync::Mutex<Option<String>>,
+    /// How far the containers' clock is ahead of this computer's, in seconds, measured once (`clock_offset`).
+    clock_offset: OnceLock<i64>,
 }
 
 /// The label naming the one run a container or network belongs to. The owner label says which
@@ -113,6 +115,32 @@ impl DockerBackend {
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
+            clock_offset: OnceLock::new(),
+        }
+    }
+
+    /// How far the clock the app's containers read is ahead of this computer's, in seconds, asked of the
+    /// fence's container once. On a Mac, Docker runs in a virtual machine whose clock can fall behind
+    /// after the computer sleeps, and a two-factor code made by this computer's clock is then one the
+    /// app, reading the machine's, refuses (the deep review's improvement 5). 0 when it cannot be read.
+    fn clock_offset(&self, via: &Via) -> i64 {
+        *self
+            .clock_offset
+            .get_or_init(|| self.read_clock_offset(via).unwrap_or(0))
+    }
+
+    /// One reading of the containers' clock against this computer's: `None` when it could not be read.
+    fn read_clock_offset(&self, via: &Via) -> Option<i64> {
+        let before = host_now();
+        let read = self.inside_fence(via, &["date", "+%s"]);
+        let after = host_now();
+        match read {
+            Ok((0, out)) => out
+                .trim()
+                .parse::<u64>()
+                .ok()
+                .map(|theirs| offset_from(before, theirs, after)),
+            _ => None,
         }
     }
 
@@ -805,7 +833,33 @@ struct DockerHttp<'a> {
     model: Option<&'a str>,
 }
 
+/// Now, in seconds since 1970, by this computer's clock.
+fn host_now() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs())
+}
+
+/// The containers' clock against this computer's, from a reading taken between `before` and `after`: the
+/// difference from the middle of the two, and none when it is a second or less, which is the reading's
+/// own uncertainty.
+fn offset_from(before: u64, theirs: u64, after: u64) -> i64 {
+    let middle = (i128::from(before) + i128::from(after)) / 2;
+    let offset = i128::from(theirs) - middle;
+    if offset.abs() <= 1 {
+        0
+    } else {
+        i64::try_from(offset).unwrap_or(0)
+    }
+}
+
 impl sv_check::signed_in::Http for DockerHttp<'_> {
+    /// Now by the clock the app reads: this computer's, moved by how far the containers' differs, so a
+    /// two-factor code is made for the time the app checks it against.
+    fn now(&mut self) -> u64 {
+        host_now().saturating_add_signed(self.backend.clock_offset(self.via))
+    }
+
     /// The waits `--slow` makes can last an hour and a half, so they are taken in short steps that
     /// end at Ctrl-C, when the run goes on to remove its containers instead of waiting them out.
     fn wait(&mut self, seconds: u64) {
@@ -1881,6 +1935,7 @@ mod tests {
             owner: crate::cleanup::owner(),
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
+            clock_offset: OnceLock::new(),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -1888,6 +1943,17 @@ mod tests {
                 assert!(checked.contains("could not be started"), "{checked}")
             }
             other => panic!("expected NoBackend, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_containers_clock_is_read_against_the_middle_of_the_reading() {
+        // The deep review's improvement 5: a Docker machine 47 seconds behind this computer.
+        assert_eq!(offset_from(1_000, 953, 1_002), -48);
+        assert_eq!(offset_from(1_000, 1_090, 1_000), 90);
+        // A second either way is the reading's own uncertainty, not a clock that differs.
+        for theirs in [999, 1_000, 1_001] {
+            assert_eq!(offset_from(1_000, theirs, 1_001), 0, "{theirs}");
         }
     }
 
@@ -2057,20 +2123,29 @@ fn exchange_script(host: &str, port: u16) -> String {
     )
 }
 
-/// What starts each copy's answer in the output of `at_once_script`. Printed on a line of its own
-/// before each, so an answer that never came still has its place.
+/// What starts each copy's answer in the output of `at_once_script`, before a part made fresh for each
+/// call (`at_once_mark`). Printed on a line of its own before each, so an answer that never came still
+/// has its place.
 const AT_ONCE_MARK: &str = "@@sv-at-once-";
+
+/// The marker for one call of `at_once_script`: `AT_ONCE_MARK` and a random part. With the marker
+/// fixed, an app could print `@@sv-at-once-2@@` and an answer of its own inside its first answer, and
+/// that would be read as the second copy's: a race check fooled into a pass (the deep review's
+/// improvement 5). The app cannot know a marker made after it started.
+fn at_once_mark() -> String {
+    format!("{AT_ONCE_MARK}{}-", crate::random_hex(8))
+}
 
 /// `exchange_script`, for one request sent `times` times at once: every connection is started in
 /// the background before any is waited for, so they reach the app together rather than one after
 /// another, each answer kept in its own file and printed in order after all have finished.
-fn at_once_script(host: &str, port: u16, times: usize) -> String {
+fn at_once_script(host: &str, port: u16, times: usize, mark: &str) -> String {
     let numbers: Vec<String> = (1..=times).map(|i| i.to_string()).collect();
     let numbers = numbers.join(" ");
     format!(
         "d=$(mktemp -d) && cat > \"$d/r\" && \
          for i in {numbers}; do timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
-         wait; for i in {numbers}; do printf '\\n{AT_ONCE_MARK}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
+         wait; for i in {numbers}; do printf '\\n{mark}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
     )
 }
 
@@ -2079,11 +2154,12 @@ fn parse_at_once(
     id: &str,
     out: &str,
     times: usize,
+    mark: &str,
 ) -> Vec<Option<sv_check::probes::ProbeResponse>> {
     (1..=times)
         .map(|i| {
-            let start = format!("\n{AT_ONCE_MARK}{i}@@\n");
-            let next = format!("\n{AT_ONCE_MARK}{}@@\n", i + 1);
+            let start = format!("\n{mark}{i}@@\n");
+            let next = format!("\n{mark}{}@@\n", i + 1);
             let from = out.find(&start)? + start.len();
             let to = out[from..].find(&next).map_or(out.len(), |n| from + n);
             let raw = &out[from..to];
@@ -2388,14 +2464,15 @@ impl DockerBackend {
         times: usize,
     ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
         let raw = request_bytes(request, app)?;
-        let script = at_once_script(app, port, times);
+        let mark = at_once_mark();
+        let script = at_once_script(app, port, times, &mark);
         let (_, out) = self
             .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
             .ok()?;
-        if !out.contains(AT_ONCE_MARK) {
+        if !out.contains(&mark) {
             return None;
         }
-        Some(parse_at_once(&request.id, &out, times))
+        Some(parse_at_once(&request.id, &out, times, &mark))
     }
 }
 
@@ -3070,6 +3147,46 @@ http.createServer((q, s) => {
         );
         assert_eq!(answers[7]["found"], true, "{answers:?}");
         assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
+    }
+
+    #[test]
+    fn two_factor_codes_are_made_for_the_time_the_containers_read() {
+        // The deep review's improvement 5. The clock is read once, from the fence's container; here it
+        // shares this computer's, as on Linux, and must be read as no different. Needs a container
+        // backend; with one, a failed reading fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-clocktest-{}", std::process::id());
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let via = Via::FreshContainer(&network);
+        let read = backend.read_clock_offset(&via);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert_eq!(
+            read,
+            Some(0),
+            "the containers' clock was not read, or read wrong"
+        );
+
+        // And `now` is moved by what was measured: a machine 48 seconds behind.
+        let behind = DockerBackend::new();
+        behind.clock_offset.set(-48).unwrap();
+        let via = Via::FreshContainer("unused");
+        let mut http = DockerHttp {
+            backend: &behind,
+            via: &via,
+            app: "app",
+            port: 8080,
+            mail: None,
+            provider: None,
+            browser: None,
+            model: None,
+        };
+        use sv_check::signed_in::Http;
+        let (ours, theirs) = (host_now(), http.now());
+        assert!((ours - 48..=ours - 47).contains(&theirs), "{ours} {theirs}");
     }
 
     #[test]
@@ -3749,7 +3866,8 @@ mod at_once_tests {
 
     #[test]
     fn every_copy_is_started_before_any_is_waited_for() {
-        let script = at_once_script("app", 8080, 12);
+        let mark = at_once_mark();
+        let script = at_once_script("app", 8080, 12, &mark);
         let (start, rest) = script
             .split_once("; wait;")
             .expect("one wait, after the starts");
@@ -3763,10 +3881,7 @@ mod at_once_tests {
             start.contains("-e sh -c") && start.ends_with("2>&1 & done"),
             "{start}"
         );
-        assert!(
-            rest.contains(AT_ONCE_MARK) && rest.contains("rm -rf"),
-            "{rest}"
-        );
+        assert!(rest.contains(&mark) && rest.contains("rm -rf"), "{rest}");
     }
 
     #[test]
@@ -3778,16 +3893,17 @@ mod at_once_tests {
             )
         };
         // Twelve copies: the second got no answer, and the first and tenth must not be mixed up.
+        let mark = at_once_mark();
         let mut out = String::from("noise before the first mark");
         for i in 1..=12 {
-            out.push_str(&format!("\n{AT_ONCE_MARK}{i}@@\n"));
+            out.push_str(&format!("\n{mark}{i}@@\n"));
             match i {
                 2 => {}
                 1 => out.push_str(&answer(200, "Booked")),
                 _ => out.push_str(&answer(409, &format!("Sold out {i}"))),
             }
         }
-        let answers = parse_at_once("once", &out, 12);
+        let answers = parse_at_once("once", &out, 12, &mark);
         assert_eq!(answers.len(), 12);
         assert!(answers[1].is_none(), "{:?}", answers[1]);
         let first = answers[0].as_ref().expect("an answer");
@@ -3798,5 +3914,32 @@ mod at_once_tests {
             answers[11].as_ref().map(|r| r.body.as_str()),
             Some("Sold out 12")
         );
+    }
+
+    #[test]
+    fn an_answer_cannot_forge_the_marker_of_the_next() {
+        // The deep review's improvement 5: with the marker fixed, the first answer could carry the
+        // marker for the second, and an answer of its own after it, which was read as the second's.
+        let answer = |status: u16, body: &str| {
+            format!(
+                "HTTP/1.0 {status} X\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let mark = at_once_mark();
+        assert_ne!(mark, at_once_mark(), "a marker is made fresh for each call");
+        assert!(mark.len() > AT_ONCE_MARK.len() + 8, "{mark}");
+        // What an app that knows the fixed part can do: put it, with the next number, in its answer.
+        let forged = format!(
+            "{}\n{AT_ONCE_MARK}2@@\n{}",
+            answer(200, "Booked"),
+            answer(200, "Booked again")
+        );
+        let mut out = String::new();
+        out.push_str(&format!("\n{mark}1@@\n{forged}"));
+        out.push_str(&format!("\n{mark}2@@\n{}", answer(409, "Sold out")));
+        let answers = parse_at_once("once", &out, 2, &mark);
+        let second = answers[1].as_ref().expect("an answer");
+        assert_eq!((second.status, second.body.as_str()), (409, "Sold out"));
     }
 }

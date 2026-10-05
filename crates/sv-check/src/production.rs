@@ -1730,7 +1730,8 @@ mod tests {
             "no details is not the same as no responder"
         );
         let head = "HTTP/2 200\r\nstrict-transport-security: max-age=1\r\n\r\n";
-        let a = read_curl_output(&format!("{head}{CERTS_MARK}{CERTS_WITH_OCSP}"));
+        let mark = certs_mark();
+        let a = read_curl_output(&format!("{head}{mark}{CERTS_WITH_OCSP}"), &mark);
         assert_eq!(a.status, 200);
         assert_eq!(a.header("strict-transport-security"), Some("max-age=1"));
         assert_eq!(
@@ -1738,10 +1739,32 @@ mod tests {
             Some(Revocation::Ocsp("http://ocsp.digicert.com".into()))
         );
         assert_eq!(
-            read_curl_output(head).revocation,
+            read_curl_output(head, &mark).revocation,
             None,
             "not asked for, not known"
         );
+    }
+
+    #[test]
+    fn a_site_cannot_write_the_certificate_s_details_into_its_own_headers() {
+        // The deep review's improvement 5: with the marker fixed, a header line that was the marker,
+        // and a responder of the site's own after it, was read as the certificate's details.
+        let mark = certs_mark();
+        assert_ne!(
+            mark,
+            certs_mark(),
+            "a marker is made fresh for each request"
+        );
+        let forged =
+            format!("HTTP/1.1 200 OK\nx: 1\n@@sv-probe-certs@@\n{CERTS_WITH_OCSP}\r\n\r\n");
+        let answer = read_curl_output(&format!("{forged}{mark}{CERTS_WITHOUT_OCSP}"), &mark);
+        assert_eq!(answer.status, 200);
+        assert_eq!(
+            answer.revocation,
+            parse_revocation(CERTS_WITHOUT_OCSP),
+            "the details are the certificate's, not the headers'"
+        );
+        assert_ne!(answer.revocation, parse_revocation(CERTS_WITH_OCSP));
     }
 
     #[test]
@@ -1758,10 +1781,12 @@ mod tests {
                 self.asked += 1;
                 if url.starts_with("https") {
                     let head = "HTTP/2 200\r\nstrict-transport-security: max-age=63072000\r\n\r\n";
-                    read_curl_output(&format!("{head}{CERTS_MARK}{}", self.certs))
+                    let mark = certs_mark();
+                    read_curl_output(&format!("{head}{mark}{}", self.certs), &mark)
                 } else {
                     read_curl_output(
                         "HTTP/1.1 301 Moved\r\nlocation: https://example.test/\r\n\r\n",
+                        &certs_mark(),
                     )
                 }
             }
@@ -1953,11 +1978,13 @@ impl Fetch for Curl {
             // quietly start sending something.
             "--no-alpn",
         ];
+        let mark = certs_mark();
+        let write_out = format!("{mark}%{{certs}}");
         if verify {
             // The certificate's details, after the headers and marked off from them, so whether it
             // names an OCSP responder is read from this same handshake rather than asked again.
             args.push("--write-out");
-            args.push(CERTS_WRITE_OUT);
+            args.push(&write_out);
         } else {
             args.push("--insecure");
         }
@@ -1990,7 +2017,7 @@ impl Fetch for Curl {
                 ),
             };
         }
-        read_curl_output(&String::from_utf8_lossy(&out.stdout))
+        read_curl_output(&String::from_utf8_lossy(&out.stdout), &mark)
     }
 
     fn stapled(&mut self, url: &str) -> Stapling {
@@ -2109,9 +2136,9 @@ fn old_tls_from(code: Option<i32>, stderr: &str) -> OldTls {
 }
 
 /// Curl's output for a request: the headers, then, when asked for, the certificate's details after
-/// [`CERTS_MARK`].
-pub fn read_curl_output(text: &str) -> Answer {
-    let (head, certs) = match text.split_once(CERTS_MARK) {
+/// `mark` (`certs_mark`).
+pub fn read_curl_output(text: &str, mark: &str) -> Answer {
+    let (head, certs) = match text.split_once(mark) {
         Some((head, certs)) => (head, Some(certs)),
         None => (text, None),
     };
@@ -2120,9 +2147,22 @@ pub fn read_curl_output(text: &str) -> Answer {
     answer
 }
 
-/// How `Curl::get` marks where the headers end and the certificate's details begin.
-const CERTS_MARK: &str = "\n@@sv-probe-certs@@\n";
-const CERTS_WRITE_OUT: &str = "\n@@sv-probe-certs@@\n%{certs}";
+/// How `Curl::get` marks where the headers end and the certificate's details begin: this, a part made
+/// fresh for each request, and `@@`, on a line of its own. With the marker fixed, a site sending a
+/// header line that was the marker itself could have its own text read as the certificate's details,
+/// and say a responder it does not have (the deep review's improvement 5). A site cannot know a marker
+/// made for the request it is answering.
+const CERTS_MARK: &str = "@@sv-probe-certs-";
+
+/// A marker for one request, as `CERTS_MARK` describes.
+fn certs_mark() -> String {
+    use std::hash::{BuildHasher, Hasher};
+    // The standard library keys each of these at random, from the system, per process and per use.
+    let random = std::collections::hash_map::RandomState::new()
+        .build_hasher()
+        .finish();
+    format!("\n{CERTS_MARK}{random:016x}@@\n")
+}
 
 /// Reads curl's `%{certs}`: the certificate chain, the site's own first, each with its extensions
 /// as text. The site's certificate names an OCSP responder on a line such as `Authority Information
