@@ -114,3 +114,59 @@ fn without_the_file_the_controls_stay_unverified_and_nothing_is_repeated() {
     }
     assert!(!json.contains("a person's security review of the design"));
 }
+
+#[test]
+fn safe_defaults_without_the_app_running_are_said_not_looked_at() {
+    let dir = fresh("defaults");
+    std::fs::write(
+        dir.join(sv_check::decisions::FILE),
+        "# Design decisions\n\n## Safe defaults\n\n- debug mode: off\n- cross-site access: own site only\n\
+         - default accounts: some\n- uploads: maybe\n",
+    )
+    .unwrap();
+    let (_, json) = report(&dir, &dir.join("config"));
+    std::fs::remove_dir_all(&dir).ok();
+    let report: serde_json::Value = serde_json::from_str(&json).unwrap();
+    let gaps = report["gaps"].as_array().expect("gaps");
+    let said = |what: &str| {
+        gaps.iter()
+            .find(|g| g["what"].as_str().is_some_and(|w| w.contains(what)))
+            .map(|g| g["why"].as_str().unwrap_or("").to_owned())
+    };
+    // Two decided the safe way, neither looked at; the one decided "some" is the owner's call.
+    let why = said("2 safe defaults decided in design-decisions.md")
+        .unwrap_or_else(|| panic!("{gaps:?}"));
+    assert!(why.contains("`sv report --run`"), "{why}");
+    // "uploads" is not one of the three switches, so it is the section's own words, not unreadable.
+    assert!(
+        said("safe default in design-decisions.md").is_none(),
+        "{gaps:?}"
+    );
+    let examined = report["examined"].as_array().unwrap();
+    let decisions = examined
+        .iter()
+        .find(|e| e["rules"] == "decisions.")
+        .unwrap_or_else(|| panic!("{examined:?}"));
+    assert_eq!(decisions["state"], "partly");
+    assert!(
+        !json.contains("\"decisions.not-held-to\""),
+        "nothing held against a check that did not run"
+    );
+}
+
+#[test]
+fn a_switch_written_another_way_is_named() {
+    let dir = fresh("unreadable");
+    std::fs::write(
+        dir.join(sv_check::decisions::FILE),
+        "## Safe defaults\n\n- debug mode: mostly off\n",
+    )
+    .unwrap();
+    let (_, json) = report(&dir, &dir.join("config"));
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        json.contains("1 safe default in design-decisions.md")
+            && json.contains("debug mode: mostly off"),
+        "{json}"
+    );
+}

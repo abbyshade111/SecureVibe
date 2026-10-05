@@ -3159,6 +3159,34 @@ who wrote a section repeated in the reminder, a section running past the next he
 notes or placing the seal as in the notes, and a heading other than the prompt's. The two report tiers are caught
 only by the end-to-end test, which is where they are joined.
 
+**Later the same day: safe defaults, held to the running app.** The second part of the owner's choice. The
+safe-defaults prompt now starts its section with three lines, `- debug mode: off`, `- cross-site access: own site
+only`, and `- default accounts: none`, a value changed only where the owner decided otherwise. `sv` reads those three
+(`decisions::safe_defaults`), each to one check of the running app that sees it:
+
+| Line | Held to | Why that check and no other |
+|---|---|---|
+| debug mode | `probe.development-console-open` | a development console answers only with debug on; an error page with a stack trace can have other causes |
+| cross-site access | `probe.cors-any-origin` | the app answering any site's request for its data is the opposite of "own site only" |
+| default accounts | `probe.default-account` | a default name and password signing in is the opposite of "none" |
+
+A switch decided the safe way whose check found otherwise is a finding of its own, *decided, not held to*
+(`decisions.not-held-to`): low, at the check's confidence, citing the check's own requirements, on its line of the
+decisions file, beside the check's finding, which stays the thing to fix. It is made after the findings a person set
+aside are taken out, so a false alarm set aside is not held against a decision either. A switch decided the other way
+(`on`, `any site`, `some`) is the owner's call and is not held against the code; a line with any other value is named
+as unreadable, not guessed at; the rest of the section is for a person. Nothing is credited for a decision kept: the
+check's own credit already says what it saw. All three checks need the app running, so without `--run` the report
+says how many safe defaults were decided and not looked at, and `examined` gives the `decisions.` family as partly
+run. `decisions.` joins `sv`'s own families, and its findings are never taken for a line of code.
+
+Twelve guards broken in turn, each caught: the owner's other value held against the code, any finding counted against
+any switch, debug mode held to the cross-site check, a switch read past its section, every line about a switch
+counted, backticks kept, another value taken as the other, the "not looked at" and "unreadable" lines not given,
+`examined` saying ran without the app, and the family taken for a line of code or for a tool's. A test holds the
+prompt's three lines to the switches `sv` reads. **Not tested here:** the line that adds the finding to the report
+runs only with the app running, and this environment has no Docker; the finding itself is tested directly.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the

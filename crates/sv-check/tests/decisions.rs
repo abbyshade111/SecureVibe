@@ -83,3 +83,44 @@ fn the_section_repeated_as_a_reminder_is_the_heading_its_prompt_writes() {
         .count();
     assert_eq!(writers, 1, "exactly one prompt writes {wanted}");
 }
+
+#[test]
+fn the_safe_defaults_prompt_asks_for_exactly_the_lines_sv_reads() {
+    let prompts = json("design-prompts.json");
+    let prompt = prompts["prompts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["id"] == "design-safe-defaults")
+        .expect("the prompt is there");
+    let text = prompt["prompt"].as_str().unwrap();
+    assert!(
+        flat(text).contains(&format!(
+            "design-decisions.md, under \"{}\"",
+            sv_check::decisions::SAFE_DEFAULTS
+        )),
+        "{text}"
+    );
+    // The lines the prompt asks the section to start with: the list after it says so.
+    let asked: Vec<&str> = text
+        .lines()
+        .skip_while(|l| !l.starts_with("Start that section with"))
+        .skip(1)
+        .skip_while(|l| l.trim().is_empty())
+        .take_while(|l| l.starts_with("- "))
+        .collect();
+    let read: Vec<String> = sv_check::decisions::SWITCHES
+        .iter()
+        .map(|s| format!("- {}: {}", s.name, s.safe))
+        .collect();
+    assert_eq!(asked, read, "the prompt's lines and the switches sv reads");
+    // And what the prompt writes is read back as decided, the safe way, every one.
+    let section = format!(
+        "## {}\n\n{}\n",
+        sv_check::decisions::SAFE_DEFAULTS,
+        asked.join("\n")
+    );
+    let decided = sv_check::decisions::safe_defaults(&section).decided;
+    assert_eq!(decided.len(), 3);
+    assert!(decided.iter().all(|d| d.safe));
+}

@@ -1605,7 +1605,12 @@ another session is not a claim.
      review repeated"): the two sections count toward SBD-MT-06 and SBD-AC-06, read by the security notes' reader with
      `data/design-decisions.json`, sealed through `sv review`, each saying what it does not cover; what the file says
      about bringing in a person is repeated in the report. Twelve guards broken in turn, each caught. Safe defaults
-     held to the code is the second part, still to do.
+     held to the code is the second part.
+     **The second part done the same day** (the same DESIGN section, "Later the same day: safe defaults, held to the
+     running app"): the safe-defaults prompt writes three fixed lines, each held to one check of the running app; a
+     switch decided the safe way that the check finds otherwise is `decisions.not-held-to`, and without `--run` the
+     report says the decisions were not looked at. Twelve guards broken in turn, each caught; the line joining the
+     finding to the report needs Docker to run and is untested here.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
   **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
