@@ -5423,6 +5423,7 @@ mod dependency_gap_tests {
         let sbom = sbom::Sbom {
             passed_over: Vec::new(),
             disagreements: Vec::new(),
+            lockfiles: Vec::new(),
             components: vec![
                 component("npm", "react", sbom::VersionSource::Locked),
                 component("npm", "express", sbom::VersionSource::Locked),
@@ -5440,6 +5441,7 @@ mod dependency_gap_tests {
         let sbom = sbom::Sbom {
             passed_over: Vec::new(),
             disagreements: Vec::new(),
+            lockfiles: Vec::new(),
             components: vec![component("Python", "flask", sbom::VersionSource::Declared)],
             unread: vec![(
                 "npm".to_owned(),
@@ -5474,6 +5476,7 @@ mod dependency_gap_tests {
         let sbom = sbom::Sbom {
             passed_over: Vec::new(),
             disagreements: Vec::new(),
+            lockfiles: Vec::new(),
             components: vec![
                 component("Python", "flask", sbom::VersionSource::Declared),
                 component("Rust", "serde", sbom::VersionSource::Locked),
