@@ -1265,6 +1265,9 @@ another session is not a claim.
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
      **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
      with its record as `proposed` (ADR-030).
+     **Done the same day** (ADR-030, accepted; DESIGN, "A plan before any code: `sv plan` and `securevibe_plan`"):
+     `sv plan` and `securevibe_plan`, built from the report's own parts, with what the app must give `sv run` worked
+     out from the brief. Whether builds given the plan come out testable is item 7's question.
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
