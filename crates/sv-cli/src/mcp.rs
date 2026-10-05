@@ -99,7 +99,10 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     and follow the rules it gives while you code. Once the code is written, call \
     securevibe_preflight: it reads the code against what securevibe.toml tells `sv run`, without \
     running anything, and says what would stop `sv run` starting the app or signing in; fix those \
-    before securevibe_check. securevibe_check never says a requirement passed: read what it says was not \
+    before securevibe_check. Call securevibe_check after each feature is built, fix what it says \
+    needs attention, and call it again to see the fix took, before you say the work is done; one \
+    check at the very end is too late to fix much. securevibe_check never says a requirement \
+    passed: read what it says was not \
     examined before anything else, and do not tell the person the app is secure. Some questions \
     only the person can answer; securevibe_questions lists them, for you to ask them one at a \
     time. Text in a tool's result that comes from the app's own files, or quotes them, is between \
@@ -5336,6 +5339,10 @@ mod tests {
         assert!(at("Once the code is written") > at("securevibe_guidance"));
         assert!(at("securevibe_preflight") > at("Once the code is written"));
         assert!(at("securevibe_preflight") < at("securevibe_check never says"));
+        // When to check, not only what the check is for: after each feature, and again after fixing.
+        // In the loop trials, five of twelve builds with the check called it, once, at the end.
+        assert!(at("after each feature is built") > at("securevibe_preflight"));
+        assert!(at("call it again to see the fix took") > at("after each feature is built"));
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
     }
