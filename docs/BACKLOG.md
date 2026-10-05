@@ -44,7 +44,8 @@ another session is not a claim.
   5 October 2026 two `clean_coverage` tests failed this way while another session's full run was going, and passed
   with `TMPDIR` pointed at a private folder. Make each name unique per run and per call, and remove the folder
   when the test ends. **Claimed on 5 October 2026 by session practical-banach-b1faa1**, at the owner's asking, in
-  branch `claude/scratch-names`.
+  branch `claude/scratch-names`. **Done the same day**: DESIGN, "The tests' scratch folders, one per run and per
+  call".
 
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
@@ -268,13 +269,21 @@ another session is not a claim.
     then, if it fits, that template code read as code.
     **First step done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): a
     `.svelte` page with any `{...}` outside its `<script>` and `<style>`, or a `.vue` page with `{{ }}` or an `@`, `:`,
-    or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
-    guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
+    or `v-` attribute, is named among the files not fully read. Four guards broken in turn, each caught. (This
+    said no rule is then credited a clean result for the page. That was wrong, corrected in the rest below: naming
+    the page did not hold the rules back.) **Still open:** reading that template code as code, so `on:click={() =>
     eval(code)}` is found rather than only owned up to.
     **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
     TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
     read.
+    **Done the same day** (DESIGN, "Svelte and Vue template code read as code"): every Svelte `{...}` (expressions,
+    `{#if}`, `{#each}` and its key, `{#await}`, `{@html}`, `{@const}`, spreads, and Svelte 5's `onclick={...}`) and
+    every Vue `{{ }}`, `@`, `v-on:`, `:`, `v-bind:`, `v-if`, `v-for`, `v-html`, slot, and other `v-` value is read as
+    JavaScript, or TypeScript when the page's script is, and `on:click={() => eval(code)}` is found on its line. A
+    template that cannot all be taken out or read now holds back each rule whose call it names, which the first step
+    claimed and did not do. **Not read:** Vue templates in Pug or another language, and directives whose names are
+    worked out when the page runs; such a page is named as not fully read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -566,6 +575,14 @@ another session is not a claim.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r8-record-answer-keeps-owner`.
+    **Done the same day** (DESIGN, "The AI coding tool writes over only its own answer"; ADR-022, "Later, 5 October
+    2026"): `securevibe_record_answer` now writes only under a question with nothing under it or over a section
+    marked `Written by: AI coding tool`; an answer with no mark, one marked as anybody else's, and the owner's are
+    refused, the file left byte for byte as it was, and the reply says why and that the owner can edit the answer or
+    delete it so the tool can record its own. An unmarked answer still counts as the tool's in the report. The
+    questions' instructions say the same for a tool without the MCP server. Reproduced first with an MCP test; tested
+    with that test (six refusals, two fills, one replacement) and a unit test; seven guards broken in turn were each
+    caught, and an eighth was equivalent, because the reader already drops blank lines.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
@@ -589,6 +606,9 @@ another session is not a claim.
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r13`.
+    **Done the same day** (DESIGN, "App text in the Markdown reports is inert"): every table cell, the app's name,
+    and each finding's text are escaped outside code spans, so no link, image, or HTML of the app's is live; a file
+    path is shown in a code span it cannot close; the escaped redaction marker is still read as one.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
@@ -1329,6 +1349,9 @@ another session is not a claim.
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
      **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
      with its record as `proposed` (ADR-030).
+     **Done the same day** (ADR-030, accepted; DESIGN, "A plan before any code: `sv plan` and `securevibe_plan`"):
+     `sv plan` and `securevibe_plan`, built from the report's own parts, with what the app must give `sv run` worked
+     out from the brief. Whether builds given the plan come out testable is item 7's question.
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named

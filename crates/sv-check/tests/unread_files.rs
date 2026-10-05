@@ -10,6 +10,9 @@
 //! write a report with one rule loaded and nothing found, and a list of the files it was given,
 //! leaving out any whose path contains `SV_FAKE_SKIP`. What is exercised is `run_all` itself.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::path::{Path, PathBuf};
 use sv_check::adapters::{self, Adapters};
 
@@ -34,11 +37,8 @@ fn real_adapters() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json")
 }
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-unread-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("unread-{name}"))
 }
 
 /// The real semgrep entry, its rules and its arguments, with the command swapped for the stand-in.

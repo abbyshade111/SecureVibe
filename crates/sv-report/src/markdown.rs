@@ -11,9 +11,84 @@ use crate::{Report, Status};
 /// Escapes one table cell.
 pub fn cell(text: &str) -> String {
     // Backslash first. See the module comment; the order is the entire point of this function.
-    let escaped = text.replace('\\', "\\\\").replace('|', "\\|");
+    let escaped = inert(text).replace('|', "\\|");
     // A newline inside a cell ends the row, whatever else has been escaped.
     escaped.replace(['\n', '\r'], " ")
+}
+
+/// Text that came from the app, or passed through it, made inert: no link, image, or HTML of its
+/// own, while `sv`'s own code spans (`` `.env` ``) still read as code. Until 5 October 2026 an app
+/// name, a file path, or a value the app sent back went into security.md and compliance.md as it
+/// was, so `[click](https://…)`, `![](https://tracker…)`, or `<img src=…>` in any of them was live
+/// wherever the Markdown was shown, and a backtick in a file name let the rest of it out of the code
+/// span it was put in (R13 of the deep review). report.html already escaped them.
+///
+/// Code spans are found as CommonMark finds them, a run of backticks closed by the next run of the
+/// same length, so what is escaped is exactly what a renderer would read as Markdown. Outside them,
+/// `\`, `[`, `]`, and `<` are escaped; inside, nothing is, since nothing there is read as Markdown.
+pub fn inert(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let run_at = |i: usize| chars[i..].iter().take_while(|c| **c == '`').count();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '`' {
+            let n = run_at(i);
+            // The closing run: the next run of exactly `n` backticks.
+            let mut j = i + n;
+            let mut close = None;
+            while j < chars.len() {
+                if chars[j] == '`' {
+                    let m = run_at(j);
+                    if m == n {
+                        close = Some(j);
+                        break;
+                    }
+                    j += m;
+                } else {
+                    j += 1;
+                }
+            }
+            match close {
+                Some(j) => {
+                    out.extend(&chars[i..j + n]);
+                    i = j + n;
+                }
+                None => {
+                    // An unclosed run is plain backticks, and must not open a span later.
+                    for _ in 0..n {
+                        out.push_str("\\`");
+                    }
+                    i += n;
+                }
+            }
+            continue;
+        }
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '[' => out.push_str("\\["),
+            ']' => out.push_str("\\]"),
+            '<' => out.push_str("&lt;"),
+            other => out.push(other),
+        }
+        i += 1;
+    }
+    out
+}
+
+/// A file path or other value of the app's, shown as code whatever it holds: a code span opened
+/// with more backticks than any run inside it, so a backtick in a file name cannot close it early.
+pub fn code(text: &str) -> String {
+    let longest = text.split(|c| c != '`').map(str::len).max().unwrap_or(0);
+    let fence = "`".repeat(longest + 1);
+    let text = text.replace(['\n', '\r'], " ");
+    let pad = if text.starts_with('`') || text.ends_with('`') {
+        " "
+    } else {
+        ""
+    };
+    format!("{fence}{pad}{text}{pad}{fence}")
 }
 
 /// One requirement's status, in the words the table prints. Shared so the grouped tables and
@@ -81,7 +156,7 @@ pub fn compliance(report: &Report) -> String {
     let c = &report.counts;
     out.push_str(&format!(
         "# {} — what applies, and what is known\n\n",
-        report.app_name
+        inert(&report.app_name).replace(['\n', '\r'], " ")
     ));
     let made_by = report.sv.describe();
     if let Some(when) = &report.generated {
@@ -631,7 +706,7 @@ pub fn security(report: &Report) -> String {
     let mut out = String::new();
     out.push_str(&format!(
         "# {} — what the checks found\n\n",
-        report.app_name
+        inert(&report.app_name).replace(['\n', '\r'], " ")
     ));
     match &report.generated {
         Some(when) => out.push_str(&format!(
@@ -725,21 +800,25 @@ fn finding_section(out: &mut String, report: &Report, finding: &sv_check::Findin
     out.push_str(&format!(
         "### [{}] {}\n\n",
         finding.severity.name(),
-        finding.title
+        inert(&finding.title).replace(['\n', '\r'], " ")
     ));
     out.push_str(&format!(
-        "**Where:** `{}` line {}\n\n",
-        finding.location.file, finding.location.line
+        "**Where:** {} line {}\n\n",
+        code(&finding.location.file),
+        finding.location.line
     ));
     if let Some(accepted) = crate::accepted_note(report, finding) {
-        out.push_str(&format!("**{accepted}**\n\n"));
+        out.push_str(&format!("**{}**\n\n", inert(&accepted)));
     }
     for note in crate::finding_notes(finding) {
-        out.push_str(&format!("*{note}*\n\n"));
+        out.push_str(&format!("*{}*\n\n", inert(&note)));
     }
-    out.push_str(&format!("{}\n\n", finding.description));
-    out.push_str(&format!("**Why it matters.** {}\n\n", finding.impact));
-    out.push_str(&format!("**What to do.** {}\n\n", finding.fix));
+    out.push_str(&format!("{}\n\n", inert(&finding.description)));
+    out.push_str(&format!(
+        "**Why it matters.** {}\n\n",
+        inert(&finding.impact)
+    ));
+    out.push_str(&format!("**What to do.** {}\n\n", inert(&finding.fix)));
     if !finding.requirement_ids.is_empty() {
         out.push_str(&format!(
             "Evidence about: {}\n\n",
@@ -754,6 +833,37 @@ fn finding_section(out: &mut String, report: &Report, finding: &sv_check::Findin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn app_text_is_inert_outside_code_and_left_as_it_is_inside() {
+        assert_eq!(inert("[a](https://e)"), "\\[a\\](https://e)");
+        assert_eq!(inert("![](https://t)"), "!\\[\\](https://t)");
+        assert_eq!(inert("<img src=x>"), "&lt;img src=x>");
+        // sv's own code spans read as code, with what is inside them untouched.
+        assert_eq!(
+            inert("set `[[finding-review]]` here"),
+            "set `[[finding-review]]` here"
+        );
+        assert_eq!(inert("``a`b``"), "``a`b``");
+        // A backtick with no partner is plain, and cannot open a span with a later one.
+        assert_eq!(inert("a`[x](y)"), "a\\`\\[x\\](y)");
+        // A value that closes the span it was put in: what follows is outside, and inert.
+        assert_eq!(
+            inert("`Origin: x`[y](https://e)`"),
+            "`Origin: x`\\[y\\](https://e)\\`"
+        );
+        assert_eq!(inert("C:\\path"), "C:\\\\path");
+        assert_eq!(inert("plain words"), "plain words");
+    }
+
+    #[test]
+    fn a_value_shown_as_code_cannot_close_its_span() {
+        assert_eq!(code("app.py"), "`app.py`");
+        assert_eq!(code("a`b.py"), "``a`b.py``");
+        assert_eq!(code("a``b"), "```a``b```");
+        assert_eq!(code("`x"), "`` `x ``");
+        assert_eq!(code("a\nb"), "`a b`");
+    }
 
     #[test]
     fn a_pipe_in_a_cell_does_not_break_the_table() {

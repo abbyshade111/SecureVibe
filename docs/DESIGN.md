@@ -7455,14 +7455,58 @@ without regard to capitals, plain files only). A marker beside anything else is 
 run code from its template (`on:click={() => eval(code)}`, `@click="..."`, `{{ ... }}`), and that code was never
 read, yet the page counted as read, so a rule could be credited a clean result it had not earned. For now, a
 `.svelte` page with any `{...}` outside its `<script>` and `<style>`, and a `.vue` page with `{{ }}` or an
-attribute starting `@`, `:`, or `v-`, is named among the files not fully read; no rule claims a clean result for
-it, and its `<script>` is still read and its findings still stand. A page whose template is plain markup is fully
-read, as before. Reading template code as code, so the problem is found and not only owned up to, is still to do.
+attribute starting `@`, `:`, or `v-`, is named among the files not fully read, and its `<script>` is still read
+and its findings still stand. A page whose template is plain markup is fully read, as before. **Corrected the same
+day:** this said no rule then claims a clean result for the page, and that was not so. Naming a file as not fully
+read does not hold a rule back; `hold_back` does, and this step did not call it, so the rule could still be
+credited. Its test checked only that the page was named. The next section reads the template code, and holds the
+rules back when it cannot.
 
 Ten guards broken in turn, each caught: for the folders, an output folder left out wherever it is, a folder left
 out without a record, the marker believed whatever the folder holds, `sv`'s own default report name forgotten,
 capitals compared, and a refused marker not mentioned; for templates, templates never looked at, scripts and styles
 not cut out first, and each of Vue's two signs of code ignored in turn.
+
+## Svelte and Vue template code read as code (4 October 2026)
+
+The rest of H2. A Svelte or Vue page's template runs code of its own, and `sv`'s rules now read it, with the page's
+scripts, as JavaScript, or TypeScript when the page's script says `lang="ts"`.
+
+**What is taken out.** In a Svelte page, every `{...}` outside the page's scripts, styles, and comments, in text and
+in attributes alike, as Svelte's compiler reads them: an expression, `{#if}` and `{:else if}`, `{#each}` with its
+list, its names, and its key, `{#await}` with its promise, `{#key}`, `{@html}`, `{@render}`, `{@const}`,
+`{@debug}`, `{#snippet}`, and `{...spread}`. A brace inside a string or a template string does not end one. In a Vue
+page, every `{{ }}`, and the value of every attribute named `@…`, `v-on:…`, `:…`, `.…`, `#…`, or `v-…`: a handler is
+read as the body of a function, `v-for` as its names and its list, a slot's value as names, and the rest as
+expressions, with character references such as `&quot;` decoded first, as Vue does. Names a block or a slot gives
+values (`{#each items as { id }}`) are read as a function's parameters, so a default value in them is read too.
+Each piece must be code the grammar reads. All of them are read as one program, each on its own line in the page, so a
+finding names the page's line.
+
+**Svelte's braces come before its markup.** The page's markup is read by a tokenizer that works the way a browser's
+does, and a browser does not know Svelte: given `<button onclick={() => go()}>`, it reads a handler `{()` that ends
+at the space, and the `>` of `=>` closes the tag. A handler that does not parse leaves the whole page unread, which
+kept every rule silent for any Svelte 5 app with a handler written as an arrow function with a space in it. So each `{...}` is blanked out before the markup is read, as Svelte
+itself reads it first.
+
+**What is not read, and what that does.** A Vue template written in Pug or another language, a directive whose name
+is worked out when the page runs (`:[key]`), a `{` never closed, a Svelte block this does not know, and a piece the
+grammar cannot read. Such a page is named among the files not fully read, and, the part the first step left out,
+each rule whose call is named in the page is held back, so it cannot say the app is clean. The page's scripts and
+whatever else was read still count. As a check on the extraction, a page that the earlier test still says holds
+template code, and from which nothing was taken out, is treated the same way.
+
+**What this is not.** No rule looks for HTML put into a page unescaped, so `{@html}` and `v-html` are read only for
+the code inside them; reading them is not a check of what they insert. The rules that read JavaScript now read more
+of it in these pages, so a Svelte or Vue app may get findings it did not get before; each is in code the page runs.
+
+Sixteen guards broken in turn, each caught in the end: the rules not held back, Svelte's braces not blanked out,
+`{#each}`'s key dropped, `{:else if}` not known, Vue's handlers read as expressions, `v-for`'s list dropped, `{{ }}`
+not read, character references not decoded, strings not skipped inside braces, comments not skipped, the template
+always read as JavaScript, pieces not put on their own lines, a directive with a worked-out name believed, a Pug
+template believed, an unreadable piece not counted, and the check on the extraction removed. The last two were
+caught by nothing at first, because each covered for the other on a page with one piece; a page with one piece read
+and one not, and a Vue page whose `<textarea>` holds an `@click` that Vue does not run, now catch each alone.
 
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
@@ -7995,6 +8039,43 @@ the "not tried yet" mark caught by nothing, because every design-time prompt the
 ones it is caught by two tests. The headings guard was broken twice (the incident plan written into the notes, and a
 heading misspelled), and each was caught.
 
+
+## A plan before any code: `sv plan` and `securevibe_plan` (4 October 2026)
+
+Item 3 of the backlog's "Design-time help before any code"; the decision is ADR-030, written first as `proposed` with
+the claim (#659) and accepted with the build.
+
+`sv plan [PATH]` prints, and the MCP tool `securevibe_plan` returns, the plan for an app from its `securevibe.toml`:
+the requirements that will apply, grouped by chapter; the design-time prompts for the decisions before each feature,
+marked shown to work or not tested, with the questions only the person can answer; the tests worth writing, named by
+requirement id; what the app must give `sv run`, worked out from the brief's answers; and the threats those answers
+raise. It writes nothing, ends clean (a plan is not a check), and credits nothing, which it says in its first lines
+and in `creditsNothing` in the tool's result.
+
+**Built from the report.** `plan::from_report` takes the parts `assemble_report` already makes (`requirements`,
+`tests_to_write`, `questions_for_you`, `threats`), so the plan and a later report cannot disagree about what
+applies; two tests compare them, one through `sv report`'s `report.json` and one through `securevibe_check`. The
+report's assembly reads the app's files when there are any, which only ever adds requirements; on a folder holding
+only the brief it reads nothing. The MCP tool goes through the same time limit and progress as a check.
+
+**What `sv run` needs.** `plan::run_needs` maps the brief's answers to the settings each check of the running app
+reads: `image`, `start`, `health`, and `test` always; for sign-in, `seed`, `login`, `logout`, `private`, `owned`, and
+`admin` under `[stack.run.users]`; and `[stack.run.oidc]`, `upload`, `reset`, `once`, `[stack.run.ai]`,
+`[stack.run.fetch]`, and `[stack.run.mcp-server]` for the answers that bring them. An unanswered capability is planned
+for, as the spec's rule 2 asks; one answered no asks for nothing; one the brief already gives is marked given. Each
+reason was read against the checks it serves (the upload entry, for one, says what is really sent: a file over
+`max-bytes`, a page, a script, an SVG with a script, a name that climbs out of its folder), and a test refuses a table
+or setting the spec does not describe.
+
+**Text from the app.** The app's name comes from its folder, so it is written on one line, with its line breaks and
+invisible characters as escapes, as everywhere else such text reaches the AI coding tool.
+
+**Broken in turn.** Thirteen guards: a requirement or a test left out of the plan (each caught by a comparison with the
+report), the plan not saying it credits nothing (in its text, and in its result), the plan ending as a failed check or
+writing into the app's folder, an unanswered capability read as no, sign-in asked of an app without it, a setting the
+spec does not have, a given setting not marked, no design-time prompt given, the app's name not put on one line, and
+the instructions not naming the plan. Each was caught.
+
 ## The notes file keeps what the owner wrote outside the answers (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 3, R7) found that `sv notes`, and the MCP tools
@@ -8240,6 +8321,28 @@ How it is held: `two_runs_never_share_a_name`, `everything_a_run_creates_carries
 `a_teardown_removes_what_docker_lists_under_its_label` (`crates/sv-run/src/docker.rs`). Four guards were undone in
 turn, and each turned its test red.
 
+## The tests' scratch folders, one per run and per call (5 October 2026)
+
+The same fault in `sv`'s own tests. Twelve helpers made their scratch folder at a fixed name in the computer's
+shared temporary folder (`sv-clean-<test>` and the like), emptying it first. Two `cargo test --workspace` runs at
+once, from two sessions or a session and the owner, used the same folder, and one run's emptying deleted the
+other's files in the middle of a test. On 5 October 2026 two `clean_coverage` tests failed so, their second scan
+finding nothing, while another session's full run was going; with `TMPDIR` pointed at a folder of their own they
+passed. A failure of that kind says something false about `sv`.
+
+- **The name carries the process id and a count**: `sv-clean-<test>-<process id>-<n>`. No two processes running at
+  once share an id, and the count keeps two calls with one name in one run apart.
+- **The folder goes when the test lets go of it.** A fixed name was emptied by the next run; a name of the run's own
+  never would be, so the helpers return a `Scratch` that removes its folder when dropped. One whose test panicked is
+  kept, so the files it failed on can be looked at.
+- One copy serves `sv-check`'s test files (`crates/sv-check/tests/scratch/mod.rs`); `sv-scan`'s single test file
+  has its own. The unit-test helper in `sv-check/src/config.rs` already removed its folders, and gained the
+  process id only. Helpers that already named their folder by process id were left as they were.
+
+How it is held: `a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go`, in `clean_coverage.rs` and
+in `sv-scan`'s `scan.rs`. With the count taken out, the process id taken out, or the removal taken out, it failed
+each time, on the assertion written for that guard.
+
 ## Advisory versions: in order, gaps kept, gems as gems (4 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H18 to H20) found three ways the advisory comparison could call
@@ -8432,6 +8535,42 @@ How it is held: `a_gitignore_is_read_the_way_git_reads_it`, with twenty cases ea
 Five guards were undone in turn and each was caught; a sixth, skipping patterns that end in `/`, was found to change
 nothing, since such a pattern never matches a file, and was taken out.
 
+## The AI coding tool writes over only its own answer (5 October 2026)
+
+R8 of the deep review: `securevibe_record_answer` refused to replace a section marked `Written by: owner`, and
+replaced everything else. An owner who wrote an answer in their own editor and left out the `Written by:` line, which
+nothing asks them to add, lost it the next time their AI coding tool recorded an answer to the same question.
+Reproduced first, with a test that wrote the owner's sentence under a question with no mark and saw the tool's
+answer take its place. R7's fix (DESIGN, "The notes file keeps what the owner wrote outside the answers") did not
+cover this: it keeps what is outside the answers, and this is the answer itself.
+
+- **The rule** (`Answers::tool_may_write`, `crates/sv-check/src/notes.rs`): the tool's answer goes only under a
+  question with nothing under it (blank lines count as nothing), or over a section marked
+  `Written by: AI coding tool`, the mark `sv` writes on everything the tool records. Anything else may be the owner's
+  words and is refused: an answer with no mark, however short ("TBD"); one marked with the tool's own italic line,
+  which is the tool's wording and not `sv`'s mark; one marked as anybody else's, or with two marks that disagree; and
+  the owner's mark, with or without an answer under it.
+- **Whose word it is, and whether it may be thrown away, are two questions.** ADR-022 counts an answer with no mark
+  as the tool's, because crediting the owner on nobody's say-so overstates; that is unchanged, and the report still
+  says so. Writing over it is a different act: it destroys text that may be the owner's, so it is refused.
+- **A refusal writes nothing** and leaves the file byte for byte as it was. The reply says why ("the answer to V2.1.1
+  does not say who wrote it, so it may be the person's own"), that nothing was written, and what the owner can do:
+  edit the answer themselves, or delete everything under the question so that the tool can record its own.
+- **The other ways answers are written** do not write over an answer: `sv notes` and `securevibe_notes_file` keep
+  every answer as written (R7), and `sv review` only adds a seal line under a section marked as the owner's, from
+  the owner's own terminal. The instructions the tool reads with the questions now say the same rule for a tool
+  without the MCP server, which edits the file itself, and the tool's description says it too.
+
+How it is held: `the_tool_never_writes_over_an_answer_it_did_not_mark_as_its_own` (`crates/sv-cli/src/mcp.rs`),
+which checks each refusal leaves the file's bytes unchanged and that each setup read back with the writer it meant,
+and fills an empty question and replaces the tool's own answer; and
+`the_tool_writes_only_where_nothing_is_or_over_its_own_marked_answer` (`crates/sv-check/src/notes.rs`). Seven guards
+were undone in turn and each turned at least one test red: not calling the rule at all (two tests), letting through
+an unmarked answer, the review's case (two), one marked as somebody else's (two), or the owner's (three), not
+recognizing an empty question (five), refusing the tool's own answer (three), and refusing a question the file does
+not have yet (one). An eighth, treating only a section with no characters at all as empty rather than one of blank
+lines, changed nothing, because the reader already drops blank lines around an answer; the check stays as it is for
+a caller that builds the sections itself.
 ## A Go app's modules are read from go.mod (5 October 2026)
 
 A3 of the deep review: the bill of materials took a Go app's modules from go.sum, which keeps a checksum for every
@@ -8549,6 +8688,33 @@ any folder above the home folder, `/home` or `/Users`, which hold every user's h
 How it is held: `the_whole_computer_and_the_whole_home_folder_are_not_served` (`crates/sv-cli/src/mcp.rs`), which until
 now asserted that `/home` was served. Three guards were undone in turn, a comparison by text rather than by folder
 among them, and each was caught.
+
+## App text in the Markdown reports is inert (5 October 2026)
+
+R13 of the deep review: security.md and compliance.md wrote the app's name, file paths, and what tools or the app
+said as they were, so `[click](…)`, `![](…)`, or `<img …>` in any of them was live wherever the Markdown was shown,
+and a backtick in a file name let the rest of it out of the code span it was put in. report.html already escaped
+them.
+
+- **`inert`** makes text from the app or a tool inert: outside code spans, `\`, `[`, `]` escaped and `<` written as
+  `&lt;`, so no link, image, or HTML of its own; inside code spans, nothing, since a renderer reads nothing there as
+  Markdown. Code spans are found as CommonMark finds them, a run of backticks closed by the next run of the same
+  length, and a run with no partner is escaped, so it cannot pair with a later one. `sv`'s own backticks, such as
+  `` `[[finding-review]]` ``, still read as code.
+- **Where it is applied:** every table cell (`cell` now calls it), the app's name in both titles, and each finding's
+  title, description, impact, fix, accepted-risk note, and notes. `sv`'s own `<details>` and its one link are
+  written outside these, and unchanged.
+- **`code`** shows a file path as code in a span opened with more backticks than any run inside it.
+- **`sv`'s redaction marker** is escaped like everything else, `\[redacted: Qv7r… (16 more characters)\]`, and reads
+  as `[redacted: …]` when shown. The credential scan's check for the marker (S8, which lets `sv bundle` read its own
+  report back) now takes the escaped form too; without that, the bundle refused every report holding a redaction.
+
+How it is held: `app_text_is_inert_outside_code_and_left_as_it_is_inside` and
+`a_value_shown_as_code_cannot_close_its_span` (`crates/sv-report/src/markdown.rs`);
+`text_from_the_app_cannot_put_a_link_an_image_or_html_into_the_markdown_reports` (`crates/sv-report/tests/report.rs`),
+end to end with a file name and an app name built to escape; and `sv_s_own_redaction_marker_is_read_as_one_escaped_or_not`
+(`crates/sv-check/src/secrets.rs`). The S8 test `a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen`
+now looks for the escaped marker in the Markdown. Four guards were undone in turn and each was caught.
 
 ## A review names one finding, and says whether its rule looked (5 October 2026)
 

@@ -81,7 +81,9 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     answer with the person; then, before you build sign-in, anything people create or take, \
     logging, or a call to anything outside the app, get the design-time prompt for it from \
     securevibe_prompts, work through it with the person, and write down what was decided where it \
-    says, before the code. The person can choose those prompts from this server's prompts too. If \
+    says, before the code. securevibe_plan turns the brief into a plan: what to decide, the tests to \
+    write, and what the app must give `sv run` so it can be tested running. The person can choose \
+    the design-time prompts from this server's prompts too. If \
     the app already has code and no securevibe.toml, call securevibe_spec and write one from the \
     code that is there. Call securevibe_guidance once before you start writing code, and again \
     with a topic before work in that area (adding a package, a CI workflow, anything with keys), \
@@ -697,6 +699,7 @@ impl Server {
             "securevibe_record_answer" => self.record_answer(&args),
             "securevibe_guidance" => self.guidance(&args),
             "securevibe_prompts" => self.prompts(&args),
+            "securevibe_plan" => self.plan(&args, progress),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
         // A tool that could not do its job says so as its result, which the model reads; a protocol
@@ -805,6 +808,19 @@ impl Server {
         Ok(json!({
             "content": [{ "type": "text", "text": summary(&report) }],
             "structuredContent": structured(&report),
+            "isError": false,
+        }))
+    }
+
+    /// The plan for an app from its brief (ADR-030): built from the same report as a check, so the
+    /// two agree about what applies, and crediting nothing.
+    fn plan(&self, args: &Value, progress: &Progress) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let report = self.report_for(&app_dir, progress)?;
+        let plan = crate::plan_for(&app_dir, &report)?;
+        Ok(json!({
+            "content": [{ "type": "text", "text": crate::plan::markdown(&plan) }],
+            "structuredContent": crate::plan::to_json(&plan),
             "isError": false,
         }))
     }
@@ -1493,6 +1509,45 @@ fn output_schema(tool: &str) -> Option<Value> {
                 "attribution",
             ],
         ),
+        "securevibe_plan" => {
+            let item = |fields: &[&str]| {
+                let properties: serde_json::Map<String, Value> = fields
+                    .iter()
+                    .map(|f| {
+                        let kind = match *f {
+                            "level" => count.clone(),
+                            "given" => json!({ "type": "boolean" }),
+                            _ => string.clone(),
+                        };
+                        ((*f).to_owned(), kind)
+                    })
+                    .collect();
+                json!({ "type": "array", "items": object(Value::Object(properties), fields) })
+            };
+            object(
+                json!({
+                    "app": string, "level": count,
+                    "requirements": item(&["id", "level", "chapter", "description"]),
+                    "decisions": item(&["id", "title"]),
+                    "prompts": item(&["id", "title", "status"]),
+                    "tests": item(&["id", "level", "description"]),
+                    "run": item(&["table", "key", "why", "given"]),
+                    "threats": item(&["id", "description", "status"]),
+                    "creditsNothing": { "type": "boolean" },
+                }),
+                &[
+                    "app",
+                    "level",
+                    "requirements",
+                    "decisions",
+                    "prompts",
+                    "tests",
+                    "run",
+                    "threats",
+                    "creditsNothing",
+                ],
+            )
+        }
         "securevibe_prompts" => object(
             json!({
                 "prompts": { "type": "array", "items": object(
@@ -1672,7 +1727,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_record_answer",
             "title": "Record an answer in the security notes",
-            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves and record it by running `sv review` in their own terminal. A section the person wrote is never replaced.",
+            "description": "Write an answer under one question in security-notes.md (making the file if it is not there), in place of what was under it. sv marks every answer this records as yours, `Written by: AI coding tool`, which the report counts for less than the person's own word; there is no way to mark it as theirs. Record what the person told you, or what you found in the code if they asked you to answer; then show them, and if they agree, they change the line to `Written by: owner` themselves and record it by running `sv review` in their own terminal. It fills a question with nothing under it, or replaces an answer marked `Written by: AI coding tool`; anything else under the question may be the person's own words and is never replaced.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -1721,6 +1776,13 @@ fn tool_list() -> Value {
             "title": "How to describe the app",
             "description": "The securevibe.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder: before any code, for the app as it will be, decided with the person; once there is code, from what the app really does. A claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
             "inputSchema": { "type": "object", "properties": {} },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_plan",
+            "title": "Plan the app before writing it",
+            "description": "The plan for the app from its securevibe.toml, before any code and at any time after: the requirements that will apply, the design-time prompts to work through before each feature, the questions only the person can answer, the tests worth writing named by requirement id, what the app must give `sv run` in securevibe.toml so it can be tested running, and the threats the answers raise. Built from the same report as securevibe_check, so the two agree. A plan credits nothing and never says a requirement is met. Reads files only; never starts the app.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         }
     ])
@@ -2977,6 +3039,7 @@ mod tests {
             ("securevibe_explain", json!({ "id": "V1.2.4" })),
             ("securevibe_prompts", json!({})),
             ("securevibe_spec", json!({})),
+            ("securevibe_plan", json!({ "path": "app" })),
         ];
         let mut results = Vec::new();
         for (name, args) in &calls {
@@ -3830,6 +3893,7 @@ mod tests {
             ("securevibe_questions", json!({ "path": "app" })),
             ("securevibe_write_report", json!({ "path": "app" })),
             ("securevibe_bundle", json!({ "path": "app" })),
+            ("securevibe_plan", json!({ "path": "app" })),
         ] {
             let mut server = Server::new(&root)
                 .unwrap()
@@ -4257,6 +4321,119 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
     }
 
+    /// Deep review R8: the tool fills an empty question or replaces an answer marked as its own, and
+    /// nothing else. An answer that does not say who wrote it may be the owner's: it still counts
+    /// as the tool's in the report (ADR-022), but it is never written over, because that would
+    /// destroy the owner's words. Refused, the file is left byte for byte as it was, and the reply
+    /// says why and how the owner can change it.
+    #[test]
+    fn the_tool_never_writes_over_an_answer_it_did_not_mark_as_its_own() {
+        use sv_check::notes::Writer;
+        let root = scratch_app("record-answer-r8", "flask-booking");
+        let app = root.join("app");
+        let server = Server::new(&root).unwrap();
+        let id = first_question(&app);
+        let path = app.join("security-notes.md");
+        let catalog = sv_check::notes::Catalog::load(&crate::notes_path()).unwrap();
+        let made = std::fs::read_to_string(&path).unwrap();
+        assert_eq!(
+            made.matches(sv_check::notes::PLACEHOLDER).next(),
+            Some(sv_check::notes::PLACEHOLDER),
+            "the fresh file has an empty question to fill"
+        );
+        // The file with `body` under the first question, in place of the placeholder.
+        let with = |body: &str| made.replacen(sv_check::notes::PLACEHOLDER, body, 1);
+        let record = |answer: &str| {
+            call(
+                &server,
+                "securevibe_record_answer",
+                json!({ "path": "app", "id": id, "answer": answer }),
+            )
+        };
+
+        let owners = "We keep bookings for two years, as our lawyer advised in 2025.";
+        for (body, writer, said) in [
+            // The review's case: the owner's answer, with no `Written by:` line.
+            (
+                owners.to_owned(),
+                Writer::Unmarked,
+                "does not say who wrote it",
+            ),
+            // Too short to count as an answer, and still the owner's words.
+            (
+                "TBD, ask Sam.".to_owned(),
+                Writer::Unmarked,
+                "does not say who wrote it",
+            ),
+            // The tool's own words in italics are not `sv`'s mark, so not proof it wrote this.
+            (
+                format!("_Written by the AI coding tool from the code._\n\n{owners}"),
+                Writer::Unmarked,
+                "does not say who wrote it",
+            ),
+            // A `Written by:` naming somebody else.
+            (
+                format!("Written by: Sam\n\n{owners}"),
+                Writer::Unreadable,
+                "Sam",
+            ),
+            // The owner's mark, with and without an answer under it.
+            (
+                format!("Written by: owner\n\n{owners}"),
+                Writer::Owner,
+                "the person wrote",
+            ),
+            (
+                "Written by: owner".to_owned(),
+                Writer::Owner,
+                "the person wrote",
+            ),
+        ] {
+            let before = with(&body);
+            std::fs::write(&path, &before).unwrap();
+            // The setup took: the section reads back with this writer.
+            let answers = sv_check::notes::read_answers(&catalog, &before);
+            assert_eq!(answers.writer(&id), Some(writer.clone()), "{body}");
+            let refused = record(TOOL_ANSWER);
+            let told = text(&refused);
+            assert_eq!(refused["isError"], true, "{body}: {told}");
+            assert!(told.contains(said), "{body}: {told}");
+            // Why, and what the owner can do about it.
+            assert!(told.contains("has written nothing"), "{body}: {told}");
+            assert!(told.contains("edit"), "{body}: {told}");
+            assert!(told.contains("delete"), "{body}: {told}");
+            assert_eq!(
+                std::fs::read(&path).unwrap(),
+                before.as_bytes(),
+                "{body}: the file changed"
+            );
+        }
+
+        // An empty question is filled; blank lines alone, with Windows line ends too, are empty.
+        for body in ["", "\r\n\r\n"] {
+            std::fs::write(&path, with(body)).unwrap();
+            let filled = record(TOOL_ANSWER);
+            assert_eq!(filled["isError"], false, "{body:?}: {}", text(&filled));
+            let answers =
+                sv_check::notes::read_answers(&catalog, &std::fs::read_to_string(&path).unwrap());
+            assert_eq!(answers.writer(&id), Some(Writer::AiTool));
+            assert_eq!(answers.prose_of(&id).as_deref(), Some(TOOL_ANSWER));
+        }
+        // The tool's own answer is replaced, by `sv`'s mark, wherever the tool's text came from.
+        std::fs::write(
+            &path,
+            with(&format!("Written by: AI coding tool\n\n{owners}")),
+        )
+        .unwrap();
+        let better = "Bookings are deleted after two years by the nightly cleanup job in tasks.py.";
+        let replaced = record(better);
+        assert_eq!(replaced["isError"], false, "{}", text(&replaced));
+        let answers =
+            sv_check::notes::read_answers(&catalog, &std::fs::read_to_string(&path).unwrap());
+        assert_eq!(answers.prose_of(&id).as_deref(), Some(better));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
     #[cfg(unix)]
     #[test]
     fn an_answer_is_never_written_through_a_link() {
@@ -4322,7 +4499,8 @@ mod tests {
                 "securevibe_record_answer",
                 "securevibe_guidance",
                 "securevibe_prompts",
-                "securevibe_spec"
+                "securevibe_spec",
+                "securevibe_plan"
             ]
         );
         let unknown = server
@@ -4682,7 +4860,45 @@ mod tests {
             at("this server's prompts") > first,
             "the person can choose them too"
         );
+        assert!(
+            at("securevibe_plan") > at("for the app as it will be"),
+            "the plan after the brief"
+        );
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
+    }
+
+    #[test]
+    fn the_plan_agrees_with_the_check_and_credits_nothing() {
+        let root = scratch_app("plan-agrees", "flask-booking");
+        let server = Server::new(&root).unwrap();
+        let plan = call(&server, "securevibe_plan", json!({ "path": "app" }));
+        let check = call(&server, "securevibe_check", json!({ "path": "app" }));
+        assert_eq!(plan["isError"], false, "{}", text(&plan));
+        let applicable = check["structuredContent"]["counts"]["applicable"]
+            .as_u64()
+            .unwrap();
+        // The setup: the check found requirements that apply, so agreeing is not agreeing on none.
+        assert!(applicable > 0);
+        let listed = plan["structuredContent"]["requirements"]
+            .as_array()
+            .unwrap()
+            .len() as u64;
+        assert_eq!(
+            listed, applicable,
+            "the plan and the check disagree about what applies"
+        );
+        assert_eq!(plan["structuredContent"]["creditsNothing"], true);
+        assert!(
+            text(&plan).contains("It credits nothing"),
+            "{}",
+            text(&plan)
+        );
+        // A folder with no brief is told what to write first, as the check is.
+        std::fs::create_dir_all(root.join("empty")).unwrap();
+        let none = call(&server, "securevibe_plan", json!({ "path": "empty" }));
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(none["isError"], true);
+        assert!(text(&none).contains("securevibe_spec"), "{}", text(&none));
     }
 }

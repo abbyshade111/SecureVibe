@@ -199,9 +199,12 @@ fn looks_like_placeholder(value: &str) -> bool {
     }
     // `[redacted: Qv7r… (16 more characters)]`: `sv`'s own redaction of a value, as `redact_text`
     // writes it into a report. A report read back, as `sv bundle` reads its own before zipping it
-    // (deep review S8), would otherwise find every credential it had redacted a second time.
+    // (deep review S8), would otherwise find every credential it had redacted a second time. In
+    // Markdown its brackets, and any in the four characters it shows, are escaped (R13), so
+    // `\[redacted: Qv7r… (16 more characters)\]` is the same marker.
     static REDACTED: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"^\[redacted: .{1,4}(… \(\d+ more characters\))?\]$").expect("static pattern")
+        Regex::new(r"^\\?\[redacted: (?:\\.|[^\\]){1,4}(… \(\d+ more characters\))?\\?\]$")
+            .expect("static pattern")
     });
     if REDACTED.is_match(v) {
         return true;
@@ -1463,6 +1466,23 @@ mod tests {
             dropped, 0,
             "{dropped} of 20,000 random JWTs taken for placeholders"
         );
+    }
+
+    #[test]
+    fn sv_s_own_redaction_marker_is_read_as_one_escaped_or_not() {
+        // R13 escapes brackets in Markdown, and `sv bundle` reads the report back (S8).
+        for marker in [
+            "[redacted: Qv7r… (16 more characters)]",
+            "\\[redacted: Qv7r… (16 more characters)\\]",
+            "\\[redacted: a\\[b… (9 more characters)\\]",
+            "[redacted: abc]",
+        ] {
+            assert!(looks_like_placeholder(marker), "{marker}");
+        }
+        // A real value written beside the words is still one.
+        let key = credential_shaped(&["Qv7rXk2", "Lp9Wm4", "Tz8Yb"], "");
+        assert!(!looks_like_placeholder(&format!("\\[redacted: {key}\\]")));
+        assert!(!looks_like_placeholder(&key));
     }
 
     #[test]

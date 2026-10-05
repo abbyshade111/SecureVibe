@@ -18,6 +18,7 @@ use sv_scan::{Evidence, Signatures};
 mod bundle;
 mod exit;
 mod mcp;
+mod plan;
 mod report_lock;
 mod review;
 
@@ -73,6 +74,7 @@ fn run() -> Result<i32> {
             Ok(exit::CLEAN)
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
+        "plan" => finished(cmd_plan(rest.first().map(PathBuf::from))),
         "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
         "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
         "rules" => finished(cmd_rules(rest)),
@@ -118,6 +120,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &[],
         help: "  sv scope [PATH]    show which requirements apply to the app, and why\n",
+    },
+    Command {
+        name: "plan",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv plan [PATH]     before any code: what applies, what to decide, the tests to write,\n                     and what the app must give `sv run`; credits nothing\n",
     },
     Command {
         name: "notes",
@@ -420,6 +429,41 @@ fn describe(evidence: &Evidence) -> String {
         Evidence::Incomplete { reason } => reason.clone(),
         Evidence::NoCheckExists { .. } => "no check for this is possible".to_owned(),
     }
+}
+
+/// The design-time prompts, read on their own: the second of the library's files.
+pub(crate) fn design_prompts() -> Result<sv_check::prompts::Prompts> {
+    let paths = prompts_paths();
+    sv_check::prompts::Prompts::load_all(&[&paths[1]])
+}
+
+/// The plan for an app from its brief, built from the report's own parts (ADR-030).
+pub(crate) fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
+    let manifest = Manifest::load(&app_dir.join("securevibe.toml"))?;
+    Ok(plan::from_report(report, &manifest, &design_prompts()?))
+}
+
+/// The options a plan's report is built with: nothing started and no tool run, since a plan reads
+/// the brief and needs no code.
+pub(crate) fn plan_options() -> ReportOptions {
+    ReportOptions {
+        run_the_app: false,
+        slow: false,
+        run_tools: false,
+        why_not_run: "`sv plan` does not start the app.".to_owned(),
+        why_no_tools: "`sv plan` does not run other people's tools.".to_owned(),
+        advisories: None,
+        why_no_advisories: "`sv plan` does not compare packages with known vulnerabilities."
+            .to_owned(),
+    }
+}
+
+/// Prints the plan. A plan is not a check, so it ends clean whatever the app holds.
+fn cmd_plan(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let report = assemble_report(&app_dir, &plan_options(), &Loaded::load()?)?;
+    print!("{}", plan::markdown(&plan_for(&app_dir, &report)?));
+    Ok(())
 }
 
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
@@ -1169,8 +1213,9 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
 
 /// Writes the notes file with the AI coding tool's answer under one question, marked as the tool's.
 ///
-/// Refused when the question does not apply to the app, when the owner wrote that section (the
-/// tool's answer never replaces the owner's), and when the answer would not read back as exactly the
+/// Refused when the question does not apply to the app, when the section holds anything but
+/// the tool's own marked answer (`Answers::tool_may_write`: the tool's answer never replaces what
+/// may be the owner's), and when the answer would not read back as exactly the
 /// tool's (`sv_check::notes::tool_answer`). Written under a new name and renamed into place, and
 /// never through a link.
 pub(crate) fn record_tool_answer(app_dir: &Path, id: &str, answer: &str) -> Result<NotesWritten> {
@@ -1278,11 +1323,11 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
         .as_deref()
         .map(|text| sv_check::notes::read_answers(&catalog, text))
         .unwrap_or_default();
-    anyhow::ensure!(
-        answers.writer(id) != Some(sv_check::notes::Writer::Owner),
-        "the person wrote the answer to {id} themselves, and an answer from the AI coding tool never \
-         replaces theirs. Ask them whether they want to change it, and let them edit it."
-    );
+    // Only an empty question or the tool's own answer: anything else may be the owner's words
+    // (deep review R8). Refused before anything is written, so the file is left as it was.
+    answers
+        .tool_may_write(id, &catalog.file)
+        .map_err(|why| anyhow::anyhow!(why))?;
     let body = sv_check::notes::tool_answer(answer).map_err(|why| anyhow::anyhow!(why))?;
     answers.set(id, body);
     let text =

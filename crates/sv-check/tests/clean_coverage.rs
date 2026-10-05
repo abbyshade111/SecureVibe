@@ -5,14 +5,41 @@
 //! which fail in a direction nobody notices: a green line in a report is not something a reader goes
 //! back to question. Every test here is a way of arriving at one that was not earned.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::path::PathBuf;
 use sv_check::{ast, probes, secrets};
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-clean-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("clean-{name}"))
+}
+
+#[test]
+fn a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go() {
+    // Two `cargo test` runs at once used to share `sv-{prefix}-{name}`, and one run's clean-up
+    // deleted the other's files mid-test. Two calls with one name, in one process, get two folders,
+    // each named for this process, each there while held and gone after.
+    let first = scratch("same-name");
+    let second = scratch("same-name");
+    assert_ne!(first.to_path_buf(), second.to_path_buf());
+    let pid = std::process::id().to_string();
+    for dir in [&first, &second] {
+        assert!(dir.is_dir(), "{} was made", dir.display());
+        let name = dir.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.contains(&pid), "{name} names the run it belongs to");
+    }
+    std::fs::write(first.join("file"), "x").unwrap();
+    let (gone, kept) = (first.to_path_buf(), second.to_path_buf());
+    drop(first);
+    assert!(
+        !gone.exists(),
+        "{} is removed, with its file",
+        gone.display()
+    );
+    assert!(kept.is_dir(), "the other folder is left alone");
+    drop(second);
+    assert!(!kept.exists());
 }
 
 fn data(file: &str) -> PathBuf {
@@ -296,6 +323,68 @@ fn a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call() {
         "{verified:?}"
     );
     assert!(verified.contains(&"ast.sql-built-by-hand"), "{verified:?}");
+}
+
+#[test]
+fn a_template_is_read_before_a_rule_says_the_page_is_clean() {
+    // H2 of the deep review. A Svelte page whose template runs `eval` was credited V1.3.2 clean,
+    // because only its `<script>` was read.
+    let script = "<script>\n  let count = 0;\n</script>\n";
+    let found = scan_files(
+        "ast-template-found",
+        &[(
+            "App.svelte",
+            &format!("{script}<button on:click={{() => eval(code)}}>Go</button>\n"),
+        )],
+    );
+    assert!(
+        found
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "ast.dynamic-code-execution" && f.location.line == 4),
+        "{:?}",
+        found.findings
+    );
+    assert!(
+        !verified_ids(&found.verified).contains(&"ast.dynamic-code-execution"),
+        "{:?}",
+        found.verified
+    );
+
+    // A template that cannot all be read, and names `eval`: the rule may not say the app is clean.
+    let unread = scan_files(
+        "ast-template-unread",
+        &[(
+            "App.svelte",
+            &format!("{script}<button on:click={{() => eval(code) y}}>Go</button>\n"),
+        )],
+    );
+    assert_eq!(unread.unparsed_files, vec!["App.svelte".to_owned()]);
+    assert!(unread.findings.is_empty(), "{:?}", unread.findings);
+    let verified = verified_ids(&unread.verified);
+    assert!(
+        !verified.contains(&"ast.dynamic-code-execution"),
+        "{verified:?}"
+    );
+    // The control: the same rule may speak for a page whose template was read and holds nothing.
+    let clean = scan_files(
+        "ast-template-clean",
+        &[(
+            "App.svelte",
+            &format!("{script}<button on:click={{() => count++}}>Go {{count}}</button>\n"),
+        )],
+    );
+    assert!(
+        clean.unparsed_files.is_empty(),
+        "{:?}",
+        clean.unparsed_files
+    );
+    let verified = verified_ids(&clean.verified);
+    assert!(
+        verified.contains(&"ast.dynamic-code-execution"),
+        "{verified:?} {:?}",
+        clean.held_back
+    );
 }
 
 #[test]
