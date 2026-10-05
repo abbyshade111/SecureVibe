@@ -693,6 +693,7 @@ another session is not a claim.
     in branch `claude/securevibe-e9-seed-env`: the run's passwords and two-factor secrets, and the test provider's
     client secret, are handed to `docker` in its own environment, not on its command line, where another user of
     the computer can read them.
+    **Done the same day** (DESIGN, "The run's passwords never stand on a command line").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
