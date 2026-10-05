@@ -183,6 +183,8 @@ another session is not a claim.
   - **S11. Medium, Plausible. The browser's DevTools port may be reachable from the app, and the driver evaluates
     in the page's own world**, so an app could hide storage from the sign-out check. Fix: DevTools on loopback,
     an isolated world, storage read through DevTools' storage domains.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-s11`.
   - **S12. Medium, Reproduced. A named pipe in the app hangs `sv`** (`files.rs` lists pipes as files and blocks
     reading them). Fix: list only regular files; say the rest were not read.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
@@ -602,6 +604,12 @@ another session is not a claim.
     `claude/securevibe-e9-r12`. Record: ADR-031 (proposed).
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r12-not-the-app-warning`.
+    **The two claims crossed:** securevibe-e9's was committed at 03:48 UTC and open as #674 from 03:49, and the
+    cato-pipeline session's (#677) was made at 03:55, before #674 reached `main`. securevibe-e9's was built, so it
+    is the one that went in; nothing of the other had been pushed.
+    **Done the same day** (DESIGN, "A `not-the-app` list that would set apart all the code is not used"; ADR-031,
+    accepted): a list that would leave none of the app's code files outside it is not used, in every command, and
+    the report says why; a list that is used is shown with how many of the code files it set apart.
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch

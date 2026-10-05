@@ -2077,7 +2077,13 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
         .as_ref()
         .map(|m| m.not_the_app().0)
         .unwrap_or_default();
-    let (ours, theirs) = sv_scan::files::Listing::of(&app_dir).split(&folders);
+    let listing = sv_scan::files::Listing::of(&app_dir);
+    // A list that would set apart all the app's code is not used, as in every other command (ADR-031).
+    let (folders, refused, _) = sv_scan::not_the_app_in(&listing, &folders);
+    if let Some(why) = refused {
+        println!("securevibe.toml's `[repository] not-the-app` is not used: {why}.\n");
+    }
+    let (ours, theirs) = listing.split(&folders);
     let sbom = sbom::build_in(&ours);
     let elsewhere = sbom::build_in(&theirs);
 
@@ -2965,9 +2971,12 @@ fn scan_for(
 /// are not there, and any entry refused. Said in the report because the list changes what counts as
 /// evidence, and a list nobody sees could hide the app's own code from the check.
 fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_report::Gap> {
-    let (folders, refused) = manifest.not_the_app();
+    let (folders, mut refused) = manifest.not_the_app();
     let mut gaps = Vec::new();
-    if !folders.is_empty() {
+    if let Some(why) = &scan.not_the_app_refused {
+        let named: Vec<String> = folders.iter().map(|f| format!("`{f}`")).collect();
+        refused.push(format!("{}: {why}", named.join(", ")));
+    } else if !folders.is_empty() {
         let found: Vec<String> = scan.set_apart.iter().map(|f| format!("`{f}`")).collect();
         let missing: Vec<String> = folders
             .iter()
@@ -2988,7 +2997,12 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
             if found.is_empty() {
                 "none of them is in this app".to_owned()
             } else {
-                found.join(", ")
+                let (apart, total) = scan.code_set_apart;
+                format!(
+                    "{}, holding {apart} of the app's {total} code file{}",
+                    found.join(", "),
+                    if total == 1 { "" } else { "s" }
+                )
             }
         );
         if !found.is_empty() && !missing.is_empty() {
@@ -4212,7 +4226,8 @@ fn assemble_report_saying(
     // Rust keeps its unit tests beside the code, so the file's name cannot say which is which.
     sv_check::finding::mark_rust_test_code(app_dir, &mut findings);
     // What the manifest says is not the app is listed with test and sample code.
-    sv_check::finding::mark_not_the_app(&manifest.not_the_app().0, &mut findings);
+    // As the scan used it: none when the list would have set apart all the app's code (ADR-031).
+    sv_check::finding::mark_not_the_app(&scan_report.not_the_app, &mut findings);
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let reviewed = sv_check::review::apply(
