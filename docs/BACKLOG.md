@@ -706,6 +706,9 @@ another session is not a claim.
     containers read it, not this computer's, where Docker runs in a virtual machine whose clock can drift.
     **Done the same day** (DESIGN, "Two-factor codes made for the containers' clock").
     **Done the same day** (DESIGN, "The run's passwords never stand on a command line").
+    **Improvement 5's "WebSockets and workers watched in the browser driver" claimed on 5 October 2026 by session
+    securevibe-e9**, in branch `claude/securevibe-e9-ws-workers`: what a page sends elsewhere over a WebSocket, or
+    from a worker it starts, is recorded with the rest of what it sends elsewhere.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
