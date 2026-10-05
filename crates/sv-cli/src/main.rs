@@ -37,6 +37,7 @@ mod exit;
 mod mcp;
 mod parts;
 mod plan;
+mod preflight;
 mod report_lock;
 mod report_seal;
 mod review;
@@ -94,6 +95,7 @@ fn run() -> Result<i32> {
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
         "plan" => finished(cmd_plan(rest.first().map(PathBuf::from))),
+        "preflight" => finished(cmd_preflight(rest.first().map(PathBuf::from))),
         "brief" => finished(cmd_brief(rest)),
         "notes" => finished(cmd_notes(rest.first().map(PathBuf::from))),
         "questions" => finished(cmd_questions(rest.first().map(PathBuf::from))),
@@ -147,6 +149,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &[],
         help: "  sv plan [PATH]     before any code: what applies, what to decide, the tests to write,\n                     and what the app must give `sv run`; credits nothing\n",
+    },
+    Command {
+        name: "preflight",
+        word: Some("PATH"),
+        flags: &[],
+        valued: &[],
+        help: "  sv preflight [PATH]\n                     once there is code: whether it gives `sv run` what securevibe.toml\n                     says, read from the files and never run; credits nothing\n",
     },
     Command {
         name: "brief",
@@ -566,6 +575,13 @@ fn cmd_plan(path: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
+fn cmd_preflight(path: Option<PathBuf>) -> Result<()> {
+    let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
+    let (items, unread) = preflight::of(&app_dir)?;
+    print!("{}", preflight::markdown(&items, &unread));
+    Ok(())
+}
+
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
     let manifest_path = app_dir.join("securevibe.toml");
@@ -973,6 +989,11 @@ fn cmd_probe(args: &[String]) -> Result<()> {
 
 fn notes_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/security-notes.json")
+}
+
+/// The sections of design-decisions.md that count toward a checklist control (`sv_check::decisions`).
+fn decisions_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-decisions.json")
 }
 
 /// What `sv` found that belongs in the notes, so the owner starts from their app, not a blank page.
@@ -4215,7 +4236,71 @@ fn assemble_report_saying(
             ),
         });
     }
-    let documented = notes.documented;
+    // The decisions the design-time prompts write down (`sv_check::decisions`). Two sections count
+    // toward Secure by Design controls, read as the notes are; the file's other sections are not
+    // questions, so a heading `sv` does not read for credit is not reported as one left unread.
+    let decisions_catalog = sv_check::notes::Catalog::load(&decisions_path())?;
+    let decisions_text = std::fs::read_to_string(app_dir.join(&decisions_catalog.file)).ok();
+    let decisions =
+        decisions_text
+            .as_deref()
+            .map_or_else(sv_check::notes::Evidence::default, |text| {
+                sv_check::notes::evidence(
+                    &decisions_catalog,
+                    &sv_check::notes::read_answers(&decisions_catalog, text),
+                    &decisions_catalog.file,
+                    &seals,
+                )
+            });
+    if !decisions.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "who wrote {} section{} of {}",
+                decisions.unreadable.len(),
+                if decisions.unreadable.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                decisions_catalog.file
+            ),
+            why: format!(
+                "Each section says who wrote it on one line, `{} {}` or `{} {}`, and {} names \
+                 somebody else or says both, so nothing was made of it: {}.",
+                sv_check::notes::WRITTEN_BY,
+                sv_check::notes::BY_OWNER,
+                sv_check::notes::WRITTEN_BY,
+                sv_check::notes::BY_AI_TOOL,
+                if decisions.unreadable.len() == 1 {
+                    "this one"
+                } else {
+                    "these"
+                },
+                decisions.unreadable.join(", ")
+            ),
+        });
+    }
+    // A review by a person is the one thing that section can ask for, and no tool can do it, so
+    // what it says is repeated here, where what was not examined is listed. Its words are not read
+    // for a yes or a no, and credit nothing.
+    if let Some(said) = decisions_text
+        .as_deref()
+        .and_then(|text| sv_check::decisions::section(text, sv_check::decisions::BRING_IN_A_PERSON))
+    {
+        gaps.push(sv_report::Gap {
+            what: "a person's security review of the design".to_owned(),
+            why: format!(
+                "No tool can make it. Your {} says, under \"{}\": \"{said}\"",
+                sv_check::decisions::FILE,
+                sv_check::decisions::BRING_IN_A_PERSON
+            ),
+        });
+    }
+    let documented: Vec<sv_check::Verified> = notes
+        .documented
+        .into_iter()
+        .chain(decisions.documented)
+        .collect();
 
     // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
     // tier here; `no`, and a `where` naming a file the app does not have, are findings.
@@ -4503,6 +4588,7 @@ fn assemble_report_saying(
         .iter()
         .chain(hand.stated.iter())
         .chain(notes.stated.iter())
+        .chain(decisions.stated.iter())
         .cloned()
         .collect();
 
@@ -4564,7 +4650,56 @@ fn assemble_report_saying(
         &seals,
         &|rule, file| lookup.looked(rule, file),
     );
-    let findings = reviewed.findings;
+    let mut findings = reviewed.findings;
+    // The "Safe defaults" section's three switches (`sv_check::decisions`), each held to the check
+    // of the running app that sees it. After what a person set aside, so a false alarm they set
+    // aside is not held against a decision either.
+    let safe_defaults = decisions_text
+        .as_deref()
+        .map(sv_check::decisions::safe_defaults)
+        .unwrap_or_default();
+    let mut not_held = sv_check::decisions::not_held_to(&safe_defaults.decided, &findings);
+    sv_check::review::fill_fingerprints(app_dir, &mut not_held);
+    findings.extend(not_held);
+    if !safe_defaults.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} safe default{} in {}",
+                safe_defaults.unreadable.len(),
+                if safe_defaults.unreadable.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                sv_check::decisions::FILE
+            ),
+            why: format!(
+                "Under \"{}\", each of these switches is decided as one of two values, and these \
+                 lines say something else, so nothing was made of them: {}. Write `{}`.",
+                sv_check::decisions::SAFE_DEFAULTS,
+                safe_defaults.unreadable.join("; "),
+                sv_check::decisions::SWITCHES
+                    .iter()
+                    .map(|s| format!("- {}: {}", s.name, s.safe))
+                    .collect::<Vec<_>>()
+                    .join("`, `")
+            ),
+        });
+    }
+    let held_safe = safe_defaults.decided.iter().filter(|d| d.safe).count();
+    let app_ran = matches!(run_status, sv_report::RunStatus::Started { .. });
+    if held_safe > 0 && !app_ran {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{held_safe} safe default{} decided in {}",
+                if held_safe == 1 { "" } else { "s" },
+                sv_check::decisions::FILE
+            ),
+            why: "Each is held to a check of the running app, and the app was not run, so whether \
+                  the app does what was decided was not looked at. `sv report --run` runs it."
+                .to_owned(),
+        });
+    }
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -4599,6 +4734,18 @@ fn assemble_report_saying(
         by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
+    });
+    // The decisions file is read whenever it is there; its safe defaults only with the app running.
+    examined.push(match (&decisions_text, app_ran) {
+        (None, _) => sv_report::Examined::not_run(
+            "decisions.",
+            format!("there is no {} beside the app", sv_check::decisions::FILE),
+        ),
+        (Some(_), true) => sv_report::Examined::ran("decisions."),
+        (Some(_), false) => sv_report::Examined::partly(
+            "decisions.",
+            "its safe defaults are held to checks of the running app, which was not run",
+        ),
     });
     report.examined = examined;
     let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);

@@ -184,6 +184,8 @@ mod tests {
                 asks: "How the app defends against guessing.".into(),
                 facts: Vec::new(),
                 how_to_find_out: None,
+                heading: None,
+                not_covered: None,
             }],
             elsewhere: Vec::new(),
         }

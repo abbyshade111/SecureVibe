@@ -330,8 +330,9 @@ or, for a tool configured with JSON:
 { "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers twelve tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
-app from it, below), `securevibe_before` (one feature's brief before it is built, below), `securevibe_guidance` (the
+It offers thirteen tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
+app from it, below), `securevibe_preflight` (what `sv run` will need, read from the code without running it),
+`securevibe_before` (one feature's brief before it is built, below), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
 `securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
 work),

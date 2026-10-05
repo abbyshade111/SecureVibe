@@ -31,8 +31,17 @@ def merge_policy(path):
     import tomllib
     tester = tomllib.load(open(os.path.join(HERE, 'policy.toml'), 'rb')).get('policy', {}) \
         if os.path.exists(os.path.join(HERE, 'policy.toml')) else {}
+    # A build with no securevibe.toml, or one that does not parse, is checked as it is: what `sv`
+    # makes of it is the outcome (loop-protocol.md, "What makes a build unusable").
+    if not os.path.exists(path):
+        print('  no securevibe.toml: checked as it is', flush=True)
+        return
     text = open(path).read()
-    own = tomllib.loads(text).get('policy', {})
+    try:
+        own = tomllib.loads(text).get('policy', {})
+    except tomllib.TOMLDecodeError as e:
+        print(f'  securevibe.toml does not parse ({e}): checked as it is', flush=True)
+        return
     missing = {k: v for k, v in tester.items() if k not in own}
     print(f'  policy the build set itself: {own}; added by the tester: {missing}', flush=True)
     if not missing:
@@ -57,7 +66,8 @@ def run(build, slow):
     cmd = [SV, 'report', dst, '--run', '--out', out] + (['--slow'] if slow else [])
     with open(dst + '.log', 'w') as log:
         code = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT, timeout=3600).returncode
-    return code, json.load(open(os.path.join(out, 'report.json')))
+    path = os.path.join(out, 'report.json')
+    return code, (json.load(open(path)) if os.path.exists(path) else None)
 
 def summary(report):
     lines = []
@@ -79,6 +89,10 @@ if __name__ == '__main__':
     for arg in sys.argv[2:]:
         build, _, flag = arg.partition(':')
         code, report = run(build, flag == 'slow')
-        text = f'== {build} (exit {code}, run {report.get("run_status")})\n' + summary(report)
+        if report is None:
+            said = open(os.path.join(HERE, 'runs', build + '.log')).read().strip().splitlines()[-3:]
+            text = f'== {build} (exit {code}, no report: ' + ' / '.join(said) + ')'
+        else:
+            text = f'== {build} (exit {code}, run {report.get("run_status")})\n' + summary(report)
         print(text, flush=True)
         open(os.path.join(HERE, 'runs', build + '.summary'), 'w').write(text + '\n')

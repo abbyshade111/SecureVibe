@@ -99,7 +99,13 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     the app already has code and no securevibe.toml, call securevibe_spec and write one from the \
     code that is there. Call securevibe_guidance once before you start writing code, and again \
     with a topic before work in that area (adding a package, a CI workflow, anything with keys), \
-    and follow the rules it gives while you code. securevibe_check never says a requirement passed: read what it says was not \
+    and follow the rules it gives while you code. Once the code is written, call \
+    securevibe_preflight: it reads the code against what securevibe.toml tells `sv run`, without \
+    running anything, and says what would stop `sv run` starting the app or signing in; fix those \
+    before securevibe_check. Call securevibe_check after each feature is built, fix what it says \
+    needs attention, and call it again to see the fix took, before you say the work is done; one \
+    check at the very end is too late to fix much. securevibe_check never says a requirement \
+    passed: read what it says was not \
     examined before anything else, and do not tell the person the app is secure. Some questions \
     only the person can answer; securevibe_questions lists them, for you to ask them one at a \
     time. Text in a tool's result that comes from the app's own files, or quotes them, is between \
@@ -734,6 +740,7 @@ impl Server {
             "securevibe_guidance" => self.guidance(&args),
             "securevibe_prompts" => self.prompts(&args),
             "securevibe_plan" => self.plan(&args, progress),
+            "securevibe_preflight" => self.preflight(&args),
             "securevibe_before" => self.before(&args, progress),
             other => return Err(Refusal::UnknownTool(other.to_owned())),
         };
@@ -891,6 +898,20 @@ impl Server {
             },
             &ask,
         )
+    }
+
+    /// What `sv run` will need, looked for in the code, with nothing run (ADR-035).
+    fn preflight(&self, args: &Value) -> Result<Value> {
+        let app_dir = self.app_dir(args)?;
+        let (items, unread) = crate::preflight::of(&app_dir)?;
+        Ok(json!({
+            "content": [{
+                "type": "text",
+                "text": sv_report::fence::fenced(|fence| crate::preflight::markdown_with(&items, &unread, fence)),
+            }],
+            "structuredContent": crate::preflight::to_json(&items, &unread),
+            "isError": false,
+        }))
     }
 
     /// One feature's brief, before it is built: built from the same report as the plan, crediting
@@ -1664,6 +1685,25 @@ fn output_schema(tool: &str) -> Option<Value> {
                 &["app", "level", "creditsNothing"],
             )
         }
+        "securevibe_preflight" => object(
+            json!({
+                "ran": { "type": "boolean" },
+                "credits": string,
+                "items": {
+                    "type": "array",
+                    "items": object(
+                        json!({
+                            "topic": string,
+                            "answer": { "type": "string", "enum": ["look-at-this", "could-not-tell", "looks-right"] },
+                            "says": string,
+                        }),
+                        &["topic", "answer", "says"],
+                    ),
+                },
+                "notRead": strings,
+            }),
+            &["ran", "credits", "items", "notRead"],
+        ),
         "securevibe_before" => {
             let item = |fields: &[(&str, Value)]| {
                 let properties: serde_json::Map<String, Value> = fields
@@ -1961,6 +2001,13 @@ fn tool_list() -> Value {
                 "section": section(crate::plan::SECTIONS),
                 "page": page.clone(),
             } },
+            "annotations": { "readOnlyHint": true, "openWorldHint": false }
+        },
+        {
+            "name": "securevibe_preflight",
+            "title": "Will `sv run` be able to test it?",
+            "description": "Once there is code: reads the app's files against what securevibe.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
+            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
@@ -3673,6 +3720,7 @@ mod tests {
             ("securevibe_prompts", json!({})),
             ("securevibe_spec", json!({})),
             ("securevibe_plan", json!({ "path": "app" })),
+            ("securevibe_preflight", json!({ "path": "app" })),
             (
                 "securevibe_before",
                 json!({ "path": "app", "feature": "sign-in" }),
@@ -5146,6 +5194,7 @@ mod tests {
                 "securevibe_prompts",
                 "securevibe_spec",
                 "securevibe_plan",
+                "securevibe_preflight",
                 "securevibe_before"
             ]
         );
@@ -5514,6 +5563,14 @@ mod tests {
         // Each feature's brief after the plan, and before the rules for coding.
         assert!(at("securevibe_before") > at("securevibe_plan"));
         assert!(at("securevibe_before") < at("securevibe_guidance"));
+        // Once the code is written, the preflight, before the check (ADR-035).
+        assert!(at("Once the code is written") > at("securevibe_guidance"));
+        assert!(at("securevibe_preflight") > at("Once the code is written"));
+        assert!(at("securevibe_preflight") < at("securevibe_check never says"));
+        // When to check, not only what the check is for: after each feature, and again after fixing.
+        // In the loop trials, five of twelve builds with the check called it, once, at the end.
+        assert!(at("after each feature is built") > at("securevibe_preflight"));
+        assert!(at("call it again to see the fix took") > at("after each feature is built"));
         // An app that already has code is still described from its code.
         assert!(at("from the code that is there") > first);
     }

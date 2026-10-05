@@ -398,6 +398,9 @@ another session is not a claim.
     which file and why. Tested end to end with Django 2.2.0 found through `Pipfile.lock`, a clean Pipenv app
     credited, and five not-credited cases; eleven guards broken in turn, each caught. Still open: a range in a
     `requirements.txt` without a lockfile is left out unnamed, and a `setup.py`-only app is not called unpinned.
+    **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h9-ranges-and-setup-py`: a requirement given as a range is named as not checked against the advisories,
+    and an app whose Python dependencies are declared only in `setup.py` or `setup.cfg` is said to have none pinned.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -1563,6 +1566,15 @@ another session is not a claim.
      form the AI tool cannot fill, so a design brief answered that way could count as the owner's word rather than the
      tool's. DESIGN lists elicitation as unused, not rejected. Client support varies, and the stateless 2026-07-28
      protocol may change it, so it is to be tried first; `sv review` at a terminal stays the sure path.
+     **The owner's decision, 5 October 2026:** research it first: which AI tools support elicitation today, what the protocol says it
+     may be used for, and whether an answer given through it could fairly count as the owner's.
+     **Claimed the same day by session securevibe-e2**, at the owner's word, for that research only, in branch
+     `claude/securevibe-e2-elicitation-research`; nothing is built until the owner has read it.
+     **Researched the same day** (DESIGN, "Asking the owner through the AI tool's own form: research, not built"). An
+     answer given through elicitation cannot count as the owner's word: nothing lets `sv` tell a person from the AI tool
+     answering, and Claude Code documents settings that answer the form with no person shown it. Claude Code and VS Code
+     support it; Cursor and Codex CLI by secondary sources; Zed and Gemini CLI do not. Waiting on the owner: whether to
+     try a middle tier, "confirmed in the AI tool's form, not sealed", which would never stand in for `sv review`.
   7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
@@ -1589,6 +1601,28 @@ another session is not a claim.
      decisions are written down and, where a decision names something the code can show (a debug switch off, a page
      removed), whether the code agrees. What the file's sections must look like for that, and which decisions a check
      can speak to at all, is for whoever builds it to propose to the owner first.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word ("Yes please", to drafting the
+     proposal), in branch `claude/securevibe-e2-decisions-file`: the proposal first, for the owner to choose from;
+     nothing is built until they have.
+     **The owner's decisions, 5 October 2026**, on the proposal (the four headings the prompts write stay as they are;
+     who wrote a section is read as in `security-notes.md`, ADR-022):
+     - "What we do if something goes wrong" and "Rules that might apply" count toward SBD-MT-06 and SBD-AC-06 as
+       *documented* (or *stated by the AI coding tool*), never *checked*; the report says what is not covered (the
+       plan rehearsed, the design following the rules). SBD-MT-05 (records kept current) is not credited.
+     - "Safe defaults" gets a short fixed list of lines (debug mode, cross-site access, default accounts), each held
+       to the check `sv` already has; decided off and found on is a finding, *decided, not held to*. The safe-defaults
+       prompt changes to write those lines (it has never been tried).
+     - "When to bring in a person": a recommended review is repeated in the report as a reminder, crediting nothing.
+     **The first part done the same day** (DESIGN, "`design-decisions.md`: two sections as written answers, and a
+     review repeated"): the two sections count toward SBD-MT-06 and SBD-AC-06, read by the security notes' reader with
+     `data/design-decisions.json`, sealed through `sv review`, each saying what it does not cover; what the file says
+     about bringing in a person is repeated in the report. Twelve guards broken in turn, each caught. Safe defaults
+     held to the code is the second part.
+     **The second part done the same day** (the same DESIGN section, "Later the same day: safe defaults, held to the
+     running app"): the safe-defaults prompt writes three fixed lines, each held to one check of the running app; a
+     switch decided the safe way that the check finds otherwise is `decisions.not-held-to`, and without `--run` the
+     report says the decisions were not looked at. Twelve guards broken in turn, each caught; the line joining the
+     finding to the report needs Docker to run and is untested here.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
   `claude/design-time-first`.
   **Items 1, 2, and 8 done the same day** (ADR-028; DESIGN, "Decide before you build: the instructions, the spec, and
@@ -1660,6 +1694,43 @@ another session is not a claim.
   `claude/loop-arms`, run on the pilot's `sv` (`87404c8e`) so its loop arm is comparable with the pilot; 5 in branch
   `claude/loop-preflight`, with its decision record; 6 after 3, at a size the owner chooses from 3's cost. Each run's
   number of builds and estimate goes to the owner before it starts.
+  Item 5's record is written with its claim, as `proposed`: `docs/adr/ADR-035.md`.
+  **Item 5 done the same day** (ADR-035; DESIGN, "A preflight of the run settings"): `sv preflight` and
+  `securevibe_preflight` read the code against `[stack.run]` with nothing run, and say for the start command, the
+  address and port, the seed's file and `SV_` accounts, where the tables are made, and every path and sign-in field
+  whether it looks right, needs a look, or could not be told. The server's instructions offer it once the code is
+  written, before the check. Not yet tried in a loop build: item 3 runs on the pilot's `sv`, which does not have it.
+  **Item 3 done the same day** (DESIGN, "Which part of the loop does the work"; `docs/prompts/loop-arms/README.md`):
+  eighteen builds, $4.78. No build without the server wrote a manifest `sv` could read, so none of the eight could be
+  tested; with the server every build read the specification first, and ten of twelve could be signed in to. The
+  arms' own tools were mostly unused (the plan called by three of eight builds offered it, all Haiku; the check by
+  three of eight, once each), so the trial cannot say which of them does the work: what the testable builds share is
+  the specification.
+
+
+- **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
+  trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
+  near the end, and none checked again after fixing. The server's instructions say what the check is for, not when to
+  call it. Saying when (after each feature, and again after fixing what it found) is the change to try, and item 6 can
+  measure whether it is followed.
+  **Done the same day, at the owner's word:** the server's instructions now say to check after each feature, fix,
+  and check again before saying the work is done; item 6 runs on that `sv` and measures whether builders do.
+
+- **The loop trials cannot compare security with the arms that have no `sv`.** Found on 5 October 2026 by session
+  paper-facts, in item 3: a build that never saw `sv`'s specification writes no manifest `sv` can read, so it cannot
+  be run, and the protocol's security measures leave it out. Two ways, for the owner to choose before item 6: a
+  tester writes the manifest for those builds from the code, as trial 3 did, so the comparison is of the apps; or
+  every arm's request includes the specification, so the comparison is of what the loop adds beyond it.
+  **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
+  is of the apps. For session paper-facts, which runs the trials.
+
+- **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
+  loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
+  signed-in checks had nothing to work with. A correct limit is what the owner wants; `sv` signs in many times in a
+  run from one address. The spec could say how many, so a builder can set the limit to allow them in a test copy, or
+  `sv` could say which sign-in hit the limit and stop counting the checks it blocked as unanswered.
+  **The owner's decision, 5 October 2026:** both. **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
+  `claude/securevibe-e2-signin-limit`.
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
@@ -1722,6 +1793,7 @@ another session is not a claim.
   earlier would break apps that make their tables when they start). Changing when it runs stays the owner's to choose.
   **Done the same day**, as said: the spec and the plan say when the seed runs, and the brief is corrected. How `sv`
   runs it is unchanged.
+  **The owner's decision, 5 October 2026:** leave when the seed runs as it is.
 
 - **`probe.action-done-twice` reports a booking that went through once as twenty.** Found on 4 October 2026 by
   session securevibe-e2, testing the design-time prompts. The check sends the `once` action 20 times at the same
@@ -3343,6 +3415,8 @@ another session is not a claim.
   asking. **Done the same day:** `.github/ISSUE_TEMPLATE/false_alarm.yml`, and a link beside each
   false alarm in `security.md`, `report.html`, and the MCP summary. See DESIGN, "False alarms, part 3".
   It uses the existing `bug` label; a `false alarm` label of its own is the owner's to add.
+  **The owner's decision, 5 October 2026:** add it. The label `false alarm` was made the same day, and the template now puts it on
+  every report beside `bug`.
 
 - ~~**Send admin actions straight to the app as an ordinary user (V8.3.1, V8.2.1).**~~ **The admin actions are
   done on 27 September 2026:** `[[stack.run.users.admin-actions]]`, judged by a `check` page and a
@@ -3358,6 +3432,7 @@ another session is not a claim.
   enforced, and that actions sent straight to an API are not tried (DESIGN, "The admin page, as support
   for V8.3.1"). This probe answers the second reason. The first stays, and whether V8.3.1 can ever leave
   `manualOnly` is the owner's decision, not this probe's.
+  **The owner's decision, 5 October 2026:** leave V8.3.1 on `manualOnly`.
 
   **What the owner writes.** A list under `[stack.run.users]`, `admin-actions`, each entry a request only
   an admin should be able to make, in the same shape as the other requests there (method, path, form or
@@ -4027,6 +4102,10 @@ another session is not a claim.
      went with its folder. What helps is an install that does not live in a folder somebody works in. Still the case
      on `main` at 6d4ce3f (`crates/sv-cli/src/main.rs`, lines 264 to 350 and others, read data through
      `CARGO_MANIFEST_DIR`).
+     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-movable`: every data file found through one place, `SV_DATA_DIR`, then beside the program,
+     then the build folder; and an install script that keeps `sv` and its data out of any working folder. Record:
+     ADR-036 (proposed).
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
@@ -4165,6 +4244,8 @@ another session is not a claim.
   third-party action. The README now pulls the published image. Whether the package can be pulled
   without signing in to GitHub depends on its visibility, which is set in the package's settings on
   GitHub, and is the owner's to set.
+  **The owner's decision, 5 October 2026:** let it be pulled without signing in. GitHub's API cannot change a package's visibility,
+  so the owner sets it in the package's settings on GitHub.
 
   **The downloadable program, for later.** Gentler for somebody without Docker, who still gets
   everything except `--run`. It needs the data either compiled in (`include_str!`, as
@@ -6073,6 +6154,7 @@ another session is not a claim.
     file's rule is SARIF only, so adding it means either a second report reader or a SARIF report class shipped
     with `sv` for PHP_CodeSniffer to load. Either is the owner's decision, made knowing that the package is no
     longer maintained. Semgrep already runs on a PHP app, with 45 PHP rules mapped to requirements.
+    **The owner's decision, 5 October 2026:** no; phpcs-security-audit is not added.
   `eslint-plugin-security` was looked at on 25 September 2026 and not added. Semgrep's JavaScript rules
   already include its rules under their own names (`detect-child-process`,
   `detect-eval-with-expression`, `detect-non-literal-fs-filename`, `detect-non-literal-regexp`,

@@ -3119,6 +3119,74 @@ nothing-credited rows swapped; `planned` read as unreadable; the report's lines 
 medium. The design-time prompts do not yet ask for `planned`: the third trial tested their present wording, and
 changing it would leave the results describing words no longer there.
 
+
+### `design-decisions.md`: two sections as written answers, and a review repeated (5 October 2026)
+
+Four design-time prompts write their decisions into `design-decisions.md`, each under a heading of its own words, and
+until now `sv` read none of it (backlog, design-time item 9). The owner chose, on a proposal, what each section is
+worth:
+
+| Section the prompt writes | What `sv` makes of it |
+|---|---|
+| "What we do if something goes wrong" | a written answer toward SBD-MT-06 (an incident plan, a critical control) |
+| "Rules that might apply" | a written answer toward SBD-AC-06 (the regulatory controls identified) |
+| "When to bring in a person" | repeated in the report where what was not examined is listed; credits nothing |
+| "Safe defaults" | held to the code in a later change |
+
+**Read as the notes are.** The two controls had no ASVS counterpart, so nothing could ever move them from *not
+verified*. Their sections are now read by the security notes' own reader, with a second catalog,
+`data/design-decisions.json`: an answer of forty characters or more makes the control *documented* when it is the
+owner's and `sv review` sealed it, and *stated by the AI coding tool* otherwise, by the rules of ADR-022; never
+*checked*. The catalog's sections name the heading they go by (`heading`), since the prompts write no id, matched as
+the whole heading in any case with a trailing colon or full stop ignored; a section without one is found by its id, as
+before, so the notes read exactly as they did. Each says what a written section cannot show (`notCovered`), and the
+report says it beside the credit: that the plan was rehearsed, or that the design follows the rules. `sv review`
+offers the owner's sections of both files, and seals each under its own heading (`with_seal_in`). SBD-MT-05 (records
+kept current) is not credited: whether a decision was re-read before a change is not something a file shows.
+
+**The review, repeated.** No tool can make a person's review, and the prompt asks the tool to say whether one is
+needed. What the section says is repeated, cut at six hundred characters, as a row of "What was not examined", near the
+top of the report. Its words are not read for a yes or a no.
+
+**Held to what they stand on.** `crates/sv-check/tests/decisions.rs` holds each section of the catalog to a real
+checklist control, to the one prompt that writes its heading into the file, and to that prompt naming the control; and
+the reminder's heading to the prompt that writes it. The prompts' own notes in `design-prompts.json` and
+`docs/prompts/design-time.md` say what `sv` now does with each section.
+
+**Tested.** Twelve guards broken in turn, each caught: sections found by id only (five tests), headings compared as
+written, the not-covered sentence left off either tier, either tier left out of the report, the reminder not given,
+who wrote a section repeated in the reminder, a section running past the next heading, `sv review` reading only the
+notes or placing the seal as in the notes, and a heading other than the prompt's. The two report tiers are caught
+only by the end-to-end test, which is where they are joined.
+
+**Later the same day: safe defaults, held to the running app.** The second part of the owner's choice. The
+safe-defaults prompt now starts its section with three lines, `- debug mode: off`, `- cross-site access: own site
+only`, and `- default accounts: none`, a value changed only where the owner decided otherwise. `sv` reads those three
+(`decisions::safe_defaults`), each to one check of the running app that sees it:
+
+| Line | Held to | Why that check and no other |
+|---|---|---|
+| debug mode | `probe.development-console-open` | a development console answers only with debug on; an error page with a stack trace can have other causes |
+| cross-site access | `probe.cors-any-origin` | the app answering any site's request for its data is the opposite of "own site only" |
+| default accounts | `probe.default-account` | a default name and password signing in is the opposite of "none" |
+
+A switch decided the safe way whose check found otherwise is a finding of its own, *decided, not held to*
+(`decisions.not-held-to`): low, at the check's confidence, citing the check's own requirements, on its line of the
+decisions file, beside the check's finding, which stays the thing to fix. It is made after the findings a person set
+aside are taken out, so a false alarm set aside is not held against a decision either. A switch decided the other way
+(`on`, `any site`, `some`) is the owner's call and is not held against the code; a line with any other value is named
+as unreadable, not guessed at; the rest of the section is for a person. Nothing is credited for a decision kept: the
+check's own credit already says what it saw. All three checks need the app running, so without `--run` the report
+says how many safe defaults were decided and not looked at, and `examined` gives the `decisions.` family as partly
+run. `decisions.` joins `sv`'s own families, and its findings are never taken for a line of code.
+
+Twelve guards broken in turn, each caught: the owner's other value held against the code, any finding counted against
+any switch, debug mode held to the cross-site check, a switch read past its section, every line about a switch
+counted, backticks kept, another value taken as the other, the "not looked at" and "unreadable" lines not given,
+`examined` saying ran without the app, and the family taken for a line of code or for a tool's. A test holds the
+prompt's three lines to the switches `sv` reads. **Not tested here:** the line that adds the finding to the report
+runs only with the app running, and this environment has no Docker; the finding itself is tested directly.
+
 ## Policy numbers, and the one requirement they make checkable
 
 V6.3.1 is at level 1 and asks that brute-force controls are implemented *according to the
@@ -7216,6 +7284,48 @@ committable `.env` until the folder is a git repository. Each is in the backlog.
 **How the key was kept.** The program had no sign-in from a terminal, and the owner chose API credit (amendment 2).
 The key reaches only the Claude program, through an `apiKeyHelper`, never the environment of the builder's shell, the
 app, or `sv`, and no transcript holds it.
+
+## A preflight of the run settings (5 October 2026)
+
+Item 5 of "The loop", and ADR-035. `sv run` can test an app only if the code gives it what `[stack.run]` says, and in
+the trials it was the run, after the build, that found it did not. `sv preflight [PATH]` and `securevibe_preflight`
+read the app's files against the settings, with nothing run, and answer for each thing the run will need: the start
+command and image; listening on `0.0.0.0` and reading `PORT`; the seed's file, and the `SV_` accounts it is given
+(the admin's only when there are admin pages); tables made by the app and not only by the seed; and every path and
+sign-in field the settings name. Each answer is "looks right", "look at this", or "could not tell", and the result
+opens by saying that "looks right" means the text was found, not that it works. It credits nothing.
+
+**How it was checked.** Each of its eleven rules was broken in turn and the suite run; each was caught by the test
+named for it. On the examples, `notes-with-users` has nothing to look at, and `flask-booking`, whose start command
+binds `127.0.0.1`, has exactly that to look at. On the loop builds it found its own first mistake: two Sonnet builds
+seed with `python app.py seed`, and it read that as tables made only by the seed; where the seed is the app's own
+file, the answer is now "could not tell". What only describes the app (`securevibe.toml`, Markdown, plain text) is not
+read, so a path named in prose does not count as found.
+
+**What it cannot do.** A route built from parts reads as "look at this", and a name in a comment as "looks right";
+each answer says what was looked for, so a person can judge. Whether builders use it, and whether it raises how many
+builds `sv run` can test, is for the loop's next trial: item 3 ran on the pilot's `sv`, without it.
+
+
+## Which part of the loop does the work (5 October 2026)
+
+Item 3 of "The loop", to the protocol with both amendments (`docs/prompts/loop-arms/README.md`): five arms, Sonnet 5.5
+and Haiku 4.5, two builds a cell, on the pilot's `sv`. Eighteen new builds, $4.78; the Haiku loop cell is the pilot's
+two amended builds.
+
+**Results.** Without the server, no build wrote a manifest `sv` could read, so none could be tested: neither with no
+`sv` at all nor with the server's instructions pasted into the request, which point to a tool those builds did not
+have. With the server, in every arm, every build read the specification before any code, and ten of twelve could be
+signed in to. By the protocol's rule that is a difference for both models. Between the arms with the server there is
+none, and there could hardly be one: the plan was called by three of the eight builds offered it, all Haiku, and the
+check by three of eight, once each, with no second round. What the testable builds share is the specification.
+
+**What it changes.** The instructions say what the check is for, not when to call it, and the builders called it
+rarely; the next trial should try saying when. The arms without `sv` can be compared on security only if somebody
+writes their manifest, or every arm is given the specification: the owner's choice before item 6. An app's own
+sign-in limit locked `sv` out again, as in trial 3. Each is in the backlog.
+
+
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
@@ -9980,3 +10090,52 @@ opening lines left out (five); the plan's requirements put first (the plan's wal
 the findings (the check's walk and `the_check_says_what_was_not_examined_before_what_was_found`). Sending a list a
 page holds none of as empty, and never sending an empty list, were each caught only by the unit test written for
 them, since no section of the club app's answers holds two lists across pages; that is why that test exists.
+## Asking the owner through the AI tool's own form: research, not built (5 October 2026)
+
+Backlog item 6 of the design-time list asked whether MCP *elicitation* could carry the owner's answers. Elicitation
+lets a server such as `sv` ask the AI tool to show the person a small form; the answer comes back to the server. The
+idea was that the AI tool cannot fill that form itself, so an answer given there could count as the owner's word, as
+an answer sealed with `sv review` does. The owner asked for research first. This is what it found; nothing was built.
+
+**The short answer: no, it cannot count as the owner's word.** Nothing in the protocol, and nothing in any AI tool
+found, lets `sv` tell that a person filled the form rather than the AI tool. The premise in the backlog, "a form the AI
+tool cannot fill", is not true of the tools as they are.
+
+What the protocol says (read in the specification's source on GitHub, since its website was not reachable from here):
+
+- **2025-06-18** introduced elicitation as a form. A server must not use it to ask for sensitive information. The
+  person's answer is one of three: accept (with the answers), decline, or cancel. The tool should show which server is
+  asking and let the person review and decline. The specification "does not mandate any specific user interaction
+  model".
+- **2025-11-25** added a second kind, which sends the person to a web address (for sign-ins and secrets that must not
+  pass through the AI tool), and made the duties firm: the tool must show which server is asking, must offer decline
+  and cancel, and must let the person review a form's answers before sending. It also says: "Servers MUST NOT rely on
+  client-provided user identification without server verification, as this can be forged."
+- **2026-07-28**, the latest, keeps the same rules and changes only the delivery: the server answers a tool call with
+  "input required", and the tool sends the call again with the answers. That fits `sv`'s stateless server.
+- No version requires that a person answer, or forbids the tool from answering for them.
+
+Which AI tools support it (as of 5 October 2026): Claude Code (forms and web addresses, since version 2.1.76 in March
+2026) and VS Code with Copilot (forms, since version 1.102 in July 2025), both read in their own release notes. Cursor
+(since 1.5, August 2025, with users reporting the form not appearing on Windows and in one macOS window) and Codex CLI
+(its code has it; the release was not confirmed) from secondary sources only. Windsurf is listed as supporting it by a
+directory site, unconfirmed. Zed and Gemini CLI do not. Claude Desktop could not be confirmed either way.
+
+Why an answer cannot be trusted as the person's: Claude Code's documentation describes hooks, scripts set in its
+settings files, that can answer the form "without showing the user a dialog", or change the person's answer before it
+is sent; in its non-interactive mode no form is ever shown. Those settings files sit in the project, where the AI tool
+itself can write. So an "accept" may be a person, or a script the AI tool wrote. Codex's code has an OpenAI-only
+verification step answered with a signature, which might prove a person was there; what makes the signature, and
+whether it has shipped, could not be confirmed.
+
+What `sv` does today: its MCP server speaks the four protocol versions through `initialize` and 2026-07-28 statelessly,
+declares only tools, and has no elicitation code.
+
+A possible next step, for the owner to decide: a middle tier, "confirmed in the AI tool's form, not sealed", always
+shown as such in the report with the tool's name and version, and never meeting anything that now needs `sv review`.
+A small trial would ask one yes-or-no design question only when the tool says it supports forms, record decline and
+cancel as "not answered" (never as "no"), try it in Claude Code and VS Code, and include a test where a hook answers on
+the person's behalf, to show `sv` records the same answer either way, which is why the label is needed. Whether that
+tier is worth having, beside the plain answers in securevibe.toml that the tool writes and `sv review` that the person
+seals, is the owner's choice.
+

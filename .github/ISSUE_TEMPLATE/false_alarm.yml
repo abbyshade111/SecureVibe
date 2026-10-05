@@ -1,6 +1,6 @@
 name: A false alarm
 description: A rule flagged code that is fine. One report per rule, so the rule gets narrowed, with a test, instead of being set aside in app after app.
-labels: ["bug"]
+labels: ["bug", "false alarm"]
 body:
   - type: markdown
     attributes:

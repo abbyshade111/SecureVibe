@@ -78,6 +78,8 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-032](ADR-032.md) | Git, run in the app's folder, runs no program the app's repository names |
 | [ADR-033](ADR-033.md) | CVSS v4 scores, computed with FIRST's own tables |
 | [ADR-034](ADR-034.md) | A report is offered as `sv`'s only when its seal shows `sv` wrote it |
+| [ADR-035](ADR-035.md) | A preflight of the run settings, read from the code and never run |
+| [ADR-036](ADR-036.md) | `sv` finds its data beside itself, and an install does not live in a working folder |
 
 ## Where v1's records disagree with what v1 built
 
