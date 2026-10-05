@@ -427,6 +427,13 @@ another session is not a claim.
     keeps everything. Fix: keep unrecognized text in its own section, or refuse without a backup.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r7-notes-keep-owner-text`.
+    **Done the same day** (DESIGN, "The notes file keeps what the owner wrote outside the answers"): the reader drops
+    only what `sv` writes, everything else under a question stays its answer as written, and any other text is kept
+    word for word, in order, in a section of its own near the top that the report does not read; a file that is not
+    UTF-8 or has two sections for one question is refused with why, and nothing is written. Covers `sv notes` and both
+    MCP notes tools, which share the writer; R8's own fault is not changed. Tested with the review's case reproduced
+    on a copy of `examples/tested-notes` (the review's write-up does not include its fixture), unit, end-to-end, and MCP tests, including a byte-for-byte round trip and a five-megabyte
+    file; sixteen guards broken in turn were each caught.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
