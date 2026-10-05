@@ -3392,6 +3392,129 @@ http.createServer((q, s) => {
     }
 
     #[test]
+    fn what_a_page_sends_elsewhere_from_a_worker_or_over_a_websocket_is_recorded() {
+        // Deep review, improvement 5: the driver watched the tab's own requests only, so a page
+        // that sent an address elsewhere from a worker, or over a WebSocket, was not seen sending
+        // it. Here a page does each, from a worker, a worker's own worker, a shared worker, and a
+        // service worker, and a request from the page itself is the control. Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-wsworkers-{}", std::process::id());
+        let server = format!("{network}-app");
+        let browser = format!("{network}-browser");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let app = r#"
+const http = require('http');
+const scripts = {
+  '/worker.js': `fetch('http://collect.example/from-worker?em=a%40example.test').catch(() => {});
+                 new Worker('/inner.js');`,
+  '/inner.js': `fetch('http://collect.example/from-inner').catch(() => {});`,
+  '/sw.js': `fetch('http://collect.example/from-service-worker').catch(() => {});`,
+  '/shared.js': `fetch('http://collect.example/from-shared-worker').catch(() => {});`,
+};
+http.createServer((q, s) => {
+  if (scripts[q.url]) {
+    s.setHeader('content-type', 'text/javascript');
+    return s.end(scripts[q.url]);
+  }
+  s.setHeader('content-type', 'text/html');
+  s.end(`<script>
+    fetch('http://collect.example/from-page').catch(() => {});
+    new WebSocket('ws://socket.example/live?em=a%40example.test');
+    new Worker('/worker.js');
+    new SharedWorker('/shared.js');
+    navigator.serviceWorker.register('/sw.js');
+  </script>`);
+}).listen(8080);"#;
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            app,
+        ]);
+        let ready = matches!(started, Ok((0, _))) && backend.start_browser(&network, &browser) && {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            backend.forward_browser(&browser, &server, 8080)
+        };
+        let answers = ready.then(|| {
+            let via = Via::FreshContainer(&network);
+            let mut http = DockerHttp {
+                backend: &backend,
+                via: &via,
+                app: &server,
+                port: 8080,
+                mail: None,
+                provider: None,
+                browser: Some(&browser),
+                model: None,
+            };
+            use sv_check::browser::{Action, Job};
+            use sv_check::signed_in::Http;
+            http.browser(&Job {
+                actions: vec![
+                    Action::Goto("/account".into()),
+                    Action::Wait(2000),
+                    Action::Outside,
+                ],
+            })
+        });
+        let _ = backend.docker(&["rm", "-f", &server, &browser]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(
+            ready,
+            "the app, the browser, or the forwarder did not start: {started:?}"
+        );
+        let answers = answers.flatten().expect("the driver gave no answer");
+        let requests = answers[2]["requests"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let sent = |url: &str| requests.iter().find(|r| r["url"] == url).cloned();
+        // Each is recorded once, though a service worker reaches the driver twice.
+        let mut urls: Vec<&str> = requests.iter().filter_map(|r| r["url"].as_str()).collect();
+        let all = urls.len();
+        urls.sort_unstable();
+        urls.dedup();
+        assert_eq!(urls.len(), all, "{requests:#?}");
+        // The control: the page's own request, as before.
+        assert!(
+            sent("http://collect.example/from-page").is_some(),
+            "{answers:?}"
+        );
+        let socket = sent("ws://socket.example/live?em=a%40example.test")
+            .unwrap_or_else(|| panic!("the WebSocket was not recorded: {requests:#?}"));
+        assert_eq!(
+            (&socket["type"], &socket["page"]),
+            (&"WebSocket".into(), &"/account".into())
+        );
+        let worker = sent("http://collect.example/from-worker?em=a%40example.test")
+            .unwrap_or_else(|| panic!("the worker's request was not recorded: {requests:#?}"));
+        assert_eq!(worker["page"], "/worker.js", "{worker:?}");
+        assert!(
+            sent("http://collect.example/from-inner").is_some(),
+            "the worker's own worker's request was not recorded: {requests:#?}"
+        );
+        assert!(
+            sent("http://collect.example/from-service-worker").is_some(),
+            "the service worker's request was not recorded: {requests:#?}"
+        );
+        assert!(
+            sent("http://collect.example/from-shared-worker").is_some(),
+            "the shared worker's request was not recorded: {requests:#?}"
+        );
+    }
+
+    #[test]
     fn a_host_prefixed_cookie_signs_the_browser_in_and_a_refused_one_is_named() {
         // family-hub (3 October 2026): its session cookie was `__Host-fh_session`, `Secure`, and
         // the browser refused it when handed its name and value alone, so the browser checks said

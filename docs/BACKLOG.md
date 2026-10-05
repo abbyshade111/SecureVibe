@@ -725,6 +725,9 @@ another session is not a claim.
     **Improvement 5's "WebSockets and workers watched in the browser driver" claimed on 5 October 2026 by session
     securevibe-e9**, in branch `claude/securevibe-e9-ws-workers`: what a page sends elsewhere over a WebSocket, or
     from a worker it starts, is recorded with the rest of what it sends elsewhere.
+    **Done the same day** (DESIGN, "What a page sends from its workers and over WebSockets"; ADR-019, Later):
+    every worker, shared worker, and service worker the page starts is held until its requests are watched, and a
+    WebSocket is recorded when the page opens it. This is the last of improvement 5's five parts to be built.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
