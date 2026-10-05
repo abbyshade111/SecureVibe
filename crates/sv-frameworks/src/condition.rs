@@ -237,6 +237,10 @@ mod tests {
         questions.sort_unstable();
         let before = questions.len();
         questions.dedup();
-        assert_eq!(before, questions.len(), "two conditions ask the same question");
+        assert_eq!(
+            before,
+            questions.len(),
+            "two conditions ask the same question"
+        );
     }
 }

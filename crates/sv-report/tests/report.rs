@@ -2821,8 +2821,14 @@ fn what_has_to_be_answered_is_asked_as_a_question_never_said_as_an_answer() {
         .collect();
     assert_eq!(rows.len(), Condition::ALL.len(), "{markdown}");
     for row in rows {
-        assert!(row.trim_end_matches(" |").ends_with('?'), "a statement: {row}");
+        assert!(
+            row.trim_end_matches(" |").ends_with('?'),
+            "a statement: {row}"
+        );
     }
-    assert!(html.contains("Does the app use WebSockets?"), "the page asks too");
+    assert!(
+        html.contains("Does the app use WebSockets?"),
+        "the page asks too"
+    );
     assert!(!html.contains("No WebSocket library is used"));
 }
