@@ -4447,6 +4447,53 @@ fn parse_report_args(args: &[String], out_wants: &str) -> Result<ReportArgs> {
 }
 
 /// `sv report`, ending with its exit status (`exit`, and DESIGN, "Exit codes for CI").
+/// The terminal's count of what applies: the total, then a line per status under it, adding up to
+/// it. The four that rest on somebody's word are listed only when there are any, and each says
+/// whose word it is.
+fn summary_counts(c: &sv_report::Counts) -> String {
+    use sv_report::Status;
+    let mut out = format!("{} requirements apply:", c.applicable);
+    for (status, n) in c.by_status() {
+        let words = match status {
+            Status::NeedsAttention => {
+                if n == 1 {
+                    "needs attention"
+                } else {
+                    "need attention"
+                }
+            }
+            Status::Checked => {
+                if n == 1 {
+                    "was checked by an automated check"
+                } else {
+                    "were checked by an automated check"
+                }
+            }
+            Status::Documented => "you answered in security-notes.md: your word, not a check",
+            Status::ByHand => "you checked by hand: your word, not an automated check",
+            Status::Attested => {
+                "you answered yes about how the app is built: your word, not a check"
+            }
+            Status::Stated => "your AI coding tool answered yes: the tool's word, not a check",
+            Status::NotVerified => {
+                if n == 1 {
+                    "was not verified by anything"
+                } else {
+                    "were not verified by anything"
+                }
+            }
+        };
+        let always = matches!(
+            status,
+            Status::NeedsAttention | Status::Checked | Status::NotVerified
+        );
+        if n > 0 || always {
+            out.push_str(&format!("\n  {n} {words}"));
+        }
+    }
+    out
+}
+
 fn cmd_report(args: &[String]) -> Result<i32> {
     let (fail_on, args) = exit::FailOn::take(args)?;
     let args = &args[..];
@@ -4516,17 +4563,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
     if let Some(status) = &report.run_status {
         println!("\n{}", status.line());
     }
-    println!(
-        "\n{} requirements apply. {} need{} attention, {} {} checked by an automated check, \
-         {} {} not verified by anything.",
-        c.applicable,
-        c.needs_attention,
-        if c.needs_attention == 1 { "s" } else { "" },
-        c.checked,
-        if c.checked == 1 { "was" } else { "were" },
-        c.not_verified,
-        if c.not_verified == 1 { "was" } else { "were" }
-    );
+    // A line per status, so the numbers add up to what applies (deep review R5): it used to give
+    // three of the seven in its first sentence and the rest as "a further", as if on top.
+    println!("\n{}\n", summary_counts(c));
     if c.ai_process > 0 {
         println!(
             "A further {} about how the app is built with an AI coding tool (OWASP AISVS Appendix \
@@ -4534,38 +4573,39 @@ fn cmd_report(args: &[String]) -> Result<i32> {
             c.ai_process
         );
     }
-    if c.attested > 0 {
+    if c.documented > 0 {
         println!(
-            "A further {} you answered yes to in the [design] section of securevibe.toml, or \
-             confirmed after your AI coding tool did. That is your word about how the app is built, \
-             which is the weakest thing this report says: each one is still listed as a test to \
-             write.",
-            c.attested
+            "The {} you answered in security-notes.md {} documented, not checked: nothing here \
+             reads whether the answer is right, or whether the app does what it says.",
+            c.documented,
+            if c.documented == 1 { "is" } else { "are" }
         );
     }
     if c.by_hand > 0 {
         println!(
-            "A further {} you checked by hand, or confirmed after your AI coding tool did, and \
-             recorded in securevibe.toml with what you saw. That is your word, which nothing here \
-             repeated.",
-            c.by_hand
+            "The {} you checked by hand, or confirmed after your AI coding tool did, and recorded \
+             in securevibe.toml with what you saw {} your word, which nothing here repeated.",
+            c.by_hand,
+            if c.by_hand == 1 { "is" } else { "are" }
+        );
+    }
+    if c.attested > 0 {
+        println!(
+            "The {} you answered yes to in the [design] section of securevibe.toml, or confirmed \
+             after your AI coding tool did, {} your word about how the app is built, which is the \
+             weakest thing this report says: each one is still listed as a test to write.",
+            c.attested,
+            if c.attested == 1 { "is" } else { "are" }
         );
     }
     if c.stated > 0 {
         println!(
-            "A further {} your AI coding tool answered yes to or checked by hand in \
-             securevibe.toml, or wrote in security-notes.md, or that do not say who answered. That \
-             is the word of the tool that wrote the code, weaker still than yours: each one is \
-             still listed as a test to write.",
-            c.stated
-        );
-    }
-    if c.documented > 0 {
-        println!(
-            "A further {} you answered yourself in security-notes.md. That is documented, not \
-             checked: nothing here reads whether the answer is right, or whether the app does what \
-             it says.",
-            c.documented
+            "The {} your AI coding tool answered yes to or checked by hand in securevibe.toml, or \
+             wrote in security-notes.md, or that do not say who answered, {} the word of the tool \
+             that wrote the code, weaker still than yours: each one is still listed as a test to \
+             write.",
+            c.stated,
+            if c.stated == 1 { "is" } else { "are" }
         );
     }
     if !report.out_of_scope.is_empty() {

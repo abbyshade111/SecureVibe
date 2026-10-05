@@ -233,13 +233,7 @@ pub fn compliance(report: &Report) -> String {
             out.push_str(&format!("{fence}text\n{}\n{fence}\n\n", t.text));
         }
     }
-    out.push_str(&format!(
-        "{} requirements apply to this app. Of those, **{} have been looked at by something** and \
-         **{} have not**.\n\n",
-        c.applicable,
-        c.needs_attention + c.checked,
-        c.not_verified
-    ));
+    out.push_str(&format!("{}\n\n", crate::lede(c, "**", "**")));
     if c.ai_process > 0 {
         out.push_str(&format!(
             "A further {} about how the app is built with an AI coding tool, from OWASP AISVS \
@@ -251,7 +245,9 @@ pub fn compliance(report: &Report) -> String {
         "There is no line in this report that says a requirement passed, because nothing here is \
          able to establish that. A requirement marked *checked* had at least one automated check look \
          at it and find nothing wrong, over the coverage named beside it — which is worth having and is not the same as the requirement \
-         being met. Everything else applicable is *not verified*: nothing has produced evidence \
+         being met. One marked as answered in the security notes, checked by hand, or answered \
+         yes rests on your word or your AI coding tool's, which is shown as exactly that and never \
+         as checked. Everything else applicable is *not verified*: nothing has produced evidence \
          either way.\n\n",
     );
     if c.not_assessed > 0 {
@@ -264,22 +260,10 @@ pub fn compliance(report: &Report) -> String {
     }
 
     out.push_str("| | count |\n|---|---:|\n");
-    out.push_str(&format!(
-        "| Applies, needs attention | {} |\n",
-        c.needs_attention
-    ));
-    out.push_str(&format!(
-        "| Applies, checked by an automated check | {} |\n",
-        c.checked
-    ));
-    out.push_str(&format!(
-        "| Applies, you answered it in the security notes | {} |\n",
-        c.documented
-    ));
-    out.push_str(&format!(
-        "| Applies, not verified by anything | {} |\n",
-        c.not_verified
-    ));
+    // Every status, so the rows add up to what applies: see `Counts::by_status`.
+    for (status, n) in c.by_status() {
+        out.push_str(&format!("| {} | {n} |\n", status.applies_row()));
+    }
     out.push_str(&format!("| Does not apply | {} |\n", c.not_applicable));
     out.push_str(&format!(
         "| Not assessed — nobody has answered | {} |\n",
