@@ -91,6 +91,38 @@ pub struct Location {
     pub line: usize,
 }
 
+impl Location {
+    /// The place given for a finding about the running app, which has no file and no line.
+    pub const RUNNING_APP: &'static str = "the running app";
+    /// The place given for a finding in what the running app printed.
+    pub const RUNNING_APP_OUTPUT: &'static str = "the running app's output";
+
+    /// A finding about the running app. Line 1, because every report shows a line; it means none.
+    pub fn running_app() -> Self {
+        Location {
+            file: Self::RUNNING_APP.to_owned(),
+            line: 1,
+        }
+    }
+
+    /// A finding in the running app's output.
+    pub fn running_app_output() -> Self {
+        Location {
+            file: Self::RUNNING_APP_OUTPUT.to_owned(),
+            line: 1,
+        }
+    }
+
+    /// Whether this names a file of the app, rather than the running app or its output. A tool
+    /// that wants a file address (SARIF's) must not be handed one of these as if it were a path.
+    pub fn is_file(&self) -> bool {
+        !matches!(
+            self.file.as_str(),
+            Self::RUNNING_APP | Self::RUNNING_APP_OUTPUT
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Finding {
     pub rule_id: String,

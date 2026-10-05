@@ -639,6 +639,12 @@ another session is not a claim.
     rule descriptions take one instance's text.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r14-sarif-locations`.
+    **Done the same day** (DESIGN, "SARIF addresses are addresses, and a rule is described in its own words"): a
+    file's URI is percent-encoded as an RFC 3986 relative reference; a running-app finding points at
+    `securevibe.toml`, which says how the app was run, with the place named in the location's message, a logical
+    location, and `properties.place`, since GitHub shows no result without a file; a rule kept as data is described
+    in its own words, any other by what all its findings share. Four tests, each failing before; six guards
+    undone in turn, each caught.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
     2: clean claims that name their limits (the calls per language, the ecosystems, transitive and development
     dependencies). 3: time limits and a clean environment for outside tools (`GOTOOLCHAIN=local`). 4: score CVSS
