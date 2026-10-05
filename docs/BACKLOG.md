@@ -16,7 +16,8 @@ another session is not a claim.
   of requirements nobody has placed asks, for example, "No WebSocket library is used" instead of "Does the app use
   WebSockets?". *Read*, and seen in the report of a one-file WebSocket app. Fix: a question per condition (in the
   data beside the reason, or derived from the condition), and a test that no row of that table reads as a statement.
-  Not claimed.
+  **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+  branch `claude/securevibe-e2-questions`.
 - **`git ls-files` runs a program the app's repository names.** Found on 5 October 2026 by session securevibe-e9,
   while looking at how `sv` runs outside programs. The committed-secrets check runs `git ls-files` in the app's
   folder (`crates/sv-check/src/config.rs`), and git honors the repository's own `.git/config`. A `core.fsmonitor`
