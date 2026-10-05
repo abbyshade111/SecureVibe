@@ -374,6 +374,8 @@ another session is not a claim.
     are still open.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (DESIGN, "pnpm 5 and 6 told apart, and packages without a version named"): pnpm v9 and
+    Yarn name their packages with no registry version as not listed, as `Pipfile.lock` and `pylock.toml` do.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -387,6 +389,8 @@ another session is not a claim.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (same DESIGN section): the reader takes the lockfile's own version line, and reads 6.0's
+    `/name@version` and 5.x's `/name/version`; the "v6" test now uses v6's format, and 5.x has a test of its own.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
