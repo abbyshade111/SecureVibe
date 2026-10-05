@@ -1426,6 +1426,14 @@ another session is not a claim.
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
      Spends the owner's AI credit: ask before each run.
+     **The owner's decision, 5 October 2026:** run it, medium size: two models (Sonnet 5.5 and Haiku 4.5, as helper
+     agents of this session, not the owner's API key), two builds per arm, on the first trial's brief. Arms: no prompt;
+     each of the six design-time prompts that has a check; the plan in the loop (the builder is given `sv plan`'s
+     output); and the MCP flow approximated (the builder is given the MCP server's instructions and the `sv` command
+     line, since a helper agent cannot be given an MCP server without changing the session's configuration). The last
+     shows whether the instructions work when read, not whether a tool reads them unasked, and is reported as that.
+     About 36 builds. One tool, two models: it cannot speak for other vendors' tools.
+     **Claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompts-trial-3`.
   8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
