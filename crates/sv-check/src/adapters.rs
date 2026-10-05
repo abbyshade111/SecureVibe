@@ -1845,6 +1845,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             &["python".to_owned(), "javascript".to_owned()],
             &BTreeSet::new(),
             &dir,
+            &secret_rules(),
         );
         let given = std::fs::read_to_string(&seen)
             .unwrap_or_default()
