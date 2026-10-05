@@ -5,15 +5,15 @@
 //! walk goes: an id in the application code being read as a test, and a whole language's test files
 //! being skipped while everything still looks like it worked.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use sv_check::suite::{SuiteOutcome, credit, declared_test_name, tests_naming_requirements};
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-suite-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("suite-{name}"))
 }
 
 fn write(root: &Path, relative: &str, contents: &str) {

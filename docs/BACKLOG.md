@@ -44,7 +44,8 @@ another session is not a claim.
   5 October 2026 two `clean_coverage` tests failed this way while another session's full run was going, and passed
   with `TMPDIR` pointed at a private folder. Make each name unique per run and per call, and remove the folder
   when the test ends. **Claimed on 5 October 2026 by session practical-banach-b1faa1**, at the owner's asking, in
-  branch `claude/scratch-names`.
+  branch `claude/scratch-names`. **Done the same day**: DESIGN, "The tests' scratch folders, one per run and per
+  call".
 
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
@@ -406,6 +407,8 @@ another session is not a claim.
     broken in turn, each caught.
   - **H16. Medium, Plausible.** Brute-force (V6.3.1) and code-guessing (V6.6.3) credit rests on one timing sample
     that includes `docker exec`'s own time.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-h16`.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -446,6 +449,10 @@ another session is not a claim.
     person writes, such as `.DS_Store`, so nobody chases it.
     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-files-not-text`.
+    **Done the same day** (DESIGN, "Files that are not text named, and text that is not UTF-8 read"): text in UTF-16,
+    with its mark or without, and in Latin-1 is read; an image, a font, or a `.DS_Store`, known by its contents, is
+    named as holding no text a person writes and no longer keeps the credential scan partial; and the report's gap
+    names each file not read, and why.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -525,8 +532,12 @@ another session is not a claim.
   - **R4. Medium, Reproduced.** The credential fingerprint is an unsalted hash of the line, and the report also
     shows the name, first four characters, and length, so a test password was recovered offline in 190 guesses.
     Fix: hash the line with the value masked, or use a key kept locally.
+    **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-fingerprint`.
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r5-counts-add-up`.
   - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
@@ -570,6 +581,8 @@ another session is not a claim.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r9-app-text-fenced`.
   - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r10`.
@@ -582,6 +595,10 @@ another session is not a claim.
     count again, and two that disagree leave the finding standing until one is removed.
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r12`. Record: ADR-031 (proposed).
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r12-not-the-app-warning`.
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -591,6 +608,8 @@ another session is not a claim.
     path is shown in a code span it cannot close; the escaped redaction marker is still read as one.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r14-sarif-locations`.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
     2: clean claims that name their limits (the calls per language, the ecosystems, transitive and development
     dependencies). 3: time limits and a clean environment for outside tools (`GOTOOLCHAIN=local`). 4: score CVSS
@@ -1329,6 +1348,9 @@ another session is not a claim.
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
      **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
      with its record as `proposed` (ADR-030).
+     **Done the same day** (ADR-030, accepted; DESIGN, "A plan before any code: `sv plan` and `securevibe_plan`"):
+     `sv plan` and `securevibe_plan`, built from the report's own parts, with what the app must give `sv run` worked
+     out from the brief. Whether builds given the plan come out testable is item 7's question.
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
