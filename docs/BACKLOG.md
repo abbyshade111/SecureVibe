@@ -267,8 +267,11 @@ another session is not a claim.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
-    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
-    `claude/securevibe-e9-h5`.
+    **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/h5-next-node-sinks`.
+    **Also claimed on 5 October 2026 by session securevibe-e9**, in branch `claude/securevibe-e9-h5`: the earlier
+    claim reached `main` after this session had checked the backlog, so both took it. securevibe-e9's was built and
+    tested first, and the owner chose it on 5 October 2026; the cato-pipeline session's branch had nothing pushed.
     **Done the same day** (DESIGN, "Redirects and file calls the way Next.js and modern Node write them"): every
     form the review named is found, Next.js's bare `redirect` and `NextResponse.redirect`, the browser's
     `location` assignments and calls, `fs.promises.readFile`, and the bare `fs/promises` calls; a same-site path,
@@ -363,6 +366,8 @@ another session is not a claim.
     and the list still counts as complete. Fix: name them as unread, as the `pylock.toml` reader does.
     **`Pipfile.lock` done with H9 on 4 October 2026**: its packages with no version are named. pnpm v9 and Yarn
     are still open.
+    **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -374,6 +379,8 @@ another session is not a claim.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
+    **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
+    the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
