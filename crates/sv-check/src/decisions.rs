@@ -343,6 +343,13 @@ mod tests {
             safe_defaults("## When to bring in a person\n- debug mode: off\n"),
             SafeDefaults::default()
         );
+        // A switch only in the section after it is that section's, not this one's.
+        assert_eq!(
+            safe_defaults(
+                "## Safe defaults\nNothing to say.\n## Rules that might apply\n- debug mode: off\n"
+            ),
+            SafeDefaults::default()
+        );
     }
 
     #[test]

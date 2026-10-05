@@ -702,6 +702,7 @@ mod tests {
             "config.debug-mode",
             "probe.x",
             "advisory.GHSA-x",
+            crate::decisions::NOT_HELD_TO,
         ] {
             assert!(is_svs_own(id), "{id}");
         }
@@ -750,6 +751,23 @@ mod tests {
             (
                 at("config.a", "SECURITY.md", 1, &["CWE-1059"], Severity::Low),
                 at("semgrep.b", "SECURITY.md", 1, &["CWE-1059"], Severity::Low),
+            ),
+            // A decision broken, on its line of the decisions file, is not a line of code.
+            (
+                at(
+                    crate::decisions::NOT_HELD_TO,
+                    crate::decisions::FILE,
+                    7,
+                    &["CWE-489"],
+                    Severity::Low,
+                ),
+                at(
+                    "semgrep.b",
+                    crate::decisions::FILE,
+                    7,
+                    &["CWE-489"],
+                    Severity::Low,
+                ),
             ),
         ] {
             let merged = merge_same_place(vec![a.clone(), b.clone()]);
