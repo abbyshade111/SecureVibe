@@ -23,10 +23,15 @@ Technical requirements (these are fixed, because of where the app will be tested
   `app.py`, using `http.server`, listening on `0.0.0.0` at the port in the environment variable `PORT`
   (default 8080). Store data in SQLite at the path in the environment variable `CLUB_DB` (default `/tmp/club.db`; the app's own folder is read-only when it runs).
 - Forms may carry a hidden field named `csrf_token` if you use one.
-- A script `seed.py` creates the accounts when run once before the app starts: it reads
+- A script `seed.py` creates the accounts. The tester runs it once, after the app has started and is
+  answering, so the app must create its own tables when it starts: it reads
   `SV_USER_A` / `SV_PASSWORD_A` and `SV_USER_B` / `SV_PASSWORD_B` (two ordinary members) and
   `SV_ADMIN` / `SV_ADMIN_PASSWORD` (an admin), and makes sure there is exactly one seat to book.
   It must work against the same database file the app uses.
 - Expect an automated tester that sends all its requests from one address and signs in and out
   several dozen times within a few minutes, as different test accounts. The app must keep working for it.
 - `securevibe.toml` in this folder describes the app. Leave what is there as it is; you may add to it.
+
+<!-- Corrected on 5 October 2026: until then this brief said `seed.py` runs "once before the app starts", which is the
+opposite of what `sv` does (it runs the seed after the app answers its health path). The first three prompts trials
+used the earlier sentence; see docs/prompts/trial-3/README.md, "What went wrong in the trial". -->

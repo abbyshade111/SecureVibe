@@ -951,6 +951,34 @@ mod tests {
         );
     }
 
+    /// The spec tells the AI tool when `seed` runs: after the app answers on its health path, in the
+    /// app's own container. The third prompts trial's brief said "before the app starts", and three
+    /// builds that made their tables only in the seed could not start (BACKLOG, "The specification
+    /// does not say when `seed` runs"). This holds the sentence to the order in the code, so moving
+    /// the seed earlier fails here and points at the sentence to change.
+    #[test]
+    fn the_spec_says_the_seed_runs_after_the_health_check_and_it_does() {
+        let spec = sv_manifest::spec::STARTER_MANIFEST;
+        assert!(
+            spec.contains("after the") && spec.contains("app answers on `health`, never before"),
+            "the spec says when the seed runs"
+        );
+        let docker = include_str!("docker.rs");
+        let healthy = docker
+            .find("let healthy = self.wait_until_ready(&via, &app, plan);")
+            .expect("the run waits for the app's health path");
+        let seeded = docker
+            .find("self.signed_in(&via, &app,")
+            .expect("the signed-in stage, which runs the seed");
+        assert!(healthy < seeded, "the seed runs after the health check");
+        let in_signed_in = &docker[docker.find("fn signed_in(").unwrap()..];
+        assert!(
+            in_signed_in[..in_signed_in.find("\n    fn ").unwrap_or(in_signed_in.len())]
+                .contains("self.seed(app, seed, accounts)"),
+            "the signed-in stage is where the seed is run"
+        );
+    }
+
     #[test]
     fn a_start_command_that_weakens_the_app_is_warned_about_and_nothing_else_is() {
         // Each rule, and what is shown for it: the name, and the value only when it is a short
