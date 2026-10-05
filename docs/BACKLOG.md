@@ -342,6 +342,9 @@ another session is not a claim.
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h17`.
+    **Done the same day** (DESIGN, "An error page is searched whole before it is cut"): the whole answer is searched
+    for each sign of a stack trace, and the text around any found past the first 4,000 characters is kept, so the
+    check sees it; a long page with no trace is still credited.
   - **H18. Medium, Reproduced.** OSV range events are read in file order, not version order (PYSEC-2024-265 reports
     1.2.1 clean; 86 real ranges are out of order). Fix: sort by version; ties give "could not compare".
     **Claimed on 4 October 2026 by session securevibe-e2**, with H18, H19, and H20, at the owner's asking to continue
