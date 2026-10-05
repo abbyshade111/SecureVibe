@@ -1045,6 +1045,9 @@ another session is not a claim.
      tell a checked redirect from an unchecked one. Recognizing every checking function is not possible; one
      honest step is to lower the confidence when the value passed through a function of the app's own whose
      name or body speaks of the destination, and say so in the finding.
+     **The owner's decision, 5 October 2026:** keep the finding, and when the destination passes through a function
+     of the app's own, name that function in it as the thing to check. **Claimed the same day by session
+     securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-redirect-checked`.
 
 - **Three faults found scanning the owner's family-hub, reported 3 October 2026.** Sent by the cato-pipeline session
   at the owner's asking. It found them on family-hub (Python and Flask, built with `sv` in the loop) with `sv` at
@@ -1634,6 +1637,29 @@ another session is not a claim.
   the order in `sv-run`. The trials' brief is corrected, with a note that the first three trials used the old
   sentence. The next trials' protocol is `docs/prompts/loop-protocol.md`: the arms, the measures, what makes a build
   unusable, what may be said, and the cost guard, fixed before any build.
+  **Items 2 and 4 done the same day** (DESIGN, "The loop, a pilot"; `docs/prompts/loop-pilot/README.md`): six
+  loop-arm builds, Sonnet 5.5 and Haiku 4.5, $1.86 of the owner's API credit. Every build used `sv` before any code
+  without being asked; Haiku stopped to ask the owner until the request said the owner was away (protocol amendment
+  1); all four builds that wrote an app could be started and signed in to (34, 38, 21, 27 checks answered). Only three
+  ran `sv check`, each once: no check-and-fix round was seen. The measures are `loop_measures.py`.
+
+- **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
+  paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
+  to a file instead of passing it on; `securevibe_check` gave 50 KB for one build, handled the same way. The builder
+  then read them in parts with a script. A short answer first (what to build, the run settings, the decisions to
+  make) with the rest by section, or a size the common tools pass whole, would let a builder read what it is given.
+
+- **A `securevibe.toml` field in the wrong section: the message names the field, not the section.** Found on 5 October
+  2026 by session paper-facts, in the loop pilot. Haiku 4.5 wrote `enabled = true` under `[stack.run.ai]`; `sv`
+  answered with the line, the field, and the fields allowed, and the builder sent the same mistake back five times,
+  rewriting the file twice, before it put the field where it belongs. Naming the section the line was read in (`in [stack.run.ai]`) would say where
+  it went wrong.
+
+- **`sv check` does not say `.env` can be committed until the folder is a git repository.** Found on 5 October 2026
+  by session paper-facts, in the loop pilot: every build was flagged `config.gitignore-covers-env` (high) by
+  `sv report` on a copy that had been made a repository, and the `sv check` during the build, in a plain folder, said
+  nothing. A builder that checks before `git init` never hears it. Either say it in a plain folder too, or say that it
+  was not looked at.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
@@ -1657,7 +1683,9 @@ another session is not a claim.
   answer cannot tell "taken now" from "already yours". Ways out, for the owner to choose: send the copies as two or more
   users, so only one of them can be told it went through; or read the effect, from a page `once` names that shows how
   many were taken, rather than the answers. Until then the finding can accuse exactly the app it should credit, which
-  is the kind of false alarm that makes the tool rewrite correct code. Not claimed.
+  is the kind of false alarm that makes the tool rewrite correct code.
+  **The owner's decision, 5 October 2026:** send the copies as two or more users. **Claimed the same day by session
+  securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-done-twice-users`.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
@@ -2910,11 +2938,19 @@ another session is not a claim.
      **Go's standard-library `crypto/pbkdf2` and C#'s two-argument `Rfc2898DeriveBytes` claimed on 3 October 2026 by
      session securevibe-e2**, at the owner's asking to continue with the backlog, in branch
      `claude/securevibe-e2-weak-kdf-more`. Counts between 210,000 and 600,000 with SHA-256 stay unclaimed.
-     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
-     `claude/pbkdf2-mid-counts`.
      **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 3 October):
      both are reported, and x/crypto's own order is never misread as the standard library's. Six guards broken in
      turn, each caught.
+     **Counts between 210,000 and 600,000 with SHA-256 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
+     `claude/pbkdf2-mid-counts`.
+     **Done the same day** (DESIGN, "A key made from a password with too few rounds", the part added on 5 October):
+     the rule now ties the figure to the hash where the call names it: below 600,000 is reported with SHA-256, and
+     210,000 stays the figure with SHA-512 and wherever the hash is not named or cannot be read (a variable, a
+     default, or a hash set elsewhere, as Java's and Kotlin's `PBEKeySpec` and pointycastle's `Pbkdf2Parameters`
+     always do), which the rule's description and what it looks for now say. The hash is read in thirteen of the
+     fifteen languages; every language has a case at 300,000 with SHA-256 or with no hash it can read, and each
+     that names a hash has cases at 600,000 with SHA-256 and 300,000 with SHA-512. Eight guards broken in turn,
+     each caught. Not done: SHA-1 counts between 210,000 and 1,300,000.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
@@ -4090,6 +4126,16 @@ another session is not a claim.
   message gives them. Still the case on `main` at 6d4ce3f.
   **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch `claude/install-steps-for-run`:
   the guide gets the build steps; the message is left as it is.
+  **Done the same day** (DESIGN, "The guide says how to install `sv` for `--run`"): section 6 of
+  `docs/GETTING-STARTED.md` now walks somebody who is not a programmer through it: Apple's command-line tools (or
+  `build-essential` on Linux), Rust through rustup, the source by `git clone` or a ZIP, `cargo build --release -p
+  sv-cli`, a `PATH` line for zsh and for bash, `sv --version` and a check of a bundled example, that the folder must
+  stay where it was built (a built `sv` still cannot be moved: item 2 above is open on `main`), and that Docker or
+  Colima must be running. Windows is said plainly to be untried. Every command was run on the Mac from a fresh clone
+  of `main` at aa4d371, and from the ZIP, and `sv report --run` then started an example app; the Linux steps were not
+  tried by hand. A test (`the_guide_the_container_points_at_says_how_to_install_sv`, `crates/sv-cli/src/mcp.rs`)
+  holds the container message's pointer to the guide: putting back the old guide failed it, and so did putting back
+  only the old "not yet something this guide can make easy" sentence.
 
   **Thoughts.**
 

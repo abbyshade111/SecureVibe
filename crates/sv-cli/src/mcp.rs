@@ -3182,6 +3182,42 @@ mod tests {
     }
 
     #[test]
+    fn the_guide_the_container_points_at_says_how_to_install_sv() {
+        // Met in family-hub on 3 October 2026: this message sent the AI tool to the guide, and the guide
+        // said the install "is not yet something this guide can make easy". The message stays true only
+        // while the guide holds the steps.
+        let text = terminal_command("/Users/me/code/app", "--run", true, None);
+        let guide_name = "docs/GETTING-STARTED.md";
+        assert!(text.contains(guide_name), "{text}");
+        let guide = std::fs::read_to_string(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../..")
+                .join(guide_name),
+        )
+        .expect("the guide the message names exists");
+        assert!(
+            guide.contains("## 6.") && guide.len() > 1000,
+            "the guide was read whole"
+        );
+        for step in [
+            "https://sh.rustup.rs",
+            "git clone https://github.com/abbyshade111/SecureVibe.git",
+            "cargo build --release -p sv-cli",
+            "target/release:$PATH",
+            "sv --version",
+            "Leave the `securevibe` folder where it is",
+            "Docker or Colima has to be running",
+        ] {
+            assert!(guide.contains(step), "the guide lacks {step:?}");
+        }
+        assert!(
+            !guide.contains("not yet\nsomething this guide can make easy")
+                && !guide.contains("not yet something this guide can make easy"),
+            "the guide still says it cannot help"
+        );
+    }
+
+    #[test]
     fn the_notes_file_is_made_in_the_app_and_keeps_what_is_written() {
         let root = scratch_app("notes", "tested-notes");
         let server = Server::new(&root).unwrap();
