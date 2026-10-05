@@ -398,6 +398,9 @@ another session is not a claim.
     which file and why. Tested end to end with Django 2.2.0 found through `Pipfile.lock`, a clean Pipenv app
     credited, and five not-credited cases; eleven guards broken in turn, each caught. Still open: a range in a
     `requirements.txt` without a lockfile is left out unnamed, and a `setup.py`-only app is not called unpinned.
+    **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h9-ranges-and-setup-py`: a requirement given as a range is named as not checked against the advisories,
+    and an app whose Python dependencies are declared only in `setup.py` or `setup.cfg` is said to have none pinned.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
