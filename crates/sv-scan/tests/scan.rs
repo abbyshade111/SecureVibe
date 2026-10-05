@@ -1717,7 +1717,74 @@ fn folders_that_are_not_the_app_are_not_evidence_about_it() {
     assert!(apart.all_paths.contains("examples.py"));
     let set_apart: Vec<&str> = apart.set_apart.iter().map(|p| p.as_str()).collect();
     assert_eq!(set_apart, vec!["crates/one/tests", "examples"]);
+    assert_eq!(apart.not_the_app, folders, "the list is used");
+    assert!(apart.not_the_app_refused.is_none());
+    let (set, total) = apart.code_set_apart;
+    assert!(set >= 2 && set < total, "{:?}", apart.code_set_apart);
     std::fs::remove_dir_all(&app).ok();
+}
+
+#[test]
+fn a_list_that_would_set_apart_all_the_app_s_code_is_not_used() {
+    // All of the app's code under two folders, and a sign-in library declared beside it. `src` alone
+    // leaves `lib`; `src` and `lib` together leave nothing.
+    let app = std::env::temp_dir().join(format!("sv-scan-all-apart-{}", std::process::id()));
+    std::fs::remove_dir_all(&app).ok();
+    std::fs::create_dir_all(app.join("src/web")).unwrap();
+    std::fs::create_dir_all(app.join("lib")).unwrap();
+    std::fs::write(app.join("src/web/app.py"), "import flask_login\n").unwrap();
+    std::fs::write(app.join("lib/util.py"), "print('util')\n").unwrap();
+    std::fs::write(app.join("src/requirements.txt"), "flask-login\n").unwrap();
+    // Not code: a README and an image outside the list do not keep it from covering the code.
+    std::fs::write(app.join("README.md"), "# App\n").unwrap();
+    let listing = sv_scan::files::Listing::of(&app);
+    let sigs = all_signatures();
+
+    let one = vec!["src".to_owned()];
+    let some = sv_scan::scan_listing_app(&listing, &sigs, &one).unwrap();
+    assert_eq!(
+        some.not_the_app, one,
+        "a list that leaves code outside is used"
+    );
+    assert!(some.not_the_app_refused.is_none());
+    assert_eq!(some.code_set_apart, (1, 2));
+    assert_ne!(answer(&some, Condition::Auth).value, Some(true));
+
+    // `*` matches every folder one level down; the manifest refuses it alone, not inside a path.
+    for folders in [
+        vec!["src".to_owned(), "lib".to_owned()],
+        vec!["*".to_owned(), "docs".to_owned()],
+    ] {
+        let all = sv_scan::scan_listing_app(&listing, &sigs, &folders).unwrap();
+        assert!(
+            all.not_the_app.is_empty(),
+            "{folders:?}: {:?}",
+            all.not_the_app
+        );
+        let why = all.not_the_app_refused.as_deref().expect("said why");
+        assert!(why.contains("all 2 of the app's code files"), "{why}");
+        assert_eq!(all.code_set_apart, (0, 2));
+        assert!(all.set_apart.is_empty(), "{:?}", all.set_apart);
+        // Read as the app: its sign-in library is evidence again.
+        assert_eq!(
+            answer(&all, Condition::Auth).value,
+            Some(true),
+            "{folders:?}"
+        );
+        assert!(all.languages.contains("python"));
+    }
+
+    // An app with no code at all has nothing to hide, and the list is used.
+    let bare = std::env::temp_dir().join(format!("sv-scan-no-code-{}", std::process::id()));
+    std::fs::remove_dir_all(&bare).ok();
+    std::fs::create_dir_all(bare.join("site")).unwrap();
+    std::fs::write(bare.join("site/notes.txt"), "hello\n").unwrap();
+    let site = vec!["site".to_owned()];
+    let (kept, refused, counts) =
+        sv_scan::not_the_app_in(&sv_scan::files::Listing::of(&bare), &site);
+    assert_eq!((kept, refused, counts), (site, None, (0, 0)));
+    std::fs::remove_dir_all(&app).ok();
+    std::fs::remove_dir_all(&bare).ok();
 }
 
 #[test]

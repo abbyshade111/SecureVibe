@@ -243,3 +243,23 @@ fn a_folder_set_apart_by_a_pattern_still_counts_both_ways() {
     let (_, apart) = partial_text.split_once("not the app").unwrap();
     assert!(!apart.contains("none matches a record"), "{partial_text}");
 }
+
+#[test]
+fn a_list_that_would_set_apart_all_the_app_s_code_is_not_used_by_audit_either() {
+    // Deep review R12: the only code is under `examples`, so naming it would leave nothing that is
+    // the app's. `sv audit` reads the list as every other command does (ADR-031).
+    let (dir, osv) = setup("all-apart", NOT_THE_APP, &[("qs", "6.5.0")]);
+    std::fs::write(dir.join("examples/demo/index.js"), "console.log('hi')\n").unwrap();
+    let (code, text) = audit(&dir, Some(&osv));
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+
+    assert_eq!(code, Some(1), "{text}");
+    assert!(
+        text.contains(
+            "`[repository] not-the-app` is not used: together they would set apart all 1"
+        ),
+        "{text}"
+    );
+    assert!(text.contains("\n2 known vulnerabilities:"), "{text}");
+    assert!(!text.contains("counted all the same"), "{text}");
+}
