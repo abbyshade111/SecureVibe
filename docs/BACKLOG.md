@@ -698,6 +698,8 @@ another session is not a claim.
     and control characters stripped from everything `sv` prints to a terminal. The other three parts (two-factor
     codes from the container's clock, seed secrets through standard input, WebSockets and workers in the browser
     driver) are not claimed.
+    **Those two done the same day** (DESIGN, "Markers made fresh for each use, and no control character to the
+    terminal").
     **Improvement 5's "seed secrets through standard input" claimed on 5 October 2026 by session securevibe-e9**,
     in branch `claude/securevibe-e9-seed-env`: the run's passwords and two-factor secrets, and the test provider's
     client secret, are handed to `docker` in its own environment, not on its command line, where another user of

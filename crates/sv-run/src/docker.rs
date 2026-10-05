@@ -2123,20 +2123,29 @@ fn exchange_script(host: &str, port: u16) -> String {
     )
 }
 
-/// What starts each copy's answer in the output of `at_once_script`. Printed on a line of its own
-/// before each, so an answer that never came still has its place.
+/// What starts each copy's answer in the output of `at_once_script`, before a part made fresh for each
+/// call (`at_once_mark`). Printed on a line of its own before each, so an answer that never came still
+/// has its place.
 const AT_ONCE_MARK: &str = "@@sv-at-once-";
+
+/// The marker for one call of `at_once_script`: `AT_ONCE_MARK` and a random part. With the marker
+/// fixed, an app could print `@@sv-at-once-2@@` and an answer of its own inside its first answer, and
+/// that would be read as the second copy's: a race check fooled into a pass (the deep review's
+/// improvement 5). The app cannot know a marker made after it started.
+fn at_once_mark() -> String {
+    format!("{AT_ONCE_MARK}{}-", crate::random_hex(8))
+}
 
 /// `exchange_script`, for one request sent `times` times at once: every connection is started in
 /// the background before any is waited for, so they reach the app together rather than one after
 /// another, each answer kept in its own file and printed in order after all have finished.
-fn at_once_script(host: &str, port: u16, times: usize) -> String {
+fn at_once_script(host: &str, port: u16, times: usize, mark: &str) -> String {
     let numbers: Vec<String> = (1..=times).map(|i| i.to_string()).collect();
     let numbers = numbers.join(" ");
     format!(
         "d=$(mktemp -d) && cat > \"$d/r\" && \
          for i in {numbers}; do timeout 15 nc -w 5 {host} {port} -e sh -c \"cat $d/r; cat 1>&2\" > \"$d/$i\" 2>&1 & done; \
-         wait; for i in {numbers}; do printf '\\n{AT_ONCE_MARK}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
+         wait; for i in {numbers}; do printf '\\n{mark}%s@@\\n' \"$i\"; cat \"$d/$i\"; done; rm -rf \"$d\""
     )
 }
 
@@ -2145,11 +2154,12 @@ fn parse_at_once(
     id: &str,
     out: &str,
     times: usize,
+    mark: &str,
 ) -> Vec<Option<sv_check::probes::ProbeResponse>> {
     (1..=times)
         .map(|i| {
-            let start = format!("\n{AT_ONCE_MARK}{i}@@\n");
-            let next = format!("\n{AT_ONCE_MARK}{}@@\n", i + 1);
+            let start = format!("\n{mark}{i}@@\n");
+            let next = format!("\n{mark}{}@@\n", i + 1);
             let from = out.find(&start)? + start.len();
             let to = out[from..].find(&next).map_or(out.len(), |n| from + n);
             let raw = &out[from..to];
@@ -2454,14 +2464,15 @@ impl DockerBackend {
         times: usize,
     ) -> Option<Vec<Option<sv_check::probes::ProbeResponse>>> {
         let raw = request_bytes(request, app)?;
-        let script = at_once_script(app, port, times);
+        let mark = at_once_mark();
+        let script = at_once_script(app, port, times, &mark);
         let (_, out) = self
             .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
             .ok()?;
-        if !out.contains(AT_ONCE_MARK) {
+        if !out.contains(&mark) {
             return None;
         }
-        Some(parse_at_once(&request.id, &out, times))
+        Some(parse_at_once(&request.id, &out, times, &mark))
     }
 }
 
@@ -3978,7 +3989,8 @@ mod at_once_tests {
 
     #[test]
     fn every_copy_is_started_before_any_is_waited_for() {
-        let script = at_once_script("app", 8080, 12);
+        let mark = at_once_mark();
+        let script = at_once_script("app", 8080, 12, &mark);
         let (start, rest) = script
             .split_once("; wait;")
             .expect("one wait, after the starts");
@@ -3992,10 +4004,7 @@ mod at_once_tests {
             start.contains("-e sh -c") && start.ends_with("2>&1 & done"),
             "{start}"
         );
-        assert!(
-            rest.contains(AT_ONCE_MARK) && rest.contains("rm -rf"),
-            "{rest}"
-        );
+        assert!(rest.contains(&mark) && rest.contains("rm -rf"), "{rest}");
     }
 
     #[test]
@@ -4007,16 +4016,17 @@ mod at_once_tests {
             )
         };
         // Twelve copies: the second got no answer, and the first and tenth must not be mixed up.
+        let mark = at_once_mark();
         let mut out = String::from("noise before the first mark");
         for i in 1..=12 {
-            out.push_str(&format!("\n{AT_ONCE_MARK}{i}@@\n"));
+            out.push_str(&format!("\n{mark}{i}@@\n"));
             match i {
                 2 => {}
                 1 => out.push_str(&answer(200, "Booked")),
                 _ => out.push_str(&answer(409, &format!("Sold out {i}"))),
             }
         }
-        let answers = parse_at_once("once", &out, 12);
+        let answers = parse_at_once("once", &out, 12, &mark);
         assert_eq!(answers.len(), 12);
         assert!(answers[1].is_none(), "{:?}", answers[1]);
         let first = answers[0].as_ref().expect("an answer");
@@ -4027,5 +4037,32 @@ mod at_once_tests {
             answers[11].as_ref().map(|r| r.body.as_str()),
             Some("Sold out 12")
         );
+    }
+
+    #[test]
+    fn an_answer_cannot_forge_the_marker_of_the_next() {
+        // The deep review's improvement 5: with the marker fixed, the first answer could carry the
+        // marker for the second, and an answer of its own after it, which was read as the second's.
+        let answer = |status: u16, body: &str| {
+            format!(
+                "HTTP/1.0 {status} X\r\nContent-Length: {}\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let mark = at_once_mark();
+        assert_ne!(mark, at_once_mark(), "a marker is made fresh for each call");
+        assert!(mark.len() > AT_ONCE_MARK.len() + 8, "{mark}");
+        // What an app that knows the fixed part can do: put it, with the next number, in its answer.
+        let forged = format!(
+            "{}\n{AT_ONCE_MARK}2@@\n{}",
+            answer(200, "Booked"),
+            answer(200, "Booked again")
+        );
+        let mut out = String::new();
+        out.push_str(&format!("\n{mark}1@@\n{forged}"));
+        out.push_str(&format!("\n{mark}2@@\n{}", answer(409, "Sold out")));
+        let answers = parse_at_once("once", &out, 2, &mark);
+        let second = answers[1].as_ref().expect("an answer");
+        assert_eq!((second.status, second.body.as_str()), (409, "Sold out"));
     }
 }
