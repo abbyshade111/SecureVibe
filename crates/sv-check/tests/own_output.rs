@@ -6,7 +6,8 @@
 //! twice, and the tool building the app found the cause only by undoing its own changes one at a time.
 //!
 //! Every folder `sv report` writes carries `REPORT_MARKER`, and every walk of the app leaves such a
-//! folder out, whatever it is called, since `--out` takes any name.
+//! folder out, whatever it is called, since `--out` takes any name, so long as it holds nothing but
+//! the names `sv` writes (H6 of the deep review: the marker alone could hide any folder).
 
 use std::path::{Path, PathBuf};
 use sv_check::ast::AstRules;
@@ -32,10 +33,16 @@ fn app(tag: &str) -> PathBuf {
     dir
 }
 
-fn report_in(dir: &Path, marked: bool) {
+/// A report folder as `sv` writes it: only names `sv` writes, the page carrying a script and a key.
+/// `marked` adds the marker. A folder holding anything else is not `sv`'s, marker or not (H6 of the
+/// deep review), so the extra code file goes only where `stray` asks for it.
+fn report_in(dir: &Path, marked: bool, stray: bool) {
     std::fs::create_dir_all(dir).unwrap();
     std::fs::write(dir.join("report.html"), REPORT_PAGE).unwrap();
-    std::fs::write(dir.join("report.js"), "eval(req.query.x);\n").unwrap();
+    std::fs::write(dir.join("report.json"), "{}\n").unwrap();
+    if stray {
+        std::fs::write(dir.join("report.js"), "eval(req.query.x);\n").unwrap();
+    }
     if marked {
         std::fs::write(dir.join(REPORT_MARKER), "sv\n").unwrap();
     }
@@ -56,7 +63,7 @@ fn read(app: &Path) -> (usize, usize, usize, Vec<String>) {
 #[test]
 fn a_report_in_a_folder_of_any_name_is_left_out_once_marked() {
     let dir = app("marked");
-    report_in(&dir.join("my-reports"), true);
+    report_in(&dir.join("my-reports"), true, false);
     let (parsed, ast_findings, secret_findings, unparsed) = read(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert_eq!(parsed, 1, "only app.py is the app's code");
@@ -69,11 +76,30 @@ fn a_report_in_a_folder_of_any_name_is_left_out_once_marked() {
 fn the_default_report_folder_is_left_out_even_without_the_marker() {
     // Reports written before the marker existed are in `securevibe-report` without one.
     let dir = app("default");
-    report_in(&dir.join("securevibe-report"), false);
+    report_in(&dir.join("securevibe-report"), false, false);
     let (parsed, ast_findings, _, _) = read(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert_eq!(parsed, 1);
     assert_eq!(ast_findings, 0);
+}
+
+#[test]
+fn a_marked_folder_holding_code_sv_did_not_write_is_the_apps_code() {
+    // H6 of the deep review: the marker left out whatever folder it was put in, and an AI tool could
+    // put it there. A marked folder, or the default report folder, holding a file `sv` never writes
+    // is read like any other, and what is in it is found.
+    for (tag, folder, marked) in [
+        ("planted", "my-reports", true),
+        ("default-stray", "securevibe-report", false),
+    ] {
+        let dir = app(tag);
+        report_in(&dir.join(folder), marked, true);
+        let (parsed, ast_findings, secret_findings, _) = read(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(parsed > 1, "{folder}: the folder's code is read");
+        assert!(ast_findings > 0, "{folder}: and its eval found");
+        assert!(secret_findings > 0, "{folder}: and its key found");
+    }
 }
 
 #[test]
@@ -82,7 +108,7 @@ fn an_unmarked_folder_of_another_name_is_still_the_apps_code() {
     // same files in an ordinary folder are read, and found, which is what shows the two tests above
     // pass because of the marker and not because these files are never read.
     let dir = app("unmarked");
-    report_in(&dir.join("my-reports"), false);
+    report_in(&dir.join("my-reports"), false, true);
     let (parsed, ast_findings, secret_findings, _) = read(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert!(parsed > 1, "the folder's code is read");
