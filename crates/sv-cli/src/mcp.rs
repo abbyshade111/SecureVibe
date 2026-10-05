@@ -1658,7 +1658,7 @@ fn output_schema(tool: &str) -> Option<Value> {
                     "conditions": strings,
                     "notApplying": count,
                     "prompts": item(&[("id", string.clone()), ("title", string.clone()), ("status", string.clone()), ("text", string.clone())]),
-                    "rules": item(&[("id", string.clone()), ("rule", string.clone()), ("cites", strings.clone())]),
+                    "rules": item(&[("id", string.clone()), ("topic", string.clone()), ("rule", string.clone())]),
                     "tests": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
                     "settings": item(&[("table", string.clone()), ("key", string.clone()), ("lines", string.clone())]),
                     "creditsNothing": { "type": "boolean" },
@@ -2788,11 +2788,6 @@ mod tests {
             brought.len() < planned.len(),
             "the whole plan, not one feature"
         );
-        for rule in sign_in["structuredContent"]["rules"].as_array().unwrap() {
-            for cited in rule["cites"].as_array().unwrap() {
-                assert!(brought.contains(cited.as_str().unwrap()), "{rule}");
-            }
-        }
         // A feature the app does not have yet: what it would bring is pending, never said to apply,
         // and none of it is in the plan; what does apply is the plan's, for another feature's reason.
         let pending = ids(&ai, "pending");
@@ -2808,6 +2803,15 @@ mod tests {
             ai["structuredContent"]["conditions"],
             json!(["ai", "ai-actions"])
         );
+        // Nothing above the app's level, and the rules to code by cite only the feature's own.
+        let level = ai["structuredContent"]["level"].as_u64().unwrap();
+        for r in ai["structuredContent"]["pending"].as_array().unwrap() {
+            assert!(r["level"].as_u64().unwrap() <= level, "{r}");
+        }
+        // The rules on the feature's own topics, and only those: keys and people's data.
+        let rules = ai["structuredContent"]["rules"].as_array().unwrap();
+        assert!(!rules.is_empty(), "the AI feature's rules: {}", text(&ai));
+        assert!(rules.iter().all(|r| r["topic"] == "secrets"), "{rules:?}");
         // The example has sign-in, so nothing of sign-in's waits on securevibe.toml.
         assert!(ids(&sign_in, "pending").is_empty(), "{}", text(&sign_in));
     }

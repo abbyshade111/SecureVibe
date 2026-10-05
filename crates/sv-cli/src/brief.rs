@@ -36,6 +36,8 @@ pub(crate) struct Feature {
     pub requirements: Vec<String>,
     /// Design-time prompts, by id.
     pub prompts: Vec<String>,
+    /// Topics of the coding rules (`securevibe_guidance`) that bear on building it.
+    pub guidance: Vec<String>,
     pub settings: Vec<Setting>,
 }
 
@@ -106,6 +108,7 @@ impl Features {
                 conditions,
                 requirements: words(f, "requirements")?,
                 prompts: words(f, "prompts")?,
+                guidance: words(f, "guidance")?,
                 settings,
                 id,
             });
@@ -146,12 +149,12 @@ pub(crate) struct PromptText {
     pub text: String,
 }
 
-/// A coding rule that cites one of the feature's requirements.
+/// A coding rule on one of the topics that bear on building the feature.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RuleRef {
     pub id: String,
+    pub topic: String,
     pub rule: String,
-    pub cites: Vec<String>,
 }
 
 /// A setting `sv run` needs, with the lines of the starter `securevibe.toml` that describe it.
@@ -297,21 +300,16 @@ pub(crate) fn from_report(
             text: p.prompt.clone(),
         })
         .collect();
+    // The coding rules cite AISVS Appendix C, how the AI coding tool works, never a requirement of
+    // the app; so a feature names the topics that bear on building it, and the brief gives those.
     let rules = coding_rules
         .rules
         .iter()
-        .filter_map(|r| {
-            let cites: Vec<String> = r
-                .cites
-                .keys()
-                .filter(|id| applying.contains(id.as_str()))
-                .cloned()
-                .collect();
-            (!cites.is_empty()).then(|| RuleRef {
-                id: r.id.clone(),
-                rule: r.rule.clone(),
-                cites,
-            })
+        .filter(|r| feature.guidance.contains(&r.topic))
+        .map(|r| RuleRef {
+            id: r.id.clone(),
+            topic: r.topic.clone(),
+            rule: r.rule.clone(),
         })
         .collect();
     let tests = report
@@ -370,7 +368,7 @@ pub(crate) fn to_json(brief: &Brief) -> Value {
             "id": p.id, "title": p.title, "status": p.status, "text": p.text,
         })).collect::<Vec<_>>(),
         "rules": brief.rules.iter().map(|r| json!({
-            "id": r.id, "rule": r.rule, "cites": r.cites,
+            "id": r.id, "topic": r.topic, "rule": r.rule,
         })).collect::<Vec<_>>(),
         "tests": brief.tests.iter().map(|t| json!({
             "id": t.id, "level": t.level, "description": t.description,
@@ -454,10 +452,13 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
 
     out.push_str("## 3. Rules to code by\n\n");
     if brief.rules.is_empty() {
-        out.push_str("No coding rule cites one of this feature's requirements.\n");
+        out.push_str(
+            "No topic of the coding rules bears on this feature in particular; \
+             `securevibe_guidance` (`sv rules`) gives the rules for all of the work.\n",
+        );
     }
     for r in &brief.rules {
-        out.push_str(&format!("- {} ({})\n", r.rule, r.cites.join(", ")));
+        out.push_str(&format!("- {} (`{}`)\n", r.rule, r.topic));
     }
 
     out.push_str("\n## 4. Tests to write\n\n");
@@ -547,6 +548,11 @@ mod tests {
             }
             for p in &f.prompts {
                 assert!(prompts.prompts.iter().any(|q| &q.id == p), "{}: {p}", f.id);
+            }
+            let rules =
+                sv_check::coding_rules::CodingRules::load(&crate::coding_rules_path()).unwrap();
+            for t in &f.guidance {
+                assert!(rules.topic_ids().contains(&t.as_str()), "{}: {t}", f.id);
             }
         }
     }
