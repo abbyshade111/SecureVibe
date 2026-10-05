@@ -261,6 +261,10 @@ another session is not a claim.
     or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
     guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
     eval(code)}` is found rather than only owned up to.
+    **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
+    TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
+    read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -397,6 +401,8 @@ another session is not a claim.
     are still open.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (DESIGN, "pnpm 5 and 6 told apart, and packages without a version named"): pnpm v9 and
+    Yarn name their packages with no registry version as not listed, as `Pipfile.lock` and `pylock.toml` do.
   - **H22. Medium, Reproduced.** One image or binary file leaves the credential scan for ever partial, and text that
     is not UTF-8 (UTF-16, Latin-1) is never read, by any code rule either.
     **Seen in my-first-app on 4 October 2026** (added the same day by the cato-pipeline session, usability analysis
@@ -405,6 +411,8 @@ another session is not a claim.
     the AI tool searched for large files and then ran `sv check` to learn it was `.DS_Store — not a text file`. A
     fix could name the files and why in the report, and say plainly when a file is one that holds no text a
     person writes, such as `.DS_Store`, so nobody chases it.
+    **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-files-not-text`.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -416,6 +424,8 @@ another session is not a claim.
   - **H24. Medium, Reproduced.** pnpm lockfile v6.0 (`/name@version`) is not read; the "v6" test uses v5's format.
     **Claimed on 5 October 2026 by session securevibe-e2**, with H21 and H24, at the owner's asking to continue with
     the backlog, in branch `claude/securevibe-e2-lockfile-gaps`.
+    **Done the same day** (same DESIGN section): the reader takes the lockfile's own version line, and reads 6.0's
+    `/name@version` and 5.x's `/name/version`; the "v6" test now uses v6's format, and 5.x has a test of its own.
   - **H25. Low to medium, Read.** One parse error in any file silences every code rule for the whole app.
     **Claimed on 4 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h25`.
@@ -448,14 +458,29 @@ another session is not a claim.
     `claude/r3-a2-review-matching`.
   - **A3. Low to medium, Reproduced.** `go.sum` is read as the installed versions, so superseded ones are reported.
     Fix: take `go.mod`'s `require` lines.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a3`.
+    **Done the same day** (DESIGN, "A Go app's modules are read from go.mod"): go.mod's `require` lines with its
+    `replace` lines applied; a module replaced by a folder is named as not listed; before Go 1.17, a module in
+    go.sum alone is listed at its highest version there.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a4`.
+    **Done the same day** (DESIGN, "A placeholder word in a key counts only where chance would not put it"): the
+    short markers `todo` and `xxx` count only as words of their own, the longer ones anywhere as before (AWS's
+    `AKIAEXAMPLEEXAMPLE12` shape needs it); of 20,000 random JWTs, 66 were dropped before and none now.
   - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
     `sk_test_` keys graded critical.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a5`.
+    **Done the same day** (DESIGN, "The secret rules find what they promise, and grade a test key below a live
+    one"): `xapp-` tokens and PGP private key blocks are found; a Stripe test key has its own rule at medium, and
+    `secrets.stripe-key` is for live keys only.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a6`.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
@@ -1253,6 +1278,8 @@ another session is not a claim.
      app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
      Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+     **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
+     with its record as `proposed` (ADR-030).
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named
