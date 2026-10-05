@@ -1694,6 +1694,12 @@ another session is not a claim.
   is the kind of false alarm that makes the tool rewrite correct code.
   **The owner's decision, 5 October 2026:** send the copies as two or more users. **Claimed the same day by session
   securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-done-twice-users`.
+  **Done the same day** (DESIGN, "Later, 5 October 2026: two users, not one"). The copies go half as A and half as B;
+  the action going through for both is the finding, and a repeat the holder is told went through is not. Credit needs
+  both users shown signed in and holding the token, and the refused user still signed in afterwards, so a refusal for
+  being signed out never counts. Ten guards broken in turn, each caught. Not yet run against a real app in a
+  container: no `once` example exists, and this environment has no Docker; the script itself was run with the
+  sidecar's busybox.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
