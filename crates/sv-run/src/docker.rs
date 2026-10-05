@@ -1076,6 +1076,12 @@ const MAIL_TMP: &str = "/tmp:size=64m";
 /// How the browser is started. Hardened like the sidecar, with somewhere in memory to write, since
 /// Chromium keeps its profile under `/tmp`; it runs with its own sandbox off, as it must in a
 /// container, so the container is the sandbox and everything it may not do is taken away.
+///
+/// Chromium is started directly, not through the image's own script, which forwards port 9222 on
+/// every address to DevTools and has Chromium listen on every address too: on the fenced network,
+/// the app could reach DevTools and drive the browser that checks it (deep review S11). Here
+/// DevTools listens on 127.0.0.1 alone, where only the driver, sharing the browser's network,
+/// reaches it.
 fn browser_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
     vec![
         "run",
@@ -1092,7 +1098,14 @@ fn browser_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
         "ALL",
         "--security-opt",
         "no-new-privileges",
+        "--entrypoint",
+        "/headless-shell/headless-shell",
         BROWSER_IMAGE,
+        "--no-sandbox",
+        "--use-gl=angle",
+        "--use-angle=swiftshader",
+        "--remote-debugging-address=127.0.0.1",
+        "--remote-debugging-port=9223",
     ]
 }
 
@@ -2860,6 +2873,25 @@ mod probe_tests {
         }
         let at = browser.iter().position(|a| *a == "--network").unwrap();
         assert_eq!(browser[at + 1], "sv-1-net");
+        // DevTools on 127.0.0.1 alone, and Chromium started directly, not by the image's script,
+        // which forwards it on every address (deep review S11).
+        let at = browser.iter().position(|a| *a == "--entrypoint").unwrap();
+        assert_eq!(browser[at + 1], "/headless-shell/headless-shell");
+        assert_eq!(browser[at + 2], BROWSER_IMAGE);
+        let after: Vec<&str> = browser[at + 3..].to_vec();
+        assert!(
+            after.contains(&"--remote-debugging-address=127.0.0.1"),
+            "{after:?}"
+        );
+        assert!(after.contains(&"--remote-debugging-port=9223"), "{after:?}");
+        assert!(!after.iter().any(|a| a.contains("0.0.0.0")), "{after:?}");
+        // Every expression the driver runs goes through the world of its own, never the page's.
+        let evaluations: Vec<&str> = DRIVER_SCRIPT
+            .lines()
+            .filter(|l| l.contains("Runtime.evaluate"))
+            .collect();
+        assert_eq!(evaluations.len(), 1, "{evaluations:?}");
+        assert!(evaluations[0].contains("contextId"), "{evaluations:?}");
         // The driver has no network of its own: only the browser's, which is the fenced one.
         let at = driver.iter().position(|a| *a == "--network").unwrap();
         assert_eq!(driver[at + 1], "container:sv-1-browser");
@@ -2973,6 +3005,137 @@ http.createServer((q, s) => {
         );
         assert_eq!(answers[7]["found"], true, "{answers:?}");
         assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
+    }
+
+    #[test]
+    fn the_app_cannot_reach_the_browser_s_devtools_or_hide_its_storage_from_the_driver() {
+        // Deep review S11. The image's own script forwarded DevTools on every address, so the app,
+        // on the same fenced network, could drive the browser that checks it; and the driver read
+        // in the page's own world, where the app's scripts can redefine what it reads with. Needs
+        // a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-devtools-{}", std::process::id());
+        let server = format!("{network}-app");
+        let browser = format!("{network}-browser");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        // A page that keeps a token and then hides it from anything reading in its own world.
+        let app = r#"
+const http = require('http');
+http.createServer((q, s) => {
+  s.setHeader('content-type', 'text/html');
+  s.end(`<script>
+    localStorage.setItem('token', 'kept-after-sign-out');
+    Storage.prototype.getItem = () => null;
+    Object.keys = () => [];
+    document.title = 'hidden';
+  </script>`);
+}).listen(8080);"#;
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &server,
+            "--network",
+            &network,
+            PROVIDER_IMAGE,
+            "node",
+            "-e",
+            app,
+        ]);
+        let ready = matches!(started, Ok((0, _))) && backend.start_browser(&network, &browser) && {
+            std::thread::sleep(std::time::Duration::from_secs(3));
+            backend.forward_browser(&browser, &server, 8080)
+        };
+        let address = backend
+            .docker(&[
+                "inspect",
+                "-f",
+                "{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}",
+                &browser,
+            ])
+            .map(|(_, out)| out.trim().to_owned())
+            .unwrap_or_default();
+        // From the app's own container, by the browser's address, as an app would ask: a name is
+        // refused by DevTools itself, an address is not.
+        let from_the_app: Vec<(u16, bool)> = [9222u16, 9223]
+            .iter()
+            .map(|port| {
+                let script = format!(
+                    "fetch('http://{address}:{port}/json/version', {{ signal: \
+                     AbortSignal.timeout(3000) }}).then(() => process.exit(0), () => \
+                     process.exit(1))"
+                );
+                let reached = matches!(
+                    backend.docker(&["exec", &server, "node", "-e", &script]),
+                    Ok((0, _))
+                );
+                (*port, reached)
+            })
+            .collect();
+        // The control: from inside the browser's own network, where the driver is, it answers.
+        let loopback = backend.docker(&[
+            "run",
+            "--rm",
+            "--network",
+            &format!("container:{browser}"),
+            PROBE_IMAGE,
+            "wget",
+            "-q",
+            "-O-",
+            "-T",
+            "3",
+            "http://127.0.0.1:9223/json/version",
+        ]);
+        let answers = ready.then(|| {
+            let via = Via::FreshContainer(&network);
+            let mut http = DockerHttp {
+                backend: &backend,
+                via: &via,
+                app: &server,
+                port: 8080,
+                mail: None,
+                provider: None,
+                browser: Some(&browser),
+                model: None,
+            };
+            use sv_check::browser::{Action, Job};
+            use sv_check::signed_in::Http;
+            http.browser(&Job {
+                actions: vec![
+                    Action::Goto("/".into()),
+                    Action::Eval("document.title".into()),
+                    Action::Eval("localStorage.getItem('token')".into()),
+                    Action::Eval("Object.keys(localStorage).join(',')".into()),
+                ],
+            })
+        });
+        let _ = backend.docker(&["rm", "-f", &server, &browser]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(
+            ready && !address.is_empty(),
+            "the app, the browser, or the forwarder did not start: {started:?}"
+        );
+        assert!(
+            matches!(&loopback, Ok((0, out)) if out.contains("Browser")),
+            "DevTools did not answer the driver's side either, so nothing below means anything: \
+             {loopback:?}"
+        );
+        assert_eq!(
+            from_the_app,
+            vec![(9222, false), (9223, false)],
+            "the app reached the browser's DevTools"
+        );
+        let answers = answers.flatten().expect("the driver gave no answer");
+        assert_eq!(answers.len(), 4, "{answers:?}");
+        // The page's script ran, so what it redefined was redefined.
+        assert_eq!(answers[1]["value"], "hidden", "{answers:?}");
+        assert_eq!(answers[2]["value"], "kept-after-sign-out", "{answers:?}");
+        assert_eq!(answers[3]["value"], "token", "{answers:?}");
     }
 
     #[test]
