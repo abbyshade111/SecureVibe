@@ -916,6 +916,8 @@ another session is not a claim.
      - Expected to fire rarely, but to be strong evidence when it does. The common token libraries for Node, Python,
        and Go are thought not to fetch from an address in the token unless the app's own code wires it up; this was
        not checked library by library.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word ("go ahead"), in branch
+     `claude/securevibe-e2-key-server`.
   2. **A code-reading rule.** It flags an app that passes the token's own key address (`jku`, `x5u`, or a `jwk` in
      the header) to whatever fetches its keys. Cheaper, and it runs in every check without Docker, but it is weaker
      evidence than the app seen fetching. Today only Semgrep speaks to V9.1.3 by reading the code. Like the other code
