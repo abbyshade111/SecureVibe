@@ -1102,7 +1102,7 @@
       "cwe": [
         "CWE-916"
       ],
-      "description": "A key is derived from a password with PBKDF2, and the number of rounds written into the code is below 210,000, the lowest figure OWASP recommends for any PBKDF2 hash (210,000 for SHA-512; SHA-256 needs 600,000 and SHA-1 1,300,000).",
+      "description": "A key is derived from a password with PBKDF2, and the number of rounds written into the code is below what OWASP recommends: 600,000 for SHA-256 and 210,000 for SHA-512 (SHA-1 needs 1,300,000). A count below 210,000 is reported whatever the hash; one between 210,000 and 600,000 is reported where the call itself names SHA-256.",
       "impact": "Anyone who gets hold of what the key protects, such as an encrypted backup, an export, or a stored hash, can try guesses at the password quickly on ordinary hardware, and most people's passwords fall to a fast guesser.",
       "fix": "Raise the number of rounds to at least 600,000 for PBKDF2 with SHA-256 (210,000 with SHA-512), or use a password hashing function made for this, such as Argon2id or scrypt. Keep the count where it can be raised later without breaking what was already stored.",
       "findingsOnly": true,
@@ -1145,40 +1145,81 @@
         "swift": "^(?:\\d(?:[_']?\\d){0,4}|1(?:[_']?\\d){5}|2[_']?0(?:[_']?\\d){4})$",
         "shell": "^(?:\\d(?:[_']?\\d){0,4}|1(?:[_']?\\d){5}|2[_']?0(?:[_']?\\d){4})$"
       },
-      "queries": {
-        "python": "[(call function: (_) @fn arguments: (argument_list . (_) . (_) . (_) . (integer) @arg))\n (call function: (_) @fn arguments: (argument_list (keyword_argument name: (identifier) value: (integer)) @arg))] @hit",
-        "javascript": "[(call_expression function: (_) @fn arguments: (arguments . (_) . (_) . (number) @arg . (_) . (_)))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair key: (property_identifier) value: (number)) @arg)))] @hit",
-        "typescript": "[(call_expression function: (_) @fn arguments: (arguments . (_) . (_) . (number) @arg . (_) . (_)))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair key: (property_identifier) value: (number)) @arg)))] @hit",
-        "java": "(object_creation_expression type: (type_identifier) @fn arguments: (argument_list . (_) . (_) . (decimal_integer_literal) @arg)) @hit",
-        "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn) arguments: (argument_list . (_) . (_) . (int_literal) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn) arguments: (argument_list . (selector_expression) . (_) . (_) . (int_literal) @arg . [(int_literal) (identifier)] .))] @hit",
-        "php": "(function_call_expression function: (name) @fn arguments: (arguments . (_) . (_) . (_) . (argument (integer) @arg))) @hit",
-        "ruby": "[(call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list . (_) . (_) . (integer) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair key: (hash_key_symbol) value: (integer)) @arg))] @hit",
-        "csharp": "[(object_creation_expression type: (identifier) @fn arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg)))\n (invocation_expression function: (member_access_expression name: (identifier) @fn) arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg)))\n (object_creation_expression type: (identifier) @fn arguments: (argument_list . (argument) . (argument) . \")\" @arg))] @hit",
-        "c": "(call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg)) @hit",
-        "cpp": "(call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg)) @hit",
-        "kotlin": "(call_expression (identifier) @fn (value_arguments . (value_argument) . (value_argument) . (value_argument (number_literal) @arg))) @hit",
-        "rust": "(call_expression function: [(generic_function function: (_) @fn) (_) @fn] arguments: (arguments . (_) . (_) . (integer_literal) @arg)) @hit",
-        "dart": "[(call_expression function: (identifier) @fn arguments: (arguments (named_argument (label (identifier)) (decimal_integer_literal)) @arg))\n (call_expression function: (identifier) @fn arguments: (arguments . (_) . (decimal_integer_literal) @arg))] @hit",
-        "swift": "(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (_) . (_) . (_) . (_) . (_) . (_) . (value_argument value: (integer_literal) @arg)))) @hit",
-        "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (number) @arg) @hit"
+      "argumentPatternsByHash": {
+        "python": {
+          "^(?:algorithm\\s*=\\s*)?(?:[rRbBuU]?[\\\"'](?i:sha-?256)[\\\"']|(?:[A-Za-z_]\\w*\\.)*SHA256\\(\\s*\\))$": "^(?:iterations\\s*=\\s*)?(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "javascript": {
+          "^(?:hash\\s*:\\s*(?:\\{\\s*name\\s*:\\s*)?)?[\\\"'`](?i:sha-?256)[\\\"'`](?:\\s*,?\\s*\\})?$": "^(?:iterations\\s*:\\s*)?(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "typescript": {
+          "^(?:hash\\s*:\\s*(?:\\{\\s*name\\s*:\\s*)?)?[\\\"'`](?i:sha-?256)[\\\"'`](?:\\s*,?\\s*\\})?$": "^(?:iterations\\s*:\\s*)?(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "go": {
+          "^sha256\\.New$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "php": {
+          "^[\\\"'](?i:sha-?256)[\\\"']$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "ruby": {
+          "^(?:hash:\\s*)?(?:[\\\"'](?i:sha-?256)[\\\"']|(?:::)?(?:OpenSSL::)?Digest(?:::SHA256(?:\\.new(?:\\(\\s*\\))?)?|(?:::|\\.)new\\(\\s*[\\\"'](?i:sha-?256)[\\\"']\\s*\\)))$": "^(?:iterations:\\s*)?(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "csharp": {
+          "^(?:hashAlgorithm\\s*:\\s*)?(?:(?:global::)?System\\.Security\\.Cryptography\\.)?HashAlgorithmName\\.SHA256$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "c": {
+          "^EVP_sha256\\(\\s*\\)$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "cpp": {
+          "^EVP_sha256\\(\\s*\\)$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})[uUlL]{0,3}$"
+        },
+        "rust": {
+          "^(?:(?:\\w+::)*Hmac\\s*<\\s*)?(?:\\w+::)*Sha256\\s*>?$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})(?:_?u(?:32|64|size))?$"
+        },
+        "dart": {
+          "^macAlgorithm\\s*:\\s*Hmac\\.sha256\\(\\s*\\)$": "^(?:iterations\\s*:\\s*)?(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})$"
+        },
+        "swift": {
+          "^(?:kCCPRFHmacAlgSHA256|CCPseudoRandomAlgorithm\\(\\s*kCCPRFHmacAlgSHA256\\s*\\))$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})$"
+        },
+        "shell": {
+          "^enc -md (?i:sha-?256)$": "^(?:\\d(?:[_']?\\d){0,4}|[1-5](?:[_']?\\d){5})$"
+        }
       },
-      "looksFor": "PBKDF2 with a number of rounds written into the code below 210,000; a count read from a setting is not judged, and a count between 210,000 and 600,000 with SHA-256 is not reported, so finding none credits nothing",
+      "queries": {
+        "python": "[(call function: (_) @fn arguments: (argument_list . (_) @hash . (_) . (_) . (integer) @arg))\n (call function: (_) @fn arguments: (argument_list (keyword_argument name: (identifier) value: (integer)) @arg))\n (call function: (_) @fn arguments: (argument_list (keyword_argument) @hash (keyword_argument name: (identifier) value: (integer)) @arg))\n (call function: (_) @fn arguments: (argument_list (keyword_argument name: (identifier) value: (integer)) @arg (keyword_argument) @hash))] @hit",
+        "javascript": "[(call_expression function: (_) @fn arguments: (arguments . (_) . (_) . (number) @arg . (_) . (_) @hash))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair key: (property_identifier) value: (number)) @arg)))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair) @hash (pair key: (property_identifier) value: (number)) @arg)))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair key: (property_identifier) value: (number)) @arg (pair) @hash)))] @hit",
+        "typescript": "[(call_expression function: (_) @fn arguments: (arguments . (_) . (_) . (number) @arg . (_) . (_) @hash))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair key: (property_identifier) value: (number)) @arg)))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair) @hash (pair key: (property_identifier) value: (number)) @arg)))\n (call_expression function: (_) @fn arguments: (arguments . (object (pair key: (property_identifier) value: (number)) @arg (pair) @hash)))] @hit",
+        "java": "(object_creation_expression type: (type_identifier) @fn arguments: (argument_list . (_) . (_) . (decimal_integer_literal) @arg)) @hit",
+        "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn) arguments: (argument_list . (_) . (_) . (int_literal) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn) arguments: (argument_list . (_) . (_) . (int_literal) @arg . (_) . (_) @hash .))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn) arguments: (argument_list . (selector_expression) @hash . (_) . (_) . (int_literal) @arg . [(int_literal) (identifier)] .))] @hit",
+        "php": "[(function_call_expression function: (name) @fn arguments: (arguments . (_) . (_) . (_) . (argument (integer) @arg)))\n (function_call_expression function: (name) @fn arguments: (arguments . (argument) @hash . (_) . (_) . (argument (integer) @arg)))\n (function_call_expression function: (name) @fn arguments: (arguments . (_) . (_) . (_) . (argument (integer) @arg) . (argument) @hash))] @hit",
+        "ruby": "[(call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list . (_) . (_) . (integer) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list . (_) . (_) . (integer) @arg . (_) . (_) @hash))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair key: (hash_key_symbol) value: (integer)) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair) @hash (pair key: (hash_key_symbol) value: (integer)) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair key: (hash_key_symbol) value: (integer)) @arg (pair) @hash))] @hit",
+        "csharp": "[(object_creation_expression type: (identifier) @fn arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg)))\n (object_creation_expression type: (identifier) @fn arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg) . (argument) @hash))\n (invocation_expression function: (member_access_expression name: (identifier) @fn) arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg)))\n (invocation_expression function: (member_access_expression name: (identifier) @fn) arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg) . (argument) @hash))\n (object_creation_expression type: (identifier) @fn arguments: (argument_list . (argument) . (argument) . \")\" @arg))] @hit",
+        "c": "[(call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg . (_) @hash))] @hit",
+        "cpp": "[(call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg . (_) @hash))] @hit",
+        "kotlin": "(call_expression (identifier) @fn (value_arguments . (value_argument) . (value_argument) . (value_argument (number_literal) @arg))) @hit",
+        "rust": "[(call_expression function: [(generic_function function: (_) @fn) (_) @fn] arguments: (arguments . (_) . (_) . (integer_literal) @arg))\n (call_expression function: (generic_function function: (_) @fn type_arguments: (type_arguments . (_) @hash)) arguments: (arguments . (_) . (_) . (integer_literal) @arg))] @hit",
+        "dart": "[(call_expression function: (identifier) @fn arguments: (arguments (named_argument (label (identifier)) (decimal_integer_literal)) @arg))\n (call_expression function: (identifier) @fn arguments: (arguments (named_argument) @hash (named_argument (label (identifier)) (decimal_integer_literal)) @arg))\n (call_expression function: (identifier) @fn arguments: (arguments (named_argument (label (identifier)) (decimal_integer_literal)) @arg (named_argument) @hash))\n (call_expression function: (identifier) @fn arguments: (arguments . (_) . (decimal_integer_literal) @arg))] @hit",
+        "swift": "(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (_) . (_) . (_) . (_) . (_) . (_) @hash . (value_argument value: (integer_literal) @arg)))) @hit",
+        "shell": "[(command name: (command_name) @fn argument: (word) @mod . argument: (number) @arg)\n (command name: (command_name) @fn . argument: (word) @hash argument: (word) @mod . argument: (number) @arg argument: (word) @hash . argument: (word) @hash)\n (command name: (command_name) @fn . argument: (word) @hash argument: (word) @hash . argument: (word) @hash argument: (word) @mod . argument: (number) @arg)] @hit"
+      },
+      "looksFor": "PBKDF2 with a number of rounds written into the code below 210,000, or below 600,000 where the call names SHA-256; a count read from a setting is not judged, and a count between 210,000 and 600,000 is not reported where the call does not name its hash, so finding none credits nothing",
       "looksForIn": {
-        "python": "`hashlib.pbkdf2_hmac(...)` and cryptography's `PBKDF2HMAC(...)`, the count as the fourth argument or `iterations=`",
-        "javascript": "`crypto.pbkdf2(...)` and `pbkdf2Sync(...)`, the count as the third of at least five arguments, and `crypto.subtle.deriveKey` or `deriveBits` with `iterations:` in the first argument",
-        "typescript": "`crypto.pbkdf2(...)` and `pbkdf2Sync(...)`, the count as the third of at least five arguments, and `crypto.subtle.deriveKey` or `deriveBits` with `iterations:` in the first argument",
-        "java": "`new PBEKeySpec(password, salt, count, length)`",
-        "go": "`pbkdf2.Key(password, salt, count, ...)` from golang.org/x/crypto, and the standard library's `pbkdf2.Key(hash, password, salt, count, length)` from `crypto/pbkdf2`, which takes the hash first",
-        "php": "`hash_pbkdf2(...)` and `openssl_pbkdf2(...)`, the count as the fourth argument",
-        "ruby": "`OpenSSL::PKCS5.pbkdf2_hmac(...)` and `pbkdf2_hmac_sha1(...)`, the count as the third argument, and `OpenSSL::KDF.pbkdf2_hmac(..., iterations:)`",
-        "csharp": "`new Rfc2898DeriveBytes(password, salt, count, ...)` and `Rfc2898DeriveBytes.Pbkdf2(password, salt, count, ...)`, and the two-argument `new Rfc2898DeriveBytes(password, salt)`, which uses 1,000 rounds without saying so",
-        "c": "OpenSSL's `PKCS5_PBKDF2_HMAC(...)` and `PKCS5_PBKDF2_HMAC_SHA1(...)`, the count as the fifth argument",
-        "cpp": "OpenSSL's `PKCS5_PBKDF2_HMAC(...)` and `PKCS5_PBKDF2_HMAC_SHA1(...)`, the count as the fifth argument",
-        "kotlin": "`PBEKeySpec(password, salt, count, length)`",
-        "rust": "the `pbkdf2` crate's `pbkdf2`, `pbkdf2_hmac`, and `pbkdf2_hmac_array`, the count as the third argument",
-        "dart": "the `cryptography` package's `Pbkdf2(iterations: ...)` and pointycastle's `Pbkdf2Parameters(salt, count, length)`",
-        "swift": "CommonCrypto's `CCKeyDerivationPBKDF(...)`, the count as the seventh argument",
-        "shell": "`openssl ... -iter` followed by a number"
+        "python": "`hashlib.pbkdf2_hmac(...)` and cryptography's `PBKDF2HMAC(...)`, the count as the fourth argument or `iterations=`; the hash from the first argument or `algorithm=`",
+        "javascript": "`crypto.pbkdf2(...)` and `pbkdf2Sync(...)`, the count as the third of at least five arguments, and `crypto.subtle.deriveKey` or `deriveBits` with `iterations:` in the first argument; the hash from the fifth argument or `hash:`",
+        "typescript": "`crypto.pbkdf2(...)` and `pbkdf2Sync(...)`, the count as the third of at least five arguments, and `crypto.subtle.deriveKey` or `deriveBits` with `iterations:` in the first argument; the hash from the fifth argument or `hash:`",
+        "java": "`new PBEKeySpec(password, salt, count, length)`; the hash is named in `SecretKeyFactory`, not here, so a count between 210,000 and 600,000 is not judged",
+        "go": "`pbkdf2.Key(password, salt, count, ...)` from golang.org/x/crypto, and the standard library's `pbkdf2.Key(hash, password, salt, count, length)` from `crypto/pbkdf2`, which takes the hash first; the hash from the last argument for x/crypto and the first for the standard library",
+        "php": "`hash_pbkdf2(...)` and `openssl_pbkdf2(...)`, the count as the fourth argument; the hash from the first argument of `hash_pbkdf2` and the fifth of `openssl_pbkdf2`",
+        "ruby": "`OpenSSL::PKCS5.pbkdf2_hmac(...)` and `pbkdf2_hmac_sha1(...)`, the count as the third argument, and `OpenSSL::KDF.pbkdf2_hmac(..., iterations:)`; the hash from the fifth argument or `hash:`",
+        "csharp": "`new Rfc2898DeriveBytes(password, salt, count, ...)` and `Rfc2898DeriveBytes.Pbkdf2(password, salt, count, ...)`, and the two-argument `new Rfc2898DeriveBytes(password, salt)`, which uses 1,000 rounds without saying so; the hash from the `HashAlgorithmName` after the count",
+        "c": "OpenSSL's `PKCS5_PBKDF2_HMAC(...)` and `PKCS5_PBKDF2_HMAC_SHA1(...)`, the count as the fifth argument; the hash from the sixth argument (`EVP_sha256()`)",
+        "cpp": "OpenSSL's `PKCS5_PBKDF2_HMAC(...)` and `PKCS5_PBKDF2_HMAC_SHA1(...)`, the count as the fifth argument; the hash from the sixth argument (`EVP_sha256()`)",
+        "kotlin": "`PBEKeySpec(password, salt, count, length)`; the hash is named in `SecretKeyFactory`, not here, so a count between 210,000 and 600,000 is not judged",
+        "rust": "the `pbkdf2` crate's `pbkdf2`, `pbkdf2_hmac`, and `pbkdf2_hmac_array`, the count as the third argument; the hash from the type argument (`Sha256` or `Hmac<Sha256>`)",
+        "dart": "the `cryptography` package's `Pbkdf2(iterations: ...)` and pointycastle's `Pbkdf2Parameters(salt, count, length)`; the hash from `macAlgorithm:` (pointycastle names it in the `KeyDerivator`, so its count between 210,000 and 600,000 is not judged)",
+        "swift": "CommonCrypto's `CCKeyDerivationPBKDF(...)`, the count as the seventh argument; the hash from the sixth argument (`kCCPRFHmacAlgSHA256`)",
+        "shell": "`openssl ... -iter` followed by a number; the hash from `-md` in `openssl enc`"
       }
     },
     {
