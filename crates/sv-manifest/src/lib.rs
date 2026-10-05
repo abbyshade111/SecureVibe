@@ -15,6 +15,7 @@ use sv_frameworks::Condition;
 use sv_frameworks::applicability::ConditionContext;
 
 pub mod consistency;
+pub mod schema;
 pub mod spec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Default)]
@@ -1174,8 +1175,11 @@ impl Manifest {
     /// The manifest in `text`, read from `path`, which only names it in an error. For a caller that
     /// needs the bytes it parsed as well, such as `sv report` recording their hash.
     pub fn parse(text: &str, path: &Path) -> Result<Self> {
-        let manifest: Self =
-            toml::from_str(text).with_context(|| format!("parsing {}", path.display()))?;
+        // A field in the wrong section is named with the section it was read in, and with where a
+        // field of that name belongs (`schema::explain`).
+        let manifest: Self = toml::from_str(text)
+            .map_err(|e| anyhow::anyhow!(schema::explain(text, &e)))
+            .with_context(|| format!("parsing {}", path.display()))?;
         // A version this `sv` does not know is not read as if it were the one it knows: its fields
         // may mean something else, and a manifest read wrongly changes what applies. A file with no
         // `manifest-version` line is read as version 1, as it always was (the deep review's
