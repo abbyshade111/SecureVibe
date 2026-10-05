@@ -9,6 +9,15 @@ another session is not a claim.
 
 ## Next
 
+- **`git ls-files` runs a program the app's repository names.** Found on 5 October 2026 by session securevibe-e9,
+  while looking at how `sv` runs outside programs. The committed-secrets check runs `git ls-files` in the app's
+  folder (`crates/sv-check/src/config.rs`), and git honors the repository's own `.git/config`. A `core.fsmonitor`
+  there is a program git runs: reproduced, `git ls-files` ran it. So an app someone hands the owner to check could
+  run anything on the owner's computer, outside the fence, during `sv check`. In the Docker image, which trusts every
+  repository (`safe.directory '*'`), the same. Fix: run git with the settings that run programs overridden on its
+  command line, which wins over the repository's; a test that plants one.
+  **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working off the backlog,
+  in branch `claude/securevibe-e9-git-config`.
 - **Bring `docs/paper/` up to 4 October 2026, and add the comparison study and the deep review.** Asked for on
   4 October 2026 by the owner through the cato-pipeline session. Recompute every analysis, CSV and figure in
   `docs/paper/` that stops at 26 to 29 September from the record as it stands at `main` on 4 October, and add two new
