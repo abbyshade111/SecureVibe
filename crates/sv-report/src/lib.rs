@@ -601,6 +601,15 @@ pub struct Report {
     /// The same limits as `gaps`, per family of findings, for a program. Filled by whoever ran the
     /// checks (`sv report`); empty when a report is built without them.
     pub examined: Vec<Examined>,
+    /// What the checks that read the app's files could not do, which makes `sv report` exit 2 (DESIGN,
+    /// "Exit codes for CI"). Filled by `sv report`; not in report.json, where `gaps` and `examined`
+    /// say the same.
+    #[serde(skip)]
+    pub could_not_run: Vec<String>,
+    /// What they read only in part (a link not followed), which makes it exit 2 only with
+    /// `--fail-on not-assessed`.
+    #[serde(skip)]
+    pub partly_read: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1447,6 +1456,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         threat_atlas_release,
         gaps: inputs.gaps,
         examined: Vec::new(),
+        could_not_run: Vec::new(),
+        partly_read: Vec::new(),
     }
 }
 

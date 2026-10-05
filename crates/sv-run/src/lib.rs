@@ -523,7 +523,7 @@ pub fn new_accounts(with_admin: bool, with_totp: bool) -> sv_check::signed_in::A
 
 /// Random bytes as hex, from the operating system. A clock-based value would repeat between runs
 /// started in the same instant, and a password is the one thing here that must not be guessable.
-fn random_hex(bytes: usize) -> String {
+pub(crate) fn random_hex(bytes: usize) -> String {
     use std::io::Read;
     let mut buf = vec![0u8; bytes];
     let filled = std::fs::File::open("/dev/urandom")

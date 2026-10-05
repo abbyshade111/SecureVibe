@@ -94,10 +94,14 @@ fn an_unknown_option_is_an_error_that_names_the_commands_options_never_a_folder(
     // The options it names are the command's own.
     let said = text(&sv(&["report", "-x"]));
     assert!(
-        said.contains("it takes --run, --slow, --tools, --out, --advisories, and --help"),
+        said.contains(
+            "it takes --run, --slow, --tools, --out, --advisories, --fail-on, and --help"
+        ),
         "{said}"
     );
     let said = text(&sv(&["check", "--run"]));
+    assert!(said.contains("it takes --fail-on, and --help"), "{said}");
+    let said = text(&sv(&["sbom", "--run"]));
     assert!(said.contains("it takes no options but --help"), "{said}");
 }
 
@@ -245,7 +249,8 @@ fn help_writes_nothing_even_where_the_command_would() {
     }
     assert!(written.is_empty(), "help wrote {written:?}");
     assert!(
-        control.status.success() && control_wrote,
+        // 2: a folder holding only securevibe.toml has no file of the app to read.
+        control.status.code() == Some(2) && control_wrote,
         "{}",
         text(&control)
     );
