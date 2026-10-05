@@ -51,6 +51,16 @@ fn app(root: &Path) -> PathBuf {
     .unwrap();
     std::fs::write(dir.join(".env"), format!("SECRET_KEY={ENV_VALUE}\n")).unwrap();
     std::fs::write(dir.join(".env.example"), "SECRET_KEY=generate-one\n").unwrap();
+    // A6: a database configuration with a weak password written in it, which the credential scan
+    // does not flag, and a Kubernetes login copied into the app.
+    std::fs::create_dir_all(dir.join("config")).unwrap();
+    std::fs::write(
+        dir.join("config/database.yml"),
+        "production:\n  adapter: postgresql\n  password: rails123\n",
+    )
+    .unwrap();
+    std::fs::create_dir_all(dir.join(".kube")).unwrap();
+    std::fs::write(dir.join(".kube/config"), "users:\n- name: admin\n").unwrap();
     std::fs::write(
         dir.join("keys/server.pem"),
         format!("-----BEGIN PRIVATE KEY-----\n{PEM_BODY}\n-----END PRIVATE KEY-----\n"),
@@ -283,10 +293,16 @@ fn a_file_the_credential_scan_flagged_stays_out_whatever_it_is_called() {
 #[test]
 fn files_named_like_secrets_keys_and_databases_stay_out() {
     let made = make("named");
+    // The database configuration stays out for its password, not because the scan flagged it:
+    // that is the path that was missing.
+    let why = made.left_out("config/database.yml").unwrap_or_default();
+    assert!(why.contains("database configuration"), "{why}");
     for (path, secret) in [
         (".env", ENV_VALUE),
         ("keys/server.pem", PEM_BODY),
         ("data/app.sqlite", "rows about people"),
+        ("config/database.yml", "rails123"),
+        (".kube/config", "name: admin"),
     ] {
         assert!(!made.has(&format!("app/{path}")), "{path} is in the bundle");
         assert!(
