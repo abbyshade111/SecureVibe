@@ -185,6 +185,9 @@ another session is not a claim.
     an isolated world, storage read through DevTools' storage domains.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-s11`.
+    **Done the same day** (DESIGN, "The browser's DevTools on loopback, and the driver in a world of its own";
+    ADR-019, Later): reproduced, the image's script forwarded DevTools on every address; Chromium now starts with
+    DevTools on loopback alone, and the driver runs every expression in an isolated world of its own.
   - **S12. Medium, Reproduced. A named pipe in the app hangs `sv`** (`files.rs` lists pipes as files and blocks
     reading them). Fix: list only regular files; say the rest were not read.
     **Claimed on 4 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
