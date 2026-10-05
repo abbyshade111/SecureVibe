@@ -113,7 +113,9 @@ pub fn text(report: &Report) -> String {
              change that line for them, or run `sv review` for them. Without the MCP server, write \
              the answer under the question in security-notes.md (`sv notes` makes the file) and \
              start it with `Written by: AI coding tool`; a section without that line counts as \
-             yours.\n",
+             yours. Either way, write only under a question with nothing under it, or over an \
+             answer marked `Written by: AI coding tool`: any other answer may be the person's own \
+             words, so ask them instead of changing it.\n",
             if design.is_empty() { 1 } else { 2 },
             notes.len()
         ));

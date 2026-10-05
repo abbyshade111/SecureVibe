@@ -467,6 +467,14 @@ another session is not a claim.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r8-record-answer-keeps-owner`.
+    **Done the same day** (DESIGN, "The AI coding tool writes over only its own answer"; ADR-022, "Later, 5 October
+    2026"): `securevibe_record_answer` now writes only under a question with nothing under it or over a section
+    marked `Written by: AI coding tool`; an answer with no mark, one marked as anybody else's, and the owner's are
+    refused, the file left byte for byte as it was, and the reply says why and that the owner can edit the answer or
+    delete it so the tool can record its own. An unmarked answer still counts as the tool's in the report. The
+    questions' instructions say the same for a tool without the MCP server. Reproduced first with an MCP test; tested
+    with that test (six refusals, two fills, one replacement) and a unit test; seven guards broken in turn were each
+    caught, and an eighth was equivalent, because the reader already drops blank lines.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
