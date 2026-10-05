@@ -672,6 +672,11 @@ another session is not a claim.
     read is named, and the comparison is not credited as whole.
     **Those three done the same day** (DESIGN, "A manifest version `sv` knows, a date with nothing after it, and
     every collapsed list closed").
+    **Improvement 5 claimed in part on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep
+    working off the backlog, in branch `claude/securevibe-e9-markers`: a random marker per run for helper output,
+    and control characters stripped from everything `sv` prints to a terminal. The other three parts (two-factor
+    codes from the container's clock, seed secrets through standard input, WebSockets and workers in the browser
+    driver) are not claimed.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
