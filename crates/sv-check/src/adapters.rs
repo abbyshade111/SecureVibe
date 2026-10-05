@@ -21,6 +21,7 @@
 //! map carries no requirement, which is a fair thing to be and is shown as such.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
+use crate::secrets::{SecretRules, redact_text};
 use crate::verified::Verified;
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -478,12 +479,12 @@ fn judge_presence(ran: Option<(Option<i32>, String)>) -> Presence {
     if code == Some(127) && said.is_none() {
         return Presence::Missing;
     }
+    // The whole line: it is cut to length only after the credentials in it are, by `said`, since
+    // a value cut short loses the quote that marks where it ends, and with it its redaction.
     let detail = said
         .unwrap_or("it exited with an error and said nothing")
         .trim()
-        .chars()
-        .take(160)
-        .collect();
+        .to_owned();
     Presence::Broken { detail }
 }
 
@@ -496,8 +497,16 @@ pub fn is_installed(adapter: &Adapter) -> bool {
 /// Never through a shell. The arguments are passed as a list, so nothing in a path can end the
 /// command and start another — and the app folder's path is the one thing here that a stranger
 /// might have chosen.
-pub fn run_one(adapter: &Adapter, app_dir: &Path, report_path: &Path) -> Outcome {
-    run_one_for(adapter, app_dir, report_path, &BTreeSet::new())
+///
+/// Everything the tool said that reaches the result is redacted with `rules`, as `sv`'s own findings
+/// are: its findings' text and anything it wrote to stderr (see `redact_tool_text`).
+pub fn run_one(
+    adapter: &Adapter,
+    app_dir: &Path,
+    report_path: &Path,
+    rules: &SecretRules,
+) -> Outcome {
+    run_one_for(adapter, app_dir, report_path, &BTreeSet::new(), rules)
 }
 
 /// `run_one`, leaving out the conditional arguments whose condition is known not to hold.
@@ -506,12 +515,14 @@ pub fn run_one_for(
     app_dir: &Path,
     report_path: &Path,
     not_holding: &BTreeSet<String>,
+    rules: &SecretRules,
 ) -> Outcome {
     run_one_in(
         adapter,
         &sv_scan::files::Listing::of(app_dir),
         report_path,
         not_holding,
+        rules,
     )
 }
 
@@ -521,6 +532,7 @@ pub fn run_one_in(
     listing: &sv_scan::files::Listing,
     report_path: &Path,
     not_holding: &BTreeSet<String>,
+    rules: &SecretRules,
 ) -> Outcome {
     let app_dir = listing.root.as_path();
     let subject = adapter.subject();
@@ -555,8 +567,9 @@ pub fn run_one_in(
                 ),
                 Some((Presence::Broken { detail }, other)) => format!(
                     " {}, which can run in its place, is installed and would not start. It said: \
-                     {detail}",
-                    other.name
+                     {}",
+                    other.name,
+                    said(rules, detail, PRESENCE_CHARS)
                 ),
                 _ => String::new(),
             };
@@ -573,8 +586,9 @@ pub fn run_one_in(
             return Outcome::NotRun {
                 why: format!(
                     "{} is installed and would not start, so nothing here has checked the \
-                     {subject} in this app the way it would have. It said: {detail}",
-                    adapter.name
+                     {subject} in this app the way it would have. It said: {}",
+                    adapter.name,
+                    said(rules, &detail, PRESENCE_CHARS)
                 ),
             };
         }
@@ -654,7 +668,11 @@ pub fn run_one_in(
         command.stderr(std::process::Stdio::piped());
         let failed = match command.output() {
             Ok(out) if out.status.success() => None,
-            Ok(out) => Some(last_line(&String::from_utf8_lossy(&out.stderr))),
+            Ok(out) => Some(said(
+                rules,
+                &last_line(&String::from_utf8_lossy(&out.stderr)),
+                LINE_CHARS,
+            )),
             Err(e) => Some(e.to_string()),
         };
         if let Some(detail) = failed {
@@ -699,7 +717,11 @@ pub fn run_one_in(
     // adapter names the codes that mean it ran to the end. Any other is a failure, whatever report it
     // left. Gosec says both with 1; for it, the report is what decides.
     let detail = String::from_utf8_lossy(&output.stderr);
-    let detail = detail.lines().next().unwrap_or("no output").trim();
+    let detail = said(
+        rules,
+        detail.lines().next().unwrap_or("no output").trim(),
+        LINE_CHARS,
+    );
     match output.status.code() {
         Some(code) if adapter.finished_exits.contains(&code) => {}
         Some(code) => {
@@ -739,8 +761,13 @@ pub fn run_one_in(
     let scanned = std::fs::read_to_string(&scanned_path).ok();
     std::fs::remove_file(&scanned_path).ok();
     match parse_sarif_relative_to(adapter, &text, app_dir) {
-        Ok(findings) => Outcome::Ran {
-            findings,
+        Ok(mut findings) => Outcome::Ran {
+            findings: {
+                for finding in &mut findings {
+                    redact_tool_text(rules, finding);
+                }
+                findings
+            },
             loaded: loaded_rules(&text),
             looked_away: {
                 let mut reasons = looked_away(adapter, &text, app_dir);
@@ -768,6 +795,7 @@ pub fn run_all(
     languages: &[String],
     not_holding: &BTreeSet<String>,
     scratch: &Path,
+    rules: &SecretRules,
 ) -> AdapterRun {
     run_all_in(
         adapters,
@@ -775,6 +803,7 @@ pub fn run_all(
         languages,
         not_holding,
         scratch,
+        rules,
     )
 }
 
@@ -785,6 +814,7 @@ pub fn run_all_in(
     languages: &[String],
     not_holding: &BTreeSet<String>,
     scratch: &Path,
+    rules: &SecretRules,
 ) -> AdapterRun {
     let mut run = AdapterRun::default();
     // The reports go in a folder of this run's own, made new, readable by this user alone, and with
@@ -809,7 +839,7 @@ pub fn run_all_in(
     };
     for adapter in adapters.for_languages(languages) {
         let report_path = private.path().join(format!("{}.sarif", adapter.id));
-        match run_one_in(adapter, listing, &report_path, not_holding) {
+        match run_one_in(adapter, listing, &report_path, not_holding, rules) {
             Outcome::Ran {
                 findings,
                 loaded,
@@ -1384,15 +1414,47 @@ fn scored_severity(rule: &serde_json::Value) -> Option<Severity> {
     })
 }
 
+/// The last line a tool wrote, whole: `said` cuts it to length once its credentials are cut.
 fn last_line(text: &str) -> String {
     text.lines()
         .rev()
         .find(|l| !l.trim().is_empty())
         .unwrap_or("it said nothing")
         .trim()
-        .chars()
-        .take(200)
-        .collect()
+        .to_owned()
+}
+
+/// How much of a tool's answer to its version question a report quotes.
+const PRESENCE_CHARS: usize = 160;
+/// How much of a line a tool wrote to stderr a report quotes.
+const LINE_CHARS: usize = 200;
+
+/// A line a tool wrote, as a report may quote it: every credential in it redacted, then cut to
+/// `most` characters. In that order, because a value cut short loses the quote that marks where
+/// it ends, and with it the redaction (deep review S8).
+fn said(rules: &SecretRules, line: &str, most: usize) -> String {
+    redact_text(rules, line).0.chars().take(most).collect()
+}
+
+/// A tool's finding with every credential in its words redacted, the way `redact_text` cuts a failing
+/// test's output.
+///
+/// A tool's message is the tool's, and some quote the value they found: Bandit's B105 says "Possible
+/// hardcoded password: '…'" with the password in it. `sv`'s own findings carry a credential only as a
+/// `Secret`, redacted when it is made; a tool's came through whole, into every report, the SARIF, the
+/// bundle (which had left the file itself out so that the zip carried no secret), and the terminal
+/// (deep review S8). The title, description and fix are the tool's text; the impact is `sv`'s, made from
+/// the adapter's name, and is redacted too, because a redaction that is not needed costs four
+/// characters and one that is missed cannot be taken back.
+pub fn redact_tool_text(rules: &SecretRules, finding: &mut Finding) {
+    for text in [
+        &mut finding.title,
+        &mut finding.description,
+        &mut finding.impact,
+        &mut finding.fix,
+    ] {
+        *text = redact_text(rules, text).0;
+    }
 }
 
 /// Where the private folder for the tools' reports is made.
@@ -1662,7 +1724,16 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             &["python".to_owned()],
             &BTreeSet::new(),
             dir,
+            &secret_rules(),
         )
+    }
+
+    /// `sv`'s own credential rules, which redact what a tool says.
+    fn secret_rules() -> SecretRules {
+        SecretRules::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
+        )
+        .unwrap()
     }
 
     fn scratch(name: &str) -> PathBuf {
@@ -1764,6 +1835,9 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
         std::fs::write(app.join("web.js"), "console.log(1)\n").unwrap();
         std::fs::write(app.join("vendor/lib.py"), "print(2)\n").unwrap();
+        // `vendor/` holds installed code beside the manifest that explains it, as in family-hub; with
+        // no manifest it would be the app's own (H6).
+        std::fs::write(app.join("requirements.txt"), "flask\n").unwrap();
         std::fs::write(dir.join("outside.py"), "print('outside the app')\n").unwrap();
         std::os::unix::fs::symlink(dir.join("outside.py"), app.join("linked.py")).unwrap();
         let outcome = run_all(
@@ -1774,6 +1848,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             &["python".to_owned(), "javascript".to_owned()],
             &BTreeSet::new(),
             &dir,
+            &secret_rules(),
         );
         let given = std::fs::read_to_string(&seen)
             .unwrap_or_default()
@@ -1946,7 +2021,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         std::fs::create_dir_all(&app).unwrap();
         std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
         // The tool writes nothing.
-        let silent = run_one(&tool(&dir, &rule, "exit 0"), &app, &report);
+        let silent = run_one(&tool(&dir, &rule, "exit 0"), &app, &report, &secret_rules());
         // The tool puts a link to the planted report in its report's place.
         let linked = run_one(
             &tool(
@@ -1956,6 +2031,7 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             ),
             &app,
             &report,
+            &secret_rules(),
         );
         std::fs::remove_dir_all(&dir).ok();
         for outcome in [silent, linked] {
@@ -1965,6 +2041,163 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
                 }
                 Outcome::Ran { .. } => panic!("a report the tool did not write was read"),
             }
+        }
+    }
+
+    /// A password, built here so this file holds none, long enough that a line cut at 160 or 200
+    /// characters can cut through it.
+    fn password() -> String {
+        ["Qv7r", "Lm2x", "Tz9k", "Wp4n", "Hd6s"].concat()
+    }
+
+    /// Whether `text` holds the password or any piece of it longer than the four characters a
+    /// redaction shows.
+    fn holds_password(text: &str) -> bool {
+        let password = password();
+        (5..=password.len()).any(|n| text.contains(&password[..n]))
+    }
+
+    /// A tool whose findings quote the password, as Bandit's B105 does: in a result's message, a
+    /// rule's short description, and its help.
+    fn quoting_tool(dir: &Path, rule: &str, copy: &Path) -> Adapter {
+        let sarif = serde_json::json!({
+            "version": "2.1.0",
+            "runs": [{
+                "tool": { "driver": { "name": "Tool", "rules": [{
+                    "id": rule,
+                    "shortDescription": { "text": format!("password = '{}'", password()) },
+                    "help": { "text": format!("Remove PASSWORD=\"{}\" from the code.", password()) },
+                }] } },
+                "results": [{
+                    "ruleId": rule,
+                    "level": "error",
+                    "message": { "text": format!("Possible hardcoded password: '{}'", password()) },
+                    "locations": [{ "physicalLocation": {
+                        "artifactLocation": { "uri": "app.py" },
+                        "region": { "startLine": 1 },
+                    } }],
+                }],
+            }],
+        });
+        let source = dir.join("quoted.sarif");
+        std::fs::write(&source, sarif.to_string()).unwrap();
+        let text = format!(
+            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\ncp '{}' \"$1\"\ncp '{}' '{}'\nexit 1\n",
+            source.display(),
+            source.display(),
+            copy.display()
+        );
+        let path = script(dir, "quoting", &text);
+        let (mut adapter, _) = adapter(dir, &path);
+        adapter.name = "Tool".into();
+        adapter.run.args = vec!["{output}".into()];
+        adapter.stand_in = None;
+        adapter.finished_exits = vec![0, 1];
+        adapter
+    }
+
+    #[test]
+    fn a_tool_s_findings_that_quote_a_password_reach_the_result_redacted() {
+        let dir = scratch("quoting");
+        let (_, rule) = adapter(&dir, "unused");
+        let copy = dir.join("what-the-tool-wrote.sarif");
+        let outcome = run(&dir, quoting_tool(&dir, &rule, &copy));
+        let wrote = std::fs::read_to_string(&copy).unwrap_or_default();
+        std::fs::remove_dir_all(&dir).ok();
+        // The setup: the tool ran, and what it wrote really quotes the password.
+        assert!(
+            holds_password(&wrote),
+            "the tool's report quotes it: {wrote}"
+        );
+        assert_eq!(outcome.findings.len(), 1, "{outcome:?}");
+        let f = &outcome.findings[0];
+        for (what, text) in [
+            ("title", &f.title),
+            ("description", &f.description),
+            ("fix", &f.fix),
+            ("impact", &f.impact),
+        ] {
+            assert!(!holds_password(text), "{what}: {text}");
+        }
+        // What was found is still said, and which value, by its first four characters.
+        assert!(
+            f.description
+                .starts_with("Possible hardcoded password: '[redacted: Qv7r"),
+            "{}",
+            f.description
+        );
+        assert!(f.title.contains("[redacted: Qv7r"), "{}", f.title);
+        assert!(f.fix.contains("[redacted: Qv7r"), "{}", f.fix);
+    }
+
+    #[test]
+    fn what_a_tool_writes_to_stderr_reaches_the_reason_redacted_and_cut_after() {
+        // Long enough that the 160 or 200 characters a reason quotes end eight characters into the
+        // password: cut first, the closing quote would be gone and the value with it unrecognized.
+        let line = |most: usize| format!("{} password='{}'", "x".repeat(most - 19), password());
+        let say = |most: usize, code: u8| format!("echo \"{}\" >&2; exit {code}", line(most));
+        for (case, most, version, prepare, run_ending) in [
+            (
+                "version",
+                PRESENCE_CHARS,
+                say(PRESENCE_CHARS, 1),
+                None,
+                "exit 0".to_owned(),
+            ),
+            (
+                "prepare",
+                LINE_CHARS,
+                "exit 0".to_owned(),
+                Some(say(LINE_CHARS, 1)),
+                "exit 0".to_owned(),
+            ),
+            (
+                "failure",
+                LINE_CHARS,
+                "exit 0".to_owned(),
+                None,
+                say(LINE_CHARS, 2),
+            ),
+            (
+                "no report",
+                LINE_CHARS,
+                "exit 0".to_owned(),
+                None,
+                say(LINE_CHARS, 0),
+            ),
+        ] {
+            // The setup: cut first, eight characters of the password would show.
+            let cut: String = line(most).chars().take(most).collect();
+            assert!(cut.ends_with(&password()[..8]), "{case}: {cut}");
+            let dir = scratch(&format!("stderr-{}", case.replace(' ', "-")));
+            let (_, rule) = adapter(&dir, "unused");
+            let path = script(
+                &dir,
+                "talking",
+                &format!(
+                    "#!/bin/sh\nif [ \"$1\" = --version ]; then {version}; fi\nif [ \"$1\" = prepare ]; then {}; fi\n{run_ending}\n",
+                    prepare.as_deref().unwrap_or("exit 0")
+                ),
+            );
+            let mut adapter = tool(&dir, &rule, "exit 0");
+            adapter.version.command = path.clone();
+            adapter.run.command = path.clone();
+            if prepare.is_some() {
+                adapter.prepare = Some(Invocation {
+                    command: path.clone(),
+                    args: vec!["prepare".into()],
+                });
+            }
+            let outcome = run(&dir, adapter);
+            std::fs::remove_dir_all(&dir).ok();
+            let why = &outcome
+                .not_run
+                .first()
+                .unwrap_or_else(|| panic!("{case}: {outcome:?}"))
+                .1;
+            // The setup: the line really reached the reason.
+            assert!(why.contains(&"x".repeat(100)), "{case}: {why}");
+            assert!(!holds_password(why), "{case}: {why}");
         }
     }
 }

@@ -1700,6 +1700,30 @@ fn cmd_check(args: &[String]) -> Result<i32> {
             println!("  … and {} more", listing.special.len() - 10);
         }
     }
+    if !listing.skipped.is_empty() {
+        println!(
+            "\nLeft out as installed or built code, so nothing read {}:",
+            if listing.skipped.len() == 1 {
+                "it"
+            } else {
+                "them"
+            }
+        );
+        for (dir, why) in listing.skipped.iter().take(10) {
+            println!("  {dir}/ ({why})");
+        }
+        if listing.skipped.len() > 10 {
+            println!("  … and {} more", listing.skipped.len() - 10);
+        }
+    }
+    if !listing.refused_markers.is_empty() {
+        println!(
+            "\nMarked as a report of `sv`'s but holding other files, so read as the app's own code:"
+        );
+        for dir in listing.refused_markers.iter().take(10) {
+            println!("  {dir}/");
+        }
+    }
 
     if !code.unread_files.is_empty() {
         println!(
@@ -2424,7 +2448,9 @@ fn write_bundle(
             .collect()
     });
     let _ = std::fs::remove_dir_all(&scratch);
-    entries.extend(report_files?);
+    let report_files = report_files?;
+    refuse_a_credential_in_the_report(&rules, &report_files)?;
+    entries.extend(report_files);
     entries.push((
         format!("{folder}/report/sbom.cdx.json"),
         sbom_json.into_bytes(),
@@ -2480,17 +2506,51 @@ fn write_bundle(
     })
 }
 
+/// Refuses to make the bundle when the report going into it holds something the credential scan
+/// reads as a credential, naming the file, line and rule, never the value.
+///
+/// The backstop to redacting what outside tools say (deep review S8), and a guard for what the report
+/// quotes of the app itself (its name in `securevibe.toml`, for one): Bandit's B105 message quoted a
+/// password four times inside `report/` of a bundle that had left the file holding it out, so that the
+/// zip carried no secret. `sv`'s own findings carry a credential only redacted, and a tool's words
+/// are redacted as they are read (`adapters::redact_tool_text`); this is what holds if some other
+/// text ever reaches a report unredacted. Refusing, not redacting the files here: a report changed on
+/// its way into the zip would no longer be the one `sv` wrote, and the owner is told where to look.
+fn refuse_a_credential_in_the_report(
+    rules: &SecretRules,
+    report_files: &[(String, Vec<u8>)],
+) -> Result<()> {
+    let mut found: Vec<String> = Vec::new();
+    for (name, bytes) in report_files {
+        let text = String::from_utf8_lossy(bytes);
+        for f in sv_check::secrets::scan_text(rules, name, &text) {
+            found.push(format!(
+                "{} line {} ({})",
+                sv_report::one_line(name),
+                f.location.line,
+                f.rule_id
+            ));
+        }
+    }
+    if found.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "the report holds {} thing{} the credential scan reads as a secret, so no bundle was made: \
+         a bundle must never carry one. Where: {}. A report quotes some of what the app's own files \
+         say, such as its name in securevibe.toml: take the credential out of the place it was \
+         quoted from and run this again. If it came from nowhere in the app, it is a fault in sv: \
+         please report it.",
+        found.len(),
+        if found.len() == 1 { "" } else { "s" },
+        found.join("; ")
+    )
+}
+
 /// Every name `sv` writes in a report folder: the marker, the lock, and the five reports. A test
-/// holds this to what `write_report_files` writes.
-const REPORT_FOLDER_NAMES: &[&str] = &[
-    sv_scan::ecosystems::REPORT_MARKER,
-    report_lock::LOCK_NAME,
-    "report.html",
-    "compliance.md",
-    "security.md",
-    "findings.sarif",
-    "report.json",
-];
+/// holds this to what `write_report_files` writes. Kept in `sv-scan`, whose walk leaves a report
+/// folder out only while it holds nothing but these (deep review H6).
+const REPORT_FOLDER_NAMES: &[&str] = sv_scan::ecosystems::REPORT_FOLDER_NAMES;
 
 /// Makes `out_dir` ready for a report and takes it for this run, before the run starts: the checks
 /// `write_report_files` makes on the folder, made early so a refusal comes before the wait rather
@@ -3127,6 +3187,7 @@ fn assemble_report_saying(
             &languages,
             &not_holding,
             &sv_check::adapters::scratch_dir(),
+            &loaded.secret_rules,
         );
         examined.extend(adapters_examined(&adapters, &languages, &outcome));
         findings.extend(outcome.findings);
@@ -3442,6 +3503,32 @@ fn assemble_report_saying(
             ),
         });
     }
+    if !listing.skipped.is_empty() {
+        let shown: Vec<String> = listing
+            .skipped
+            .iter()
+            .take(5)
+            .map(|(dir, why)| format!("`{dir}/` ({why})"))
+            .collect();
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} folder{} left out as installed or built code",
+                listing.skipped.len(),
+                if listing.skipped.len() == 1 { "" } else { "s" }
+            ),
+            why: format!(
+                "a folder named like an ecosystem's output, beside the file that makes it so, holds \
+                 code the app installed or built rather than wrote, and no check read it: {}{}. If \
+                 one holds the app's own code, move it or rename the folder.",
+                shown.join(", "),
+                if listing.skipped.len() > 5 {
+                    format!(", and {} more", listing.skipped.len() - 5)
+                } else {
+                    String::new()
+                }
+            ),
+        });
+    }
     if !listing.special.is_empty() {
         let shown: Vec<&str> = listing.special.iter().take(5).map(String::as_str).collect();
         gaps.push(sv_report::Gap {
@@ -3725,6 +3812,23 @@ fn assemble_report_saying(
                     "these"
                 },
                 notes.unreadable.join(", ")
+            ),
+        });
+    }
+    if !notes.not_read.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "what is under {} heading{} of your own in {}",
+                notes.not_read.len(),
+                if notes.not_read.len() == 1 { "" } else { "s" },
+                notes_catalog.file
+            ),
+            why: format!(
+                "A heading that is not one of the file's questions ends the answer above it, so \
+                 what is under it was not read as an answer to anything: {}. Keeping notes of your \
+                 own there is fine. If one of them is part of an answer, move it up into that \
+                 answer, or use a `####` heading inside the answer instead.",
+                notes.not_read.join("; ")
             ),
         });
     }
@@ -4941,5 +5045,54 @@ mod report_folder_tests {
             "refused before a lock was put in someone else's folder"
         );
         std::fs::remove_dir_all(&theirs).ok();
+    }
+}
+
+#[cfg(test)]
+mod bundle_backstop_tests {
+    use super::*;
+
+    #[test]
+    fn a_report_holding_a_credential_is_not_zipped_and_the_refusal_does_not_quote_it() {
+        let rules = SecretRules::load(&secret_rules_path()).unwrap();
+        // Built from pieces, so this file holds none.
+        let key = ["sk", "ant", "api03", "Zp8Kd3Wq1Ls6Vn0Rt4Yb9Xm2Qc"].join("-");
+        let password = ["Qv7r", "Lm2x", "Tz9k"].concat();
+        let (redacted, n) = sv_check::secrets::redact_text(
+            &rules,
+            &format!("Possible hardcoded password: '{password}' and {key}"),
+        );
+        assert_eq!(n, 2, "{redacted}");
+        // What `sv` writes, redacted, goes in.
+        let clean = vec![
+            ("app/report/security.md".to_owned(), redacted.into_bytes()),
+            (
+                "app/report/report.json".to_owned(),
+                b"{\"title\": \"fine\"}\n".to_vec(),
+            ),
+        ];
+        refuse_a_credential_in_the_report(&rules, &clean).expect("a redacted report is zipped");
+        // A value that reached a report whole does not, and the refusal says where, not what.
+        for planted in [
+            format!("Possible hardcoded password: '{password}'"),
+            format!("Authorization: Bearer {key}"),
+        ] {
+            let mut files = clean.clone();
+            files.push((
+                "app/report/compliance.md".to_owned(),
+                format!("# Report\n\n{planted}\n").into_bytes(),
+            ));
+            let refused = refuse_a_credential_in_the_report(&rules, &files)
+                .expect_err("a report holding a credential is refused")
+                .to_string();
+            assert!(
+                refused.contains("app/report/compliance.md line 3"),
+                "{refused}"
+            );
+            assert!(
+                !refused.contains(&password[..5]) && !refused.contains(&key[..8]),
+                "the refusal quotes the value: {refused}"
+            );
+        }
     }
 }
