@@ -572,10 +572,7 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
             title: "A security event is logged with a time that does not say its zone".to_owned(),
             severity: Severity::Low,
             confidence: Confidence::High,
-            location: Location {
-                file: "the running app's output".into(),
-                line: 1,
-            },
+            location: Location::running_app_output(),
             secret: None,
             requirement_ids: vec!["V16.2.2".to_owned()],
             cwe: vec!["CWE-778".to_owned()],

@@ -645,6 +645,12 @@ another session is not a claim.
     rule descriptions take one instance's text.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r14-sarif-locations`.
+    **Done the same day** (DESIGN, "SARIF addresses are addresses, and a rule is described in its own words"): a
+    file's URI is percent-encoded as an RFC 3986 relative reference; a running-app finding points at
+    `securevibe.toml`, which says how the app was run, with the place named in the location's message, a logical
+    location, and `properties.place`, since GitHub shows no result without a file; a rule kept as data is described
+    in its own words, any other by what all its findings share. Four tests, each failing before; six guards
+    undone in turn, each caught.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
     2: clean claims that name their limits (the calls per language, the ecosystems, transitive and development
     dependencies). 3: time limits and a clean environment for outside tools (`GOTOOLCHAIN=local`). 4: score CVSS
@@ -678,6 +684,11 @@ another session is not a claim.
     read is named, and the comparison is not credited as whole.
     **Those three done the same day** (DESIGN, "A manifest version `sv` knows, a date with nothing after it, and
     every collapsed list closed").
+    **Improvement 5 claimed in part on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep
+    working off the backlog, in branch `claude/securevibe-e9-markers`: a random marker per run for helper output,
+    and control characters stripped from everything `sv` prints to a terminal. The other three parts (two-factor
+    codes from the container's clock, seed secrets through standard input, WebSockets and workers in the browser
+    driver) are not claimed.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
@@ -922,6 +933,8 @@ another session is not a claim.
      - Expected to fire rarely, but to be strong evidence when it does. The common token libraries for Node, Python,
        and Go are thought not to fetch from an address in the token unless the app's own code wires it up; this was
        not checked library by library.
+     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's word ("go ahead"), in branch
+     `claude/securevibe-e2-key-server`.
   2. **A code-reading rule.** It flags an app that passes the token's own key address (`jku`, `x5u`, or a `jwk` in
      the header) to whatever fetches its keys. Cheaper, and it runs in every check without Docker, but it is weaker
      evidence than the app seen fetching. Today only Semgrep speaks to V9.1.3 by reading the code. Like the other code
@@ -1432,6 +1445,14 @@ another session is not a claim.
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
      Spends the owner's AI credit: ask before each run.
+     **The owner's decision, 5 October 2026:** run it, medium size: two models (Sonnet 5.5 and Haiku 4.5, as helper
+     agents of this session, not the owner's API key), two builds per arm, on the first trial's brief. Arms: no prompt;
+     each of the six design-time prompts that has a check; the plan in the loop (the builder is given `sv plan`'s
+     output); and the MCP flow approximated (the builder is given the MCP server's instructions and the `sv` command
+     line, since a helper agent cannot be given an MCP server without changing the session's configuration). The last
+     shows whether the instructions work when read, not whether a tool reads them unasked, and is reported as that.
+     About 36 builds. One tool, two models: it cannot speak for other vendors' tools.
+     **Claimed on 5 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompts-trial-3`.
   8. **The design-time prompts not yet written,** items 8 to 15 of "Design-time prompts from the Secure by Design
      checklist" above, which the owner approved on 4 October and nobody has claimed.
   **Items 1, 2, and 8 claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch
