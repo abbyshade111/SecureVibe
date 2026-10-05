@@ -534,6 +534,10 @@ another session is not a claim.
     Fix: hash the line with the value masked, or use a key kept locally.
     **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
     branch `claude/securevibe-e2-fingerprint`.
+    **Done the same day.** The fingerprint is now the hash of the line with the credential masked, as the report
+    shows it, so it tells nothing the report does not; a line with no credential keeps the fingerprint it had. A
+    review recorded by an older `sv` for a credential line is said to be one, and to be recorded again. See DESIGN,
+    "A credential's fingerprint says nothing the report does not".
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
