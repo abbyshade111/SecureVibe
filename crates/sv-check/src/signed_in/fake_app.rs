@@ -154,7 +154,14 @@ pub(super) struct FakeApp {
     /// Seconds past its expiry a token is still taken, as token libraries allow for clocks that
     /// disagree. Not a fault.
     pub(super) jwt_leeway: u64,
+    /// The run has a test model whose server answered, at `FAKE_MODEL`.
+    pub(super) model_up: bool,
+    /// What the app fetched from the test model's server: the tags of `/_sv/keys/<tag>`.
+    pub(super) model_fetched: std::collections::BTreeSet<String>,
 }
+
+/// The test model's server as the fake app reaches it.
+pub(super) const FAKE_MODEL: &str = "http://sv-1-model:9100";
 
 /// The key the fake app signs its tokens with. Not a secret: the fake app runs only in tests.
 const JWT_KEY: &[u8] = b"the fake app signs its tokens with this";
@@ -472,6 +479,9 @@ pub(super) struct Flaws {
     pub(super) jwt_alg_none_accepted: bool,
     /// Takes a token past its expiry (V9.2.1).
     pub(super) jwt_expiry_ignored: bool,
+    /// Fetches the address a token's `jku` or `x5u` header names, for the key to check it with
+    /// (V9.1.3), before it can know whether the token is good.
+    pub(super) jwt_key_source_followed: bool,
 }
 
 pub(super) const CSRF: &str = "tok-123";
@@ -561,6 +571,32 @@ impl FakeApp {
         Some(who.filter(|who| {
             signed && current && !self.signed_out.contains(token) && self.users.contains_key(who)
         }))
+    }
+
+    /// Under `jwt_key_source_followed`, fetches what a token's `jku` or `x5u` names: only the
+    /// test model's server records it, as only it would in a run.
+    fn follow_key_source(&mut self, token: &str) {
+        if !self.flaws.jwt_key_source_followed || self.jwt_lifetime.is_none() {
+            return;
+        }
+        let Some(header) = token
+            .split('.')
+            .next()
+            .and_then(unbase64)
+            .and_then(|h| serde_json::from_slice::<serde_json::Value>(&h).ok())
+        else {
+            return;
+        };
+        for field in ["jku", "x5u"] {
+            let tag = header
+                .get(field)
+                .and_then(|v| v.as_str())
+                .and_then(|url| url.strip_prefix(FAKE_MODEL))
+                .and_then(|path| path.strip_prefix("/_sv/keys/"));
+            if let Some(tag) = tag.filter(|_| self.model_up) {
+                self.model_fetched.insert(tag.to_owned());
+            }
+        }
     }
 
     /// The anti-forgery token a page carries: the fixed one, or under `single_use_tokens` a new one
@@ -818,6 +854,23 @@ impl Http for FakeApp {
         Some(answer)
     }
 
+    fn model(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+        if !self.model_up {
+            return None;
+        }
+        let tag = r.path.strip_prefix("/_sv/fetched/")?;
+        Some(ProbeResponse {
+            id: r.id.clone(),
+            status: 200,
+            headers: Vec::new(),
+            body: serde_json::json!({ "fetched": self.model_fetched.contains(tag) }).to_string(),
+        })
+    }
+
+    fn model_address(&mut self) -> Option<String> {
+        self.model_up.then(|| FAKE_MODEL.to_owned())
+    }
+
     fn send_at_once(
         &mut self,
         r: &ProbeRequest,
@@ -921,6 +974,9 @@ impl FakeApp {
             } else if let Some(times) = self.session_times.get_mut(s) {
                 times.1 = now;
             }
+        }
+        if let Some(token) = sid.clone() {
+            self.follow_key_source(&token);
         }
         let token_user = sid.as_deref().and_then(|s| self.jwt_user(s));
         let user = if let Some(user) = token_user {

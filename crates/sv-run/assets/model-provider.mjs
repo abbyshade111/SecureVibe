@@ -42,7 +42,10 @@
 //
 // `GET /_sv/fetch/<tag>` and `GET /_sv/redirect/<tag>` are addresses for a feature of the app that
 // fetches what it is given: each request is recorded, and the redirect points at
-// `/_sv/fetch/<tag>-after`. `GET /_sv/fetched/<tag>` says whether either was asked for.
+// `/_sv/fetch/<tag>-after`. `GET /_sv/keys/<tag>` is the address a sign-in token is sent naming as
+// where its key is (`jku` or `x5u`): each request is recorded, and answered with a set of public
+// keys (a JWKS) made when this server started, so an app that follows the token sees an ordinary
+// answer. `GET /_sv/fetched/<tag>` says whether any of them was asked for.
 //
 // `GET /_sv/seen/<tag>` says what arrived for that tag: whether it did, which of its markers, the
 // instructions it came with, whether the request limited the reply's length, whether anything has
@@ -53,6 +56,7 @@
 // that hands the service's whole response to the browser can be told from one that passes on the
 // text.
 import http from 'node:http';
+import { generateKeyPairSync } from 'node:crypto';
 
 const HOST = process.env.HOST || 'localhost';
 const PORT = Number(process.env.PORT || 9100);
@@ -60,8 +64,15 @@ const MODEL = 'sv-test-model';
 // How many tool rounds MCPLOOP keeps asking for before it stops by itself.
 const LOOP_CAP = 40;
 const seen = new Map(); // tag -> { kind, system, bounded, fetched, api, model, input_tokens, output_tokens }
-// Tags a feature of the app fetched through `/_sv/fetch/` or `/_sv/redirect/` (V1.3.6, V15.3.2).
+// Tags a feature of the app fetched through `/_sv/fetch/` or `/_sv/redirect/` (V1.3.6, V15.3.2),
+// or that the app fetched as the key a sign-in token named, through `/_sv/keys/` (V9.1.3).
 const fetches = new Set();
+// The set of keys `/_sv/keys/` answers with: a public key of this server's own, new each start.
+// Nobody holds anything it would let them sign; it is there so the answer is a real one.
+const KEYS = (() => {
+  const { publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+  return { keys: [{ ...publicKey.export({ format: 'jwk' }), kid: 'sv-test-key', use: 'sig', alg: 'ES256' }] };
+})();
 const between = (low, high) => low + Math.floor(Math.random() * (high - low));
 
 const text = (content) => {
@@ -489,6 +500,11 @@ http
       fetches.add(redirectAt[1]);
       res.writeHead(302, { location: `http://${HOST}:${PORT}/_sv/fetch/${redirectAt[1]}-after` });
       return res.end();
+    }
+    const keysAt = /^\/_sv\/keys\/([0-9a-f]+)$/.exec(path);
+    if (keysAt) {
+      fetches.add(keysAt[1]);
+      return json(res, 200, KEYS);
     }
     const fetchedAt = /^\/_sv\/fetched\/([0-9a-f]+(?:-after)?)$/.exec(path);
     if (req.method === 'GET' && fetchedAt) return json(res, 200, { fetched: fetches.has(fetchedAt[1]) });
