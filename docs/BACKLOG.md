@@ -550,6 +550,8 @@ another session is not a claim.
     **Done the same day** (DESIGN, "`sv mcp` will not serve a folder that holds the home folder"): a root that holds
     the home folder is refused, and with no home folder known, a folder just below the top is too.
   - **R11. Low to medium, Reproduced.** Duplicate or conflicting reviews are each applied.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r11`.
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
