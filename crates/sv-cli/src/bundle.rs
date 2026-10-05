@@ -315,6 +315,14 @@ pub fn plan(app_dir: &Path, scan: &SecretScan) -> Plan {
         .iter()
         .map(|(p, why)| (p.as_str(), why.as_str()))
         .collect();
+    // An image, a font, or a `.DS_Store`, known by its contents: not read for credentials either,
+    // so held to the same rule as a file that is not text.
+    let no_written_text: BTreeMap<&str, &str> = scan
+        .coverage
+        .no_written_text
+        .iter()
+        .map(|(p, what)| (p.as_str(), what.as_str()))
+        .collect();
 
     let mut plan = Plan::default();
     let mut files = Vec::new();
@@ -341,6 +349,12 @@ pub fn plan(app_dir: &Path, scan: &SecretScan) -> Plan {
                 rel,
                 "it is a database configuration with a password written in it".to_owned(),
             ));
+        } else if let Some(what) = no_written_text.get(rel.as_str()) {
+            if HARMLESS_BINARY.contains(&extension.as_str()) {
+                plan.include.push(rel);
+            } else {
+                plan.left_out.push((rel, format!("it is {what}, so the credential scan did not read it, and nothing here can say it holds no secret")));
+            }
         } else if let Some(why) = unread.get(rel.as_str()) {
             if HARMLESS_BINARY.contains(&extension.as_str()) && *why == "not a text file" {
                 plan.include.push(rel);

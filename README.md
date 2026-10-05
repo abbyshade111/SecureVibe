@@ -328,7 +328,8 @@ or, for a tool configured with JSON:
 { "mcpServers": { "securevibe": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers ten tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_guidance` (the
+It offers eleven tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
+app from it, below), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
 `securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
 work),
@@ -347,6 +348,14 @@ your tool (where it shows them, for example as slash commands): what to decide w
 written, each saying whether it has been shown to work. Its instructions ask the tool, for an app with no code yet, to
 write `securevibe.toml` with you first, for the app as it will be, and to go through the prompt for each feature
 before writing it.
+
+**A plan before any code.** `sv plan` (and `securevibe_plan`, for the tool) turns `securevibe.toml` into a plan:
+the requirements that will apply, the design-time prompts and questions to settle before each feature, the tests
+worth writing (named so they count once they pass), what the app must give `sv run` so it can be tested running
+(test accounts, the sign-in and sign-out forms, the pages only a signed-in person should see, and so on, worked out
+from your answers), and the threats your answers raise. It needs no code, writes nothing, and credits nothing: a plan
+is what the app will be held to, not evidence that anything was built. It is built from the same parts as the report,
+so the two agree about what applies.
 
 A check that takes longer than 50 seconds is stopped waiting for, and the tool is told it did not finish and that
 nothing was assessed, rather than being left waiting. Checking this whole repository takes about six seconds.

@@ -5,14 +5,41 @@
 //! which fail in a direction nobody notices: a green line in a report is not something a reader goes
 //! back to question. Every test here is a way of arriving at one that was not earned.
 
+mod scratch;
+
+use scratch::Scratch;
 use std::path::PathBuf;
 use sv_check::{ast, probes, secrets};
 
-fn scratch(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("sv-clean-{name}"));
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn scratch(name: &str) -> Scratch {
+    Scratch::new(&format!("clean-{name}"))
+}
+
+#[test]
+fn a_scratch_folder_is_this_calls_alone_and_goes_when_the_test_lets_go() {
+    // Two `cargo test` runs at once used to share `sv-{prefix}-{name}`, and one run's clean-up
+    // deleted the other's files mid-test. Two calls with one name, in one process, get two folders,
+    // each named for this process, each there while held and gone after.
+    let first = scratch("same-name");
+    let second = scratch("same-name");
+    assert_ne!(first.to_path_buf(), second.to_path_buf());
+    let pid = std::process::id().to_string();
+    for dir in [&first, &second] {
+        assert!(dir.is_dir(), "{} was made", dir.display());
+        let name = dir.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.contains(&pid), "{name} names the run it belongs to");
+    }
+    std::fs::write(first.join("file"), "x").unwrap();
+    let (gone, kept) = (first.to_path_buf(), second.to_path_buf());
+    drop(first);
+    assert!(
+        !gone.exists(),
+        "{} is removed, with its file",
+        gone.display()
+    );
+    assert!(kept.is_dir(), "the other folder is left alone");
+    drop(second);
+    assert!(!kept.exists());
 }
 
 fn data(file: &str) -> PathBuf {
@@ -396,9 +423,10 @@ fn a_file_not_opened_holds_back_every_rule_that_reads_its_language() {
     );
     let dir = scratch("ast-unopened-2");
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
+    // Not UTF-8, not UTF-16, and with a zero byte, so not Latin-1 either: a file nothing reads.
     std::fs::write(
         dir.join("worker.py"),
-        [0xffu8, 0xfe, 0x00, 0x9f, 0x92, 0x96],
+        [0x9fu8, 0x00, 0x92, 0x96, 0x00, 0x00, 0x01],
     )
     .unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
@@ -1201,8 +1229,9 @@ fn a_page_that_cannot_be_opened_still_silences_them() {
     std::fs::write(dir.join("app.py"), "print('hello')\n").unwrap();
     let page = dir.join("index.html");
     std::fs::write(&page, "<html></html>\n").unwrap();
-    // Invalid UTF-8 is the readable-but-not-as-text case, which `read_to_string` refuses.
-    std::fs::write(&page, [0x3c, 0x68, 0xff, 0xfe, 0x3e]).unwrap();
+    // Readable, but not as text: not UTF-8, not UTF-16, and with a zero byte, so not Latin-1
+    // either. (Bytes with no zero in them are read as Latin-1 since H22.)
+    std::fs::write(&page, [0x3c, 0x68, 0xff, 0x00, 0xfe, 0x3e, 0x00]).unwrap();
     let scan = ast::scan_dir(&ast_rules(), &dir);
     let unread: Vec<String> = scan.unread_languages.iter().cloned().collect();
     std::fs::remove_dir_all(&dir).ok();
