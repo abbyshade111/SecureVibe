@@ -528,6 +528,8 @@ another session is not a claim.
     Fix: hash the line with the value masked, or use a key kept locally.
   - **R5. Medium, Reproduced.** The count tables and headline leave out attested, stated, and by-hand, so they do not
     add up. Fix: every status, and a test that the rows sum to the applicable total.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r5-counts-add-up`.
   - **R6. High for CI users, Reproduced.** `sv report` and `sv check` exit 0 whatever happened. Fix: `sv audit`'s
     convention: 1 for something needing attention, 2 for something not assessed, 0 only otherwise.
     **Claimed on 4 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
@@ -571,6 +573,8 @@ another session is not a claim.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r9-app-text-fenced`.
   - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r10`.
@@ -585,6 +589,8 @@ another session is not a claim.
     requirement from applicable to "does not apply".
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r12`. Record: ADR-031 (proposed).
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r12-not-the-app-warning`.
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -594,6 +600,8 @@ another session is not a claim.
     path is shown in a code span it cannot close; the escaped redaction marker is still read as one.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
+    `claude/r14-sarif-locations`.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
     2: clean claims that name their limits (the calls per language, the ecosystems, transitive and development
     dependencies). 3: time limits and a clean environment for outside tools (`GOTOOLCHAIN=local`). 4: score CVSS
