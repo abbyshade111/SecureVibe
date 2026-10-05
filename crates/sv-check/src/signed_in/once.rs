@@ -425,6 +425,72 @@ mod tests {
     }
 
     #[test]
+    fn the_refused_user_must_still_be_signed_in_after_the_race() {
+        /// A correct app, where B's session stops opening the private page once the copies have
+        /// gone. A sends first and takes the seat, so B's refusals may have been for being signed
+        /// out. The private page is asked as A, then as B, before the copies go.
+        struct SignedOutAfter {
+            app: FakeApp,
+            raced: bool,
+            seen: Vec<String>,
+        }
+        impl Http for SignedOutAfter {
+            fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+                if r.id == "private-once" {
+                    let cookie = r
+                        .headers
+                        .iter()
+                        .find(|(k, _)| k.eq_ignore_ascii_case("cookie"))
+                        .map_or(String::new(), |(_, v)| v.clone());
+                    if !self.raced {
+                        self.seen.push(cookie);
+                    } else if self.seen.get(1) == Some(&cookie) {
+                        return Some(ProbeResponse {
+                            id: r.id.clone(),
+                            status: 302,
+                            headers: vec![("Location".into(), "/login".into())],
+                            body: String::new(),
+                        });
+                    }
+                }
+                self.app.send(r)
+            }
+            fn send_together(&mut self, rs: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
+                self.raced = true;
+                self.app.send_together(rs)
+            }
+        }
+        let acc = accounts();
+        let mut http = SignedOutAfter {
+            app: FakeApp::new(Flaws::default()),
+            raced: false,
+            seen: Vec::new(),
+        };
+        for account in [&acc.a, &acc.b] {
+            http.app
+                .users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let o = super::super::run(&mut http, &users(), &acc, true, &Default::default());
+        // The setup: both users were shown signed in, the race ran, and A got the seat.
+        assert_eq!(http.seen.len(), 2, "{:?}", o.steps);
+        assert_ne!(http.seen[0], http.seen[1], "two sessions, not one");
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("1 of A's went through and 0 of B's")),
+            "{:?}",
+            o.steps
+        );
+        assert!(!verified_ids(&o).contains(&DONE_TWICE.rule_id));
+        assert!(
+            why_not(&o).contains("no longer showed signed in afterwards"),
+            "{}",
+            why_not(&o)
+        );
+    }
+
+    #[test]
     fn without_a_once_action_it_is_not_assessed() {
         let mut u = users();
         u.once = None;
