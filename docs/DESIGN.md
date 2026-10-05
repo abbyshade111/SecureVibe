@@ -5917,6 +5917,49 @@ and Rust, any keyed value counted in Go, and `True` counted as well as `False` i
 sign-in server with a token for another audience, also speaks to V9.2.3 is the owner's call (BACKLOG, partial checks
 item 2). Keycloak's `verify-token-audience` in a JSON settings file is not read, since the rule reads code.
 
+## A token that says where its own key comes from (5 October 2026)
+
+V9.1.3 asks that the key used to check a signed token come from a source set up ahead of time for its issuer, never
+from the token. A JWT's header can carry `jku` (the address of a set of keys), `x5u` (the address of a certificate),
+or `jwk` (a key written into the token itself). An app that follows any of them lets whoever made the token choose the
+key it is checked with: make a key, sign a token as anybody, point the header at the key, and the signature checks
+out. The owner decided on 4 October that both ways of looking for it are to be built (BACKLOG, "V9.1.3"); this is the
+second, the code-reading rule. The first, a test key server the running app can be caught fetching from, is not yet
+built.
+
+`ast.token-key-source-from-token` reports a read of the token header's `jku`, `x5u`, or `jwk` handed, in the same
+call, to something that fetches a key or makes one. Both halves are needed. The read is any of the forms the common
+libraries give it in: `header["jku"]`, `header.get("x5u")`, `header[:jku]`, `getHeaderClaim("jku")`,
+`GetHeaderValue<string>("jwk")`, `header.jku`, `$header->jku`, `header.jwk`, Nimbus's and jjwt's getters
+(`getJWKURL()`, `getJwkSetUrl()`, `getJWK()`, and the rest) and their Kotlin property names (`header.jwkurl`), and
+C's `jwt_get_header(jwt, "jku")` (libjwt) and `cjose_header_get(header, "jwk", ...)` (cjose). The call is named per language: HTTP clients (`requests.get`,
+`urlopen`, `fetch`, `axios`, `http.Get`, `Net::HTTP.get`, `file_get_contents`, `HttpClient.GetStringAsync`,
+`reqwest::get`, URLSession's `data`, `cpr::Get`, `curl_easy_setopt`), and what turns a key set's address or a key into a key (`PyJWKClient`, `PyJWK`, `jwk.construct`,
+`jwksClient`, `createRemoteJWKSet`, `importJWK`, `jwkToPem`, `jwk.Fetch`, `JWT::JWK.import`, `JWK::parseKey`,
+`RemoteJWKSet`, `UrlJwkProvider`, `RSASSAVerifier`, `JsonWebKey`, `DecodingKey::from_jwk`, `JWTKey.fromJWK`,
+`cjose_jwk_import`). Kotlin's grammar reads `RemoteJWKSet<SecurityContext>(x)` as two comparisons, so its query also
+takes that reading, and a call with type arguments is found. The names come from each
+library's interface as known when it was written, not read again from each library's source this day. A call
+outside that list is not reported whatever it is given, which is what keeps the safe forms quiet: a check against a
+list (`TRUSTED.includes(header.jku)`), an address parsed to read its host, a log line, a function of the app's own
+such as `is_trusted(header["jku"])`, and a key chosen by `kid` from the app's own table. A token being made with a
+`jku` of the app's own is a dictionary written, not a header read, and is not reported either.
+
+It is only ever a finding, at high severity and medium confidence, and the finding says why it may be wrong: a check
+against a fixed list on an earlier line is not seen, and the advice says to record that with `sv review` if so. What it
+misses is said in `looksFor`: the address saved to a variable first and fetched on a later line is not followed, so
+finding none credits nothing. Every language `sv` reads code in has a query; shell has nothing to find, and says
+why. Semgrep's rules still speak to V9.1.3 as before.
+
+The test table has, for each of the fourteen languages, the read handed to a fetch or a key maker and the safe
+forms beside it: 77 cases. Thirteen guards broken in turn, each caught: the call list dropped (13 cases), any header
+name read (6), each of the eight forms of the read left out (between 1 and 11), Python's `decode` (1), Java's `new`
+(3), and Kotlin's reading of a call with type arguments (2). The first version taught nine languages; the test that
+holds every rule to every language `sv` reads failed on it, and the other five were written then. A first run of six
+of the guards broke the pattern with a form Rust's regular expressions refuse, so every rule failed to load
+and every test failed; that said nothing about the rule, and they were run again with a pattern that loads and
+matches nothing.
+
 ## Writing nothing through a link, and saying nothing on the app's behalf (3 October 2026)
 
 Three holes, found by trying them against `sv mcp` in a scratch folder (BACKLOG, "Hardening the MCP server", items 1
@@ -8906,46 +8949,24 @@ How it is held: `a_manifest_version_this_sv_does_not_know_is_refused` (`crates/s
 (`crates/sv-report/src/html.rs`), over every combination of the three sections. Five guards were undone in turn and
 each was caught.
 
-## A token that says where its own key comes from (5 October 2026)
+## An option is never a value, a bundle replaces only its own, and one answer for a path (5 October 2026)
 
-V9.1.3 asks that the key used to check a signed token come from a source set up ahead of time for its issuer, never
-from the token. A JWT's header can carry `jku` (the address of a set of keys), `x5u` (the address of a certificate),
-or `jwk` (a key written into the token itself). An app that follows any of them lets whoever made the token choose the
-key it is checked with: make a key, sign a token as anybody, point the header at the key, and the signature checks
-out. The owner decided on 4 October that both ways of looking for it are to be built (BACKLOG, "V9.1.3"); this is the
-second, the code-reading rule. The first, a test key server the running app can be caught fetching from, is not yet
-built.
+The deep review's improvement 7, three small guards on what `sv` is told.
 
-`ast.token-key-source-from-token` reports a read of the token header's `jku`, `x5u`, or `jwk` handed, in the same
-call, to something that fetches a key or makes one. Both halves are needed. The read is any of the forms the common
-libraries give it in: `header["jku"]`, `header.get("x5u")`, `header[:jku]`, `getHeaderClaim("jku")`,
-`GetHeaderValue<string>("jwk")`, `header.jku`, `$header->jku`, `header.jwk`, Nimbus's and jjwt's getters
-(`getJWKURL()`, `getJwkSetUrl()`, `getJWK()`, and the rest) and their Kotlin property names (`header.jwkurl`), and
-C's `jwt_get_header(jwt, "jku")` (libjwt) and `cjose_header_get(header, "jwk", ...)` (cjose). The call is named per language: HTTP clients (`requests.get`,
-`urlopen`, `fetch`, `axios`, `http.Get`, `Net::HTTP.get`, `file_get_contents`, `HttpClient.GetStringAsync`,
-`reqwest::get`, URLSession's `data`, `cpr::Get`, `curl_easy_setopt`), and what turns a key set's address or a key into a key (`PyJWKClient`, `PyJWK`, `jwk.construct`,
-`jwksClient`, `createRemoteJWKSet`, `importJWK`, `jwkToPem`, `jwk.Fetch`, `JWT::JWK.import`, `JWK::parseKey`,
-`RemoteJWKSet`, `UrlJwkProvider`, `RSASSAVerifier`, `JsonWebKey`, `DecodingKey::from_jwk`, `JWTKey.fromJWK`,
-`cjose_jwk_import`). Kotlin's grammar reads `RemoteJWKSet<SecurityContext>(x)` as two comparisons, so its query also
-takes that reading, and a call with type arguments is found. The names come from each
-library's interface as known when it was written, not read again from each library's source this day. A call
-outside that list is not reported whatever it is given, which is what keeps the safe forms quiet: a check against a
-list (`TRUSTED.includes(header.jku)`), an address parsed to read its host, a log line, a function of the app's own
-such as `is_trusted(header["jku"])`, and a key chosen by `kid` from the app's own table. A token being made with a
-`jku` of the app's own is a dictionary written, not a header read, and is not reported either.
+- **An option given where a value belongs is refused.** `sv report app --out --run` wrote the report to a folder
+  named `--run` and did not start the app. Now a value that starts with `--` is refused with the option named,
+  and the message says a name that starts with `-` can be given as `./--run`. A single dash is still a value
+  (`--out -out`), as before.
+- **A bundle replaces only a zip `sv` made** (ADR-017, Later). Every bundle ends with a comment of its own in the
+  zip's comment field; a file at the bundle's name that does not end that way is refused and left as it was.
+- **The MCP server gives one answer for a path outside its folder and one that is not there.** "Does not exist"
+  for one and "is outside" for the other told whoever asked, the model or text in an app steering it, which
+  folders exist anywhere on the computer. Both now read "is not a folder inside ..., so it cannot be read: it is
+  outside that folder, or nothing is there".
 
-It is only ever a finding, at high severity and medium confidence, and the finding says why it may be wrong: a check
-against a fixed list on an earlier line is not seen, and the advice says to record that with `sv review` if so. What it
-misses is said in `looksFor`: the address saved to a variable first and fetched on a later line is not followed, so
-finding none credits nothing. Every language `sv` reads code in has a query; shell has nothing to find, and says
-why. Semgrep's rules still speak to V9.1.3 as before.
-
-The test table has, for each of the fourteen languages, the read handed to a fetch or a key maker and the safe
-forms beside it: 77 cases. Thirteen guards broken in turn, each caught: the call list dropped (13 cases), any header
-name read (6), each of the eight forms of the read left out (between 1 and 11), Python's `decode` (1), Java's `new`
-(3), and Kotlin's reading of a call with type arguments (2). The first version taught nine languages; the test that
-holds every rule to every language `sv` reads failed on it, and the other five were written then. A first run of six
-of the guards broke the pattern with a form Rust's regular expressions refuse, so every rule failed to load
-and every test failed; that said nothing about the rule, and they were run again with a pattern that loads and
-matches nothing.
+How it is held: `an_option_given_where_a_value_belongs_is_refused_and_nothing_is_written`
+(`crates/sv-cli/tests/options.rs`), `a_bundle_replaces_only_a_zip_sv_made` (`crates/sv-cli/tests/bundle.rs`), and
+`a_path_outside_the_root_gets_the_same_answer_whether_or_not_it_exists` (`crates/sv-cli/src/mcp.rs`). Five guards
+were undone in turn: the option check, the one answer, the refusal to write over, the comment being checked, and the
+comment being written. Each was caught.
 
