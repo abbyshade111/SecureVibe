@@ -644,6 +644,54 @@ impl Answers {
         crate::seal::owner_recorded(seals, self.seal_of(id).as_deref(), &fields)
     }
 
+    /// Whether the AI coding tool may put its answer under `id` (`file` is the notes file's name,
+    /// for the reason given when not): only where nothing is written, or where the section is
+    /// marked `Written by: AI coding tool`, the mark `sv` writes on what the tool records.
+    ///
+    /// Anything else may be the owner's words, and writing over it would destroy them (deep review
+    /// R8). That includes an answer that does not say who wrote it: the report counts it as the
+    /// tool's (ADR-022), which never credits the owner on nobody's say-so, but whose word it is
+    /// for the report and whether it may be thrown away are two questions. The owner's own mark
+    /// with nothing under it is not empty either. The reason says what the owner can do: edit it,
+    /// or delete what is under the question so the tool can fill it.
+    pub fn tool_may_write(&self, id: &str, file: &str) -> std::result::Result<(), String> {
+        let Some(body) = self.get_answer(id) else {
+            return Ok(());
+        };
+        if body.trim().is_empty() {
+            return Ok(());
+        }
+        let why = match writer_of(body) {
+            Writer::AiTool => return Ok(()),
+            Writer::Owner => format!(
+                "the person wrote the answer to {id} themselves (it is marked \
+                 `{WRITTEN_BY} {BY_OWNER}`), and an answer from the AI coding tool never replaces \
+                 theirs"
+            ),
+            Writer::Unmarked => format!(
+                "the answer to {id} does not say who wrote it, so it may be the person's own, and \
+                 the AI coding tool only writes over an answer marked `{WRITTEN_BY} {BY_AI_TOOL}`"
+            ),
+            Writer::Unreadable => {
+                let marks: Vec<String> = body
+                    .lines()
+                    .filter(|line| written_by(line).is_some())
+                    .map(|line| format!("\"{}\"", line.trim()))
+                    .collect();
+                format!(
+                    "the answer to {id} is marked {}, which is not the AI coding tool's mark, so \
+                     it may be the person's own",
+                    marks.join(" and ")
+                )
+            }
+        };
+        Err(format!(
+            "{why}. `sv` has written nothing, and {file} is as it was. Show the person what you \
+             would record and ask them: they can edit the answer in {file} themselves, or delete \
+             everything under the question so that you can record yours."
+        ))
+    }
+
     /// Puts `body` under the section, in place of whatever was there.
     pub fn set(&mut self, id: &str, body: String) {
         match self.sections.iter_mut().find(|(section, _)| section == id) {
@@ -1455,6 +1503,55 @@ mod tests {
             "{:?}",
             evidence.stated[0].scope
         );
+    }
+
+    #[test]
+    fn the_tool_writes_only_where_nothing_is_or_over_its_own_marked_answer() {
+        // Deep review R8. An unmarked answer is the tool's for the report (the test above), and
+        // still never the tool's to throw away.
+        let may = |body: &str| with_answer(body).tool_may_write("V8.1.1", "security-notes.md");
+        assert_eq!(may(""), Ok(()));
+        assert_eq!(may("\n\n"), Ok(()));
+        assert_eq!(
+            may(&format!("{WRITTEN_BY} {BY_AI_TOOL}\n\n{RULES}")),
+            Ok(())
+        );
+        assert_eq!(may(&format!("**{WRITTEN_BY} {BY_AI_TOOL}**")), Ok(()));
+        // A question this file does not have yet is empty too.
+        assert_eq!(
+            with_answer("").tool_may_write("V6.1.1", "security-notes.md"),
+            Ok(())
+        );
+        for (body, said) in [
+            (RULES.to_owned(), "does not say who wrote it"),
+            ("TBD".to_owned(), "does not say who wrote it"),
+            (
+                format!("_Written by the AI coding tool from the code._\n\n{RULES}"),
+                "does not say who wrote it",
+            ),
+            (
+                format!("{WRITTEN_BY} {BY_OWNER}\n\n{RULES}"),
+                "the person wrote",
+            ),
+            (format!("{WRITTEN_BY} {BY_OWNER}"), "the person wrote"),
+            (
+                format!("{WRITTEN_BY} Sam\n\n{RULES}"),
+                "\"Written by: Sam\"",
+            ),
+            (
+                format!("{WRITTEN_BY} {BY_AI_TOOL}\n{WRITTEN_BY} {BY_OWNER}\n\n{RULES}"),
+                "not the AI coding tool's mark",
+            ),
+        ] {
+            let why = may(&body).expect_err(&body);
+            assert!(why.contains(said), "{body}: {why}");
+            assert!(why.contains("security-notes.md is as it was"), "{why}");
+            assert!(why.contains("edit the answer"), "{why}");
+            assert!(
+                why.contains("delete everything under the question"),
+                "{why}"
+            );
+        }
     }
 
     #[test]

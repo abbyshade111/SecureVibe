@@ -1169,8 +1169,9 @@ pub(crate) fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
 
 /// Writes the notes file with the AI coding tool's answer under one question, marked as the tool's.
 ///
-/// Refused when the question does not apply to the app, when the owner wrote that section (the
-/// tool's answer never replaces the owner's), and when the answer would not read back as exactly the
+/// Refused when the question does not apply to the app, when the section holds anything but
+/// the tool's own marked answer (`Answers::tool_may_write`: the tool's answer never replaces what
+/// may be the owner's), and when the answer would not read back as exactly the
 /// tool's (`sv_check::notes::tool_answer`). Written under a new name and renamed into place, and
 /// never through a link.
 pub(crate) fn record_tool_answer(app_dir: &Path, id: &str, answer: &str) -> Result<NotesWritten> {
@@ -1278,11 +1279,11 @@ fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWrit
         .as_deref()
         .map(|text| sv_check::notes::read_answers(&catalog, text))
         .unwrap_or_default();
-    anyhow::ensure!(
-        answers.writer(id) != Some(sv_check::notes::Writer::Owner),
-        "the person wrote the answer to {id} themselves, and an answer from the AI coding tool never \
-         replaces theirs. Ask them whether they want to change it, and let them edit it."
-    );
+    // Only an empty question or the tool's own answer: anything else may be the owner's words
+    // (deep review R8). Refused before anything is written, so the file is left as it was.
+    answers
+        .tool_may_write(id, &catalog.file)
+        .map_err(|why| anyhow::anyhow!(why))?;
     let body = sv_check::notes::tool_answer(answer).map_err(|why| anyhow::anyhow!(why))?;
     answers.set(id, body);
     let text =
