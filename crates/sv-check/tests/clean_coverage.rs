@@ -299,6 +299,68 @@ fn a_broken_file_holds_back_a_rule_only_when_it_names_that_rules_call() {
 }
 
 #[test]
+fn a_template_is_read_before_a_rule_says_the_page_is_clean() {
+    // H2 of the deep review. A Svelte page whose template runs `eval` was credited V1.3.2 clean,
+    // because only its `<script>` was read.
+    let script = "<script>\n  let count = 0;\n</script>\n";
+    let found = scan_files(
+        "ast-template-found",
+        &[(
+            "App.svelte",
+            &format!("{script}<button on:click={{() => eval(code)}}>Go</button>\n"),
+        )],
+    );
+    assert!(
+        found
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "ast.dynamic-code-execution" && f.location.line == 4),
+        "{:?}",
+        found.findings
+    );
+    assert!(
+        !verified_ids(&found.verified).contains(&"ast.dynamic-code-execution"),
+        "{:?}",
+        found.verified
+    );
+
+    // A template that cannot all be read, and names `eval`: the rule may not say the app is clean.
+    let unread = scan_files(
+        "ast-template-unread",
+        &[(
+            "App.svelte",
+            &format!("{script}<button on:click={{() => eval(code) y}}>Go</button>\n"),
+        )],
+    );
+    assert_eq!(unread.unparsed_files, vec!["App.svelte".to_owned()]);
+    assert!(unread.findings.is_empty(), "{:?}", unread.findings);
+    let verified = verified_ids(&unread.verified);
+    assert!(
+        !verified.contains(&"ast.dynamic-code-execution"),
+        "{verified:?}"
+    );
+    // The control: the same rule may speak for a page whose template was read and holds nothing.
+    let clean = scan_files(
+        "ast-template-clean",
+        &[(
+            "App.svelte",
+            &format!("{script}<button on:click={{() => count++}}>Go {{count}}</button>\n"),
+        )],
+    );
+    assert!(
+        clean.unparsed_files.is_empty(),
+        "{:?}",
+        clean.unparsed_files
+    );
+    let verified = verified_ids(&clean.verified);
+    assert!(
+        verified.contains(&"ast.dynamic-code-execution"),
+        "{verified:?} {:?}",
+        clean.held_back
+    );
+}
+
+#[test]
 fn a_rule_whose_name_pattern_is_more_than_a_word_is_always_held_back() {
     // The shell rule's pattern names a path (`/bin/sh`), which is not a word, so the words in a
     // broken shell script cannot rule it out, even when none of them is a shell's name.
@@ -1585,4 +1647,45 @@ fn a_phrase_for_a_language_the_rule_has_no_query_for_is_refused() {
         panic!("a phrase for a language with no query was accepted");
     };
     assert!(e.to_string().contains("has no ruby query"), "{e}");
+}
+
+#[test]
+fn a_clean_javascript_and_typescript_result_names_the_redirect_and_file_calls_it_read() {
+    // The H5 follow-up: "a redirect to a destination built from a value" beside a Next.js app's files
+    // said nothing about which calls were read, so a redirect the rule does not know looked checked.
+    let scan = scan_files(
+        "looks-for-node",
+        &[
+            ("app.js", "export function two() {\n  return 2;\n}\n"),
+            ("page.ts", "export const three: number = 3;\n"),
+        ],
+    );
+    let redirect = scope_of(&scan, "ast.open-redirect");
+    for call in [
+        "`res.redirect`",
+        "`permanentRedirect()`",
+        "`NextResponse.redirect`",
+        "`Response.redirect`",
+        "`res.location`",
+        "`location.href`",
+    ] {
+        assert!(redirect.contains(call), "{call} is not named: {redirect}");
+    }
+    assert!(
+        redirect.ends_with("in 1 javascript file and 1 typescript file"),
+        "{redirect}"
+    );
+    let file = scope_of(&scan, "ast.file-path-from-value");
+    for call in [
+        "`readFile`",
+        "`fs.promises`",
+        "`fs/promises`",
+        "`res.sendFile`",
+    ] {
+        assert!(file.contains(call), "{call} is not named: {file}");
+    }
+    assert!(
+        file.ends_with("in 1 javascript file and 1 typescript file"),
+        "{file}"
+    );
 }

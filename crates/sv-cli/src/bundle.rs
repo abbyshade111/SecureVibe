@@ -215,22 +215,53 @@ const CREDENTIAL_NAMES: &[&str] = &[
     "secrets.json",
     "secrets.yml",
     "secrets.yaml",
+    ".pgpass",
+    ".my.cnf",
+    ".s3cfg",
+    ".boto",
+    ".envrc",
     "id_rsa",
     "id_dsa",
     "id_ecdsa",
     "id_ed25519",
 ];
 
+/// Files that hold credentials by where they are, not what they are called: Docker's and
+/// Kubernetes' own logins, which an app folder sometimes carries a copy of.
+const CREDENTIAL_PATHS: &[&str] = &[".docker/config.json", ".kube/config"];
+
 /// Why a file named like this stays out, or `None` when the name alone does not say.
+///
+/// Until 5 October 2026 an environment file had to be called `.env` or `.env.<something>`, and
+/// `prod.env`, `.envrc`, `.pgpass`, Docker's and Kubernetes' logins, and Terraform's variables
+/// and state all went into the zip (A6 of the deep review).
 fn left_out_by_name(rel: &str) -> Option<&'static str> {
     let name = rel.rsplit('/').next().unwrap_or(rel);
     let lower = name.to_lowercase();
     let extension = lower.rsplit_once('.').map(|(_, e)| e).unwrap_or("");
+    const SHOWN: &[&str] = &["example", "sample", "template", "dist"];
+    // `.env`, `.env.production`, and `prod.env` or `local.env`; never `.env.example` or
+    // `example.env`, which are there to show what to fill in.
+    let stem = lower.strip_suffix(".env").unwrap_or("");
     if lower == ".env"
-        || (lower.starts_with(".env.")
-            && !["example", "sample", "template", "dist"].contains(&extension))
+        || (lower.starts_with(".env.") && !SHOWN.contains(&extension))
+        || (!stem.is_empty() && !SHOWN.iter().any(|s| stem.trim_start_matches('.') == *s))
     {
         return Some("it is an environment file, which is where an app keeps its secrets");
+    }
+    let lower_rel = rel.to_lowercase();
+    if CREDENTIAL_PATHS
+        .iter()
+        .any(|p| lower_rel == *p || lower_rel.ends_with(&format!("/{p}")))
+    {
+        return Some("it is a tool's own login, which holds its credentials");
+    }
+    // Terraform's variables hold the values passed in, passwords among them, and its state holds
+    // every value it created, in plain text. `terraform.tfstate.backup` is state too.
+    if extension == "tfvars" || lower.ends_with(".tfvars.json") || lower.contains(".tfstate") {
+        return Some(
+            "it is Terraform's variables or state, which hold passwords and keys as written",
+        );
     }
     if CREDENTIAL_NAMES.contains(&lower.as_str())
         || lower.starts_with("service-account") && extension == "json"
@@ -244,6 +275,32 @@ fn left_out_by_name(rel: &str) -> Option<&'static str> {
         return Some("it is a database or a dump, which may hold data about the app's people");
     }
     None
+}
+
+/// Whether `rel` is a Rails-style `database.yml` with a password written into it rather than read
+/// from the environment (`<%= ENV[...] %>`). The credential scan does not always see one, and the
+/// file is the database's front door.
+fn written_out_database_password(app_dir: &Path, rel: &str) -> bool {
+    let name = rel.rsplit('/').next().unwrap_or(rel).to_lowercase();
+    if name != "database.yml" && name != "database.yaml" {
+        return false;
+    }
+    let Ok(text) = std::fs::read_to_string(app_dir.join(rel)) else {
+        return false;
+    };
+    text.lines().any(|line| {
+        let line = line.trim();
+        let Some(value) = line.strip_prefix("password:") else {
+            return false;
+        };
+        let value = value
+            .split(" #")
+            .next()
+            .unwrap_or("")
+            .trim()
+            .trim_matches(['"', '\'']);
+        !value.is_empty() && !value.contains("<%") && !value.starts_with('$')
+    })
 }
 
 /// Decides what a bundle of `app_dir` holds, given what the credential scan found and could not read.
@@ -287,6 +344,11 @@ pub fn plan(app_dir: &Path, scan: &SecretScan) -> Plan {
             ));
         } else if let Some(reason) = left_out_by_name(&rel) {
             plan.left_out.push((rel, reason.to_owned()));
+        } else if written_out_database_password(app_dir, &rel) {
+            plan.left_out.push((
+                rel,
+                "it is a database configuration with a password written in it".to_owned(),
+            ));
         } else if let Some(what) = no_written_text.get(rel.as_str()) {
             if HARMLESS_BINARY.contains(&extension.as_str()) {
                 plan.include.push(rel);
@@ -587,6 +649,81 @@ mod tests {
             sha256(&[b'a'; 1_000_000]),
             "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"
         );
+    }
+
+    #[test]
+    fn every_secret_file_the_review_named_stays_out_and_its_shown_forms_go_in() {
+        // A6 of the deep review: each of these went into the zip.
+        for rel in [
+            "prod.env",
+            "config/local.env",
+            ".envrc",
+            "deploy/.pgpass",
+            ".my.cnf",
+            ".s3cfg",
+            ".docker/config.json",
+            "ops/.docker/config.json",
+            ".kube/config",
+            "infra/prod.tfvars",
+            "infra/secrets.auto.tfvars.json",
+            "infra/terraform.tfstate",
+            "infra/terraform.tfstate.backup",
+            // And what already stayed out still does.
+            ".env",
+            ".env.production",
+            "id_ed25519",
+        ] {
+            assert!(
+                left_out_by_name(rel).is_some(),
+                "{rel} went into the bundle"
+            );
+        }
+        for rel in [
+            ".env.example",
+            "example.env",
+            ".sample.env",
+            "template.env",
+            "config.json",
+            "src/environment.ts",
+            "venv/readme.md",
+            "kube/deployment.yaml",
+            "docker/config.json",
+            "main.tf",
+        ] {
+            assert_eq!(left_out_by_name(rel), None, "{rel} was left out");
+        }
+    }
+
+    #[test]
+    fn a_database_yml_with_a_password_written_in_it_stays_out() {
+        let dir = std::env::temp_dir().join(format!("sv-bundle-dbyml-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("config")).unwrap();
+        let check = |text: &str| {
+            std::fs::write(dir.join("config/database.yml"), text).unwrap();
+            written_out_database_password(&dir, "config/database.yml")
+        };
+        let pieces = ["s3cret", "Pass", "w0rd"].concat();
+        assert!(check(&format!(
+            "production:\n  adapter: postgresql\n  password: {pieces}\n"
+        )));
+        assert!(check(&format!(
+            "production:\n  password: \"{pieces}\" # set by hand\n"
+        )));
+        assert!(!check(
+            "production:\n  password: <%= ENV['DB_PASSWORD'] %>\n"
+        ));
+        assert!(!check("production:\n  password:\n  username: app\n"));
+        assert!(!check("production:\n  password: ''\n"));
+        assert!(!check("production:\n  adapter: sqlite3\n"));
+        // Only that file name.
+        std::fs::write(
+            dir.join("config/other.yml"),
+            format!("password: {pieces}\n"),
+        )
+        .unwrap();
+        assert!(!written_out_database_password(&dir, "config/other.yml"));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

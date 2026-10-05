@@ -7454,14 +7454,58 @@ without regard to capitals, plain files only). A marker beside anything else is 
 run code from its template (`on:click={() => eval(code)}`, `@click="..."`, `{{ ... }}`), and that code was never
 read, yet the page counted as read, so a rule could be credited a clean result it had not earned. For now, a
 `.svelte` page with any `{...}` outside its `<script>` and `<style>`, and a `.vue` page with `{{ }}` or an
-attribute starting `@`, `:`, or `v-`, is named among the files not fully read; no rule claims a clean result for
-it, and its `<script>` is still read and its findings still stand. A page whose template is plain markup is fully
-read, as before. Reading template code as code, so the problem is found and not only owned up to, is still to do.
+attribute starting `@`, `:`, or `v-`, is named among the files not fully read, and its `<script>` is still read
+and its findings still stand. A page whose template is plain markup is fully read, as before. **Corrected the same
+day:** this said no rule then claims a clean result for the page, and that was not so. Naming a file as not fully
+read does not hold a rule back; `hold_back` does, and this step did not call it, so the rule could still be
+credited. Its test checked only that the page was named. The next section reads the template code, and holds the
+rules back when it cannot.
 
 Ten guards broken in turn, each caught: for the folders, an output folder left out wherever it is, a folder left
 out without a record, the marker believed whatever the folder holds, `sv`'s own default report name forgotten,
 capitals compared, and a refused marker not mentioned; for templates, templates never looked at, scripts and styles
 not cut out first, and each of Vue's two signs of code ignored in turn.
+
+## Svelte and Vue template code read as code (4 October 2026)
+
+The rest of H2. A Svelte or Vue page's template runs code of its own, and `sv`'s rules now read it, with the page's
+scripts, as JavaScript, or TypeScript when the page's script says `lang="ts"`.
+
+**What is taken out.** In a Svelte page, every `{...}` outside the page's scripts, styles, and comments, in text and
+in attributes alike, as Svelte's compiler reads them: an expression, `{#if}` and `{:else if}`, `{#each}` with its
+list, its names, and its key, `{#await}` with its promise, `{#key}`, `{@html}`, `{@render}`, `{@const}`,
+`{@debug}`, `{#snippet}`, and `{...spread}`. A brace inside a string or a template string does not end one. In a Vue
+page, every `{{ }}`, and the value of every attribute named `@…`, `v-on:…`, `:…`, `.…`, `#…`, or `v-…`: a handler is
+read as the body of a function, `v-for` as its names and its list, a slot's value as names, and the rest as
+expressions, with character references such as `&quot;` decoded first, as Vue does. Names a block or a slot gives
+values (`{#each items as { id }}`) are read as a function's parameters, so a default value in them is read too.
+Each piece must be code the grammar reads. All of them are read as one program, each on its own line in the page, so a
+finding names the page's line.
+
+**Svelte's braces come before its markup.** The page's markup is read by a tokenizer that works the way a browser's
+does, and a browser does not know Svelte: given `<button onclick={() => go()}>`, it reads a handler `{()` that ends
+at the space, and the `>` of `=>` closes the tag. A handler that does not parse leaves the whole page unread, which
+kept every rule silent for any Svelte 5 app with a handler written as an arrow function with a space in it. So each `{...}` is blanked out before the markup is read, as Svelte
+itself reads it first.
+
+**What is not read, and what that does.** A Vue template written in Pug or another language, a directive whose name
+is worked out when the page runs (`:[key]`), a `{` never closed, a Svelte block this does not know, and a piece the
+grammar cannot read. Such a page is named among the files not fully read, and, the part the first step left out,
+each rule whose call is named in the page is held back, so it cannot say the app is clean. The page's scripts and
+whatever else was read still count. As a check on the extraction, a page that the earlier test still says holds
+template code, and from which nothing was taken out, is treated the same way.
+
+**What this is not.** No rule looks for HTML put into a page unescaped, so `{@html}` and `v-html` are read only for
+the code inside them; reading them is not a check of what they insert. The rules that read JavaScript now read more
+of it in these pages, so a Svelte or Vue app may get findings it did not get before; each is in code the page runs.
+
+Sixteen guards broken in turn, each caught in the end: the rules not held back, Svelte's braces not blanked out,
+`{#each}`'s key dropped, `{:else if}` not known, Vue's handlers read as expressions, `v-for`'s list dropped, `{{ }}`
+not read, character references not decoded, strings not skipped inside braces, comments not skipped, the template
+always read as JavaScript, pieces not put on their own lines, a directive with a worked-out name believed, a Pug
+template believed, an unreadable piece not counted, and the check on the extraction removed. The last two were
+caught by nothing at first, because each covered for the other on a page with one piece; a page with one piece read
+and one not, and a Vue page whose `<textarea>` holds an `@click` that Vue does not run, now catch each alone.
 
 ## Advisories: Python names, nested npm copies, and declared packages (4 October 2026)
 
@@ -8355,6 +8399,41 @@ checked.
 How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
 twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
 
+**Later, 5 October 2026: five differences from a second build of H5.** A second session had built H5 at the same
+time (closed unmerged as #642). At the owner's asking, the five places where it went further were ported onto the
+rules above (BACKLOG, "H5 follow-up"):
+
+- **`new URL("/path", base)` is safe only when the base is the request's own address** (`request.url`, `req.url`,
+  `request.nextUrl`, or its `origin`). Before, any base was accepted, so `new URL("/login", req.query.next)`, which
+  goes to whatever host the visitor named, was a clean result. A bare `"/"` with the request's base is now safe too.
+- **More redirects:** `permanentRedirect()`, `Response.redirect` (the web standard's, used by route handlers),
+  SvelteKit's `redirect(303, x)` with the status first, and `document.location = x`. Express's `res.location`,
+  `self.location`, and `top.location` were already found, by the cross of the name patterns; they are now named on
+  purpose, with witnesses.
+- **A bare `location.replace(...)` is not reported:** a string called `location` has a `replace` of its own, and
+  `const slug = location.replace(/\s+/g, '-')` was reported as a redirect. `window.location.replace(x)` and
+  `document.location.replace(x)` still are. To say so in the data, the redirect query now captures the whole callee
+  or assignment target as `@mod` (`res.redirect`, `window.location.replace`, `location.href`), so the module pattern
+  lists the pairs that redirect rather than letting any listed object pair with any listed name. The name pattern
+  stays plain words, which H25's test of a file that did not parse relies on.
+- **The app's own folder** in the file-path guard now includes `process.cwd()` and `import.meta.dirname` beside
+  `__dirname`, and `new URL('./x', import.meta.url)`: where a Next.js app reads its content from, and the ES module
+  way to name a file beside the code. A path joined onto them from a value is still reported.
+- **The clean result names the calls** each rule reads in JavaScript and TypeScript (`looksForIn`).
+
+Nothing the section above chose was undone: a bare `download` is still not read, and `fs.promises` is still matched
+through its `promises` part.
+
+**Tested.** Forty witnesses in `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one`, a found and a
+not-found case for each difference in JavaScript and TypeScript, and
+`a_clean_javascript_and_typescript_result_names_the_redirect_and_file_calls_it_read`
+(`crates/sv-check/tests/clean_coverage.rs`). Against the rules as #641 left them, eighteen of the witnesses fail
+(eleven missed, seven reported). Eleven guards broken in turn, each caught: any base accepted for `new URL` (two
+witnesses), and `permanentRedirect`, `Response.redirect`, `res.location`, and the status-first `redirect` each taken
+out (two each); `window` alone where `document`, `self`, and `top` were (three); a bare `location.replace` let
+through (two); `process.cwd()` taken out of the guard (two), `import.meta.dirname` (one), and `import.meta.url`
+(two); and the redirect rule's JavaScript and TypeScript words taken out (the clean-result test).
+
 ## A placeholder word in a key counts only where chance would not put it (5 October 2026)
 
 A4 of the deep review: a value was taken for a placeholder, and not reported, when it held any of a list of words
@@ -8396,6 +8475,62 @@ How it is held: `a_gitignore_is_read_the_way_git_reads_it`, with twenty cases ea
 Five guards were undone in turn and each was caught; a sixth, skipping patterns that end in `/`, was found to change
 nothing, since such a pattern never matches a file, and was taken out.
 
+## The AI coding tool writes over only its own answer (5 October 2026)
+
+R8 of the deep review: `securevibe_record_answer` refused to replace a section marked `Written by: owner`, and
+replaced everything else. An owner who wrote an answer in their own editor and left out the `Written by:` line, which
+nothing asks them to add, lost it the next time their AI coding tool recorded an answer to the same question.
+Reproduced first, with a test that wrote the owner's sentence under a question with no mark and saw the tool's
+answer take its place. R7's fix (DESIGN, "The notes file keeps what the owner wrote outside the answers") did not
+cover this: it keeps what is outside the answers, and this is the answer itself.
+
+- **The rule** (`Answers::tool_may_write`, `crates/sv-check/src/notes.rs`): the tool's answer goes only under a
+  question with nothing under it (blank lines count as nothing), or over a section marked
+  `Written by: AI coding tool`, the mark `sv` writes on everything the tool records. Anything else may be the owner's
+  words and is refused: an answer with no mark, however short ("TBD"); one marked with the tool's own italic line,
+  which is the tool's wording and not `sv`'s mark; one marked as anybody else's, or with two marks that disagree; and
+  the owner's mark, with or without an answer under it.
+- **Whose word it is, and whether it may be thrown away, are two questions.** ADR-022 counts an answer with no mark
+  as the tool's, because crediting the owner on nobody's say-so overstates; that is unchanged, and the report still
+  says so. Writing over it is a different act: it destroys text that may be the owner's, so it is refused.
+- **A refusal writes nothing** and leaves the file byte for byte as it was. The reply says why ("the answer to V2.1.1
+  does not say who wrote it, so it may be the person's own"), that nothing was written, and what the owner can do:
+  edit the answer themselves, or delete everything under the question so that the tool can record its own.
+- **The other ways answers are written** do not write over an answer: `sv notes` and `securevibe_notes_file` keep
+  every answer as written (R7), and `sv review` only adds a seal line under a section marked as the owner's, from
+  the owner's own terminal. The instructions the tool reads with the questions now say the same rule for a tool
+  without the MCP server, which edits the file itself, and the tool's description says it too.
+
+How it is held: `the_tool_never_writes_over_an_answer_it_did_not_mark_as_its_own` (`crates/sv-cli/src/mcp.rs`),
+which checks each refusal leaves the file's bytes unchanged and that each setup read back with the writer it meant,
+and fills an empty question and replaces the tool's own answer; and
+`the_tool_writes_only_where_nothing_is_or_over_its_own_marked_answer` (`crates/sv-check/src/notes.rs`). Seven guards
+were undone in turn and each turned at least one test red: not calling the rule at all (two tests), letting through
+an unmarked answer, the review's case (two), one marked as somebody else's (two), or the owner's (three), not
+recognizing an empty question (five), refusing the tool's own answer (three), and refusing a question the file does
+not have yet (one). An eighth, treating only a section with no characters at all as empty rather than one of blank
+lines, changed nothing, because the reader already drops blank lines around an answer; the check stays as it is for
+a caller that builds the sections itself.
+## A Go app's modules are read from go.mod (5 October 2026)
+
+A3 of the deep review: the bill of materials took a Go app's modules from go.sum, which keeps a checksum for every
+version Go has looked at, older ones included. Each was listed as if the app were built with it, and the advisory
+comparison reported versions the app had moved past.
+
+- **go.mod says what is built.** `from_go_mod` reads its `require` lines, one line or a block, and applies its
+  `replace` lines: a module swapped for another at a version is listed as that one; a module swapped for a folder of
+  the app's own has no published version, is not listed, and is named as not listed, as Python packages installed
+  from a folder already are. A `replace` for a different version leaves the required one as it is.
+- **Before Go 1.17, go.mod may leave out indirect modules.** For a go.mod with an older `go` line, or none, which
+  Go reads as 1.16, a module named only in go.sum is listed at the highest version go.sum holds for it. That is the
+  version Go chose whenever go.sum holds the one it chose. From 1.17 on, a module named only in go.sum is not
+  listed: it is not in the build.
+- **With no go.mod beside it**, go.sum is read as before.
+
+How it is held: `go_mod_names_the_version_built_and_go_sum_s_older_ones_are_not_listed` and
+`a_go_app_is_listed_from_go_mod_and_says_what_a_folder_replaced` (`crates/sv-check/src/sbom.rs`). Five guards were
+undone in turn and each was caught, the last only after a module named in go.sum alone was added to the fixture.
+
 ## pnpm 5 and 6 told apart, and packages without a version named (5 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H21 and H24) found two JavaScript lockfile readers giving a
@@ -8419,3 +8554,143 @@ It now expects the folder named. Eight guards broken in turn, each caught: readi
 keeping 5.x's peer suffix in the version, dropping pnpm's packages without a version, not reporting them, dropping
 Berry's, naming the app's own workspace, and dropping a classic entry with no version, in the middle of the file or
 at its end.
+
+## The bundle leaves out the secret files the review named (5 October 2026)
+
+A6 of the deep review: `sv bundle` leaves out files by name, and each of these went into the zip: `prod.env`, `.envrc`,
+`.pgpass`, `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+
+- **An environment file under any of its names**: `.env`, `.env.<anything>`, and now `<anything>.env`, with
+  `example`, `sample`, `template`, or `dist` in its place still going in, since those show what to fill in; and
+  `.envrc`.
+- **Credential files by name**: `.pgpass`, `.my.cnf`, `.s3cfg`, `.boto`, beside the ones already listed.
+- **Credential files by where they are**: Docker's `.docker/config.json` and Kubernetes' `.kube/config`, wherever in
+  the app they sit. A `docker/config.json` or a `kube/deployment.yaml` is not one.
+- **Terraform's variables and state**: `*.tfvars`, `*.tfvars.json`, and anything with `.tfstate` in its name,
+  backups included. State holds every value Terraform created, in plain text.
+- **A `database.yml` with a password written in it** stays out even when the credential scan does not flag it,
+  which a short or simple password does not: a `password:` line with a value that is not read from the environment
+  (`<%= ENV[...] %>`) or left empty.
+
+How it is held: `every_secret_file_the_review_named_stays_out_and_its_shown_forms_go_in` and
+`a_database_yml_with_a_password_written_in_it_stays_out` (`crates/sv-cli/src/bundle.rs`), and in
+`crates/sv-cli/tests/bundle.rs` the app now carries a `config/database.yml` with a weak password and a `.kube/config`,
+which must stay out of the zip, their contents nowhere in it. Six guards were undone in turn and each was caught, the
+last only after the end-to-end case was added.
+
+## The secret rules find what they promise, and grade a test key below a live one (5 October 2026)
+
+A5 of the deep review, three faults in `data/secret-rules.json`:
+
+- **Slack's app-level token (`xapp-`)** was named in `secrets.slack-token`'s own description and not matched by
+  its pattern. The pattern now takes `xapp-<digit>-…` beside the `xox?-` tokens.
+- **A PGP private key block** (`-----BEGIN PGP PRIVATE KEY BLOCK-----`) was missed; `secrets.private-key-block`
+  now finds it beside the PEM and OpenSSH ones. A public PGP block is not reported. The rule's description had lost
+  its first sentence, and now says what it found.
+- **A Stripe test key was graded critical**, the same as a live one. A test-mode key cannot create a charge or a
+  refund; it opens the test-mode data, and is often a sign the live key is kept the same way. It now has a rule of
+  its own, `secrets.stripe-test-key`, at medium, and `secrets.stripe-key` is for live keys only. No decision record
+  governs the secret rules, so the grading is recorded here. A finding on a test key that someone set aside under the
+  old rule's name no longer matches, and is looked at again under the new one.
+
+How it is held: `the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one`
+(`crates/sv-check/src/secrets.rs`), with every value put together at run time. Each of the three changes was undone in
+turn and the test went red.
+
+## One entry answers for one finding (5 October 2026)
+
+R11 of the deep review: `[[finding-review]]` entries were applied one after another, each to the first finding it
+matched, and an accepted risk leaves its finding on the list. So two entries for one finding were both applied, the
+same answer counted twice, and a false alarm and an accepted risk for the same finding were both taken as said.
+Recorded under ADR-023.
+
+- **Each entry that counts takes one finding**: the first it matches that no earlier entry has taken. Two identical
+  lines with an entry each are still both answered.
+- **An entry left with nothing to take** repeats an earlier one or contradicts it. Repeating, it does not count,
+  and says it adds nothing and can be removed. Contradicting, neither counts: the finding stands, and both are
+  listed, until one is removed.
+- **An entry that does not count takes nothing**, so it cannot keep a sealed entry after it from answering.
+
+How it is held: `one_entry_answers_for_one_finding_and_a_pair_that_disagree_leaves_it_standing`
+(`crates/sv-check/src/review.rs`), with a repeat, a contradiction in both orders, two identical lines, and an unsealed
+entry before a sealed one. Three guards were undone in turn and each was caught.
+## `sv mcp` will not serve a folder that holds the home folder (5 October 2026)
+
+R10 of the deep review: `sv mcp --root` refused the top of the computer's files and the home folder itself, and served
+any folder above the home folder, `/home` or `/Users`, which hold every user's home folder, keys and mail included.
+
+- **A root that holds the home folder is refused**, with the reason, as `/` and the home folder already were. The
+  comparison is by whole folder names, so `/home/some` does not hold `/home/someone`, and a folder beside the home
+  folder is still served.
+- **With no home folder known** (`HOME` and `USERPROFILE` both unset), a folder just below the top, such as `/home`,
+  is refused too, since it is where home folders are kept and nothing can tell it apart.
+
+How it is held: `the_whole_computer_and_the_whole_home_folder_are_not_served` (`crates/sv-cli/src/mcp.rs`), which until
+now asserted that `/home` was served. Three guards were undone in turn, a comparison by text rather than by folder
+among them, and each was caught.
+
+## App text in the Markdown reports is inert (5 October 2026)
+
+R13 of the deep review: security.md and compliance.md wrote the app's name, file paths, and what tools or the app
+said as they were, so `[click](…)`, `![](…)`, or `<img …>` in any of them was live wherever the Markdown was shown,
+and a backtick in a file name let the rest of it out of the code span it was put in. report.html already escaped
+them.
+
+- **`inert`** makes text from the app or a tool inert: outside code spans, `\`, `[`, `]` escaped and `<` written as
+  `&lt;`, so no link, image, or HTML of its own; inside code spans, nothing, since a renderer reads nothing there as
+  Markdown. Code spans are found as CommonMark finds them, a run of backticks closed by the next run of the same
+  length, and a run with no partner is escaped, so it cannot pair with a later one. `sv`'s own backticks, such as
+  `` `[[finding-review]]` ``, still read as code.
+- **Where it is applied:** every table cell (`cell` now calls it), the app's name in both titles, and each finding's
+  title, description, impact, fix, accepted-risk note, and notes. `sv`'s own `<details>` and its one link are
+  written outside these, and unchanged.
+- **`code`** shows a file path as code in a span opened with more backticks than any run inside it.
+- **`sv`'s redaction marker** is escaped like everything else, `\[redacted: Qv7r… (16 more characters)\]`, and reads
+  as `[redacted: …]` when shown. The credential scan's check for the marker (S8, which lets `sv bundle` read its own
+  report back) now takes the escaped form too; without that, the bundle refused every report holding a redaction.
+
+How it is held: `app_text_is_inert_outside_code_and_left_as_it_is_inside` and
+`a_value_shown_as_code_cannot_close_its_span` (`crates/sv-report/src/markdown.rs`);
+`text_from_the_app_cannot_put_a_link_an_image_or_html_into_the_markdown_reports` (`crates/sv-report/tests/report.rs`),
+end to end with a file name and an app name built to escape; and `sv_s_own_redaction_marker_is_read_as_one_escaped_or_not`
+(`crates/sv-check/src/secrets.rs`). The S8 test `a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen`
+now looks for the escaped marker in the Markdown. Four guards were undone in turn and each was caught.
+
+## Files that are not text named, and text that is not UTF-8 read (5 October 2026)
+
+The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H22) found two things, and the cato-pipeline session saw the
+first in my-first-app: one Finder `.DS_Store` left the credential scan partial for good, and the report's gap said
+only "1 file not read while looking for credentials", so the AI tool searched for large files and then ran `sv check`
+to learn which file it was. The second: text that was not UTF-8 was never read, by the credential scan or any code
+rule.
+
+**Reading text.** Every check reads a file through `files::decode`, which now tries, in order:
+
+- **A kind of file that holds no text a person writes, by its first bytes.** PNG, JPEG, GIF, and WebP images, icons,
+  fonts, and `.DS_Store`. By contents, never by name: a `logo.png` holding text is read as text. First, because a
+  small `.DS_Store` is valid UTF-8.
+- **UTF-8 with no zero byte**, as nearly everything is. A zero byte is a character in UTF-8, but text a person
+  writes has none; before, UTF-16 saved without its mark was read this way, with a zero between each letter, and a
+  key written in it was missed while the file counted as read.
+- **UTF-16**, with its mark (as Windows tools write it) or without it (nearly every other byte zero). Taken only
+  when what it reads as is mostly ASCII with no control characters: two bytes can look like the mark by chance at
+  the start of a binary file, and read as UTF-16 a key written in it as plain letters would read as nonsense and be
+  missed. An app's own UTF-16 files, scripts and settings saved by Windows tools, are mostly ASCII.
+- **Not text, if a zero byte is left.**
+- **Latin-1 otherwise**, where every byte is one character, so letters, digits, and punctuation read as written and
+  a credential written in them is found where it is.
+
+A file over 2 MB, read in pieces, is still read as UTF-8 only.
+
+**Saying what was not read.** A file of a kind that holds no text a person writes is named, by `sv check` and in the
+credential scan's evidence ("2 more not read, being images, fonts, or other files that hold no text a person
+writes"), and does not keep the scan from being complete: there is no text in it for a credential to be written in.
+Any other file not read stays a gap, and the report's gap now names each, with why, up to five, and says how many
+more `sv check` lists. `sv bundle` holds these files to the rule it had: in when the name says image or font, out
+otherwise, with what the file is.
+
+Three tests used bytes standing for "a file nothing reads" that the new reading reads; they now use bytes nothing
+reads. Nine guards broken in turn, each caught, by between one and five tests. One first looked uncaught: the disk was
+full, so the bundle tests never ran; run again with room, it was caught. The mutation run now counts a suite that did
+not run as no answer rather than as a pass.
+

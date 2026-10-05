@@ -36,6 +36,16 @@ another session is not a claim.
   decision on `sv review`, with "Later" entries on ADR-022 and ADR-023, and one on ADR-019 for the fence's gateway.
   Left as they are, not checkable from the repository: OPTIMIZATION's "4-minute" check and ADRS' "441 merges".
 
+- **Give the tests' scratch folders a name of their own per run.** Twelve test helpers make their scratch folder
+  at a fixed name in the shared temporary folder (`sv-clean-{name}` in `crates/sv-check/tests/clean_coverage.rs`, and
+  the same shape in `suppressed.rs`, `suite.rs`, `unread_files.rs`, `adapters.rs`, `codeql.rs`, `citations.rs`,
+  `aisvs.rs`, `sv-scan/tests/scan.rs` and a unit test in `sv-check/src/config.rs`). Two `cargo test --workspace`
+  runs at once on one computer share the folder, and one run's clean-up deletes the other's files mid-test: on
+  5 October 2026 two `clean_coverage` tests failed this way while another session's full run was going, and passed
+  with `TMPDIR` pointed at a private folder. Make each name unique per run and per call, and remove the folder
+  when the test ends. **Claimed on 5 October 2026 by session practical-banach-b1faa1**, at the owner's asking, in
+  branch `claude/scratch-names`.
+
 - **Two blind spots found testing the prompt library, 4 October 2026.** Found by session securevibe-e10, each
   reproduced against `sv` on `main`. **Each can be claimed on its own.**
   1. **The rich-text check reads only locked packages.** `config.rich-text-without-sanitizer` (V1.3.1) takes its
@@ -258,13 +268,21 @@ another session is not a claim.
     then, if it fits, that template code read as code.
     **First step done the same day** (DESIGN, "Folders left out, report markers, and templates sv cannot read"): a
     `.svelte` page with any `{...}` outside its `<script>` and `<style>`, or a `.vue` page with `{{ }}` or an `@`, `:`,
-    or `v-` attribute, is named among the files not fully read, so no rule is credited a clean result for it. Four
-    guards broken in turn, each caught. **Still open:** reading that template code as code, so `on:click={() =>
+    or `v-` attribute, is named among the files not fully read. Four guards broken in turn, each caught. (This
+    said no rule is then credited a clean result for the page. That was wrong, corrected in the rest below: naming
+    the page did not hold the rules back.) **Still open:** reading that template code as code, so `on:click={() =>
     eval(code)}` is found rather than only owned up to.
     **The rest claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/h2-template-code`: Svelte's `{...}` and Vue's `{{ }}` and directive values read as JavaScript or
     TypeScript, so the rules look at them; a page whose template code cannot be taken out stays named as not fully
     read.
+    **Done the same day** (DESIGN, "Svelte and Vue template code read as code"): every Svelte `{...}` (expressions,
+    `{#if}`, `{#each}` and its key, `{#await}`, `{@html}`, `{@const}`, spreads, and Svelte 5's `onclick={...}`) and
+    every Vue `{{ }}`, `@`, `v-on:`, `:`, `v-bind:`, `v-if`, `v-for`, `v-html`, slot, and other `v-` value is read as
+    JavaScript, or TypeScript when the page's script is, and `on:click={() => eval(code)}` is found on its line. A
+    template that cannot all be taken out or read now holds back each rule whose call it names, which the first step
+    claimed and did not do. **Not read:** Vue templates in Pug or another language, and directives whose names are
+    worked out when the page runs; such a page is named as not fully read.
   - **H3. High, Reproduced.** The credential-assignment rule (`secrets.rs`) misses most real shapes: a JSON or dict
     `"password": "..."`, `=>`, `:=`, typed declarations, unquoted YAML, `getenv("X", "<default>")`.
     **Claimed on 4 October 2026 by session practical-banach**, at the owner's asking to take an unclaimed item, in
@@ -298,6 +316,21 @@ another session is not a claim.
     form the review named is found, Next.js's bare `redirect` and `NextResponse.redirect`, the browser's
     `location` assignments and calls, `fs.promises.readFile`, and the bare `fs/promises` calls; a same-site path,
     `new URL('/path', request.url)`, and an app's own function named `download` are not.
+  - **H5 follow-up: five differences from a second build of H5** (the cato-pipeline session's
+    `claude/h5-next-node-sinks`, closed unmerged as #642), ported onto #641's rules at the owner's asking:
+    (a) `new URL("/path", base)` is safe only when the base is the request's own address (`request.url`, `req.url`,
+    `request.nextUrl`), so `new URL("/path", userInput)` is reported; (b) `permanentRedirect()`, `Response.redirect`,
+    Express's `res.location`, `document.location` (and `self` and `top`), and SvelteKit's status-first
+    `redirect(303, x)`; (c) a bare `location.replace(...)` on a name called `location` is not reported, since a string
+    has a `replace` too, while `window.location.replace(x)` still is; (d) `process.cwd()`, `import.meta.dirname`, and
+    `new URL('./x', import.meta.url)` accepted as the app's own folder by the file-path guard; (e) the clean result's
+    words for JavaScript and TypeScript naming the calls each rule reads.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch `claude/h5-follow-up`.
+    **Done the same day** (DESIGN, "Redirects and file calls the way Next.js and modern Node write them", its
+    "Later, 5 October 2026" paragraph): all five. `new URL("/login", req.query.next)` is now found where it was a clean
+    result; a string's `location.replace(...)` is no longer reported; the redirect query names its object and call
+    together, so the name pattern stays plain words for H25. Forty witnesses (eighteen of them fail on #641's rules)
+    and a clean-result test; eleven guards broken in turn, each caught. Nothing #641 chose was undone.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
@@ -411,6 +444,12 @@ another session is not a claim.
     the AI tool searched for large files and then ran `sv check` to learn it was `.DS_Store — not a text file`. A
     fix could name the files and why in the report, and say plainly when a file is one that holds no text a
     person writes, such as `.DS_Store`, so nobody chases it.
+    **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-files-not-text`.
+    **Done the same day** (DESIGN, "Files that are not text named, and text that is not UTF-8 read"): text in UTF-16,
+    with its mark or without, and in Latin-1 is read; an image, a font, or a `.DS_Store`, known by its contents, is
+    named as holding no text a person writes and no longer keeps the credential scan partial; and the report's gap
+    names each file not read, and why.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -458,6 +497,9 @@ another session is not a claim.
     Fix: take `go.mod`'s `require` lines.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a3`.
+    **Done the same day** (DESIGN, "A Go app's modules are read from go.mod"): go.mod's `require` lines with its
+    `replace` lines applied; a module replaced by a folder is named as not listed; before Go 1.17, a module in
+    go.sum alone is listed at its highest version there.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -469,8 +511,16 @@ another session is not a claim.
     `sk_test_` keys graded critical.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a5`.
+    **Done the same day** (DESIGN, "The secret rules find what they promise, and grade a test key below a live
+    one"): `xapp-` tokens and PGP private key blocks are found; a Stripe test key has its own rule at medium, and
+    `secrets.stripe-key` is for live keys only.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a6`.
+    **Done the same day** (DESIGN, "The bundle leaves out the secret files the review named"): every file the
+    review named stays out of the zip, `example.env` and the like still go in, and a `database.yml` with a password
+    written in it stays out even when the credential scan does not flag it.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
@@ -513,15 +563,36 @@ another session is not a claim.
   - **R8. Medium, Reproduced.** `record_answer` overwrites an owner's answer that has no "Written by:" line.
     **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch
     `claude/r8-record-answer-keeps-owner`.
+    **Done the same day** (DESIGN, "The AI coding tool writes over only its own answer"; ADR-022, "Later, 5 October
+    2026"): `securevibe_record_answer` now writes only under a question with nothing under it or over a section
+    marked `Written by: AI coding tool`; an answer with no mark, one marked as anybody else's, and the owner's are
+    refused, the file left byte for byte as it was, and the reply says why and that the owner can edit the answer or
+    delete it so the tool can record its own. An unmarked answer still counts as the tool's in the report. The
+    questions' instructions say the same for a tool without the MCP server. Reproduced first with an MCP test; tested
+    with that test (six refusals, two fills, one replacement) and a unit test; seven guards broken in turn were each
+    caught, and an eighth was equivalent, because the reader already drops blank lines.
   - **R9. Medium, Reproduced.** Text from the app reaches the AI tool unmarked (an app name of "IGNORE ALL PREVIOUS
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
   - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r10`.
+    **Done the same day** (DESIGN, "`sv mcp` will not serve a folder that holds the home folder"): a root that holds
+    the home folder is refused, and with no home folder known, a folder just below the top is too.
   - **R11. Low to medium, Reproduced.** Duplicate or conflicting reviews are each applied.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r11`.
+    **Done the same day** (DESIGN, "One entry answers for one finding"; ADR-023, Later): a repeated answer does not
+    count again, and two that disagree leave the finding standing until one is removed.
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r13`.
+    **Done the same day** (DESIGN, "App text in the Markdown reports is inert"): every table cell, the app's name,
+    and each finding's text are escaped outside code spans, so no link, image, or HTML of the app's is live; a file
+    path is shown in a code span it cannot close; the escaped redaction marker is still read as one.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
@@ -1260,6 +1331,8 @@ another session is not a claim.
      app's features, and the `[stack.run]` and `[stack.run.users]` entries the app must give so `sv run` can test it.
      Mostly the report's own parts, which already come back for an empty folder. Building the app to be testable from
      the start is what gave v1 its strong evidence, and its lack is `sv`'s largest gap in the comparison.
+     **Claimed on 4 October 2026 by session paper-facts**, at the owner's word, in branch `claude/plan-before-code`,
+     with its record as `proposed` (ADR-030).
   4. **Feature briefs, in place of v1's template features (`securevibe_before`).** For a feature about to be built
      (sign-in, uploads, payments, an AI feature, fetching a web address, admin pages, email): the requirements it
      brings, its design-time prompt, the coding-rules topic, the manifest block to fill, and the tests to write named

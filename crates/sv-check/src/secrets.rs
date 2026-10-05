@@ -199,9 +199,12 @@ fn looks_like_placeholder(value: &str) -> bool {
     }
     // `[redacted: Qv7r… (16 more characters)]`: `sv`'s own redaction of a value, as `redact_text`
     // writes it into a report. A report read back, as `sv bundle` reads its own before zipping it
-    // (deep review S8), would otherwise find every credential it had redacted a second time.
+    // (deep review S8), would otherwise find every credential it had redacted a second time. In
+    // Markdown its brackets, and any in the four characters it shows, are escaped (R13), so
+    // `\[redacted: Qv7r… (16 more characters)\]` is the same marker.
     static REDACTED: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"^\[redacted: .{1,4}(… \(\d+ more characters\))?\]$").expect("static pattern")
+        Regex::new(r"^\\?\[redacted: (?:\\.|[^\\]){1,4}(… \(\d+ more characters\))?\\?\]$")
+            .expect("static pattern")
     });
     if REDACTED.is_match(v) {
         return true;
@@ -1554,6 +1557,23 @@ mod tests {
     }
 
     #[test]
+    fn sv_s_own_redaction_marker_is_read_as_one_escaped_or_not() {
+        // R13 escapes brackets in Markdown, and `sv bundle` reads the report back (S8).
+        for marker in [
+            "[redacted: Qv7r… (16 more characters)]",
+            "\\[redacted: Qv7r… (16 more characters)\\]",
+            "\\[redacted: a\\[b… (9 more characters)\\]",
+            "[redacted: abc]",
+        ] {
+            assert!(looks_like_placeholder(marker), "{marker}");
+        }
+        // A real value written beside the words is still one.
+        let key = credential_shaped(&["Qv7rXk2", "Lp9Wm4", "Tz8Yb"], "");
+        assert!(!looks_like_placeholder(&format!("\\[redacted: {key}\\]")));
+        assert!(!looks_like_placeholder(&key));
+    }
+
+    #[test]
     fn a_placeholder_is_not_reported() {
         // The rule that decides whether anybody keeps using the scanner.
         for value in [
@@ -2168,6 +2188,58 @@ mod tests {
             found.iter().any(|f| f.rule_id == "secrets.anthropic-key"),
             "{found:?}"
         );
+    }
+
+    #[test]
+    fn the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one() {
+        // A5 of the deep review. Every value is put together here, so the file holds no key.
+        let found = |text: &str| scan_text(&rules(), "src/config.txt", text);
+        let rule_of = |text: &str| {
+            let f = found(text);
+            assert_eq!(f.len(), 1, "{f:?}");
+            (f[0].rule_id.clone(), f[0].severity)
+        };
+        // Slack's app-level token, which the rule's own description named and its pattern missed.
+        let xapp = credential_shaped(
+            &[
+                "xapp",
+                "1",
+                "A0123456789",
+                "1234567890123",
+                "0a1b2c3d4e5f6a7b8c9d",
+            ],
+            "-",
+        );
+        assert_eq!(
+            rule_of(&format!("SLACK_APP_TOKEN={xapp}\n")).0,
+            "secrets.slack-token"
+        );
+        // A PGP private key block, beside the PEM ones it already found.
+        let pgp = format!("-----BEGIN PGP {} KEY BLOCK-----\nlQOYBF\n", "PRIVATE");
+        assert_eq!(rule_of(&pgp).0, "secrets.private-key-block");
+        let pem = format!("-----BEGIN {} KEY-----\nMIIE\n", "PRIVATE");
+        assert_eq!(rule_of(&pem).0, "secrets.private-key-block");
+        // A public PGP block is not a secret.
+        let public = format!("-----BEGIN PGP {} KEY BLOCK-----\nmQIN\n", "PUBLIC");
+        assert!(found(&public).is_empty(), "{:?}", found(&public));
+        // Stripe's test key cannot move money; its live key can.
+        let live = credential_shaped(&["sk", "live", "51HxaMpLeKeyV4lu3Abcdefghijk"], "_");
+        let test = credential_shaped(&["sk", "test", "51HxaMpLeKeyV4lu3Abcdefghijk"], "_");
+        assert_eq!(
+            rule_of(&format!("STRIPE_KEY={live}\n")),
+            ("secrets.stripe-key".to_owned(), Severity::Critical)
+        );
+        assert_eq!(
+            rule_of(&format!("STRIPE_KEY={test}\n")),
+            ("secrets.stripe-test-key".to_owned(), Severity::Medium)
+        );
+        // The private key rule says what it found, not only why it matters.
+        let block = rules()
+            .rules()
+            .find(|r| r.id == "secrets.private-key-block")
+            .map(|r| r.description.clone())
+            .unwrap();
+        assert!(block.starts_with("A private key"), "{block}");
     }
 
     #[test]

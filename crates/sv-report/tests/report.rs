@@ -975,6 +975,36 @@ fn end_to_end_a_clean_scan_supports_the_secrets_controls_and_checks_none_of_them
 }
 
 #[test]
+fn text_from_the_app_cannot_put_a_link_an_image_or_html_into_the_markdown_reports() {
+    // R13 of the deep review. A file named to carry a link out of its code span, holding a
+    // password the scan finds, and an app name that is a link and an image.
+    let name = "x`[click](javascript:alert)`.py";
+    let mut report = report_for_folder(&[(name, "DB_PASSWORD = 'q8#Vz!pL2@xR9$mK4&tW'\n")]);
+    assert!(
+        report.findings.iter().any(|f| f.location.file == name),
+        "the setup: a finding names the file"
+    );
+    report.app_name = "[Open](https://evil.example) <img src=https://evil.example/t.png>".into();
+    for (which, md) in [
+        ("security.md", sv_report::markdown::security(&report)),
+        ("compliance.md", sv_report::markdown::compliance(&report)),
+    ] {
+        assert!(!md.contains("<img"), "{which}: raw HTML from the app");
+        assert!(
+            !md.contains("[Open](https"),
+            "{which}: a live link from the app's name"
+        );
+        assert!(
+            md.contains("\\[Open\\]"),
+            "{which}: the name is shown, escaped"
+        );
+    }
+    // The file name is code, whole, in a span its own backticks cannot close.
+    let security = sv_report::markdown::security(&report);
+    assert!(security.contains(&format!("``{name}``")), "{security}");
+}
+
+#[test]
 fn end_to_end_a_committed_secret_is_against_no_secrets_in_code() {
     // Both routes: a key in a known shape, and a value assigned to a name that says password. The
     // key is put together at run time, as the credential scanner's own tests do: a literal that looks
