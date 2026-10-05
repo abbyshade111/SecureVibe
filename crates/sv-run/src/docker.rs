@@ -2217,6 +2217,11 @@ const MOST_ECHOES: usize = 5;
 /// The start of a body, and, when the reflection probes' value comes back past it, the text around
 /// each time it does. A page often repeats a search term well down, past its head and navigation,
 /// and the value is one only `sv` sends, so nothing else's answer keeps more than it did.
+///
+/// The same for the signs of a stack trace (`sv_check::probes::TRACE_MARKERS`): the whole answer is
+/// searched, and the text around the first of each that comes past the cut is kept. Until 5 October
+/// 2026 only the start was read, so an error page whose trace began below a long page of markup was
+/// credited as saying nothing it should not (H17 of the deep review).
 fn kept_body(body: &str) -> String {
     let mut kept: String = body.chars().take(KEPT_CHARS).collect();
     let from = kept.len();
@@ -2248,6 +2253,24 @@ fn kept_body(body: &str) -> String {
         kept.push_str("\n[…]\n");
         kept.push_str(&body[start..end]);
         after = end;
+    }
+    for marker in sv_check::probes::TRACE_MARKERS {
+        let Some(at) = body.find(marker) else {
+            continue;
+        };
+        if at + marker.len() <= from {
+            continue;
+        }
+        let mut start = at.saturating_sub(AROUND_ECHO);
+        while !body.is_char_boundary(start) {
+            start += 1;
+        }
+        let mut end = (at + marker.len() + AROUND_ECHO).min(body.len());
+        while !body.is_char_boundary(end) {
+            end -= 1;
+        }
+        kept.push_str("\n[…]\n");
+        kept.push_str(&body[start..end]);
     }
     kept
 }
@@ -2301,6 +2324,51 @@ impl DockerBackend {
 #[cfg(test)]
 mod probe_tests {
     use super::*;
+
+    #[test]
+    fn a_stack_trace_below_the_cut_is_kept_and_found() {
+        // H17: an error page whose trace starts below a long page of markup. Every marker is tried,
+        // each past the cut, and each must survive the keeping and be found by the check itself.
+        let missing = |body: String| sv_check::probes::ProbeResponse {
+            id: "missing".to_owned(),
+            status: 500,
+            headers: Vec::new(),
+            body,
+        };
+        for marker in sv_check::probes::TRACE_MARKERS {
+            let body = format!(
+                "{}<pre>{marker} detail</pre>{}",
+                "<div>layout</div>".repeat(600),
+                "b".repeat(2_000)
+            );
+            assert!(
+                body.find(marker).unwrap() > KEPT_CHARS,
+                "the setup: {marker:?} is past the cut"
+            );
+            let kept = kept_body(&body);
+            assert!(kept.contains(marker), "{marker:?} was cut away");
+            let found = sv_check::probes::evaluate(&[missing(kept.clone())]);
+            assert!(
+                found.iter().any(|f| f.rule_id == "probe.error-detail-leak"),
+                "{marker:?}: {found:?}"
+            );
+            assert!(
+                !sv_check::probes::verified(&[missing(kept)])
+                    .iter()
+                    .any(|v| v.check_id == "probe.error-detail-leak"),
+                "{marker:?} was credited as saying nothing"
+            );
+        }
+        // The control: the same long page with no trace keeps its start only and is credited.
+        let plain = "<div>layout</div>".repeat(800);
+        let kept = kept_body(&plain);
+        assert_eq!(kept.chars().count(), KEPT_CHARS);
+        assert!(
+            sv_check::probes::verified(&[missing(kept)])
+                .iter()
+                .any(|v| v.check_id == "probe.error-detail-leak")
+        );
+    }
 
     #[test]
     fn a_body_is_kept_to_its_start_and_the_value_when_it_comes_back_further_down() {
