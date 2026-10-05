@@ -83,3 +83,11 @@ spending more.
    `.env`, handed to the program by an `apiKeyHelper` (`loop-pilot/key_helper.sh`) so it is in no other program's
    environment, and every transcript is searched for it afterwards. The cost each build reports is then what it was
    charged.
+3. **5 October 2026, after item 3 and before item 6: every arm is given the specification, and item 6's size and
+   `sv` are set.** In item 3 no build without the server wrote a manifest `sv` could read, so those arms could not be
+   tested and nothing about them could be compared (`loop-arms/README.md`). At the owner's choice, every build of
+   item 6, in every arm, has `sv init`'s output (the starter manifest and its instructions) at the top of its request,
+   so the comparison is of what each arm adds beyond the specification. Item 6 is five builds a cell, the five arms,
+   Sonnet 5.5 and Haiku 4.5, on the plain brief: fifty builds, each capped at $1.50. Its `sv` is one release build
+   from `main` with the preflight (ADR-035) and the instructions saying when to check, its commit recorded with the
+   results; so item 6's loop arm is not the pilot's, and the two are reported apart.
