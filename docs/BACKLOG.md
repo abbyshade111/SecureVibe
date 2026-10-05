@@ -1058,6 +1058,10 @@ another session is not a claim.
      **The owner's decision, 5 October 2026:** keep the finding, and when the destination passes through a function
      of the app's own, name that function in it as the thing to check. **Claimed the same day by session
      securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-redirect-checked`.
+     **Withdrawn the same day:** session securevibe-e9's claim above landed within minutes of this one, and its
+     work (#738) merged first and already does what the owner decided. This session's version, which named any
+     function the same file defines rather than one whose name says it checks, was closed unmerged (#744); its
+     branch is kept.
 
 - **Three faults found scanning the owner's family-hub, reported 3 October 2026.** Sent by the cato-pipeline session
   at the owner's asking. It found them on family-hub (Python and Flask, built with `sv` in the loop) with `sv` at
