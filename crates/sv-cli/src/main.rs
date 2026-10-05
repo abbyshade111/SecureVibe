@@ -4649,7 +4649,56 @@ fn assemble_report_saying(
         &seals,
         &|rule, file| lookup.looked(rule, file),
     );
-    let findings = reviewed.findings;
+    let mut findings = reviewed.findings;
+    // The "Safe defaults" section's three switches (`sv_check::decisions`), each held to the check
+    // of the running app that sees it. After what a person set aside, so a false alarm they set
+    // aside is not held against a decision either.
+    let safe_defaults = decisions_text
+        .as_deref()
+        .map(sv_check::decisions::safe_defaults)
+        .unwrap_or_default();
+    let mut not_held = sv_check::decisions::not_held_to(&safe_defaults.decided, &findings);
+    sv_check::review::fill_fingerprints(app_dir, &mut not_held);
+    findings.extend(not_held);
+    if !safe_defaults.unreadable.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} safe default{} in {}",
+                safe_defaults.unreadable.len(),
+                if safe_defaults.unreadable.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                sv_check::decisions::FILE
+            ),
+            why: format!(
+                "Under \"{}\", each of these switches is decided as one of two values, and these \
+                 lines say something else, so nothing was made of them: {}. Write `{}`.",
+                sv_check::decisions::SAFE_DEFAULTS,
+                safe_defaults.unreadable.join("; "),
+                sv_check::decisions::SWITCHES
+                    .iter()
+                    .map(|s| format!("- {}: {}", s.name, s.safe))
+                    .collect::<Vec<_>>()
+                    .join("`, `")
+            ),
+        });
+    }
+    let held_safe = safe_defaults.decided.iter().filter(|d| d.safe).count();
+    let app_ran = matches!(run_status, sv_report::RunStatus::Started { .. });
+    if held_safe > 0 && !app_ran {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{held_safe} safe default{} decided in {}",
+                if held_safe == 1 { "" } else { "s" },
+                sv_check::decisions::FILE
+            ),
+            why: "Each is held to a check of the running app, and the app was not run, so whether \
+                  the app does what was decided was not looked at. `sv report --run` runs it."
+                .to_owned(),
+        });
+    }
     let mut report = sv_report::build(sv_report::Inputs {
         app_name: if manifest.app.name.is_empty() {
             "This app"
@@ -4684,6 +4733,18 @@ fn assemble_report_saying(
         by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
+    });
+    // The decisions file is read whenever it is there; its safe defaults only with the app running.
+    examined.push(match (&decisions_text, app_ran) {
+        (None, _) => sv_report::Examined::not_run(
+            "decisions.",
+            format!("there is no {} beside the app", sv_check::decisions::FILE),
+        ),
+        (Some(_), true) => sv_report::Examined::ran("decisions."),
+        (Some(_), false) => sv_report::Examined::partly(
+            "decisions.",
+            "its safe defaults are held to checks of the running app, which was not run",
+        ),
     });
     report.examined = examined;
     let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);
