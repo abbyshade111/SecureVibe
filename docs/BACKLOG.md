@@ -298,6 +298,21 @@ another session is not a claim.
     form the review named is found, Next.js's bare `redirect` and `NextResponse.redirect`, the browser's
     `location` assignments and calls, `fs.promises.readFile`, and the bare `fs/promises` calls; a same-site path,
     `new URL('/path', request.url)`, and an app's own function named `download` are not.
+  - **H5 follow-up: five differences from a second build of H5** (the cato-pipeline session's
+    `claude/h5-next-node-sinks`, closed unmerged as #642), ported onto #641's rules at the owner's asking:
+    (a) `new URL("/path", base)` is safe only when the base is the request's own address (`request.url`, `req.url`,
+    `request.nextUrl`), so `new URL("/path", userInput)` is reported; (b) `permanentRedirect()`, `Response.redirect`,
+    Express's `res.location`, `document.location` (and `self` and `top`), and SvelteKit's status-first
+    `redirect(303, x)`; (c) a bare `location.replace(...)` on a name called `location` is not reported, since a string
+    has a `replace` too, while `window.location.replace(x)` still is; (d) `process.cwd()`, `import.meta.dirname`, and
+    `new URL('./x', import.meta.url)` accepted as the app's own folder by the file-path guard; (e) the clean result's
+    words for JavaScript and TypeScript naming the calls each rule reads.
+    **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking, in branch `claude/h5-follow-up`.
+    **Done the same day** (DESIGN, "Redirects and file calls the way Next.js and modern Node write them", its
+    "Later, 5 October 2026" paragraph): all five. `new URL("/login", req.query.next)` is now found where it was a clean
+    result; a string's `location.replace(...)` is no longer reported; the redirect query names its object and call
+    together, so the name pattern stays plain words for H25. Forty witnesses (eighteen of them fail on #641's rules)
+    and a clean-result test; eleven guards broken in turn, each caught. Nothing #641 chose was undone.
   - **H6. High, Reproduced.** Folders with ordinary names (`build`, `out`, `dist`, `vendor`, `coverage` at any depth)
     or holding a `.securevibe-report` marker are silently left out of every check, and an AI tool can plant the
     marker through MCP `write_report`. Fix: record skipped folders; accept the marker only when it proves `sv` wrote
@@ -411,6 +426,8 @@ another session is not a claim.
     the AI tool searched for large files and then ran `sv check` to learn it was `.DS_Store — not a text file`. A
     fix could name the files and why in the report, and say plainly when a file is one that holds no text a
     person writes, such as `.DS_Store`, so nobody chases it.
+    **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
+    branch `claude/securevibe-e2-files-not-text`.
   - **H23. Medium, Reproduced.** The `.gitignore` check fails on `/.env` and passes on `.env` followed by `!.env`;
     `.well-known/security.txt` and other spellings are not recognized.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -458,6 +475,9 @@ another session is not a claim.
     Fix: take `go.mod`'s `require` lines.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-a3`.
+    **Done the same day** (DESIGN, "A Go app's modules are read from go.mod"): go.mod's `require` lines with its
+    `replace` lines applied; a module replaced by a folder is named as not listed; before Go 1.17, a module in
+    go.sum alone is listed at its highest version there.
   - **A4. Low, Read.** Placeholder words (`xxx`, `todo`) match inside real keys, dropping about 1% of random JWTs.
     Fix: whole words only.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -474,6 +494,11 @@ another session is not a claim.
     `secrets.stripe-key` is for live keys only.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a6`.
+    **Done the same day** (DESIGN, "The bundle leaves out the secret files the review named"): every file the
+    review named stays out of the zip, `example.env` and the like still go in, and a `database.yml` with a password
+    written in it stays out even when the credential scan does not flag it.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
     reported as "the finding is gone": 7 of family-hub's 25 reviews. Fix: three messages: not looked for this time,
     unknown to this version, gone.
@@ -520,11 +545,19 @@ another session is not a claim.
     INSTRUCTIONS..." opened the check result), and a forged report is offered as one `sv` wrote. Fix: fence and label
     app text as data; offer only reports whose marker proves `sv` wrote them.
   - **R10. Medium, Reproduced.** `sv mcp --root` refuses `/` and the home folder but accepts folders above home.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r10`.
+    **Done the same day** (DESIGN, "`sv mcp` will not serve a folder that holds the home folder"): a root that holds
+    the home folder is refused, and with no home folder known, a folder just below the top is too.
   - **R11. Low to medium, Reproduced.** Duplicate or conflicting reviews are each applied.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r11`.
   - **R12. Medium to low, Reproduced.** `not-the-app` can cover all of the app's code without a warning, turning a
     requirement from applicable to "does not apply".
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r13`.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.

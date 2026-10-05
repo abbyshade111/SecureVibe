@@ -8392,6 +8392,41 @@ checked.
 How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
 twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
 
+**Later, 5 October 2026: five differences from a second build of H5.** A second session had built H5 at the same
+time (closed unmerged as #642). At the owner's asking, the five places where it went further were ported onto the
+rules above (BACKLOG, "H5 follow-up"):
+
+- **`new URL("/path", base)` is safe only when the base is the request's own address** (`request.url`, `req.url`,
+  `request.nextUrl`, or its `origin`). Before, any base was accepted, so `new URL("/login", req.query.next)`, which
+  goes to whatever host the visitor named, was a clean result. A bare `"/"` with the request's base is now safe too.
+- **More redirects:** `permanentRedirect()`, `Response.redirect` (the web standard's, used by route handlers),
+  SvelteKit's `redirect(303, x)` with the status first, and `document.location = x`. Express's `res.location`,
+  `self.location`, and `top.location` were already found, by the cross of the name patterns; they are now named on
+  purpose, with witnesses.
+- **A bare `location.replace(...)` is not reported:** a string called `location` has a `replace` of its own, and
+  `const slug = location.replace(/\s+/g, '-')` was reported as a redirect. `window.location.replace(x)` and
+  `document.location.replace(x)` still are. To say so in the data, the redirect query now captures the whole callee
+  or assignment target as `@mod` (`res.redirect`, `window.location.replace`, `location.href`), so the module pattern
+  lists the pairs that redirect rather than letting any listed object pair with any listed name. The name pattern
+  stays plain words, which H25's test of a file that did not parse relies on.
+- **The app's own folder** in the file-path guard now includes `process.cwd()` and `import.meta.dirname` beside
+  `__dirname`, and `new URL('./x', import.meta.url)`: where a Next.js app reads its content from, and the ES module
+  way to name a file beside the code. A path joined onto them from a value is still reported.
+- **The clean result names the calls** each rule reads in JavaScript and TypeScript (`looksForIn`).
+
+Nothing the section above chose was undone: a bare `download` is still not read, and `fs.promises` is still matched
+through its `promises` part.
+
+**Tested.** Forty witnesses in `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one`, a found and a
+not-found case for each difference in JavaScript and TypeScript, and
+`a_clean_javascript_and_typescript_result_names_the_redirect_and_file_calls_it_read`
+(`crates/sv-check/tests/clean_coverage.rs`). Against the rules as #641 left them, eighteen of the witnesses fail
+(eleven missed, seven reported). Eleven guards broken in turn, each caught: any base accepted for `new URL` (two
+witnesses), and `permanentRedirect`, `Response.redirect`, `res.location`, and the status-first `redirect` each taken
+out (two each); `window` alone where `document`, `self`, and `top` were (three); a bare `location.replace` let
+through (two); `process.cwd()` taken out of the guard (two), `import.meta.dirname` (one), and `import.meta.url`
+(two); and the redirect rule's JavaScript and TypeScript words taken out (the clean-result test).
+
 ## A placeholder word in a key counts only where chance would not put it (5 October 2026)
 
 A4 of the deep review: a value was taken for a placeholder, and not reported, when it held any of a list of words
@@ -8433,6 +8468,26 @@ How it is held: `a_gitignore_is_read_the_way_git_reads_it`, with twenty cases ea
 Five guards were undone in turn and each was caught; a sixth, skipping patterns that end in `/`, was found to change
 nothing, since such a pattern never matches a file, and was taken out.
 
+## A Go app's modules are read from go.mod (5 October 2026)
+
+A3 of the deep review: the bill of materials took a Go app's modules from go.sum, which keeps a checksum for every
+version Go has looked at, older ones included. Each was listed as if the app were built with it, and the advisory
+comparison reported versions the app had moved past.
+
+- **go.mod says what is built.** `from_go_mod` reads its `require` lines, one line or a block, and applies its
+  `replace` lines: a module swapped for another at a version is listed as that one; a module swapped for a folder of
+  the app's own has no published version, is not listed, and is named as not listed, as Python packages installed
+  from a folder already are. A `replace` for a different version leaves the required one as it is.
+- **Before Go 1.17, go.mod may leave out indirect modules.** For a go.mod with an older `go` line, or none, which
+  Go reads as 1.16, a module named only in go.sum is listed at the highest version go.sum holds for it. That is the
+  version Go chose whenever go.sum holds the one it chose. From 1.17 on, a module named only in go.sum is not
+  listed: it is not in the build.
+- **With no go.mod beside it**, go.sum is read as before.
+
+How it is held: `go_mod_names_the_version_built_and_go_sum_s_older_ones_are_not_listed` and
+`a_go_app_is_listed_from_go_mod_and_says_what_a_folder_replaced` (`crates/sv-check/src/sbom.rs`). Five guards were
+undone in turn and each was caught, the last only after a module named in go.sum alone was added to the fixture.
+
 ## pnpm 5 and 6 told apart, and packages without a version named (5 October 2026)
 
 The deep review of `sv` at `eff3f17` (BACKLOG, part 2, H21 and H24) found two JavaScript lockfile readers giving a
@@ -8457,6 +8512,29 @@ keeping 5.x's peer suffix in the version, dropping pnpm's packages without a ver
 Berry's, naming the app's own workspace, and dropping a classic entry with no version, in the middle of the file or
 at its end.
 
+## The bundle leaves out the secret files the review named (5 October 2026)
+
+A6 of the deep review: `sv bundle` leaves out files by name, and each of these went into the zip: `prod.env`, `.envrc`,
+`.pgpass`, `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+
+- **An environment file under any of its names**: `.env`, `.env.<anything>`, and now `<anything>.env`, with
+  `example`, `sample`, `template`, or `dist` in its place still going in, since those show what to fill in; and
+  `.envrc`.
+- **Credential files by name**: `.pgpass`, `.my.cnf`, `.s3cfg`, `.boto`, beside the ones already listed.
+- **Credential files by where they are**: Docker's `.docker/config.json` and Kubernetes' `.kube/config`, wherever in
+  the app they sit. A `docker/config.json` or a `kube/deployment.yaml` is not one.
+- **Terraform's variables and state**: `*.tfvars`, `*.tfvars.json`, and anything with `.tfstate` in its name,
+  backups included. State holds every value Terraform created, in plain text.
+- **A `database.yml` with a password written in it** stays out even when the credential scan does not flag it,
+  which a short or simple password does not: a `password:` line with a value that is not read from the environment
+  (`<%= ENV[...] %>`) or left empty.
+
+How it is held: `every_secret_file_the_review_named_stays_out_and_its_shown_forms_go_in` and
+`a_database_yml_with_a_password_written_in_it_stays_out` (`crates/sv-cli/src/bundle.rs`), and in
+`crates/sv-cli/tests/bundle.rs` the app now carries a `config/database.yml` with a weak password and a `.kube/config`,
+which must stay out of the zip, their contents nowhere in it. Six guards were undone in turn and each was caught, the
+last only after the end-to-end case was added.
+
 ## The secret rules find what they promise, and grade a test key below a live one (5 October 2026)
 
 A5 of the deep review, three faults in `data/secret-rules.json`:
@@ -8475,3 +8553,18 @@ A5 of the deep review, three faults in `data/secret-rules.json`:
 How it is held: `the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one`
 (`crates/sv-check/src/secrets.rs`), with every value put together at run time. Each of the three changes was undone in
 turn and the test went red.
+
+## `sv mcp` will not serve a folder that holds the home folder (5 October 2026)
+
+R10 of the deep review: `sv mcp --root` refused the top of the computer's files and the home folder itself, and served
+any folder above the home folder, `/home` or `/Users`, which hold every user's home folder, keys and mail included.
+
+- **A root that holds the home folder is refused**, with the reason, as `/` and the home folder already were. The
+  comparison is by whole folder names, so `/home/some` does not hold `/home/someone`, and a folder beside the home
+  folder is still served.
+- **With no home folder known** (`HOME` and `USERPROFILE` both unset), a folder just below the top, such as `/home`,
+  is refused too, since it is where home folders are kept and nothing can tell it apart.
+
+How it is held: `the_whole_computer_and_the_whole_home_folder_are_not_served` (`crates/sv-cli/src/mcp.rs`), which until
+now asserted that `/home` was served. Three guards were undone in turn, a comparison by text rather than by folder
+among them, and each was caught.
