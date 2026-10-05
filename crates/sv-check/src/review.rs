@@ -343,10 +343,17 @@ pub enum Looked {
 /// counts when its fingerprint is the one the finding would have had under the rule it names
 /// (its line read from `app_dir`).
 ///
-/// One entry matches one finding. An entry with a fingerprint in the earlier form, which named a
-/// line by its text alone, matches the finding it always did when only one finding is on a line
-/// with that text; when several are, it matches none of them, and says so, rather than one picked
-/// for it or all of them.
+/// One entry answers for one finding. Each entry that counts takes the first finding it matches
+/// that no earlier entry has taken, so two identical lines with an entry each are both answered.
+/// An entry that counts and finds every finding it matches already taken says the same thing again,
+/// or says the opposite: the first adds nothing, and the second leaves the finding to be decided,
+/// so neither entry counts. Until 5 October 2026 both were applied, a conflicting pair as a false
+/// alarm and an accepted risk at once (R11 of the deep review).
+///
+/// The one exception, the owner's decision of 5 October 2026: an entry with a fingerprint in the
+/// earlier form, which named a line by its text alone, matches the finding it always did when only
+/// one finding is on a line with that text; when several are, it answers for none of them, and
+/// says so, rather than taking the first in order (deep review A2).
 pub fn apply(
     app_dir: &Path,
     entries: &[FindingReview],
@@ -356,11 +363,15 @@ pub fn apply(
     looked: &dyn Fn(&str, &str) -> Looked,
 ) -> Outcome {
     let mut texts = Texts::new(app_dir);
-    // The findings a false alarm has taken off the list so far.
-    let mut taken = vec![false; findings.len()];
-    let mut out = Outcome::default();
-    for entry in entries {
-        let named = format!("`{}` in {} ({})", entry.rule, entry.file, entry.fingerprint);
+    let named = |entry: &FindingReview| {
+        format!("`{}` in {} ({})", entry.rule, entry.file, entry.fingerprint)
+    };
+    let mut not_counted = Vec::new();
+    // Which entry has taken each finding, and what each counting entry decided.
+    let mut taken: Vec<Option<usize>> = vec![None; findings.len()];
+    let mut counting: Vec<(usize, usize, Sealed)> = Vec::new();
+    let mut voided: Vec<bool> = vec![false; entries.len()];
+    for (k, entry) in entries.iter().enumerate() {
         let earlier = is_earlier_form(&entry.fingerprint);
         let candidates: Vec<usize> = findings
             .iter()
@@ -389,65 +400,97 @@ pub fn apply(
             })
             .map(|(i, _)| i)
             .collect();
-        let places: std::collections::BTreeSet<usize> = candidates
-            .iter()
-            .map(|&i| findings[i].location.line)
-            .collect();
-        if places.len() > 1 {
-            let lines: Vec<String> = places.iter().map(usize::to_string).collect();
-            let lines = and_list(&lines);
-            out.not_counted.push(format!(
-                "{named}: {}, so which one it means cannot be told, and it applies to none of them. \
-                 Write the entry again with the fingerprint the report now prints beside the one \
-                 you mean, record it through `sv review`, and remove this one.",
-                if earlier {
-                    format!(
-                        "its fingerprint is in the form `sv` used before 5 October 2026, which \
-                         named a line by its text alone, and {} findings are on lines that read \
-                         the same (lines {lines})",
-                        places.len()
-                    )
-                } else {
-                    format!("{} findings, on lines {lines}, match it", places.len())
-                }
+        let Some(&first) = candidates.first() else {
+            not_counted.push(unmatched(
+                &named(entry),
+                entry,
+                looked(&entry.rule, &entry.file),
             ));
             continue;
-        }
-        let Some(&i) = candidates.iter().find(|&&i| !taken[i]) else {
-            out.not_counted.push(if candidates.is_empty() {
-                unmatched(&named, entry, looked(&entry.rule, &entry.file))
-            } else {
-                format!(
-                    "{named}: an entry above it already set this finding aside as a false alarm, \
-                     so this one is not applied."
-                )
-            });
-            continue;
         };
-        match judge(entry, &findings[i], today, seals) {
-            Err(why) => out.not_counted.push(format!("{named}: {why}")),
-            Ok(sealed) => {
-                if entry.verdict == FALSE_ALARM {
-                    taken[i] = true;
-                }
-                out.set_aside.push(SetAside {
-                    finding: findings[i].clone(),
-                    verdict: entry.verdict.clone(),
-                    why: entry.why.trim().to_owned(),
-                    by: entry.by.clone().unwrap_or_default(),
-                    on: entry.on.clone().unwrap_or_default(),
-                    sealed,
-                });
+        if earlier {
+            let places: std::collections::BTreeSet<usize> = candidates
+                .iter()
+                .map(|&i| findings[i].location.line)
+                .collect();
+            if places.len() > 1 {
+                let lines: Vec<String> = places.iter().map(usize::to_string).collect();
+                not_counted.push(format!(
+                    "{}: its fingerprint is in the form `sv` used before 5 October 2026, which \
+                     named a line by its text alone, and {} findings are on lines that read the \
+                     same (lines {}), so which one it means cannot be told, and it applies to none \
+                     of them. Write the entry again with the fingerprint the report now prints \
+                     beside the one you mean, record it through `sv review`, and remove this one.",
+                    named(entry),
+                    places.len(),
+                    and_list(&lines)
+                ));
+                continue;
             }
         }
+        let sealed = match judge(entry, &findings[first], today, seals) {
+            Err(why) => {
+                not_counted.push(format!("{}: {why}", named(entry)));
+                continue;
+            }
+            Ok(sealed) => sealed,
+        };
+        if let Some(&free) = candidates.iter().find(|i| taken[**i].is_none()) {
+            taken[free] = Some(k);
+            counting.push((k, free, sealed));
+            continue;
+        }
+        // Every finding it matches is answered already: by an entry saying the same, or the
+        // opposite. Never "gone": the finding is there.
+        let before = taken[first].expect("taken");
+        if entries[before].verdict == entry.verdict {
+            not_counted.push(format!(
+                "{}: an earlier entry already answers for this finding in the same way, so this one \
+                 adds nothing and can be removed.",
+                named(entry)
+            ));
+        } else {
+            voided[before] = true;
+            voided[k] = true;
+            not_counted.push(format!(
+                "{}: it says {} and an earlier entry for the same finding says {}, so neither \
+                 counts and the finding stands until one of them is removed.",
+                named(entry),
+                entry.verdict,
+                entries[before].verdict
+            ));
+        }
     }
-    out.findings = findings
+    let mut set_aside = Vec::new();
+    let mut gone = Vec::new();
+    for (k, i, sealed) in counting {
+        let entry = &entries[k];
+        if voided[k] {
+            continue;
+        }
+        if entry.verdict == FALSE_ALARM {
+            gone.push(i);
+        }
+        set_aside.push(SetAside {
+            finding: findings[i].clone(),
+            verdict: entry.verdict.clone(),
+            why: entry.why.trim().to_owned(),
+            by: entry.by.clone().unwrap_or_default(),
+            on: entry.on.clone().unwrap_or_default(),
+            sealed,
+        });
+    }
+    let findings = findings
         .into_iter()
-        .zip(taken)
-        .filter(|(_, taken)| !taken)
-        .map(|(f, _)| f)
+        .enumerate()
+        .filter(|(i, _)| !gone.contains(i))
+        .map(|(_, f)| f)
         .collect();
-    out
+    Outcome {
+        findings,
+        set_aside,
+        not_counted,
+    }
 }
 
 /// What the report says of an entry that matches no finding: one of three things, because they
@@ -685,6 +728,54 @@ mod tests {
         assert_eq!(still, vec!["ast.b"]);
         assert_eq!(out.set_aside.len(), 2);
         assert_eq!(out.set_aside[1].by, "Sam Lee");
+    }
+
+    #[test]
+    fn one_entry_answers_for_one_finding_and_a_pair_that_disagree_leaves_it_standing() {
+        // R11 of the deep review: duplicate and conflicting entries were each applied.
+        let a = || finding("ast.a", "app.py", 5);
+        let fa = |by: &str| entry("ast.a", FALSE_ALARM, Some(by), "2026-09-27", WHY);
+        let ar = |by: &str| entry("ast.a", ACCEPTED_RISK, Some(by), "2026-09-27", WHY);
+
+        // The same answer twice: the first counts, the second adds nothing and says so.
+        let out = apply(&[ar("owner"), ar("Sam Lee")], vec![a()], today());
+        assert_eq!(out.set_aside.len(), 1, "{:?}", out.set_aside);
+        assert_eq!(out.set_aside[0].by, "owner");
+        assert_eq!(out.findings.len(), 1, "an accepted risk stays on the list");
+        assert!(
+            out.not_counted[0].contains("adds nothing"),
+            "{:?}",
+            out.not_counted
+        );
+
+        // Opposite answers: neither counts, and the finding stands, in either order.
+        for pair in [[fa("owner"), ar("owner")], [ar("owner"), fa("owner")]] {
+            let out = apply(&pair, vec![a()], today());
+            assert!(out.set_aside.is_empty(), "{:?}", out.set_aside);
+            assert_eq!(out.findings.len(), 1, "the finding stands");
+            assert!(
+                out.not_counted.iter().any(|n| n.contains("neither")),
+                "{:?}",
+                out.not_counted
+            );
+        }
+
+        // Two identical lines, an entry for each: both are answered, as before.
+        let out = apply(
+            &[fa("owner"), fa("owner")],
+            vec![a(), finding("ast.a", "app.py", 9)],
+            today(),
+        );
+        assert!(out.not_counted.is_empty(), "{:?}", out.not_counted);
+        assert_eq!(out.set_aside.len(), 2);
+        assert!(out.findings.is_empty());
+
+        // An entry that does not count takes nothing: the one after it still answers.
+        let mut unsealed = fa("owner");
+        unsealed.seal = None;
+        let out = apply(&[unsealed, fa("owner")], vec![a()], today());
+        assert_eq!(out.set_aside.len(), 1, "{:?}", out.not_counted);
+        assert!(out.findings.is_empty());
     }
 
     #[test]
@@ -1064,7 +1155,8 @@ mod tests {
 
     impl App {
         fn new(name: &str, text: &str) -> App {
-            let dir = std::env::temp_dir().join(format!("sv-review-{name}-{}", std::process::id()));
+            let dir =
+                std::env::temp_dir().join(format!("sv-review-app-{name}-{}", std::process::id()));
             std::fs::remove_dir_all(&dir).ok();
             std::fs::create_dir_all(&dir).unwrap();
             let app = App(dir);
@@ -1357,8 +1449,8 @@ mod tests {
 
     #[test]
     fn a_second_entry_for_a_finding_already_set_aside_is_not_called_gone() {
-        // Two entries for one finding is the open item R11; one entry matching one finding does
-        // not change which is applied, and the second is not told its finding is gone.
+        // Two entries for one finding: R11's rule decides (the second adds nothing), and with R3 the
+        // second is never told its finding is gone.
         let app = App::new("twice", TWO_QUERIES);
         let found = app.findings("ast.sql", &[3, 7]);
         let e = reviewed("ast.sql", &found[0].fingerprint);
@@ -1366,7 +1458,7 @@ mod tests {
         assert_eq!(out.set_aside.len(), 1);
         assert_eq!(out.findings.len(), 1);
         assert!(
-            out.not_counted[0].contains("an entry above it already set this finding aside")
+            out.not_counted[0].contains("an earlier entry already answers for this finding")
                 && !out.not_counted[0].contains("no finding matches"),
             "{:?}",
             out.not_counted

@@ -8356,6 +8356,41 @@ checked.
 How it is held: `next_js_and_modern_node_redirects_and_file_calls_are_read` (`crates/sv-check/src/ast.rs`), with
 twenty cases, each fixture checked to parse. Five guards were undone in turn, and each turned a case red.
 
+**Later, 5 October 2026: five differences from a second build of H5.** A second session had built H5 at the same
+time (closed unmerged as #642). At the owner's asking, the five places where it went further were ported onto the
+rules above (BACKLOG, "H5 follow-up"):
+
+- **`new URL("/path", base)` is safe only when the base is the request's own address** (`request.url`, `req.url`,
+  `request.nextUrl`, or its `origin`). Before, any base was accepted, so `new URL("/login", req.query.next)`, which
+  goes to whatever host the visitor named, was a clean result. A bare `"/"` with the request's base is now safe too.
+- **More redirects:** `permanentRedirect()`, `Response.redirect` (the web standard's, used by route handlers),
+  SvelteKit's `redirect(303, x)` with the status first, and `document.location = x`. Express's `res.location`,
+  `self.location`, and `top.location` were already found, by the cross of the name patterns; they are now named on
+  purpose, with witnesses.
+- **A bare `location.replace(...)` is not reported:** a string called `location` has a `replace` of its own, and
+  `const slug = location.replace(/\s+/g, '-')` was reported as a redirect. `window.location.replace(x)` and
+  `document.location.replace(x)` still are. To say so in the data, the redirect query now captures the whole callee
+  or assignment target as `@mod` (`res.redirect`, `window.location.replace`, `location.href`), so the module pattern
+  lists the pairs that redirect rather than letting any listed object pair with any listed name. The name pattern
+  stays plain words, which H25's test of a file that did not parse relies on.
+- **The app's own folder** in the file-path guard now includes `process.cwd()` and `import.meta.dirname` beside
+  `__dirname`, and `new URL('./x', import.meta.url)`: where a Next.js app reads its content from, and the ES module
+  way to name a file beside the code. A path joined onto them from a value is still reported.
+- **The clean result names the calls** each rule reads in JavaScript and TypeScript (`looksForIn`).
+
+Nothing the section above chose was undone: a bare `download` is still not read, and `fs.promises` is still matched
+through its `promises` part.
+
+**Tested.** Forty witnesses in `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one`, a found and a
+not-found case for each difference in JavaScript and TypeScript, and
+`a_clean_javascript_and_typescript_result_names_the_redirect_and_file_calls_it_read`
+(`crates/sv-check/tests/clean_coverage.rs`). Against the rules as #641 left them, eighteen of the witnesses fail
+(eleven missed, seven reported). Eleven guards broken in turn, each caught: any base accepted for `new URL` (two
+witnesses), and `permanentRedirect`, `Response.redirect`, `res.location`, and the status-first `redirect` each taken
+out (two each); `window` alone where `document`, `self`, and `top` were (three); a bare `location.replace` let
+through (two); `process.cwd()` taken out of the guard (two), `import.meta.dirname` (one), and `import.meta.url`
+(two); and the redirect rule's JavaScript and TypeScript words taken out (the clean-result test).
+
 ## A placeholder word in a key counts only where chance would not put it (5 October 2026)
 
 A4 of the deep review: a value was taken for a placeholder, and not reported, when it held any of a list of words
@@ -8441,6 +8476,29 @@ keeping 5.x's peer suffix in the version, dropping pnpm's packages without a ver
 Berry's, naming the app's own workspace, and dropping a classic entry with no version, in the middle of the file or
 at its end.
 
+## The bundle leaves out the secret files the review named (5 October 2026)
+
+A6 of the deep review: `sv bundle` leaves out files by name, and each of these went into the zip: `prod.env`, `.envrc`,
+`.pgpass`, `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
+
+- **An environment file under any of its names**: `.env`, `.env.<anything>`, and now `<anything>.env`, with
+  `example`, `sample`, `template`, or `dist` in its place still going in, since those show what to fill in; and
+  `.envrc`.
+- **Credential files by name**: `.pgpass`, `.my.cnf`, `.s3cfg`, `.boto`, beside the ones already listed.
+- **Credential files by where they are**: Docker's `.docker/config.json` and Kubernetes' `.kube/config`, wherever in
+  the app they sit. A `docker/config.json` or a `kube/deployment.yaml` is not one.
+- **Terraform's variables and state**: `*.tfvars`, `*.tfvars.json`, and anything with `.tfstate` in its name,
+  backups included. State holds every value Terraform created, in plain text.
+- **A `database.yml` with a password written in it** stays out even when the credential scan does not flag it,
+  which a short or simple password does not: a `password:` line with a value that is not read from the environment
+  (`<%= ENV[...] %>`) or left empty.
+
+How it is held: `every_secret_file_the_review_named_stays_out_and_its_shown_forms_go_in` and
+`a_database_yml_with_a_password_written_in_it_stays_out` (`crates/sv-cli/src/bundle.rs`), and in
+`crates/sv-cli/tests/bundle.rs` the app now carries a `config/database.yml` with a weak password and a `.kube/config`,
+which must stay out of the zip, their contents nowhere in it. Six guards were undone in turn and each was caught, the
+last only after the end-to-end case was added.
+
 ## The secret rules find what they promise, and grade a test key below a live one (5 October 2026)
 
 A5 of the deep review, three faults in `data/secret-rules.json`:
@@ -8459,6 +8517,38 @@ A5 of the deep review, three faults in `data/secret-rules.json`:
 How it is held: `the_rule_data_finds_what_it_promises_and_grades_a_test_key_below_a_live_one`
 (`crates/sv-check/src/secrets.rs`), with every value put together at run time. Each of the three changes was undone in
 turn and the test went red.
+
+## One entry answers for one finding (5 October 2026)
+
+R11 of the deep review: `[[finding-review]]` entries were applied one after another, each to the first finding it
+matched, and an accepted risk leaves its finding on the list. So two entries for one finding were both applied, the
+same answer counted twice, and a false alarm and an accepted risk for the same finding were both taken as said.
+Recorded under ADR-023.
+
+- **Each entry that counts takes one finding**: the first it matches that no earlier entry has taken. Two identical
+  lines with an entry each are still both answered.
+- **An entry left with nothing to take** repeats an earlier one or contradicts it. Repeating, it does not count,
+  and says it adds nothing and can be removed. Contradicting, neither counts: the finding stands, and both are
+  listed, until one is removed.
+- **An entry that does not count takes nothing**, so it cannot keep a sealed entry after it from answering.
+
+How it is held: `one_entry_answers_for_one_finding_and_a_pair_that_disagree_leaves_it_standing`
+(`crates/sv-check/src/review.rs`), with a repeat, a contradiction in both orders, two identical lines, and an unsealed
+entry before a sealed one. Three guards were undone in turn and each was caught.
+## `sv mcp` will not serve a folder that holds the home folder (5 October 2026)
+
+R10 of the deep review: `sv mcp --root` refused the top of the computer's files and the home folder itself, and served
+any folder above the home folder, `/home` or `/Users`, which hold every user's home folder, keys and mail included.
+
+- **A root that holds the home folder is refused**, with the reason, as `/` and the home folder already were. The
+  comparison is by whole folder names, so `/home/some` does not hold `/home/someone`, and a folder beside the home
+  folder is still served.
+- **With no home folder known** (`HOME` and `USERPROFILE` both unset), a folder just below the top, such as `/home`,
+  is refused too, since it is where home folders are kept and nothing can tell it apart.
+
+How it is held: `the_whole_computer_and_the_whole_home_folder_are_not_served` (`crates/sv-cli/src/mcp.rs`), which until
+now asserted that `/home` was served. Three guards were undone in turn, a comparison by text rather than by folder
+among them, and each was caught.
 
 ## A review names one finding, and says whether its rule looked (5 October 2026)
 
@@ -8519,10 +8609,12 @@ this computer" as before; it never falls into "the seal does not match". `sv rev
 place of an earlier one that names one line, when the person records an entry that did not yet count, and seals it
 over that; one that names several lines it leaves as it is, saying why.
 
-**How it interacts with R11** (duplicate and conflicting entries, still open): entries are applied in order as
-before, and an accepted risk still leaves its finding for a later entry to match, so nothing R11 describes changes.
-One thing that would have got worse is not allowed to: a second false alarm for a finding the first already took off
-the list would now have been told "gone"; it says "an entry above it already set this finding aside" instead.
+**How it meets R11** ("One entry answers for one finding", merged the same day): R11's rule decides which entry
+answers for which finding, in either form: each entry that counts takes the first finding it matches that no earlier
+entry has taken, a repeat adds nothing, and a contradiction leaves the finding standing. The one case where the two
+disagreed, an entry in the earlier form matching identical lines, the owner decided on 5 October 2026: it answers for
+none of them and says so, rather than taking the first (ADR-023). A repeat or a contradiction is never told its
+finding is gone: its finding is there.
 
 **Measured on family-hub** (a copy, nothing of the owner's changed): of the 25 entries, the 7 for
 `tests.name-does-not-match-requirement` now say "not looked for this time (the app's own tests run only with
@@ -8551,4 +8643,3 @@ earlier form on identical lines, the earlier form read at all, the three message
 the unknown rule, the tests' entry in `examined`, whether the file was read, the MCP sentence, and `sv review`'s
 writing and refusing.
 **Each finding also says what it was called before** (`earlier_fingerprints` in `report.json` and in the MCP results, left out when it did not change). A tool that tracks findings across runs by fingerprint, as cato-pipeline's POA&M does, would otherwise read every code finding as closed and a new one opened, once, when the form changed. Identical lines shared one earlier fingerprint, so it can name more than one finding; a tracker gives it to the first. Held by `a_finding_says_what_it_was_called_before_its_fingerprint_changed_form`.
-
