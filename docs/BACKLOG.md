@@ -18,6 +18,11 @@ another session is not a claim.
   data beside the reason, or derived from the condition), and a test that no row of that table reads as a statement.
   **Claimed on 5 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in
   branch `claude/securevibe-e2-questions`.
+  **Done the same day** (DESIGN, "What has to be answered is asked"): each condition carries a question beside its
+  reason, in the one place both are written (`crates/sv-frameworks/src/condition.rs`), and the table asks it: "Does
+  the app use WebSockets?". A test holds every condition to a question of its own that is not its reason, and another
+  renders every condition as a row, in the Markdown and the page, and finds no statement. Four guards broken in turn,
+  each caught.
 - **`git ls-files` runs a program the app's repository names.** Found on 5 October 2026 by session securevibe-e9,
   while looking at how `sv` runs outside programs. The committed-secrets check runs `git ls-files` in the app's
   folder (`crates/sv-check/src/config.rs`), and git honors the repository's own `.git/config`. A `core.fsmonitor`
