@@ -423,6 +423,9 @@ another session is not a claim.
     that includes `docker exec`'s own time.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-h16`.
+    **Done the same day** (DESIGN, "A delay counts only when every attempt past the limit shows it"; ADR-021, Later):
+    the quickest attempt within the limit is the baseline, both attempts past it must be markedly slower, the
+    sign-in page is timed beside them as a control, and times that disagree are not assessed.
   - **H17. Medium, Read.** The error-page leak check (V13.4.2, V16.5.1) is credited after reading only the first
     4,000 characters. Fix: search the whole answer before cutting it.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch

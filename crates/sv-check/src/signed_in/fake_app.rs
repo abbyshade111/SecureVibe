@@ -35,6 +35,9 @@ pub(super) struct FakeApp {
     leaked_once: bool,
     /// From this moment on the clock, every sign-in is refused, as by an app that went down.
     pub(super) sign_ins_refused_from: Option<u64>,
+    /// Requests, by id, that take this many real milliseconds to answer: the only wait in the fake
+    /// that is not on its own clock, for the checks that time the app's answers.
+    pub(super) slow_ms: Vec<(String, u64)>,
     /// Every request's id and the clock just after it was answered, in order, so a test can find
     /// when one check began.
     pub(super) clock_log: Vec<(String, u64)>,
@@ -806,6 +809,9 @@ impl Http for FakeApp {
     }
 
     fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+        if let Some((_, ms)) = self.slow_ms.iter().find(|(id, _)| *id == r.id) {
+            std::thread::sleep(std::time::Duration::from_millis(*ms));
+        }
         let answer = self.answer(r)?;
         let answer = self.follow_next(r, answer);
         self.write_log(r, &answer);
