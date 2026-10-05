@@ -2113,7 +2113,10 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
         return Ok(exit::NOT_ASSESSED);
     };
 
-    let database = advisories::load_database(&dir)
+    let advisories::Database {
+        records: database,
+        unread,
+    } = advisories::read_database(&dir)
         .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
     if database.is_empty() {
         println!(
@@ -2129,12 +2132,17 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
     let time_frames = manifest
         .as_ref()
         .and_then(|m| m.policy.fix_within_days.clone());
-    let result = advisories::audit_against(
+    let mut result = advisories::audit_against(
         &sbom,
         &database,
         time_frames.as_ref(),
         advisories::Day::today(),
     );
+    // A file of the database that could not be read is a record nothing compared: the comparison did not
+    // cover the database, so it makes no claim that nothing was missed (the deep review's improvement 4).
+    if !unread.is_empty() {
+        result.verified.clear();
+    }
     println!(
         "Compared {} package{} against {} advisory record{}.",
         result.components_checked,
@@ -2148,6 +2156,25 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
     );
 
     // Everything the comparison could not cover comes first.
+    if !unread.is_empty() {
+        println!(
+            "\nNot assessed — {} file{} in the advisory database could not be read, so the records in \
+             {} were not compared:",
+            unread.len(),
+            if unread.len() == 1 { "" } else { "s" },
+            if unread.len() == 1 { "it" } else { "them" }
+        );
+        for (name, why) in unread.iter().take(8) {
+            println!(
+                "  {}: {}",
+                sv_report::one_line(name),
+                sv_report::one_line(why)
+            );
+        }
+        if unread.len() > 8 {
+            println!("  and {} more", unread.len() - 8);
+        }
+    }
     if !result.uncovered.is_empty() {
         println!(
             "\nNot assessed — the database holds nothing about {}, so its packages were not checked.\n\
@@ -3124,7 +3151,10 @@ fn assemble_report_saying(
             })
         }
         Some(dir) => {
-            let database = advisories::load_database(dir)
+            let advisories::Database {
+                records: database,
+                unread,
+            } = advisories::read_database(dir)
                 .with_context(|| format!("reading the advisory database at {}", dir.display()))?;
             if database.is_empty() {
                 examined.push(sv_report::Examined::not_run(
@@ -3140,7 +3170,7 @@ fn assemble_report_saying(
                     ),
                 });
             } else {
-                let result = advisories::audit_against(
+                let mut result = advisories::audit_against(
                     &bill_of_materials,
                     &database,
                     manifest.policy.fix_within_days.as_ref(),
@@ -3149,6 +3179,19 @@ fn assemble_report_saying(
                 // Whole only as `sv audit` counts it: every ecosystem covered, every version
                 // comparable, and the list of packages itself complete.
                 let mut short = Vec::new();
+                if !unread.is_empty() {
+                    short.push(format!(
+                        "{} file{} in the advisory database could not be read ({})",
+                        unread.len(),
+                        if unread.len() == 1 { "" } else { "s" },
+                        unread
+                            .iter()
+                            .take(3)
+                            .map(|(name, _)| format!("`{name}`"))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
                 if !result.uncovered.is_empty() {
                     let names: Vec<String> = result.uncovered.iter().cloned().collect();
                     short.push(format!(
@@ -3190,6 +3233,28 @@ fn assemble_report_saying(
                 } else {
                     sv_report::Examined::partly("advisory.", short.join("; "))
                 });
+                // Records in a file nobody read were not compared, so nothing is credited on the
+                // comparison, as `sv audit` credits nothing (the deep review's improvement 4).
+                if !unread.is_empty() {
+                    result.verified.clear();
+                    advisory_gaps.push(sv_report::Gap {
+                        what: "advisory files that could not be read".to_owned(),
+                        why: format!(
+                            "{}{}. The records in them were not compared with this app's packages.",
+                            unread
+                                .iter()
+                                .take(10)
+                                .map(|(name, why)| format!("`{name}`: {why}"))
+                                .collect::<Vec<_>>()
+                                .join("; "),
+                            if unread.len() > 10 {
+                                format!("; and {} more", unread.len() - 10)
+                            } else {
+                                String::new()
+                            }
+                        ),
+                    });
+                }
                 findings_from_advisories = result.findings;
                 advisory_verified = result.verified;
                 if !result.uncovered.is_empty() {

@@ -263,3 +263,32 @@ fn a_list_that_would_set_apart_all_the_app_s_code_is_not_used_by_audit_either() 
     assert!(text.contains("\n2 known vulnerabilities:"), "{text}");
     assert!(!text.contains("counted all the same"), "{text}");
 }
+
+#[test]
+fn an_advisory_file_that_cannot_be_read_makes_the_comparison_partial() {
+    // The deep review's improvement 4: the broken file was skipped in silence, and the audit said there was
+    // nothing it could not compare.
+    let (dir, osv) = setup("unreadable", PLAIN, &[("left-pad", "1.0.0")]);
+    std::fs::remove_dir_all(dir.join("examples")).unwrap();
+    let (clean_code, clean) = audit(&dir, Some(&osv));
+    std::fs::write(osv.join("GHSA-broken.json"), "not json at all").unwrap();
+    let (code, text) = audit(&dir, Some(&osv));
+    std::fs::remove_dir_all(dir.parent().unwrap()).ok();
+
+    // The control: whole and clean, it says so and exits 0.
+    assert_eq!(clean_code, Some(0), "{clean}");
+    assert!(
+        clean.contains("there was nothing it could not compare"),
+        "{clean}"
+    );
+    assert_eq!(code, Some(2), "{text}");
+    assert!(
+        text.contains("1 file in the advisory database could not be read")
+            && text.contains("GHSA-broken.json"),
+        "{text}"
+    );
+    assert!(
+        !text.contains("there was nothing it could not compare"),
+        "{text}"
+    );
+}
