@@ -551,6 +551,9 @@ another session is not a claim.
     escapes correctly.
     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
     `claude/securevibe-e9-r13`.
+    **Done the same day** (DESIGN, "App text in the Markdown reports is inert"): every table cell, the app's name,
+    and each finding's text are escaped outside code spans, so no link, image, or HTML of the app's is live; a file
+    path is shown in a code span it cannot close; the escaped redaction marker is still read as one.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.

@@ -256,12 +256,14 @@ fn a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen() {
     let security = std::fs::read_to_string(out.join("security.md")).unwrap();
     assert!(security.contains("`app.py` line 3"), "{security}");
     assert!(
-        security.contains("Possible hardcoded password: '[redacted: Qv7r"),
+        // The marker's brackets are escaped in Markdown, as all text a tool or the app supplied is
+        // (R13), and read as `[redacted: …]` once shown.
+        security.contains("Possible hardcoded password: '\\[redacted: Qv7r"),
         "Bandit's finding is in the report, its value redacted:\n{security}"
     );
     let compliance = std::fs::read_to_string(out.join("compliance.md")).unwrap();
     assert!(
-        compliance.contains(&format!("{WILL_NOT_START}: password='[redacted: Qv7r")),
+        compliance.contains(&format!("{WILL_NOT_START}: password='\\[redacted: Qv7r")),
         "the other tools' words are in the report, redacted:\n{compliance}"
     );
     // Every file it wrote holds none of the password, and nothing printed does.
@@ -294,7 +296,7 @@ fn a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen() {
         .map(|(_, b)| String::from_utf8_lossy(b).into_owned())
         .unwrap();
     assert!(
-        in_bundle.contains("Possible hardcoded password: '[redacted: Qv7r"),
+        in_bundle.contains("Possible hardcoded password: '\\[redacted: Qv7r"),
         "{in_bundle}"
     );
     for (name, data) in &entries {
