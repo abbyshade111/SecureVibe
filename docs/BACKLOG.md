@@ -728,6 +728,11 @@ another session is not a claim.
     **Done the same day** (DESIGN, "What a page sends from its workers and over WebSockets"; ADR-019, Later):
     every worker, shared worker, and service worker the page starts is held until its requests are watched, and a
     WebSocket is recorded when the page opens it. This is the last of improvement 5's five parts to be built.
+    **Improvement 2 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working off
+    the backlog, in branch `claude/securevibe-e9-clean-claims`: the comparison with advisories says, when it finds
+    nothing, which ecosystems and lockfiles it compared and that development packages and the packages others need
+    are among them; and each code rule's "nothing found" names, for each language, the calls it reads. The SQL
+    rule's part was done with H1.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
