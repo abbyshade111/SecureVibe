@@ -40,6 +40,7 @@ The requirements themselves, as published. Read by `sv-frameworks` and counted b
 | `coding-rules.json` | `sv-check`, `sv-cli` | Rules the AI coding tool follows while it writes the app. |
 | `prompts.json` | `sv-check`, `sv-cli`, `tools/coverage.py`; `docs/PROMPTS.md` is written from it by hand | Prompts for the AI coding tool, each with the check that shows whether it worked and the result of trying it. |
 | `design-prompts.json` | `sv-check`, `sv-cli`, `tools/coverage.py`; `docs/prompts/design-time.md` is written from it by hand | Design-time prompts from the Secure by Design checklist, in `prompts.json`'s shape, with the checklist controls each helps a person answer. |
+| `feature-briefs.json` | `sv-cli` | The features `sv brief` and `securevibe_before` write a brief for: the conditions and requirements each brings, its design-time prompts, and the `securevibe.toml` settings `sv run` needs to test it. |
 
 ## How `sv` reads an app
 
