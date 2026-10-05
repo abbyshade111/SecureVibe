@@ -549,6 +549,8 @@ another session is not a claim.
     requirement from applicable to "does not apply".
   - **R13. Low, Reproduced.** `security.md` and `compliance.md` insert app text without escaping; `report.html`
     escapes correctly.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-r13`.
   - **R14. Low, Read.** SARIF locations are not valid addresses for running-app findings or paths with spaces, and
     rule descriptions take one instance's text.
   - **Improvements (not faults).** 1: the shared constant helper of A1, the largest single cut in false alarms.
