@@ -467,6 +467,8 @@ another session is not a claim.
     `AKIAEXAMPLEEXAMPLE12` shape needs it); of 20,000 random JWTs, 66 were dropped before and none now.
   - **A5. Low, Read.** Secret rule data: Slack's `xapp-` promised and not matched; PGP private key blocks missed;
     `sk_test_` keys graded critical.
+    **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+    `claude/securevibe-e9-a5`.
   - **A6. Medium, Reproduced.** The bundle's list of secret files misses `prod.env`, `.envrc`, `.pgpass`,
     `.docker/config.json`, `*.tfvars`, `*.tfstate`, `.kube/config`, and a `database.yml` with a password.
   - **R3. Medium to high, Reproduced.** A review for a rule that did not run, or that this version lacks, is
