@@ -647,6 +647,10 @@ another session is not a claim.
     **Improvement 3 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-tool-limits`: a time limit on every outside tool, and an
     environment with only what a tool needs to run, `GOTOOLCHAIN=local` among it.
+    **Improvement 7 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
+    off the backlog, in branch `claude/securevibe-e9-cli-guards`: an option's value that is another option is
+    refused, a bundle replaces only a zip `sv` made, and the MCP server gives one answer for a path that is
+    outside its folder and one that does not exist.
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does
     not apply"; reviews' accepted risks, secrets, and 90-day lapse; `deny_unknown_fields` everywhere; `sv`'s own
     walker on links and sizes; report files written create-then-rename; outside tools run without a shell and with
