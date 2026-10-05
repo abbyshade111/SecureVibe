@@ -720,6 +720,8 @@ another session is not a claim.
     off the backlog, in branch `claude/securevibe-e9-validate`, for three of its four parts: `manifest-version`
     checked, text after a date refused, and the stray `</details>` in `report.html`. The fourth, a false alarm
     lapsing when nearby lines change, rests on the fingerprint, which #678 (R3, A2) is changing, and is left to it.
+    **The fourth was done by #678** (A2 above): today's fingerprint also reads the lines above that set a name the
+    flagged line uses, so changing one of them ends the false alarm. Noted on 5 October 2026 by session securevibe-e9.
     **Improvement 4 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-cvss4`: CVSS v4 vectors scored with FIRST's reference tables,
     and advisory files that fail to parse counted and said. Record: ADR-033 (proposed).
@@ -1049,6 +1051,10 @@ another session is not a claim.
      `claude/securevibe-e9-a1-rest`: each finding stays, with its confidence lowered and the reason said, when the
      path is built only from fixed text and a value read back from the app's database, or the destination passed
      through a function whose name says it checks it.
+     **Done the same day** (DESIGN, "A path the app stored, and a destination a function checked, say so"): both
+     rules already report at low confidence, so the finding says why instead: a path built from fixed text and a
+     value read back from the app's database says so, and a destination that passed through `safe_next` and the
+     like names it. Neither is dropped.
      **The owner's decision, 5 October 2026:** keep the finding, and when the destination passes through a function
      of the app's own, name that function in it as the thing to check. **Claimed the same day by session
      securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-redirect-checked`.
@@ -1656,12 +1662,16 @@ another session is not a claim.
   to a file instead of passing it on; `securevibe_check` gave 50 KB for one build, handled the same way. The builder
   then read them in parts with a script. A short answer first (what to build, the run settings, the decisions to
   make) with the rest by section, or a size the common tools pass whole, would let a builder read what it is given.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take the last of the
+  pilot's findings, in branch `claude/plan-in-parts`.
 
 - **A `securevibe.toml` field in the wrong section: the message names the field, not the section.** Found on 5 October
   2026 by session paper-facts, in the loop pilot. Haiku 4.5 wrote `enabled = true` under `[stack.run.ai]`; `sv`
   answered with the line, the field, and the fields allowed, and the builder sent the same mistake back five times,
   rewriting the file twice, before it put the field where it belongs. Naming the section the line was read in (`in [stack.run.ai]`) would say where
   it went wrong.
+  **Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to take another of the
+  pilot's findings, in branch `claude/manifest-section-in-message`.
 
 - **`sv check` does not say `.env` can be committed until the folder is a git repository.** Found on 5 October 2026
   by session paper-facts, in the loop pilot: every build was flagged `config.gitignore-covers-env` (high) by
@@ -1702,6 +1712,12 @@ another session is not a claim.
   is the kind of false alarm that makes the tool rewrite correct code.
   **The owner's decision, 5 October 2026:** send the copies as two or more users. **Claimed the same day by session
   securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-done-twice-users`.
+  **Done the same day** (DESIGN, "Later, 5 October 2026: two users, not one"). The copies go half as A and half as B;
+  the action going through for both is the finding, and a repeat the holder is told went through is not. Credit needs
+  both users shown signed in and holding the token, and the refused user still signed in afterwards, so a refusal for
+  being signed out never counts. Ten guards broken in turn, each caught. Not yet run against a real app in a
+  container: no `once` example exists, and this environment has no Docker; the script itself was run with the
+  sidecar's busybox.
 
 - **Hardening the MCP server, and `sv report`'s writing.** Found on 3 October 2026 by session securevibe-e2, at the
   owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.

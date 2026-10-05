@@ -95,15 +95,12 @@ use uploads::*;
 pub trait Http {
     fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse>;
 
-    /// Sends the same request `times` times at once, each over its own connection, all started
-    /// together rather than one after another, and gives back each answer in the order started.
-    /// `None` when this way of reaching the app cannot send at the same instant: requests sent one
-    /// after another cannot show a race, so a check that needs one is then not assessed.
-    fn send_at_once(
-        &mut self,
-        _request: &ProbeRequest,
-        _times: usize,
-    ) -> Option<Vec<Option<ProbeResponse>>> {
+    /// Sends these requests at once, each over its own connection, all started together rather
+    /// than one after another, and gives back each answer in the order given. A request may be
+    /// given more than once, to send copies of it. `None` when this way of reaching the app cannot
+    /// send at the same instant: requests sent one after another cannot show a race, so a check
+    /// that needs one is then not assessed.
+    fn send_together(&mut self, _requests: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
         None
     }
 
@@ -1166,14 +1163,10 @@ impl Http for Patient<'_> {
         answer
     }
 
-    fn send_at_once(
-        &mut self,
-        request: &ProbeRequest,
-        times: usize,
-    ) -> Option<Vec<Option<ProbeResponse>>> {
+    fn send_together(&mut self, requests: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
         // Not waited out: a limiter's answer to a copy sent together is part of what was asked.
-        let answers = self.inner.send_at_once(request, times)?;
-        for answer in &answers {
+        let answers = self.inner.send_together(requests)?;
+        for (request, answer) in requests.iter().zip(&answers) {
             let crashed = match answer {
                 None => Some("no answer".to_owned()),
                 Some(r) if r.status >= 500 => Some(r.status.to_string()),
@@ -1483,7 +1476,7 @@ fn run_checks(
     //     changes for the same reason as the admin actions.
     role_field_check(http, users, accounts, confirm.as_deref(), &mut out);
     // 9e. The action that should go through once, sent many times at the same instant by A.
-    once_check(http, users, &accounts.a, &mut out);
+    once_check(http, users, accounts, &mut out);
     // 9f. A burst of creations by B, held to the stated limit. Before the password changes, which can
     //     change B's password too (a reset); it sets out to be refused, so it waits the minute out
     //     afterwards before anything else is asked.
@@ -2609,16 +2602,18 @@ mod crash_tests {
             }
             self.app.send(r)
         }
-        fn send_at_once(
-            &mut self,
-            r: &ProbeRequest,
-            times: usize,
-        ) -> Option<Vec<Option<ProbeResponse>>> {
-            self.sent.insert(r.id.clone());
-            let mut answers = self.app.send_at_once(r, times)?;
+        fn send_together(&mut self, rs: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
+            for r in rs {
+                self.sent.insert(r.id.clone());
+            }
+            let mut answers = self.app.send_together(rs)?;
             // One copy of the same instant crashes, as one of a burst can.
-            if self.crash.as_deref() == Some(r.id.as_str()) {
-                answers[0] = (!self.silent).then(|| ProbeResponse {
+            if let Some(i) = rs
+                .iter()
+                .position(|r| self.crash.as_deref() == Some(r.id.as_str()))
+            {
+                let r = &rs[i];
+                answers[i] = (!self.silent).then(|| ProbeResponse {
                     id: r.id.clone(),
                     status: 500,
                     headers: Vec::new(),
