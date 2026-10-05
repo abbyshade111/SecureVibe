@@ -122,6 +122,21 @@ impl DockerBackend {
         output_of(&mut c)
     }
 
+    /// As `docker`, with `secrets` in the Docker program's own environment, for arguments that name
+    /// them with `-e NAME` and no value: Docker then copies each from its own environment. A value on
+    /// the command line can be read by any other user of the computer while the command runs; a
+    /// process's environment only by its own user (the deep review's improvement 5).
+    fn docker_with_secrets(
+        &self,
+        args: &[&str],
+        secrets: &[(&str, String)],
+    ) -> Result<(i32, String), String> {
+        let mut c = Command::new(&self.binary);
+        c.args(self.prepared(args));
+        c.envs(secrets.iter().map(|(k, v)| (*k, v.as_str())));
+        output_of(&mut c)
+    }
+
     /// A Docker call's arguments as they are sent: labeled, and, for one that starts a container,
     /// limited. Every container this backend starts goes through here, so none is missed.
     fn prepared(&self, args: &[&str]) -> Vec<String> {
@@ -352,8 +367,10 @@ impl DockerBackend {
 
         // 1d½. A test model, when the app has an AI feature to ask. Before the app, which may read
         //      the model's address as it starts.
-        // The test model's server also records what a feature that fetches addresses fetches.
-        let model = ((plan.ai.is_some() || plan.fetch.is_some())
+        // The test model's server also records what a feature that fetches addresses fetches, and
+        // whether the app fetches the key a sign-in token names (V9.1.3): `sv` learns whether the
+        // app's tokens are JWTs only after signing in, so any run that signs in starts it.
+        let model = ((plan.ai.is_some() || plan.fetch.is_some() || plan.users.is_some())
             && self.start_model(&network, &model_name))
         .then_some(model_name.as_str());
 
@@ -517,11 +534,10 @@ impl DockerBackend {
                 users.totp.is_some() && users.seed.is_some(),
             )
         });
-        let signed_in = plan
-            .users
-            .as_ref()
-            .zip(accounts.as_ref())
-            .map(|pair| self.signed_in(&via, &app, mail, browser, plan, pair));
+        let signed_in = plan.users.as_ref().zip(accounts.as_ref()).map(|pair| {
+            let model = model.filter(|host| self.model_ready(&via, host));
+            self.signed_in(&via, &app, (mail, browser, model), plan, pair)
+        });
 
         // 4c. Signing in through the test provider, when the app signs in through another service.
         //     A provider that never came up leaves `provider` empty, and the check says so.
@@ -833,6 +849,10 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
     ) -> Option<sv_check::probes::ProbeResponse> {
         let host = self.model?;
         self.backend.probe(self.via, host, MODEL_PORT, request)
+    }
+
+    fn model_address(&mut self) -> Option<String> {
+        self.model.map(|host| format!("http://{host}:{MODEL_PORT}"))
     }
 
     fn browser(&mut self, job: &sv_check::browser::Job) -> Option<Vec<serde_json::Value>> {
@@ -1195,8 +1215,7 @@ impl DockerBackend {
         &self,
         via: &Via,
         app: &str,
-        mail: Option<&str>,
-        browser: Option<&str>,
+        (mail, browser, model): (Option<&str>, Option<&str>, Option<&str>),
         plan: &RunPlan,
         (users, accounts): (&sv_manifest::UsersSection, &sv_check::signed_in::Accounts),
     ) -> sv_check::signed_in::Outcome {
@@ -1208,7 +1227,7 @@ impl DockerBackend {
             mail,
             provider: None,
             browser,
-            model: None,
+            model,
         };
         if !users.problems().is_empty() {
             // Nothing is run or asked; the suite says what is missing.
@@ -1262,20 +1281,11 @@ impl DockerBackend {
         seed: &str,
         accounts: &sv_check::signed_in::Accounts,
     ) -> Result<(), String> {
-        let mut args: Vec<String> = vec!["exec".into()];
         let env = seed_env(accounts);
-        for (k, v) in env {
-            args.push("-e".into());
-            args.push(format!("{k}={v}"));
-        }
-        args.extend([
-            app.to_owned(),
-            "sh".into(),
-            "-c".into(),
-            format!("cd /app && {seed}"),
-        ]);
+        let names: Vec<&str> = env.iter().map(|(k, _)| *k).collect();
+        let args = seed_args(app, seed, &names);
         let args: Vec<&str> = args.iter().map(String::as_str).collect();
-        match self.docker(&args) {
+        match self.docker_with_secrets(&args, &env) {
             Ok((0, _)) => Ok(()),
             Ok((code, out)) => Err(seed_failed(code, &out, accounts)),
             Err(e) => Err(format!("The seed command could not be started: {e}.")),
@@ -1446,18 +1456,9 @@ impl DockerBackend {
     }
 
     fn start_provider(&self, network: &str, name: &str, secret: &str) -> bool {
-        let issuer = format!("ISSUER=http://{name}:{PROVIDER_PORT}");
-        let port = format!("PORT={PROVIDER_PORT}");
-        let client = format!("CLIENT_ID={PROVIDER_CLIENT_ID}");
-        let secret = format!("CLIENT_SECRET={secret}");
-        matches!(
-            self.docker(&provider_args(
-                network,
-                name,
-                [&issuer, &port, &client, &secret]
-            )),
-            Ok((0, _))
-        )
+        let (args, secrets) = provider_start(network, name, secret);
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        matches!(self.docker_with_secrets(&args, &secrets), Ok((0, _)))
     }
 
     /// Starts a copy of the app under another name with one more setting in its environment: the
@@ -1745,6 +1746,40 @@ fn to_remove(listed: Option<&str>, names: &[String]) -> Vec<String> {
     }
 }
 
+/// How the test provider is started, and the secret Docker hands it from its own environment: the
+/// client secret by name only on the command line, as the seed's passwords are.
+fn provider_start(
+    network: &str,
+    name: &str,
+    secret: &str,
+) -> (Vec<String>, Vec<(&'static str, String)>) {
+    let issuer = format!("ISSUER=http://{name}:{PROVIDER_PORT}");
+    let port = format!("PORT={PROVIDER_PORT}");
+    let client = format!("CLIENT_ID={PROVIDER_CLIENT_ID}");
+    let args = provider_args(network, name, [&issuer, &port, &client, "CLIENT_SECRET"])
+        .into_iter()
+        .map(str::to_owned)
+        .collect();
+    (args, vec![("CLIENT_SECRET", secret.to_owned())])
+}
+
+/// `docker exec` for the owner's `seed`, naming each of `names` with `-e` and no value, so the values
+/// come from Docker's own environment (`docker_with_secrets`) and never stand on its command line.
+fn seed_args(app: &str, seed: &str, names: &[&str]) -> Vec<String> {
+    let mut args: Vec<String> = vec!["exec".into()];
+    for name in names {
+        args.push("-e".into());
+        args.push((*name).to_owned());
+    }
+    args.extend([
+        app.to_owned(),
+        "sh".into(),
+        "-c".into(),
+        format!("cd /app && {seed}"),
+    ]);
+    args
+}
+
 /// What `seed` is given: the run's accounts, their passwords, and the two-factor secrets in base32.
 fn seed_env(accounts: &sv_check::signed_in::Accounts) -> Vec<(&'static str, String)> {
     let mut env = vec![
@@ -1861,6 +1896,36 @@ mod tests {
         let text = Fence::DockerInternalNetwork.explain();
         assert!(text.contains("could not reach the internet"));
         assert!(Fence::None.explain().contains("No network fence"));
+    }
+
+    #[test]
+    fn no_password_or_secret_stands_on_docker_s_command_line() {
+        // The deep review's improvement 5: `-e SV_PASSWORD_A=...` was readable by any user of the
+        // computer while `docker exec` ran. Only the names are on the command line now.
+        let accounts = crate::new_accounts(true, true);
+        let env = seed_env(&accounts);
+        let names: Vec<&str> = env.iter().map(|(k, _)| *k).collect();
+        let args = seed_args("app", "./seed.sh", &names);
+        for (name, value) in &env {
+            assert!(args.iter().any(|a| a == name), "{name} is not named");
+            // Compared, never printed: the message names the variable only.
+            assert!(
+                !args.iter().any(|a| a.contains(value.as_str())),
+                "{name}'s value is on the command line"
+            );
+        }
+        let secret = crate::random_hex(16);
+        let (provider, secrets) = provider_start("net", "idp", &secret);
+        assert!(
+            !provider.iter().any(|a| a.contains(&secret)),
+            "the provider's secret is on the command line"
+        );
+        let at = provider
+            .iter()
+            .position(|a| a == "CLIENT_SECRET")
+            .expect("named");
+        assert_eq!(provider[at - 1], "-e");
+        assert_eq!(secrets, vec![("CLIENT_SECRET", secret)]);
     }
 
     #[test]
@@ -3005,6 +3070,77 @@ http.createServer((q, s) => {
         );
         assert_eq!(answers[7]["found"], true, "{answers:?}");
         assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
+    }
+
+    #[test]
+    fn the_seed_command_is_given_the_passwords_though_they_are_not_on_the_command_line() {
+        // The deep review's improvement 5: the passwords reach the seed from Docker's environment,
+        // named with `-e` and no value. Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let name = format!("sv-seedtest-{}", std::process::id());
+        let started = backend.docker(&[
+            "run",
+            "-d",
+            "--rm",
+            "--name",
+            &name,
+            PROBE_IMAGE,
+            "sh",
+            "-c",
+            "mkdir -p /app; sleep 120",
+        ]);
+        let accounts = crate::new_accounts(true, true);
+        // The seed passes only if each value arrived whole; it compares, and prints nothing.
+        let check = format!(
+            "test \"$SV_PASSWORD_A\" = '{}' && test \"$SV_PASSWORD_B\" = '{}' && test -n \"$SV_TOTP_SECRET\"",
+            accounts.a.password, accounts.b.password
+        );
+        let seeded = matches!(started, Ok((0, _))).then(|| backend.seed(&name, &check, &accounts));
+        let refused = matches!(started, Ok((0, _)))
+            .then(|| backend.seed(&name, "test \"$SV_PASSWORD_A\" = 'not it'", &accounts));
+        let _ = backend.docker(&["rm", "-f", &name]);
+        assert!(
+            matches!(started, Ok((0, _))),
+            "the container did not start: {started:?}"
+        );
+        assert!(
+            seeded.unwrap().is_ok(),
+            "the seed did not get the passwords"
+        );
+        assert!(refused.unwrap().is_err(), "the seed's check proves nothing");
+    }
+
+    #[test]
+    fn the_test_provider_is_given_its_secret_though_it_is_not_on_the_command_line() {
+        // As the seed's passwords: the client secret reaches the provider from Docker's environment.
+        // Needs a container backend; with one, a failed setup fails.
+        let backend = DockerBackend::new();
+        if backend.available().is_err() {
+            println!("no container backend here; this needs one");
+            return;
+        }
+        let network = format!("sv-providertest-{}", std::process::id());
+        let name = format!("{network}-idp");
+        let _ = backend.docker(&["network", "create", "--internal", &network]);
+        let secret = crate::random_hex(16);
+        let started = backend.start_provider(&network, &name, &secret);
+        let has = |value: &str| {
+            let check = format!("test \"$CLIENT_SECRET\" = '{value}'");
+            matches!(
+                backend.docker(&["exec", &name, "sh", "-c", &check]),
+                Ok((0, _))
+            )
+        };
+        let (given, other) = (started && has(&secret), started && has("not it"));
+        let _ = backend.docker(&["rm", "-f", &name]);
+        let _ = backend.docker(&["network", "rm", &network]);
+        assert!(started, "the provider did not start");
+        assert!(given, "the provider did not get its secret");
+        assert!(!other, "the check proves nothing");
     }
 
     #[test]

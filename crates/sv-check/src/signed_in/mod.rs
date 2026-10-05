@@ -144,6 +144,13 @@ pub trait Http {
     fn model(&mut self, _request: &ProbeRequest) -> Option<ProbeResponse> {
         None
     }
+
+    /// The test model's server as the app reaches it on the fenced network, such as
+    /// `http://sv-1-model:9100`: `None` when the run has no test model that answered. A wrapper
+    /// must pass this on, or the checks behind it read as having no test server.
+    fn model_address(&mut self) -> Option<String> {
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -1201,6 +1208,10 @@ impl Http for Patient<'_> {
 
     fn model(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
         self.inner.model(request)
+    }
+
+    fn model_address(&mut self) -> Option<String> {
+        self.inner.model_address()
     }
 }
 
@@ -2625,6 +2636,12 @@ mod crash_tests {
         fn wait(&mut self, seconds: u64) {
             self.app.wait(seconds);
         }
+        fn model(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            self.app.model(r)
+        }
+        fn model_address(&mut self) -> Option<String> {
+            self.app.model_address()
+        }
     }
 
     /// One fixture: the app's flaws, what securevibe.toml says, and how the run is made.
@@ -2666,6 +2683,8 @@ mod crash_tests {
             app.idle_limit = self.limits.0;
             app.lifetime_limit = self.limits.1;
             app.jwt_lifetime = self.jwt;
+            // A run whose app hands out tokens has the test model's server to name in them.
+            app.model_up = self.jwt.is_some();
             let mut acc = accounts();
             if self.seeded {
                 for account in [&acc.a, &acc.b] {
@@ -2860,10 +2879,12 @@ mod crash_tests {
             Scenario {
                 jwt: Some(30),
                 ..Scenario::new(
-                    "the app's own tokens, neither signature nor expiry checked",
+                    "the app's own tokens, neither signature nor expiry checked, and the key they \
+                     name fetched",
                     Flaws {
                         jwt_signature_ignored: true,
                         jwt_expiry_ignored: true,
+                        jwt_key_source_followed: true,
                         ..Default::default()
                     },
                     users(),
