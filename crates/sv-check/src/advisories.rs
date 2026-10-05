@@ -126,29 +126,56 @@ pub struct AuditResult {
 
 /// Loads every OSV JSON record under `dir`, recursively.
 pub fn load_database(dir: &Path) -> std::io::Result<Vec<Advisory>> {
-    let mut out = Vec::new();
-    load_into(dir, &mut out)?;
+    Ok(read_database(dir)?.records)
+}
+
+/// The records of an advisory database, and the JSON files in it that could not be read as one.
+#[derive(Debug, Default)]
+pub struct Database {
+    pub records: Vec<Advisory>,
+    /// Each file that could not be read as a record, from the database's folder, with why.
+    pub unread: Vec<(String, String)>,
+}
+
+/// As `load_database`, and the files that could not be read. A record this version of `sv` cannot parse is
+/// skipped rather than fatal, since an OSV export carries records with fields added since, and refusing the
+/// whole database over one would trade a partial answer for none; but it is counted and named, since a
+/// vulnerability in a file nobody read is not one the app is clear of (the deep review's improvement 4).
+pub fn read_database(dir: &Path) -> std::io::Result<Database> {
+    let mut out = Database::default();
+    load_into(dir, dir, &mut out)?;
+    out.unread.sort();
     Ok(out)
 }
 
-fn load_into(dir: &Path, out: &mut Vec<Advisory>) -> std::io::Result<()> {
+fn load_into(root: &Path, dir: &Path, out: &mut Database) -> std::io::Result<()> {
     for entry in std::fs::read_dir(dir)? {
         let path = entry?.path();
         if path.is_dir() {
-            load_into(&path, out)?;
+            load_into(root, &path, out)?;
             continue;
         }
         if path.extension().and_then(|e| e.to_str()) != Some("json") {
             continue;
         }
-        let Ok(text) = std::fs::read_to_string(&path) else {
-            continue;
+        let name = path
+            .strip_prefix(root)
+            .unwrap_or(&path)
+            .to_string_lossy()
+            .into_owned();
+        let text = match std::fs::read_to_string(&path) {
+            Ok(text) => text,
+            Err(e) => {
+                out.unread
+                    .push((name, format!("it could not be read ({e})")));
+                continue;
+            }
         };
-        // A record this version of `sv` cannot parse is skipped rather than fatal: an OSV export
-        // carries records with fields added since, and refusing the whole database over one of them
-        // would trade a partial answer for none.
-        if let Ok(advisory) = serde_json::from_str::<Advisory>(&text) {
-            out.push(advisory);
+        match serde_json::from_str::<Advisory>(&text) {
+            Ok(advisory) => out.records.push(advisory),
+            Err(e) => out
+                .unread
+                .push((name, format!("it is not an OSV record `sv` can read ({e})"))),
         }
     }
     Ok(())
@@ -1317,11 +1344,11 @@ mod tests {
 
     #[test]
     fn an_advisory_with_no_readable_rating_says_the_severity_is_a_placeholder() {
-        // A v4 vector, which this cannot score. Showing "medium" without saying so would be believed
+        // A v2 vector, which this cannot score. Showing "medium" without saying so would be believed
         // by anybody sorting the list by seriousness.
         let unrated = advisory(
-            r#"{"id":"GHSA-v4","summary":"Something bad.",
-                "severity":[{"type":"CVSS_V4","score":"CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"}],
+            r#"{"id":"GHSA-v2","summary":"Something bad.",
+                "severity":[{"type":"CVSS_V2","score":"AV:N/AC:L/Au:N/C:P/I:P/A:P"}],
                 "affected":[{"package":{"ecosystem":"npm","name":"lodash"},
                 "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"4.17.20"}]}]}]}"#,
         );
@@ -1333,6 +1360,25 @@ mod tests {
         assert!(
             result.findings[0].description.contains("placeholder"),
             "an unreadable rating must say so: {}",
+            result.findings[0].description
+        );
+    }
+
+    #[test]
+    fn an_advisory_with_only_a_v4_vector_is_rated_by_it() {
+        // The deep review's improvement 4: 2,340 OSV records carry only a v4 vector, and each was shown
+        // as a placeholder medium. Scored with FIRST's own tables (ADR-033).
+        let v4 = advisory(
+            r#"{"id":"GHSA-v4","summary":"Something bad.",
+                "severity":[{"type":"CVSS_V4","score":"CVSS:4.0/AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:H/VA:H/SC:N/SI:N/SA:N"}],
+                "affected":[{"package":{"ecosystem":"npm","name":"lodash"},
+                "ranges":[{"type":"ECOSYSTEM","events":[{"introduced":"0"},{"fixed":"4.17.20"}]}]}]}"#,
+        );
+        let result = audit(&sbom_of(vec![component("lodash", "4.17.15", "npm")]), &[v4]);
+        assert_eq!(result.findings[0].severity, Severity::Critical);
+        assert!(
+            result.findings[0].description.contains("9.3 out of 10"),
+            "{}",
             result.findings[0].description
         );
     }

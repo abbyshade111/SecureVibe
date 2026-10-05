@@ -667,6 +667,9 @@ another session is not a claim.
     **Improvement 4 claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to keep working
     off the backlog, in branch `claude/securevibe-e9-cvss4`: CVSS v4 vectors scored with FIRST's reference tables,
     and advisory files that fail to parse counted and said. Record: ADR-033 (proposed).
+    **Done the same day** (DESIGN, "CVSS v4 scores, and advisory files that could not be read"; ADR-033, accepted):
+    v4 scored with FIRST's tables and held to its calculator over every vector there is; a file that could not be
+    read is named, and the comparison is not credited as whole.
     **Those three done the same day** (DESIGN, "A manifest version `sv` knows, a date with nothing after it, and
     every collapsed list closed").
   - **Found sound, for the record.** `report.html` escaping; the framework data; unanswered questions never "does

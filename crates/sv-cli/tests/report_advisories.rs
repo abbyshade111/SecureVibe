@@ -207,3 +207,38 @@ fn a_database_about_another_ecosystem_is_a_gap_and_not_a_clean_result() {
     assert!(gap.contains("npm"), "{gap}");
     assert_eq!(status(&r, "V15.2.1"), "not-verified");
 }
+
+#[test]
+fn an_advisory_file_that_cannot_be_read_is_named_and_nothing_is_credited_on_the_comparison() {
+    // The deep review's improvement 4: a record `sv` could not parse was skipped and said nothing, so a
+    // database with a broken file compared as if it were whole.
+    let dir = app("unreadable");
+    // About another package: nothing matches, so the comparison is clean.
+    advisory(&dir, "GHSA-other", "npm", "qs", "2020-01-01T00:00:00Z");
+    let clean = report(&dir, true);
+    let credited = status(&clean, "V15.2.1");
+    std::fs::write(
+        dir.join("osv").join("GHSA-broken.json"),
+        "{\"id\": \"GHSA-broken\", ",
+    )
+    .unwrap();
+    let broken = report(&dir, true);
+    std::fs::remove_dir_all(&dir).ok();
+
+    // The control: whole, the clean comparison credits the requirement.
+    assert_eq!(
+        credited, "checked",
+        "the clean comparison credits nothing, so this proves nothing"
+    );
+    assert_ne!(status(&broken, "V15.2.1"), "checked");
+    let gap = broken["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["what"] == "advisory files that could not be read")
+        .unwrap_or_else(|| panic!("no gap names the file: {}", broken["gaps"]));
+    assert!(
+        gap["why"].as_str().unwrap().contains("`GHSA-broken.json`"),
+        "{gap}"
+    );
+}
