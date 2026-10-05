@@ -5834,7 +5834,8 @@ an argument, and the number written into the code is often a copy from an old tu
 `ast.weak-password-key-derivation` reports PBKDF2 whose count is a number written into the code below 210,000. That is
 OWASP's lowest recommended figure for any PBKDF2 hash (210,000 for SHA-512; SHA-256 needs 600,000 and SHA-1 1,300,000),
 so a count below it is too low whichever hash is used, and the rule does not need to know which one it is. A count
-between 210,000 and 600,000 used with SHA-256 is too low too, and is not reported; the rule's description says so.
+between 210,000 and 600,000 used with SHA-256 is too low too, and is not reported; the rule's description says so. (It is
+reported where the call names SHA-256 since 5 October 2026; see below.)
 The number may carry digit separators (`100_000`) or an integer suffix. A count read from a setting or a variable is
 not judged. It is only ever a finding: finding none says nothing about keys made elsewhere.
 
@@ -5879,6 +5880,42 @@ number. A three-argument call with a count from a variable is still not judged.
 Six guards broken in turn, each caught: either new pattern removed, the hash not required first, the number or name
 not required last, the two arguments not required to be the only ones, and `)` not accepted. The case with the hash in
 a variable was added when breaking the hash-first guard turned nothing red.
+
+**Added on 5 October 2026: the figure tied to the hash the call names.** OWASP's figures are 600,000 rounds for
+PBKDF2 with SHA-256 and 210,000 with SHA-512, so a single figure of 210,000 missed SHA-256 counts between the two.
+The rule now reads the hash where the call states it, and holds a count below 600,000 against SHA-256. With SHA-512,
+and wherever the hash is not named or cannot be read, the figure stays 210,000, as before: a hash passed in a
+variable, a default the code does not spell out, or a hash set in another call. The rule does not guess the hash from
+a default, even a well-known one such as `openssl enc`'s SHA-256, and its description and what it says it looks for
+now say all of this.
+
+Rules gained one field for it, `argumentPatternsByHash` (`crates/sv-check/src/ast.rs`): per language, a pattern over
+a new `@hash` capture and the count pattern to use when it matches, in place of `argumentPatterns`. Where a query
+captures more than one node as `@hash`, their texts are joined in order, which is how a shell line's `-md sha256` is
+read as one. The hash is read in thirteen languages: Python's first argument or `algorithm=`, Node's fifth argument
+and WebCrypto's `hash:` (also as `{ name: ... }`), Go's last argument for x/crypto and first for the standard
+library, PHP's first argument for `hash_pbkdf2` and fifth for `openssl_pbkdf2`, Ruby's fifth argument or `hash:`
+(a string, `Digest::SHA256`, or `Digest.new("SHA256")`), C#'s `HashAlgorithmName.SHA256` after the count, OpenSSL's
+`EVP_sha256()` in C and C++, the Rust crate's type argument (`Sha256` or `Hmac<Sha256>`), Dart's
+`macAlgorithm: Hmac.sha256()`, Swift's `kCCPRFHmacAlgSHA256`, and `openssl enc ... -md sha256`. Java's and Kotlin's
+`PBEKeySpec` and pointycastle's `Pbkdf2Parameters` never name the hash (it is set in `SecretKeyFactory` or the
+`KeyDerivator`), so there a count between the two figures is still not judged. A keyword, key, or option that holds
+the text `sha256` is read as the hash only when it is the one that sets it: `label='sha256'` in Python,
+`name: 'sha256'` in WebCrypto's parameters, and `-md sha256` given to `openssl pkcs12`, where it sets the digest of the
+file's integrity check rather than the key's, are not.
+
+The test table gained a case for every language: 300,000 with SHA-256 reported in each language that names the hash,
+600,000 with SHA-256 and 300,000 with SHA-512 not, and 300,000 with a hash the rule cannot read not, in all fifteen. A
+further test holds that the new field is refused for a language the rule has no query in, and when its pattern cannot
+be compiled. Broken on purpose eight ways, each caught: the figure for a named hash ignored (every case at 300,000
+with SHA-256 missed, in all thirteen languages); any text taken for SHA-256 (every SHA-512 and unreadable-hash case
+reported, in all thirteen); 600,000 read as below the SHA-256 figure (the 600,000 cases reported, in every language
+that names a hash); any Python keyword taken for `algorithm=`; any key taken for WebCrypto's `hash:`; any `openssl`
+command taken for `enc`; only the first of the shell line's `@hash` nodes read; and the load check for a language with
+no query removed.
+
+**Not done here.** SHA-1, which needs 1,300,000 rounds, is still judged at 210,000; the field can carry it, with
+cases for each language's spelling of it.
 
 ## Static files served from the app's own folder (30 September 2026)
 
@@ -7126,6 +7163,28 @@ code: the health wait comes before the signed-in stage, and that stage runs the 
 catches the call moved, not a run that behaves otherwise; removing the sentence, and putting the stage's call ahead of
 the health wait, each turned it red.
 
+
+## The loop, a pilot (5 October 2026)
+
+Items 2 and 4 of "The loop", to `docs/prompts/loop-protocol.md`, loop arm only (`docs/prompts/loop-pilot/README.md`
+has the table and files). A headless Claude Code (2.1.286), given the plain brief and nothing about `sv`, with
+`sv mcp` attached for the one run, in a fresh folder under the home folder; two builds with Sonnet 5.5 and four with
+Haiku 4.5, each then checked with `sv report --run`. $1.86 of the owner's API credit in all.
+
+**Results.** Every build used `sv` before writing code, unasked: the specification, then guidance, `before`, or the
+plan. The first two Haiku builds did what the server says, settling the design with the owner, and stopped to ask; a
+headless build has no owner, so the request gained one sentence saying the owner is away (amendment 1), and the
+two built with it recorded their decisions with `securevibe_record_answer` instead. All four builds that wrote an app
+started and could be signed in to: 34 and 38 checks answered for Sonnet, 21 and 27 for Haiku. Three builds ran
+`sv check`, once each, at the end; the check, fix, and check again that the loop is for was not seen.
+
+**What it found in `sv`.** The plan is too big for the tool to pass on whole (115,618 characters); a manifest error
+names the field and not the section, and one build sent the same mistake five times; and `sv check` is silent on a
+committable `.env` until the folder is a git repository. Each is in the backlog.
+
+**How the key was kept.** The program had no sign-in from a terminal, and the owner chose API credit (amendment 2).
+The key reaches only the Claude program, through an `apiKeyHelper`, never the environment of the builder's shell, the
+app, or `sv`, and no transcript holds it.
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
@@ -9556,3 +9615,133 @@ line and on a line above, against every unmasked hash in either form) and, end t
 both reports, and the whole MCP reply, with a planted unsafe hash found first by the same check). Breaking the guards:
 reading lines unmasked turned six tests red; giving the earlier form over the line as written, four; dropping R4's
 note about older reviews, giving it for lines with no credential, or repeating the old hash in it, one each.
+
+## A clean result names the calls it read and the lockfiles it compared (5 October 2026)
+
+The deep review's improvement 2: a clean claim should name its limits, so "nothing found" is not read as wider than
+it is. The SQL rule's part was done with H1 ("The query calls each language really uses"); this does the rest.
+
+- **The code rules name the calls they read, language by language.** Each rule finds a fault only in the calls its
+  pattern names for a language (`functionPatterns`): Python's shell rule reads `system`, `popen`, `getoutput`, and
+  `getstatusoutput`, not `subprocess.run`. A clean result now says so, beside the files read: "in 1 python file (the
+  calls it reads: `system`, `popen`, `getoutput`, and `getstatusoutput`)". The names are taken from the pattern
+  itself, so they cannot drift from what is read. A pattern that also stands for something that is not a plain
+  name, such as a shell named in quotes in Go or a family of names in C, lists its plain names and says "and others
+  like them"; one with no plain names lists none. A language the rule already describes in words of its own
+  (`looksForIn`: shell's commands, Node's file calls, the redirect calls) keeps those words.
+- **The comparison with advisories names what it compared, and what no lockfile lists.** Its clean claim said "all
+  68 packages in the bill of materials, compared against 2856 advisories". It now names how many packages of each
+  ecosystem, and the lockfiles they were read from; says that is everything each lockfile lists, the packages those
+  need in turn and the development packages a lockfile keeps included; and says what is not in it: anything
+  installed another way, such as the system's own packages, a container image's, or a script loaded from another
+  site. The inventory's own claim (V15.1.2) names the same. The claim is made only when every package came from a
+  lockfile (`Sbom::is_complete`), so a lockfile is always there to name; a hash-pinned requirements file read as one
+  is named as well.
+
+How it is held: `a_clean_result_names_the_calls_it_read_in_each_language` and the two clean-result tests updated
+with the calls (`crates/sv-check/tests/clean_coverage.rs`);
+`a_pattern_of_names_is_read_as_its_names_and_anything_else_as_more` (`ast.rs`);
+`a_clean_comparison_names_its_ecosystems_its_lockfiles_and_what_is_not_in_it` (`advisories.rs`), over a real folder
+with an npm and a Pipenv lockfile, each with a development package; and
+`a_requirements_file_under_another_name_that_pins_and_hashes_is_read` (`sbom.rs`). Ten guards were undone in turn.
+Eight were caught; two carried no weight and were taken out: reading a pattern's outer parentheses only when they
+pair, which no pattern's result depends on, and sorting the lockfiles, which are already read in a fixed order.
+
+## The guide says how to install `sv` for `--run` (5 October 2026)
+
+In the container, the MCP server's command for `sv report --run` tells the AI tool that `sv` must be installed on the
+computer itself and that `docs/GETTING-STARTED.md` says how (`terminal_command`, `crates/sv-cli/src/mcp.rs`). The
+guide said the opposite: that install "is not yet something this guide can make easy". In family-hub on 3 October
+2026 the AI tool found the steps in the README instead, and they worked only because Rust was already on the Mac.
+The claim chose to make the message true rather than change it: the guide now holds the steps, at the end of its
+section 6, for somebody who is not a programmer.
+
+- **What the steps are**, each run on a Mac from a fresh clone of `main` (aa4d371): Apple's command-line tools
+  (`xcode-select --install`, for `git` and the linker Rust needs; `build-essential` on Linux), Rust through the
+  official rustup installer, the source by `git clone` into `~/securevibe` (or the ZIP from GitHub, which builds as
+  well but reports `commit unknown`, since `build.rs` reads the commit through git), `cargo build --release -p
+  sv-cli`, a `PATH` line appended to `~/.zshrc` (Mac) or `~/.bashrc` (Linux), tried in a fresh shell of each kind,
+  and `sv --version`.
+- **`sv --version` alone is not the check.** It printed its version with the source folder moved away, while `sv
+  check` on the same copy stopped with `Error: reading …/data/secret-rules.json`. So the guide checks a bundled
+  example too (`sv check ~/securevibe/examples/flask-booking`), which reads the data.
+- **The folder stays where it was built.** A built `sv` still reads its data through `CARGO_MANIFEST_DIR` (item 2 of
+  "the owner's first build", still open), so the guide says not to move, rename, or delete the folder, not to copy
+  the program out on its own, and to keep it out of the Desktop, Downloads, and the app's folder, where the my-first-app
+  build lost it.
+- **Docker or Colima must be running**, and with Colima the app has to sit under the home folder. Tried: an app under
+  `/private/tmp` was refused with `sv`'s own explanation; the same app under the home folder started, and `sv report --run`
+  finished in under a minute without saying it could not.
+- **Windows** is said to be untried, because nothing in CI or by hand has built `sv` there. The Linux steps are
+  reasoned from CI's Ubuntu build, not tried by hand.
+
+How it is held: `the_guide_the_container_points_at_says_how_to_install_sv` reads the guide the message names and
+asks for the steps in it, and for the old sentence to be gone. Putting back the old guide failed it, and so did
+putting back only the old sentence; one test, as it is the one place that holds the pointer.
+
+## Semgrep follow-ups 2 and 4: secrets in test code, and a stored hash is not a credential (5 October 2026)
+
+Two of the follow-ups from the Semgrep false-alarm measurement of 4 October (`docs/SEMGREP-FALSE-ALARMS.md`; BACKLOG,
+"could C's false alarms be brought down").
+
+**2. The secret rules' findings in test code are listed apart with the rest.** Nothing needed changing: nothing ever
+kept them out. `Finding::in_test_code` decides from the path (`is_test_path`) or a mark (Rust test code, a folder the
+manifest says is not the app) for every finding alike, `sv`'s own secret rules and every tool's included, and the
+reports list test code apart from it. Read against the measurement's own file, `docs/semgrep-false-alarms.csv`, all
+92 secret-rule findings the reader put in test code are test code to `sv`, as are 111 of all 112; the one missed is
+`run_tests.py`, the script that runs an example's tests, which no test runner's naming convention covers. No true or
+unsure finding in the corpus is moved apart. Being listed apart is not being hidden: such a finding still counts
+against the requirements it names, and the note beside it says test code can hold a real key.
+
+**4. A stored password hash under a name that says so is not reported as a credential.** `secrets::is_stored_hash`
+takes, exactly:
+
+- a bcrypt hash (`$2`, an optional `a`, `b`, `x`, or `y`, `$`, two digits, `$`, and 53 characters of bcrypt's
+  alphabet) under a name that says password, hash, or digest (`password`, `passwd`, `pwd`, `hash`, `digest`); or
+- a hex digest of 32, 40, 56, 64, 96, or 128 digits (MD5, SHA-1, and the SHA-2 family) under a name that says hash
+  or digest.
+
+A name that also says key, secret, token, salt, pepper, seed, or HMAC is never taken in, whatever its value: a key
+for hashing is a key. A hex value under a name that says only password is still reported: a password made of hex
+digits is a password, and the measurement's blanket hex filter (its C) hid a real 64-digit token secret. Other hash
+formats (Argon2, PBKDF2, `crypt`) are not taken in. Where it applies:
+
+- **`sv`'s assignment rule** (`secrets.credential-assignment`) passes over such a value, as it passes over a
+  placeholder, a reference, or a value SOPS keeps encrypted.
+- **Other tools' secret rules**: Semgrep's (`generic.secrets.*`, Opengrep's too), Bandit's B105, B106, and B107, and
+  gosec's G101 (`adapters::without_stored_hashes`). Their findings name a line, not a value, so the line is read
+  again from `sv`'s listing, and the finding is dropped only when the line holds such a hash and nothing else that
+  could be a credential: with the hash taken out, `sv`'s own secret rules find nothing in it and it holds no run of
+  16 or more letters and digits mixed. A line that cannot be read again keeps its finding, as does every other rule's.
+  Bandit and gosec are included because they fire on the same line for the same reason; Semgrep's rules alone would
+  have left Bandit's B105 reporting the hash on its own.
+
+A run whose only finding was dropped this way counts as a run that found nothing, so its rules' requirements are
+credited, as `sv`'s own secret scan's are when all it saw was a placeholder. That follows from the premise: the line
+holds no credential.
+
+**What it costs and spares in the measured corpus.** The measurement's narrow filter (C2: a digest or bcrypt hash under
+a password, hash, or digest name) removed 7 false alarms and no true finding. The rule built here is narrower still, as
+this follow-up was briefed: on the corpus's secret-rule lines outside test code, rebuilt by shape with values made at
+run time, it spares NodeGoat's three commented-out bcrypt hashes and nothing else; pygoat's seven MD5 and SHA-256
+digests, under a field named `password`, are still reported, which is what never sparing a hex password costs. Every
+true finding (dvcsharp's token secret, NodeGoat's ZAP key, pygoat's pasted session token) and the unsure one
+(juice-shop's expected password) are kept. The apps were not kept by the measurement; their lines were read again at the
+commits it names, and no value from them is in this repository.
+
+How it is held: `a_stored_password_hash_is_not_a_credential_and_a_hexy_password_still_is`,
+`a_line_with_a_stored_hash_and_nothing_else_is_all_another_tool_s_secret_rule_is_spared`, and
+`the_measured_corpus_s_secret_rule_lines_keep_every_true_finding` (`crates/sv-check/src/secrets.rs`);
+`a_tool_s_secret_rules_spare_a_stored_hash_and_keep_a_hexy_password_and_test_code` through a tool's run
+(`crates/sv-check/src/adapters.rs`); `the_secret_rules_findings_in_test_code_are_listed_apart_with_the_rest` over the
+measurement's file (`crates/sv-check/tests/false_alarm_corpus.rs`); and
+`a_password_in_a_test_file_is_reported_apart_and_a_stored_hash_not_at_all` through `sv report`
+(`crates/sv-cli/tests/test_code_apart.rs`). With the real Semgrep and Bandit (`sv report --tools`), Semgrep's
+`detected-bcrypt-hash` fired on a stored hash and Bandit's B105 on the same line, and neither is in the report.
+
+Eight guards were broken in turn. Caught: the assignment rule not passing over a hash (two tests), a hex value under
+a password name taken in (five), the key-word exclusion removed (two), tools' findings not dropped (one, the only
+place that wiring is), the rest of the line not judged (two), secret rules' findings in test files not marked as test
+code (two), and files named `.spec.` not test code (the corpus test). Not caught by these: dropping the `test` folder
+from what is test code, because every corpus file in `test/` is also named like a test; `finding.rs`'s own tests hold
+that.
