@@ -6901,6 +6901,38 @@ another session is not a claim.
   when the code is compiled count as fixed text wherever a rule asks whether an argument is, and `concat!` when what
   it joins is; the static-file rule then takes `ServeDir::new(env!("CARGO_MANIFEST_DIR"))` back.
 
+- **Research: could the Kaspa blockchain (kaspa.org) let a seal be checked beyond one person on one computer?**
+  Asked by the owner on 6 October 2026. Today `sv review` seals what a person records with an HMAC key kept in
+  `~/.config/securevibe/review-key` (ADR-026), and only a computer holding that same key can check a seal. On CI,
+  another computer, or a teammate's, a sealed answer is not counted as the owner's, and the report says it could not be
+  checked there (the owner's decision on item 8 of the review of 1 to 4 October). Several people, or one person on two
+  computers, cannot share a record that each can check. The research is whether, and how, Kaspa could fix that, and
+  what it would cost against the alternatives. Nothing is built from it without the owner's decision.
+  **Open to input from several sessions at once, at the owner's word** ("I'm good with multiple sessions providing
+  input on this one"). This item is the exception to claiming first: each session adds its findings as a dated note
+  below, signed with its session name, and reads the notes already there so as not to repeat them. Building anything
+  still needs a claim and the owner's decision.
+  Questions to answer, each with its source (Kaspa's own documentation at kaspa.org and its GitHub repositories, read
+  and cited rather than remembered):
+  1. **What Kaspa offers that bears on this.** How Kaspa records data in a transaction (a payload, or only payments),
+     how long a record stays retrievable (whether nodes prune old data, and what an archival node keeps), how quickly
+     a record settles, and what a record costs in fees and in KAS that has to be bought and held.
+  2. **What a blockchain would and would not fix.** The per-computer limit comes from the seal being a shared secret
+     (HMAC): checking one needs the key that made it. A chain could publish a key, or a seal's hash and time, where
+     anyone can read them. It cannot show that a person, rather than an AI coding tool with the same access, made a
+     seal, which is what ADR-026 rests on (a terminal the tool does not have). Say which of these a chain helps with.
+  3. **The alternatives without a chain**, compared on the same questions: a public-key signature (Ed25519, say) with
+     each person's public key committed in the app's repository, so any computer can check a seal and only the person
+     can make one; SSH or GPG signing keys people already have; Sigstore's keyless signing and its public transparency
+     log. If one of these fixes the limit without a network connection, a dependency on a chain, or money, say so
+     plainly.
+  4. **What it would cost `sv`'s rules.** `sv` opens no network connection of its own apart from `sv probe`
+     (CLAUDE.md, ADR-027): checking a seal against a chain would be a second exception, or the check would read data
+     the person downloads, as advisory data is now. Holding KAS spends the owner's money. A new crate is a dependency.
+     Each is a decision for the owner, and the research says which ones any design would need.
+  5. **A recommendation**, with what it rests on, for the owner to decide: Kaspa, another approach, or keeping the
+     record per computer.
+
 ## Decided, not yet written down as ADRs
 
 **All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
