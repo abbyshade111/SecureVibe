@@ -7090,6 +7090,11 @@ another session is not a claim.
   list (`~/.config/securevibe/allowed_signers`, or `SV_TRUSTED_SEALS` on CI) says which key may seal for which app; the
   report names the key it trusted and where the list came from; today's `v2:` seals keep counting where they count
   now, and `sv review` asks one yes to sign them again. One new dependency, `ssh-key`. Report seals are unchanged.
+  **Done the same day** (DESIGN, "Seals become signatures"; ADR-043 accepted, with where the build differs: the
+  signature in hex, the passphrase asked once per run, no `review-key` made any more, and a list `sv` cannot read in
+  full trusting nothing). `ssh-keygen -Y verify` checks a seal against the same list in a test. Fourteen guards broken
+  in turn, each caught by two tests or more. Not tried on a real CI run with a repository variable, and the hidden
+  passphrase is not tested, since that needs a person's terminal.
 
 ## Decided, not yet written down as ADRs
 
