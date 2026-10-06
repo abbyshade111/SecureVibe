@@ -1362,7 +1362,11 @@ mod tests {
                 "https://app.example.test:8443/x",
                 "http://app.example.test/",
             ),
-            ("https://[2001:db8::1]:8443/", "http://[2001:db8::1]/"),
+            // A public address: `2001:db8::/32` is kept for documentation, and refused.
+            (
+                "https://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:8443/",
+                "http://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]/",
+            ),
         ] {
             assert_eq!(read_target(typed).unwrap().http, http, "{typed}");
         }
