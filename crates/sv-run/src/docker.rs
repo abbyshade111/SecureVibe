@@ -534,10 +534,12 @@ impl DockerBackend {
             if let Some(unseen) = crate::unseen_folder(&plan.app_dir, inside.as_deref()) {
                 return Err(unseen);
             }
+            let (detail, crashed) = never_ready_detail(&logs, plan.build.as_deref());
             return Err(CannotRun::NeverReady {
                 waited_seconds: READY_TIMEOUT_SECONDS,
-                detail: never_ready_detail(&logs, plan.build.as_deref()),
+                detail,
                 loopback: crate::loopback_named_in(&plan.start),
+                crashed,
             });
         }
 
@@ -962,16 +964,90 @@ impl sv_check::signed_in::Http for DockerHttp<'_> {
 /// and nothing outside `/tmp` written, so one that installs packages fails whatever it prints:
 /// `pip install` says its package folder "is not writeable", and before the app ran read-only it
 /// said the network was unreachable. Neither line names the cause, so this does.
-fn never_ready_detail(logs: &str, build: Option<&str>) -> String {
-    let last = format!("Its last output was: {}", first_line(logs));
-    match build {
+fn never_ready_detail(logs: &str, build: Option<&str>) -> (String, bool) {
+    // An app that crashed says what went wrong in its error line, which a Python traceback writes
+    // last; one that is still running, or waiting, says the most in its last line (the review of
+    // the loop's item 6, 6 October 2026: three crashes were quoted as "Traceback (most recent call
+    // last):").
+    let crash = crash_line(logs);
+    let last = match &crash {
+        Some(line) => format!("It stopped with an error: {line}"),
+        None => format!("Its last output was: {}", last_line(logs)),
+    };
+    let crashed = crash.is_some();
+    let detail = match build {
         Some(step) => format!(
             "{last} Its build step (`{step}`) ran inside the fence, where nothing can be \
              downloaded and the file system is read-only apart from /tmp, so a step that installs \
              packages cannot work there: install them into the image instead."
         ),
         None => last,
+    };
+    (detail, crashed)
+}
+
+/// The line that says why the app stopped, when its output shows it crashed: the last line that
+/// names an error (`KeyError: 'PORT'`, `Error: Cannot find module 'express'`, `panic: …`,
+/// `thread 'main' panicked at …`, Ruby's `… (NameError)`), read from the end past stack frames and
+/// what a runtime prints after them. `None` when nothing in the output reads as a crash.
+fn crash_line(logs: &str) -> Option<String> {
+    logs.lines()
+        .map(str::trim)
+        .rev()
+        .filter(|l| !l.is_empty())
+        .find(|l| names_an_error(l))
+        .map(str::to_owned)
+}
+
+/// Whether a line of output names an error: it starts with an error's name (`KeyError:`,
+/// `sqlite3.OperationalError:`, `Error:`, `TypeError [ERR_…]:`), or with Go's or Rust's panic, or ends
+/// with one in brackets, as Ruby writes it. An error's name ends in `Error`, `Exception`, or `Exit`, and
+/// its last part is capitalized, so `server.onExit:` is not one. Read by hand rather than with a pattern library, which
+/// `sv-run` does not otherwise need.
+fn names_an_error(line: &str) -> bool {
+    let is_error_name = |name: &str| {
+        ["Error", "Exception", "Exit"]
+            .iter()
+            .any(|end| name.ends_with(end))
+            && name
+                .rsplit(['.', ':'])
+                .next()
+                .and_then(|last| last.chars().next())
+                .is_some_and(|c| c.is_ascii_uppercase())
+    };
+    let first: String = line
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '$'))
+        .collect();
+    let after = line[first.len()..].chars().next();
+    if is_error_name(&first) && matches!(after, None | Some(':' | ' ' | '[')) {
+        return true;
     }
+    if line.starts_with("panic:")
+        || (line.starts_with("thread '") && line.contains("' panicked"))
+        || line.starts_with("Uncaught ")
+        || line.to_ascii_lowercase().starts_with("fatal error")
+    {
+        return true;
+    }
+    line.strip_suffix(')')
+        .and_then(|l| l.rsplit_once('('))
+        .is_some_and(|(_, inner)| {
+            inner
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == ':' || c == '_')
+                && is_error_name(inner.rsplit("::").next().unwrap_or(inner))
+        })
+}
+
+/// The last line of the app's output that says anything.
+fn last_line(text: &str) -> String {
+    text.lines()
+        .map(str::trim)
+        .rev()
+        .find(|l| !l.is_empty())
+        .unwrap_or("no detail")
+        .to_owned()
 }
 
 /// `args`, a `docker run` or `docker create`, with the limits every container is started under
@@ -2689,9 +2765,61 @@ mod probe_tests {
     const HARDENING: [&str; 4] = ["--read-only", "--cap-drop", "ALL", "no-new-privileges"];
 
     #[test]
+    fn a_crash_at_start_is_quoted_by_its_error_line() {
+        // The loop's item 6, 6 October 2026: three Haiku apps crashed, and each was quoted as
+        // "Traceback (most recent call last):", the first line, where Python says what went wrong
+        // on its last.
+        for (logs, line) in [
+            (
+                "Traceback (most recent call last):\n  File \"/app/app.py\", line 3, in <module>\n    port = os.environ['PORT_NUMBER']\n  File \"<frozen os>\", line 714, in __getitem__\nKeyError: 'PORT_NUMBER'\n",
+                "KeyError: 'PORT_NUMBER'",
+            ),
+            (
+                "node:internal/modules/cjs/loader:1148\n  throw err;\n  ^\n\nError: Cannot find module 'express'\nRequire stack:\n- /app/server.js\n    at Module._resolveFilename (node:internal/modules/cjs/loader:1145:15)\n\nNode.js v20.11.0\n",
+                "Error: Cannot find module 'express'",
+            ),
+            (
+                "starting\npanic: listen tcp :abc: invalid port\n\ngoroutine 1 [running]:\nmain.main()\n",
+                "panic: listen tcp :abc: invalid port",
+            ),
+            (
+                "/app/app.rb:3:in `<main>': undefined local variable or method `sinatra' for main:Object (NameError)\n",
+                "/app/app.rb:3:in `<main>': undefined local variable or method `sinatra' for main:Object (NameError)",
+            ),
+            (
+                "sqlite3.OperationalError: unable to open database file\n",
+                "sqlite3.OperationalError: unable to open database file",
+            ),
+        ] {
+            let (detail, crashed) = never_ready_detail(logs, None);
+            assert!(crashed, "{logs}");
+            assert_eq!(detail, format!("It stopped with an error: {line}"));
+        }
+        // An error's name is capitalized: a handler or a variable that happens to end in one is not.
+        for logs in [
+            "listening on 8080\nserver.onExit: handler registered\n",
+            "listening on 8080\nwaiting for a signal (onExit)\n",
+        ] {
+            let (detail, crashed) = never_ready_detail(logs, None);
+            assert!(!crashed, "{detail}");
+        }
+        // The control: an app still running, or waiting, is quoted by its last line, and is not
+        // said to have crashed.
+        let (detail, crashed) = never_ready_detail(
+            " * Serving Flask app 'app'\n * Debug mode: off\nWARNING: This is a development server.\n * Running on http://127.0.0.1:5000\n",
+            None,
+        );
+        assert!(!crashed);
+        assert_eq!(
+            detail,
+            "Its last output was: * Running on http://127.0.0.1:5000"
+        );
+    }
+
+    #[test]
     fn an_app_with_a_build_step_is_told_why_the_step_cannot_install_here() {
         let pip = "Defaulting to user installation because normal site-packages is not writeable";
-        let with = never_ready_detail(pip, Some("pip install -r requirements.txt"));
+        let (with, _) = never_ready_detail(pip, Some("pip install -r requirements.txt"));
         assert!(
             with.starts_with(&format!("Its last output was: {pip}")),
             "{with}"
@@ -2702,8 +2830,8 @@ mod probe_tests {
             "{with}"
         );
         // No build step, no sentence about one.
-        let without = never_ready_detail("Traceback: KeyError: 'PORT'", None);
-        assert_eq!(without, "Its last output was: Traceback: KeyError: 'PORT'");
+        let (without, _) = never_ready_detail("Listening on 8080", None);
+        assert_eq!(without, "Its last output was: Listening on 8080");
     }
 
     #[test]

@@ -2019,6 +2019,9 @@ another session is not a claim.
   give the loopback hint only when nothing crashed.
   **Claimed on 6 October 2026 by session securevibe-e9**, with the preflight's start file below, at the owner's word
   ("Please continue to work off the backlog"), in branch `claude/securevibe-e9-start-failures`.
+  **Done the same day** (DESIGN, "An app that crashes at start, and a start command whose file is not there"): a
+  crash is quoted by its error line, and is told the error is why in place of the loopback guess; an app that did
+  not crash is quoted by its last line.
 
 - **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
   paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
@@ -2026,6 +2029,8 @@ another session is not a claim.
   be named the same way (ADR-035).
   **Claimed on 6 October 2026 by session securevibe-e9**, with the crash's last line above, in branch
   `claude/securevibe-e9-start-failures`.
+  **Done the same day** (same DESIGN section): the preflight names the start command's missing file, and adds that a
+  build step may make it.
 
 - **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
   two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
@@ -6894,7 +6899,10 @@ another session is not a claim.
   securevibe-e2, writing witnesses for the static-file rule: `ServeDir::new(env!("CARGO_MANIFEST_DIR"))` is reported
   as a file path built from a value, though `env!` is read when the code is compiled and no visitor can change it.
   The same is likely for `concat!` and `include_str!`. A fix teaches the rule that these macros give fixed text, with a
-  witness each way. Not claimed.
+  witness each way. **Claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("feel free to pick
+  the next backlog item you want"), in branch `claude/securevibe-e2-rust-fixed-macros`: Rust's macros that are read
+  when the code is compiled count as fixed text wherever a rule asks whether an argument is, and `concat!` when what
+  it joins is; the static-file rule then takes `ServeDir::new(env!("CARGO_MANIFEST_DIR"))` back.
 
 ## Decided, not yet written down as ADRs
 
