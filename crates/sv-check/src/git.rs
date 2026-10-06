@@ -25,15 +25,21 @@ fn git(app_dir: &Path) -> Command {
 }
 
 /// The files git tracks under `app_dir`, named from it: `None` when git could not say.
+///
+/// Each name ends in a zero byte (`-z`), and is given as it is. Without `-z`, git puts a name holding
+/// an accented letter, a quote, or a backslash in quotes with escapes (`"donn\303\251es/.env"`), so
+/// the name read was not the file's, and a committed secrets file in such a folder was not seen (the
+/// review of 6 October, item 11).
 pub fn ls_files(app_dir: &Path) -> Option<Vec<String>> {
-    let out = git(app_dir).arg("ls-files").output().ok()?;
+    let out = git(app_dir).args(["ls-files", "-z"]).output().ok()?;
     if !out.status.success() {
         return None;
     }
     Some(
-        String::from_utf8_lossy(&out.stdout)
-            .lines()
-            .map(str::to_owned)
+        out.stdout
+            .split(|b| *b == 0)
+            .filter(|name| !name.is_empty())
+            .map(|name| String::from_utf8_lossy(name).into_owned())
             .collect(),
     )
 }
@@ -104,5 +110,34 @@ mod tests {
             "git ran the program the app's repository named"
         );
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_name_git_would_quote_is_given_as_it_is() {
+        let (dir, _) = planted("quoted");
+        let names = [
+            "données/secrets.json",
+            "a \"quoted\" name.txt",
+            "back\\slash.txt",
+        ];
+        for name in names {
+            let path = dir.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, "x\n").unwrap();
+        }
+        let added = Command::new("git")
+            .args(OVERRIDES)
+            .arg("-C")
+            .arg(&dir)
+            .args(["add", "."])
+            .output()
+            .is_ok_and(|o| o.status.success());
+        assert!(added, "git add failed in the test's setup");
+        let listed = ls_files(&dir).expect("git answers");
+        std::fs::remove_dir_all(&dir).ok();
+        for name in names {
+            assert!(listed.iter().any(|l| l == name), "{name} not in {listed:?}");
+        }
+        assert!(listed.iter().any(|l| l == "app.py"), "{listed:?}");
     }
 }
