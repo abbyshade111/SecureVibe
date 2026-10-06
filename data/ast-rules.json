@@ -723,15 +723,15 @@
         "swift": "^to\\s*:"
       },
       "safeArgumentPatterns": {
-        "python": "^(url_for|reverse|reverse_lazy|request\\.url_for)\\(|^[fFrRuUbB]{0,2}[\"']/[A-Za-z0-9_.~%-]",
-        "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$|^[\"']/[A-Za-z0-9_.~%-]",
-        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(|^@?\\$?\"/[A-Za-z0-9_.~%-]",
+        "python": "^(url_for|reverse|reverse_lazy|request\\.url_for)\\(|^[fFrRuUbB]{0,2}[\"']/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})",
+        "ruby": "^(\\w+_(path|url)(\\(.*\\))?|@\\w+|:back)$|^[\"']/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})",
+        "csharp": "^Url\\.(Action|RouteUrl|Content|Page)\\(|^@?\\$?\"/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})",
         "dart": "^Uri\\.parse\\(\\s*('[^'$]*'|\"[^\"$]*\")\\s*\\)$",
-        "javascript": "^[\"'`]/[A-Za-z0-9_.~%-]|^new URL\\(\\s*(\"/([A-Za-z0-9_.~%-][^\"]*)?\"|'/([A-Za-z0-9_.~%-][^']*)?'|`/([A-Za-z0-9_.~%-][^`$]*)?`)\\s*,\\s*(req|request)\\.(url|nextUrl(\\.origin)?)\\s*\\)$",
-        "typescript": "^[\"'`]/[A-Za-z0-9_.~%-]|^new URL\\(\\s*(\"/([A-Za-z0-9_.~%-][^\"]*)?\"|'/([A-Za-z0-9_.~%-][^']*)?'|`/([A-Za-z0-9_.~%-][^`$]*)?`)\\s*,\\s*(req|request)\\.(url|nextUrl(\\.origin)?)\\s*\\)$",
-        "go": "^[\"`]/[A-Za-z0-9_.~%-]",
-        "java": "^\"/[A-Za-z0-9_.~%-]",
-        "kotlin": "^\"/[A-Za-z0-9_.~%-]"
+        "javascript": "^[\"'`]/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})|^new URL\\(\\s*(\"/(([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})[^\"]*)?\"|'/(([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})[^']*)?'|`/(([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})[^`$]*)?`)\\s*,\\s*(req|request)\\.(url|nextUrl(\\.origin)?)\\s*\\)$",
+        "typescript": "^[\"'`]/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})|^new URL\\(\\s*(\"/(([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})[^\"]*)?\"|'/(([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})[^']*)?'|`/(([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})[^`$]*)?`)\\s*,\\s*(req|request)\\.(url|nextUrl(\\.origin)?)\\s*\\)$",
+        "go": "^[\"`]/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})",
+        "java": "^\"/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})",
+        "kotlin": "^\"/([A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})"
       },
       "looksFor": "a redirect to a destination built from a value",
       "looksForIn": {
