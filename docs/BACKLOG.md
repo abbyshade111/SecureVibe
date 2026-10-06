@@ -5951,6 +5951,13 @@ another session is not a claim.
   and a proxy's CONNECT status line read as a response. Left over: V4.1.2 (redirecting only where a
   browser is the client) needs a request shaped like an API client's and was not written, and the
   rest of deployment is still a "before going live" list nobody has written.
+  **V4.1.2 claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with
+  both of those", asked whether `sv probe` may make one more request), in branch `claude/securevibe-e9-api-redirect`.
+  **Record, `Status: proposed`** (to be a "Later" entry on ADR-027): `sv probe <address> --api <path>` asks one more
+  question, only when the owner names an address of the app's API on the command line: a GET over plain HTTP to that
+  path on the same host, shaped like a program's request (JSON accepted, no browser headers). Answered with a redirect
+  to HTTPS is a finding against V4.1.2; anything else credits nothing, since one address is not every endpoint. A run
+  with `--api` may make five requests; without it, still four. Without `--api`, V4.1.2 is not assessed, and says why.
 
 - **Deadlines for known vulnerabilities (V15.2.1).** Asked for by the owner on 26 September 2026.
   V15.2.1 asks that the app contains no component that has *breached the documented remediation time
@@ -6532,6 +6539,15 @@ another session is not a claim.
      and none of the 661 first-party files of this repository and v1 is.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
+     **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with both of
+     those", asked whether to reverse the rule that findings with no CWE in common stay apart), in branch
+     `claude/securevibe-e9-one-per-line`. **Record, `Status: proposed`** (to be a "Later" entry on ADR-023): after
+     what a person set aside is applied, the findings left on one line of one file are one finding. The most severe
+     is kept, as the merge of one weakness already keeps it; it takes every requirement and CWE of the others, and
+     lists each other problem by its rule, severity, requirements, and fingerprint, with `sv`'s own rules' titles
+     (an outside tool's text can quote the value it found, so its rule is named instead). Reviews stay per problem:
+     they are applied before the gathering, so a false alarm recorded for one rule never sets aside another
+     problem on the same line. SARIF keeps one result per problem, for the tools that read it.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
      **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
      `claude/semgrep-follow-ups-2-4`.
