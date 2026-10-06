@@ -1705,6 +1705,14 @@ another session is not a claim.
   4. **Then how a prompt is delivered,** for those shown to work: pasted into the request, or returned by
      `securevibe_before`.
   **Claimed on 6 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompt-trial`.
+  **Items 1 to 3 done the same day** (`docs/prompts/library-trial/README.md`): four new prompts, the protocol, and
+  ninety builds for $21.12. Shown to work by the rule: `ai-feature-guard` (Sonnet, the AI feature's problems in 10 of
+  10 builds without it, 0 of 9 with it, no harm), and on Haiku `security-headers` (6 of 6, then 0 of 6),
+  `private-pages-no-store` (5 of 5, then 0 of 4), and `secrets-in-the-environment` (6 of 6, then 1 of 4), these three
+  with a harm flag the owner read as the median counting apps that never started, and marked shown. No reading for
+  `password-hashing` and `sessions-hard-to-steal`; `design-limits` stops the build to ask an owner who is away, and is
+  kept shown with a warning. The library: 9 shown, 13 not shown, 9 not tried. Item 4 (how a prompt is delivered) is open.
+
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
@@ -2017,6 +2025,15 @@ another session is not a claim.
   `claude/securevibe-e9-preflight-hints`. **Record, `Status: proposed`** (a "Later" entry on ADR-035): the preflight
   also says, for each of the commonest running-app findings that the code shows no sign of handling, that `sv run`
   will look for it; each is an answer of "Look", credits nothing, and never says the app is safe or unsafe.
+
+- **A third of Haiku's builds write a `securevibe.toml` `sv` cannot read, without `sv` to tell them.** Found on 6
+  October 2026 by session paper-facts, in the prompt-library trial: 22 of 70 Haiku 4.5 builds given `sv init`'s
+  specification but no MCP server wrote a file `sv` refused, whatever their prompt: `enabled = true` under
+  `[stack.run.ai]` in 14 (the field belongs to `[capabilities.ai]`), `signup = false` in 2, and others. `sv`'s
+  message names the fix, but a builder working from the specification alone never sees it. Ways out: the
+  specification's `[stack.run.ai]` example says outright that it takes no `enabled`; `sv init` offers a way to check
+  a draft file without the rest of a report; or `sv` accepts `enabled` there and says it is ignored. Each would be
+  measured the same way: how many such builds' files `sv` can read.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last

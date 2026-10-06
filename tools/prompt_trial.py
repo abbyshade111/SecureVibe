@@ -61,7 +61,8 @@ def run(build, slow):
     shutil.rmtree(dst, ignore_errors=True); shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(src, dst, ignore=shutil.ignore_patterns('*.db', '__pycache__', 'OWNER-REQUEST.md'))
     merge_policy(os.path.join(dst, 'securevibe.toml'))
-    subprocess.run('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm build',
+    # --allow-empty: a build that wrote nothing is checked as it is (it has no report), not a crash of the run.
+    subprocess.run('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm build --allow-empty',
                    shell=True, cwd=dst, check=True)
     cmd = [SV, 'report', dst, '--run', '--out', out] + (['--slow'] if slow else [])
     with open(dst + '.log', 'w') as log:

@@ -52,6 +52,8 @@ builds without them were already safe on what `sv` checks. One tool, two models:
 
 *What it showed:* With the prompt the build wrote 5 wrong passwords in 15 minutes and 10 records a minute into securevibe.toml, enforced both, and was credited on both. Both builds without it were found on both. Neither limited new records at all. Each did lock an account after wrong passwords, but after 10, a number it chose and wrote down nowhere, so `sv` held it to the 5 standing in for the owner's: for wrong passwords, what the prompt changed is that the number was decided and written down.
 
+*A warning, from 6 October 2026:* this prompt asks you for the limits, and an AI tool given it with nobody to answer stops to ask. Tried with Claude Haiku 4.5 and a request saying the owner was away, six of ten builds asked their questions and wrote nothing at all (`docs/prompts/library-trial/`). Give it when you are there to answer, or put the numbers in securevibe.toml under [policy] first, which the prompt then uses.
+
 ### Decide what the app logs, and how each line reads
 
 > Before building, decide what the app writes to its log, and put the list in security-notes.md under
