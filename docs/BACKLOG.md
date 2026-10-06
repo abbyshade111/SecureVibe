@@ -3625,6 +3625,10 @@ another session is not a claim.
   - **Does ADR-032 reach the outside tools?** It holds `sv`'s own `git` to running no program the app's repository
     names. Semgrep and CodeQL, run by `sv report --tools` in the app's folder, may run `git` themselves; the record
     does not say, and it was not checked.
+    **The owner's decision, 6 October 2026, on what was found** (Semgrep and Opengrep held only because `sv` names
+    files rather than folders, CodeQL unknown): add the guard. Every outside tool's environment sets git's
+    `core.fsmonitor` off, as `sv`'s own `git` does, held by a test with a planted repository; ADR-032 gets a Later
+    entry. **Claimed the same day by session securevibe-e2**, in branch `claude/securevibe-e2-git-guard`.
 
 - **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
   records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
