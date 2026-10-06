@@ -317,11 +317,12 @@ compressed) by `sv` itself, so it adds no dependency.
 ## From inside your AI coding tool
 
 `sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them
-mid-conversation and work through the findings with you. Build it once (`cargo build --release -p
-sv-cli`), then register it — for Claude Code:
+mid-conversation and work through the findings with you. Install it once (`sh tools/install.sh`, which
+builds it and puts it with its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`), then
+register it — for Claude Code:
 
 ```bash
-claude mcp add securevibe -- /path/to/securevibe/target/release/sv mcp --root ~/code
+claude mcp add securevibe -- ~/.local/bin/sv mcp --root ~/code
 ```
 
 or, for a tool configured with JSON:
@@ -427,7 +428,8 @@ cargo test
 ```
 
 The OWASP data files (`data/frameworks`, `data/knowledge`) and `sv`'s own data files live together in `data/`.
-`SV_DATA_DIR` overrides the location of the OWASP data.
+`sv` looks for that folder in `SV_DATA_DIR`, then beside itself (`data`, or `../share/securevibe/data`), then
+in the repository it was built from; `sv --version` names the one it uses.
 
 To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md): the checks a change must pass and the rules every change
 keeps. Taking part means agreeing to the [code of conduct](CODE_OF_CONDUCT.md); a security problem in `sv` itself

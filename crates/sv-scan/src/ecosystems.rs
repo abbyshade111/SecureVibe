@@ -612,7 +612,31 @@ pub fn unpinned(app_dir: &Path) -> Vec<DetectedEcosystem> {
 pub fn unpinned_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
     detect_in(listing)
         .into_iter()
+        .chain(setup_only_in(listing))
         .filter(|e| pinning(&listing.root, e).is_unpinned())
+        .collect()
+}
+
+/// Python projects whose packages are named only in a `setup.py` or `setup.cfg`, with no Python
+/// lockfile in the same folder, each as a project that pins with a lockfile and has none.
+///
+/// Deep review H9: such a file is not one of `ECOSYSTEMS`' manifests, so an app whose Python was
+/// declared there alone was told it had no package manifest, and one with an npm app beside it had
+/// its pinning credited on npm's lockfile alone. `pip install .` resolves what `install_requires`
+/// asks for afresh each time, as `pip install -r requirements.txt` does without a lockfile, so it is
+/// judged the same way. Not added to `detect_in`, whose callers read each manifest as a list of
+/// packages, which these files are not.
+pub fn setup_only_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
+    python_declarations_in(listing)
+        .into_iter()
+        .filter(|d| d.kind == DeclarationKind::Setup && !d.beside_lockfile)
+        .map(|d| DetectedEcosystem {
+            name: "Python".to_owned(),
+            manifest: d.path,
+            lockfile: None,
+            passed_over: Vec::new(),
+            pins_with_lockfile: true,
+        })
         .collect()
 }
 

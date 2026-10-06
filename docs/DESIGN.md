@@ -8752,7 +8752,8 @@ every unread reason was worded as an empty list, which was already wrong for `py
 What is still not done: a `requirements.txt` read without a lockfile still lists its exact pins and leaves a range
 (`flask>=2`) out without naming it (the list is marked incomplete by its declared versions, but the range is not
 named); an app whose only Python file is a `setup.py` is not reported by the pinning check as pinning nothing; and a
-`Pipfile.lock` with no `Pipfile` beside it is not found.
+`Pipfile.lock` with no `Pipfile` beside it is not found. (The first two were done on 5 October 2026; see the next
+section. The third is still open.)
 
 **Tested.** Unit tests in `sbom.rs`, `manifest_lock.rs`, and `deps.rs`, detection tests in
 `crates/sv-scan/tests/scan.rs`, and end to end (`crates/sv-cli/tests/pipenv.rs`): a locked npm app whose clean
@@ -8765,6 +8766,40 @@ version in `Pipfile.lock` dropped (two), a `Pipfile`'s ranges dropped (two), the
 `setup.py` named beside a lockfile (one), a `Pipfile` package from a folder held to the lockfile (one), only `default`
 and `develop` read (one), the app's own folder named (one), a hashed `requirements-dev.txt` not read (one), and every
 `setup.cfg` counted (one).
+
+## What a `requirements.txt` leaves out is named, and a `setup.py` with no lockfile does not pin (5 October 2026)
+
+The rest of H9 of the deep review: two places where `sv` stayed quiet about Python packages it had not checked.
+
+**A `requirements.txt` read without a lockfile.** Only the lines that pin one version (`stripe==7.8.0`) say which
+version is installed, so only they are listed, marked as asked for. Every other line was dropped without a word: a
+range (`flask>=2`), a name alone (`gunicorn`), a wildcard (`requests==2.*`), a package from an address or a folder
+(`pkg @ https://…`, `-e git+https://…#egg=helper`), and another requirements file pulled in (`-r base.txt`). The list
+was marked incomplete, but nothing said what it left out, so it read like everything the file asks for. Each of them
+is now named in the reason the list is incomplete, which `sv audit` prints and the bill of materials carries in its
+`securevibe:unread:Python` property, in the same words the `Pipfile` reader already used. The file is read as pip reads it: a line ending in `\` goes on on the next,
+a comment after a space is left out, and `-e .` (the app itself), a constraints file (`-c`), and the lines that only
+say where pip looks install nothing and are not named. A requirements file that pins and hashes every package is
+still read as a lockfile, as before.
+
+**A `setup.py` or `setup.cfg` with no lockfile beside it.** `pip install .` resolves what `install_requires` asks for
+afresh each time, as `pip install -r requirements.txt` does without a lockfile, which the pinning check (V15.1.2)
+already reports as not pinning. A `setup.py` was not one of the manifests the check looked at, so an app declared
+there alone was told it had no package manifest, and one beside a locked npm app had its pinning credited on npm's
+lockfile alone. Each `setup.py` or `setup.cfg` that names packages, with no Python lockfile in its folder, is now
+judged as a project with no lockfile (`ecosystems::setup_only_in`), by the pinning check and in the scan's own list of
+unpinned projects, which `sv check` prints. A lockfile in the same folder still stands for it, and one that names no
+packages still declares nothing. A folder whose `requirements.txt` and `setup.py` both pin nothing is named once.
+
+**Not done.** A requirements file under another name (`requirements-dev.txt`) without hashes is named as not read by
+the bill of materials, as before, but is not judged by the pinning check, and a `Pipfile.lock` with no `Pipfile` beside
+it is still not found.
+
+Twelve guards broken in turn, each caught: a `setup.py` not judged by the pinning check, not in the scan's list of
+unpinned projects, or judged though a lockfile is beside it; one folder's Python named twice; what is not listed not
+named (two tests); an included file not named; an address's `#egg=` not read; a scheme with `+` taken for a package's
+name; a wildcard taken for a version; continued lines not joined; a comment after a requirement kept; and `-e .`
+named as a package.
 
 
 ## Each run removes only its own (4 October 2026)
@@ -10091,6 +10126,34 @@ the person's behalf, to show `sv` records the same answer either way, which is w
 tier is worth having, beside the plain answers in securevibe.toml that the tool writes and `sv review` that the person
 seals, is the owner's choice.
 
+
+## A copy of `sv` reads the data beside it, and installs outside the build folder (5 October 2026)
+
+BACKLOG, "A built `sv` cannot be moved", and its second form in my-first-app: `sv` read about twenty files of its own
+from the folder it was built in, whatever `SV_DATA_DIR` said about the OWASP part, so a copy stopped working when its
+build folder went, and so did the owner's `PATH` and the AI tool's settings, which named the build folder itself.
+Recorded in ADR-036.
+
+- **One place finds the data** (`crates/sv-frameworks/src/data.rs`), and every file `sv` reads at run time is found
+  through it: `SV_DATA_DIR`, now the whole `data` folder; then beside the program, `data` or
+  `../share/securevibe/data`, following a link to the program to where it really is; then the folder it was built
+  from, which the Docker image keeps. A folder counts only when it holds the OWASP frameworks. A wrong `SV_DATA_DIR`
+  is named, never passed over for another folder, and with no data folder at all every command stops at once and
+  says each place it looked.
+- **`sv --version` says which data it reads**, on a second line.
+- **`tools/install.sh`** builds `sv` and puts it, with its data, in `~/.local/share/securevibe`, linked from
+  `~/.local/bin/sv`. The owner's `PATH` and the AI tool's settings name the link, which does not change when the
+  repository is rebuilt, moved, or removed. Run again after an update, it replaces the program and the data together;
+  it never replaces a file at `bin/sv` it did not put there. `docs/GETTING-STARTED.md` and the README now install
+  this way.
+- **Not done: compiling the data into the program.** The loaders read files, and the owner edits rule data and
+  expects the next run to use it; a program with its data beside it keeps both. A single file to download would need
+  it.
+
+How it is held: the six tests in `data.rs` and the four in `crates/sv-cli/tests/moved.rs` (above, in ADR-036), and
+`the_version_names_the_build_and_its_commit`, which now reads the data line. Eleven guards were undone in turn and each
+was caught; the one at first caught by nothing, following a link to the program, is caught by a test of its own,
+since Linux already gives the program's real place and only macOS gives the link.
 
 ## A shell script's and a Dockerfile's unquoted values are read; a JSON passphrase is still not (5 October 2026)
 

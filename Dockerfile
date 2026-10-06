@@ -6,10 +6,10 @@
 # The build context is the repository root; the `.dockerignore` beside this file keeps everything but the
 # Rust workspace, `data/` and the examples out of it.
 #
-# `sv` finds its data files through the folder it was compiled in (`env!("CARGO_MANIFEST_DIR")`), so the
-# runtime image keeps that folder at the same path, `crates/` included: the paths are
-# `crates/<crate>/../../data/...`, and `..` only resolves through a folder that exists. Nothing in the code
-# changes for the container.
+# With nothing beside the program and no `SV_DATA_DIR`, `sv` finds its data through the folder it was
+# compiled in (`env!("CARGO_MANIFEST_DIR")`, ADR-036), so the runtime image keeps that folder at the same
+# path, `crates/` included: the paths are `crates/<crate>/../../data/...`, and `..` only resolves through a
+# folder that exists. Nothing in the code changes for the container.
 #
 # What this image is for: `sv mcp` for an AI coding tool, and `check`, `scope`, `notes`, `questions`,
 # and `report` without `--run`. Not `--run`: that starts the app in containers of its own, which from

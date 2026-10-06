@@ -451,9 +451,31 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
 
     // No lockfile, or one that produced nothing. Fall back to the manifest and say what that means.
     let declared = match sv_scan::ecosystems::file_name(&eco.manifest) {
-        "requirements.txt" => read("requirements.txt")
-            .as_deref()
-            .map(from_pinned_requirements),
+        "requirements.txt" => {
+            let requirements = read("requirements.txt").as_deref().map(from_requirements);
+            if let Some((pinned, rest)) = &requirements
+                && !rest.is_empty()
+            {
+                // Deep review H9: `flask>=2` beside `stripe==7.8.0` was left out of the list and
+                // not named, so the list looked like everything the file asks for.
+                sbom.unread.push((
+                    eco.name.clone(),
+                    format!(
+                        "`{}` has no lockfile beside it, and {} of what it installs is asked for \
+                         as a range, as any version, from an address or a folder, or from another \
+                         file ({}), so it is not listed; a lockfile, such as one from \
+                         `pip-compile --generate-hashes` or `uv pip compile`, is what `sv` reads",
+                        eco.manifest,
+                        rest.len(),
+                        rest.join(", ")
+                    ),
+                ));
+                if pinned.is_empty() {
+                    return;
+                }
+            }
+            requirements.map(|(pinned, _)| pinned)
+        }
         "Pipfile" => {
             let pipfile = read("Pipfile").as_deref().and_then(from_pipfile);
             if let Some((_, unpinned)) = &pipfile
@@ -1189,29 +1211,92 @@ fn from_pylock(text: &str) -> (Vec<(String, String)>, Vec<String>) {
 }
 
 fn from_pinned_requirements(text: &str) -> Vec<(String, String)> {
-    text.lines()
-        .map(|l| {
-            l.split_once(';')
-                .map_or(l, |(requirement, _marker)| requirement)
-        })
-        .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#') && !l.starts_with('-'))
-        .filter_map(|l| l.split_once("=="))
-        .map(|(name, version)| {
+    from_requirements(text).0
+}
+
+/// A requirements file read line by line: the packages pinned to one version (`name==1.0`), and
+/// what else it installs, by name: a package asking for a range or for any version (`flask>=2`,
+/// `gunicorn`), one installed from an address or a folder, and another requirements file it pulls
+/// in (`-r base.txt`). Deep review H9: before, all of those were left out without a word, so a
+/// `requirements.txt` with no lockfile had a list that looked like everything it asked for.
+///
+/// `-e .` is the app itself, as in `Pipfile.lock`, and is not named. A constraints file (`-c`) and
+/// the lines that only say where pip looks install nothing.
+fn from_requirements(text: &str) -> Pinned {
+    let (mut pinned, mut rest) = (Vec::new(), Vec::new());
+    // A line ending in `\` goes on on the next one, as pip reads it.
+    let joined = text.replace("\\\r\n", " ").replace("\\\n", " ");
+    for line in joined.lines() {
+        // A comment starts at a `#` at the start of a line or after a space.
+        let line = match line.find(" #") {
+            Some(i) => &line[..i],
+            None => line,
+        };
+        let line = line.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if line.starts_with('-') {
+            let (option, value) = line
+                .split_once(['=', ' ', '\t'])
+                .map_or((line, ""), |(o, v)| (o, v.trim()));
+            match option {
+                "-r" | "--requirement" => rest.push(format!("`{value}`, which it pulls in")),
+                "-e" | "--editable" if !matches!(value, "." | "./") && !value.starts_with(".[") => {
+                    rest.push(requirement_name(value))
+                }
+                _ => {}
+            }
+            continue;
+        }
+        let requirement = line.split_once(';').map_or(line, |(r, _marker)| r).trim();
+        let exact = requirement
+            .split_once("==")
+            .filter(|(name, _)| !name.contains(['<', '>', '!', '~', '@']))
+            .map(|(name, version)| {
+                (
+                    name,
+                    version
+                        .trim_start_matches('=')
+                        .split_whitespace()
+                        .next()
+                        .unwrap_or("")
+                        .trim(),
+                )
+            })
+            .filter(|(_, version)| !version.is_empty() && !version.contains(['*', ',']));
+        match exact {
             // `name[extra]==1.0` installs `name`.
-            let name = name.split('[').next().unwrap_or(name);
-            (
-                name.trim().to_owned(),
-                version
-                    .trim_start_matches('=')
-                    .split_whitespace()
-                    .next()
-                    .unwrap_or(version)
-                    .trim()
-                    .to_owned(),
-            )
-        })
-        .collect()
+            Some((name, version)) => pinned.push((
+                name.split('[').next().unwrap_or(name).trim().to_owned(),
+                version.to_owned(),
+            )),
+            None => rest.push(requirement_name(requirement)),
+        }
+    }
+    rest.sort();
+    rest.dedup();
+    (pinned, rest)
+}
+
+/// The package a requirement names: the name at its start, the `#egg=` of an address, or, when
+/// neither is there, the requirement itself.
+fn requirement_name(requirement: &str) -> String {
+    let name: String = requirement
+        .chars()
+        .take_while(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
+        .collect();
+    // `git+https://…` and `https://…` start with their scheme, not a name; `pkg @ https://…` does not.
+    let after = &requirement[name.len()..];
+    let address =
+        after.starts_with("://") || after.starts_with('+') || requirement.starts_with(['.', '/']);
+    if !name.is_empty() && !address {
+        return name;
+    }
+    match requirement.split_once("#egg=") {
+        Some((_, egg)) => egg.split('&').next().unwrap_or(egg).to_owned(),
+        None => requirement.chars().take(60).collect(),
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1488,7 +1573,88 @@ mod tests {
             "a range must not become a component: {sbom:?}"
         );
         assert!(!sbom.is_complete());
-        assert!(!sbom.unread.is_empty());
+        // Named, not only counted (deep review H9).
+        assert!(
+            sbom.unread
+                .iter()
+                .any(|(_, why)| why.contains("flask") && why.contains("gunicorn")),
+            "{:?}",
+            sbom.unread
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn what_a_requirements_file_installs_without_one_version_is_named() {
+        // Deep review H9: beside `stripe==7.8.0`, each of these was left out of the list and not
+        // named, so the list looked like everything the file asks for.
+        let dir = scratch("requirements-named");
+        fs::write(
+            dir.join("requirements.txt"),
+            "# what the app needs\n\
+             stripe==7.8.0\n\
+             flask>=2  # the web framework\n\
+             gunicorn\n\
+             requests==2.*\n\
+             jinja2==3.1,<4\n\
+             pillow==10.0.0 ; python_version > '3.8'\n\
+             pkg @ https://example.com/pkg-1.0.whl\n\
+             -e git+https://example.com/team/tool.git#egg=helper\n\
+             --requirement=base.txt\n\
+             -r extra.txt  # optional extras\n\
+             pyyaml \\\n    >=6\n\
+             -e .\n\
+             -c constraints.txt\n\
+             --index-url https://pypi.org/simple\n\
+             numpy==1.26.0 \\\n    --hash=sha256:abc\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let mut listed: Vec<(&str, &str)> = sbom
+            .components
+            .iter()
+            .map(|c| (c.name.as_str(), c.version.as_str()))
+            .collect();
+        listed.sort();
+        assert_eq!(
+            listed,
+            [
+                ("numpy", "1.26.0"),
+                ("pillow", "10.0.0"),
+                ("stripe", "7.8.0")
+            ]
+        );
+        let why = sbom
+            .unread
+            .iter()
+            .map(|(_, why)| why.as_str())
+            .find(|why| why.contains("requirements.txt"))
+            .unwrap_or_else(|| panic!("{:?}", sbom.unread));
+        for name in [
+            "flask",
+            "gunicorn",
+            "requests",
+            "jinja2",
+            "pkg",
+            "helper",
+            "`base.txt`",
+            "`extra.txt`",
+            "pyyaml",
+        ] {
+            assert!(why.contains(name), "{name} is not named: {why}");
+        }
+        assert!(why.contains("9 of what it installs"), "{why}");
+        for not in [
+            "constraints",
+            "pypi.org",
+            "example.com",
+            "the web framework",
+            "optional",
+            ">=6",
+            "stripe",
+        ] {
+            assert!(!why.contains(not), "{not} is named: {why}");
+        }
         fs::remove_dir_all(&dir).ok();
     }
 

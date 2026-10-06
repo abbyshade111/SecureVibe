@@ -430,7 +430,12 @@ fn versions_pinned(
     bill_of_materials: &crate::sbom::Sbom,
 ) -> Outcome {
     let app_dir = listing.root.as_path();
-    let detected = sv_scan::ecosystems::detect_in(listing);
+    // A `setup.py` or `setup.cfg` with no lockfile beside it is judged as a project of its own
+    // (deep review H9); before, an app declared there alone had "no package manifest".
+    let detected: Vec<_> = sv_scan::ecosystems::detect_in(listing)
+        .into_iter()
+        .chain(sv_scan::ecosystems::setup_only_in(listing))
+        .collect();
     if detected.is_empty() {
         return Outcome::NotAssessed(
             "No package manifest was found, so there is nothing whose versions could be pinned. If this \
@@ -450,7 +455,13 @@ fn versions_pinned(
     let unpinned: Vec<&(sv_scan::ecosystems::DetectedEcosystem, Pinning)> =
         judged.iter().filter(|(_, p)| p.is_unpinned()).collect();
     if let Some((first, how)) = unpinned.first() {
-        let names: Vec<String> = unpinned.iter().map(|(e, _)| e.label()).collect();
+        // A `requirements.txt` and a `setup.py` in one folder are both "Python".
+        let mut seen = std::collections::BTreeSet::new();
+        let names: Vec<String> = unpinned
+            .iter()
+            .map(|(e, _)| e.label())
+            .filter(|n| seen.insert(n.clone()))
+            .collect();
         let (location, description, fix) = match how {
             Pinning::Floating(versions) => (
                 Location {
@@ -1273,6 +1284,94 @@ mod tests {
                 .find(|(id, _)| id == "config.versions-pinned")
                 .map(|(_, why)| why),
         )
+    }
+
+    #[test]
+    fn a_python_app_declared_only_in_setup_py_does_not_pin() {
+        // Deep review H9. `install_requires` is resolved afresh by every `pip install .`, as a
+        // `requirements.txt` is without a lockfile. Before, an app declared there alone was told it had
+        // no package manifest, and one beside a locked npm app had its pinning credited on npm's.
+        let setup =
+            "from setuptools import setup\nsetup(name='w', install_requires=['flask>=2'])\n";
+        let npm = |dir: &std::path::Path| {
+            fs::write(dir.join("package.json"), "{\"name\":\"x\"}").unwrap();
+            fs::write(
+                dir.join("package-lock.json"),
+                "{\"lockfileVersion\":3,\"packages\":{\"\":{\"name\":\"x\"},\
+                 \"node_modules/lodash\":{\"version\":\"4.17.21\"}}}",
+            )
+            .unwrap();
+        };
+
+        let alone = scratch("setup-alone");
+        fs::write(alone.join("setup.py"), setup).unwrap();
+        let (passed, finding, open) = pinned_outcome(&alone);
+        let finding = finding.unwrap_or_else(|| panic!("{passed} {open:?}"));
+        assert_eq!(finding.location.file, "setup.py");
+        assert!(
+            finding.title.starts_with("Python does not pin"),
+            "{}",
+            finding.title
+        );
+        assert!(!passed && open.is_none());
+
+        let beside_npm = scratch("setup-beside-npm");
+        npm(&beside_npm);
+        fs::create_dir_all(beside_npm.join("worker")).unwrap();
+        fs::write(
+            beside_npm.join("worker/setup.cfg"),
+            "[options]\ninstall_requires =\n  flask\n",
+        )
+        .unwrap();
+        let (passed, finding, _) = pinned_outcome(&beside_npm);
+        let finding = finding.unwrap_or_else(|| panic!("credited: {passed}"));
+        assert_eq!(finding.location.file, "worker/setup.cfg");
+        assert!(
+            finding.title.contains("Python in worker/"),
+            "{}",
+            finding.title
+        );
+        assert!(!sv_scan::ecosystems::unpinned(&beside_npm).is_empty());
+
+        // Beside a `requirements.txt` with no lockfile, the same folder's Python is named once.
+        let both = scratch("setup-and-requirements");
+        npm(&both);
+        fs::write(both.join("requirements.txt"), "flask==3.0.0\n").unwrap();
+        fs::write(both.join("setup.py"), setup).unwrap();
+        let (_, finding, _) = pinned_outcome(&both);
+        let finding = finding.unwrap_or_else(|| panic!("credited"));
+        assert_eq!(
+            finding.title,
+            "Python does not pin the versions it installs"
+        );
+        fs::remove_dir_all(&both).ok();
+
+        // The controls: a lockfile in the same folder stands for what `setup.py` asks for, and a
+        // `setup.py` that names no packages declares nothing.
+        let locked = scratch("setup-locked");
+        npm(&locked);
+        fs::write(locked.join("setup.py"), setup).unwrap();
+        fs::write(locked.join("Pipfile"), "[packages]\nflask = \"*\"\n").unwrap();
+        fs::write(
+            locked.join("Pipfile.lock"),
+            "{\"_meta\":{},\"default\":{\"flask\":{\"version\":\"==3.0.0\"}},\"develop\":{}}",
+        )
+        .unwrap();
+        let bare = scratch("setup-bare");
+        npm(&bare);
+        fs::write(
+            bare.join("setup.py"),
+            "from setuptools import setup\nsetup(name='w')\n",
+        )
+        .unwrap();
+        for dir in [&locked, &bare] {
+            let (passed, finding, open) = pinned_outcome(dir);
+            assert!(passed, "{dir:?}: {finding:?} {open:?}");
+            assert!(sv_scan::ecosystems::unpinned(dir).is_empty(), "{dir:?}");
+        }
+        for dir in [alone, beside_npm, locked, bare] {
+            fs::remove_dir_all(&dir).ok();
+        }
     }
 
     #[test]

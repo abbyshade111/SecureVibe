@@ -410,6 +410,13 @@ another session is not a claim.
     **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/h9-ranges-and-setup-py`: a requirement given as a range is named as not checked against the advisories,
     and an app whose Python dependencies are declared only in `setup.py` or `setup.cfg` is said to have none pinned.
+    **Done the same day** (DESIGN, "What a `requirements.txt` leaves out is named, and a `setup.py` with no lockfile
+    does not pin"): a `requirements.txt` read without a lockfile names everything it installs that it does not pin to
+    one version (ranges, bare names, wildcards, addresses, folders, and files pulled in with `-r`), read as pip reads
+    it; and a `setup.py` or `setup.cfg` that names packages, with no Python lockfile in its folder, is reported by the
+    pinning check (V15.1.2) and in the scan's list of unpinned projects. Twelve guards broken in turn, each caught.
+    **Still open:** a requirements file under another name without hashes is not judged by the pinning check, and a
+    `Pipfile.lock` with no `Pipfile` beside it is not found.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -4111,6 +4118,11 @@ another session is not a claim.
      `claude/securevibe-e9-movable`: every data file found through one place, `SV_DATA_DIR`, then beside the program,
      then the build folder; and an install script that keeps `sv` and its data out of any working folder. Record:
      ADR-036 (proposed).
+     **Done the same day** (DESIGN, "A copy of `sv` reads the data beside it, and installs outside the build
+     folder"; ADR-036, accepted): every file found through `sv_frameworks::data`; `sv --version` names the data
+     folder; `tools/install.sh` puts `sv` and its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`,
+     and the guide installs that way. Not done: compiling the data into the program, which a single downloadable
+     file would need.
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools
