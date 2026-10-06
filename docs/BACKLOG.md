@@ -392,6 +392,11 @@ another session is not a claim.
     in branch `claude/securevibe-e9-h3-rest`: unquoted values in shell scripts and Dockerfiles (`export TOKEN=…`,
     `ENV DB_PASSWORD …`), and a passphrase with spaces as a JSON value, if a way to read it can be shown not to bring
     the message catalogs back.
+    **Done the same day** (DESIGN, "A shell script's and a Dockerfile's unquoted values are read; a JSON passphrase
+    is still not"): `NAME=value` in shell scripts (with `export` and the like, and before a command) and `ENV` and `ARG`
+    in Dockerfiles are read. The JSON passphrase was measured and left: of 201 values with spaces under credential
+    names in this repository, its `node_modules`, and v1's code, none is a passphrase, and the narrowest reading tried
+    still takes in 11 messages; nothing tells them apart.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
