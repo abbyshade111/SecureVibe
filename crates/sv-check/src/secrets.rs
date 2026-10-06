@@ -497,16 +497,57 @@ static UNQUOTED: LazyLock<Regex> = LazyLock::new(|| {
     .expect("static pattern")
 });
 
-/// The files whose values are written without quotes: see `UNQUOTED`.
-fn writes_values_unquoted(relative: &str) -> bool {
+/// A shell variable given a value with no quotes, in a shell script: `TOKEN=v`, `export TOKEN=v`,
+/// and the same before a command (`DB_PASSWORD=v ./migrate`). A quoted value is the quoted shapes'
+/// to read, so it is left to them and reported once. A value that is wholly another variable or a
+/// command's output (`$X`, `${X}`, `$(…)`) is read and passed over as a reference, as in every shape.
+static SHELL_UNQUOTED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?m)^[ \t]*(?:(?:export|readonly|local|declare(?:[ \t]+-[A-Za-z]+)?)[ \t]+)?(?P<name>[A-Za-z_][A-Za-z0-9_]*)=(?P<value>[^\s"'][^\s"']{7,199})(?:[ \t].*)?\r?$"#,
+    )
+    .expect("static pattern")
+});
+
+/// A Dockerfile's `ENV` or `ARG` given a value with no quotes: `ENV DB_PASSWORD=v`, `ENV DB_PASSWORD v`,
+/// `ARG TOKEN=v`. Only the first name on a line is read. A value that is wholly a build argument
+/// (`$TOKEN`) is passed over as a reference.
+static DOCKERFILE_UNQUOTED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?mi)^[ \t]*(?:ENV|ARG)[ \t]+(?P<name>[A-Za-z_][A-Za-z0-9_]*)(?:=|[ \t]+)(?P<value>[^\s"'][^\s"']{7,199})(?:[ \t].*)?\r?$"#,
+    )
+    .expect("static pattern")
+});
+
+/// The shape of a value written without quotes in this file, if its kind writes values so: see
+/// `UNQUOTED`, `SHELL_UNQUOTED`, and `DOCKERFILE_UNQUOTED`. A shell script and a Dockerfile were read
+/// only for quoted values until 5 October 2026 (H3's leftovers), so `export API_KEY=…` was found only
+/// when a vendor's own rule knew the key.
+fn unquoted_shape(relative: &str) -> Option<&'static Regex> {
     let name = relative
         .rsplit('/')
         .next()
         .unwrap_or(relative)
         .to_lowercase();
-    [".yml", ".yaml", ".properties", ".ini", ".cfg", ".conf"]
+    if [".yml", ".yaml", ".properties", ".ini", ".cfg", ".conf"]
         .iter()
         .any(|ext| name.ends_with(ext))
+    {
+        return Some(&UNQUOTED);
+    }
+    if [".sh", ".bash", ".zsh", ".ksh"]
+        .iter()
+        .any(|ext| name.ends_with(ext))
+    {
+        return Some(&SHELL_UNQUOTED);
+    }
+    if name == "dockerfile"
+        || name == "containerfile"
+        || name.starts_with("dockerfile.")
+        || name.ends_with(".dockerfile")
+    {
+        return Some(&DOCKERFILE_UNQUOTED);
+    }
+    None
 }
 
 /// A name given a value, and whether its shape takes any text as a value (see `QUOTED_SHAPES`).
@@ -521,7 +562,7 @@ struct Named<'t> {
 /// `string`, as the name, and the Go shape reads `password`. Both are kept, so the caller can judge
 /// each name and report the value once.
 fn named_values<'t>(relative: &str, text: &'t str) -> Vec<Named<'t>> {
-    let unquoted = writes_values_unquoted(relative).then_some(&*UNQUOTED);
+    let unquoted = unquoted_shape(relative);
     let mut seen = std::collections::HashSet::new();
     let mut out = Vec::new();
     let unquoted = unquoted.map(|shape| (shape, false));
@@ -1769,6 +1810,50 @@ mod tests {
             "db.php",
             r#"$p = getenv('DB_PASSWORD') ?: '{v}';"#,
         ),
+        // Shell scripts and Dockerfiles, unquoted (H3's leftovers, 5 October 2026).
+        ("a shell variable", "deploy.sh", "DB_PASSWORD={v}"),
+        // Quoted, read by the first shape alone: once, not again as unquoted.
+        (
+            "a quoted shell export",
+            "deploy.sh",
+            r#"export API_KEY="{v}""#,
+        ),
+        (
+            "a quoted Dockerfile ENV",
+            "Dockerfile",
+            r#"ENV API_KEY="{v}""#,
+        ),
+        ("a shell export", "run.bash", "  export API_KEY={v}  # prod"),
+        (
+            "a shell variable before a command",
+            "migrate.sh",
+            "DB_PASSWORD={v} ./manage.py migrate",
+        ),
+        (
+            "a declared shell variable",
+            "env.zsh",
+            "declare -x SECRET_KEY={v}",
+        ),
+        (
+            "a Dockerfile ENV with =",
+            "Dockerfile",
+            "ENV DB_PASSWORD={v}",
+        ),
+        (
+            "a Dockerfile ENV with a space",
+            "Dockerfile",
+            "ENV DB_PASSWORD {v}",
+        ),
+        (
+            "a Dockerfile ARG default",
+            "api.Dockerfile",
+            "ARG API_TOKEN={v}",
+        ),
+        (
+            "a lower-case env line",
+            "Dockerfile.prod",
+            "env SECRET_KEY={v}",
+        ),
     ];
 
     /// A made-up credential: mixed case and digits, no quote, `#`, or space, so every shape can hold it.
@@ -1866,6 +1951,46 @@ mod tests {
                 "an unquoted value in a file that is not configuration",
                 "notes.md",
                 format!("password: {value}\n"),
+            ),
+            (
+                "a shell variable read from a command",
+                "deploy.sh",
+                "DB_PASSWORD=$(cat /run/secrets/db_password)\n".to_owned(),
+            ),
+            (
+                "a shell variable from a command with no space in it",
+                "deploy.sh",
+                "export SECRET_KEY=$(generate_secret_key_now)\n".to_owned(),
+            ),
+            (
+                "a shell variable that is wholly another",
+                "deploy.sh",
+                "export API_KEY=$API_KEY_FROM_CI_SECRETS\n".to_owned(),
+            ),
+            (
+                "a shell variable read from another",
+                "deploy.sh",
+                "export API_KEY=${API_KEY_FROM_CI}\n".to_owned(),
+            ),
+            (
+                "a shell variable under a harmless name",
+                "deploy.sh",
+                format!("export RELEASE_TAG={value}\n"),
+            ),
+            (
+                "a Dockerfile ENV from a build argument",
+                "Dockerfile",
+                "ARG API_TOKEN\nENV API_TOKEN=$API_TOKEN\n".to_owned(),
+            ),
+            (
+                "a Dockerfile ENV under a harmless name",
+                "Dockerfile",
+                format!("ENV BUILD_ID {value}\n"),
+            ),
+            (
+                "a shell line in a file that is not a script",
+                "README.txt",
+                format!("export API_KEY={value}\n"),
             ),
         ] {
             let found = scan_text(&rules(), file, &format!("{text}\n"));
