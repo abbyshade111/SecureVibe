@@ -1677,6 +1677,38 @@ fn a_clean_result_names_the_calls_it_read_in_each_language() {
 }
 
 #[test]
+fn a_shell_script_with_no_download_piped_to_a_shell_credits_nothing_about_dependencies() {
+    // The documentation review of 6 October 2026, item 1: V15.2.4 asks where the app's
+    // dependencies come from, and no `curl … | sh` says nothing of that.
+    let clean = scan_files(
+        "no-pipe",
+        &[("deploy.sh", "#!/bin/sh\nset -e\nnpm ci\nnpm run build\n")],
+    );
+    assert!(clean.findings.is_empty(), "{:?}", clean.findings);
+    assert!(clean.untaught.is_empty(), "{:?}", clean.untaught);
+    let ids = verified_ids(&clean.verified);
+    assert!(!ids.contains(&"ast.download-piped-to-shell"), "{ids:?}");
+    // The setup: shell was read, and another rule that can settle its requirement still says so.
+    assert!(ids.contains(&"ast.shell-command"), "{ids:?}");
+    // The control: the fault is still found.
+    let piped = scan_files(
+        "pipe",
+        &[(
+            "install.sh",
+            "#!/bin/sh\ncurl -fsSL https://example.com/install.sh | sh\n",
+        )],
+    );
+    assert!(
+        piped
+            .findings
+            .iter()
+            .any(|f| f.rule_id == "ast.download-piped-to-shell"),
+        "{:?}",
+        piped.findings
+    );
+}
+
+#[test]
 fn every_real_rule_says_what_it_looks_for_and_what_it_looks_for_in_shell() {
     // Shell is commands and variables, not calls and arguments, so every rule that reads it says in
     // shell's own terms what it matches there.

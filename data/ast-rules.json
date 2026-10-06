@@ -788,7 +788,8 @@
         "typescript": "TypeScript has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value.",
         "cpp": "C++ has no pipe syntax; a pipeline written in a string and handed to a shell is a shell command, which the shell-command rule looks for when it is built from a value."
       },
-      "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter that takes its program from what it is sent"
+      "looksFor": "a download (curl, wget, and similar) piped straight into sh, bash, python, or another interpreter that takes its program from what it is sent; it says nothing of where the app's dependencies come from, so finding none credits nothing",
+      "findingsOnly": true
     },
     {
       "id": "ast.plaintext-websocket-url",
