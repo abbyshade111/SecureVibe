@@ -111,8 +111,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   An action that should go through only once, such as booking the last seat or redeeming a
 #   one-time code. It is sent 20 times at the same instant, half as the first user and half as the
 #   second, and the answers that carry `completed` (in the page, or in the address it sends the
-#   browser to) are counted for each. It going through for both users is the finding; a repeat from
-#   the user who already has it may say `completed` again. The app has to start the run with exactly
+#   browser to) are counted for each. It going through for both users is the finding, and exactly one
+#   copy going through is credited; a repeat that says `completed` again is neither, so choose words
+#   only a first taking shows. The app has to start the run with exactly
 #   one of the thing to take, which either user could take (set it up in `seed`), and nothing else in
 #   the run may take it. A `private` page is needed, to show both users were signed in.
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }

@@ -225,9 +225,17 @@ fn holds_no_written_text(bytes: &[u8]) -> Option<&'static str> {
             "a macOS Finder settings file (.DS_Store), which holds no text a person writes",
         ),
     ];
+    // A signature of plain letters (`GIF89a`, `WEBP`, `OTTO`, `wOFF`) can begin a text file too: a
+    // `.env` whose first line is `OTTO_API_KEY=…` is not a font (the review of 6 October, item 2).
+    // Such a signature counts only in a file that is not text, as every real image and font is not.
+    let is_text = !bytes.contains(&0) && std::str::from_utf8(bytes).is_ok();
     KINDS
         .iter()
-        .find(|(magic, at, _)| bytes.get(*at..at + magic.len()) == Some(*magic))
+        .find(|(magic, at, _)| {
+            bytes.get(*at..at + magic.len()) == Some(*magic)
+                && (*magic != b"WEBP" || bytes.starts_with(b"RIFF"))
+                && !(is_text && magic.iter().all(|b| b.is_ascii_graphic()))
+        })
         .map(|(_, _, what)| *what)
 }
 
@@ -547,6 +555,45 @@ mod tests {
         let latin1 = b"name = M\xe4rz\npassword = x\n".to_vec();
         assert!(String::from_utf8(latin1.clone()).is_err(), "the setup");
         assert_eq!(decode(latin1).unwrap(), "name = März\npassword = x\n");
+    }
+
+    #[test]
+    fn text_that_begins_with_a_signature_made_of_letters_is_read_as_text() {
+        // The review of 6 October, item 2: each of these was taken for an image or a font, and the
+        // secrets scan credited without reading the line under it.
+        for text in [
+            "IMG_FMT=WEBP\nKEY=value\n",
+            "RIFF0000WEBP is a word here\nKEY=value\n",
+            "OTTO_API_KEY=value\n",
+            "wOFF=1\nKEY=value\n",
+            "wOF2=1\nKEY=value\n",
+            "GIF89a is a format\nKEY=value\n",
+            "GIF87a\nKEY=value\n",
+        ] {
+            assert_eq!(
+                decode(text.as_bytes().to_vec()).as_deref(),
+                Ok(text),
+                "{text}"
+            );
+        }
+        // The real files still are not: each signature with the binary that follows it.
+        for (bytes, what) in [
+            (&b"RIFF\x10\x00\x00\x00WEBPVP8 "[..], "WebP"),
+            (&b"OTTO\x00\x0a\x00\x80"[..], "font"),
+            (&b"wOFF\x00\x01\x00\x00"[..], "web font"),
+            (&b"wOF2\x00\x01\x00\x00"[..], "web font"),
+            (&b"GIF89a\x01\x00\x01\x00\x80\x00"[..], "GIF"),
+        ] {
+            assert!(
+                matches!(decode(bytes.to_vec()), Err(Unread::NoWrittenText(w)) if w.contains(what)),
+                "{what}"
+            );
+        }
+        // WebP's letters at byte 8, after something other than RIFF, in a file that is not text.
+        assert_eq!(
+            decode(b"ABCD\x10\x00\x00\x00WEBPVP8 ".to_vec()),
+            Err(Unread::NotText)
+        );
     }
 
     #[test]

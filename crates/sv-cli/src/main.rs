@@ -4335,9 +4335,12 @@ fn assemble_report_saying(
         &design_answers,
         &|id| buckets.applicable.iter().any(|a| a == id),
         &|path| app_dir.join(path).exists(),
-        // The same test the technology answers use for a scan that read nothing: no source file and
-        // no dependency manifest is an app not written yet, which is when a decision is a plan.
-        scan_report.files_read > 0 || !scan_report.declared.is_empty(),
+        // No source file and no dependency manifest is an app not written yet, which is when a
+        // decision is a plan. A source file in a language `sv` cannot read is code too (the review
+        // of 6 October, item 9).
+        scan_report.files_read > 0
+            || !scan_report.declared.is_empty()
+            || !scan_report.unread_extensions.is_empty(),
     );
     findings.extend(design.findings.iter().cloned());
     gaps.extend(planned_gaps(&design.planned));
@@ -4617,6 +4620,8 @@ fn assemble_report_saying(
     // What the manifest says is not the app is listed with test and sample code.
     // As the scan used it: none when the list would have set apart all the app's code (ADR-031).
     sv_check::finding::mark_not_the_app(&scan_report.not_the_app, &mut findings);
+    // A copy of another project's library kept in the app is listed apart, named for it.
+    sv_check::bundled::mark_bundled_libraries(app_dir, &mut findings);
     examined.push(match &run_status {
         // Started is still only part of what the app could be asked: what sits behind a sign-in
         // it could not reach, and the requirements no question reaches, are in the gaps.
@@ -4632,10 +4637,30 @@ fn assemble_report_saying(
     // The owner's answers in securevibe.toml are read on every run.
     examined.push(sv_report::Examined::ran("design."));
     examined.push(sv_report::Examined::ran("hand."));
+    // The "Safe defaults" section's three switches (`sv_check::decisions`), each held to the check
+    // of the running app that sees it. Made before what a person set aside is applied, so a review
+    // of one of these findings is applied too (the review of 6 October, item 7); one whose running-app
+    // finding a person set aside is dropped after.
+    let safe_defaults = decisions_text
+        .as_deref()
+        .map(sv_check::decisions::safe_defaults)
+        .unwrap_or_default();
+    let app_ran = matches!(run_status, sv_report::RunStatus::Started { .. });
+    // The decisions file is read whenever it is there; its safe defaults only with the app running.
+    examined.push(match (&decisions_text, app_ran) {
+        (None, _) => sv_report::Examined::not_run(
+            "decisions.",
+            format!("there is no {} beside the app", sv_check::decisions::FILE),
+        ),
+        (Some(_), true) => sv_report::Examined::ran("decisions."),
+        (Some(_), false) => sv_report::Examined::partly(
+            "decisions.",
+            "its safe defaults are held to checks of the running app, which was not run",
+        ),
+    });
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     // An entry that matches nothing says whether its rule looked this time (deep review R3), so
     // `examined` is complete before this.
-    sv_check::review::fill_fingerprints(app_dir, &mut findings);
     let lookup = ReviewLookup {
         app_dir,
         examined: &examined,
@@ -4645,25 +4670,18 @@ fn assemble_report_saying(
         ast_rules,
         secret_rules,
     };
-    let reviewed = sv_check::review::apply(
-        app_dir,
-        &manifest.finding_review,
-        findings,
-        sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
-        &seals,
-        &|rule, file| lookup.looked(rule, file),
-    );
-    let mut findings = reviewed.findings;
-    // The "Safe defaults" section's three switches (`sv_check::decisions`), each held to the check
-    // of the running app that sees it. After what a person set aside, so a false alarm they set
-    // aside is not held against a decision either.
-    let safe_defaults = decisions_text
-        .as_deref()
-        .map(sv_check::decisions::safe_defaults)
-        .unwrap_or_default();
-    let mut not_held = sv_check::decisions::not_held_to(&safe_defaults.decided, &findings);
-    sv_check::review::fill_fingerprints(app_dir, &mut not_held);
-    findings.extend(not_held);
+    let reviewed = decisions_then_reviews(findings, &safe_defaults.decided, |mut findings| {
+        sv_check::review::fill_fingerprints(app_dir, &mut findings);
+        sv_check::review::apply(
+            app_dir,
+            &manifest.finding_review,
+            findings,
+            sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
+            &seals,
+            &|rule, file| lookup.looked(rule, file),
+        )
+    });
+    let findings = reviewed.findings;
     if !safe_defaults.unreadable.is_empty() {
         gaps.push(sv_report::Gap {
             what: format!(
@@ -4689,8 +4707,33 @@ fn assemble_report_saying(
             ),
         });
     }
+    if !safe_defaults.missing.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} safe default{} not found in {}",
+                safe_defaults.missing.len(),
+                if safe_defaults.missing.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                sv_check::decisions::FILE
+            ),
+            why: format!(
+                "The \"{}\" section has no line deciding {}, so nothing was held to the running \
+                 app for it. Write `{}`.",
+                sv_check::decisions::SAFE_DEFAULTS,
+                safe_defaults.missing.join(", "),
+                sv_check::decisions::SWITCHES
+                    .iter()
+                    .filter(|s| safe_defaults.missing.contains(&s.name))
+                    .map(|s| format!("- {}: {}", s.name, s.safe))
+                    .collect::<Vec<_>>()
+                    .join("`, `")
+            ),
+        });
+    }
     let held_safe = safe_defaults.decided.iter().filter(|d| d.safe).count();
-    let app_ran = matches!(run_status, sv_report::RunStatus::Started { .. });
     if held_safe > 0 && !app_ran {
         gaps.push(sv_report::Gap {
             what: format!(
@@ -4737,18 +4780,6 @@ fn assemble_report_saying(
         by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
-    });
-    // The decisions file is read whenever it is there; its safe defaults only with the app running.
-    examined.push(match (&decisions_text, app_ran) {
-        (None, _) => sv_report::Examined::not_run(
-            "decisions.",
-            format!("there is no {} beside the app", sv_check::decisions::FILE),
-        ),
-        (Some(_), true) => sv_report::Examined::ran("decisions."),
-        (Some(_), false) => sv_report::Examined::partly(
-            "decisions.",
-            "its safe defaults are held to checks of the running app, which was not run",
-        ),
     });
     report.examined = examined;
     let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);
@@ -5236,6 +5267,32 @@ fn file_checks_examined(
     examined
 }
 
+/// The decisions held to the running app (`sv_check::decisions::not_held_to`), then what a person
+/// set aside (`review`). In that order, so a review of a decision's own finding is applied like any
+/// other (the review of 6 October, item 7); and a decision whose running-app finding a person set
+/// aside keeps no finding of its own, since a false alarm is not held against a decision either.
+fn decisions_then_reviews(
+    mut findings: Vec<sv_check::Finding>,
+    decided: &[sv_check::decisions::Decided],
+    review: impl FnOnce(Vec<sv_check::Finding>) -> sv_check::review::Outcome,
+) -> sv_check::review::Outcome {
+    let not_held = sv_check::decisions::not_held_to(decided, &findings);
+    findings.extend(not_held);
+    let mut reviewed = review(findings);
+    let still_found: std::collections::BTreeSet<String> = reviewed
+        .findings
+        .iter()
+        .map(|f| f.rule_id.clone())
+        .collect();
+    reviewed.findings.retain(|f| {
+        f.rule_id != sv_check::decisions::NOT_HELD_TO
+            || decided
+                .iter()
+                .any(|d| d.line == f.location.line && still_found.contains(d.switch.rule_id))
+    });
+    reviewed
+}
+
 /// What tells a `[[finding-review]]` entry whose finding is gone from one whose finding was not
 /// looked for this time, or that names a rule this version does not have (deep review R3). Read
 /// from `examined`, so it says what the report says, and, for the checks that read the app's files,
@@ -5397,6 +5454,58 @@ fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_decisions_finding_reaches_the_reviews_and_goes_with_its_running_app_finding() {
+        // The review of 6 October, item 7: the decision's own finding was made after the reviews
+        // were applied, so no review of it could ever count.
+        let section = "# Design decisions\n\n## Safe defaults\n\n- Debug mode: off\n";
+        let decided = sv_check::decisions::safe_defaults(section).decided;
+        assert_eq!(decided.len(), 1, "the setup: the line is read");
+        let probe = sv_check::Finding {
+            also_reported_by: Vec::new(),
+            fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
+            marked_test_code: false,
+            rule_id: decided[0].switch.rule_id.to_owned(),
+            title: "open".to_owned(),
+            severity: sv_check::Severity::High,
+            confidence: sv_check::Confidence::High,
+            location: sv_check::Location {
+                file: "(running app)".to_owned(),
+                line: 0,
+            },
+            secret: None,
+            requirement_ids: vec!["V13.4.2".to_owned()],
+            cwe: Vec::new(),
+            description: String::new(),
+            impact: String::new(),
+            fix: String::new(),
+        };
+        let as_is = |findings: Vec<sv_check::Finding>| sv_check::review::Outcome {
+            findings,
+            set_aside: Vec::new(),
+            not_counted: Vec::new(),
+        };
+        // The review is shown the decision's finding.
+        let mut seen = Vec::new();
+        decisions_then_reviews(vec![probe.clone()], &decided, |findings| {
+            seen = findings.iter().map(|f| f.rule_id.clone()).collect();
+            as_is(findings)
+        });
+        assert!(
+            seen.iter().any(|r| r == sv_check::decisions::NOT_HELD_TO),
+            "{seen:?}"
+        );
+        // Kept while the running app's finding is, and gone with it when a person set that aside.
+        let kept = decisions_then_reviews(vec![probe.clone()], &decided, as_is);
+        assert_eq!(kept.findings.len(), 2);
+        let set_aside = decisions_then_reviews(vec![probe], &decided, |mut findings| {
+            findings.retain(|f| f.rule_id == sv_check::decisions::NOT_HELD_TO);
+            as_is(findings)
+        });
+        assert!(set_aside.findings.is_empty(), "{:?}", set_aside.findings);
+    }
 
     #[test]
     fn every_outside_tool_gets_an_entry_saying_whether_it_looked() {

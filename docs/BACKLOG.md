@@ -72,10 +72,15 @@ another session is not a claim.
   17. **Smaller, suspected or narrow:** the report seal hashes the files as read back from disk, not the bytes `sv`
       wrote, so a write in that moment would be sealed (suspected, a race); `prod.env.local` and the like go into a
       bundle (confirmed by reading `bundle.rs`).
+  **Items 1 to 9 and 15 done on 6 October 2026 by session securevibe-e2** (DESIGN, "The review of 5 and 6 October:
+  what it found, and what of it was fixed"); 15 was taken with 4, being in the same function. Items 13, 14, 16, and
+  17 are not claimed.
   **Items 10, 11, and 12 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the false
   passes next"), in branch `claude/securevibe-e2-false-passes`.
   **Items 10, 11, and 12 done the same day** (DESIGN, "Three false passes from the review of 5 and 6 October"). Item
   10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
+  **Items 13, 14, 16, and 17 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the
+  remaining review items next"), in branch `claude/securevibe-e2-review-rest`.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
@@ -6137,6 +6142,10 @@ another session is not a claim.
      `claude/securevibe-e9-bundled-libraries`: a copy of a library kept in the app, known by its own banner, has its
      findings listed apart, named for the library, and still counted; checked on library files and first-party code
      the test was not written against.
+     **Done the same day** (DESIGN, "A copy of another project's library is listed apart"; ADR-023, Later): known
+     by a string only the library writes or the comment it opens with naming a version; its findings listed after the
+     app's own, named for the library, and still counted. On the library files at hand every bannered copy is named,
+     and none of the 661 first-party files of this repository and v1 is.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.

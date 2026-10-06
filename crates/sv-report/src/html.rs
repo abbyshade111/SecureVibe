@@ -279,8 +279,9 @@ pub fn page(report: &Report) -> String {
     }
     if !tests.is_empty() {
         b.push_str(&format!(
-            "<h2>{} in test or sample code</h2>\n<p>{}</p>\n",
+            "<h2>{} {}</h2>\n<p>{}</p>\n",
             tests.len(),
+            crate::apart_named(&tests),
             escape(crate::TEST_CODE_SECTION)
         ));
         for f in tests {

@@ -151,3 +151,15 @@ fn a_dependency_list_with_no_source_read_is_code_too() {
     assert!(json.contains("\"design.planned-never-built\""), "{json}");
     assert!(!json.contains("planned, not built yet"), "{json}");
 }
+
+#[test]
+fn source_in_a_language_sv_cannot_read_is_code_too() {
+    // The review of 6 October, item 9: an app written only in Lua was told it had no code yet.
+    let dir = fresh("unread-language");
+    std::fs::write(dir.join("app.lua"), "print('hi')\n").unwrap();
+    let (compliance, json) = report(&dir, ANSWERS);
+    std::fs::remove_dir_all(&dir).ok();
+    assert_not_credited(&compliance);
+    assert!(!json.contains("planned, not built yet"), "{json}");
+    assert!(json.contains("\"design.planned-never-built\""), "{json}");
+}

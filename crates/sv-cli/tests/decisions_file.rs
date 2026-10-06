@@ -169,4 +169,30 @@ fn a_switch_written_another_way_is_named() {
             && json.contains("debug mode: mostly off"),
         "{json}"
     );
+    // The two switches with no line are named too, not left out without a word.
+    assert!(
+        json.contains("2 safe defaults not found in design-decisions.md")
+            && json.contains("cross-site access, default accounts"),
+        "{json}"
+    );
+}
+
+#[test]
+fn the_decisions_files_own_words_are_inert_in_security_md() {
+    // The review of 6 October, item 4: the "When to bring in a person" section is repeated in
+    // security.md, and an image or HTML in it was left live there.
+    let dir = fresh("inert");
+    let config = dir.join("config");
+    let decisions = "# Design decisions\n\n## When to bring in a person\n\nWritten by: AI coding tool\n\n\
+         Ask a reviewer ![x](https://tracker.example/p.png) <img src=https://t.example/a> \
+         [click](https://evil.example) before going live.\n";
+    std::fs::write(dir.join(sv_check::decisions::FILE), decisions).unwrap();
+    report(&dir, &config);
+    let security = std::fs::read_to_string(dir.join("report/security.md")).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    // The setup: the section really reached security.md.
+    assert!(security.contains("before going live"), "{security}");
+    for live in ["![x](", "<img", "[click]("] {
+        assert!(!security.contains(live), "{live} is live in:\n{security}");
+    }
 }
