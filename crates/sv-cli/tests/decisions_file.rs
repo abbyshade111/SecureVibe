@@ -169,6 +169,12 @@ fn a_switch_written_another_way_is_named() {
             && json.contains("debug mode: mostly off"),
         "{json}"
     );
+    // The two switches with no line are named too, not left out without a word.
+    assert!(
+        json.contains("2 safe defaults not found in design-decisions.md")
+            && json.contains("cross-site access, default accounts"),
+        "{json}"
+    );
 }
 
 #[test]

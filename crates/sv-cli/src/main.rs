@@ -4331,9 +4331,12 @@ fn assemble_report_saying(
         &design_answers,
         &|id| buckets.applicable.iter().any(|a| a == id),
         &|path| app_dir.join(path).exists(),
-        // The same test the technology answers use for a scan that read nothing: no source file and
-        // no dependency manifest is an app not written yet, which is when a decision is a plan.
-        scan_report.files_read > 0 || !scan_report.declared.is_empty(),
+        // No source file and no dependency manifest is an app not written yet, which is when a
+        // decision is a plan. A source file in a language `sv` cannot read is code too (the review
+        // of 6 October, item 9).
+        scan_report.files_read > 0
+            || !scan_report.declared.is_empty()
+            || !scan_report.unread_extensions.is_empty(),
     );
     findings.extend(design.findings.iter().cloned());
     gaps.extend(planned_gaps(&design.planned));
@@ -4692,6 +4695,32 @@ fn assemble_report_saying(
                 safe_defaults.unreadable.join("; "),
                 sv_check::decisions::SWITCHES
                     .iter()
+                    .map(|s| format!("- {}: {}", s.name, s.safe))
+                    .collect::<Vec<_>>()
+                    .join("`, `")
+            ),
+        });
+    }
+    if !safe_defaults.missing.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!(
+                "{} safe default{} not found in {}",
+                safe_defaults.missing.len(),
+                if safe_defaults.missing.len() == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                sv_check::decisions::FILE
+            ),
+            why: format!(
+                "The \"{}\" section has no line deciding {}, so nothing was held to the running \
+                 app for it. Write `{}`.",
+                sv_check::decisions::SAFE_DEFAULTS,
+                safe_defaults.missing.join(", "),
+                sv_check::decisions::SWITCHES
+                    .iter()
+                    .filter(|s| safe_defaults.missing.contains(&s.name))
                     .map(|s| format!("- {}: {}", s.name, s.safe))
                     .collect::<Vec<_>>()
                     .join("`, `")
