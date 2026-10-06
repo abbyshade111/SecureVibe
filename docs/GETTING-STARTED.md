@@ -187,17 +187,20 @@ sv review ~/code/my-app
 ```
 
 It goes through each answer that does not yet count as yours, shows it, asks your name or `owner`, and
-seals it with a key kept in your own settings folder. Only then does the report count it as yours: a line
+signs it with a key of its own, kept in your own settings folder. The first time, it makes that key and
+asks whether to protect it with a passphrase; with one, nothing can sign as you without it. Only then does the report count it as yours: a line
 saying `owner` that was never recorded this way still counts as the tool's word, because a tool trying to
 quiet a warning could write that line too. The same goes for an answer the tool confirmed and you looked
 at yourself, and for a finding set aside as a false alarm. `sv review` needs a terminal someone is typing
 in, so your AI tool cannot run it for you. The README ("Setting a finding aside, confirming an answer, or
 giving your own") says more, including how to run it from the container, with `-it` and your key folder.
 
-**If your AI tool uses the container** (section 3), the report it writes cannot check those seals unless
-it can see the key folder too. Add `"-v", "/Users/you/.config/securevibe:/sv-config/securevibe", "-e",
+**If your AI tool uses the container** (section 3), the report it writes cannot check those signatures
+unless it can see your list of trusted keys, which `sv review` keeps in the same folder. Add `"-v", "/Users/you/.config/securevibe:/sv-config/securevibe", "-e",
 "XDG_CONFIG_HOME=/sv-config"` to `args`, before the image name, with your own home folder (this has not
 been tried in an AI tool yet). Without it, recorded answers count as the tool's word in those reports.
+CI is the same: give it the one line `sv review` showed you as the variable `SV_TRUSTED_SEALS` (the README
+says where). That line can check a signature but never make one, so it is safe to share.
 
 Some questions are checks to make by hand, such as opening the live site and looking at the padlock.
 The tool walks you through them and records what you saw; that record, too, counts as yours once you

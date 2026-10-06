@@ -1071,10 +1071,13 @@ fn recorded(s: &sv_check::review::SetAside, did: &str) -> String {
 }
 
 /// What `sv review`'s seal shows and does not, said once above the false alarms set aside.
-pub const SEALED_WHY: &str = "`sv review` runs only in a terminal a person is typing in, and seals \
+pub const SEALED_WHY: &str = "`sv review` runs only in a terminal a person is typing in, and signs \
     what it records with a key kept outside the app's folder, so an entry the AI coding tool wrote \
-    into the file does not count. The seal shows how an entry was recorded and that it has not \
-    changed since; it cannot show who was at the keyboard, so read each reason before relying on it.";
+    into the file does not count. A signature counts only where a list of trusted keys names its key \
+    for this app, and each entry says which key and which list. It shows how an entry was recorded \
+    and that it has not changed since; it cannot show who was at the keyboard, unless the key has a \
+    passphrase, nor that a trusted key is yours, since whoever can change the list can add one. Read \
+    each reason before relying on it.";
 
 /// Why each false alarm carries a link, said once under the list.
 pub const FALSE_ALARM_WHY: &str = "A false alarm set aside here is usually a rule that will misfire \

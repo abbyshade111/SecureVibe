@@ -166,10 +166,7 @@ impl SigningKey {
             .public_key()
             .to_openssh()
             .map_err(|e| format!("the signing key's public half could not be written ({e})"))?;
-        Ok(format!(
-            "{} namespaces=\"{NAMESPACE}\" {public}",
-            app.id()
-        ))
+        Ok(format!("{} namespaces=\"{NAMESPACE}\" {public}", app.id()))
     }
 
     /// This key, signing for one app only.
@@ -320,9 +317,7 @@ fn trusted(line: &str) -> Result<Option<Trusted>, String> {
         .split_once(char::is_whitespace)
         .ok_or("it names no key")?;
     let rest = rest.trim_start();
-    let is_key = |s: &str| {
-        s.starts_with("ssh-") || s.starts_with("ecdsa-") || s.starts_with("sk-")
-    };
+    let is_key = |s: &str| s.starts_with("ssh-") || s.starts_with("ecdsa-") || s.starts_with("sk-");
     let (options, key) = if is_key(rest) {
         ("", rest)
     } else {
@@ -634,7 +629,10 @@ mod tests {
         let mut bent = seal.clone();
         let last = bent.pop().unwrap();
         bent.push(if last == '0' { '1' } else { '0' });
-        assert_eq!(here.recorded(Some(&bent), FIELDS), Err(Unrecorded::Mismatch));
+        assert_eq!(
+            here.recorded(Some(&bent), FIELDS),
+            Err(Unrecorded::Mismatch)
+        );
         // On a computer given only the public list, with the app in another folder: it counts,
         // and says where the list came from.
         let line = std::fs::read_to_string(s.keys().join(TRUSTED_FILE)).unwrap();
@@ -688,7 +686,10 @@ mod tests {
         let elsewhere = given(&their_line, &s.0.join("copy"));
         assert_eq!(
             elsewhere.recorded(Some(&seal), FIELDS),
-            Err(Unrecorded::NotTrusted(key.fingerprint(), ListFrom::Variable))
+            Err(Unrecorded::NotTrusted(
+                key.fingerprint(),
+                ListFrom::Variable
+            ))
         );
         // Trusted for another app only.
         let shop = App::of(&s.0.join("copy")).unwrap();
@@ -715,20 +716,24 @@ mod tests {
         );
         // Trusted only for another namespace (a key the person signs git commits with, say): the
         // line says nothing about `sv`'s seals.
-        let git_only = key
-            .trusted_line(&app)
-            .unwrap()
-            .replace(NAMESPACE, "git");
+        let git_only = key.trusted_line(&app).unwrap().replace(NAMESPACE, "git");
         assert_eq!(
             given(&git_only, &s.0.join("copy")).recorded(Some(&seal), FIELDS),
-            Err(Unrecorded::NotTrusted(key.fingerprint(), ListFrom::Variable))
+            Err(Unrecorded::NotTrusted(
+                key.fingerprint(),
+                ListFrom::Variable
+            ))
         );
         // A line with no namespaces trusts the key for every one, as OpenSSH reads it.
         let any = key
             .trusted_line(&app)
             .unwrap()
             .replace(&format!(" namespaces=\"{NAMESPACE}\""), "");
-        assert!(given(&any, &s.0.join("copy")).recorded(Some(&seal), FIELDS).is_ok());
+        assert!(
+            given(&any, &s.0.join("copy"))
+                .recorded(Some(&seal), FIELDS)
+                .is_ok()
+        );
         // Signed by the trusted key under another namespace, over the same message: refused.
         let other_namespace = key
             .key
@@ -750,7 +755,10 @@ mod tests {
         let good = key.trusted_line(&s.app()).unwrap();
         for bad in [
             format!("{good}\nnot a line at all\n"),
-            format!("{good}\n{}", good.replace("namespaces=", "cert-authority,namespaces=")),
+            format!(
+                "{good}\n{}",
+                good.replace("namespaces=", "cert-authority,namespaces=")
+            ),
             format!("{} valid-before=\"20300101\",{}", s.app().id(), &good[17..]),
             format!("{}\n", good.replace("namespaces=\"", "namespaces=")),
         ] {
@@ -841,7 +849,11 @@ mod tests {
         assert_eq!(unlocked.fingerprint(), locked.fingerprint());
         let seal = unlocked.for_app(&s.app()).seal(FIELDS).unwrap();
         let line = locked.trusted_line(&s.app()).unwrap();
-        assert!(given(&line, &s.0.join("app")).recorded(Some(&seal), FIELDS).is_ok());
+        assert!(
+            given(&line, &s.0.join("app"))
+                .recorded(Some(&seal), FIELDS)
+                .is_ok()
+        );
 
         // Something there that is not a signing key is refused, never quietly replaced.
         std::fs::write(&path, "not a key\n").unwrap();

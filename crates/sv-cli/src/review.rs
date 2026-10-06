@@ -87,7 +87,8 @@ fn hidden(input: &mut dyn BufRead, out: &mut dyn Write, prompt: &str) -> Result<
 }
 
 /// How `review` reads a passphrase: hidden in a terminal, as typed in a test.
-type Secret<'a> = &'a mut dyn FnMut(&mut dyn BufRead, &mut dyn Write, &str) -> Result<Option<String>>;
+type Secret<'a> =
+    &'a mut dyn FnMut(&mut dyn BufRead, &mut dyn Write, &str) -> Result<Option<String>>;
 
 /// This computer's signing key (ADR-043): made now if there is none, with a passphrase if the
 /// person wants one, or unlocked with its passphrase. `None` when the person stopped.
@@ -156,8 +157,8 @@ fn signing_key(
             } else {
                 None
             };
-            let key = SigningKey::make_in(folder, passphrase.as_deref())
-                .map_err(anyhow::Error::msg)?;
+            let key =
+                SigningKey::make_in(folder, passphrase.as_deref()).map_err(anyhow::Error::msg)?;
             writeln!(
                 out,
                 "Made this computer's signing key, in {}, with its public half beside it. Its \
@@ -1164,7 +1165,10 @@ mod tests {
         /// `sv review`, with `typed` as what the person types. The first run is asked whether the
         /// signing key it makes should have a passphrase, and the answer is no.
         fn run(&self, typed: &str) -> (Result<()>, String) {
-            let first = !self.keys().join(sv_check::signed::SIGNING_KEY_FILE).exists();
+            let first = !self
+                .keys()
+                .join(sv_check::signed::SIGNING_KEY_FILE)
+                .exists();
             self.run_as_typed(&format!("{}{typed}", if first { "\n" } else { "" }))
         }
         fn run_as_typed(&self, typed: &str) -> (Result<()>, String) {
@@ -1458,7 +1462,11 @@ mod tests {
         .unwrap();
         std::fs::write(s.app().join("security-notes.md"), &notes).unwrap();
         let sealed = s.manifest();
-        assert_eq!(sealed.matches("seal = \"v2:").count(), 4, "the setup: {sealed}");
+        assert_eq!(
+            sealed.matches("seal = \"v2:").count(),
+            4,
+            "the setup: {sealed}"
+        );
 
         // Left as they are: each still counts here, on the review key.
         let (result, out) = s.run("\n");
@@ -1554,7 +1562,10 @@ mod tests {
         let manifest = s.manifest();
         std::fs::write(
             s.app().join("securevibe.toml"),
-            format!("{manifest}{}", proposal("A second reason, long enough to be a reason.")),
+            format!(
+                "{manifest}{}",
+                proposal("A second reason, long enough to be a reason.")
+            ),
         )
         .unwrap();
         let before = s.manifest();
