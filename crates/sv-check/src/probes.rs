@@ -1448,6 +1448,20 @@ fn exposed_endpoints(responses: &[ProbeResponse]) -> Option<Finding> {
 /// source on 29 September 2026: Werkzeug 3.1.9 (`debug/tbtools.py`, served at `/console` only when
 /// the debugger may run code) and Rails 8.1.4 (`application/finisher.rb`, which adds the info pages
 /// only in development, and `info.rb`, which writes each property's name in its own cell).
+///
+/// And on 6 October 2026, from each project's main branch:
+/// - Go's `net/http/pprof` (`pprof.go`), whose `init` puts its index on the default router for any
+///   program that imports the package, and whose index page is written in `indexTmplExecute`;
+/// - Laravel Ignition (`ignition-routes.php`, `RunnableSolutionsGuard.php`,
+///   `HealthCheckController.php`), whose routes under `_ignition` answer only with `app.debug` on,
+///   in a local or development environment (or with runnable solutions switched on), beside the
+///   `execute-solution` route that runs commands;
+/// - Symfony's WebProfilerBundle 7.3 (`config/routing/profiler.php`, `ProfilerController.php`,
+///   `Profiler/base.html.twig`, `Profiler/results.html.twig`), mounted at `/_profiler` by the
+///   recipe only in the dev environment; its home page only redirects, so the search results it
+///   redirects to are asked for;
+/// - Phoenix LiveDashboard (`router.ex`, `layouts/dash.html.heex`), which the Phoenix generator
+///   mounts at `/dev/dashboard` only with `dev_routes` on, and whose layout carries its footer.
 struct Console {
     path: &'static str,
     what: &'static str,
@@ -1471,6 +1485,35 @@ const CONSOLES: &[Console] = &[
             "<td class=\"name\">Environment</td>",
         ],
     },
+    Console {
+        path: "/debug/pprof/",
+        what: "Go's profiler (`net/http/pprof`), which hands anybody the program's memory, \
+               goroutines, and command line",
+        marks: &[
+            "<title>/debug/pprof/</title>",
+            "Types of profiles available:",
+        ],
+    },
+    Console {
+        path: "/_ignition/health-check",
+        what: "Laravel Ignition's endpoints, which answer only with debug mode on, beside the one \
+               that runs commands",
+        marks: &["\"can_execute_commands\""],
+    },
+    Console {
+        path: "/_profiler/empty/search/results?limit=10",
+        what: "Symfony's profiler, which shows every request the app has served, with its \
+               settings and `phpinfo()`",
+        marks: &["<title>Symfony Profiler</title>", "<h2>Profile Search</h2>"],
+    },
+    Console {
+        path: "/dev/dashboard/home",
+        what: "Phoenix LiveDashboard, which shows the running system and can kill its processes",
+        marks: &[
+            "window.LiveDashboard",
+            "Phoenix LiveDashboard was made with love by",
+        ],
+    },
 ];
 
 fn console_id(path: &str) -> String {
@@ -1485,10 +1528,14 @@ const CONSOLE: Rule = Rule {
     requirement_ids: &["V15.2.3", "V13.4.2"],
     cwe: &["CWE-489", "CWE-215"],
     impact: "A development console is built for the person writing the app, on their own computer. \
-             On an address others can reach it shows how the app is set up, and Werkzeug's runs \
-             code on the server for anybody who gets past its PIN.",
+             On an address others can reach it shows how the app is set up, and some do more: \
+             Werkzeug's runs code on the server for anybody who gets past its PIN, Laravel \
+             Ignition's has run commands for anybody at all (CVE-2021-3129), and Go's profiler \
+             hands out the program's memory.",
     fix: "Start the app the way it is meant to run for others: debug mode off (`debug=False`, no \
-          `FLASK_DEBUG`), and Rails in the production environment (`RAILS_ENV=production`).",
+          `FLASK_DEBUG`; `APP_DEBUG=false` in Laravel), Rails and Symfony in the production \
+          environment (`RAILS_ENV=production`, `APP_ENV=prod`), Phoenix without `dev_routes`, and \
+          no `import _ \"net/http/pprof\"` in a Go program that serves the default router.",
 };
 
 /// A development console that answered, judged by the page's own words and never by its status
@@ -2880,9 +2927,35 @@ mod tests {
     /// Rails 8.1.4's properties page, as `Rails::Info.to_html` writes the table inside it.
     const RAILS_PROPERTIES: &str = "<h1>Properties</h1><table><tr><td class=\"name\">Rails version</td><td class=\"value\">8.1.4</td></tr><tr><td class=\"name\">Ruby version</td><td class=\"value\">3.3.6</td></tr><tr><td class=\"name\">Environment</td><td class=\"value\">development</td></tr></table>";
 
+    /// The start of Go's pprof index, as `indexTmplExecute` writes it.
+    const PPROF_INDEX: &str = "<html>\n<head>\n<title>/debug/pprof/</title>\n<style>\n.profile-name{\n\tdisplay:inline-block;\n\twidth:6rem;\n}\n</style>\n</head>\n<body>\n/debug/pprof/\n<br>\n<p>Set debug=1 as a query parameter to export in legacy text format</p>\n<br>\nTypes of profiles available:\n<table>";
+
+    /// Ignition's health check, as Laravel writes the array `HealthCheckController` returns.
+    const IGNITION_HEALTH: &str = "{\"can_execute_commands\":true}";
+
+    /// Symfony's profiler search results: the title from `base.html.twig`, the heading from
+    /// `results.html.twig`.
+    const SYMFONY_RESULTS: &str = "<!DOCTYPE html>\n<html>\n    <head>\n        <meta charset=\"UTF-8\" />\n        <meta name=\"robots\" content=\"noindex,nofollow\" />\n        <title>Symfony Profiler</title>\n    </head>\n    <body>\n        <h2>Profile Search</h2>\n        <h2>10 results found</h2>";
+
+    /// Phoenix LiveDashboard's layout, from `dash.html.heex`, as its home page renders it.
+    const LIVE_DASHBOARD: &str = "<!DOCTYPE html>\n<html lang=\"en\" phx-socket=\"/live\">\n  <head>\n    <script>\n      window.LiveDashboard = {\n        customHooks: {},\n      }\n    </script>\n    <title>Home · Phoenix LiveDashboard</title>\n  </head>\n  <body>\n      <footer class=\"flex-shrink-0\">\n        Phoenix LiveDashboard was made with love by\n        <a href=\"https://dashbit.co/\" target=\"_blank\" class=\"footer-dashbit\">";
+
     #[test]
     fn a_development_console_that_answers_is_found_by_its_own_words() {
-        for (console, body) in CONSOLES.iter().zip([WERKZEUG_CONSOLE, RAILS_PROPERTIES]) {
+        let bodies = [
+            WERKZEUG_CONSOLE,
+            RAILS_PROPERTIES,
+            PPROF_INDEX,
+            IGNITION_HEALTH,
+            SYMFONY_RESULTS,
+            LIVE_DASHBOARD,
+        ];
+        assert_eq!(
+            CONSOLES.len(),
+            bodies.len(),
+            "a console with no page to test"
+        );
+        for (console, body) in CONSOLES.iter().zip(bodies) {
             let findings = evaluate(&[
                 good_home(),
                 response(&console_id(console.path), 200, &[], body),
@@ -2934,6 +3007,24 @@ mod tests {
             (
                 "/rails/info/properties",
                 "<p>Rails version 8.1 is out. Environment matters.</p>",
+            ),
+            // A blog post about pprof, Ignition switched off (Laravel's 404 page), Symfony's
+            // profiler refused by the app's own page, and a dashboard of the app's own.
+            (
+                "/debug/pprof/",
+                "<title>Profiling Go with /debug/pprof/</title><p>Types of profiles available: heap, cpu</p>",
+            ),
+            (
+                "/_ignition/health-check",
+                "<html><title>Not Found</title><div>404 | Not Found</div></html>",
+            ),
+            (
+                "/_profiler/empty/search/results?limit=10",
+                "<title>Symfony Profiler</title><p>The profiler is disabled.</p>",
+            ),
+            (
+                "/dev/dashboard/home",
+                "<html><title>Dashboard</title><h1>Your dashboard</h1><footer>Made with love</footer></html>",
             ),
         ] {
             let findings = evaluate(&[good_home(), response(&console_id(path), 200, &[], body)]);
