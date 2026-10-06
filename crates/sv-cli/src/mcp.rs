@@ -1249,8 +1249,9 @@ impl Server {
             report.gaps.push(gap);
         }
         crate::report_lock::refuse_older(&report, &out_dir, elsewhere)?;
-        let written = crate::write_report_files(&report, &out_dir)?;
-        let (sealed, seal_notes) = crate::seal_report_folder(&out_dir);
+        let report_written = crate::write_report(&report, &out_dir)?;
+        let written = report_written.names();
+        let (sealed, seal_notes) = crate::seal_report_folder(&out_dir, &report_written);
         notes.extend(seal_notes);
         held.written();
         drop(held);
