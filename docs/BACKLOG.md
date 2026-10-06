@@ -87,6 +87,8 @@ another session is not a claim.
   check and what to do (run `sv review` once here, or read the report on the computer it was sealed on). Item 11: a
   seal names the app it was made for, so a copy into another app does not count; answers already sealed are sealed
   again with `sv review`.
+  **Items 1, 2, 3, 4, 12, and 13 claimed the same day by session securevibe-e2**, at the owner's word, as the first
+  batch (each credits or accuses wrongly), in branch `claude/securevibe-e2-review-1to4-batch1`.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
