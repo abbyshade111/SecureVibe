@@ -622,6 +622,11 @@ another session is not a claim.
     `Pipfile.lock` with no `Pipfile` beside it is not found.
     **These two claimed on 6 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
     backlog, in branch `claude/securevibe-e2-h9-rest`.
+    **Done the same day** (DESIGN, "A lone `Pipfile.lock`, and requirements files under other names"): a `Pipfile.lock`
+    with no `Pipfile` or `requirements.txt` beside it is a Python project of its own, read for the bill of materials,
+    the advisories, and the pinning check; a requirements file under another name is judged by the pinning check, as
+    its own lockfile when every package in it is pinned and hashed and as pinning nothing otherwise, whatever lockfile
+    is beside it. Eleven guards broken in turn, each caught.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
