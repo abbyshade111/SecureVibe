@@ -697,6 +697,233 @@ fn every_claim_corroborator_has_a_witness() {
 }
 
 #[test]
+fn the_weaker_claims_are_answered_by_libraries_that_can_only_mean_them() {
+    // The backlog's "Corroborators for the remaining claims": `multimodal-ai`, `ai-history`, and
+    // `public-api` leaned almost entirely on patterns in the source. Each library here is declared
+    // the way an app would declare it, and each must answer its claim on its own, so a name that is
+    // never matched (a typo, a manifest the scanner does not read) fails rather than sits unused.
+    let cases: &[(&str, &str, &str, &str)] = &[
+        (
+            "multimodal-ai",
+            "requirements.txt",
+            "assemblyai==0.34.0\n",
+            "assemblyai",
+        ),
+        (
+            "multimodal-ai",
+            "requirements.txt",
+            "deepgram-sdk==3.7.0\n",
+            "deepgram-sdk",
+        ),
+        (
+            "multimodal-ai",
+            "requirements.txt",
+            "google-cloud-speech==2.27.0\n",
+            "google-cloud-speech",
+        ),
+        (
+            "multimodal-ai",
+            "package.json",
+            r#"{"dependencies": {"assemblyai": "4.7.0"}}"#,
+            "assemblyai",
+        ),
+        (
+            "multimodal-ai",
+            "package.json",
+            r#"{"dependencies": {"@deepgram/sdk": "3.9.0"}}"#,
+            "@deepgram/sdk",
+        ),
+        (
+            "multimodal-ai",
+            "package.json",
+            r#"{"dependencies": {"@google-cloud/speech": "6.7.0"}}"#,
+            "@google-cloud/speech",
+        ),
+        (
+            "ai-history",
+            "requirements.txt",
+            "mem0ai==0.1.29\n",
+            "mem0ai",
+        ),
+        (
+            "ai-history",
+            "requirements.txt",
+            "zep-cloud==2.0.0\n",
+            "zep-cloud",
+        ),
+        (
+            "ai-history",
+            "package.json",
+            r#"{"dependencies": {"mem0ai": "2.1.0"}}"#,
+            "mem0ai",
+        ),
+        (
+            "ai-history",
+            "package.json",
+            r#"{"dependencies": {"@getzep/zep-cloud": "2.0.0"}}"#,
+            "@getzep/zep-cloud",
+        ),
+        (
+            "ai-history",
+            "package.json",
+            r#"{"dependencies": {"@langchain/langgraph-checkpoint-postgres": "0.0.2"}}"#,
+            "@langchain/langgraph-checkpoint-postgres",
+        ),
+        (
+            "ai-history",
+            "package.json",
+            r#"{"dependencies": {"@langchain/langgraph-checkpoint-sqlite": "0.1.3"}}"#,
+            "@langchain/langgraph-checkpoint-sqlite",
+        ),
+        (
+            "public-api",
+            "requirements.txt",
+            "drf-yasg==1.21.7\n",
+            "drf-yasg",
+        ),
+        (
+            "public-api",
+            "requirements.txt",
+            "connexion==3.1.0\n",
+            "connexion",
+        ),
+        (
+            "public-api",
+            "requirements.txt",
+            "flask-smorest==0.44.0\n",
+            "flask-smorest",
+        ),
+        (
+            "public-api",
+            "package.json",
+            r#"{"dependencies": {"@fastify/swagger": "9.0.0"}}"#,
+            "@fastify/swagger",
+        ),
+        (
+            "public-api",
+            "package.json",
+            r#"{"dependencies": {"express-openapi-validator": "5.3.7"}}"#,
+            "express-openapi-validator",
+        ),
+        (
+            "public-api",
+            "Gemfile",
+            "source 'https://rubygems.org'\ngem 'grape-swagger', '2.1.1'\n",
+            "grape-swagger",
+        ),
+        (
+            "public-api",
+            "composer.json",
+            r#"{"require": {"nelmio/api-doc-bundle": "4.32.0"}}"#,
+            "nelmio/api-doc-bundle",
+        ),
+        (
+            "public-api",
+            "pom.xml",
+            "<project><dependencies><dependency><groupId>org.springdoc</groupId><artifactId>springdoc-openapi-starter-webflux-ui</artifactId><version>2.6.0</version></dependency></dependencies></project>\n",
+            "springdoc-openapi-starter-webflux-ui",
+        ),
+        (
+            "public-api",
+            "build.gradle",
+            "dependencies {\n    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.6.0'\n}\n",
+            "springdoc-openapi-starter-webflux-ui",
+        ),
+    ];
+    for (condition_name, manifest, contents, library) in cases {
+        let report = scan_files(
+            &format!("library-{condition_name}"),
+            &[(manifest, contents), ("README.md", "An app.\n")],
+        );
+        let condition = Condition::from_name(condition_name).unwrap();
+        let found = answer(&report, condition);
+        assert!(
+            matches!(&found.evidence, Evidence::Dependency { name, .. } if name == library),
+            "{condition_name} from {library} in {manifest}: {:?}",
+            found.evidence
+        );
+    }
+    // The control: an app that only calls a model, with no picture, memory, or API of its own,
+    // answers none of the three.
+    let report = scan_files(
+        "library-control",
+        &[("requirements.txt", "openai==1.51.0\nflask==3.0.3\n")],
+    );
+    for name in ["multimodal-ai", "ai-history", "public-api"] {
+        let found = answer(&report, Condition::from_name(name).unwrap());
+        assert_ne!(found.value, Some(true), "{name}: {:?}", found.evidence);
+    }
+}
+
+#[test]
+fn a_key_read_from_a_query_parameter_is_a_public_api() {
+    // The gap the backlog named: a key checked by hand against a query parameter left nothing
+    // behind. Each framework's way of reading `?api_key=` answers `public-api`.
+    let cases: &[(&str, &str)] = &[
+        (
+            "app.py",
+            "key = request.args.get('api_key')\nif key not in KEYS:\n    abort(401)\n",
+        ),
+        ("app.py", "key = request.args.get(\"api_key\")\n"),
+        ("views.py", "key = request.query_params.get('api_key')\n"),
+        ("views.py", "key = request.query_params.get(\"api_key\")\n"),
+        (
+            "server.js",
+            "if (!keys.has(req.query.api_key)) return res.status(401).end();\n",
+        ),
+        ("server.js", "const key = req.query.apiKey;\n"),
+        ("server.js", "const key = req.query['api_key'];\n"),
+        (
+            "server.ts",
+            "const key = req.query[\"api_key\"] as string;\n",
+        ),
+        (
+            "route.ts",
+            "const key = new URL(request.url).searchParams.get('api_key');\n",
+        ),
+        (
+            "route.ts",
+            "const key = request.nextUrl.searchParams.get(\"api_key\");\n",
+        ),
+        ("main.go", "key := c.Query(\"api_key\")\n"),
+        ("main.go", "key := r.URL.Query().Get(\"api_key\")\n"),
+        (
+            "api_controller.rb",
+            "head :unauthorized unless valid_key?(params[:api_key])\n",
+        ),
+        ("api_controller.rb", "key = params['api_key']\n"),
+        ("api.php", "$key = $_GET['api_key'] ?? '';\n"),
+        ("api.php", "$key = $_GET[\"api_key\"];\n"),
+    ];
+    for (file, contents) in cases {
+        let report = scan_files("query-key", &[(file, contents)]);
+        let found = answer(&report, Condition::PublicApi);
+        assert!(
+            matches!(&found.evidence, Evidence::Source { file: f, .. } if f == file),
+            "{file}: {contents} gave {:?}",
+            found.evidence
+        );
+    }
+    // The control: an app reading its own key to call somebody else's API is not offering one.
+    for (file, contents) in [
+        (
+            "app.py",
+            "client = OpenAI(api_key=os.environ.get('API_KEY'))\n",
+        ),
+        ("app.py", "key = os.getenv(\"API_KEY\")\n"),
+        (
+            "server.js",
+            "const client = new Anthropic({ apiKey: process.env.API_KEY });\n",
+        ),
+        ("main.go", "key := os.Getenv(\"API_KEY\")\n"),
+    ] {
+        let report = scan_files("query-key-control", &[(file, contents)]);
+        let found = answer(&report, Condition::PublicApi);
+        assert_ne!(found.value, Some(true), "{file}: {:?}", found.evidence);
+    }
+}
+
+#[test]
 fn a_dockerfile_is_infrastructure_configuration() {
     // `iac` names `Dockerfile` and rules itself out by absence, so an app whose only infrastructure
     // configuration is a Dockerfile was being reported as having none — a false exclusion on a

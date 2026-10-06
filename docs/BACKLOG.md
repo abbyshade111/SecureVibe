@@ -2019,6 +2019,9 @@ another session is not a claim.
   give the loopback hint only when nothing crashed.
   **Claimed on 6 October 2026 by session securevibe-e9**, with the preflight's start file below, at the owner's word
   ("Please continue to work off the backlog"), in branch `claude/securevibe-e9-start-failures`.
+  **Done the same day** (DESIGN, "An app that crashes at start, and a start command whose file is not there"): a
+  crash is quoted by its error line, and is told the error is why in place of the loopback guess; an app that did
+  not crash is quoted by its last line.
 
 - **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
   paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
@@ -2026,6 +2029,8 @@ another session is not a claim.
   be named the same way (ADR-035).
   **Claimed on 6 October 2026 by session securevibe-e9**, with the crash's last line above, in branch
   `claude/securevibe-e9-start-failures`.
+  **Done the same day** (same DESIGN section): the preflight names the start command's missing file, and adds that a
+  build step may make it.
 
 - **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
   two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
@@ -6138,6 +6143,9 @@ another session is not a claim.
   work off the backlog"), in branch `claude/securevibe-e9-corroborators`: libraries that can only mean each claim
   (speech-to-text services for `multimodal-ai`, memory stores for `ai-history`, API documentation and key libraries for
   `public-api`), and a key read from a query parameter, each with a witness.
+  **Done the same day** (DESIGN, "Libraries that can only mean a claim, and a key read from a query parameter"): 21
+  library entries and 22 ways of reading `?api_key=`, each answering its claim on its own, with controls for a model
+  client, a web framework, and a key read from the environment.
   **A corroborator for `web-search`** (the answer added on 27 September 2026, which nothing reads from
   the code yet): **claimed on 27 September 2026 by session securevibe-e8. Done the same day:** the
   search services' libraries (Tavily, Exa, SerpApi, DuckDuckGo) and, in the code, `web_search` and
