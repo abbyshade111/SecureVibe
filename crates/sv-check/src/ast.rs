@@ -1040,9 +1040,11 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
     }
     // `["-c", "ls"]` is as fixed as the strings in it, and `["-c", cmd]` is not: a command handed to
     // a shell as the second element of a list is the Dart, Swift, and Rust way to write `sh -c`.
+    // Python's grammar calls a list `list` (and a tuple `tuple`), JavaScript's and TypeScript's
+    // `array`, so `run(["ls", "-la"], shell=True)` is a fixed command too.
     if matches!(
         node.kind(),
-        "list_literal" | "array_literal" | "array_expression"
+        "list_literal" | "array_literal" | "array_expression" | "list" | "tuple" | "array"
     ) {
         let mut cursor = node.walk();
         return node
@@ -5006,6 +5008,18 @@ mod tests {
         ("ast.sql-built-by-hand", "go", "package main\nconst q = \"SELECT * FROM notes WHERE user_id = $1\"\nfunc f(ctx context.Context, db *sql.DB, uid int) { db.QueryContext(ctx, q, uid) }", false),
         ("ast.sql-built-by-hand", "go", "package main\nfunc f(ctx context.Context, db *sql.DB, name string) { db.QueryContext(ctx, \"SELECT * FROM t WHERE n = '\"+name+\"'\") }", true),
         ("ast.sql-built-by-hand", "go", "package main\nfunc f(db *sql.DB) { db.Query(\"SELECT 1\") }", false),
+        // The review of 1 to 4 October, item 18: query calls these languages' code uses as often as
+        // the ones the rule read.
+        ("ast.sql-built-by-hand", "go", "package main\nfunc f(ctx context.Context, db *sql.DB, n string) { db.QueryRowContext(ctx, \"SELECT * FROM t WHERE n = '\"+n+\"'\") }", true),
+        ("ast.sql-built-by-hand", "go", "package main\nfunc f(db *sql.DB, n string) { db.Prepare(\"SELECT * FROM t WHERE n = '\"+n+\"'\") }", true),
+        ("ast.sql-built-by-hand", "go", "package main\nfunc f(ctx context.Context, db *sql.DB, n string) { db.PrepareContext(ctx, \"SELECT * FROM t WHERE n = '\"+n+\"'\") }", true),
+        ("ast.sql-built-by-hand", "go", "package main\nfunc f(ctx context.Context, db *sql.DB, n string) { db.QueryRowContext(ctx, \"SELECT * FROM t WHERE n = $1\", n) }", false),
+        ("ast.sql-built-by-hand", "kotlin", "fun f(c: Connection, n: String) { val s = c.prepareStatement(\"SELECT * FROM t WHERE n = '\" + n + \"'\") }", true),
+        ("ast.sql-built-by-hand", "kotlin", "fun f(c: Connection) { val s = c.prepareStatement(\"SELECT * FROM t WHERE n = ?\") }", false),
+        ("ast.sql-built-by-hand", "csharp", "class A { void F(SqlCommand cmd, string n) { cmd.CommandText = \"SELECT * FROM t WHERE n = '\" + n + \"'\"; cmd.ExecuteReader(); } }", true),
+        ("ast.sql-built-by-hand", "csharp", "class A { void F(string n) { var cmd = new SqlCommand { CommandText = \"SELECT * FROM t WHERE n = '\" + n + \"'\" }; } }", true),
+        ("ast.sql-built-by-hand", "csharp", "class A { void F(SqlCommand cmd) { cmd.CommandText = \"SELECT * FROM t WHERE n = @n\"; cmd.ExecuteReader(); } }", false),
+        ("ast.sql-built-by-hand", "csharp", "class A { void F(Label l, string n) { l.Text = \"Hello \" + n; } }", false),
         // Same-site paths: one slash and then an ordinary path character cannot leave the site.
         ("ast.open-redirect", "python", "return redirect(f\"/notes/{note_id}\")", false),
         ("ast.open-redirect", "python", "return redirect(\"/notes/\" + str(note_id))", false),
@@ -5036,6 +5050,14 @@ mod tests {
         ("ast.shell-command-shell-true", "javascript", "child_process.spawnSync(cmd, { cwd: dir, shell: true })", true),
         ("ast.shell-command-shell-true", "javascript", "execFile('recipe-pdf', [title, file], done)", false),
         ("ast.shell-command-shell-true", "javascript", "spawn('ls -la', { shell: true })", false),
+        // A fixed list of arguments is as fixed as a fixed string (the review of 1 to 4 October,
+        // item 22): Python's grammar calls it a `list` or a `tuple`, JavaScript's an `array`.
+        ("ast.shell-command-shell-true", "python", "subprocess.run(['ls', '-la'], shell=True)", false),
+        ("ast.shell-command-shell-true", "python", "subprocess.run(('ls', '-la'), shell=True)", false),
+        ("ast.shell-command-shell-true", "python", "subprocess.run(['ls', folder], shell=True)", true),
+        ("ast.shell-command-shell-true", "javascript", "spawn('ls', ['-la'], { shell: true })", false),
+        ("ast.shell-command-shell-true", "typescript", "spawn('ls', ['-la'], { shell: true })", false),
+        ("ast.shell-command-shell-true", "javascript", "spawn('ls', ['-la', dir], { shell: true })", true),
         ("ast.shell-command-shell-true", "javascript", "spawn(cmd, { shell: false })", false),
         ("ast.shell-command-shell-true", "javascript", "spawn(cmd, { detached: true })", false),
         ("ast.shell-command-shell-true", "typescript", "spawn(`convert ${name}`, { shell: true })", true),
