@@ -2010,6 +2010,9 @@ another session is not a claim.
   these and says "`sv run` will look for this, and the code does not seem to have it", running nothing, would give the
   builder the chance the loop already takes with what the check says. Each would credit nothing, as the preflight
   does; the run stays the evidence. The next loop trial could measure whether the running apps' findings then fall.
+  **Claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Go ahead and choose a backlog item
+  when ready"), in branch `claude/securevibe-e2-builder-hints`. Read on `main` just before this claim: no other session
+  had claimed it.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
