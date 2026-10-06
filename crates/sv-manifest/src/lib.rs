@@ -57,6 +57,28 @@ pub const SENSITIVE_DATA_CATEGORIES: &[&str] = &[
     "children",
 ];
 
+/// Every data category the spec lists (`spec.rs`), sensitive or not. A name not among them cannot
+/// be shown not to be sensitive, so it holds the app to level 2, and the report names it
+/// (the documentation review of 6 October 2026, item 7; ADR-024, Later).
+pub const DATA_CATEGORIES: &[&str] = &[
+    "contact",
+    "financial",
+    "payment-card",
+    "health",
+    "government-id",
+    "credentials",
+    "children",
+    "location",
+    "files",
+    "business-confidential",
+    "other-personal",
+];
+
+/// A category as the lists spell it: `"Health"` and ` health ` are `health`.
+fn category_name(listed: &str) -> String {
+    listed.trim().to_ascii_lowercase()
+}
+
 #[derive(Debug, Clone, Deserialize, Default)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct AppSection {
@@ -685,6 +707,13 @@ pub struct UploadSection {
 }
 
 impl UsersSection {
+    /// Whether the run makes an admin account: for the admin pages, and for the admin actions,
+    /// which are sent as the admin too. Until 6 October 2026 only `admin` made one, so
+    /// `admin-actions` alone were never asked (the documentation review, item 3).
+    pub fn makes_an_admin(&self) -> bool {
+        !self.admin.is_empty() || !self.admin_actions.is_empty()
+    }
+
     /// What is missing for the signed-in probes to run at all, in the words the report will use.
     pub fn problems(&self) -> Vec<String> {
         let mut out = Vec::new();
@@ -1210,9 +1239,10 @@ impl Manifest {
     pub fn target_level(&self) -> u8 {
         let sensitive = match &self.data.categories {
             None => true,
-            Some(listed) => listed
-                .iter()
-                .any(|c| SENSITIVE_DATA_CATEGORIES.contains(&c.as_str())),
+            Some(listed) => listed.iter().map(|c| category_name(c)).any(|c| {
+                SENSITIVE_DATA_CATEGORIES.contains(&c.as_str())
+                    || !DATA_CATEGORIES.contains(&c.as_str())
+            }),
         };
         let exposed = matches!(self.app.audience, Audience::Customers | Audience::Public);
         if sensitive || exposed { 2 } else { 1 }
@@ -1229,6 +1259,39 @@ impl Manifest {
              write `categories = []` if it holds nothing about people; if nothing on the list is \
              sensitive, the level becomes 1.",
         )
+    }
+
+    /// The names under `[data] categories` that are not on the list, as written, and why they hold
+    /// the app to level 2; `None` when every name is on it. A misspelled `"helth"` is not an answer
+    /// that the app holds nothing sensitive.
+    pub fn level_from_unknown_data(&self) -> Option<String> {
+        let unknown: Vec<&str> = self
+            .data
+            .categories
+            .iter()
+            .flatten()
+            .filter(|c| !DATA_CATEGORIES.contains(&category_name(c).as_str()))
+            .map(String::as_str)
+            .collect();
+        (!unknown.is_empty()).then(|| {
+            format!(
+                "securevibe.toml lists {} under `[data] categories`, which {} not among the names \
+                 `sv` knows ({}), so nothing shows {} not sensitive, and the app is held to ASVS \
+                 level 2. Use the names on that list.",
+                unknown
+                    .iter()
+                    .map(|c| format!("`{c}`"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                if unknown.len() == 1 { "is" } else { "are" },
+                DATA_CATEGORIES.join(", "),
+                if unknown.len() == 1 {
+                    "it is"
+                } else {
+                    "they are"
+                }
+            )
+        })
     }
 
     /// Every condition this manifest claims, before any corroboration. `None` means the manifest
@@ -1719,6 +1782,42 @@ mod tests {
         assert_eq!(m.target_level(), 1);
         m.data.categories = Some(vec!["health".into()]);
         assert_eq!(m.target_level(), 2);
+    }
+
+    #[test]
+    fn a_data_category_not_on_the_list_is_not_a_quiet_no_either() {
+        // The documentation review of 6 October 2026, item 7: a misspelled "helth" allowed
+        // level 1, and nothing said so.
+        let mut m = Manifest::default();
+        m.app.audience = Audience::JustMe;
+        m.data.categories = Some(vec!["contact".into(), "helth".into()]);
+        assert_eq!(m.target_level(), 2);
+        let why = m.level_from_unknown_data().expect("the name is said");
+        assert!(why.contains("`helth`") && why.contains("level 2"), "{why}");
+        // Spelled with capitals or spaces, a name on the list is that name.
+        m.data.categories = Some(vec![" Health ".into()]);
+        assert_eq!(m.target_level(), 2);
+        assert!(m.level_from_unknown_data().is_none());
+        m.data.categories = Some(vec!["Contact".into(), "files".into()]);
+        assert_eq!(m.target_level(), 1);
+        // The control: every name on the list, none sensitive, is level 1, and nothing is said.
+        m.data.categories = Some(
+            DATA_CATEGORIES
+                .iter()
+                .filter(|c| !SENSITIVE_DATA_CATEGORIES.contains(c))
+                .map(|c| (*c).to_owned())
+                .collect(),
+        );
+        assert_eq!(m.target_level(), 1);
+        assert!(m.level_from_unknown_data().is_none());
+    }
+
+    #[test]
+    fn the_spec_lists_every_data_category_sv_knows() {
+        let spec = crate::spec::STARTER_MANIFEST;
+        for c in DATA_CATEGORIES {
+            assert!(spec.contains(c), "{c}");
+        }
     }
 
     #[test]

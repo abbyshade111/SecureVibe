@@ -11013,6 +11013,97 @@ Broken on purpose twelve ways, each caught in the end:
 The later-`PROTO` break was caught by nothing at first, and now has its own witness. The path for files over 64 MB is
 not tested, since a test would have to write a file that size.
 
+## Five findings of the documentation review (6 October 2026)
+
+Items 1, 3, 5, 6, and 7 of "Found by the documentation review" (BACKLOG), each confirmed in the code first.
+
+- **1. A clean run no longer credits V15.2.4** (`data/ast-rules.json`, ADR-018, Later). `ast.download-piped-to-shell`
+  is findings-only: no `curl … | sh` says nothing about where dependencies come from. Held by
+  `a_shell_script_with_no_download_piped_to_a_shell_credits_nothing_about_dependencies`, with the pipe still found as
+  its control.
+- **3. `admin-actions` make an admin** (`UsersSection::makes_an_admin`, `sv_run::accounts_for`). Only `admin` pages
+  made one, so admin actions listed alone were not assessed, with a reason about `seed` that misled. Held by
+  `admin_actions_alone_make_an_admin_to_send_them_as`. The one call site in `docker.rs` runs only with Docker, so the
+  test holds the function it calls.
+- **5. `securevibe_bundle` requires `path`**, with a description of its own: the zip goes beside the app, so the
+  server's own folder, everyone else's default, is always refused. Held in
+  `the_bundle_tool_is_offered_and_the_report_points_to_it`.
+- **6. `docs/REQUIREMENTS.md` counts a tool's rules by rule** (`TOOL_RULE_IDS` in `tools/coverage.py`), not by
+  distinct description: V1.2.4 says 74 semgrep rules, where it said 1. And each phrase of what the rules look for is
+  said once, where one rule's words joined two with "; " that another said alone. Held by
+  `the_coverage_document_matches_the_checks`.
+- **7. A data category `sv` does not know holds the app to level 2** (`DATA_CATEGORIES`,
+  `Manifest::level_from_unknown_data`, ADR-024, Later). Names are read whatever their capitals and spaces, a name not on
+  the list is named in `sv check`'s output and as a gap in the report, and the spec says so. Held by
+  `a_data_category_not_on_the_list_is_not_a_quiet_no_either`, `the_spec_lists_every_data_category_sv_knows`, and,
+  end to end, `a_misspelled_data_category_is_named_in_the_report`.
+
+Eight guards were undone in turn, and each was caught.
+
+## Static files from the app's own folder, in five more languages (6 October 2026)
+
+`ast.static-files-from-app-folder` (V13.4.7, findings only) looks for a web framework's static-file handler that is
+given the folder the code is in, or the folder the app was started from. Either one hands out the source, the
+settings, and a `.env` file beside them. When it was built it read JavaScript, TypeScript, Python, Go, and shell, and
+left PHP, Ruby, Java, C#, and Rust as not done. Each handler below was read from the project's own source on
+6 October 2026, as the first languages' were. The rule stays pure data in `data/ast-rules.json`: a query per language,
+the handler names, and the arguments that name the app's own folder.
+
+- **Ruby.**
+  - Sinatra's `set :public_folder` (by default `root/public`, `sinatra/base.rb`).
+  - Rack's `Rack::Static` with `root:` (`rack/static.rb`).
+  - `Rack::Files.new`.
+  - Each counts when given `.`, `__dir__`, the file's own folder, `Dir.pwd`, or `root`.
+- **Java.**
+  - Spring's `addResourceLocations` given `"file:./"` or `"file:" + System.getProperty("user.dir")`.
+  - Javalin's `staticFiles.add(".", Location.EXTERNAL)` (`StaticFilesConfig.kt`).
+- **C#.** `UseStaticFiles`, `UseFileServer`, or `UseDirectoryBrowser`, whose options carry a `FileProvider`, given a
+  `PhysicalFileProvider` for any of:
+  - the current folder;
+  - the build output (`AppContext.BaseDirectory`);
+  - the content root, where `appsettings.json` is.
+- **Rust.**
+  - tower-http's `ServeDir::new(".")`.
+  - actix-files' `Files::new(path, "./")`, which its own documentation says serves the current working directory.
+  - warp's `fs::dir(".")`.
+- **PHP.** PHP's own server, `php -S`, serves the folder it was started in when it is given no `-t`
+  (`php_cli_server.c` falls back to the working folder). It is read where it is run, in shell scripts, as
+  `python -m http.server` already was. `-t .` counts as the same folder; `-t public` does not.
+
+Every language has witnesses both ways: the unsafe form and its neighbors that are fine. Examples of the fine ones:
+- `File.join(__dir__, "public")`;
+- `"classpath:/static/"`;
+- `UseStaticFiles()` with no provider;
+- `ServeDir::new("assets")`;
+- `php -S … -t ./public`;
+- a list's own `add(".")`.
+
+Broken on purpose sixteen ways:
+- each new language's pattern made to match nothing, or anything;
+- `php -S` not looked for;
+- `-t .` counted as safe;
+- `-t` never counted as safe;
+- `Rack::Files.new` not looked for;
+- `Dir.pwd` not counted;
+- the content root not counted;
+- Spring's `user.dir` not looked for;
+- Javalin's `Location.EXTERNAL` not required.
+
+The Spring `user.dir` break was caught by nothing at first. The plain `"file:./"` pattern also matched `"file:" +`
+followed by anything, so it would have reported `addResourceLocations("file:" + uploads)`, which serves a folder of
+its own. The pattern now requires the string to end there. A witness holds that, and the `user.dir` break is caught.
+
+A witness written as `ServeDir::new(env!("CARGO_MANIFEST_DIR"))` also set off `ast.file-path-from-value`, which takes
+`env!` for a value. That form was left out of this rule rather than written unwitnessed, and the other rule's mistake
+is in the backlog.
+
+Still not seen:
+- Rack's `Static` with no `root:`. Its default is the folder the app was started in, but only below the `urls:` it is
+  given, which a pattern cannot weigh.
+- Spark Java, and Kotlin's Ktor, not read here.
+- Static files set up in PHP code itself.
+- Any folder named in settings or built at run time.
+
 ## Libraries that can only mean a claim, and a key read from a query parameter (6 October 2026)
 
 The backlog's "Corroborators for the remaining claims" left three claims leaning almost entirely on patterns in the

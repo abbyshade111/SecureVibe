@@ -170,7 +170,7 @@ health = "/"              # a path that returns 200 once the app is up
 # or write [] if it holds nothing about people at all.
 # contact | financial | payment-card | health | government-id | credentials
 # children | location | files | business-confidential | other-personal
-# (spelled exactly as listed: a name not on the list does not raise the level)
+# (spelled as listed: a name not on the list is held to the higher level, and the report says so)
 # categories = ?
 
 [capabilities]

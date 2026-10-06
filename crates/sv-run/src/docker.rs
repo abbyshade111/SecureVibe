@@ -568,12 +568,7 @@ impl DockerBackend {
 
         // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
         //     those see the app as a stranger first; before the tests, which may change its data.
-        let accounts = plan.users.as_ref().map(|users| {
-            crate::new_accounts(
-                !users.admin.is_empty(),
-                users.totp.is_some() && users.seed.is_some(),
-            )
-        });
+        let accounts = plan.users.as_ref().map(crate::accounts_for);
         let signed_in = plan.users.as_ref().zip(accounts.as_ref()).map(|pair| {
             let model = model.filter(|host| self.model_ready(&via, host));
             self.signed_in(&via, &app, (mail, browser, model), plan, pair)
