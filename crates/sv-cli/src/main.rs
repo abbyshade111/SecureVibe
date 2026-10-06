@@ -626,6 +626,9 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     if let Some(why) = manifest.level_from_unanswered_data() {
         println!("{why}");
     }
+    if let Some(why) = manifest.level_from_unknown_data() {
+        println!("{why}");
+    }
     if !report.ecosystems.is_empty() {
         let names: Vec<&str> = report.ecosystems.iter().map(|e| e.name.as_str()).collect();
         println!(
@@ -4592,6 +4595,12 @@ fn assemble_report_saying(
         gaps.push(sv_report::Gap {
             what: "What information the app holds about people".to_owned(),
             why: why.to_owned(),
+        });
+    }
+    if let Some(why) = manifest.level_from_unknown_data() {
+        gaps.push(sv_report::Gap {
+            what: "A kind of information the app holds that `sv` does not know".to_owned(),
+            why,
         });
     }
     let not_counted: Vec<&(String, String)> = confirmed_design

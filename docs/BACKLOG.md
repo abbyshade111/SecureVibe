@@ -2114,6 +2114,10 @@ another session is not a claim.
   Item 1 changes what counts as evidence, so its record goes with it: **`Status: proposed`**, a "Later" entry on
   ADR-018 saying `ast.download-piped-to-shell` is only ever a finding, since finding no download piped to a shell says
   nothing about where the app's dependencies come from. Items 4 and 8 stay the owner's.
+  **Done the same day** (DESIGN, "Five findings of the documentation review"; ADR-018 and ADR-024, Later, 6 October
+  2026). 1: the rule is findings-only. 3: `admin-actions` make an admin as `admin` pages do. 5: the bundle tool's
+  `path` is required and says why. 6: the tool rules are counted by rule, and each phrase is said once. 7: a category
+  not on the list holds the app to level 2, and the report names it; capitals and spaces are read through.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
