@@ -5,8 +5,15 @@
 //! is built from the report's own parts, so the two cannot disagree: the requirements are the
 //! report's applicable ones that the feature brings, and the tests to write are the report's own,
 //! for those requirements. Its own parts are the design-time prompts for the decisions to make
-//! first, the coding rules that cite one of its requirements, and the settings `sv run` needs to
-//! test it, quoted from the starter `securevibe.toml` so they cannot drift from the spec.
+//! first, the coding rules that cite one of its requirements, the coding prompts shown to work for
+//! its requirements, and the settings `sv run` needs to test it, quoted from the starter
+//! `securevibe.toml` so they cannot drift from the spec.
+//!
+//! The coding prompts are only those the library marks `shown` (`data/prompts.json`): each was given
+//! to an AI coding tool building an app, and the problem it is for went away under `sv`'s check
+//! (docs/prompts/library-trial/). Those not shown are not offered here: at the moment a feature is
+//! built, a prompt that has not been shown to change anything is noise. `securevibe_prompts` still
+//! gives every one, marked.
 //!
 //! # What it is worth
 //!
@@ -182,6 +189,8 @@ pub(crate) struct Brief {
     /// level, or brought only by its own list and ruled out.
     pub not_applying: usize,
     pub prompts: Vec<PromptText>,
+    /// Coding prompts shown to work whose requirements the feature brings.
+    pub coding_prompts: Vec<PromptText>,
     pub rules: Vec<RuleRef>,
     pub tests: Vec<sv_report::TestToWrite>,
     pub settings: Vec<SettingBlock>,
@@ -250,6 +259,7 @@ pub(crate) fn from_report(
     brought: &Brought,
     frameworks: &Frameworks,
     design_prompts: &sv_check::prompts::Prompts,
+    coding_prompts: &sv_check::prompts::Prompts,
     coding_rules: &sv_check::coding_rules::CodingRules,
 ) -> Brief {
     let requirements: Vec<Applies> = report
@@ -300,6 +310,25 @@ pub(crate) fn from_report(
             text: p.prompt.clone(),
         })
         .collect();
+    // A coding prompt is offered when it has been shown to work and one of its requirements is one
+    // this feature brings to the app, now or once securevibe.toml says the app has it.
+    let brings: BTreeSet<&str> = requirements
+        .iter()
+        .chain(pending.iter())
+        .map(|r| r.id.as_str())
+        .collect();
+    let coding = coding_prompts
+        .prompts
+        .iter()
+        .filter(|p| p.status == sv_check::prompts::Status::Shown)
+        .filter(|p| p.requirements.iter().any(|r| brings.contains(r.as_str())))
+        .map(|p| PromptText {
+            id: p.id.clone(),
+            title: p.title.clone(),
+            status: p.status.as_str(),
+            text: p.prompt.clone(),
+        })
+        .collect();
     // The coding rules cite AISVS Appendix C, how the AI coding tool works, never a requirement of
     // the app; so a feature names the topics that bear on building it, and the brief gives those.
     let rules = coding_rules
@@ -343,6 +372,7 @@ pub(crate) fn from_report(
         requirements,
         pending,
         prompts,
+        coding_prompts: coding,
         rules,
         tests,
         settings,
@@ -365,6 +395,9 @@ pub(crate) fn to_json(brief: &Brief) -> Value {
         "conditions": brief.conditions,
         "notApplying": brief.not_applying,
         "prompts": brief.prompts.iter().map(|p| json!({
+            "id": p.id, "title": p.title, "status": p.status, "text": p.text,
+        })).collect::<Vec<_>>(),
+        "codingPrompts": brief.coding_prompts.iter().map(|p| json!({
             "id": p.id, "title": p.title, "status": p.status, "text": p.text,
         })).collect::<Vec<_>>(),
         "rules": brief.rules.iter().map(|r| json!({
@@ -451,6 +484,21 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     }
 
     out.push_str("## 3. Rules to code by\n\n");
+    if !brief.coding_prompts.is_empty() {
+        out.push_str(
+            "### Prompts shown to work for this feature\n\nEach of these was given to an AI coding \
+             tool building an app, and `sv` found that the problem it is for went away. Follow them \
+             while you build this feature:\n\n",
+        );
+        for p in &brief.coding_prompts {
+            out.push_str(&format!("#### {} (`{}`)\n\n", p.title, p.id));
+            for line in p.text.lines() {
+                out.push_str(&format!("> {line}\n"));
+            }
+            out.push('\n');
+        }
+        out.push_str("### Rules\n\n");
+    }
     if brief.rules.is_empty() {
         out.push_str(
             "No topic of the coding rules bears on this feature in particular; \

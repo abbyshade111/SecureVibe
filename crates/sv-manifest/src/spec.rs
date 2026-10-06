@@ -45,6 +45,9 @@ health = "/"              # a path that returns 200 once the app is up
 # OPENAI_BASE_URL and ANTHROPIC_BASE_URL (and the placeholder keys in OPENAI_API_KEY and
 # ANTHROPIC_API_KEY) from the environment when they are set; the OpenAI and Anthropic libraries do
 # this by themselves. Nothing is sent to an AI service and nothing is spent.
+# This table only says how `sv` reaches the feature. Whether the app has one is said by
+# `enabled` under [capabilities.ai], further down: there is no `enabled` here, and `sv` refuses a
+# file that has one.
 # chat = { path = "/api/chat", json = { message = "{prompt}" } }   # sends one message; {prompt} is the text
 # signed-in = true          # the feature needs a signed-in user (uses [stack.run.users])
 # base-url-env = ["LLM_BASE_URL"]   # other variables the app reads the model's address from
@@ -97,6 +100,7 @@ health = "/"              # a path that returns 200 once the app is up
 #   app answers on `health`, never before. So the app must make its own tables when it starts,
 #   and the seed must work on the fresh database of a new copy.
 # signup = { path = "/signup", form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
+#   Leave it out when the app has no sign-up page: like `login`, it is a request, never true or false.
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
 # private = ["/account"]    # pages only a signed-in user should see
