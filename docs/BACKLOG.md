@@ -6121,6 +6121,10 @@ another session is not a claim.
   deployment that the repository does not hold. What is left is the weaker half of what was written:
   `ai-history` and `multimodal-ai` lean almost entirely on source patterns, and `public-api` cannot see
   a key checked by hand against a query parameter. Each is a data entry, not machinery.
+  **The weaker half claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Please continue to
+  work off the backlog"), in branch `claude/securevibe-e9-corroborators`: libraries that can only mean each claim
+  (speech-to-text services for `multimodal-ai`, memory stores for `ai-history`, API documentation and key libraries for
+  `public-api`), and a key read from a query parameter, each with a witness.
   **A corroborator for `web-search`** (the answer added on 27 September 2026, which nothing reads from
   the code yet): **claimed on 27 September 2026 by session securevibe-e8. Done the same day:** the
   search services' libraries (Tavily, Exa, SerpApi, DuckDuckGo) and, in the code, `web_search` and
