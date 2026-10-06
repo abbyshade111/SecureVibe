@@ -391,6 +391,15 @@ another session is not a claim.
     the new shapes find is passed over when it is text, a path, or a lower-case identifier: 90 false alarms in v1's
     `node_modules` without that, none with it. Nothing found before is lost. Twenty-four guards broken in turn, each
     caught. Not done: a passphrase with spaces written as a JSON value, and unquoted shell and Dockerfile lines.
+    **The two left claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to pick another item,
+    in branch `claude/securevibe-e9-h3-rest`: unquoted values in shell scripts and Dockerfiles (`export TOKEN=…`,
+    `ENV DB_PASSWORD …`), and a passphrase with spaces as a JSON value, if a way to read it can be shown not to bring
+    the message catalogs back.
+    **Done the same day** (DESIGN, "A shell script's and a Dockerfile's unquoted values are read; a JSON passphrase
+    is still not"): `NAME=value` in shell scripts (with `export` and the like, and before a command) and `ENV` and `ARG`
+    in Dockerfiles are read. The JSON passphrase was measured and left: of 201 values with spaces under credential
+    names in this repository, its `node_modules`, and v1's code, none is a passphrase, and the narrowest reading tried
+    still takes in 11 messages; nothing tells them apart.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
@@ -402,6 +411,10 @@ another session is not a claim.
     can start; and `pull_request_review_comment` and `pull_request_review`, **still open**: whether GitHub gives them
     the secrets for a pull request from a fork could not be checked, since GitHub's documentation was not reachable
     from the session. Three guards broken in turn, each caught.
+    **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h4-review-triggers`: check against GitHub's documentation whether `pull_request_review` and
+    `pull_request_review_comment` run with the secrets for a pull request from a fork, and make them privileged
+    triggers if they do, or say in DESIGN why not if they do not.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
@@ -468,6 +481,13 @@ another session is not a claim.
     **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/h9-ranges-and-setup-py`: a requirement given as a range is named as not checked against the advisories,
     and an app whose Python dependencies are declared only in `setup.py` or `setup.cfg` is said to have none pinned.
+    **Done the same day** (DESIGN, "What a `requirements.txt` leaves out is named, and a `setup.py` with no lockfile
+    does not pin"): a `requirements.txt` read without a lockfile names everything it installs that it does not pin to
+    one version (ranges, bare names, wildcards, addresses, folders, and files pulled in with `-r`), read as pip reads
+    it; and a `setup.py` or `setup.cfg` that names packages, with no Python lockfile in its folder, is reported by the
+    pinning check (V15.1.2) and in the scan's list of unpinned projects. Twelve guards broken in turn, each caught.
+    **Still open:** a requirements file under another name without hashes is not judged by the pinning check, and a
+    `Pipfile.lock` with no `Pipfile` beside it is not found.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -4169,6 +4189,11 @@ another session is not a claim.
      `claude/securevibe-e9-movable`: every data file found through one place, `SV_DATA_DIR`, then beside the program,
      then the build folder; and an install script that keeps `sv` and its data out of any working folder. Record:
      ADR-036 (proposed).
+     **Done the same day** (DESIGN, "A copy of `sv` reads the data beside it, and installs outside the build
+     folder"; ADR-036, accepted): every file found through `sv_frameworks::data`; `sv --version` names the data
+     folder; `tools/install.sh` puts `sv` and its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`,
+     and the guide installs that way. Not done: compiling the data into the program, which a single downloadable
+     file would need.
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools

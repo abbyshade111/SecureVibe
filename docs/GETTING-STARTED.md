@@ -244,23 +244,25 @@ rename the folder it makes (`SecureVibe-main`) to `securevibe`, and move it into
 Built that way, `sv --version` says `commit unknown` rather than which version of the code it is, and
 updating means downloading it again.
 
-**4. Build it:**
+**4. Build and install it:**
 
 ```bash
 cd ~/securevibe
-cargo build --release -p sv-cli
+sh tools/install.sh
 ```
 
 The first time, `cargo` downloads the pieces SecureVibe is made from, and the build takes a few
-minutes. It is done when it prints a line starting `Finished`. The program is then
-`~/securevibe/target/release/sv`.
+minutes. Then the script copies the program and the files it reads into a folder of their own,
+`~/.local/share/securevibe`, and puts a link to the program at `~/.local/bin/sv`. It ends by printing
+the version and `Installed.` If `~/.local/bin/sv` is already there and is not its own link, it stops
+and says so rather than replace it.
 
 **5. Let the terminal find it.** When you type a command, the terminal looks for it in a list of
-folders called your `PATH`. This adds SecureVibe's folder to that list, for every terminal you open
-from now on. On a Mac:
+folders called your `PATH`. This adds the folder with the link to that list, for every terminal you
+open from now on. On a Mac:
 
 ```bash
-echo 'export PATH="$HOME/securevibe/target/release:$PATH"' >> ~/.zshrc
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 ```
 
 On Linux, the same line with `~/.bashrc` at the end instead of `~/.zshrc`. Then close the terminal
@@ -273,18 +275,19 @@ sv --version
 sv check ~/securevibe/examples/flask-booking
 ```
 
-The first prints `sv 0.1.0` and the version of the code it was built from. That alone does not show
-SecureVibe can find its own files, so the second checks one of the example apps that come with it: it
+The first prints `sv 0.1.0` and the version of the code it was built from, and on a second line the
+folder of files it reads (`data: …/.local/share/securevibe/data`). The second checks one of the example apps that come with it: it
 should say what it read and what it found, not `Error`. If it says `command not found: sv`, step 5 has
 not taken effect: open a new terminal window, or look for the line at the end of `~/.zshrc`.
 
-**Leave the `securevibe` folder where it is.** Each time SecureVibe runs, it reads more than a dozen of
-its own files (the security standards and its rules) from the folder it was built in. So do not move,
-rename, or delete that folder, and do not copy the `sv` program somewhere else on its own: a copy works
-only as long as the folder it was built in is still there. When this was tried, moving the folder made
-a copied `sv` stop with `Error: reading …/data/secret-rules.json`. If you do move it, build it again in
-its new place (step 4) and change the line from step 5 to match. Keep it out of folders you tidy up,
-such as the Desktop or Downloads, and out of your app's folder.
+**The installed copy does not need the `securevibe` folder.** Each time SecureVibe runs, it reads more
+than a dozen of its own files (the security standards and its rules). The installed copy reads the ones
+the script put beside it, so moving, renaming, or deleting the folder you built it in does not stop it.
+Use `~/.local/bin/sv` wherever a full path is asked for, as in your AI tool's settings; it stays the same
+when you build again. A copy of the program on its own, without its `data` folder beside it, still cannot
+find those files and says where it looked. Before 5 October 2026 the guide had you use the program in
+the build folder; if your `PATH` or your AI tool's settings name `…/securevibe/target/release/sv`, change
+them to `~/.local/bin/sv`.
 
 **Docker or Colima has to be running** for `--run`, as in step 1 of this guide, because that is what
 starts your app. With Colima on a Mac, your app's folder has to be inside your home folder (Colima
@@ -296,8 +299,8 @@ Your AI tool tells you the exact command to type. It looks like this, with your 
 sv report /Users/you/code/my-app --run
 ```
 
-To update SecureVibe later: `cd ~/securevibe`, then `git pull`, then `cargo build --release -p sv-cli`
-again.
+To update SecureVibe later: `cd ~/securevibe`, then `git pull`, then `sh tools/install.sh` again. It
+replaces the program and its files together.
 
 ## Known problems while this is new
 

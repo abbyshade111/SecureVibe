@@ -186,10 +186,9 @@ fn catalog() -> &'static std::collections::BTreeMap<String, RuleText> {
     static CATALOG: std::sync::OnceLock<std::collections::BTreeMap<String, RuleText>> =
         std::sync::OnceLock::new();
     CATALOG.get_or_init(|| {
-        let data = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut out = std::collections::BTreeMap::new();
         for name in ["ast-rules.json", "secret-rules.json"] {
-            let Ok(text) = std::fs::read_to_string(data.join(name)) else {
+            let Ok(text) = std::fs::read_to_string(sv_frameworks::data::file(name)) else {
                 continue;
             };
             let Ok(file) = serde_json::from_str::<Value>(&text) else {
