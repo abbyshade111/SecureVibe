@@ -1950,9 +1950,12 @@ another session is not a claim.
   **Item 6 done on 6 October 2026** (DESIGN, "The loop at scale"; `docs/prompts/loop-scale/README.md`): seventy
   builds, $21.34, with the specification in every request (protocol amendment 3) and the check and plan arms also run
   with the other tools hidden (amendment 4). Every Sonnet build could be tested, in every arm; Haiku varied within
-  every arm, and no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
+  every arm, and on testability no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
   (every build checked; all five Haiku and two Sonnet again after a fix), and fixed what the check named: the
   committable `.env` in five loop builds, against 56 of 59 builds in the other arms that kept it.
+  **Later, 6 October 2026, at the owner's asking** (`loop-scale/README.md`, "Findings by group"): counted by group,
+  the loop arm's builds had fewer findings in their code than every build of five of the six other arms, for both
+  models, the first difference by the protocol's rule; the running apps' findings were the same in every arm.
 
 - **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
   trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
@@ -1969,6 +1972,17 @@ another session is not a claim.
   every arm's request includes the specification, so the comparison is of what the loop adds beyond it.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
+
+- **Tell the builder, before it is done, what the code already shows about the running app.** Found on 6 October
+  2026 by session paper-facts, counting item 6's findings by group: the loop arm fixed nearly every problem in its
+  code that `securevibe_check` named, and its running apps had as many problems as every other arm's (per ten checks
+  answered, Sonnet 1.0 against 0.8 to 1.1, Haiku 2.4 against 2.0 to 2.6), because `sv run`'s checks are the only ones
+  that see them and the MCP server never starts the app. Several of the commonest are visible in the code without
+  running it: no limit on wrong passwords, the security headers, the session cookie's attributes, the AI feature's
+  screening of what it is sent. A part of `securevibe_preflight` (ADR-035), or of the check, that reads the code for
+  these and says "`sv run` will look for this, and the code does not seem to have it", running nothing, would give the
+  builder the chance the loop already takes with what the check says. Each would credit nothing, as the preflight
+  does; the run stays the evidence. The next loop trial could measure whether the running apps' findings then fall.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -3289,6 +3303,10 @@ another session is not a claim.
      `probe.password-in-browser-storage` (V14.3.3) and `probe.token-in-browser-storage` (V10.1.1) are only ever
      findings. Not done: tokens sent to other sites (a hosted backend on another address receives them by
      design), and the pointers from the code (`setItem` calls with such key names).
+     **The pointers from the code claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("keep
+     going"), in branch `claude/securevibe-e9-storage-code`: two findings-only code rules for JavaScript and
+     TypeScript, a token (V10.1.1) or a password (V14.3.3) written into `localStorage`, `sessionStorage`, or a cookie
+     set from the page, by a key or cookie name that says so.
      **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
      backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
      share an email address. C9.5.3 stays unclaimed.
@@ -3434,6 +3452,11 @@ another session is not a claim.
      fifteen languages; every language has a case at 300,000 with SHA-256 or with no hash it can read, and each
      that names a hash has cases at 600,000 with SHA-256 and 300,000 with SHA-512. Eight guards broken in turn,
      each caught. Not done: SHA-1 counts between 210,000 and 1,300,000.
+     **SHA-1 counts between 210,000 and 1,300,000 claimed on 6 October 2026 by session securevibe-e9**, at the
+     owner's word ("keep going"), in branch `claude/securevibe-e9-pbkdf2-sha1`: where the call names SHA-1, the same
+     way SHA-256 is tied to 600,000.
+     **Done the same day** (DESIGN, "PBKDF2 with SHA-1 is held to 1,300,000 rounds"), in the thirteen languages where
+     the rule reads the hash. A hash named only by the function, or left to its default, is still held to 210,000.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
@@ -3720,6 +3743,8 @@ another session is not a claim.
     files rather than folders, CodeQL unknown): add the guard. Every outside tool's environment sets git's
     `core.fsmonitor` off, as `sv`'s own `git` does, held by a test with a planted repository; ADR-032 gets a Later
     entry. **Claimed the same day by session securevibe-e2**, in branch `claude/securevibe-e2-git-guard`.
+    **Done the same day** (DESIGN, "The outside tools run no program an app's repository names"; ADR-032, "Later, 6
+    October 2026"). Not run with Semgrep or CodeQL themselves, which were not installed in the session.
 
   **The owner's decisions, 6 October 2026:**
   - Records for items 1, 2, 3, and 7, the four most costly; the other four stay as their DESIGN sections.

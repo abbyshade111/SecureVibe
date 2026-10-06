@@ -525,7 +525,8 @@ const PASSED_ON: &[&str] = &[
 
 /// `command` with the environment an outside tool is given: only `PASSED_ON` from the owner's, then
 /// `GOTOOLCHAIN=local`, so a Go tool uses the Go installed here rather than fetching and running the
-/// one an app's `go.mod` asks for, then the adapter's own settings.
+/// one an app's `go.mod` asks for, then the adapter's own settings, and last git's override of the
+/// program an app's repository may name (`git::ENV_OVERRIDES`, ADR-032), which no adapter can undo.
 fn prepared<'c>(command: &'c mut Command, adapter: &Adapter) -> &'c mut Command {
     command.env_clear();
     for name in PASSED_ON {
@@ -535,6 +536,7 @@ fn prepared<'c>(command: &'c mut Command, adapter: &Adapter) -> &'c mut Command 
     }
     command.env("GOTOOLCHAIN", "local");
     command.envs(&adapter.env);
+    command.envs(crate::git::ENV_OVERRIDES);
     command
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -2558,13 +2560,22 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         assert!(names.contains(&"PATH"), "{names:?}");
         assert!(seen.lines().any(|l| l == "GOTOOLCHAIN=local"), "{seen}");
         assert!(seen.lines().any(|l| l == "TOOL_OWN=1"), "{seen}");
-        // Nothing beyond the list, apart from what the shell sets itself and the adapter's own.
+        // Git's `core.fsmonitor` set off, so a `git` the tool starts runs nothing the app names.
+        for (name, value) in crate::git::ENV_OVERRIDES {
+            assert!(
+                seen.lines().any(|l| l == format!("{name}={value}")),
+                "{name} was not {value}: {seen}"
+            );
+        }
+        // Nothing beyond the list, apart from what the shell sets itself, the adapter's own, and
+        // git's settings above.
         let shell_sets = ["PWD", "SHLVL", "_", "OLDPWD"];
         for name in names {
             assert!(
                 PASSED_ON.contains(&name)
                     || shell_sets.contains(&name)
                     || name == "GOTOOLCHAIN"
+                    || crate::git::ENV_OVERRIDES.iter().any(|(n, _)| *n == name)
                     || probe.env.contains_key(name),
                 "{name} was handed on"
             );
@@ -2719,5 +2730,87 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
                 ("tests/test_login.py:generic-api-key".to_owned(), 1, true),
             ]
         );
+    }
+
+    #[test]
+    fn a_tool_that_runs_git_in_the_app_s_folder_runs_no_program_the_repository_names() {
+        // ADR-032, "Later, 6 October 2026": a stand-in for a tool that runs `git ls-files` in the
+        // app's folder, as Semgrep does for a folder it is given, started the way every tool is.
+        if Command::new("git").arg("--version").output().is_err() {
+            println!("no git here; this needs it");
+            return;
+        }
+        let planted = |name: &str| {
+            let dir = scratch(&format!("git-guard-{name}"));
+            let mark = dir.with_extension("ran");
+            std::fs::remove_file(&mark).ok();
+            let git = |args: &[&str]| {
+                assert!(
+                    Command::new("git")
+                        .arg("-C")
+                        .arg(&dir)
+                        .args(args)
+                        .output()
+                        .is_ok_and(|o| o.status.success()),
+                    "git {args:?} failed in the test's setup"
+                );
+            };
+            git(&["init", "-q"]);
+            std::fs::write(dir.join("app.py"), "print(1)\n").unwrap();
+            git(&["add", "app.py"]);
+            git(&[
+                "config",
+                "core.fsmonitor",
+                &format!("touch '{}'; false", mark.display()),
+            ]);
+            (dir, mark)
+        };
+        let adapters =
+            Adapters::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"))
+                .unwrap();
+        let semgrep = adapters
+            .adapters
+            .iter()
+            .find(|a| a.id == "semgrep")
+            .unwrap();
+        let tool = |dir: &Path| {
+            let mut command = Command::new("git");
+            command.arg("ls-files").current_dir(dir);
+            command
+        };
+        // The control: started with the environment cleared and nothing more, the planted program
+        // runs, so the setup is the attack.
+        let (dir, mark) = planted("control");
+        let mut bare = tool(&dir);
+        bare.env_clear();
+        if let Some(path) = std::env::var_os("PATH") {
+            bare.env("PATH", path);
+        }
+        assert!(bare.output().unwrap().status.success());
+        assert!(
+            mark.exists(),
+            "plain git did not run the planted program, so this proves nothing"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::remove_file(&mark).ok();
+        // Started the way `sv` starts a tool: the program is not run.
+        let (dir, mark) = planted("guarded");
+        let mut guarded = tool(&dir);
+        let status = prepared(&mut guarded, semgrep).status().unwrap();
+        assert!(status.success(), "the stand-in tool ran");
+        assert!(
+            !mark.exists(),
+            "a tool's git ran the program the app's repository named"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::remove_file(&mark).ok();
+        // And no adapter's own settings can undo it.
+        for adapter in &adapters.adapters {
+            assert!(
+                adapter.env.keys().all(|k| !k.starts_with("GIT_")),
+                "{} sets a GIT_ variable",
+                adapter.id
+            );
+        }
     }
 }
