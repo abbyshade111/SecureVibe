@@ -82,6 +82,11 @@ another session is not a claim.
       by an arrow function's bare parameter or a destructured one not recorded (`ast.rs`); a notes file with two
       sections for one requirement asked about twice in `sv review`; a lock removed on Ctrl-C without the same-file
       check where the disk cannot lock; folders left behind by a failed MCP write to `a/b/c`.
+  **The owner's decisions, 6 October 2026:** fix all of them, the worst first, in batches. Item 8: with no key on this
+  computer a sealed answer is not counted as the owner's, and the report says it carries a seal this computer cannot
+  check and what to do (run `sv review` once here, or read the report on the computer it was sealed on). Item 11: a
+  seal names the app it was made for, so a copy into another app does not count; answers already sealed are sealed
+  again with `sv review`.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
