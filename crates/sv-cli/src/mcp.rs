@@ -102,7 +102,8 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     and follow the rules it gives while you code. Once the code is written, call \
     securevibe_preflight: it reads the code against what securevibe.toml tells `sv run`, without \
     running anything, and says what would stop `sv run` starting the app or signing in; fix those \
-    before securevibe_check. Call securevibe_check after each feature is built, fix what it says \
+    before securevibe_check. It also says what `sv run` will check once the app runs that the code \
+    shows no sign of handling; look at each before you say the work is done. Call securevibe_check after each feature is built, fix what it says \
     needs attention, and call it again to see the fix took, before you say the work is done; one \
     check at the very end is too late to fix much. securevibe_check never says a requirement \
     passed: read what it says was not \
@@ -926,13 +927,13 @@ impl Server {
     /// What `sv run` will need, looked for in the code, with nothing run (ADR-035).
     fn preflight(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
-        let (items, unread) = crate::preflight::of(&app_dir)?;
+        let (items, ahead, unread) = crate::preflight::of(&app_dir)?;
         Ok(json!({
             "content": [{
                 "type": "text",
-                "text": sv_report::fence::fenced(|fence| crate::preflight::markdown_with(&items, &unread, fence)),
+                "text": sv_report::fence::fenced(|fence| crate::preflight::markdown_with(&items, &ahead, &unread, fence)),
             }],
-            "structuredContent": crate::preflight::to_json(&items, &unread),
+            "structuredContent": crate::preflight::to_json(&items, &ahead, &unread),
             "isError": false,
         }))
     }
@@ -1748,25 +1749,30 @@ fn output_schema(tool: &str) -> Option<Value> {
                 &["app", "level", "creditsNothing"],
             )
         }
-        "securevibe_preflight" => object(
-            json!({
-                "ran": { "type": "boolean" },
-                "credits": string,
-                "items": {
-                    "type": "array",
-                    "items": object(
-                        json!({
-                            "topic": string,
-                            "answer": { "type": "string", "enum": ["look-at-this", "could-not-tell", "looks-right"] },
-                            "says": string,
-                        }),
-                        &["topic", "answer", "says"],
-                    ),
-                },
-                "notRead": strings,
-            }),
-            &["ran", "credits", "items", "notRead"],
-        ),
+        "securevibe_preflight" => {
+            let items = json!({
+                "type": "array",
+                "items": object(
+                    json!({
+                        "topic": string,
+                        "answer": { "type": "string", "enum": ["look-at-this", "could-not-tell", "looks-right"] },
+                        "says": string,
+                    }),
+                    &["topic", "answer", "says"],
+                ),
+            });
+            object(
+                json!({
+                    "ran": { "type": "boolean" },
+                    "credits": string,
+                    "items": items.clone(),
+                    // What `sv run` will check once the app runs, read in the code (ADR-035, Later).
+                    "willLookFor": items,
+                    "notRead": strings,
+                }),
+                &["ran", "credits", "items", "willLookFor", "notRead"],
+            )
+        }
         "securevibe_before" => {
             let item = |fields: &[(&str, Value)]| {
                 let properties: serde_json::Map<String, Value> = fields
@@ -2078,7 +2084,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_preflight",
             "title": "Will `sv run` be able to test it?",
-            "description": "Once there is code: reads the app's files against what securevibe.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
+            "description": "Once there is code: reads the app's files against what securevibe.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Also says what `sv run` will check once the app runs (a limit on wrong passwords, the security headers, the session cookie's SameSite, a screen on what an AI feature is sent) when nothing in the code reads like a way of handling it. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
             "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
