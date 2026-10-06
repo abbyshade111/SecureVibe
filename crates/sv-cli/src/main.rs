@@ -35,6 +35,7 @@ mod brief;
 mod bundle;
 mod exit;
 mod mcp;
+mod parts;
 mod plan;
 mod preflight;
 mod report_lock;

@@ -298,19 +298,45 @@ pub(crate) fn from_report(
     }
 }
 
+fn requirement_json(r: &Applies) -> Value {
+    json!({ "id": r.id, "level": r.level, "chapter": r.chapter, "description": r.description })
+}
+fn decision_json(d: &Decision) -> Value {
+    json!({ "id": d.id, "title": d.title })
+}
+fn prompt_json(p: &PromptRef) -> Value {
+    json!({ "id": p.id, "title": p.title, "status": p.status })
+}
+fn test_json(t: &sv_report::TestToWrite) -> Value {
+    json!({ "id": t.id, "level": t.level, "description": t.description })
+}
+fn run_json(n: &RunNeed) -> Value {
+    json!({ "table": n.table, "key": n.key, "why": n.why, "given": n.given })
+}
+fn threat_json(t: &Threat) -> Value {
+    json!({ "id": t.id, "description": t.description, "status": t.status })
+}
+
+/// The fields of the structured plan that every part of it carries (`crate::parts`).
+pub(crate) fn always_json(plan: &Plan) -> serde_json::Map<String, Value> {
+    let mut out = serde_json::Map::new();
+    out.insert("app".to_owned(), json!(plan.app));
+    out.insert("level".to_owned(), json!(plan.level));
+    out.insert("creditsNothing".to_owned(), json!(true));
+    out
+}
+
 /// The plan as data, for the MCP tool's structured result.
 pub(crate) fn to_json(plan: &Plan) -> Value {
     json!({
         "app": plan.app,
         "level": plan.level,
-        "requirements": plan.requirements.iter().map(|r| json!({
-            "id": r.id, "level": r.level, "chapter": r.chapter, "description": r.description,
-        })).collect::<Vec<_>>(),
-        "decisions": plan.decisions.iter().map(|d| json!({ "id": d.id, "title": d.title })).collect::<Vec<_>>(),
-        "prompts": plan.prompts.iter().map(|p| json!({ "id": p.id, "title": p.title, "status": p.status })).collect::<Vec<_>>(),
-        "tests": plan.tests.iter().map(|t| json!({ "id": t.id, "level": t.level, "description": t.description })).collect::<Vec<_>>(),
-        "run": plan.run.iter().map(|n| json!({ "table": n.table, "key": n.key, "why": n.why, "given": n.given })).collect::<Vec<_>>(),
-        "threats": plan.threats.iter().map(|t| json!({ "id": t.id, "description": t.description, "status": t.status })).collect::<Vec<_>>(),
+        "requirements": plan.requirements.iter().map(requirement_json).collect::<Vec<_>>(),
+        "decisions": plan.decisions.iter().map(decision_json).collect::<Vec<_>>(),
+        "prompts": plan.prompts.iter().map(prompt_json).collect::<Vec<_>>(),
+        "tests": plan.tests.iter().map(test_json).collect::<Vec<_>>(),
+        "run": plan.run.iter().map(run_json).collect::<Vec<_>>(),
+        "threats": plan.threats.iter().map(threat_json).collect::<Vec<_>>(),
         "creditsNothing": true,
     })
 }
@@ -323,7 +349,40 @@ pub(crate) fn markdown(plan: &Plan) -> String {
 /// The same, with the app's own text, its name and the threats its brief raises (which name the
 /// parts of the app it describes), put through `fence`, for the AI coding tool (deep review R9).
 pub(crate) fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> String {
-    let mut out = String::new();
+    sections_with(plan, fence)
+        .iter()
+        .map(crate::parts::Section::text)
+        .collect()
+}
+
+/// The names of the plan's sections, in the order of the whole plan, for `securevibe_plan`'s `section`.
+pub(crate) const SECTIONS: &[&str] = &[
+    "summary",
+    "requirements",
+    "decide",
+    "tests",
+    "run",
+    "threats",
+];
+
+/// The sections the MCP tool's first answer starts with: what to decide and what `sv run` needs come before
+/// the long lists, since they are what a builder acts on first.
+pub(crate) const FIRST: &[&str] = &[
+    "summary",
+    "decide",
+    "run",
+    "threats",
+    "tests",
+    "requirements",
+];
+
+/// The plan in its sections, each line with the item of the structured plan it shows: the whole plan is
+/// these joined, and `securevibe_plan` gives them in parts (`crate::parts`).
+pub(crate) fn sections_with(
+    plan: &Plan,
+    fence: &sv_report::fence::Fence,
+) -> Vec<crate::parts::Section> {
+    use crate::parts::{Item, Section};
     // The name comes from the app's folder, so its line breaks and invisible characters are
     // written as escapes, as everywhere else text from the app reaches the AI coding tool.
     let name = if plan.app.is_empty() {
@@ -331,108 +390,169 @@ pub(crate) fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> Str
     } else {
         fence.wrap(&plan.app)
     };
-    out.push_str(&format!(
-        "# A plan for {name}, at ASVS level {}\n\n",
-        plan.level
-    ));
-    out.push_str(
-        "This is a plan, not a check. It says what the app will be held to, what to decide before \
+    let mut summary = Section::new(
+        "summary",
+        "What the plan is, and the app's level".to_owned(),
+        &[],
+    );
+    summary.lead = format!(
+        "# A plan for {name}, at ASVS level {}\n\n\
+         This is a plan, not a check. It says what the app will be held to, what to decide before \
          each feature, and what to build so `sv` can check the app running. It credits nothing: \
          nothing here says a requirement is met. Run `sv report` once there is code.\n",
+        plan.level
     );
 
-    out.push_str(&format!(
+    let mut requirements = Section::new(
+        "requirements",
+        format!(
+            "The requirements that will apply ({})",
+            plan.requirements.len()
+        ),
+        &["requirements"],
+    );
+    requirements.lead = format!(
         "\n## 1. The requirements that will apply ({})\n\n",
         plan.requirements.len()
-    ));
+    );
     let mut chapter = "";
     for r in &plan.requirements {
+        let mut text = String::new();
         if r.chapter != chapter {
             chapter = &r.chapter;
-            out.push_str(&format!("\n**{chapter}**\n\n"));
+            text.push_str(&format!("\n**{chapter}**\n\n"));
         }
-        out.push_str(&format!(
+        text.push_str(&format!(
             "- {} (level {}): {}\n",
             r.id, r.level, r.description
         ));
+        requirements
+            .items
+            .push(Item::with(text, "requirements", requirement_json(r)));
     }
 
-    out.push_str("\n## 2. Decide before you build\n\n");
+    let mut decide = Section::new(
+        "decide",
+        format!(
+            "Decide before you build: {} design-time prompts and {} questions only the person can answer",
+            plan.prompts.len(),
+            plan.decisions.len()
+        ),
+        &["prompts", "decisions"],
+    );
+    decide.lead = "\n## 2. Decide before you build\n\n".to_owned();
     if plan.prompts.is_empty() && plan.decisions.is_empty() {
-        out.push_str("Nothing to decide that the brief has not already settled.\n");
+        decide
+            .lead
+            .push_str("Nothing to decide that the brief has not already settled.\n");
     }
-    if !plan.prompts.is_empty() {
-        out.push_str(
-            "Work through each of these with the AI coding tool before writing the feature it is \
-             about (`sv prompts` prints them):\n\n",
-        );
-        for p in &plan.prompts {
-            let mark = match p.status {
-                "shown" => "shown to work",
-                "not-shown" => "not tested: tried, and not shown to work",
-                _ => "not tested: not tried yet",
-            };
-            out.push_str(&format!("- {} (`{}`, {mark})\n", p.title, p.id));
+    for (n, p) in plan.prompts.iter().enumerate() {
+        let mut text = String::new();
+        if n == 0 {
+            text.push_str(
+                "Work through each of these with the AI coding tool before writing the feature it is \
+                 about (`sv prompts` prints them):\n\n",
+            );
         }
+        let mark = match p.status {
+            "shown" => "shown to work",
+            "not-shown" => "not tested: tried, and not shown to work",
+            _ => "not tested: not tried yet",
+        };
+        text.push_str(&format!("- {} (`{}`, {mark})\n", p.title, p.id));
+        decide
+            .items
+            .push(Item::with(text, "prompts", prompt_json(p)));
     }
-    if !plan.decisions.is_empty() {
-        out.push_str(
-            "\nQuestions only you can answer, in `security-notes.md` or `securevibe.toml` \
-             (`sv questions` asks them one at a time):\n\n",
-        );
-        for d in &plan.decisions {
-            out.push_str(&format!("- {}: {}\n", d.id, d.title));
+    for (n, d) in plan.decisions.iter().enumerate() {
+        let mut text = String::new();
+        if n == 0 {
+            text.push_str(
+                "\nQuestions only you can answer, in `security-notes.md` or `securevibe.toml` \
+                 (`sv questions` asks them one at a time):\n\n",
+            );
         }
+        text.push_str(&format!("- {}: {}\n", d.id, d.title));
+        decide
+            .items
+            .push(Item::with(text, "decisions", decision_json(d)));
     }
 
-    out.push_str(&format!(
-        "\n## 3. The tests worth writing ({})\n\n",
-        plan.tests.len()
-    ));
-    out.push_str(
-        "Name each test with its requirement's id, such as `test_V8_2_1_a_member_cannot_read_another_\
+    let mut tests = Section::new(
+        "tests",
+        format!(
+            "The tests worth writing, named by requirement id ({})",
+            plan.tests.len()
+        ),
+        &["tests"],
+    );
+    tests.lead = format!(
+        "\n## 3. The tests worth writing ({})\n\n\
+         Name each test with its requirement's id, such as `test_V8_2_1_a_member_cannot_read_another_\
          members_note`. Once written and passing, a test so named counts as *checked*, the highest \
          tier `sv` gives. Lowest level first:\n\n",
+        plan.tests.len()
     );
     for t in &plan.tests {
-        out.push_str(&format!(
-            "- {} (level {}): {}\n",
-            t.id, t.level, t.description
+        tests.items.push(Item::with(
+            format!("- {} (level {}): {}\n", t.id, t.level, t.description),
+            "tests",
+            test_json(t),
         ));
     }
 
-    out.push_str("\n## 4. What the app must give `sv run`\n\n");
-    out.push_str(
-        "So that `sv report --run` can test the app running, rather than reporting those checks as \
-         not assessed. Each goes in `securevibe.toml`; `sv init` describes each one.\n\n",
+    let mut run = Section::new(
+        "run",
+        format!(
+            "What the app must give `sv run` in securevibe.toml so it can be tested running ({})",
+            plan.run.len()
+        ),
+        &["run"],
     );
+    run.lead = "\n## 4. What the app must give `sv run`\n\n\
+                So that `sv report --run` can test the app running, rather than reporting those checks as \
+                not assessed. Each goes in `securevibe.toml`; `sv init` describes each one.\n\n"
+        .to_owned();
     for n in &plan.run {
-        out.push_str(&format!(
-            "- {} `{}`{}: {}\n",
-            n.table,
-            n.key,
-            if n.given { " (given)" } else { "" },
-            n.why
+        run.items.push(Item::with(
+            format!(
+                "- {} `{}`{}: {}\n",
+                n.table,
+                n.key,
+                if n.given { " (given)" } else { "" },
+                n.why
+            ),
+            "run",
+            run_json(n),
         ));
     }
 
-    out.push_str(&format!(
+    let mut threats = Section::new(
+        "threats",
+        format!("The threats the brief raises ({})", plan.threats.len()),
+        &["threats"],
+    );
+    threats.lead = format!(
         "\n## 5. The threats the brief raises ({})\n\n",
         plan.threats.len()
-    ));
+    );
     for t in &plan.threats {
-        out.push_str(&format!(
-            "- {}: {}{}\n",
-            t.id,
-            fence.wrap(&t.description),
-            if t.status == "cannot-place" {
-                " (whether it applies depends on a question not yet answered)"
-            } else {
-                ""
-            }
+        threats.items.push(Item::with(
+            format!(
+                "- {}: {}{}\n",
+                t.id,
+                fence.wrap(&t.description),
+                if t.status == "cannot-place" {
+                    " (whether it applies depends on a question not yet answered)"
+                } else {
+                    ""
+                }
+            ),
+            "threats",
+            threat_json(t),
         ));
     }
-    out
+    vec![summary, requirements, decide, tests, run, threats]
 }
 
 #[cfg(test)]
