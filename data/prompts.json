@@ -336,6 +336,91 @@
         "result": "Both builds without the prompt already refused private pages to a visitor, one member's note to another, and the admin page and action to a member, and all four checks credited all six builds. The same build with the admin page opened to members was caught."
       },
       "status": "not-shown"
+    },
+    {
+      "id": "ai-feature-guard",
+      "title": "Guard what goes into the AI feature and what comes out of it",
+      "prompt": "Treat everything that reaches the model as untrusted: what people type, and any text the app adds from its own records. Before a message goes to the model, screen it for prompt-injection attempts, with a maintained classifier or a ruleset of the known patterns (\"ignore your instructions\", \"reveal your system prompt\" and the like), and refuse a flagged message with a plain explanation instead of sending it. Before a reply leaves the server, check it too: hold back or redact a reply that repeats the model's instructions or anything else meant only for the model, and keep secrets out of the instructions altogether; remove invisible and direction-changing characters (zero-width characters, Unicode tag characters, bidirectional overrides), and show each link's real address or drop a link whose text is a different address from its target. Write a test for each: an injection attempt is refused, a reply that repeats the instructions is held back, and a reply with hidden characters reaches the page without them.",
+      "requirements": [
+        "C2.1.3",
+        "C7.3.2",
+        "C7.3.4"
+      ],
+      "check": {
+        "kind": "running",
+        "how": "`sv report --run` gives the app a test model of `sv`'s own in place of the real AI service, sends the AI feature a textbook prompt injection, and has the test model answer with its instructions repeated and with hidden characters and a misleading link, then reads what reaches the page.",
+        "rules": [
+          "probe.ai-injection-unscreened",
+          "probe.ai-instructions-leaked",
+          "probe.ai-hidden-content-passed"
+        ],
+        "passes_when": "the app answered and none of the three is a finding",
+        "fails_when": "any of the three is a finding"
+      },
+      "inspired_by": "not the guide: OWASP AISVS 1.0, C2.1.3, C7.3.2, and C7.3.4, which sv checks on the running app; written on 6 October 2026 because these were the commonest running-app findings in the loop trials' item 6",
+      "status": "untested"
+    },
+    {
+      "id": "changes-from-own-pages",
+      "title": "Accept changes only from the app's own pages",
+      "prompt": "Every request that changes something (a form sent, an API call that creates, edits, or deletes) must carry an anti-forgery token that the app gave the page it came from, and the server refuses a request without a valid one; or the server checks the request's Origin header against the app's own address and refuses any other. Do both where the framework allows. Set SameSite=Lax or Strict on the session cookie as well, but as a second line, not instead of the check. Write a test that sends a change from another site's address without the token and shows it is refused.",
+      "requirements": [
+        "V3.5.1"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "`sv report --run` signs in as a test user and sends a request that creates a record, with that user's cookies, from another origin and without a token.",
+        "rules": [
+          "probe.cross-site-request-accepted"
+        ],
+        "passes_when": "the request was refused and probe.cross-site-request-accepted is not a finding",
+        "fails_when": "probe.cross-site-request-accepted is a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: protect against cross-site request forgery; reworded and made checkable on 6 October 2026, from the loop trials' item 6",
+      "status": "untested"
+    },
+    {
+      "id": "private-pages-no-store",
+      "title": "Keep private pages out of the browser's cache",
+      "prompt": "Send `Cache-Control: no-store` on every response that shows somebody's own data or anything only a signed-in person may see, its JSON answers and error pages included. `no-cache` and `private` are not enough: both let the browser keep a copy. Set it in one place that every signed-in response passes through, so a new page cannot leave it out. Write a test that a private page sends it.",
+      "requirements": [
+        "V14.3.2"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "`sv report --run` signs in as a test user and reads the headers of each page listed under `private` in securevibe.toml.",
+        "rules": [
+          "probe.private-page-cached"
+        ],
+        "passes_when": "every private page opened and probe.private-page-cached is not a finding",
+        "fails_when": "probe.private-page-cached is a finding"
+      },
+      "inspired_by": "not the guide: OWASP ASVS 5.0, V14.3.2, which sv checks on the running app; written on 6 October 2026, from the loop trials' item 6",
+      "status": "untested"
+    },
+    {
+      "id": "sessions-hard-to-steal",
+      "title": "Make the session hard to steal, and end it properly",
+      "prompt": "If the app keeps its own sessions, make each session id with the platform's cryptographically secure random generator, at least 128 bits of it (in Python, `secrets.token_urlsafe(32)`), and a new one at every sign-in. Send it only in a cookie set with HttpOnly and SameSite=Lax (or Strict), and Secure once the app is served over HTTPS, and never put it in a page, an address, or anything a script can read. When someone signs out, or a session expires, delete it on the server, so the old id opens nothing: clearing the browser's cookie is not enough. Where the framework's own session handling does all of this, use it rather than writing your own. Write a test for each: the cookie's attributes, and a session used again after signing out is refused.",
+      "requirements": [
+        "V3.3.2",
+        "V3.3.4",
+        "V7.2.3",
+        "V7.4.1"
+      ],
+      "check": {
+        "kind": "signed-in",
+        "how": "`sv report --run` signs in as a test user, reads the session cookie's attributes, compares the session ids of many sign-ins, signs out, and sends the old session again.",
+        "rules": [
+          "probe.session-cookie-attributes",
+          "probe.session-id-weak",
+          "probe.logout-keeps-session"
+        ],
+        "passes_when": "signed in, and none of the three is a finding",
+        "fails_when": "any of the three is a finding"
+      },
+      "inspired_by": "the guide's Security fundamentals: secure session management; reworded and made checkable on 6 October 2026, from the loop trials' item 6",
+      "status": "untested"
     }
   ]
 }
