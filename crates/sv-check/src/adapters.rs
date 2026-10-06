@@ -2560,13 +2560,22 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         assert!(names.contains(&"PATH"), "{names:?}");
         assert!(seen.lines().any(|l| l == "GOTOOLCHAIN=local"), "{seen}");
         assert!(seen.lines().any(|l| l == "TOOL_OWN=1"), "{seen}");
-        // Nothing beyond the list, apart from what the shell sets itself and the adapter's own.
+        // Git's `core.fsmonitor` set off, so a `git` the tool starts runs nothing the app names.
+        for (name, value) in crate::git::ENV_OVERRIDES {
+            assert!(
+                seen.lines().any(|l| l == format!("{name}={value}")),
+                "{name} was not {value}: {seen}"
+            );
+        }
+        // Nothing beyond the list, apart from what the shell sets itself, the adapter's own, and
+        // git's settings above.
         let shell_sets = ["PWD", "SHLVL", "_", "OLDPWD"];
         for name in names {
             assert!(
                 PASSED_ON.contains(&name)
                     || shell_sets.contains(&name)
                     || name == "GOTOOLCHAIN"
+                    || crate::git::ENV_OVERRIDES.iter().any(|(n, _)| *n == name)
                     || probe.env.contains_key(name),
                 "{name} was handed on"
             );
