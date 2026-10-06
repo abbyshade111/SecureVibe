@@ -1539,7 +1539,7 @@
     },
     {
       "id": "ast.account-found-by-provider-email",
-      "title": "An account is looked up by the email address the sign-in provider sent",
+      "title": "An account is found, or a sign-in recorded, by the email address the sign-in provider sent",
       "severity": "high",
       "confidence": "medium",
       "requirementIds": [
@@ -1548,28 +1548,28 @@
       "cwe": [
         "CWE-287"
       ],
-      "description": "After someone signs in through another service (\"Sign in with Google\", GitHub, Microsoft, or any OpenID Connect provider), the code finds their account by the email address that service sent, such as `userinfo[\"email\"]`, `profile.emails[0].value`, `auth.info.email`, `oidcUser.getEmail()`, or `info.Principal.FindFirstValue(ClaimTypes.Email)`, rather than by the provider's own id for the person (`sub`).",
+      "description": "After someone signs in through another service (\"Sign in with Google\", GitHub, Microsoft, or any OpenID Connect provider), the code finds their account by the email address that service sent, such as `userinfo[\"email\"]`, `profile.emails[0].value`, `auth.info.email`, `oidcUser.getEmail()`, or `info.Principal.FindFirstValue(ClaimTypes.Email)`, or records that address as who is signed in (`session[\"user\"] = userinfo[\"email\"]`), rather than the provider's own id for the person (`sub`).",
       "impact": "An email address can pass from one person to another: a work address reused after someone leaves, or a provider that lets people choose theirs. Whoever holds the address next signs in to the first person's account and sees everything in it. A provider marking the address verified does not change this; it says the address works, not that it belongs to the same person.",
       "fix": "Store the provider's `sub` (with the provider's name, if there is more than one) when the account is made, and find the account by that pair on every sign-in. Keep the email address only for writing to people. If you link a provider's sign-in to an account that already exists with the same email address on purpose, ask the person to sign in the old way first and confirm the link.",
       "findingsOnly": true,
       "argumentNamesRead": true,
       "queries": {
-        "python": "(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list) @arg) @hit",
-        "javascript": "(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) @hit",
-        "typescript": "(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) @hit",
-        "ruby": "(call method: (identifier) @fn arguments: (argument_list) @arg) @hit",
+        "python": "[(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list) @arg) (assignment left: (subscript) @fn right: (_) @arg)] @hit",
+        "javascript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) (assignment_expression left: (member_expression) @fn right: (_) @arg)] @hit",
+        "typescript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) (assignment_expression left: (member_expression) @fn right: (_) @arg)] @hit",
+        "ruby": "[(call method: (identifier) @fn arguments: (argument_list) @arg) (assignment left: (element_reference) @fn right: (_) @arg)] @hit",
         "go": "(call_expression function: [(identifier) @fn (selector_expression field: (field_identifier) @fn)] arguments: (argument_list) @arg) @hit",
-        "php": "[(member_call_expression name: (name) @fn arguments: (arguments) @arg) (scoped_call_expression name: (name) @fn arguments: (arguments) @arg)] @hit",
+        "php": "[(member_call_expression name: (name) @fn arguments: (arguments) @arg) (scoped_call_expression name: (name) @fn arguments: (arguments) @arg) (assignment_expression left: (subscript_expression) @fn right: (_) @arg)] @hit",
         "java": "(method_invocation name: (identifier) @fn arguments: (argument_list) @arg) @hit",
         "csharp": "(invocation_expression function: [(identifier) @fn (member_access_expression name: (identifier) @fn)] arguments: (argument_list) @arg) @hit"
       },
       "functionPatterns": {
-        "python": "^(filter_by|filter|get|get_or_create|update_or_create|find_one|find|where|execute|select|get_by_email|get_user_by_email|find_by_email|find_user_by_email|user_by_email)$",
-        "javascript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|get|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$",
-        "typescript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|get|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$",
-        "ruby": "^(find_by!?|where|find_or_create_by!?|find_or_initialize_by|find_by_email|first_or_create)$",
+        "python": "^(filter_by|filter|get|get_or_create|update_or_create|find_one|find|where|execute|select|get_by_email|get_user_by_email|find_by_email|find_user_by_email|user_by_email)$|^session\\s*\\[\\s*['\"](user|user_?id|uid|account|account_?id|current_user|username|id)['\"]\\s*\\]$",
+        "javascript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$|^(req\\s*\\.\\s*)?session\\s*\\.\\s*(user|userId|user_id|uid|account|accountId|account_id|currentUser|username|id)$",
+        "typescript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$|^(req\\s*\\.\\s*)?session\\s*\\.\\s*(user|userId|user_id|uid|account|accountId|account_id|currentUser|username|id)$",
+        "ruby": "^(find_by!?|where|find_or_create_by!?|find_or_initialize_by|find_by_email|first_or_create)$|^session\\s*\\[\\s*:?['\"]?(user|user_id|uid|account_id|current_user|username)['\"]?\\s*\\]$",
         "go": "^(Where|First|Find|FindOne|Take|QueryRow|QueryRowContext|Query|QueryContext|Get|GetUserByEmail|FindUserByEmail|FindByEmail|UserByEmail|GetByEmail)$",
-        "php": "^(where|firstWhere|firstOrCreate|firstOrNew|updateOrCreate|findOneBy|findBy|execute|query|whereEmail)$",
+        "php": "^(where|firstWhere|firstOrCreate|firstOrNew|updateOrCreate|findOneBy|findBy|execute|query|whereEmail)$|^\\$_SESSION\\s*\\[\\s*['\"](user|user_?id|uid|account_?id|username|id)['\"]\\s*\\]$",
         "java": "^(findByEmail|findOneByEmail|findByEmailIgnoreCase|findFirstByEmail|getByEmail|findUserByEmail|query|queryForObject|queryForList)$",
         "csharp": "^(FindByEmailAsync|FindByEmail|FirstOrDefault|FirstOrDefaultAsync|SingleOrDefault|SingleOrDefaultAsync|Where|Find|FindAsync)$"
       },
@@ -1583,7 +1583,7 @@
         "java": "(?i)\\b(get)?(oidc_?user|oauth2_?user|principal|id_?token|claims|user_?info)(\\s*\\(\\s*\\))?\\s*\\.\\s*(getemail\\s*\\(\\s*\\)|getattribute\\s*\\(\\s*\"email\"\\s*\\)|getclaim(asstring)?\\s*\\(\\s*\"email\"\\s*\\))",
         "csharp": "(?i)\\bprincipal\\s*\\??\\.\\s*(findfirstvalue|findfirst)\\s*\\(\\s*(claimtypes\\s*\\.\\s*email|\"email\")"
       },
-      "looksFor": "a lookup of an account (`filter_by`, `findUnique`, `find_by`, `Where`, `FindByEmailAsync`, `findByEmail`, and their like) given the email address a sign-in provider sent, written into the call or through a name the same function sets to it; finding none credits nothing, since a lookup through a helper, or one keyed on a value set in another function, is not followed",
+      "looksFor": "a lookup of an account (`filter_by`, `findUnique`, `find_by`, `Where`, `FindByEmailAsync`, `findByEmail`, and their like) given the email address a sign-in provider sent, and, in Python, JavaScript, TypeScript, Ruby, and PHP, that address stored as the session's user (`session[\"user\"]`, `req.session.userId`, `$_SESSION['user_id']`); either written in place or through a name the same function sets to it. Finding none credits nothing: a lookup through a helper, a session reached through another name, or a value set in another function is not followed",
       "nothingToFind": {
         "kotlin": "No sign-in provider library in common use for Kotlin is looked for here. An account looked up by the email address a provider sent is not found.",
         "rust": "No sign-in provider library in common use for Rust is looked for here. An account looked up by the email address a provider sent is not found.",

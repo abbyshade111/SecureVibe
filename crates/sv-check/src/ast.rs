@@ -6136,6 +6136,8 @@ mod tests {
         ("ast.account-found-by-provider-email", "python", "def callback():\n    userinfo = oauth.google.authorize_access_token()[\"userinfo\"]\n    email = userinfo[\"email\"]\n    user = User.query.filter_by(email=email).first()\n", true),
         ("ast.account-found-by-provider-email", "python", "def callback():\n    idinfo = id_token.verify_oauth2_token(tok, requests.Request(), CLIENT_ID)\n    row = db.execute(\"SELECT id FROM users WHERE email = ?\", (idinfo.get(\"email\"),)).fetchone()\n", true),
         ("ast.account-found-by-provider-email", "python", "user = User.query.filter_by(sub=token[\"userinfo\"][\"sub\"]).first()", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    sub, email = userinfo[\"sub\"], userinfo[\"email\"]\n    user = User.query.filter_by(email=email).first()\n", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    email = userinfo[\"email\"]\n    stored = db.session.execute(select(User.email).where(User.sub == userinfo[\"sub\"])).scalar()\n", false),
         ("ast.account-found-by-provider-email", "python", "def login():\n    email = request.form[\"email\"]\n    user = User.query.filter_by(email=email).first()\n", false),
         ("ast.account-found-by-provider-email", "python", "def callback():\n    email = userinfo[\"email\"]\n    send_welcome(email)\n", false),
         ("ast.account-found-by-provider-email", "python", "def callback():\n    email = userinfo[\"email\"]\ndef login():\n    user = User.query.filter_by(email=email).first()\n", false),
@@ -6145,6 +6147,7 @@ mod tests {
         ("ast.account-found-by-provider-email", "javascript", "passport.use(new GoogleStrategy(opts, async (at, rt, profile, done) => { const user = await User.findOne({ googleId: profile.id }); done(null, user); }));", false),
         ("ast.account-found-by-provider-email", "javascript", "async function login(req) { const email = req.body.email; return prisma.user.findUnique({ where: { email } }); }", false),
         ("ast.account-found-by-provider-email", "javascript", "async function callback() { await mailer.send({ to: claims.email, subject: 'Welcome' }); }", false),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/callback', async (req, res) => { const claims = tokenSet.claims(); res.render('welcome', { email: claims.email }); });", false),
         ("ast.account-found-by-provider-email", "typescript", "export async function signIn(claims: Claims) { return db.user.findFirst({ where: { email: claims.email } }); }", true),
         ("ast.account-found-by-provider-email", "typescript", "export async function signIn(userInfo: UserInfo) { const email: string = userInfo.email; return users.findOneBy({ email }); }", true),
         ("ast.account-found-by-provider-email", "typescript", "export async function signIn(claims: Claims) { return db.user.findFirst({ where: { sub: claims.sub } }); }", false),
@@ -6169,6 +6172,14 @@ mod tests {
         ("ast.account-found-by-provider-email", "csharp", "class C { async Task F() { var email = info.Principal.FindFirstValue(ClaimTypes.Email);\n var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email); } }", true),
         ("ast.account-found-by-provider-email", "csharp", "class C { async Task F() { var user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey); } }", false),
         ("ast.account-found-by-provider-email", "csharp", "class C { async Task F(LoginModel model) { var user = await _userManager.FindByEmailAsync(model.Email); } }", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    token = oauth.google.authorize_access_token()\n    session[\"user\"] = token[\"userinfo\"][\"email\"]\n", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    token = oauth.google.authorize_access_token()\n    session[\"user\"] = token[\"userinfo\"][\"sub\"]\n    session[\"email\"] = token[\"userinfo\"][\"email\"]\n", false),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/callback', async (req, res) => { const claims = tokenSet.claims(); req.session.userId = claims.email; });", true),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/callback', async (req, res) => { const claims = tokenSet.claims(); req.session.userId = claims.sub; req.session.email = claims.email; });", false),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  session[:user_id] = request.env['omniauth.auth']['info']['email']\nend\n", true),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  session[:user_id] = request.env['omniauth.auth']['uid']\nend\n", false),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $_SESSION['user_id'] = $googleUser->getEmail(); }", true),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $_SESSION['user_id'] = $googleUser->getId(); }", false),
         // A token's own `jku`, `x5u`, or `jwk` handed to what fetches or makes its key (V9.1.3). The
         // quiet cases: a fixed address, a check against a list, a log line, an address parsed for
         // its host, and a token being made with a `jku` of the app's own.
