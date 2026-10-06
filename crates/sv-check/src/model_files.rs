@@ -693,5 +693,9 @@ mod tests {
             !walks_as_pickle(PICKLE_2, 1),
             "PROTO is not a protocol 1 opcode"
         );
+        assert!(
+            !walks_as_pickle(b"\x80\x02\x80\x05N.", 2),
+            "a later PROTO claiming more than the opening"
+        );
     }
 }
