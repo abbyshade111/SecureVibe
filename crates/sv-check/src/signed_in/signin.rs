@@ -295,7 +295,18 @@ pub(super) fn brute_force_check(
     // was stated; saying it "answered the same every time" would be untrue (the review of 6 October,
     // item 13).
     let next = answers[allowed as usize + 1].0;
-    if !(status_changed || refused) && (next != first_status || matches!(next, 0 | 423 | 429)) {
+    // Only from real answers, every one up to the limit the same: a crash or no answer anywhere in
+    // the run is not the app pushing back, and must not read as a status that changed.
+    let real = |status: u16| status != 0 && status < 500;
+    let alike = answers[..=allowed as usize]
+        .iter()
+        .all(|a| a.0 == first_status);
+    if !(status_changed || refused)
+        && alike
+        && real(first_status)
+        && real(next)
+        && next != first_status
+    {
         out.steps.push(format!(
             "made {attempts} wrong sign-in attempts; the app answered {first_status} to the first \
              {}, and {next} only to the last",
