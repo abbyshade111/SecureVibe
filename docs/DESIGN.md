@@ -10028,7 +10028,7 @@ The two parts of H3 left open on 4 October ("The credential rule reads the shape
   line"), and a real passphrase looks exactly like them. Nothing here tells the two apart, so the rule still passes
   over such a value, and says why in `reads_as_text_or_a_name`.
 
-How it is held: twelve new cases in `a_credential_is_found_in_every_shape_it_is_commonly_written_in`, each found
+How it is held: ten new cases in `a_credential_is_found_in_every_shape_it_is_commonly_written_in`, each found
 exactly once, quoted ones included, and eight in `the_new_shapes_pass_over_what_is_not_a_credential_in_the_clear`
 (`crates/sv-check/src/secrets.rs`). Ten guards were undone in turn and each was caught; three that carried no weight
 (refusing `$`, a backtick, and a parenthesis in the value, which the reference check already passes over) were taken
