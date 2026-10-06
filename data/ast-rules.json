@@ -92,7 +92,7 @@
         "go": "[(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                  arguments: (argument_list . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (interpreted_string_literal) @fn . (_) . (_) @arg))\n (call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier))\n                  arguments: (argument_list . (_) . (interpreted_string_literal) @fn . (_) . (_) @arg))] @hit",
         "rust": "[(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (field_expression value: (call_expression function: (field_expression value: (call_expression function: (scoped_identifier path: (_) @mod) arguments: (arguments . (string_literal) @fn)))\n                                                                           arguments: (arguments . (string_literal))))\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (field_expression value: (call_expression function: (scoped_identifier path: (_) @mod) arguments: (arguments . (string_literal) @fn)))\n                  arguments: (arguments . [(array_expression) @arg (reference_expression value: (array_expression) @arg)]))] @hit",
         "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (_) @arg) @hit",
-        "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(system|popen|getoutput|getstatusoutput)$",
@@ -109,7 +109,7 @@
         "go": "^(Command|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$",
         "rust": "^(new|\"(/bin/|/usr/bin/)?(sh|bash|zsh|dash)\")$",
         "shell": "^((/usr)?/bin/)?(sh|bash|zsh|dash|ksh)$",
-        "cpp": "^(system|popen|execl|execlp|execvp|execv)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(system|popen|execl|execlp|execvp|execv)$"
       },
       "modulePatterns": {
         "dart": "^Process$",
@@ -155,7 +155,7 @@
         "dart": "(call_expression function: (member_expression property: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "swift": "[(call_expression (simple_identifier) @fn (call_suffix (value_arguments . (value_argument) . (value_argument) @arg)))\n (call_expression (navigation_expression suffix: (navigation_suffix suffix: (simple_identifier) @fn))\n                 (call_suffix (value_arguments . (value_argument) @arg)))] @hit",
         "shell": "(command name: (command_name) @fn argument: (word) @mod . argument: (_) @arg) @hit",
-        "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query)$",
@@ -172,7 +172,7 @@
         "dart": "^(rawQuery|rawInsert|rawUpdate|rawDelete|execute|mappedResultsQuery|customSelect|customStatement|customUpdate|customInsert|prepare)$",
         "swift": "^(sqlite3_exec|sqlite3_prepare|sqlite3_prepare_v2|sqlite3_prepare_v3|execute|executeQuery|executeUpdate|executeStatements)$",
         "shell": "^(psql|mysql|mariadb|sqlite3|clickhouse-client)$",
-        "cpp": "^(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
       },
       "safeArgumentPatterns": {
         "swift": "^literal\\s*:"
@@ -190,6 +190,12 @@
         },
         "php": {
           "^(mysqli_(query|real_query|multi_query)|pg_(query|send_query))$": 1
+        },
+        "c": {
+          "(^|::)(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$": 1
+        },
+        "cpp": {
+          "(^|::)(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$": 1
         }
       },
       "argumentsForCommonNames": {
@@ -390,7 +396,7 @@
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "c": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit",
         "shell": "(command name: (command_name) @fn argument: [(string (simple_expansion (variable_name) @arg)) (simple_expansion (variable_name) @arg) (concatenation (simple_expansion (variable_name) @arg)) (string (expansion (variable_name) @arg)) (expansion (variable_name) @arg) (concatenation (expansion (variable_name) @arg))]) @hit",
-        "cpp": "(call_expression function: (identifier) @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
         "python": "^(open|send_file|FileResponse)$",
@@ -407,7 +413,7 @@
         "rust": "^(open|create|read|read_to_string|write|remove_file|remove_dir_all|new)$",
         "c": "^(fopen|freopen|open|unlink|remove)$",
         "shell": "^(cat|rm|cp|mv|ln|head|tail|source|\\.|tar|chmod|chown|touch|mkdir|rmdir|tee|unlink)$",
-        "cpp": "^(fopen|freopen|open|unlink|remove)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(fopen|freopen|open|unlink|remove)$"
       },
       "modulePatterns": {
         "javascript": "^(fs|fsp|res|response|promises|readFile|readFileSync|createReadStream|writeFile|writeFileSync|createWriteStream|appendFile|appendFileSync|unlink|unlinkSync|rm|rmSync)$",
@@ -467,7 +473,7 @@
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
         "c": "(call_expression function: (identifier) @fn) @hit",
         "shell": "[(command name: (command_name) @fn @arg) (command name: (command_name) @fn argument: (word) @arg)] @hit",
-        "cpp": "(call_expression function: (identifier) @fn) @hit"
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(md5|sha1|md4)$",
@@ -484,7 +490,7 @@
         "rust": "^(compute|new|digest|new_with_prefix|chain)$",
         "c": "^(MD5|SHA1|MD4|MD5_Init|SHA1_Init|MD4_Init|EVP_md5|EVP_sha1|EVP_md4|CC_MD5|CC_SHA1)$",
         "shell": "^(md5sum|sha1sum|md5|openssl)$",
-        "cpp": "^(MD5|SHA1|MD4|MD5_Init|SHA1_Init|MD4_Init|EVP_md5|EVP_sha1|EVP_md4|CC_MD5|CC_SHA1)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(MD5|SHA1|MD4|MD5_Init|SHA1_Init|MD4_Init|EVP_md5|EVP_sha1|EVP_md4|CC_MD5|CC_SHA1)$"
       },
       "modulePatterns": {
         "python": "^hashlib$",
@@ -542,7 +548,7 @@
         "c": "(call_expression function: (identifier) @fn) @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
         "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit",
-        "cpp": "(call_expression function: (identifier) @fn) @hit"
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(ECB|MODE_ECB|TripleDES|ARC4|Blowfish|CAST5|IDEA|SEED)$",
@@ -559,7 +565,7 @@
         "c": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$",
         "rust": "^(new|new_from_slice|new_from_slices|des\\w*|aes_\\d+_ecb|rc4|rc2\\w*|bf_\\w+|cast5\\w*|idea\\w*)$",
         "shell": "^openssl$",
-        "cpp": "^(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(EVP_(des|rc4|rc2|bf|cast5|idea)\\w*|EVP_aes_\\d+_ecb|DES_\\w+|AES_ecb_encrypt|BF_\\w+|RC4|RC4_set_key)$"
       },
       "modulePatterns": {
         "python": "^(modes|AES|algorithms)$",
@@ -615,7 +621,7 @@
         "c": "(call_expression function: (identifier) @fn) @hit",
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)) @hit",
         "shell": "(command name: (command_name) @fn argument: (word) @arg) @hit",
-        "cpp": "(call_expression function: (identifier) @fn) @hit"
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn) @hit"
       },
       "functionPatterns": {
         "python": "^(CBC|CTR|CFB|CFB8|OFB|MODE_CBC|MODE_CTR|MODE_CFB|MODE_OFB|MODE_OPENPGP)$",
@@ -632,7 +638,7 @@
         "c": "^(EVP_(aes|aria|camellia|sm4)_\\d*_?(cbc|ctr|cfb\\d*|ofb)|EVP_chacha20|AES_cbc_encrypt|AES_ctr128_encrypt|AES_cfb\\d+_encrypt|AES_ofb128_encrypt)$",
         "rust": "^(new|new_from_slices?|aes_\\d+_(cbc|ctr|cfb\\d*|ofb)|chacha20)$",
         "shell": "^openssl$",
-        "cpp": "^(EVP_(aes|aria|camellia|sm4)_\\d*_?(cbc|ctr|cfb\\d*|ofb)|EVP_chacha20|AES_cbc_encrypt|AES_ctr128_encrypt|AES_cfb\\d+_encrypt|AES_ofb128_encrypt)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(EVP_(aes|aria|camellia|sm4)_\\d*_?(cbc|ctr|cfb\\d*|ofb)|EVP_chacha20|AES_cbc_encrypt|AES_ctr128_encrypt|AES_cfb\\d+_encrypt|AES_ofb128_encrypt)$"
       },
       "modulePatterns": {
         "python": "^(modes|AES)$",
@@ -689,7 +695,7 @@
         "rust": "(call_expression function: (scoped_identifier path: (_) @mod name: (identifier) @fn)\n                 arguments: (arguments . (_) @arg)) @hit",
         "c": "[(call_expression function: (identifier) @fn arguments: (argument_list . (string_literal) @mod . (_) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (string_literal) @mod . (_) @arg))] @hit",
         "shell": "[(command name: (command_name) @fn . argument: (_) @mod @arg) (command name: (command_name) @fn . argument: (_) @mod . argument: (_) @arg)] @hit",
-        "cpp": "[(call_expression function: (identifier) @fn arguments: (argument_list . (string_literal) @mod . (_) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (string_literal) @mod . (_) @arg))] @hit"
+        "cpp": "[(call_expression function: [(identifier) (qualified_identifier)] @fn arguments: (argument_list . (string_literal) @mod . (_) @arg))\n (call_expression function: [(identifier) (qualified_identifier)] @fn arguments: (argument_list . (_) . (string_literal) @mod . (_) @arg))\n (binary_expression left: (binary_expression left: [(identifier) (qualified_identifier)] @fn right: (string_literal) @mod) right: (_) @arg)] @hit"
       },
       "functionPatterns": {
         "python": "^(redirect|HttpResponseRedirect|HttpResponsePermanentRedirect|RedirectResponse)$",
@@ -706,7 +712,7 @@
         "rust": "^(to|temporary|permanent|see_other)$",
         "c": "^(printf|fprintf|sprintf|dprintf)$",
         "shell": "^(echo|printf)$",
-        "cpp": "^(printf|fprintf|sprintf|dprintf)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(printf|fprintf|sprintf|dprintf|cout)$"
       },
       "modulePatterns": {
         "javascript": "^((res|response|reply|ctx)\\.redirect|(res|response)\\.location|(NextResponse|Response)\\.redirect|redirect|permanentRedirect|((window|document|self|top)\\.)?location(\\.href|\\.assign)?|(window|document|self|top)\\.location\\.replace)$",
@@ -738,7 +744,7 @@
         "shell": "only a Location header printed with echo or printf from a variable, the way a CGI script redirects",
         "c": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects",
         "php": "a Location header set with header() from a value",
-        "cpp": "only a Location header printed with printf or a similar call from a value, the way a CGI program redirects",
+        "cpp": "only a Location header printed with printf or a similar call, or streamed to std::cout, from a value, the way a CGI program redirects",
         "javascript": "a redirect to a destination built from a value, through `res.redirect`, `res.location`, `reply.redirect`, and `ctx.redirect` (Express, Fastify, Koa), a bare `redirect()` or `permanentRedirect()` (Next.js, Remix, SvelteKit), `NextResponse.redirect` and `Response.redirect`, and the browser's `location`, `location.href`, `location.assign`, and `location.replace` on `window` or `document`",
         "typescript": "a redirect to a destination built from a value, through `res.redirect`, `res.location`, `reply.redirect`, and `ctx.redirect` (Express, Fastify, Koa), a bare `redirect()` or `permanentRedirect()` (Next.js, Remix, SvelteKit), `NextResponse.redirect` and `Response.redirect`, and the browser's `location`, `location.href`, `location.assign`, and `location.replace` on `window` or `document`"
       }
@@ -889,7 +895,7 @@
         "csharp": "[(invocation_expression) (binary_expression)] @hit @arg",
         "rust": "(binary_expression) @hit @arg",
         "c": "(call_expression function: (identifier) @fn arguments: (argument_list) @arg) @hit",
-        "cpp": "(call_expression function: (identifier) @fn arguments: (argument_list) @arg) @hit",
+        "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn arguments: (argument_list) @arg) @hit",
         "dart": "(equality_expression) @hit @arg",
         "swift": "(equality_expression) @hit @arg"
       },
@@ -900,7 +906,7 @@
         "php": "^hash_hmac$",
         "ruby": "^(hexdigest|digest|base64digest)$",
         "c": "^(memcmp|strcmp|strncmp|bcmp)$",
-        "cpp": "^(memcmp|strcmp|strncmp|bcmp)$"
+        "cpp": "^(?:std::(?:filesystem::)?|::)?(memcmp|strcmp|strncmp|bcmp)$"
       },
       "modulePatterns": {
         "python": "(?s)^hmac(\\.(new|HMAC)\\(.*)?$",
@@ -1117,7 +1123,7 @@
         "ruby": "^pbkdf2_hmac(_sha1)?$",
         "csharp": "^(Rfc2898DeriveBytes|Pbkdf2)$",
         "c": "^PKCS5_PBKDF2_HMAC(_SHA1)?$",
-        "cpp": "^PKCS5_PBKDF2_HMAC(_SHA1)?$",
+        "cpp": "^(?:std::(?:filesystem::)?|::)?PKCS5_PBKDF2_HMAC(_SHA1)?$",
         "kotlin": "^PBEKeySpec$",
         "rust": "(^|::)(pbkdf2|pbkdf2_hmac|pbkdf2_hmac_array)$",
         "dart": "^(Pbkdf2|Pbkdf2Parameters)$",
@@ -1210,7 +1216,7 @@
         "ruby": "[(call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list . (_) . (_) . (integer) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list . (_) . (_) . (integer) @arg . (_) . (_) @hash))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair key: (hash_key_symbol) value: (integer)) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair) @hash (pair key: (hash_key_symbol) value: (integer)) @arg))\n (call receiver: (_) @mod method: (identifier) @fn arguments: (argument_list (pair key: (hash_key_symbol) value: (integer)) @arg (pair) @hash))] @hit",
         "csharp": "[(object_creation_expression type: (identifier) @fn arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg)))\n (object_creation_expression type: (identifier) @fn arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg) . (argument) @hash))\n (invocation_expression function: (member_access_expression name: (identifier) @fn) arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg)))\n (invocation_expression function: (member_access_expression name: (identifier) @fn) arguments: (argument_list . (_) . (_) . (argument (integer_literal) @arg) . (argument) @hash))\n (object_creation_expression type: (identifier) @fn arguments: (argument_list . (argument) . (argument) . \")\" @arg))] @hit",
         "c": "[(call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg . (_) @hash))] @hit",
-        "cpp": "[(call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg))\n (call_expression function: (identifier) @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg . (_) @hash))] @hit",
+        "cpp": "[(call_expression function: [(identifier) (qualified_identifier)] @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg))\n (call_expression function: [(identifier) (qualified_identifier)] @fn arguments: (argument_list . (_) . (_) . (_) . (_) . (number_literal) @arg . (_) @hash))] @hit",
         "kotlin": "(call_expression (identifier) @fn (value_arguments . (value_argument) . (value_argument) . (value_argument (number_literal) @arg))) @hit",
         "rust": "[(call_expression function: [(generic_function function: (_) @fn) (_) @fn] arguments: (arguments . (_) . (_) . (integer_literal) @arg))\n (call_expression function: (generic_function function: (_) @fn type_arguments: (type_arguments . (_) @hash)) arguments: (arguments . (_) . (_) . (integer_literal) @arg))] @hit",
         "dart": "[(call_expression function: (identifier) @fn arguments: (arguments (named_argument (label (identifier)) (decimal_integer_literal)) @arg))\n (call_expression function: (identifier) @fn arguments: (arguments (named_argument) @hash (named_argument (label (identifier)) (decimal_integer_literal)) @arg))\n (call_expression function: (identifier) @fn arguments: (arguments (named_argument (label (identifier)) (decimal_integer_literal)) @arg (named_argument) @hash))\n (call_expression function: (identifier) @fn arguments: (arguments . (_) . (decimal_integer_literal) @arg))] @hit",
