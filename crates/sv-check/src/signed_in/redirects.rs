@@ -119,7 +119,8 @@ pub(super) fn open_redirect_check(
         let given = decoded(target);
         if let Some(to) = redirect_of(&signed_in) {
             seen.push(format!(
-                "signing in at {} with `next` set to {given} sent the browser to {to}",
+                "signing in at {} with `next` and eight other return parameters set to {given} sent the \
+                 browser to {to}",
                 login.path
             ));
         }
@@ -129,7 +130,8 @@ pub(super) fn open_redirect_check(
         let again = http.send(&get(&format!("redirect-signed-in-{kind}"), &page, &session));
         if let Some(to) = redirect_of(&again) {
             seen.push(format!(
-                "opening {} already signed in, with `next` set to {given}, sent the browser to {to}",
+                "opening {} already signed in, with `next` and eight other return parameters set to \
+                 {given}, sent the browser to {to}",
                 login.path
             ));
         }
@@ -145,7 +147,8 @@ pub(super) fn open_redirect_check(
             );
             if let Some(to) = redirect_of(&signed_out) {
                 seen.push(format!(
-                    "signing out at {} with `next` set to {given} sent the browser to {to}",
+                    "signing out at {} with `next` and eight other return parameters set to {given} sent \
+                     the browser to {to}",
                     logout.path
                 ));
             }
@@ -269,6 +272,21 @@ mod tests {
             for place in ["signing in at", "already signed in", "signing out at"] {
                 assert!(f.description.contains(place), "{place}: {}", f.description);
             }
+            // Every return parameter was given the address, not `next` alone, and it says so (item
+            // 16 of the review of 1 to 4 October).
+            assert_eq!(
+                f.description
+                    .matches("with `next` and eight other return parameters set to")
+                    .count(),
+                3,
+                "{}",
+                f.description
+            );
+            assert_eq!(
+                PARAMETERS.len(),
+                9,
+                "the sentence counts eight besides `next`"
+            );
         }
         // Only the `//` address gets past a check for a leading `/`.
         let o = run_against(
