@@ -92,6 +92,8 @@ another session is not a claim.
   **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
   the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
   `claude/securevibe-e9-review-1to4-batch2`.
+  **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
+  them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
@@ -1153,6 +1155,11 @@ another session is not a claim.
      function's calls across the app's Python, and when every one passes the app's own route (`url_for(...)`) or a
      path on this site, keep the finding and say so, naming each call, as the owner decided for a destination a
      function checked (item 3 of "Three false alarms on code that does the safe thing"). Not made quiet.
+     **Done the same day** (DESIGN, "A redirect to a parameter every caller fills with the app's own route says
+     so"): the finding stays, and when every use of the function's name across the app's Python is a call, its
+     definition, or an import, and every call passes or leaves to a default what the rule counts as safe on its own,
+     it names each call and says removing the parameter only to clear the finding is not a fix. Python only. Ten
+     guards broken in turn, each caught.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
