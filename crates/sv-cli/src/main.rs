@@ -3771,11 +3771,11 @@ fn assemble_report_saying(
                         // whatever its runner's own report says still passed — and nothing more,
                         // which is why an unreadable report falls back to crediting nothing rather
                         // than to crediting what it managed to understand.
-                        let passed_cases = if result.exit_code == 0 {
+                        let reported_cases = if result.exit_code == 0 {
                             None
                         } else {
                             match result.report.as_deref().map(sv_check::junit::parse) {
-                                Some(Ok(cases)) => Some(sv_check::junit::passed_names(&cases)),
+                                Some(Ok(cases)) => Some(cases),
                                 Some(Err(unreadable)) => {
                                     gaps.push(sv_report::Gap {
                                         what: "which of the app's own tests passed".to_owned(),
@@ -3790,7 +3790,7 @@ fn assemble_report_saying(
                                 None => None,
                             }
                         };
-                        tests_examined = match (result.exit_code, &passed_cases) {
+                        tests_examined = match (result.exit_code, &reported_cases) {
                             (0, _) => sv_report::Examined::ran("tests."),
                             (_, Some(_)) => sv_report::Examined::partly(
                                 "tests.",
@@ -3806,7 +3806,7 @@ fn assemble_report_saying(
                             sv_check::suite::SuiteOutcome::Passed
                         } else {
                             sv_check::suite::SuiteOutcome::Failed {
-                                passed: passed_cases.as_ref(),
+                                cases: reported_cases.as_deref(),
                             }
                         };
                         let (credited, mismatches) =
@@ -3820,7 +3820,7 @@ fn assemble_report_saying(
                         if result.exit_code != 0 {
                             gaps.push(sv_report::Gap {
                                 what: "anything the failing tests would have shown".to_owned(),
-                                why: match (&passed_cases, credited.len()) {
+                                why: match (&reported_cases, credited.len()) {
                                     (Some(_), 0) => format!(
                                         "the suite failed (exit {}) and no test its runner \
                                          reported as passing names a requirement",
