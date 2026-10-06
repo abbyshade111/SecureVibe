@@ -917,6 +917,7 @@ mod tests {
             fingerprint: format!("fp-{rule}"),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
         }
     }
 

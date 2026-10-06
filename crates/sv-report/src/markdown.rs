@@ -769,8 +769,9 @@ pub fn security(report: &Report) -> String {
     }
     if !tests.is_empty() {
         out.push_str(&format!(
-            "## {} in test or sample code\n\n{}\n\n",
+            "## {} {}\n\n{}\n\n",
             tests.len(),
+            crate::apart_named(&tests),
             crate::TEST_CODE_SECTION
         ));
         for finding in tests {
