@@ -72,6 +72,9 @@ another session is not a claim.
   17. **Smaller, suspected or narrow:** the report seal hashes the files as read back from disk, not the bytes `sv`
       wrote, so a write in that moment would be sealed (suspected, a race); `prod.env.local` and the like go into a
       bundle (confirmed by reading `bundle.rs`).
+  **Items 1 to 9 and 15 done on 6 October 2026 by session securevibe-e2** (DESIGN, "The review of 5 and 6 October:
+  what it found, and what of it was fixed"); 15 was taken with 4, being in the same function. Items 10 to 14, 16, and
+  17 are not claimed.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
