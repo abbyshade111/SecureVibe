@@ -3626,6 +3626,17 @@ another session is not a claim.
     names. Semgrep and CodeQL, run by `sv report --tools` in the app's folder, may run `git` themselves; the record
     does not say, and it was not checked.
 
+  **The owner's decisions, 6 October 2026:**
+  - Records for items 1, 2, 3, and 7, the four most costly; the other four stay as their DESIGN sections.
+  - The large shared files stay ungoverned: governing them would make nearly every pull request owe a line, and the
+    weekly review catches what slips through.
+  - ADR-032 and the outside tools: find out whether Semgrep and CodeQL run `git` in the app's folder, and report before
+    changing anything.
+
+  **Records 1, 2, 3, and 7, and the ADR-032 question, claimed the same day by session securevibe-e2**, at the owner's
+  word, in branch `claude/securevibe-e2-records`. Read on `main` just before this claim: no other session had claimed
+  them.
+
 - **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
   records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
   address by the IPv4 one inside it only when written `::ffff:a.b.c.d` or `::a.b.c.d`. A 6to4 address (`2002::/16`,
@@ -3643,7 +3654,8 @@ another session is not a claim.
   Eight guards broken in turn, each caught.
 
 - **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
-  (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line; **not claimed**.
+  (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line. **Claimed on 6 October 2026 by
+  session securevibe-e2**, with the records above, in branch `claude/securevibe-e2-records`.
 
 - **The weekly review's routine left no trace on its first Monday.** "Weekly decision-record review" was scheduled on
   4 October to run every Monday at 8:45 Eastern and claim its week here first. On 5 October nothing was claimed and no
