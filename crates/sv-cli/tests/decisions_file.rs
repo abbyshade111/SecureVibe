@@ -60,6 +60,8 @@ fn the_two_sections_count_as_written_answers_and_the_review_is_repeated() {
     let dir = fresh("written");
     let config = dir.join("config");
     let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    // Sealed for this app, as `sv review` run in it seals.
+    let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
     // The owner's section, sealed as `sv review` would seal it.
     let catalog = sv_check::notes::Catalog::load(
         &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/design-decisions.json"),

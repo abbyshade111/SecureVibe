@@ -1,5 +1,6 @@
 //! `sv review` end to end (deep review R1): it runs only in a terminal, what it records counts in
-//! the report, and the report says where the seal was checked.
+//! the report of the app it was recorded in, on the computer that holds the key, and the report
+//! says why anywhere else.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -165,11 +166,31 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
         here.contains("Recorded through `sv review` on this computer: the owner set it aside"),
         "{here}"
     );
-    // Where there is no key, it counts and says its seal was not checked.
+    // Where there is no key, it does not count: the seal cannot be checked, and a made-up one
+    // would look the same. The report says what to do (item 8 of the review of 1 to 4 October).
     let none = report(&app, &s.0.join("no-key"));
+    assert!(none.contains("cannot check"), "{none}");
     assert!(
-        none.contains("this one has no key to check the seal with"),
+        none.contains("run `sv review` once on this computer"),
         "{none}"
+    );
+    assert!(!none.contains("set it aside as a false alarm on"), "{none}");
+    // Copied into another app's folder on this computer, it does not count there (item 11), and
+    // still counts where it was recorded.
+    let copy = s.0.join("copy");
+    std::fs::create_dir_all(&copy).unwrap();
+    for file in ["app.py", "securevibe.toml"] {
+        std::fs::copy(app.join(file), copy.join(file)).unwrap();
+    }
+    let copied = report(&copy, &config);
+    assert!(copied.contains("for an app in another folder"), "{copied}");
+    assert!(
+        !copied.contains("set it aside as a false alarm on"),
+        "{copied}"
+    );
+    assert!(
+        report(&app, &config).contains("Recorded through `sv review` on this computer"),
+        "the setup: it still counts in its own app"
     );
     // On a computer with another key, it is a proposal: a made-up seal would look the same.
     let other = s.0.join("other");

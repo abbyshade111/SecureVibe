@@ -97,6 +97,8 @@ another session is not a claim.
   `claude/securevibe-e9-review-1to4-batch2`.
   **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
   them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
+  **Items 8 and 11 done the same day** (DESIGN, "The review of 1 to 4 October, batch 2: seals"; ADR-026, "Later, 6
+  October 2026").
 
   **Items 1, 2, 3, 4, 12, and 13 done the same day** (DESIGN, "The review of 1 to 4 October, batch 1").
 

@@ -200,10 +200,13 @@ Why the extra step: the tool rewrites code until a warning stops, and writing `b
 file is the easiest way to stop one. `sv review` runs only in a terminal someone is typing in, which an
 AI coding tool does not have, and seals each entry with a key kept in your own settings folder
 (`~/.config/securevibe/review-key`), outside the app. On your computer the report checks each seal: an
-entry that was changed afterwards, or was never sealed, is a proposal again. On a computer with no key,
-such as CI, the seal cannot be checked; the entry still counts, and the report says so. A seal shows how
-an entry was recorded, not who was at the keyboard, and a tool set on faking one could; it stops the easy
-way, not every way. Keep the key file private, and copy it to another computer of yours to record from there.
+entry that was changed afterwards, or was never sealed, is a proposal again. A seal also names the app's
+folder, so an entry copied into another app, or an app moved to another folder, is a proposal until you
+run `sv review` there. On a computer with no key, such as CI, the seal cannot be checked, so the entry
+does not count there either, and the report says how to make it count: run `sv review` once on that
+computer, or read the report on the computer where you recorded it. A seal shows how an entry was
+recorded, not who was at the keyboard, and a tool set on faking one could; it stops the easy way, not every
+way. Keep the key file private, and copy it to another computer of yours to record from there.
 
 With the container, give it a terminal and somewhere to keep the key, made first so that it is yours
 (`mkdir -p ~/.config/securevibe && chmod 700 ~/.config/securevibe`; on Linux, add `--user` as below):
