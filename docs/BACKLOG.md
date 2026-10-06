@@ -1679,6 +1679,28 @@ another session is not a claim.
   four prompts stay not tested. Putting each shortcut back was caught for the key and the command, and missed for
   the sanitizer: two new items under "Next".
 
+- **Test the prompt library where the prompts have something to fix.** Proposed on 6 October 2026 by session
+  paper-facts, reviewing the library at the owner's asking; **the owner's decision the same day: write it up, with the
+  trial's cost to be approved when it is ready.** Of the library's 27 prompts, 5 are shown to work, 14 are not shown,
+  and 8 have no check. Eleven of the fourteen were not shown because the build without the prompt was already safe:
+  they were tried with a strong Claude model, on one or two builds each. The loop's item 6 has the baseline that
+  testing them needs: in its Haiku 4.5 builds without the server, the problem a prompt is for was there in 6 of 9
+  (password hashing), 4 of 9 (keys in the code), 8 of 8 (security headers), 5 of 8 (no limit on wrong passwords),
+  6 of 8 (no limit on records), and 5 of 8 (session faults); in Sonnet 5.5's, in almost none.
+  1. **Prompts for the commonest problems the library has none for**, from item 6's findings: the AI feature's way in
+     and way out (C2.1.3, C7.3.2, C7.3.4, the commonest running-app findings, in 3 to 7 builds an arm); a request from
+     another site (V3.5.1); a private page kept in the cache (V14.3.2); and the session itself (V3.3.2, V3.3.4,
+     V7.2.3, V7.4.1). Added as `untested`. No security contact (`config.security-contact`) is the commonest finding
+     of all, and gets no prompt: its rule cites no requirement on purpose, and a prompt is held to the requirements
+     its check cites (`tools/coverage.py`).
+  2. **A protocol, fixed before any build:** Haiku 4.5, the loop's plain brief with the specification, each prompt's
+     builds against one shared set without any prompt; how many builds; the rule for "shown"; and harm measured in
+     the same builds (every finding, and whether `sv` could still start the app and sign in).
+  3. **The trial,** at the size the owner approves.
+  4. **Then how a prompt is delivered,** for those shown to work: pasted into the request, or returned by
+     `securevibe_before`.
+  **Claimed on 6 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompt-trial`.
+
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
   above. Prompts the owner gives the AI coding tool before any code is written. Every Secure by Design control is
