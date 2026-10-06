@@ -347,6 +347,12 @@ you change its `Written by:` line to `owner` yourself), and `securevibe_bundle`
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
 
+A plan or a check too long for an AI coding tool to take in as one answer (over about 40,000 characters; Claude Code
+saves anything longer to a file instead of reading it) comes in parts. The first answer starts with what to act on:
+for a plan, what to decide and what `sv run` needs; for a check, what was not examined and then the findings. It ends
+with a list of every section and how to ask for each (`section`, and `page` for a long one). Nothing is left out, and
+`"section": "all"` still gives the whole answer at once. A short plan or check is answered whole, as before.
+
 It also offers [the design-time prompts](docs/prompts/design-time.md) as MCP prompts, for you to choose from
 your tool (where it shows them, for example as slash commands): what to decide with the tool before any code is
 written, each saying whether it has been shown to work. Its instructions ask the tool, for an app with no code yet, to
