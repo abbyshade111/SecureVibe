@@ -310,11 +310,17 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
     let again = sv(&[], &dir);
     assert!(again.status.success(), "{}", said(&again));
 
-    // A report from a run that started a day from now, and read a different file: one that finished
-    // while the lock could not hold (a disk without locks, or an `sv` from before the lock).
-    let later = there["run_record"]["started_unix_ms"].as_u64().unwrap() + 86_400_000;
+    // A report from a run that started 50 seconds from now, and read a different file: one that
+    // finished while the lock could not hold (a disk without locks, or an `sv` from before the
+    // lock). The next run starts before then, and by the time it ends the start is within the
+    // minute two readings of one clock may differ by, so it is believed.
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+    let later = now + 50_000;
     there["run_record"]["started_unix_ms"] = later.into();
-    there["run_record"]["started"] = "2099-01-01T00:00:00Z".into();
+    there["run_record"]["started"] = "a moment later".into();
     there["run_record"]["securevibe_toml_sha256"] = "0".repeat(64).into();
     let newer = serde_json::to_string_pretty(&there).unwrap();
     std::fs::write(folder.join("report.json"), &newer).unwrap();
@@ -323,7 +329,7 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
     let older = sv(&[], &dir);
     let words = said(&older);
     assert!(!older.status.success(), "{words}");
-    assert!(words.contains("2099-01-01T00:00:00Z"), "{words}");
+    assert!(words.contains("a moment later"), "{words}");
     assert!(words.contains("kept the newer one"), "{words}");
     assert!(
         words.contains("different versions of securevibe.toml"),
@@ -338,6 +344,24 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
         std::fs::read(folder.join("report.html")).unwrap(),
         html_before,
         "and nothing beside it was replaced"
+    );
+
+    // Item 9 of the review of 1 to 4 October: a report claiming a run that starts a day from now
+    // held the folder for good. No run started then, so it is replaced.
+    there["run_record"]["started_unix_ms"] = (later + 86_400_000).into();
+    there["run_record"]["started"] = "2099-01-01T00:00:00Z".into();
+    std::fs::write(
+        folder.join("report.json"),
+        serde_json::to_string_pretty(&there).unwrap(),
+    )
+    .unwrap();
+    let replaced = sv(&[], &dir);
+    assert!(replaced.status.success(), "{}", said(&replaced));
+    assert!(
+        !std::fs::read_to_string(folder.join("report.json"))
+            .unwrap()
+            .contains("2099-01-01T00:00:00Z"),
+        "the report from the future was replaced"
     );
     assert!(!folder.join(LOCK).exists(), "let go after refusing");
     std::fs::remove_dir_all(&dir).ok();

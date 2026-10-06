@@ -126,6 +126,8 @@ another session is not a claim.
   batch (a report lock, the notes seal, the run's output, two untrue sentences, masking, and the smaller ones), in
   branch `claude/securevibe-e2-review-1to4-b5`. Read on `main` just before this claim: no other session had claimed
   them.
+  **Items 9, 10, 15, 16, 17, and 24 done the same day** (DESIGN, "The review of 1 to 4 October, the last batch").
+  With them, every item of this review is done.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,

@@ -82,9 +82,13 @@ impl Undo {
 /// The folders this process holds, by their lock's path, with what to undo for each. Kept so that
 /// `let_go_of_all` can let them go on the way out of a run stopped with Ctrl-C, which leaves through
 /// `std::process::exit`, where nothing is dropped.
-static LIVE: std::sync::Mutex<Vec<(PathBuf, Undo)>> = std::sync::Mutex::new(Vec::new());
+static LIVE: std::sync::Mutex<Vec<Live>> = std::sync::Mutex::new(Vec::new());
 
-fn live() -> std::sync::MutexGuard<'static, Vec<(PathBuf, Undo)>> {
+/// A folder this process holds: its lock's path, what to undo, and the lock file as this run
+/// opened and locked it, when the disk could lock it.
+type Live = (PathBuf, Undo, Option<Metadata>);
+
+fn live() -> std::sync::MutexGuard<'static, Vec<Live>> {
     LIVE.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
@@ -93,7 +97,7 @@ impl Held {
     /// What to take away if the run ends without a report: `marker`, a file taking the folder
     /// wrote, and `folder`, if taking it made the folder.
     pub fn undo_unless_written(&self, marker: Option<PathBuf>, folder: Option<PathBuf>) {
-        if let Some(entry) = live().iter_mut().find(|(lock, _)| *lock == self.path) {
+        if let Some(entry) = live().iter_mut().find(|(lock, _, _)| *lock == self.path) {
             entry.1 = Undo { marker, folder };
         }
     }
@@ -107,8 +111,20 @@ impl Held {
 /// Lets go of every folder this process holds, removing their locks and undoing what taking them
 /// added. For a run leaving through `std::process::exit`.
 pub fn let_go_of_all() {
-    for (lock, undo) in live().drain(..) {
-        let _ = std::fs::remove_file(&lock);
+    let_go_of(live().drain(..).collect());
+}
+
+/// Lets go of these folders. A lock is removed only when its name is still the file this run locked,
+/// as `Drop` does: where the disk could not lock, or another run has since put its own lock there,
+/// the file is another run's, and removing it on Ctrl-C would leave that run's folder open to a
+/// third (item 24 of the review of 1 to 4 October).
+fn let_go_of(held: Vec<Live>) {
+    for (lock, undo, opened) in held {
+        if let (Some(opened), Ok(on_disk)) = (opened, std::fs::symlink_metadata(&lock))
+            && same_file(&on_disk, &opened)
+        {
+            let _ = std::fs::remove_file(&lock);
+        }
         undo.apply();
     }
 }
@@ -118,7 +134,7 @@ impl Drop for Held {
         let undo = {
             let mut live = live();
             live.iter()
-                .position(|(lock, _)| *lock == self.path)
+                .position(|(lock, _, _)| *lock == self.path)
                 .map(|at| live.remove(at).1)
                 .unwrap_or_default()
         };
@@ -139,7 +155,8 @@ impl Drop for Held {
 }
 
 fn held(file: Option<File>, path: PathBuf, notes: Vec<String>) -> Held {
-    live().push((path.clone(), Undo::default()));
+    let opened = file.as_ref().and_then(|f| f.metadata().ok());
+    live().push((path.clone(), Undo::default(), opened));
     Held { file, path, notes }
 }
 
@@ -297,14 +314,30 @@ fn same_file(a: &Metadata, _b: &Metadata) -> bool {
     a.file_type().is_file()
 }
 
+/// How far ahead of this computer's clock a report's start may be and still be believed: clocks
+/// on one computer agree to well within this, and a run cannot have started in the future.
+const CLOCK_SKEW_MS: u64 = 60_000;
+
 /// Refuses to replace a report in `out_dir` that came from a run that started after this one.
 ///
 /// A report without a record, or that does not read, is replaced as before: there is nothing to say
-/// it is newer.
+/// it is newer. Nor is one whose run would have started in the future, by this computer's clock: no
+/// run did, and believing it kept every later run from writing its report there, for good (item 9
+/// of the review of 1 to 4 October).
 pub fn refuse_older(report: &sv_report::Report, out_dir: &Path, elsewhere: &str) -> Result<()> {
     let Some(mine) = &report.run_record else {
         return Ok(());
     };
+    refuse_older_than(mine, millis(SystemTime::now()), out_dir, elsewhere)
+}
+
+/// `refuse_older` for a run with this record, at `now_ms` by this computer's clock.
+fn refuse_older_than(
+    mine: &sv_report::RunRecord,
+    now_ms: u64,
+    out_dir: &Path,
+    elsewhere: &str,
+) -> Result<()> {
     let path = out_dir.join("report.json");
     // A link is refused when the report is written; it is not followed to read one either.
     let Ok(meta) = std::fs::symlink_metadata(&path) else {
@@ -323,7 +356,7 @@ pub fn refuse_older(report: &sv_report::Report, out_dir: &Path, elsewhere: &str)
     let Some(their_start) = record["started_unix_ms"].as_u64() else {
         return Ok(());
     };
-    if their_start <= mine.started_unix_ms {
+    if their_start <= mine.started_unix_ms || their_start > now_ms.saturating_add(CLOCK_SKEW_MS) {
         return Ok(());
     }
     let same_file = match record["securevibe_toml_sha256"].as_str() {
@@ -447,6 +480,67 @@ mod tests {
             std::fs::read_to_string(dir.join("elsewhere")).unwrap(),
             "theirs"
         );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_report_from_a_later_run_is_kept_and_one_from_the_future_is_not() {
+        let dir = folder("future");
+        let now = 1_791_053_580_000;
+        let mine = sv_report::RunRecord {
+            started: "2026-10-03T18:52:00Z".into(),
+            started_unix_ms: now - 60_000,
+            securevibe_toml_sha256: "a".repeat(64),
+        };
+        let there = |start: u64| {
+            std::fs::write(
+                dir.join("report.json"),
+                serde_json::json!({ "run_record": {
+                    "started": "then", "started_unix_ms": start,
+                    "securevibe_toml_sha256": "a".repeat(64),
+                }})
+                .to_string(),
+            )
+            .unwrap();
+            refuse_older_than(&mine, now, &dir, "give --out")
+        };
+        // A run that started after this one and before now: the report there is the newer, kept.
+        let kept = there(now - 30_000).expect_err("refused").to_string();
+        assert!(kept.contains("kept the newer one"), "{kept}");
+        // Within a minute of now still counts, for clocks that read a little apart.
+        assert!(there(now + 30_000).is_err());
+        // From the future, by this computer's clock: no run started then, so it is replaced, and
+        // a report that says so cannot hold the folder for good.
+        assert!(there(now + 86_400_000).is_ok());
+        assert!(there(u64::MAX).is_ok());
+        // An earlier one is replaced, as always.
+        assert!(there(now - 120_000).is_ok());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ctrl_c_removes_only_the_lock_this_run_holds() {
+        let dir = folder("ctrl-c");
+        let lock = dir.join(LOCK_NAME);
+        let make = || {
+            std::fs::write(&lock, "{}").unwrap();
+            std::fs::metadata(&lock).unwrap()
+        };
+        // Its own, still in place: removed.
+        let mine = make();
+        let_go_of(vec![(lock.clone(), Undo::default(), Some(mine))]);
+        assert!(!lock.exists(), "its own lock is removed");
+        // A disk that could not lock: the file is not known to be this run's, and is left.
+        make();
+        let_go_of(vec![(lock.clone(), Undo::default(), None)]);
+        assert!(lock.exists(), "a lock this run never held is left");
+        // Its own was removed and another run made one in its place: left.
+        // Moved aside rather than removed, so the new file cannot reuse its place on the disk.
+        let old = std::fs::metadata(&lock).unwrap();
+        std::fs::rename(&lock, dir.join("moved-aside")).unwrap();
+        make();
+        let_go_of(vec![(lock.clone(), Undo::default(), Some(old))]);
+        assert!(lock.exists(), "another run's lock is left");
         std::fs::remove_dir_all(&dir).ok();
     }
 

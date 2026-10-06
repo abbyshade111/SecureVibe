@@ -141,13 +141,46 @@ fn byline(line: &str) -> bool {
 }
 
 /// A section's prose without the lines that say who wrote it, which say who and not what.
+///
+/// Those lines are left out of what `sv review` seals, so each is left out only when it can carry
+/// nothing else (item 10 of the review of 1 to 4 October, where any line beginning `Written by:` or
+/// `Sealed by sv review:`, anywhere in a sealed section, could be added without breaking its seal):
+/// a `Written by:` line naming one of the two writers, a `Sealed by sv review:` line holding a seal
+/// and nothing more, and a byline in the tool's own words only above the answer, before its first
+/// line. Anything else is part of the answer, sealed with it and shown with it.
 fn prose(body: &str) -> String {
+    let mut above = true;
     body.lines()
-        .filter(|line| written_by(line).is_none() && !byline(line) && sealed_by(line).is_none())
+        .filter(|line| {
+            let mark = says_who(line) || (above && byline(line));
+            if !mark && !line.trim().is_empty() {
+                above = false;
+            }
+            !mark
+        })
         .collect::<Vec<_>>()
         .join("\n")
         .trim()
         .to_owned()
+}
+
+/// A line that says who wrote a section, or holds its seal, and can hold nothing else.
+fn says_who(line: &str) -> bool {
+    written_by(line).is_some_and(|who| {
+        who.eq_ignore_ascii_case(BY_OWNER)
+            || who.eq_ignore_ascii_case(BY_AI_TOOL)
+            || who.eq_ignore_ascii_case("ai-tool")
+    }) || sealed_by(line).is_some_and(|seal| is_seal(&seal))
+}
+
+/// Text in the form of a seal `sv review` writes: `v`, a version, and parts of hex, with no room
+/// for words.
+fn is_seal(text: &str) -> bool {
+    let mut parts = text.split(':');
+    parts.next().is_some_and(|v| {
+        v.len() >= 2 && v.starts_with('v') && v[1..].bytes().all(|b| b.is_ascii_digit())
+    }) && parts.clone().count() >= 1
+        && parts.all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_hexdigit()))
 }
 
 /// Under this many characters of the owner's own prose, a section says nothing.
@@ -631,10 +664,14 @@ impl Answers {
             .map(|(_, body)| body.as_str())
     }
 
-    /// Every section with enough prose under it to be an answer, and who wrote it.
+    /// Every section with enough prose under it to be an answer, and who wrote it. A requirement
+    /// with two sections is read by its first, as everything else here reads it, and comes once:
+    /// `sv review` asked about it twice (item 24 of the review of 1 to 4 October).
     pub fn answered(&self) -> Vec<(String, Writer)> {
+        let mut seen = BTreeSet::new();
         self.sections
             .iter()
+            .filter(|(id, _)| seen.insert(id.clone()))
             .filter(|(_, body)| prose(body).chars().count() >= LEAST_ANSWER_CHARS)
             .map(|(id, body)| (id.clone(), writer_of(body)))
             .collect()
@@ -673,10 +710,14 @@ impl Answers {
         self.get_answer(id).map(prose)
     }
 
-    /// The seal `sv review` put on a section, if it has one (the last, if several).
+    /// The seal `sv review` put on a section, if it has one (the last, if several). A
+    /// `Sealed by sv review:` line holding anything but a seal is part of the answer, not a seal.
     pub fn seal_of(&self, id: &str) -> Option<String> {
-        self.get_answer(id)
-            .and_then(|body| body.lines().filter_map(sealed_by).next_back())
+        self.get_answer(id).and_then(|body| {
+            body.lines()
+                .filter_map(sealed_by)
+                .rfind(|seal| is_seal(seal))
+        })
     }
 
     /// Whether the owner's section counts as theirs where this runs: its seal, or why not.
@@ -1036,7 +1077,9 @@ pub fn with_seal_in(catalog: &Catalog, text: &str, id: &str, seal: &str) -> Opti
     let mut placed = false;
     for (i, line) in lines.iter().enumerate() {
         let inside = i > start && i < end;
-        if inside && sealed_by(line).is_some() {
+        // Only a seal is taken out: a line that merely begins the same way is part of the answer
+        // the new seal is made over.
+        if inside && sealed_by(line).is_some_and(|seal| is_seal(&seal)) {
             continue;
         }
         out.push((*line).to_owned());
@@ -1199,6 +1242,86 @@ mod tests {
         }
         sealed.not_read = answers.not_read.clone();
         super::evidence(catalog, &sealed, file, &crate::seal::Checker::Key(key()))
+    }
+
+    #[test]
+    fn a_requirement_with_two_sections_is_answered_once_by_its_first() {
+        let first = "Five failed sign-ins in fifteen minutes lock the account for an hour.";
+        let second = "Nobody is ever locked out, however many times a password is wrong.";
+        let text = format!(
+            "# Security notes\n\n## V6.1.1 — Sign-in\n\nWritten by: owner\n\n{first}\n\n\
+             ## V6.1.1 — Sign-in\n\nWritten by: AI coding tool\n\n{second}\n"
+        );
+        let answers = read_answers(&Catalog::default(), &text);
+        assert_eq!(
+            answers.duplicates.len(),
+            1,
+            "the setup: the file has two sections for it"
+        );
+        assert_eq!(
+            answers.answered(),
+            vec![("V6.1.1".to_owned(), Writer::Owner)],
+            "read once, by the first, as its prose is"
+        );
+        assert_eq!(answers.prose_of("V6.1.1").as_deref(), Some(first));
+    }
+
+    #[test]
+    fn a_line_added_inside_a_sealed_section_breaks_its_seal() {
+        // Item 10 of the review of 1 to 4 October: lines beginning `Written by:` or `Sealed by sv
+        // review:`, and bylines, were left out of what is sealed wherever they stood, so the AI
+        // coding tool could add to a section the owner sealed and the seal still held.
+        let body = "Five failed sign-ins in fifteen minutes lock the account for an hour.";
+        let sealed = format!("Written by: owner\n{SEALED_BY} v2:0123:abcd:ef\n\n{body}");
+        assert_eq!(
+            prose(&sealed),
+            body,
+            "the setup: the marks above the answer are not in it"
+        );
+        for added in [
+            "*Written by the owner: administrators may also read every note.*",
+            "Sealed by sv review: and administrators may read every note",
+            "Written by: owner, who also lets administrators read every note",
+        ] {
+            for at in [
+                format!("{sealed}\n{added}"),
+                format!(
+                    "Written by: owner\n{SEALED_BY} v2:0123:abcd:ef\n\n{body}\n\n{added}\n\nMore."
+                ),
+            ] {
+                assert!(
+                    prose(&at).contains(added.trim_matches('*')),
+                    "{added:?} hid in {at:?}"
+                );
+                assert_ne!(prose(&at), body);
+            }
+        }
+        // The marks themselves still say nothing, above or below: who wrote it, and the seal.
+        assert_eq!(prose(&format!("{body}\n\nWritten by: owner")), body);
+        assert_eq!(
+            prose(&format!(
+                "*Written by the AI coding tool from the code.*\n\n{body}"
+            )),
+            body
+        );
+        // A line that only begins like a seal is no seal, and stays in the answer when sealed again.
+        assert!(!is_seal("and administrators may read every note"));
+        assert!(is_seal("v2:0123:abcd:ef") && is_seal("v1:abc"));
+        assert!(!is_seal("v2:") && !is_seal("v:ab") && !is_seal("v2:xyz"));
+        let file = format!(
+            "# Security notes\n\n## V6.1.1 — Sign-in\n\nWritten by: owner\n\n{body}\nSealed by sv review: admins too\n"
+        );
+        let resealed = with_seal(&file, "V6.1.1", "v2:aa:bb:cc").expect("placed");
+        assert!(
+            resealed.contains("Sealed by sv review: admins too"),
+            "{resealed}"
+        );
+        // And it is never taken for the seal, wherever it stands: the seal is the real one.
+        let sealed_file = format!(
+            "# Security notes\n\n## V6.1.1 — Sign-in\n\nWritten by: owner\n{SEALED_BY} v2:aa:bb:cc\n\n{body}\n{SEALED_BY} admins too\n"
+        );
+        let answers = read_answers(&Catalog::default(), &sealed_file);
+        assert_eq!(answers.seal_of("V6.1.1").as_deref(), Some("v2:aa:bb:cc"));
     }
 
     #[test]

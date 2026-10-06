@@ -796,6 +796,15 @@ fn assignment_findings(
 /// a redaction that is not needed costs a reader four characters, and one that is missed cannot
 /// be taken back.
 pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
+    redact_text_in(rules, "", text)
+}
+
+/// `redact_text`, for text from the file at `relative` in the app: a value written without quotes
+/// is then masked in the shapes that file's kind is read for (`unquoted_shape`), as the scan finds it
+/// there: YAML's `password: v&w`, `.properties`' `secret=v,w`, a Dockerfile's `ENV TOKEN v`. Text
+/// whose file is not known is masked as code is (item 17 of the review of 1 to 4 October, where those
+/// were found in their files and masked only up to the `&` or `,`, or not at all).
+pub fn redact_text_in(rules: &SecretRules, relative: &str, text: &str) -> (String, usize) {
     let mut spans: Vec<(usize, usize)> = Vec::new();
     for (_, re) in &rules.rules {
         for m in re.find_iter(text) {
@@ -829,7 +838,7 @@ pub fn redact_text(rules: &SecretRules, text: &str) -> (String, usize) {
     }
     // And every shape the assignment rule reads (`:=`, `=>`, a typed declaration, a default given to
     // an environment variable), which the pattern above cuts short or misses.
-    for Named { name, value, .. } in named_values("", text) {
+    for Named { name, value, .. } in named_values(relative, text) {
         if is_secret_name(name.as_str()) && !looks_like_placeholder(value.as_str()) {
             spans.push((value.start(), value.end()));
         }
@@ -2796,5 +2805,51 @@ SIGNING_KEY=generate_with_openssl_rand
         // The three bcrypt hashes. The seven digests under a name that says only `password` are
         // still reported: that is the price of never sparing a hex plaintext password.
         assert_eq!(spared_false, 3);
+    }
+
+    #[test]
+    fn a_value_is_masked_as_far_as_it_is_found_in_its_file() {
+        // Item 17 of the review of 1 to 4 October: in these files the scan finds the whole value,
+        // and masking, which did not know the file, stopped at the `&` or `,`, or masked nothing.
+        let value = ["Xk7mQ92v", "&LpR4sTz"].concat();
+        let comma = ["Xk7mQ92v", ",LpR4sTz"].concat();
+        for (file, line, secret) in [
+            (
+                "config.yml",
+                format!("db_password: {value}"),
+                value.as_str(),
+            ),
+            (
+                "app.properties",
+                format!("api.secret={comma}"),
+                comma.as_str(),
+            ),
+            (
+                "Dockerfile",
+                format!("ENV DB_PASSWORD {value}"),
+                value.as_str(),
+            ),
+            (
+                "deploy.sh",
+                format!("export API_TOKEN={value}"),
+                value.as_str(),
+            ),
+        ] {
+            // The setup: the scan really finds it in that file. No message here names the value or
+            // the line holding it, so a failure prints nothing that looks like a credential.
+            assert!(
+                !scan_text(&rules(), file, &line).is_empty(),
+                "the setup: the value in {file} is found"
+            );
+            let (out, n) = redact_text_in(&rules(), file, &line);
+            assert!(n >= 1, "{file}: nothing was masked");
+            // Not one part of the value is left, before or after the `&` or `,`.
+            for (which, part) in [("first", &secret[..8]), ("last", &secret[9..])] {
+                assert!(
+                    !out.contains(part),
+                    "{file}: the {which} part of the value was left"
+                );
+            }
+        }
     }
 }

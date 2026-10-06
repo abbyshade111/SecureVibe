@@ -319,11 +319,15 @@ pub(super) fn invented_session_check(
     }
     let mut session = signed_in.session.clone();
     let mut altered = Vec::new();
+    // Whether a cookie was shorter than the made-up value's least length, for the evidence to say
+    // so rather than call every value "the same length" (item 16 of the review of 1 to 4 October).
+    let mut lengthened = false;
     for (name, value) in &mut session.cookies {
         if !signed_in.set_at_login.iter().any(|c| c.name == *name) {
             continue;
         }
         // The same length, so nothing is refused merely for being the wrong shape.
+        lengthened |= value.chars().count() < 16;
         let invented: String = "sv0probe0invented0session0value0"
             .chars()
             .cycle()
@@ -338,6 +342,11 @@ pub(super) fn invented_session_check(
         return;
     }
     let altered = altered.join(", ");
+    let same_length = if lengthened {
+        "of the same length (16 characters where the real one was shorter)"
+    } else {
+        "of the same length"
+    };
     let control = ok(&http.send(&get(
         "invented-session-control",
         confirm,
@@ -383,7 +392,7 @@ pub(super) fn invented_session_check(
             "A made-up session value opens a private page",
             Severity::High,
             format!(
-                "With {altered}, the cookies set at sign-in, given values of the same length that \
+                "With {altered}, the cookies set at sign-in, given values {same_length} that \
                  this check made up, and the app's other cookies as they were, {confirm} still \
                  opened."
             ),
@@ -393,7 +402,7 @@ pub(super) fn invented_session_check(
             SESSION_TOKEN_UNVERIFIED.rule_id,
             SESSION_TOKEN_UNVERIFIED.requirement_ids,
             format!(
-                "{altered}, set at sign-in, given made-up values of the same length with the app's \
+                "{altered}, set at sign-in, given made-up values {same_length} with the app's \
                  other cookies kept, refused {confirm}, where the real session had just opened it"
             ),
         ));
@@ -1437,6 +1446,33 @@ mod tests {
         let correct = run_against(Flaws::default(), &users());
         assert!(!rule_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
         assert!(verified_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
+    }
+
+    #[test]
+    fn a_made_up_session_value_is_called_the_same_length_only_when_it_is() {
+        // Item 16 of the review of 1 to 4 October: a made-up value is at least 16 characters, and
+        // the evidence called it "the same length" when the real one was shorter.
+        let scope = |o: &Outcome| {
+            o.verified
+                .iter()
+                .find(|v| v.check_id == SESSION_TOKEN_UNVERIFIED.rule_id)
+                .map(|v| v.scope.clone())
+                .unwrap_or_else(|| panic!("credited: {:?}", verified_ids(o)))
+        };
+        let long = scope(&run_against(Flaws::default(), &users()));
+        assert!(long.contains("of the same length with"), "{long}");
+        assert!(!long.contains("16 characters"), "{long}");
+        let short = scope(&run_against(
+            Flaws {
+                short_session_ids: true,
+                ..Default::default()
+            },
+            &users(),
+        ));
+        assert!(
+            short.contains("16 characters where the real one was shorter"),
+            "{short}"
+        );
     }
 
     /// A run against the scripted app with a cookie set on the sign-in page before the session
