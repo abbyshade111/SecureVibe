@@ -70,6 +70,9 @@ pub fn render(report: &Report) -> String {
             if let Some(library) = &f.bundled_library {
                 result["properties"]["inBundledLibrary"] = json!(library);
             }
+            if f.worth_a_look() {
+                result["properties"]["worthALook"] = json!(true);
+            }
             if !f.fingerprint.is_empty() {
                 result["partialFingerprints"] = json!({ "svFingerprint/v1": f.fingerprint });
             }

@@ -173,6 +173,22 @@ pub struct Finding {
     pub also_on_this_line: Vec<Finding>,
 }
 
+/// Semgrep rules whose findings are listed apart as "worth a look" (Semgrep follow-up 5, the owner's
+/// decision of 6 October 2026; ADR-023, Later). In the false-alarm measurement of 4 October 2026
+/// (`docs/semgrep-false-alarms.csv`) these made 280 findings, of which one was real (NodeGoat's
+/// `var-in-href` in `app/views/profile.html`). Listed apart, shown in full, and still counted, as test
+/// code's are: never hidden, since one in 280 was real.
+pub const WORTH_A_LOOK: &[&str] = &[
+    "semgrep.javascript.lang.security.audit.unsafe-dynamic-method.unsafe-dynamic-method",
+    "semgrep.javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp",
+    "semgrep.javascript.jquery.security.audit.prohibit-jquery-html.prohibit-jquery-html",
+    "semgrep.html.security.plaintext-http-link.plaintext-http-link",
+    "semgrep.generic.html-templates.security.var-in-href.var-in-href",
+    "semgrep.javascript.express.security.audit.xss.ejs.var-in-href.var-in-href",
+    "semgrep.javascript.express.security.audit.xss.pug.var-in-href.var-in-href",
+    "semgrep.ruby.rails.security.audit.xss.templates.var-in-href.var-in-href",
+];
+
 impl Finding {
     /// How sure `sv` is that this is a real problem, in the owner's words: "confirmed" when the rule
     /// is sure (or the running app was seen doing it), "likely" when it usually is, and "possible"
@@ -207,10 +223,20 @@ impl Finding {
         self.marked_test_code || is_test_path(&self.location.file)
     }
 
+    /// Whether the finding is only "worth a look": reported by one of the Semgrep rules in
+    /// `WORTH_A_LOOK` and by nothing else, with every other problem on its line the same. One that
+    /// another tool also reported, or that shares its line with a problem of another kind, is not.
+    pub fn worth_a_look(&self) -> bool {
+        WORTH_A_LOOK.contains(&self.rule_id.as_str())
+            && self.also_reported_by.is_empty()
+            && self.also_on_this_line.iter().all(Finding::worth_a_look)
+    }
+
     /// Whether the reports list this finding apart from the app's own code: in test or sample code,
-    /// or in a copy of another project's library kept in the app. Either way it still counts.
+    /// in a copy of another project's library kept in the app, or only worth a look. Whichever it
+    /// is, it is shown in full and still counts.
     pub fn apart(&self) -> bool {
-        self.in_test_code() || self.bundled_library.is_some()
+        self.in_test_code() || self.bundled_library.is_some() || self.worth_a_look()
     }
 }
 
@@ -1168,5 +1194,53 @@ mod tests {
         };
         let json = serde_json::to_string(&finding).unwrap();
         assert!(!json.contains("SUPERSECRETVALUE"), "{json}");
+    }
+
+    #[test]
+    fn only_a_usually_wrong_rule_alone_on_its_line_is_worth_a_look() {
+        let regexp = "semgrep.javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp";
+        let jquery =
+            "semgrep.javascript.jquery.security.audit.prohibit-jquery-html.prohibit-jquery-html";
+        let alone = at(regexp, "static/app.js", 4, &[], Severity::Medium);
+        assert!(alone.worth_a_look() && alone.apart());
+        // Another of the five on its line keeps it so.
+        let mut two = alone.clone();
+        two.also_on_this_line = vec![at(jquery, "static/app.js", 4, &[], Severity::Low)];
+        assert!(two.worth_a_look());
+        // The controls. Another tool also reporting it is a second opinion.
+        let mut backed = alone.clone();
+        backed.also_reported_by = vec!["ast.dynamic-code-execution".into()];
+        assert!(!backed.worth_a_look() && !backed.apart());
+        // A problem of another kind on its line is not only worth a look.
+        let mut mixed = alone.clone();
+        mixed.also_on_this_line = vec![at(
+            "ast.sql-built-by-hand",
+            "static/app.js",
+            4,
+            &["CWE-89"],
+            Severity::High,
+        )];
+        assert!(!mixed.worth_a_look() && !mixed.apart());
+        // Another Semgrep rule, or the same rule's name from another tool, is not one of the five.
+        assert!(
+            !at(
+                "semgrep.javascript.lang.security.audit.eval-detected",
+                "static/app.js",
+                4,
+                &[],
+                Severity::Medium
+            )
+            .worth_a_look()
+        );
+        assert!(
+            !at(
+                "detect-non-literal-regexp",
+                "static/app.js",
+                4,
+                &[],
+                Severity::Medium
+            )
+            .worth_a_look()
+        );
     }
 }

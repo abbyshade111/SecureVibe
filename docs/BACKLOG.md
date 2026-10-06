@@ -6692,6 +6692,8 @@ another session is not a claim.
      listed apart. **Claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-worth-a-look`.
      **Record, `Status: proposed`** (a "Later" entry on ADR-023): the five rules' findings are listed apart under
      "worth a look", in full and still counted, as test code's are.
+     **Done the same day** (DESIGN, "Five Semgrep rules listed apart as "worth a look""; ADR-023, Later): listed
+     after the app's own, in full, still counted, and marked in SARIF; only when nothing else backs the finding up.
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real

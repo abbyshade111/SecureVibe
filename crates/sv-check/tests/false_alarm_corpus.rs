@@ -107,3 +107,68 @@ fn the_secret_rules_findings_in_test_code_are_listed_apart_with_the_rest() {
     // The setup for that: the true findings are there to be moved.
     assert_eq!(rows.iter().filter(|r| r.verdict == "true").count(), 301);
 }
+
+#[test]
+fn the_rules_only_worth_a_look_were_wrong_279_times_in_280() {
+    // Semgrep follow-up 5 (the owner's decision, 6 October 2026), held to the measurement it rests
+    // on: every finding of the five rules in the corpus is named by `WORTH_A_LOOK`, and their
+    // verdicts are 279 false alarms and one real finding, as the owner was told.
+    use sv_check::finding::WORTH_A_LOOK;
+    let five = [
+        "unsafe-dynamic-method",
+        "detect-non-literal-regexp",
+        "prohibit-jquery-html",
+        "plaintext-http-link",
+        "var-in-href",
+    ];
+    let rows = rows();
+    let theirs: Vec<&Row> = rows
+        .iter()
+        .filter(|r| five.contains(&r.rule.rsplit('.').next().unwrap_or("")))
+        .collect();
+    for r in &theirs {
+        assert!(
+            WORTH_A_LOOK.contains(&format!("semgrep.{}", r.rule).as_str()),
+            "{} is not named, as `sv` names it",
+            r.rule
+        );
+    }
+    let verdict = |v: &str| theirs.iter().filter(|r| r.verdict == v).count();
+    assert_eq!(
+        (verdict("false"), verdict("true"), verdict("unsure")),
+        (279, 1, 0)
+    );
+    // The control: no other rule in the corpus is named.
+    assert!(
+        rows.iter()
+            .filter(|r| !five.contains(&r.rule.rsplit('.').next().unwrap_or("")))
+            .all(|r| !WORTH_A_LOOK.contains(&format!("semgrep.{}", r.rule).as_str()))
+    );
+    // And each named rule is one the Semgrep adapter maps, so a misspelled entry fails here.
+    let adapters: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    let semgrep = adapters["adapters"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|a| a["id"] == "semgrep")
+        .unwrap();
+    for id in WORTH_A_LOOK {
+        let rule = id.strip_prefix("semgrep.").unwrap();
+        assert!(semgrep["rules"].get(rule).is_some(), "{id} is not mapped");
+    }
+    // Every rule of one of the five names the adapter maps is named, in each language it comes in.
+    for rule in semgrep["rules"].as_object().unwrap().keys() {
+        if five.contains(&rule.rsplit('.').next().unwrap_or("")) {
+            assert!(
+                WORTH_A_LOOK.contains(&format!("semgrep.{rule}").as_str()),
+                "{rule} is mapped and not named"
+            );
+        }
+    }
+}
