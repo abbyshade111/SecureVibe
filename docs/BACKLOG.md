@@ -78,6 +78,8 @@ another session is not a claim.
   10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
   **Items 13, 14, 16, and 17 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the
   remaining review items next"), in branch `claude/securevibe-e2-review-rest`.
+  **Items 13, 14, 16, and 17 done the same day** (DESIGN, "The rest of the review of 5 and 6 October"). Every item of
+  this review is done.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
