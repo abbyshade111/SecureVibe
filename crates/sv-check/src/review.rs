@@ -96,16 +96,13 @@ pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
 
 /// A line of code as a review names and shows it: trimmed, with every credential in it masked as the
 /// report masks it, its first four characters and its length (`Secret::redact`). Empty when the
-/// credential rules could not be read, which they always are where `sv` was built: the line is then
+/// credential rules could not be read, which they always are where `sv` finds its data: the line is then
 /// never named or shown as written, at the cost of reviews telling lines in one file apart only by
 /// where they are.
 pub fn masked(line: &str) -> String {
     static RULES: std::sync::LazyLock<Option<crate::secrets::SecretRules>> =
         std::sync::LazyLock::new(|| {
-            crate::secrets::SecretRules::load(
-                &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
-            )
-            .ok()
+            crate::secrets::SecretRules::load(&sv_frameworks::data::file("secret-rules.json")).ok()
         });
     match &*RULES {
         Some(rules) => crate::secrets::redact_text(rules, line.trim()).0,

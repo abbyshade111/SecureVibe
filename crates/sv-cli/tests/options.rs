@@ -190,8 +190,14 @@ fn a_value_that_starts_with_a_dash_is_a_value_and_a_dashed_folder_can_be_named()
 fn the_version_names_the_build_and_its_commit() {
     for flag in ["--version", "-V", "version"] {
         let out = sv(&[flag]);
-        let said = String::from_utf8_lossy(&out.stdout).trim().to_owned();
-        assert!(out.status.success(), "{said}");
+        let all = String::from_utf8_lossy(&out.stdout).trim().to_owned();
+        assert!(out.status.success(), "{all}");
+        let (said, data) = all.split_once('\n').unwrap_or((&all, ""));
+        // The second line names the data folder this copy reads (ADR-036).
+        assert!(
+            data.starts_with("data: ") && data.ends_with("data"),
+            "sv {flag}: {all}"
+        );
         let expected_start = format!("sv {} (commit ", env!("CARGO_PKG_VERSION"));
         let commit = said
             .strip_prefix(&expected_start)

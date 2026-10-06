@@ -3282,10 +3282,10 @@ mod tests {
         for step in [
             "https://sh.rustup.rs",
             "git clone https://github.com/abbyshade111/SecureVibe.git",
-            "cargo build --release -p sv-cli",
-            "target/release:$PATH",
+            "sh tools/install.sh",
+            ".local/bin:$PATH",
             "sv --version",
-            "Leave the `securevibe` folder where it is",
+            "The installed copy does not need the `securevibe` folder",
             "Docker or Colima has to be running",
         ] {
             assert!(guide.contains(step), "the guide lacks {step:?}");
