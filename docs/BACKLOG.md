@@ -1472,6 +1472,14 @@ another session is not a claim.
       a finding) and `probe.ai-service-failure-handled` (V16.5.2, credited when the app fails cleanly and keeps
       answering). Three guards broken in turn, each caught. Not done: a service that answers slowly or not at all,
       and a malformed structured answer (C7.1.1).
+      **C7.1.1 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Please continue to work off
+      the backlog when ready"), in branch `claude/securevibe-e2-structured-answers`. Read on `main` just before this
+      claim: no other session had claimed it. **Record, `Status: proposed`: ADR-042.** The test model answers in the
+      shape an app asks for (a JSON schema, JSON mode, or a forced tool), which today it never does, so an app that
+      asks for one fails every AI question for the test model's reason; and a new kind of message answers in the
+      wrong shape. The marker in the app's answer is a finding; credit only after an ordinary answer of the right shape
+      was seen shown, and the wrong one refused without failing. A service that answers slowly or not at all stays
+      unclaimed.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
