@@ -3,6 +3,7 @@
 
     python3 tools/coverage.py            # rewrite docs/COVERAGE.md
     python3 tools/coverage.py --check    # fail if docs/COVERAGE.md is not what this would write
+    python3 tools/coverage.py --credits LOG  # fail if the suite's credits disagree with the lists below
 
 Everything is read from where the checks themselves keep their citations, so the document cannot
 claim a check the code does not have:
@@ -24,6 +25,9 @@ to be cited by one of those rules, and every rule has to cite one of them, or on
 
 A test (`crates/sv-check/tests/coverage_doc.rs`) runs `--check`, so a change to the checks that is not
 followed by regenerating this document fails the build.
+
+`--credits` reads the file the test suite writes when `SV_CREDIT_LOG` names it (CI's test job does):
+one line for every credit a check gave, with the place in the code that gave it (`check_credits`).
 """
 
 import json
@@ -301,6 +305,11 @@ RUST_FINDINGS_ONLY = {
     "probe.identity-header-trusted",
     "probe.token-in-browser-storage",
     "probe.password-in-browser-storage",
+    # Found on 6 October 2026 by the census of what the suite credits (`check_credits`). A hint or a
+    # secret question only ever raises a finding. The assignment rule's clean run is credited as
+    # `secrets.scan`, which names the requirements of `data/secret-rules.json` and not V13.2.3.
+    "probe.password-hints",
+    "secrets.credential-assignment",
 }
 
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
@@ -607,7 +616,53 @@ def check_prompts(known_requirements, sbd_controls):
     return faults
 
 
+def check_credits(log):
+    """Holds the findings-only lists to what the test suite saw each check credit.
+
+    Reading the code for where a check gives credit is not reliable: it does so through helpers and
+    tables of rules as often as by name. So `Verified::new`, in a debug build with `SV_CREDIT_LOG`
+    set, writes each credit to a file, with the place in the code that gave it, and this reads it.
+    A credit made in a test module, or in a test of its own, is a test building its own evidence and
+    is left out. Faults: a check listed as findings-only that was credited; a check never credited
+    that is not listed, which is either findings-only or a credit no test reaches; and a credit
+    naming a requirement the check does not cite.
+    """
+    shipping = {str(p.relative_to(ROOT)): code.count("\n") + 1 for p, code in rust_code()}
+    credited = defaultdict(set)
+    lines = 0
+    for line in Path(log).read_text().splitlines():
+        check, ids, at = line.split("\t")
+        path, number = at.rsplit(":", 1)
+        if shipping.get(path, 0) < int(number):
+            continue
+        lines += 1
+        credited[check].update(q for q in ids.split(",") if q)
+    if not lines:
+        return [f"{log} holds no credit from a check: was the suite run with SV_CREDIT_LOG set?"]
+    cites = {check: (set(ids), check in RUST_FINDINGS_ONLY) for check, (_, ids) in RUST_CHECKS.items()}
+    for rule in load(ROOT / "data/ast-rules.json")["rules"]:
+        cites[rule["id"]] = (set(rule["requirementIds"]), bool(rule.get("findingsOnly")))
+    faults = []
+    for check, (ids, findings_only) in sorted(cites.items()):
+        got = credited.get(check, set())
+        if findings_only and got:
+            faults.append(f"{check} is listed as only ever a finding, and the suite saw it credit "
+                          + ", ".join(sorted(got)))
+        if not findings_only and not got:
+            faults.append(f"{check} was never credited in the suite: list it as findings-only, or add "
+                          "a test that reaches its credit")
+        if got - ids:
+            faults.append(f"{check} credited {', '.join(sorted(got - ids))}, which it does not cite")
+    return faults
+
+
 def main():
+    if "--credits" in sys.argv[1:]:
+        faults = check_credits(sys.argv[sys.argv.index("--credits") + 1])
+        if faults:
+            sys.exit("the suite's credits disagree with tools/coverage.py:\n  " + "\n  ".join(faults))
+        print("every check credited as the lists say")
+        return
     check = "--check" in sys.argv[1:]
 
     written = rust_literals()
