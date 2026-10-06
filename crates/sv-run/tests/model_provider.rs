@@ -382,11 +382,12 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
         "type": "object",
         "properties": {
             "answer": {"type": "string"},
-            "score": {"type": "integer"},
+            "score": {"type": "integer", "minimum": -9007199254740991_i64},
+            "count": {"type": "integer", "minimum": 3},
             "mood": {"type": "string", "enum": ["calm", "busy"]},
             "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}}
         },
-        "required": ["answer", "score", "mood", "steps"],
+        "required": ["answer", "score", "count", "mood", "steps"],
         "additionalProperties": false,
         "$defs": {"step": {"type": "object", "properties": {"text": {"type": "string"}}}}
     });
@@ -410,7 +411,10 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
             .contains("SV-REPLY-5a01"),
         "{content}"
     );
+    // Zero where the schema allows it (zod writes a whole number's minimum as -(2^53 - 1)), and
+    // the nearest number it allows where it does not.
     assert_eq!(content["score"], 0);
+    assert_eq!(content["count"], 3);
     assert_eq!(content["mood"], "calm");
     assert!(
         content["steps"][0]["text"]
@@ -419,7 +423,7 @@ fn the_test_model_answers_in_the_shape_the_app_asked_for() {
             .contains("SV-REPLY-5a01"),
         "{content}"
     );
-    assert_eq!(content.as_object().unwrap().len(), 4, "{content}");
+    assert_eq!(content.as_object().unwrap().len(), 5, "{content}");
 
     // BADSHAPE with the same schema: every field the wrong type, carrying the marker, one more field.
     let bad = post(

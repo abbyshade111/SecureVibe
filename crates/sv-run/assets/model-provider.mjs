@@ -211,7 +211,14 @@ function fit(schema, said, root, depth = 0) {
       return out;
     }
     case 'array': return [fit(schema.items || {}, said, root, depth + 1)];
-    case 'integer': case 'number': return Number.isFinite(schema.minimum) ? schema.minimum : 0;
+    case 'integer': case 'number': {
+      // Zero when the schema allows it, else the nearest number it does.
+      let n = Math.min(Math.max(0, Number.isFinite(schema.minimum) ? schema.minimum : -Infinity),
+        Number.isFinite(schema.maximum) ? schema.maximum : Infinity);
+      if (Number.isFinite(schema.exclusiveMinimum) && n <= schema.exclusiveMinimum) n = schema.exclusiveMinimum + 1;
+      if (Number.isFinite(schema.exclusiveMaximum) && n >= schema.exclusiveMaximum) n = schema.exclusiveMaximum - 1;
+      return n;
+    }
     case 'boolean': return false;
     case 'null': return null;
     default: return said;
