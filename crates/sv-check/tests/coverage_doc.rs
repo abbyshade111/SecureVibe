@@ -65,3 +65,74 @@ fn the_requirements_list_names_every_requirement_once() {
         expected.iter().map(String::as_str).collect::<Vec<_>>()
     );
 }
+
+/// `tools/coverage.py --credits`, CI's census of what the suite credited, given small logs whose
+/// answer is known. The suite's own log exercises only the lines a real run writes; these hold the
+/// rest: a test's own credit left out, a credit from past a file's tests left out too, a credit
+/// naming a requirement the check does not cite, and an empty log.
+#[test]
+fn the_census_of_credits_counts_only_what_a_check_gave() {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let dir = std::env::temp_dir().join(format!("sv-census-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let census = |name: &str, log: &str| {
+        let path = dir.join(name);
+        std::fs::write(&path, log).unwrap();
+        let out = Command::new("python3")
+            .arg(root.join("tools/coverage.py"))
+            .arg("--credits")
+            .arg(&path)
+            .output()
+            .expect("python3 is needed");
+        assert!(
+            !out.status.success(),
+            "{name}: every check was not credited"
+        );
+        String::from_utf8_lossy(&out.stderr).into_owned()
+    };
+    let probes = "crates/sv-check/src/probes.rs";
+    let tests_start = std::fs::read_to_string(root.join(probes))
+        .unwrap()
+        .split("#[cfg(test)]")
+        .next()
+        .unwrap()
+        .lines()
+        .count()
+        + 5;
+    // The control: from shipping code, the credit is counted, and is a fault for this check.
+    let shipped = census(
+        "shipped.log",
+        &format!("probe.password-hints\tV6.4.2\t{probes}:1\n"),
+    );
+    assert!(
+        shipped.contains("probe.password-hints is listed as only ever a finding"),
+        "{shipped}"
+    );
+    for (name, at) in [
+        ("test.log", "crates/sv-report/tests/report.rs:1".to_owned()),
+        ("module.log", format!("{probes}:{tests_start}")),
+    ] {
+        let said = census(
+            name,
+            &format!(
+                "probe.cors-any-origin\tV3.4.2\t{probes}:1\nprobe.password-hints\tV6.4.2\t{at}\n"
+            ),
+        );
+        assert!(
+            !said.contains("probe.password-hints is listed"),
+            "{name}: {said}"
+        );
+        assert!(said.contains("was never credited"), "{name}: {said}");
+    }
+    let wider = census(
+        "wider.log",
+        &format!("probe.cors-any-origin\tV3.4.2,V1.2.3\t{probes}:1\n"),
+    );
+    assert!(
+        wider.contains("probe.cors-any-origin credited V1.2.3, which it does not cite"),
+        "{wider}"
+    );
+    let empty = census("empty.log", "");
+    assert!(empty.contains("holds no credit from a check"), "{empty}");
+    std::fs::remove_dir_all(&dir).unwrap();
+}
