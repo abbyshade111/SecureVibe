@@ -1606,6 +1606,8 @@ fn output_schema(tool: &str) -> Option<Value> {
             "also_reported_by": strings, "fingerprint": string, "earlier_fingerprints": strings,
             "marked_test_code": { "type": "boolean" },
             "bundled_library": string,
+            // The other problems on the same line, each a finding of this same shape.
+            "also_on_this_line": { "type": "array", "items": { "type": "object" } },
         }),
         &[
             "rule_id",
