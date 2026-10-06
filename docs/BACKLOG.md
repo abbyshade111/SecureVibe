@@ -7093,6 +7093,16 @@ another session is not a claim.
      this" stays unproven, as ADR-026 says. Building it would change ADR-026 and add a dependency, so its record goes in
      the same pull request, and it needs a claim and the owner's decision first.
 
+- **Seals as SSH signatures, so CI and a second computer can check them without being able to make one.** The owner
+  chose SSH signing on 6 October 2026, on the research above, and took every recommendation in the plan session
+  securevibe-e10 walked them through ("go with the recommendations please"). **Claimed the same day by session
+  securevibe-e10**, in branch `claude/ssh-seals`. **Record, `Status: proposed`:** ADR-043 (`docs/adr/ADR-043.md`),
+  to be made accepted in the pull request that builds it. In short: `sv review` makes a signing key of its own beside
+  `review-key`, with a passphrase if the owner wants one, and signs each answer (`v3:<app id>:<signature>`); a trusted
+  list (`~/.config/securevibe/allowed_signers`, or `SV_TRUSTED_SEALS` on CI) says which key may seal for which app; the
+  report names the key it trusted and where the list came from; today's `v2:` seals keep counting where they count
+  now, and `sv review` asks one yes to sign them again. One new dependency, `ssh-key`. Report seals are unchanged.
+
 ## Decided, not yet written down as ADRs
 
 **All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
