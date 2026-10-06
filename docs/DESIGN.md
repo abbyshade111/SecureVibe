@@ -10274,7 +10274,7 @@ for a problem in it is a newer copy, or loading the library from its package, ne
 
 - **Known by the library's own file, as retire.js knows one** (`crates/sv-check/src/bundled.rs`): a string only that
   library writes, in its first 512 bytes (`jQuery v3.6.1`, Underscore's `define('underscore', …)`, `@license React`,
-  and nine more), or the comment the file opens with when it names a version (`/*! FullCalendar v3.10.2`,
+  and ten more), or the comment the file opens with when it names a version (`/*! FullCalendar v3.10.2`,
   `/** marked v18.0.13 - …`), a version without a `v` counting only in a comment marked `/*!`, `@license`, or
   `@preserve` and only with three parts. Not by the file's name, which says nothing about what is in it, and not by
   long lines, which the app's own built code has too. Only scripts and style sheets are looked at, their first 2 KB. An
