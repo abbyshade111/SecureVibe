@@ -1175,22 +1175,29 @@ impl Manifest {
     /// The manifest in `text`, read from `path`, which only names it in an error. For a caller that
     /// needs the bytes it parsed as well, such as `sv report` recording their hash.
     pub fn parse(text: &str, path: &Path) -> Result<Self> {
+        // A version this `sv` does not know is not read as if it were the one it knows: its fields
+        // may mean something else, and a manifest read wrongly changes what applies. A file with no
+        // `manifest-version` line is read as version 1, as it always was (the deep review's
+        // improvement 6). Asked before the fields are read, so a later version's own field is not
+        // reported as a mistake to move, and a stated 0 is not taken for the line left out (the
+        // review of 6 October, item 3).
+        let stated = toml::from_str::<toml::Table>(text)
+            .ok()
+            .and_then(|table| table.get("manifest-version").cloned());
+        if let Some(stated) = stated {
+            anyhow::ensure!(
+                stated.as_integer() == Some(i64::from(MANIFEST_VERSION)),
+                "{} says manifest-version = {stated}, and this sv reads version {MANIFEST_VERSION} \
+                 only. A later sv may read it; this one would read it wrongly, so it does not read \
+                 it at all.",
+                path.display(),
+            );
+        }
         // A field in the wrong section is named with the section it was read in, and with where a
         // field of that name belongs (`schema::explain`).
         let manifest: Self = toml::from_str(text)
             .map_err(|e| anyhow::anyhow!(schema::explain(text, &e)))
             .with_context(|| format!("parsing {}", path.display()))?;
-        // A version this `sv` does not know is not read as if it were the one it knows: its fields
-        // may mean something else, and a manifest read wrongly changes what applies. A file with no
-        // `manifest-version` line is read as version 1, as it always was (the deep review's
-        // improvement 6).
-        anyhow::ensure!(
-            matches!(manifest.manifest_version, 0 | MANIFEST_VERSION),
-            "{} says manifest-version = {}, and this sv reads version {MANIFEST_VERSION} only. A \
-             later sv may read it; this one would read it wrongly, so it does not read it at all.",
-            path.display(),
-            manifest.manifest_version
-        );
         Ok(manifest)
     }
 
@@ -2122,8 +2129,17 @@ mod mcp_server_tests {
             Manifest::parse("[app]\nname = \"x\"\n", path).is_ok(),
             "no line is version 1, as it always was"
         );
-        for version in [2, 7, 100] {
-            let text = format!("manifest-version = {version}\n[app]\nname = \"x\"\n");
+        // 0 stated is a version this sv does not know, not the line left out; and a later version
+        // is refused as one even when it has a field this sv does not (the review of 6 October).
+        for (version, more) in [
+            (0, ""),
+            (2, ""),
+            (7, ""),
+            (100, ""),
+            (2, "[app.channels]\nemail = true\n"),
+            (2, "a-later-field = 1\n"),
+        ] {
+            let text = format!("manifest-version = {version}\n[app]\nname = \"x\"\n{more}");
             let refused = Manifest::parse(&text, path).expect_err("an unknown version was read");
             let said = format!("{refused:#}");
             assert!(

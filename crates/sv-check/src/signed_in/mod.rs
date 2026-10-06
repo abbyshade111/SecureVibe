@@ -779,6 +779,24 @@ fn sign_in_limit_says(refused: &[String]) -> String {
     )
 }
 
+/// What the sign-in limit's gap is listed under: the requirements whose credit was withheld, and the
+/// first user's checks only when it was the first user's sign-in that was refused, since any other's
+/// left those running on a session the limit let through (the review of 6 October, item 6). With no
+/// requirement to name, it says so in words.
+fn limit_gap_names(withheld: &[&str], refused: &[String]) -> String {
+    let mut ids: Vec<&str> = withheld.to_vec();
+    if refused.iter().any(|id| id == "login-a") {
+        ids.extend(NEEDS_A_SESSION.split(", "));
+    }
+    ids.sort_unstable();
+    ids.dedup();
+    if ids.is_empty() {
+        "The checks that needed that sign-in".to_owned()
+    } else {
+        ids.join(", ")
+    }
+}
+
 /// Everything the signed-in probes can ask, given what securevibe.toml says.
 ///
 /// `seeded` says whether `seed` already made the accounts; when it did not, they are made through the
@@ -827,18 +845,15 @@ pub fn run_with(
     // they kept from running or from being credited.
     let refused_sign_ins = std::mem::take(&mut patient.limited_sign_ins);
     if !refused_sign_ins.is_empty() {
-        let mut ids: Vec<&str> = out
+        let withheld: Vec<&str> = out
             .verified
             .iter()
             .flat_map(|v| v.requirement_ids.iter().map(String::as_str))
             .collect();
-        if ids.is_empty() || refused_sign_ins.iter().any(|id| id == "login-a") {
-            ids.extend(NEEDS_A_SESSION.split(", "));
-        }
-        ids.sort_unstable();
-        ids.dedup();
-        out.not_assessed
-            .push((ids.join(", "), sign_in_limit_says(&refused_sign_ins)));
+        out.not_assessed.push((
+            limit_gap_names(&withheld, &refused_sign_ins),
+            sign_in_limit_says(&refused_sign_ins),
+        ));
     }
     for credit in std::mem::take(&mut out.verified) {
         out.not_assessed.push((
@@ -2472,6 +2487,24 @@ mod rate_limit_tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    #[test]
+    fn a_refused_sign_in_names_only_the_checks_it_kept_from_counting() {
+        // The review of 6 October, item 6: B's sign-in refused, nothing credited to withhold, and
+        // A's checks named as not run, though they ran on a session the limit let through.
+        let b = ["login-b".to_owned()];
+        assert_eq!(
+            limit_gap_names(&[], &b),
+            "The checks that needed that sign-in"
+        );
+        assert_eq!(limit_gap_names(&["V2.3.4", "V2.3.4"], &b), "V2.3.4");
+        // A's own sign-in refused: A's checks are named, with what was withheld.
+        let a = ["login-a".to_owned()];
+        let named = limit_gap_names(&["V2.3.4"], &a);
+        for id in NEEDS_A_SESSION.split(", ").chain(["V2.3.4"]) {
+            assert!(named.split(", ").any(|i| i == id), "{id} missing: {named}");
+        }
     }
 
     #[test]

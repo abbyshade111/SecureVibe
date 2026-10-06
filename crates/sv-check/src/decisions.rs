@@ -85,11 +85,16 @@ pub struct SafeDefaults {
     pub decided: Vec<Decided>,
     /// A switch's line whose value is neither of the two, as written: named, not guessed at.
     pub unreadable: Vec<String>,
+    /// The switches the section has no line for, when there is a section: each is held to nothing,
+    /// and the report says so rather than leaving it out without a word (the review of 6 October,
+    /// item 8).
+    pub missing: Vec<&'static str>,
 }
 
 /// The fixed lines of the "Safe defaults" section. A switch named twice counts the first time.
 pub fn safe_defaults(text: &str) -> SafeDefaults {
     let mut out = SafeDefaults::default();
+    let mut seen = std::collections::BTreeSet::new();
     let wanted = plain(SAFE_DEFAULTS);
     let lines: Vec<&str> = text.lines().collect();
     let Some(start) = lines
@@ -106,17 +111,25 @@ pub fn safe_defaults(text: &str) -> SafeDefaults {
         let Some(item) = item.strip_prefix("- ").or_else(|| item.strip_prefix("* ")) else {
             continue;
         };
-        let Some((name, value)) = item.split_once(':') else {
+        // `Debug mode: off`, as the prompt writes it, and the ways a tool writes it otherwise:
+        // `**Debug mode**: off`, `Debug mode — off`.
+        let Some((name, value)) = [":", " — ", " – ", " - ", "="]
+            .iter()
+            .find_map(|sep| item.split_once(sep))
+        else {
             continue;
         };
-        let Some(switch) = SWITCHES.iter().find(|s| plain(name) == s.name) else {
+        let name = plain(&name.replace(['*', '_', '`'], ""));
+        let Some(switch) = SWITCHES.iter().find(|s| name == s.name) else {
             continue;
         };
-        if out.decided.iter().any(|d| std::ptr::eq(d.switch, switch)) {
+        // The first line for a switch counts, read or not.
+        if !seen.insert(switch.name) {
             continue;
         }
+        let value = value.replace(['*', '_'], "");
         // `own site only`. and own site only are the same decision.
-        let value = plain(&plain(value).replace('`', ""));
+        let value = plain(&plain(&value).replace('`', ""));
         if value == switch.safe || value == switch.other {
             out.decided.push(Decided {
                 switch,
@@ -127,6 +140,11 @@ pub fn safe_defaults(text: &str) -> SafeDefaults {
             out.unreadable.push(item.to_owned());
         }
     }
+    out.missing = SWITCHES
+        .iter()
+        .map(|s| s.name)
+        .filter(|name| !seen.contains(name))
+        .collect();
     out
 }
 
@@ -308,6 +326,28 @@ mod tests {
     }
 
     #[test]
+    fn a_switch_written_another_way_is_read_and_one_not_written_is_named() {
+        // The review of 6 October, item 8: each of these was skipped without a word.
+        let text = "## Safe defaults\n\n- **Debug mode**: off\n- Cross-site access — own site \
+                    only\n- debug mode: on\n";
+        let read = safe_defaults(text);
+        let got: Vec<(&str, bool)> = read
+            .decided
+            .iter()
+            .map(|d| (d.switch.name, d.safe))
+            .collect();
+        assert_eq!(got, [("debug mode", true), ("cross-site access", true)]);
+        assert_eq!(read.missing, ["default accounts"]);
+        // The first line for a switch counts even when it cannot be read: a later one does not
+        // stand in for it.
+        let read = safe_defaults("## Safe defaults\n\n- debug mode: mostly\n- debug mode: off\n");
+        assert!(read.decided.is_empty(), "{:?}", read.decided);
+        assert_eq!(read.unreadable, ["debug mode: mostly"]);
+        // No section, nothing missing: there is nothing to hold to.
+        assert!(safe_defaults("# Design decisions\n").missing.is_empty());
+    }
+
+    #[test]
     fn the_three_switches_are_read_from_their_own_section_only() {
         let read = safe_defaults(DEFAULTS);
         let got: Vec<(&str, bool, usize)> = read
@@ -343,12 +383,16 @@ mod tests {
             safe_defaults("## When to bring in a person\n- debug mode: off\n"),
             SafeDefaults::default()
         );
-        // A switch only in the section after it is that section's, not this one's.
+        // A switch only in the section after it is that section's, not this one's: this one
+        // decides nothing, and says which switches it has no line for.
         assert_eq!(
             safe_defaults(
                 "## Safe defaults\nNothing to say.\n## Rules that might apply\n- debug mode: off\n"
             ),
-            SafeDefaults::default()
+            SafeDefaults {
+                missing: SWITCHES.iter().map(|s| s.name).collect(),
+                ..SafeDefaults::default()
+            }
         );
     }
 
