@@ -664,10 +664,14 @@ impl Answers {
             .map(|(_, body)| body.as_str())
     }
 
-    /// Every section with enough prose under it to be an answer, and who wrote it.
+    /// Every section with enough prose under it to be an answer, and who wrote it. A requirement
+    /// with two sections is read by its first, as everything else here reads it, and comes once:
+    /// `sv review` asked about it twice (item 24 of the review of 1 to 4 October).
     pub fn answered(&self) -> Vec<(String, Writer)> {
+        let mut seen = BTreeSet::new();
         self.sections
             .iter()
+            .filter(|(id, _)| seen.insert(id.clone()))
             .filter(|(_, body)| prose(body).chars().count() >= LEAST_ANSWER_CHARS)
             .map(|(id, body)| (id.clone(), writer_of(body)))
             .collect()
@@ -1239,6 +1243,28 @@ mod tests {
         }
         sealed.not_read = answers.not_read.clone();
         super::evidence(catalog, &sealed, file, &crate::seal::Checker::Key(key()))
+    }
+
+    #[test]
+    fn a_requirement_with_two_sections_is_answered_once_by_its_first() {
+        let first = "Five failed sign-ins in fifteen minutes lock the account for an hour.";
+        let second = "Nobody is ever locked out, however many times a password is wrong.";
+        let text = format!(
+            "# Security notes\n\n## V6.1.1 — Sign-in\n\nWritten by: owner\n\n{first}\n\n\
+             ## V6.1.1 — Sign-in\n\nWritten by: AI coding tool\n\n{second}\n"
+        );
+        let answers = read_answers(&Catalog::default(), &text);
+        assert_eq!(
+            answers.duplicates.len(),
+            1,
+            "the setup: the file has two sections for it"
+        );
+        assert_eq!(
+            answers.answered(),
+            vec![("V6.1.1".to_owned(), Writer::Owner)],
+            "read once, by the first, as its prose is"
+        );
+        assert_eq!(answers.prose_of("V6.1.1").as_deref(), Some(first));
     }
 
     #[test]
