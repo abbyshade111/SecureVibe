@@ -290,6 +290,42 @@ pub(super) fn brute_force_check(
     // says refused outright, or both attempts past the limit markedly slower than any before it.
     let status_changed = last.0 != first_status;
     let refused = matches!(last.0, 0 | 423 | 429) || (last.0 >= 400 && first_status < 400);
+    // The second attempt past the limit is read too. An app that answers it differently, having
+    // answered the first past the limit as it answered the first of all, let one more through than
+    // was stated; saying it "answered the same every time" would be untrue (the review of 6 October,
+    // item 13).
+    let next = answers[allowed as usize + 1].0;
+    // Only from real answers, every one up to the limit the same: a crash or no answer anywhere in
+    // the run is not the app pushing back, and must not read as a status that changed.
+    let real = |status: u16| status != 0 && status < 500;
+    let alike = answers[..=allowed as usize]
+        .iter()
+        .all(|a| a.0 == first_status);
+    if !(status_changed || refused)
+        && alike
+        && real(first_status)
+        && real(next)
+        && next != first_status
+    {
+        out.steps.push(format!(
+            "made {attempts} wrong sign-in attempts; the app answered {first_status} to the first \
+             {}, and {next} only to the last",
+            allowed + 1
+        ));
+        out.findings.push(finding(
+            &NO_BRUTE_FORCE_LIMIT,
+            "One more wrong password than stated is let through",
+            Severity::Medium,
+            format!(
+                "securevibe.toml says the app should allow {allowed} wrong passwords in a row. \
+                 Asked {attempts} times in a row with a wrong password, the app answered \
+                 {first_status} to the first {}, the one past the limit included, and pushed back \
+                 ({next}) only at the attempt after it.",
+                allowed + 1
+            ),
+        ));
+        return;
+    }
     let times: Vec<u128> = answers.iter().map(|a| a.1).collect();
     let (within, past) = times.split_at(allowed as usize);
     let slowing = slowing(within, past, &pages[allowed as usize..]);
@@ -920,6 +956,37 @@ mod tests {
                 .iter()
                 .map(|v| v.check_id.as_str())
                 .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn an_app_that_pushes_back_one_attempt_late_is_said_to_and_not_said_to_answer_the_same() {
+        // The review of 6 October, item 13: three allowed, the fourth answered as the first, the
+        // fifth refused. The second attempt past the limit was sent and never read.
+        let flaws = Flaws {
+            locks_out_after: Some(4),
+            ..Flaws::default()
+        };
+        let out = run_with(flaws, &policy(Some(3)));
+        let found = out
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "probe.failed-sign-ins-unlimited")
+            .unwrap_or_else(|| panic!("{:?}\n{:?}", out.steps, out.not_assessed));
+        assert!(
+            found.description.contains("only at the attempt after it"),
+            "{}",
+            found.description
+        );
+        assert!(
+            !found.description.contains("every time"),
+            "{}",
+            found.description
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == "probe.failed-sign-ins-unlimited")
         );
     }
 

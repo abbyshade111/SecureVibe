@@ -333,10 +333,8 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
             .iter()
             .copied()
             .filter(|name| match seed_text {
-                Some(text) => {
-                    !text.contains(name) && source.find(None, |t| t.contains(name)).is_none()
-                }
-                None => source.find(None, |t| t.contains(name)).is_none(),
+                Some(text) => !names(text, name) && source.find(None, |t| names(t, name)).is_none(),
+                None => source.find(None, |t| names(t, name)).is_none(),
             })
             .collect();
         if unread.is_empty() {
@@ -547,6 +545,17 @@ pub fn to_json(items: &[Item], unread: &[String]) -> Value {
     })
 }
 
+/// Whether `text` names the variable `name` as a whole: `SV_ADMIN` inside `SV_ADMIN_PASSWORD` is
+/// not it, so a seed that reads only the password and makes up its own admin's name is not said to
+/// read the admin account (the review of 6 October, item 14).
+fn names(text: &str, name: &str) -> bool {
+    let part = |c: char| c.is_ascii_alphanumeric() || c == '_';
+    text.match_indices(name).any(|(at, _)| {
+        !text[..at].chars().next_back().is_some_and(part)
+            && !text[at + name.len()..].chars().next().is_some_and(part)
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -638,6 +647,27 @@ mod tests {
                 .text(&Fence::none())
                 .contains("SV_ADMIN_PASSWORD")
         );
+    }
+
+    #[test]
+    fn a_seed_that_reads_only_the_admin_password_does_not_read_the_admin_account() {
+        // The review of 6 October, item 14: `SV_ADMIN` was found inside `SV_ADMIN_PASSWORD`.
+        let seed = GOOD_SEED.replace(
+            "('SV_ADMIN','SV_ADMIN_PASSWORD')",
+            "('admin@x','SV_ADMIN_PASSWORD')",
+        );
+        assert_ne!(seed, GOOD_SEED, "the setup: the seed changed");
+        let items = preflight(
+            &manifest(RUN),
+            &source(&[("app.py", GOOD_APP), ("seed.py", &seed)]),
+        );
+        let accounts: Vec<&Item> = items.iter().filter(|i| i.topic == "accounts").collect();
+        assert_eq!(accounts[0].answer, Answer::Look);
+        let said = accounts[0].text(&Fence::none());
+        assert!(said.contains("Nothing reads SV_ADMIN."), "{said}");
+        assert!(names("x = env['SV_ADMIN']", "SV_ADMIN"));
+        assert!(!names("SV_ADMIN_PASSWORD", "SV_ADMIN"));
+        assert!(!names("MY_SV_ADMIN", "SV_ADMIN"));
     }
 
     #[test]

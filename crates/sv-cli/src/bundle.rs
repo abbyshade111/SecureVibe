@@ -267,9 +267,22 @@ fn left_out_by_name(rel: &str) -> Option<&'static str> {
     // `.env`, `.env.production`, and `prod.env` or `local.env`; never `.env.example` or
     // `example.env`, which are there to show what to fill in.
     let stem = lower.strip_suffix(".env").unwrap_or("");
+    // And one with `env` between dots, as `prod.env.local` or `app.env.production` has it, unless a
+    // part of its name says it is there to show the form, or it ends in code (the review of
+    // 6 October, item 17).
+    let parts: Vec<&str> = lower.trim_start_matches('.').split('.').collect();
+    const CODE: &[&str] = &[
+        "js", "mjs", "cjs", "ts", "tsx", "jsx", "py", "rb", "go", "php", "rs", "java", "kt", "cs",
+        "swift", "dart",
+    ];
+    let env_between = parts.len() > 2
+        && parts[1..parts.len() - 1].contains(&"env")
+        && !parts.iter().any(|p| SHOWN.contains(p))
+        && !CODE.contains(&extension);
     if lower == ".env"
         || (lower.starts_with(".env.") && !SHOWN.contains(&extension))
         || (!stem.is_empty() && !SHOWN.iter().any(|s| stem.trim_start_matches('.') == *s))
+        || env_between
     {
         return Some("it is an environment file, which is where an app keeps its secrets");
     }
@@ -692,6 +705,9 @@ mod tests {
             "infra/secrets.auto.tfvars.json",
             "infra/terraform.tfstate",
             "infra/terraform.tfstate.backup",
+            // The review of 6 October, item 17: `env` between dots.
+            "prod.env.local",
+            "config/app.env.production",
             // And what already stayed out still does.
             ".env",
             ".env.production",
@@ -713,6 +729,9 @@ mod tests {
             "kube/deployment.yaml",
             "docker/config.json",
             "main.tf",
+            "prod.env.example",
+            "src/config.env.ts",
+            "env.local.md",
         ] {
             assert_eq!(left_out_by_name(rel), None, "{rel} was left out");
         }
