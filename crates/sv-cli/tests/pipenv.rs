@@ -190,6 +190,35 @@ fn django_in_a_pipfile_lock_is_compared_and_found() {
 }
 
 #[test]
+fn django_in_a_pipfile_lock_with_no_pipfile_is_compared_and_found() {
+    // `pipenv sync` installs from `Pipfile.lock` alone, and an app can be shipped with only that.
+    // Before, with no `Pipfile` beside it, nothing found it: Django 2.2.0 was never compared, and
+    // the npm half's clean comparison was credited as covering the app.
+    let dir = app("lock-alone");
+    let (code, said) = audit(&dir);
+    assert_eq!(code, Some(0), "the control:\n{said}");
+    assert_eq!(status(&report(&dir), "V15.2.1"), "checked", "the control");
+
+    write(&dir, "api/Pipfile.lock", &pipfile_lock("2.2.0"));
+    let (code, said) = audit(&dir);
+    let r = report(&dir);
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(
+        said.contains("Compared 3 packages"),
+        "Django and pytest are in the list beside lodash:\n{said}"
+    );
+    assert!(said.contains("PYSEC-django"), "{said}");
+    assert_ne!(
+        code,
+        Some(0),
+        "a known vulnerability is not a clean audit:\n{said}"
+    );
+    assert_eq!(advisory_findings(&r), ["advisory.PYSEC-django"]);
+    assert_ne!(status(&r, "V15.2.1"), "checked");
+}
+
+#[test]
 fn a_pipenv_app_past_the_fix_is_credited() {
     // The guard against over-reaching: a Pipenv app read whole, with nothing affected, is a clean
     // comparison like any other, and a reader that blocked every Pipfile would fail here.

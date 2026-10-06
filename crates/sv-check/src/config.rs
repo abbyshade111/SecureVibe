@@ -442,11 +442,12 @@ fn versions_pinned(
     bill_of_materials: &crate::sbom::Sbom,
 ) -> Outcome {
     let app_dir = listing.root.as_path();
-    // A `setup.py` or `setup.cfg` with no lockfile beside it is judged as a project of its own
-    // (deep review H9); before, an app declared there alone had "no package manifest".
+    // A `setup.py` or `setup.cfg` with no lockfile beside it, and a requirements file under another
+    // name, are judged as projects of their own (deep review H9); before, an app declared there
+    // alone had "no package manifest".
     let detected: Vec<_> = sv_scan::ecosystems::detect_in(listing)
         .into_iter()
-        .chain(sv_scan::ecosystems::setup_only_in(listing))
+        .chain(sv_scan::ecosystems::declared_elsewhere_in(listing))
         .collect();
     if detected.is_empty() {
         return Outcome::NotAssessed(
@@ -489,6 +490,22 @@ fn versions_pinned(
                 "Write an exact version for each of these (`1.2.3`, not a range, `+`, `LATEST`, or a \
                  snapshot). A Gradle project can instead turn on dependency locking and commit the \
                  `gradle.lockfile` it writes.",
+            ),
+            // A requirements file under another name is judged on its own contents, whatever
+            // lockfile is beside it, so "no lockfile beside it" could be untrue.
+            _ if is_other_requirements(&first.manifest) => (
+                Location {
+                    file: first.manifest.clone(),
+                    line: 1,
+                },
+                format!(
+                    "`{}` lists Python packages to install and does not pin and hash every one of \
+                     them, and a lockfile beside it does not cover what it lists, so the versions \
+                     installed today and the versions installed tomorrow can differ.",
+                    first.manifest
+                ),
+                "Write it with every package pinned and hashed (`pip-compile --generate-hashes` does \
+                 this), and install from it with `pip install --require-hashes -r`.",
             ),
             _ => (
                 Location {
@@ -583,6 +600,13 @@ fn versions_pinned(
     }
 
     Outcome::Passed(&["V15.1.2"])
+}
+
+/// Whether `path` is a requirements file under another name than `requirements.txt`, which the
+/// pinning check judges on its own contents (`ecosystems::declared_elsewhere_in`).
+fn is_other_requirements(path: &str) -> bool {
+    let name = sv_scan::ecosystems::file_name(path);
+    name.ends_with(".txt") && name != "requirements.txt"
 }
 
 /// Up to three versions in words, with how many more there are: "`g:a` at `[1.0,2.0)` (line 12, a
@@ -1452,6 +1476,84 @@ mod tests {
         for dir in [alone, beside_npm, locked, bare] {
             fs::remove_dir_all(&dir).ok();
         }
+    }
+
+    #[test]
+    fn a_requirements_file_under_another_name_is_held_to_its_own_pins() {
+        // Deep review H9, left open on 5 October 2026. Before, `requirements/prod.txt` alone was "no
+        // package manifest", and `requirements-dev.txt` beside a lockfile passed on that lockfile,
+        // which is made from another list and leaves it out.
+        let lock = |dir: &std::path::Path| {
+            fs::write(dir.join("Pipfile"), "[packages]\nflask = \"*\"\n").unwrap();
+            fs::write(
+                dir.join("Pipfile.lock"),
+                "{\"_meta\":{},\"default\":{\"flask\":{\"version\":\"==3.0.0\"}},\"develop\":{}}",
+            )
+            .unwrap();
+        };
+        let hashed = |line: &str| format!("{line} \\\n    --hash=sha256:{}\n", "ab".repeat(32));
+
+        let alone = scratch("other-requirements-alone");
+        fs::create_dir_all(alone.join("requirements")).unwrap();
+        fs::write(alone.join("requirements/prod.txt"), "flask==3.0.0\n").unwrap();
+        let beside = scratch("other-requirements-beside-lock");
+        lock(&beside);
+        fs::write(beside.join("requirements-dev.txt"), "pytest>=8\n").unwrap();
+        for (dir, file) in [
+            (&alone, "requirements/prod.txt"),
+            (&beside, "requirements-dev.txt"),
+        ] {
+            let (passed, finding, open) = pinned_outcome(dir);
+            let finding = finding.unwrap_or_else(|| panic!("{file}: {passed} {open:?}"));
+            assert_eq!(finding.location.file, file);
+            assert!(
+                finding
+                    .description
+                    .contains("does not pin and hash every one")
+                    && !finding.description.contains("no lockfile beside it"),
+                "{}",
+                finding.description
+            );
+            assert!(finding.fix.contains("--generate-hashes"), "{}", finding.fix);
+        }
+
+        // The controls: pinned and hashed, it is a lockfile in its own right, alone or beside one.
+        let hashed_alone = scratch("other-requirements-hashed");
+        fs::create_dir_all(hashed_alone.join("requirements")).unwrap();
+        fs::write(
+            hashed_alone.join("requirements/prod.txt"),
+            hashed("flask==3.0.0"),
+        )
+        .unwrap();
+        let hashed_beside = scratch("other-requirements-hashed-beside");
+        lock(&hashed_beside);
+        fs::write(
+            hashed_beside.join("requirements-dev.txt"),
+            hashed("pytest==8.0.0"),
+        )
+        .unwrap();
+        for dir in [&hashed_alone, &hashed_beside] {
+            let (passed, finding, open) = pinned_outcome(dir);
+            assert!(passed, "{dir:?}: {finding:?} {open:?}");
+        }
+        for dir in [alone, beside, hashed_alone, hashed_beside] {
+            fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
+    fn a_pipfile_lock_alone_pins() {
+        // `pipenv sync` installs from it alone. Before, with no `Pipfile` beside it, the app had
+        // "no package manifest" and the check was not assessed.
+        let dir = scratch("pipfile-lock-alone");
+        fs::write(
+            dir.join("Pipfile.lock"),
+            "{\"_meta\":{},\"default\":{\"flask\":{\"version\":\"==3.0.0\"}},\"develop\":{}}",
+        )
+        .unwrap();
+        let (passed, finding, open) = pinned_outcome(&dir);
+        fs::remove_dir_all(&dir).ok();
+        assert!(passed, "{finding:?} {open:?}");
     }
 
     #[test]

@@ -72,6 +72,16 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
         manifest: "Pipfile",
         lockfiles: &["Pipfile.lock"],
     },
+    // A `Pipfile.lock` with no `Pipfile` beside it, which `pipenv sync` and `pipenv install
+    // --ignore-pipfile` install from alone. It stands as its own manifest, and only where nothing
+    // in its folder above already reads it as a lockfile (`detect_in`): beside a `requirements.txt`
+    // or a `Pipfile` it is theirs. Left out, an app shipped with the lockfile alone had no Python
+    // as far as `sv` could tell (deep review H9, the part left open on 5 October 2026).
+    EcosystemDef {
+        name: "Python",
+        manifest: "Pipfile.lock",
+        lockfiles: &["Pipfile.lock"],
+    },
     EcosystemDef {
         name: "Go",
         manifest: "go.mod",
@@ -191,7 +201,7 @@ pub fn detect_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
             app_dir.join(rel_dir)
         };
         for eco in ECOSYSTEMS {
-            if !dir.join(eco.manifest).exists() {
+            if !dir.join(eco.manifest).exists() || read_as_lockfile_beside(&dir, eco) {
                 continue;
             }
             let lockfile = find_lockfile(app_dir, rel_dir, eco.lockfiles).or_else(|| {
@@ -216,6 +226,20 @@ pub fn detect_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
         }
     }
     out
+}
+
+/// Whether `eco` is a lockfile standing as its own manifest (`Pipfile.lock` alone) and another
+/// manifest of the same kind in `dir` already lists it as a lockfile, so that project reads it.
+/// Counted twice, the same packages would be listed under two projects, and one of them named a
+/// manifest that is not there.
+fn read_as_lockfile_beside(dir: &Path, eco: &EcosystemDef) -> bool {
+    eco.lockfiles.contains(&eco.manifest)
+        && ECOSYSTEMS.iter().any(|other| {
+            other.name == eco.name
+                && other.manifest != eco.manifest
+                && other.lockfiles.contains(&eco.manifest)
+                && dir.join(other.manifest).exists()
+        })
 }
 
 /// A file beside the manifests above that says which Python packages an app installs, in a form
@@ -612,30 +636,50 @@ pub fn unpinned(app_dir: &Path) -> Vec<DetectedEcosystem> {
 pub fn unpinned_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
     detect_in(listing)
         .into_iter()
-        .chain(setup_only_in(listing))
+        .chain(declared_elsewhere_in(listing))
         .filter(|e| pinning(&listing.root, e).is_unpinned())
         .collect()
 }
 
-/// Python projects whose packages are named only in a `setup.py` or `setup.cfg`, with no Python
-/// lockfile in the same folder, each as a project that pins with a lockfile and has none.
+/// Python projects declared in a file that is not one of `ECOSYSTEMS`' manifests, each as a
+/// project for the pinning check to judge:
 ///
-/// Deep review H9: such a file is not one of `ECOSYSTEMS`' manifests, so an app whose Python was
+/// - a `setup.py` or `setup.cfg` that names packages, with no Python lockfile in the same folder,
+///   pins with a lockfile and has none. `pip install .` resolves what `install_requires` asks for
+///   afresh each time, as `pip install -r requirements.txt` does without a lockfile.
+/// - a requirements file under another name (`requirements-dev.txt`, `requirements/prod.txt`) is its
+///   own lockfile when it pins and hashes every package (`fully_hash_pinned`), as `requirements.txt`
+///   is, and otherwise pins nothing, whatever lockfile is beside it: `requirements-dev.txt` is
+///   usually the very list a lockfile beside it leaves out, and the bill of materials names it as
+///   unread for the same reason.
+/// - a Conda `environment.yml` is not judged: Conda's own pins are a question no reader here
+///   answers, so it is left to the bill of materials, which names it as unread.
+///
+/// Deep review H9: such a file is not a manifest `detect_in` finds, so an app whose Python was
 /// declared there alone was told it had no package manifest, and one with an npm app beside it had
-/// its pinning credited on npm's lockfile alone. `pip install .` resolves what `install_requires`
-/// asks for afresh each time, as `pip install -r requirements.txt` does without a lockfile, so it is
-/// judged the same way. Not added to `detect_in`, whose callers read each manifest as a list of
-/// packages, which these files are not.
-pub fn setup_only_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
+/// its pinning credited on npm's lockfile alone. Not added to `detect_in`, whose callers read each
+/// manifest as a list of packages, which these files are not.
+pub fn declared_elsewhere_in(listing: &crate::files::Listing) -> Vec<DetectedEcosystem> {
     python_declarations_in(listing)
         .into_iter()
-        .filter(|d| d.kind == DeclarationKind::Setup && !d.beside_lockfile)
-        .map(|d| DetectedEcosystem {
-            name: "Python".to_owned(),
-            manifest: d.path,
-            lockfile: None,
-            passed_over: Vec::new(),
-            pins_with_lockfile: true,
+        .filter_map(|d| {
+            let lockfile = match d.kind {
+                DeclarationKind::Setup if d.beside_lockfile => return None,
+                DeclarationKind::Setup => None,
+                DeclarationKind::Requirements => {
+                    std::fs::read_to_string(listing.root.join(&d.path))
+                        .is_ok_and(|text| fully_hash_pinned(&text))
+                        .then(|| d.path.clone())
+                }
+                DeclarationKind::Conda => return None,
+            };
+            Some(DetectedEcosystem {
+                name: "Python".to_owned(),
+                manifest: d.path,
+                lockfile,
+                passed_over: Vec::new(),
+                pins_with_lockfile: true,
+            })
         })
         .collect()
 }

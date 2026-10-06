@@ -204,6 +204,7 @@ RUST_CHECKS = {
     "probe.certificate-not-trusted": ("production", ["V12.2.2"]),
     "probe.plain-http-served": ("production", ["V12.2.1"]),
     "probe.ocsp-not-stapled": ("production", ["V12.1.4"]),
+    "probe.api-redirected-to-https": ("production", ["V4.1.2"]),
     "probe.old-tls-accepted": ("production", ["V12.1.1"]),
     "probe.no-hsts": ("production", ["V3.4.1"]),
     "live.ech-not-offered": ("production", ["V12.1.5"]),
@@ -310,6 +311,8 @@ RUST_FINDINGS_ONLY = {
     # `secrets.scan`, which names the requirements of `data/secret-rules.json` and not V13.2.3.
     "probe.password-hints",
     "secrets.credential-assignment",
+    # One API address the owner names is not every endpoint (ADR-027, Later, 6 October 2026).
+    "probe.api-redirected-to-https",
 }
 
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
@@ -378,6 +381,12 @@ def rust_string(text, i):
                 j += 2
                 while text[j] in " \t":
                     j += 1
+                continue
+            if nxt == "u" and text[j + 2] == "{":
+                # `\u{2014}`: the character it names, not the letters.
+                end = text.index("}", j + 3)
+                out.append(chr(int(text[j + 3:end], 16)))
+                j = end + 1
                 continue
             out.append({"n": "\n", '"': '"', "\\": "\\", "t": "\t"}.get(nxt, nxt))
             j += 2
@@ -717,7 +726,8 @@ def main():
     w("  that was satisfied, not a pass.")
     w("- **Supporting only**: a check speaks to it, but the requirement asks something no check can")
     w("  answer, such as a documented policy or a design decision. The check is shown beside it and")
-    w("  a person still has to answer it. The whole Secure by Design checklist is this by design.")
+    w("  a person still has to answer it. No Secure by Design control is ever settled by a check: each")
+    w("  is answered by a person, and those no check speaks to at all are counted under *Nothing*.")
     w("- **Nothing**: no check in `sv` names it. It can still be credited by the app's own tests that")
     w("  name the requirement id and pass, which is how `sv init` asks for tests to be written, and")
     w("  otherwise stays *not verified*.")
@@ -873,8 +883,8 @@ def main():
     only = [q for q in settled_ai if q in FINDINGS_ONLY and not credited_by_other(q)]
     w(f"{len(only)} of these {len(settled_ai)} can only ever be marked *needs attention*: a check can")
     w("show the control missing, and finding nothing does not show it present, so a clean run credits")
-    w("none of them. The rules about applications that call a model are semgrep's and CodeQL's, and")
-    w("need `--tools`.\n")
+    w("none of them. Most are `sv`'s own checks: rules that read the code, and questions asked of the")
+    w("running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.\n")
     for q in settled_ai:
         rules = sorted(FINDINGS_ONLY.get(q, ()))
         # A tool whose rules only ever find this failing does not settle it, whichever tool it is.

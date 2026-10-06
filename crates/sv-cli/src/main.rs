@@ -211,64 +211,64 @@ const COMMANDS: &[Command] = &[
         name: "probe",
         word: Some("URL"),
         flags: &[],
-        valued: &["--hsts-preload"],
-        help: "  sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n",
+        valued: &["--hsts-preload", "--api"],
+        help: "  sv probe URL [--hsts-preload FILE] [--api PATH]\n                     ask your own live site the few things only it can answer;\n                     --api names an address of the app's API, such as /api/health,\n                     to ask over plain HTTP the way a program asks (one more request)\n",
     },
     Command {
         name: "run",
         word: Some("PATH"),
         flags: &["--slow"],
         valued: &[],
-        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence and check it answers;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n",
+        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n",
     },
     Command {
         name: "check",
         word: Some("PATH"),
         flags: &[],
         valued: &["--fail-on"],
-        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, and how it is set up\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed), or any (both),\n                     several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know)\n",
+        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know)\n",
     },
     Command {
         name: "sbom",
         word: Some("PATH"),
         flags: &[],
         valued: &[],
-        help: "  sv sbom [PATH]     write the list of what the app ships, as CycloneDX JSON\n",
+        help: "  sv sbom [PATH]     print the list of what the app ships, as CycloneDX JSON\n",
     },
     Command {
         name: "audit",
         word: Some("PATH"),
         flags: &[],
         valued: &["--advisories"],
-        help: "  sv audit [PATH] --advisories DIR\n                     match what the app ships against a local OSV database\n                     exit status: 0 everything compared and nothing matched; 1 a known\n                     vulnerability; 2 the comparison did not cover the whole app (no\n                     database, an ecosystem it lacks, a list of packages not complete);\n                     3 sv itself failed (an unreadable database or manifest, no such folder)\n",
+        help: "  sv audit [PATH] [--advisories DIR]\n                     match what the app ships against a local OSV database (DIR, or the\n                     folder SV_ADVISORY_DIR names)\n                     exit status: 0 everything compared and nothing matched; 1 a known\n                     vulnerability; 2 the comparison did not cover the whole app (no\n                     database, an ecosystem it lacks, a list of packages not complete);\n                     3 sv itself failed (an unreadable database or manifest, no such folder)\n",
     },
     Command {
         name: "report",
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories", "--fail-on"],
-        help: "  sv report [PATH] [--out DIR] [--run] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no securevibe.toml, a bad manifest, no such folder)\n",
+        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/securevibe-report unless --out says where\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no securevibe.toml, a bad manifest, no such folder)\n",
     },
     Command {
         name: "review",
         word: Some("PATH"),
         flags: &[],
         valued: &[],
-        help: "  sv review [PATH]   record, in your own terminal, the findings you set aside and the\n                     answers you confirm; only what you record here counts\n",
+        help: "  sv review [PATH]   record, in your own terminal, the findings you set aside, the answers\n                     you confirm, and your own answers and checks made by hand; only what\n                     you record here counts as yours\n",
     },
     Command {
         name: "bundle",
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories"],
-        help: "  sv bundle [PATH] [--out FILE.zip] [--run] [--tools] [--advisories DIR]\n                     the app, its report and a SHA-256 for every file in one zip, with\n                     anything that could hold a secret left out and listed\n",
+        help: "  sv bundle [PATH] [--out FILE.zip] [--run [--slow]] [--tools] [--advisories DIR]\n                     the app, its report and a SHA-256 for every file in one zip, beside\n                     the app unless --out says where, with anything that could hold a\n                     secret left out and listed\n",
     },
     Command {
         name: "mcp",
         word: None,
         flags: &[],
         valued: &["--root", "--time-limit"],
-        help: "  sv mcp [--root DIR] [--time-limit SECONDS]\n                     serve the checks to an AI coding tool over MCP, for the apps under DIR;\n                     a check that takes longer than SECONDS (50) is reported as not finished\n",
+        help: "  sv mcp [--root DIR] [--time-limit SECONDS]\n                     serve the checks to an AI coding tool over MCP, for the apps under DIR\n                     (the current folder when none is given);\n                     a check that takes longer than SECONDS (50) is reported as not finished\n",
     },
 ];
 
@@ -348,9 +348,11 @@ fn print_help() {
     for command in COMMANDS {
         text.push_str(command.help);
     }
-    text.push_str("  sv --version       the version, and the commit it was built from\n");
     text.push_str(
-        "\nEXIT STATUS:\n  0 finished; 1 needs attention (sv audit, or --fail-on); 2 not assessed (a check\n  could not run); 3 sv itself failed. `sv COMMAND --help` says what each means for it.\n",
+        "  sv --version       the version, the commit it was built from, and the folder it reads its\n                     data from\n",
+    );
+    text.push_str(
+        "\nEXIT STATUS:\n  For sv check, sv report and sv audit: 0 finished; 1 needs attention (sv audit, or\n  --fail-on); 2 not assessed (a check could not run); 3 sv itself failed. `sv COMMAND --help`\n  says what each means for it. Every other command ends with 0, or 3 when it failed.\n",
     );
     println!("{text}");
 }
@@ -861,6 +863,9 @@ fn cmd_probe(args: &[String]) -> Result<()> {
     // A copy of Chromium's HSTS preload list the owner downloaded. `sv` never fetches it: looking a
     // name up in somebody else's service tells that service which site is being checked.
     let mut preload_file: Option<PathBuf> = None;
+    // A path of the app's API, asked over plain HTTP as a program asks (V4.1.2). Typed here, like
+    // the address, and never read from a file (ADR-027).
+    let mut api: Option<&str> = None;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -869,6 +874,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
                     rest.next()
                         .context("--hsts-preload needs the list's file")?,
                 ));
+            }
+            "--api" => {
+                api = Some(
+                    rest.next()
+                        .context("--api needs a path of the app's API, such as /api/health")?,
+                );
             }
             other if other.starts_with('-') => bail!("unknown option: {other}"),
             other => url = Some(other),
@@ -890,6 +901,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
         );
     };
     let target = sv_check::production::read_target(url).map_err(|why| anyhow::anyhow!("{why}"))?;
+    let target = match api {
+        Some(path) => target
+            .with_api(path)
+            .map_err(|why| anyhow::anyhow!("{why}"))?,
+        None => target,
+    };
     if !sv_check::production::Curl::available() {
         bail!(
             "`curl` is not on this computer, and this check uses it for the connection so that the \
@@ -903,7 +920,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
     );
     println!(
         "Read-only: it fetches headers from that address over HTTPS and over plain HTTP, sends no \
-         cookies and no credentials, and follows no redirect to any other host.\n"
+         cookies and no credentials, and follows no redirect to any other host.{}\n",
+        if target.api.is_some() {
+            " It also asks the API address you named, over plain HTTP, the way a program would."
+        } else {
+            ""
+        }
     );
 
     // Looked up once, here, and every address checked before anything is sent: a name that leads
@@ -5076,7 +5098,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
             .count();
         println!(
             "{} have no evidence and no test naming them ({level_one} at level 1): compliance.md \
-             lists them under \"Tests to write\".",
+             lists the level 1 ones under \"Tests worth writing first\", and report.json all of them.",
             report.tests_to_write.len()
         );
     }

@@ -47,6 +47,10 @@ use crate::{Confidence, Finding, Location, Severity, Verified};
 /// offering only TLS 1.0 and 1.1 (V12.1.1); then plain HTTP. There is no slack left.
 pub const MOST_REQUESTS: usize = 4;
 
+/// The most with `--api`: one more, the address of the app's API the owner named, asked over plain
+/// HTTP the way a program asks (V4.1.2). Never without it (ADR-027, Later, 6 October 2026).
+pub const MOST_REQUESTS_WITH_API: usize = MOST_REQUESTS + 1;
+
 /// What a request to the live site came back with, or why it could not be made.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer {
@@ -124,6 +128,18 @@ pub trait Fetch {
     fn old_tls(&mut self, _url: &str) -> OldTls {
         OldTls::CannotTell("this fetcher cannot offer old TLS versions".to_owned())
     }
+
+    /// A HEAD to `url`, the API address the owner named, shaped the way a program asks rather than
+    /// a browser: it accepts JSON, and carries nothing a browser sends (V4.1.2). One more request,
+    /// counted against the same cap.
+    fn get_as_program(&mut self, _url: &str) -> Answer {
+        Answer {
+            revocation: None,
+            status: 0,
+            headers: Vec::new(),
+            failure: Some("this fetcher cannot ask as a program".to_owned()),
+        }
+    }
 }
 
 /// The address to probe, once it has been checked.
@@ -133,6 +149,32 @@ pub struct Target {
     /// Always https. The plain-HTTP request is derived from it.
     pub https: String,
     pub http: String,
+    /// The plain-HTTP address of the app's API, when the owner named its path (`--api`).
+    pub api: Option<String>,
+}
+
+impl Target {
+    /// The same target, with the path of the app's API the owner typed after `--api`, to be asked
+    /// over plain HTTP on this host. A path, never an address: the host stays the one checked.
+    pub fn with_api(mut self, path: &str) -> Result<Target, String> {
+        let path = path.trim();
+        if !path.starts_with('/') || path.starts_with("//") {
+            return Err(
+                "give --api a path on the same site, starting with /, such as /api/health"
+                    .to_owned(),
+            );
+        }
+        if path.len() > 300
+            || path.contains("..")
+            || path
+                .chars()
+                .any(|c| !c.is_ascii_graphic() || matches!(c, '{' | '}' | '\\' | '#'))
+        {
+            return Err("that --api path has characters an address path does not have".to_owned());
+        }
+        self.api = Some(format!("{}{path}", self.http.trim_end_matches('/')));
+        Ok(self)
+    }
 }
 
 /// Reads the address the owner typed, and refuses anything this must not be pointed at.
@@ -211,6 +253,7 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
         host: host.to_owned(),
         https: format!("https://{host}/"),
         http: format!("http://{plain_host}/"),
+        api: None,
     })
 }
 
@@ -509,6 +552,19 @@ const TEMPORARY_REDIRECT: Rule = Rule {
              changed before the redirect arrives.",
     fix: "Answer 301 or 308 instead, and send Strict-Transport-Security so browsers stop trying \
           plain HTTP at all.",
+};
+
+const API_REDIRECTED: Rule = Rule {
+    rule_id: "probe.api-redirected-to-https",
+    requirement_ids: &["V4.1.2"],
+    title: "The app's API sends a program over plain HTTP on to HTTPS without a word",
+    severity: Severity::Low,
+    impact: "A program, or a mobile app, written with an `http://` address by mistake sends its \
+             request, sign-in token and all, unencrypted before the redirect arrives, and then \
+             works anyway, so nobody ever finds out that it leaks.",
+    fix: "Redirect from HTTP to HTTPS only the pages people open in a browser. For the API, refuse \
+          plain HTTP outright (close port 80 for it, or answer 403 or 400 with no redirect), so a \
+          client that uses `http://` fails where its author will see it.",
 };
 
 const OCSP_NOT_STAPLED: Rule = Rule {
@@ -936,6 +992,55 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
         }
     }
 
+    // 3b. The app's API, over plain HTTP, asked as a program would (V4.1.2): a redirect to HTTPS
+    // is a finding. Only ever a finding: one address the owner named is not every endpoint.
+    match &target.api {
+        None => out.not_assessed.push((
+            "V4.1.2".to_owned(),
+            "Whether only the pages people open in a browser redirect plain HTTP to HTTPS, and \
+             the API does not: name an address of the app's API with `--api /path` to have it \
+             asked over plain HTTP the way a program asks."
+                .to_owned(),
+        )),
+        Some(api) => {
+            out.requested.push(api.clone());
+            let answer = http.get_as_program(api);
+            let said = match (&answer.failure, redirect_host(&answer)) {
+                (Some(why), _) => format!("could not be asked ({why})"),
+                (None, Some(elsewhere)) if !elsewhere.eq_ignore_ascii_case(&target.host) => {
+                    format!(
+                        "answered {} and sent the request to {elsewhere}, another host, which is \
+                         not followed",
+                        answer.status
+                    )
+                }
+                (None, _) if redirects_to_https(&answer, &target.host) => {
+                    out.findings.push(finding(
+                        &API_REDIRECTED,
+                        format!(
+                            "{api}, asked over plain HTTP as a program asks (accepting JSON, \
+                             with no browser's headers), answered {} and sent it on to {}.",
+                            answer.status,
+                            answer.header("location").map_or("", str::trim)
+                        ),
+                        &target.host,
+                    ));
+                    String::new()
+                }
+                (None, _) => format!("answered {} with no redirect to HTTPS", answer.status),
+            };
+            if !said.is_empty() {
+                out.not_assessed.push((
+                    "V4.1.2".to_owned(),
+                    format!(
+                        "{api}, asked over plain HTTP as a program asks, {said}. One address is \
+                         not every endpoint of the API, so this credits nothing."
+                    ),
+                ));
+            }
+        }
+    }
+
     // 4. Plain HTTP: is it still served, or does it send the browser to HTTPS?
     out.requested.push(target.http.clone());
     let plain = http.get(&target.http, true);
@@ -1058,6 +1163,10 @@ mod tests {
     }
 
     impl Fetch for FakeSite {
+        fn get_as_program(&mut self, url: &str) -> Answer {
+            self.get(&format!("as a program: {url}"), true)
+        }
+
         fn old_tls(&mut self, url: &str) -> OldTls {
             self.asked.push((url.to_owned(), true));
             self.old_tls_asked += 1;
@@ -1381,6 +1490,177 @@ mod tests {
                 .any(|a| a == "app.example.test:8443:203.0.113.7"),
             "{held:?}"
         );
+    }
+
+    fn api_site(api_answer: Option<Answer>) -> FakeSite {
+        let mut s = site(&[
+            (
+                "https://example.test/",
+                ok(&[("strict-transport-security", "max-age=63072000")]),
+            ),
+            (
+                "http://example.test/",
+                redirect(301, "https://example.test/"),
+            ),
+        ]);
+        if let Some(a) = api_answer {
+            s.answers
+                .insert("as a program: http://example.test/api/health".to_owned(), a);
+        }
+        s
+    }
+
+    fn api_target() -> Target {
+        target().with_api("/api/health").expect("a good path")
+    }
+
+    fn api_why(out: &Outcome) -> Vec<&str> {
+        out.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids == "V4.1.2")
+            .map(|(_, why)| why.as_str())
+            .collect()
+    }
+
+    #[test]
+    fn an_api_redirected_to_https_over_plain_http_is_found() {
+        let mut s = api_site(Some(redirect(301, "https://example.test/api/health")));
+        let out = run(&mut s, &api_target());
+        let found = out
+            .findings
+            .iter()
+            .find(|f| f.rule_id == API_REDIRECTED.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", out.findings));
+        assert_eq!(found.requirement_ids, ["V4.1.2"]);
+        assert!(
+            found.description.contains("answered 301"),
+            "{}",
+            found.description
+        );
+        // Asked on port 80 of the same host, once, as a program; the browser's plain-HTTP
+        // question is still asked too, and the run stays within its cap.
+        assert!(
+            s.asked
+                .iter()
+                .any(|(u, _)| u == "as a program: http://example.test/api/health")
+        );
+        assert!(s.asked.iter().any(|(u, _)| u == "http://example.test/"));
+        assert!(s.asked.len() <= MOST_REQUESTS_WITH_API, "{:?}", s.asked);
+        assert!(
+            out.requested
+                .contains(&"http://example.test/api/health".to_owned())
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.requirement_ids.contains(&"V4.1.2".to_owned()))
+        );
+    }
+
+    #[test]
+    fn an_api_that_refuses_plain_http_or_cannot_be_asked_credits_nothing() {
+        for (answer, says) in [
+            (
+                Answer {
+                    revocation: None,
+                    status: 403,
+                    headers: Vec::new(),
+                    failure: None,
+                },
+                "answered 403 with no redirect",
+            ),
+            (
+                redirect(301, "https://elsewhere.test/api/health"),
+                "another host",
+            ),
+            (
+                redirect(302, "http://example.test/api/v2/health"),
+                "with no redirect",
+            ),
+            (
+                Answer {
+                    revocation: None,
+                    status: 0,
+                    headers: Vec::new(),
+                    failure: Some("Connection refused".to_owned()),
+                },
+                "could not be asked",
+            ),
+        ] {
+            let mut s = api_site(Some(answer));
+            let out = run(&mut s, &api_target());
+            assert!(
+                !out.findings
+                    .iter()
+                    .any(|f| f.rule_id == API_REDIRECTED.rule_id),
+                "{says}: {:?}",
+                out.findings
+            );
+            assert!(
+                !out.verified
+                    .iter()
+                    .any(|v| v.requirement_ids.contains(&"V4.1.2".to_owned()))
+            );
+            assert!(
+                api_why(&out)
+                    .iter()
+                    .any(|w| w.contains(says) && w.contains("credits nothing")),
+                "{says}: {:?}",
+                out.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn without_an_api_path_nothing_more_is_asked_and_it_says_how() {
+        let mut s = api_site(None);
+        let out = run(&mut s, &target());
+        assert!(
+            !s.asked.iter().any(|(u, _)| u.starts_with("as a program")),
+            "{:?}",
+            s.asked
+        );
+        assert!(s.asked.len() <= MOST_REQUESTS);
+        assert!(
+            api_why(&out).iter().any(|w| w.contains("--api")),
+            "{:?}",
+            out.not_assessed
+        );
+        // The cap a fetcher keeps follows the same rule.
+        let ip = ["203.0.113.7".parse().unwrap()];
+        assert_eq!(Curl::held_to(&target(), &ip).most, MOST_REQUESTS);
+        assert_eq!(
+            Curl::held_to(&api_target(), &ip).most,
+            MOST_REQUESTS_WITH_API
+        );
+    }
+
+    #[test]
+    fn an_api_path_is_a_path_on_the_same_host_and_nothing_else() {
+        let good = target().with_api("/api/v1/items?limit=1").unwrap();
+        assert_eq!(
+            good.api.as_deref(),
+            Some("http://example.test/api/v1/items?limit=1")
+        );
+        // On port 80, whatever port the HTTPS address names.
+        let other_port = read_target("https://example.test:8443")
+            .unwrap()
+            .with_api("/api")
+            .unwrap();
+        assert_eq!(other_port.api.as_deref(), Some("http://example.test/api"));
+        for bad in [
+            "api/health",
+            "//elsewhere.test/api",
+            "http://elsewhere.test/api",
+            "/api/../admin",
+            "/api health",
+            "/api#x",
+            "/api/{a,b}",
+            "/api\\x",
+        ] {
+            assert!(target().with_api(bad).is_err(), "{bad}");
+        }
+        assert!(target().with_api(&format!("/{}", "a".repeat(300))).is_err());
     }
 
     #[test]
@@ -2154,6 +2434,8 @@ mod tests {
 pub struct Curl {
     /// Counted here rather than trusted to the caller, so the cap is a property of the fetcher.
     made: usize,
+    /// The cap: [`MOST_REQUESTS`], or [`MOST_REQUESTS_WITH_API`] when the owner named an API path.
+    most: usize,
     /// What holds every request to the addresses that were checked (`resolve_args`).
     held: Vec<String>,
 }
@@ -2163,6 +2445,11 @@ impl Curl {
     pub fn held_to(target: &Target, addresses: &[std::net::IpAddr]) -> Self {
         Curl {
             made: 0,
+            most: if target.api.is_some() {
+                MOST_REQUESTS_WITH_API
+            } else {
+                MOST_REQUESTS
+            },
             held: resolve_args(target, addresses),
         }
     }
@@ -2188,28 +2475,19 @@ impl Curl {
         args
     }
 
-    /// Whether `curl` is on this machine at all.
-    pub fn available() -> bool {
-        std::process::Command::new("curl")
-            .arg("--version")
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
-            .status()
-            .is_ok_and(|s| s.success())
-    }
-}
-
-impl Fetch for Curl {
-    fn get(&mut self, url: &str, verify: bool) -> Answer {
+    /// One read-only request, with the cap enforced here: `get`, and `get_as_program` with its
+    /// `extra` header.
+    fn fetch(&mut self, url: &str, verify: bool, extra: &[&str]) -> Answer {
         // The cap, enforced where the requests are actually made. A caller that loops cannot get
         // past it, which is the point of putting it here rather than in `run`.
-        if self.made >= MOST_REQUESTS {
+        if self.made >= self.most {
             return Answer {
                 revocation: None,
                 status: 0,
                 headers: Vec::new(),
                 failure: Some(format!(
-                    "this check makes at most {MOST_REQUESTS} requests, and that is all of them"
+                    "this check makes at most {} requests, and that is all of them",
+                    self.most
                 )),
             };
         }
@@ -2243,6 +2521,7 @@ impl Fetch for Curl {
         } else {
             args.push("--insecure");
         }
+        args.extend(extra.iter().copied());
         args.push(url);
 
         let out = match std::process::Command::new("curl")
@@ -2275,10 +2554,33 @@ impl Fetch for Curl {
         read_curl_output(&String::from_utf8_lossy(&out.stdout), &mark)
     }
 
+    /// Whether `curl` is on this machine at all.
+    pub fn available() -> bool {
+        std::process::Command::new("curl")
+            .arg("--version")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success())
+    }
+}
+
+impl Fetch for Curl {
+    fn get(&mut self, url: &str, verify: bool) -> Answer {
+        self.fetch(url, verify, &[])
+    }
+
+    fn get_as_program(&mut self, url: &str) -> Answer {
+        // Verified like the others; over plain HTTP there is nothing to verify, and the user agent
+        // is already this probe's own rather than a browser's.
+        self.fetch(url, true, &["--header", "Accept: application/json"])
+    }
+
     fn stapled(&mut self, url: &str) -> Stapling {
-        if self.made >= MOST_REQUESTS {
+        if self.made >= self.most {
             return Stapling::CannotAsk(format!(
-                "this check makes at most {MOST_REQUESTS} requests, and that is all of them"
+                "this check makes at most {} requests, and that is all of them",
+                self.most
             ));
         }
         self.made += 1;
@@ -2310,9 +2612,10 @@ impl Fetch for Curl {
     }
 
     fn old_tls(&mut self, url: &str) -> OldTls {
-        if self.made >= MOST_REQUESTS {
+        if self.made >= self.most {
             return OldTls::CannotTell(format!(
-                "this check makes at most {MOST_REQUESTS} requests, and that is all of them"
+                "this check makes at most {} requests, and that is all of them",
+                self.most
             ));
         }
         // Asked of curl itself, on this machine, before the request: which TLS library it uses.

@@ -64,7 +64,7 @@ Running the app needs a container backend (Docker or Colima). Without one, every
 running reports *not assessed* — never a pass, and never a failure.
 
 `sv` opens no network connection of its own, with one exception you ask for by name: `sv probe <address>`
-sends at most four read-only requests to the address you type, through `curl`, and asks this computer's own
+sends at most four read-only requests to the address you type (five with `--api`), through `curl`, and asks this computer's own
 DNS resolver one question about that name. Advisory data is something you download and point it at; the list
 of packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
 Outside tools you turn on with `--tools` are other people's programs, and semgrep fetches its rules the first
@@ -140,7 +140,9 @@ the old TLS 1.0 or 1.1, and does it staple its certificate's revocation status.
 It is deliberately narrow about what it will do. The address has to be typed at the terminal, never
 read from a file. It fetches headers only, sends no cookies and no credentials, makes at most four
 requests, and will not follow a redirect to any host but the one you named. It cannot sign in and
-cannot change anything.
+cannot change anything. `--api /path` names an address of your app's API on the same site, and adds one
+request: that address over plain HTTP, asked the way a program asks, since an API should refuse plain
+HTTP rather than redirect it (ASVS V4.1.2).
 
 Ninety-odd of the requirements that apply to a typical app cannot be settled by any tool at all, and
 the report now has a section for them: **what only you can check**, with a line each saying what

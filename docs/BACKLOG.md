@@ -622,6 +622,11 @@ another session is not a claim.
     `Pipfile.lock` with no `Pipfile` beside it is not found.
     **These two claimed on 6 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
     backlog, in branch `claude/securevibe-e2-h9-rest`.
+    **Done the same day** (DESIGN, "A lone `Pipfile.lock`, and requirements files under other names"): a `Pipfile.lock`
+    with no `Pipfile` or `requirements.txt` beside it is a Python project of its own, read for the bill of materials,
+    the advisories, and the pinning check; a requirements file under another name is judged by the pinning check, as
+    its own lockfile when every package in it is pinned and hashed and as pinning nothing otherwise, whatever lockfile
+    is beside it. Eleven guards broken in turn, each caught.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -1679,6 +1684,28 @@ another session is not a claim.
   four prompts stay not tested. Putting each shortcut back was caught for the key and the command, and missed for
   the sanitizer: two new items under "Next".
 
+- **Test the prompt library where the prompts have something to fix.** Proposed on 6 October 2026 by session
+  paper-facts, reviewing the library at the owner's asking; **the owner's decision the same day: write it up, with the
+  trial's cost to be approved when it is ready.** Of the library's 27 prompts, 5 are shown to work, 14 are not shown,
+  and 8 have no check. Eleven of the fourteen were not shown because the build without the prompt was already safe:
+  they were tried with a strong Claude model, on one or two builds each. The loop's item 6 has the baseline that
+  testing them needs: in its Haiku 4.5 builds without the server, the problem a prompt is for was there in 6 of 9
+  (password hashing), 4 of 9 (keys in the code), 8 of 8 (security headers), 5 of 8 (no limit on wrong passwords),
+  6 of 8 (no limit on records), and 5 of 8 (session faults); in Sonnet 5.5's, in almost none.
+  1. **Prompts for the commonest problems the library has none for**, from item 6's findings: the AI feature's way in
+     and way out (C2.1.3, C7.3.2, C7.3.4, the commonest running-app findings, in 3 to 7 builds an arm); a request from
+     another site (V3.5.1); a private page kept in the cache (V14.3.2); and the session itself (V3.3.2, V3.3.4,
+     V7.2.3, V7.4.1). Added as `untested`. No security contact (`config.security-contact`) is the commonest finding
+     of all, and gets no prompt: its rule cites no requirement on purpose, and a prompt is held to the requirements
+     its check cites (`tools/coverage.py`).
+  2. **A protocol, fixed before any build:** Haiku 4.5, the loop's plain brief with the specification, each prompt's
+     builds against one shared set without any prompt; how many builds; the rule for "shown"; and harm measured in
+     the same builds (every finding, and whether `sv` could still start the app and sign in).
+  3. **The trial,** at the size the owner approves.
+  4. **Then how a prompt is delivered,** for those shown to work: pasted into the request, or returned by
+     `securevibe_before`.
+  **Claimed on 6 October 2026 by session paper-facts**, at the owner's word, in branch `claude/prompt-trial`.
+
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
   at the owner's asking to look at the Secure by Design documentation and checklist for prompts to add to the library
   above. Prompts the owner gives the AI coding tool before any code is written. Every Secure by Design control is
@@ -2040,6 +2067,12 @@ another session is not a claim.
   **Part 2, still claimed:** the text inside the code: `sv --help` and each command's help (`crates/sv-cli/src/main.rs`),
   the specification `sv init` prints (`crates/sv-manifest/src/spec.rs`), the MCP server's instructions and tool
   descriptions (`crates/sv-cli/src/mcp.rs`), and `tools/coverage.py`'s prose.
+  **Part 2 done the same day:** the help (`sv run`, `sv check`, `sv audit`, `sv report`, `sv bundle`, `sv review`,
+  `sv sbom`, `sv mcp`, `--version`, and the exit codes, which are only check's, report's, and audit's); the spec (the
+  starter's `[stack.run.users]` commented out, `admin-actions` needing `admin`, data names spelled as listed, `tls`,
+  the unanswered claim state, `sv brief` for a feature's prompts, a test report's credit, and "Tests worth writing
+  first"); the MCP server's instructions and five tool descriptions; and `tools/coverage.py`'s prose and its `\u{…}`
+  escapes. With that, the review is done.
 
 - **Found by the documentation review (6 October 2026), in `sv` itself.** Each was found reading a document against
   the code and confirmed in the code; each is **not claimed** and can be claimed on its own. Most important first.
@@ -2052,8 +2085,8 @@ another session is not a claim.
   2. **The starter `securevibe.toml` leaves `[stack.run.users]` in force with every key commented out.** It parses as
      an empty section, not an absent one, so a run reports "[stack.run.users] … cannot be used: `login` is not set…"
      where the spec says leaving it out reports the signed-in checks as not assessed (`crates/sv-manifest/src/spec.rs`,
-     the starter; `signed_in/mod.rs`). Fix: comment the header out, as the other optional sections are (part 2 of the
-     documentation review will do it if nobody claims it first).
+     the starter; `signed_in/mod.rs`). Fix: comment the header out, as the other optional sections are. **Done**, in
+     part 2 of the documentation review.
   3. **`admin-actions` needs `admin` too.** An admin account is made only when `admin` pages are listed, so with
      `admin-actions` and no `admin`, V8.3.1 is not assessed with the reason "an admin is made by `seed`", which misleads
      when `seed` is set. Fix: make the admin when `admin-actions` is listed, or say in the spec that it needs both.
@@ -2064,7 +2097,8 @@ another session is not a claim.
      description, or the default.
   6. **`tools/coverage.py` writes three things wrong into `docs/REQUIREMENTS.md`:** a Rust `\\u{2014}` escape printed
      as `u{2014}` (V2.2.2's row); "semgrep, N rules" counting distinct descriptions rather than rules (V1.2.4 says 1,
-     where 74 rules cite it); and a phrase repeated where a rule's own description joins two with "; ".
+     where 74 rules cite it); and a phrase repeated where a rule's own description joins two with "; ". The escape
+     is **done**, in part 2 of the documentation review; the count and the repeated phrase are still open.
   7. **`[data]` category names are not checked.** Only an exact match to the sensitive list raises the level, so a
      misspelled `"Health"` quietly allows level 1. Fix: warn on a name not in the list.
   8. **For the owner, about the prompt library:** the "settings file first" prompt, shown to work, says to "delete the
@@ -3300,6 +3334,8 @@ another session is not a claim.
      going"), in branch `claude/securevibe-e9-storage-code`: two findings-only code rules for JavaScript and
      TypeScript, a token (V10.1.1) or a password (V14.3.3) written into `localStorage`, `sessionStorage`, or a cookie
      set from the page, by a key or cookie name that says so.
+     **Done the same day** (DESIGN, "A token or a password written into the browser's storage, read from the code"):
+     `ast.token-in-browser-storage` and `ast.password-in-browser-storage`, both only ever findings.
      **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
      backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
      share an email address. C9.5.3 stays unclaimed.
@@ -5942,6 +5978,15 @@ another session is not a claim.
   and a proxy's CONNECT status line read as a response. Left over: V4.1.2 (redirecting only where a
   browser is the client) needs a request shaped like an API client's and was not written, and the
   rest of deployment is still a "before going live" list nobody has written.
+  **V4.1.2 claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with
+  both of those", asked whether `sv probe` may make one more request), in branch `claude/securevibe-e9-api-redirect`.
+  **Record, `Status: proposed`** (to be a "Later" entry on ADR-027): `sv probe <address> --api <path>` asks one more
+  question, only when the owner names an address of the app's API on the command line: a GET over plain HTTP to that
+  path on the same host, shaped like a program's request (JSON accepted, no browser headers). Answered with a redirect
+  to HTTPS is a finding against V4.1.2; anything else credits nothing, since one address is not every endpoint. A run
+  with `--api` may make five requests; without it, still four. Without `--api`, V4.1.2 is not assessed, and says why.
+  **Done the same day**, and the record accepted (ADR-027, "Later, 6 October 2026"; DESIGN, "V4.1.2: an API asked
+  over plain HTTP the way a program asks").
 
 - **Deadlines for known vulnerabilities (V15.2.1).** Asked for by the owner on 26 September 2026.
   V15.2.1 asks that the app contains no component that has *breached the documented remediation time
@@ -6523,6 +6568,15 @@ another session is not a claim.
      and none of the 661 first-party files of this repository and v1 is.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
+     **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with both of
+     those", asked whether to reverse the rule that findings with no CWE in common stay apart), in branch
+     `claude/securevibe-e9-one-per-line`. **Record, `Status: proposed`** (to be a "Later" entry on ADR-023): after
+     what a person set aside is applied, the findings left on one line of one file are one finding. The most severe
+     is kept, as the merge of one weakness already keeps it; it takes every requirement and CWE of the others, and
+     lists each other problem by its rule, severity, requirements, and fingerprint, with `sv`'s own rules' titles
+     (an outside tool's text can quote the value it found, so its rule is named instead). Reviews stay per problem:
+     they are applied before the gathering, so a false alarm recorded for one rule never sets aside another
+     problem on the same line. SARIF keeps one result per problem, for the tools that read it.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
      **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
      `claude/semgrep-follow-ups-2-4`.
@@ -6770,6 +6824,11 @@ another session is not a claim.
   case of the same name as a passing one is ignored). TAP and runners' own JSON stay unread.
   **Done the same day** (DESIGN, "A test is found under the names its runner gives it"): matched as a whole part of
   the name the runner reports, and credited only when every case that could be it passed.
+  **TAP and runners' own JSON claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("continue to
+  work off the backlog picking whatever item you want"), in branch `claude/securevibe-e2-test-reports`: a declared
+  `test-report` in TAP (versions 13 and 14, as `node --test`, `bats`, and `prove` write it), in `go test -json`, or in
+  the JSON jest and Vitest write (`--json`, `--reporter=json`) read the way JUnit XML is, failing closed on anything
+  it does not recognize.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,

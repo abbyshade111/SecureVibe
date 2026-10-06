@@ -78,10 +78,10 @@ health = "/"              # a path that returns 200 once the app is up
 #                           # with arguments it accepts; the run sends it an unknown argument, one far
 #                           # too long, one of the wrong type, and a very large request
 
-[stack.run.users]
+# [stack.run.users]
 # Optional: how to sign in, so `sv run` can check what a signed-in user can reach — other users'
 # data, admin pages, whether logging out really ends the session. Leave it out and all of that is
-# reported as "not assessed". `sv` makes two ordinary accounts, A and B, with fresh passwords.
+# reported as "not assessed"; to use it, remove the `#` from the line above as well as from each key. `sv` makes two ordinary accounts, A and B, with fresh passwords.
 # The app's folder is read-only while `sv` runs it, so keep its data somewhere like /tmp.
 # `sv` signs in up to 60 times in one run, all from one address, a few of them on purpose with a
 # wrong password, and last of all the wrong passwords of the guessing check (`failed-sign-ins`
@@ -100,9 +100,11 @@ health = "/"              # a path that returns 200 once the app is up
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
 # private = ["/account"]    # pages only a signed-in user should see
-# admin = ["/admin"]        # pages only an admin should see (needs `seed`)
+# admin = ["/admin"]        # pages only an admin should see (needs `seed`); the admin account is
+#                           # made only when this is listed
 # admin-actions = [{ path = "/admin/announce", form = { text = "{marker}", csrf_token = "{csrf}" }, check = "/announcements" }]
-#   Requests only an admin should be able to make (needs `seed`). Each is sent by the first ordinary
+#   Requests only an admin should be able to make (needs `seed`, and `admin` listed, since that is
+#   what makes the admin account). Each is sent by the first ordinary
 #   user and then by the admin, so list only what is safe to do twice in a test copy of the app. Put
 #   `{marker}` in a field and name in `check` a page where that text shows once the action has been
 #   done, within the page's first 4,000 characters: that is how `sv` tells whose request worked.
@@ -168,6 +170,7 @@ health = "/"              # a path that returns 200 once the app is up
 # or write [] if it holds nothing about people at all.
 # contact | financial | payment-card | health | government-id | credentials
 # children | location | files | business-confidential | other-personal
+# (spelled exactly as listed: a name not on the list does not raise the level)
 # categories = ?
 
 [capabilities]
@@ -318,8 +321,9 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
 
   - If there is no code yet, write it first, before any code, for the app as it will be. It is the
     design brief: decide each answer with the person, and what you decide here is what the app is
-    built to and checked against. Then go through the design-time prompts (`sv prompts`) for the
-    features the app will have, before writing the code for each.
+    built to and checked against. Then, before writing the code for each feature the app will have,
+    go through its brief (`sv brief --feature …`), which includes its design-time prompts; `sv prompts`
+    lists every prompt.
   - Once there is code, answer for the app as it actually is, not as it is meant to become.
 
   Three rules:
@@ -329,7 +333,8 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
      "nobody answered": every requirement that turns on it is reported as not assessed, never as
      resolved, which is the honest answer when nobody knows. The same holds for `[data]
      categories`: left commented out, the app is held to the higher level; `[]` says it holds
-     nothing about people, so write it only when that is true.
+     nothing about people, so write it only when that is true. The one line written in already is
+     `tls`, which is read as `terminated-upstream` unless you say otherwise.
 
   2. If you are unsure whether a capability is present, say true. A capability claimed but absent
      costs a requirement that did not need meeting. A capability present but denied is the one
@@ -342,7 +347,8 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
      rule 2, applied to the plan. Change the file before you add a capability the plan does not have.
 
 `sv` does not take this file at its word. It looks for each claim in the code and reports what it
-finds: confirmed, contradicted, asserted-but-unsupported, or unverifiable. A claim of "no" never
+finds: confirmed, contradicted, asserted-but-unsupported, or unverifiable, or unanswered for a line
+left commented out. A claim of "no" never
 switches off a requirement the code says applies.
 
   Naming requirements in your tests
@@ -353,8 +359,8 @@ switches off a requirement the code says applies.
       def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
           ...
 
-  `sv` reads those ids back and, when the whole suite passes, reports that requirement as checked
-  by the app's own tests, naming the file and line so anybody can go and look. Ids may be written
+  `sv` reads those ids back and, when the whole suite passes (or, with a test report, for each test
+  the report says passed), reports that requirement as checked by the app's own tests, naming the file and line so anybody can go and look. Ids may be written
   with underscores or dots; `V1.2.4` and `V1_2_4` are the same requirement.
 
   This is the only way a test counts. Matching tests to requirements by what they are called would
@@ -364,9 +370,9 @@ switches off a requirement the code says applies.
 
   Which tests to write
 
-  `sv report` lists, under "Tests to write" in compliance.md, every requirement that applies to the
-  app and has no evidence of any kind and no test naming it, lowest level first; `sv mcp` gives the
-  same list. Work down it: for each requirement the app really meets, a test that shows it, with the
+  `sv report` lists, under "Tests worth writing first" in compliance.md, the level 1 requirements
+  that apply to the app and have no evidence of any kind and no test naming it; report.json
+  (`tests_to_write`) and `sv mcp` give the whole list, every level, lowest first. Work down it: for each requirement the app really meets, a test that shows it, with the
   id in its name. Where the app does not meet one yet, that is the thing to fix first, and the test
   follows.
 
