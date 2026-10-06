@@ -229,15 +229,6 @@ pub fn credit(stated: &Verified, check_id: &str, holds: &Holds, sealed: &Sealed)
                 holds.on.show(),
                 holds.how
             ),
-            Sealed::Unchecked { .. } => format!(
-                "{} securevibe.toml says {} confirmed it on {} through `sv review`, having looked: \
-                 \"{}\". It was sealed on another computer, and this one has no key to check the \
-                 seal with.",
-                stated.scope.trim_end(),
-                holds.who,
-                holds.on.show(),
-                holds.how
-            ),
         },
     )
 }
@@ -316,7 +307,12 @@ mod tests {
     }
 
     /// This computer's key in these tests, from the system's randomness.
-    fn key() -> crate::seal::Key {
+    /// This computer's key in the test, sealing for the app the test reads.
+    fn key() -> crate::seal::AppKey {
+        computer_key().for_app(&crate::seal::App::named_for_tests("app"))
+    }
+
+    fn computer_key() -> crate::seal::Key {
         static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
         KEY.get_or_init(|| crate::seal::Key::random().unwrap())
             .clone()
@@ -589,16 +585,29 @@ mod tests {
             assert!(out.confirmed.is_empty(), "{says}");
             assert!(out.not_counted[0].1.contains(says), "{:?}", out.not_counted);
         }
-        let elsewhere = run(&good, &Checker::Key(crate::seal::Key::random().unwrap()));
+        let app = crate::seal::App::named_for_tests("app");
+        let elsewhere = run(
+            &good,
+            &Checker::Key(crate::seal::Key::random().unwrap().for_app(&app)),
+        );
         assert!(elsewhere.confirmed.is_empty());
-        // No key here: it counts, and says its seal could not be checked.
+        // No key here: it does not count, and says why and what to do (item 8 of the review of 1
+        // to 4 October).
         let unchecked = run(&good, &Checker::NoKey);
+        assert!(unchecked.confirmed.is_empty());
         assert!(
-            unchecked.confirmed[0]
-                .scope
-                .contains("this one has no key to check the seal with"),
-            "{}",
-            unchecked.confirmed[0].scope
+            unchecked.not_counted[0].1.contains("cannot check"),
+            "{:?}",
+            unchecked.not_counted
+        );
+        // Nor in another app on this computer (item 11).
+        let shop = crate::seal::App::named_for_tests("shop");
+        let copied = run(&good, &Checker::Key(computer_key().for_app(&shop)));
+        assert!(copied.confirmed.is_empty());
+        assert!(
+            copied.not_counted[0].1.contains("another folder"),
+            "{:?}",
+            copied.not_counted
         );
         assert!(run(&plain, &Checker::NoKey).confirmed.is_empty());
     }

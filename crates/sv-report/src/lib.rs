@@ -1006,11 +1006,6 @@ fn recorded(s: &sv_check::review::SetAside, did: &str) -> String {
             "Recorded through `sv review` on this computer: {who} {did} on {}",
             s.on
         ),
-        sv_check::seal::Sealed::Unchecked { .. } => format!(
-            "securevibe.toml says {who} {did} on {} through `sv review`, sealed on another computer; \
-             this one has no key to check the seal with",
-            s.on
-        ),
     }
 }
 

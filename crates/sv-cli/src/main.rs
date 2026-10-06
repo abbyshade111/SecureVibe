@@ -2845,8 +2845,13 @@ const REPORT_MARKER_TEXT: &str =
 /// Seals the report just written in `out_dir` (`report_seal`), so `sv`'s MCP server can show it is
 /// `sv`'s before offering it as one. Whether it was sealed, and what the person should be told: that
 /// the report key was made, or why the report could not be sealed. The report stands either way.
-fn seal_report_folder(out_dir: &Path) -> (bool, Vec<String>) {
-    match report_seal::seal(out_dir, REPORT_MARKER_TEXT) {
+fn seal_report_folder(out_dir: &Path, written: &Written) -> (bool, Vec<String>) {
+    let bytes: Vec<(&str, &[u8])> = written
+        .contents
+        .iter()
+        .map(|(name, text)| (*name, text.as_bytes()))
+        .collect();
+    match report_seal::seal(out_dir, REPORT_MARKER_TEXT, &bytes) {
         Ok(sealed) => (
             true,
             sealed
@@ -2885,6 +2890,22 @@ fn seal_report_folder(out_dir: &Path) -> (bool, Vec<String>) {
 /// follows a link, and did: a `report.json` that was a link to a file outside the app had that file
 /// replaced by the report (BACKLOG, "Hardening the MCP server", item 1).
 fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<&'static str>> {
+    Ok(write_report(report, out_dir)?.names())
+}
+
+/// The report files written, each with the text written to it, which is what a seal is made from.
+pub(crate) struct Written {
+    contents: Vec<(&'static str, String)>,
+}
+
+impl Written {
+    pub(crate) fn names(&self) -> Vec<&'static str> {
+        self.contents.iter().map(|(name, _)| *name).collect()
+    }
+}
+
+/// `write_report_files`, keeping what was written.
+fn write_report(report: &sv_report::Report, out_dir: &Path) -> Result<Written> {
     // Before the folder is created: creating it would follow a link to a folder that does not exist yet.
     refuse_link(out_dir, REPORT_LINK)?;
     std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
@@ -2910,7 +2931,9 @@ fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<
         write_without_following(out_dir, name, contents.as_bytes())
             .with_context(|| format!("writing {name}"))?;
     }
-    Ok(written.iter().map(|(name, _)| *name).collect())
+    Ok(Written {
+        contents: written.into(),
+    })
 }
 
 /// Refuses to write a report into a folder that holds anything but `sv`'s own files, unless `sv` marked
@@ -4166,8 +4189,8 @@ fn assemble_report_saying(
     // be written.
     let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
     // What this computer can check `sv review`'s seals with (`sv_check::seal`): the owner's own
-    // answers, here and below, count as theirs only when `sv review` recorded them.
-    let seals = sv_check::seal::Checker::this_computer();
+    // answers, here and below, count as theirs only when `sv review` recorded them for this app.
+    let seals = sv_check::seal::Checker::for_app(app_dir);
     let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
@@ -4964,8 +4987,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         &out_dir,
         "give this run a folder of its own with --out",
     )?;
-    let written = write_report_files(&report, &out_dir)?;
-    for note in seal_report_folder(&out_dir).1 {
+    let report_written = write_report(&report, &out_dir)?;
+    let written = report_written.names();
+    for note in seal_report_folder(&out_dir, &report_written).1 {
         eprintln!("{note}\n");
     }
     held.written();
@@ -5467,6 +5491,7 @@ mod tests {
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
             rule_id: decided[0].switch.rule_id.to_owned(),
             title: "open".to_owned(),
             severity: sv_check::Severity::High,

@@ -200,10 +200,17 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
             "that is not a public address: give the host your app is served from".to_owned(),
         );
     }
+    // Plain HTTP is asked on its own port, 80, whatever port the HTTPS address names: asked on the
+    // HTTPS port it is a TLS port refusing plain text, which says nothing about whether plain HTTP
+    // is served (the review of 1 to 4 October, item 2).
+    let plain_host = match host.strip_prefix('[') {
+        Some(rest) => format!("[{}]", rest.split(']').next().unwrap_or_default()),
+        None => host.split(':').next().unwrap_or_default().to_owned(),
+    };
     Ok(Target {
         host: host.to_owned(),
         https: format!("https://{host}/"),
-        http: format!("http://{host}/"),
+        http: format!("http://{plain_host}/"),
     })
 }
 
@@ -234,6 +241,11 @@ pub fn not_public(ip: std::net::IpAddr) -> Option<&'static str> {
                 Some("an address kept for the network's own use")
             } else if a == 198 && (b == 18 || b == 19) {
                 Some("an address kept for testing networks")
+            } else if matches!(
+                (a, b, v4.octets()[2]),
+                (192, 0, 2) | (198, 51, 100) | (203, 0, 113)
+            ) {
+                Some("an address kept for documentation and examples, which reaches no computer")
             } else {
                 None
             }
@@ -242,12 +254,39 @@ pub fn not_public(ip: std::net::IpAddr) -> Option<&'static str> {
             if let Some(v4) = v6.to_ipv4_mapped() {
                 return not_public(IpAddr::V4(v4));
             }
-            let first = v6.segments()[0];
-            if v6.is_loopback() {
+            let segments = v6.segments();
+            let v4_in = |hi: u16, lo: u16| {
+                IpAddr::V4(std::net::Ipv4Addr::new(
+                    (hi >> 8) as u8,
+                    hi as u8,
+                    (lo >> 8) as u8,
+                    lo as u8,
+                ))
+            };
+            // Forms that carry an IPv4 address and are routed to it, judged by it (the second weekly
+            // review of the decision records, ADR-027): 6to4 (`2002::/16`), with the address in its
+            // second and third groups; NAT64's well-known prefix (`64:ff9b::/96`), with it in the
+            // last two; and Teredo (`2001::/32`), whose client's address is in the last two, each
+            // bit inverted.
+            match segments {
+                [0x2002, hi, lo, ..] => return not_public(v4_in(hi, lo)),
+                [0x64, 0xff9b, 0, 0, 0, 0, hi, lo] => return not_public(v4_in(hi, lo)),
+                [0x2001, 0, .., hi, lo] => return not_public(v4_in(!hi, !lo)),
+                _ => {}
+            }
+            let first = segments[0];
+            if segments[..3] == [0x64, 0xff9b, 1] {
+                // NAT64's prefix for a network's own translator (RFC 8215), where the IPv4 address
+                // sits wherever that network put it.
+                Some("an address for a network's own translator, which only reaches inside it")
+            } else if segments[..2] == [0x2001, 0xdb8] {
+                Some("an address kept for documentation and examples, which reaches no computer")
+            } else if v6.is_loopback() {
                 Some("this computer")
             } else if v6.is_unspecified() {
                 Some("an address that means no particular computer")
-            } else if first & 0xfe00 == 0xfc00 {
+            } else if first & 0xfe00 == 0xfc00 || first & 0xffc0 == 0xfec0 {
+                // Unique local addresses, and the site-local ones they replaced.
                 Some("a private network")
             } else if first & 0xffc0 == 0xfe80 {
                 Some("a link-local address, which only reaches this computer's own network")
@@ -364,7 +403,9 @@ fn resolve_args(target: &Target, addresses: &[std::net::IpAddr]) -> Vec<String> 
             std::net::IpAddr::V4(v4) => v4.to_string(),
         })
         .collect();
+    // The HTTPS port, as typed or 443, and 80 for the plain-HTTP question.
     let ports: Vec<&str> = match target_port(target) {
+        Some(port) if port != "80" => vec![port, "80"],
         Some(port) => vec![port],
         None => vec!["443", "80"],
     };
@@ -374,6 +415,13 @@ fn resolve_args(target: &Target, addresses: &[std::net::IpAddr]) -> Vec<String> 
         out.push(format!("{name}:{port}:{}", list.join(",")));
     }
     out
+}
+
+/// Whether curl's failure says the site refused the connection, rather than not answering in time,
+/// closing it without a word, or something on this computer's side.
+fn refused_connection(why: &str) -> bool {
+    let why = why.to_ascii_lowercase();
+    why.contains("connection refused") || why.contains("couldn't connect to server")
 }
 
 /// A redirect's destination, when it names one.
@@ -610,7 +658,33 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
         out.requested
             .push(format!("{} (without verification)", target.https));
         let unverified = http.get(&target.https, false);
+        // A certificate problem only when curl said it was one. A timeout, or a host waking from
+        // sleep, fails the first request and answers the second a moment later, and that says
+        // nothing about the certificate (the review of 1 to 4 October, item 1).
+        let about_certificate = why.to_ascii_lowercase().contains("certificate");
+        if unverified.reached() && !about_certificate {
+            out.not_assessed.push((
+                "V12.2.2, V12.1.1, V12.1.4, V3.4.1, V3.3.3".to_owned(),
+                format!(
+                    "{} did not answer the first request ({why}), and answered the next one a \
+                     moment later. That is not a certificate problem, and with only {MOST_REQUESTS} \
+                     requests to make, the certificate and the site's headers were not asked again. \
+                     Run `sv probe` again.",
+                    target.https
+                ),
+            ));
+            return out;
+        }
         if unverified.reached() {
+            out.not_assessed.push((
+                "V12.1.4, V3.4.1, V3.3.3".to_owned(),
+                format!(
+                    "{} answered only with certificate checking turned off, so its stapled status \
+                     and its headers were not read: an answer like that is not the one a visitor \
+                     gets.",
+                    target.https
+                ),
+            ));
             out.findings.push(finding(
                 &UNTRUSTED_CERTIFICATE,
                 format!(
@@ -865,6 +939,23 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
     // 4. Plain HTTP: is it still served, or does it send the browser to HTTPS?
     out.requested.push(target.http.clone());
     let plain = http.get(&target.http, true);
+    // Credited only for a connection refused: a timeout, an empty reply, or port 80 blocked on this
+    // computer's side is no answer about the site (the review of 1 to 4 October, item 2).
+    if let Some(why) = plain
+        .failure
+        .as_deref()
+        .filter(|why| !refused_connection(why))
+    {
+        out.not_assessed.push((
+            "V12.2.1".to_owned(),
+            format!(
+                "{} could not be asked ({why}), which is not the site refusing plain HTTP, so \
+                 whether it is served was not settled.",
+                target.http
+            ),
+        ));
+        return out;
+    }
     if !plain.reached() {
         out.verified.push(Verified::new(
             PLAIN_HTTP_SERVED.rule_id,
@@ -1150,6 +1241,159 @@ mod tests {
             "{:?}",
             out.not_assessed
         );
+    }
+
+    /// A fetcher whose first verified request to one address fails with `why`, and every later one
+    /// gets the site's answer.
+    struct FailsOnce {
+        site: FakeSite,
+        url: &'static str,
+        why: &'static str,
+        failed: bool,
+    }
+
+    impl Fetch for FailsOnce {
+        fn get(&mut self, url: &str, verify: bool) -> Answer {
+            if url == self.url && verify && !self.failed {
+                self.failed = true;
+                self.site.asked.push((url.to_owned(), verify));
+                return Answer {
+                    revocation: None,
+                    status: 0,
+                    headers: Vec::new(),
+                    failure: Some(self.why.to_owned()),
+                };
+            }
+            self.site.get(url, verify)
+        }
+    }
+
+    fn failure(why: &str) -> Answer {
+        Answer {
+            revocation: None,
+            status: 0,
+            headers: Vec::new(),
+            failure: Some(why.to_owned()),
+        }
+    }
+
+    #[test]
+    fn a_first_request_that_timed_out_is_not_called_a_certificate_problem() {
+        // The review of 1 to 4 October, item 1: a host waking from sleep misses the time limit
+        // once and answers the retry, and that was reported as an untrusted certificate.
+        let pages = [
+            ("https://example.test/", ok(&[])),
+            (
+                "http://example.test/",
+                redirect(301, "https://example.test/"),
+            ),
+        ];
+        let mut slow = FailsOnce {
+            site: site(&pages),
+            url: "https://example.test/",
+            why: "Operation timed out after 15001 milliseconds with 0 bytes received",
+            failed: false,
+        };
+        let out = run(&mut slow, &target());
+        assert!(slow.failed, "the setup: the first request failed");
+        assert!(
+            !rules(&out).contains(&UNTRUSTED_CERTIFICATE.rule_id),
+            "{:?}",
+            out.findings
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == UNTRUSTED_CERTIFICATE.rule_id)
+        );
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V12.2.2") && why.contains("timed out")),
+            "{:?}",
+            out.not_assessed
+        );
+        // The control: a failure that names the certificate is still the finding.
+        let mut bad = FailsOnce {
+            site: site(&pages),
+            url: "https://example.test/",
+            why: "SSL certificate problem: self-signed certificate",
+            failed: false,
+        };
+        let out = run(&mut bad, &target());
+        assert!(
+            rules(&out).contains(&UNTRUSTED_CERTIFICATE.rule_id),
+            "{:?}",
+            out.findings
+        );
+    }
+
+    #[test]
+    fn plain_http_is_credited_only_for_a_connection_refused_and_asked_on_port_80() {
+        // The review of 1 to 4 October, item 2.
+        let credited = |plain: Answer| {
+            let mut s = site(&[
+                ("https://example.test/", ok(&[])),
+                ("http://example.test/", plain),
+            ]);
+            run(&mut s, &target())
+                .verified
+                .iter()
+                .any(|v| v.check_id == PLAIN_HTTP_SERVED.rule_id)
+        };
+        assert!(credited(failure(
+            "Failed to connect to example.test port 80 after 3 ms: Connection refused"
+        )));
+        assert!(credited(failure(
+            "Failed to connect to example.test port 80 after 3 ms: Couldn't connect to server"
+        )));
+        for why in [
+            "Empty reply from server",
+            "Connection timed out after 15000 milliseconds",
+            "Operation timed out after 15001 milliseconds with 0 bytes received",
+        ] {
+            assert!(!credited(failure(why)), "{why} was credited");
+        }
+        // The plain question goes to port 80, whatever port the HTTPS address names, and is held
+        // to the checked address there too.
+        for (typed, http) in [
+            ("https://app.example.test:443/", "http://app.example.test/"),
+            (
+                "https://app.example.test:8443/x",
+                "http://app.example.test/",
+            ),
+            // A public address: `2001:db8::/32` is kept for documentation, and refused.
+            (
+                "https://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:8443/",
+                "http://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]/",
+            ),
+        ] {
+            assert_eq!(read_target(typed).unwrap().http, http, "{typed}");
+        }
+        let t = read_target("https://app.example.test:8443/").unwrap();
+        let held = resolve_args(&t, &["203.0.113.7".parse().unwrap()]);
+        assert!(
+            held.iter().any(|a| a == "app.example.test:80:203.0.113.7"),
+            "{held:?}"
+        );
+        assert!(
+            held.iter()
+                .any(|a| a == "app.example.test:8443:203.0.113.7"),
+            "{held:?}"
+        );
+    }
+
+    #[test]
+    fn curl_is_told_to_use_no_proxy() {
+        // The review of 1 to 4 October, item 3: a proxy from this computer's settings looks the
+        // name up itself, so the request was not held to the checked address.
+        let curl = Curl::held_to(&target(), &["203.0.113.7".parse().unwrap()]);
+        let args = curl.args(&[]);
+        let at = args
+            .iter()
+            .position(|a| *a == "--noproxy")
+            .expect("--noproxy is passed");
+        assert_eq!(args[at + 1], "*");
     }
 
     #[test]
@@ -1928,7 +2172,17 @@ impl Curl {
     /// one request; plain web addresses only; and held to the addresses that were checked. Then the
     /// request's own flags.
     fn args<'a>(&'a self, own: &[&'a str]) -> Vec<&'a str> {
-        let mut args = vec!["--disable", "--globoff", "--proto", "=http,https"];
+        // No proxy, whatever this computer's settings say: a proxy looks the name up itself, so the
+        // request would not be held to the address that was checked (the review of 1 to 4
+        // October, item 3).
+        let mut args = vec![
+            "--disable",
+            "--globoff",
+            "--noproxy",
+            "*",
+            "--proto",
+            "=http,https",
+        ];
         args.extend(self.held.iter().map(String::as_str));
         args.extend(own.iter().copied());
         args
@@ -2277,14 +2531,35 @@ mod curl_tests {
             ("https://255.255.255.255", "does not reach one computer"),
             ("https://app.localhost", "this machine"),
             ("https://localhost.", "this machine"),
+            // IPv6 forms that carry an IPv4 address, judged by it (ADR-027, "Later").
+            ("https://[2002:a00:1::]", "private network"),
+            ("https://[2002:7f00:1::1]", "this computer"),
+            ("https://[2002:a9fe:a9fe::]", "link-local"),
+            ("https://[64:ff9b::10.0.0.1]", "private network"),
+            ("https://[64:ff9b::a9fe:a9fe]", "link-local"),
+            (
+                "https://[2001:0:4136:e378:8000:63bf:f5ff:fffe]",
+                "private network",
+            ),
+            ("https://[64:ff9b:1::5db8:d70e]", "translator"),
+            // The ranges kept for documentation, and IPv6's old site-local one.
+            ("https://192.0.2.10", "documentation"),
+            ("https://198.51.100.7", "documentation"),
+            ("https://203.0.113.9", "documentation"),
+            ("https://[2001:db8::1]", "documentation"),
+            ("https://[fec0::1]", "private network"),
         ] {
             let refused = read_target(typed).expect_err(typed);
             assert!(refused.contains(says), "{typed}: {refused}");
         }
-        // The control: public addresses, typed as numbers, are still accepted.
+        // The control: public addresses, typed as numbers, are still accepted, and so are the
+        // forms above when the IPv4 address they carry is public.
         for typed in [
             "https://93.184.215.14",
             "https://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:8443",
+            "https://[2002:5db8:d70e::1]",
+            "https://[64:ff9b::5db8:d70e]",
+            "https://[2001:0:4136:e378:8000:63bf:a247:28f1]",
         ] {
             let target = read_target(typed).expect(typed);
             assert!(

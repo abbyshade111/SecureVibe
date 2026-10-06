@@ -57,7 +57,16 @@ jobs:
       - name: Tests
         # The fence tests need a container backend. GitHub's runners have Docker, so they run for real here;
         # where there is none they assert the honest-absence path instead and say which branch they took.
+        # Every credit a check gives is written to this file (a debug build only; `Verified::new`), so
+        # the next step can hold the findings-only lists in tools/coverage.py to what really happened.
+        env:
+          SV_CREDIT_LOG: ${{ runner.temp }}/credits.log
         run: cargo test --workspace
+
+      - name: What the suite saw credited
+        # Fails when a check listed as only ever a finding was credited, or one never credited is not
+        # listed. By 6 October 2026, 23 checks had been counted as crediting when none ever did.
+        run: python3 tools/coverage.py --credits "$RUNNER_TEMP/credits.log"
 
   image:
     # The container for somebody who is not going to install Rust (the Dockerfile). Built from

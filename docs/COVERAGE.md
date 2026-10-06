@@ -99,7 +99,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.3.3 | L2 | Reads the code: `ast.unauthenticated-encryption` (sv only ever as a finding: `ast.unauthenticated-encryption`) |
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V11.4.4 | L2 | Reads the code: `ast.weak-password-key-derivation` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
-| V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` |
+| V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
@@ -161,7 +161,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V6.3.7 | L3 | Signed in: `probe.password-change-notified` |
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` (sv only ever as a finding: `probe.reset-reveals-account`) |
 | V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` (sv only ever as a finding: `probe.activation-code-guessable`, `probe.activation-link-reusable`) |
-| V6.4.2 | L1 | Signed in: `probe.password-hints` |
+| V6.4.2 | L1 | Signed in: `probe.password-hints` (sv only ever as a finding: `probe.password-hints`) |
 | V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |
 | V6.5.1 | L2 | Signed in: `probe.totp-reused`, `probe.email-code-reusable` |
 | V6.5.4 | L2 | Signed in: `probe.email-code-short` (sv only ever as a finding: `probe.email-code-short`) |
@@ -273,7 +273,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
-| V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 10 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` |
+| V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 10 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` (sv only ever as a finding: `secrets.credential-assignment`) |
 | V14.2.2 | L2 | Signed in: `probe.private-page-shared-cache` (sv only ever as a finding: `probe.private-page-shared-cache`) |
 | V14.2.3 | L2 | Signed in: `probe.account-details-sent-elsewhere` (sv only ever as a finding: `probe.account-details-sent-elsewhere`) |
 

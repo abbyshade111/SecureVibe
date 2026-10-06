@@ -144,6 +144,18 @@ impl DockerBackend {
         }
     }
 
+    /// The last 2000 lines the app wrote, to its output and its errors, in the order it wrote them.
+    ///
+    /// `docker logs` gives the two streams apart, and they were read one after the other, so a
+    /// window between two markers on one stream held nothing the app wrote to the other in between
+    /// (item 15 of the review of 1 to 4 October). Each line now comes with the time Docker took it,
+    /// and the two are put back in that order.
+    fn app_log(&self, app: &str) -> String {
+        self.docker(&["logs", "--timestamps", "--tail", "2000", app])
+            .map(|(_, out)| interleaved(&out))
+            .unwrap_or_default()
+    }
+
     fn docker(&self, args: &[&str]) -> Result<(i32, String), String> {
         let mut c = Command::new(&self.binary);
         c.args(self.prepared(args));
@@ -653,10 +665,7 @@ impl DockerBackend {
             let (mut outcome, markers) = sv_check::ai::run(&mut http, section, &context);
             // Then what the app wrote down about it, read after the questions, as the signed-in
             // suite reads its own markers.
-            let log = self
-                .docker(&["logs", "--tail", "2000", &app])
-                .map(|(_, out)| out)
-                .unwrap_or_default();
+            let log = self.app_log(&app);
             sv_check::ai::logged(&markers, &log, &mut outcome);
 
             // C9.6.1: a second copy of the app with the kill switch on, beside the first, so the
@@ -1312,10 +1321,7 @@ impl DockerBackend {
 
         // Last of all, and only after everything the probes do: whether the app wrote any of it
         // down. Reading the log earlier would be reading it before the events happened.
-        let log = self
-            .docker(&["logs", "--tail", "2000", app])
-            .map(|(_, out)| out)
-            .unwrap_or_default();
+        let log = self.app_log(app);
         let logged = sv_check::logs::evaluate(&out.log_markers, &log);
         out.findings.extend(logged.findings);
         out.verified.extend(logged.verified);
@@ -1893,6 +1899,47 @@ fn first_line(text: &str) -> String {
         .find(|l| !l.is_empty())
         .unwrap_or("no detail")
         .to_owned()
+}
+
+/// The lines of `docker logs --timestamps`, each `2026-10-06T05:12:04.123456789Z text`, in the
+/// order of their times and without them. The times are all UTC, written the same way, so they
+/// sort as text; lines with the same time keep the order they came in. A line with no time (a note
+/// that output was cut) stays after the line before it.
+fn interleaved(text: &str) -> String {
+    let mut lines: Vec<(String, usize, &str)> = Vec::new();
+    let mut last = String::new();
+    for (n, line) in text.lines().enumerate() {
+        match line.split_once(' ') {
+            Some((time, rest)) if is_docker_time(time) => {
+                last = time.to_owned();
+                lines.push((last.clone(), n, rest));
+            }
+            _ => lines.push((last.clone(), n, line)),
+        }
+    }
+    lines.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    let mut out = lines
+        .into_iter()
+        .map(|(_, _, l)| l)
+        .collect::<Vec<_>>()
+        .join("\n");
+    if text.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
+/// `2026-10-06T05:12:04.123456789Z`: the form Docker stamps a log line with.
+fn is_docker_time(word: &str) -> bool {
+    let b = word.as_bytes();
+    b.len() >= 20
+        && b[4] == b'-'
+        && b[7] == b'-'
+        && b[10] == b'T'
+        && b[13] == b':'
+        && b[16] == b':'
+        && word.ends_with('Z')
+        && b[..4].iter().all(u8::is_ascii_digit)
 }
 
 #[cfg(test)]
@@ -4173,5 +4220,31 @@ mod at_once_tests {
         let answers = parse_at_once(&["once"; 2], &out, &mark);
         let second = answers[1].as_ref().expect("an answer");
         assert_eq!((second.status, second.body.as_str()), (409, "Sold out"));
+    }
+
+    #[test]
+    fn the_apps_two_streams_are_read_in_the_order_it_wrote_them() {
+        // Item 15 of the review of 1 to 4 October: the output and the errors were joined end to
+        // end, so an event written to one between two markers on the other fell outside the window.
+        // What `run_bounded` hands back: all of the output, then all of the errors.
+        let joined = "2026-10-06T05:00:00.000000001Z SV-MARK-start\n\
+                      2026-10-06T05:00:02.000000000Z SV-MARK-end\n\
+                      2026-10-06T05:00:01.500000000Z WARN login failed for user b\n";
+        let ordered = interleaved(joined);
+        assert_eq!(
+            ordered, "SV-MARK-start\nWARN login failed for user b\nSV-MARK-end\n",
+            "{ordered}"
+        );
+        // Lines at the same moment keep their order; a line without a time stays where it was.
+        assert_eq!(
+            interleaved("2026-10-06T05:00:00Z a\n2026-10-06T05:00:00Z b\n(output cut)\n"),
+            "a\nb\n(output cut)\n"
+        );
+        // Text that is not Docker's stamped form is left as it came.
+        assert_eq!(
+            interleaved("plain line\nanother\n"),
+            "plain line\nanother\n"
+        );
+        assert!(!is_docker_time("2026-10-06") && is_docker_time("2026-10-06T05:00:00.1Z"));
     }
 }

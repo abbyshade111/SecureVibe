@@ -100,12 +100,18 @@ pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
 /// never named or shown as written, at the cost of reviews telling lines in one file apart only by
 /// where they are.
 pub fn masked(line: &str) -> String {
+    masked_in("", line)
+}
+
+/// `masked`, for a line of the file at `relative` in the app, masked in the shapes the scan reads
+/// that file's values in (`secrets::redact_text_in`), so a line is masked as far as it is found.
+pub fn masked_in(relative: &str, line: &str) -> String {
     static RULES: std::sync::LazyLock<Option<crate::secrets::SecretRules>> =
         std::sync::LazyLock::new(|| {
             crate::secrets::SecretRules::load(&sv_frameworks::data::file("secret-rules.json")).ok()
         });
     match &*RULES {
-        Some(rules) => crate::secrets::redact_text(rules, line.trim()).0,
+        Some(rules) => crate::secrets::redact_text_in(rules, relative, line.trim()).0,
         None => String::new(),
     }
 }
@@ -245,7 +251,7 @@ impl<'a> Texts<'a> {
                 }
                 std::fs::read_to_string(app_dir.join(file))
                     .ok()
-                    .map(|t| t.lines().map(masked).collect())
+                    .map(|t| t.lines().map(|l| masked_in(file, l)).collect())
             })
             .as_deref()
     }
@@ -346,7 +352,8 @@ fn written_unmasked(app_dir: &Path, entry: &FindingReview) -> bool {
         return false;
     };
     text.lines().any(|l| {
-        named(&entry.rule, &entry.file, l.trim()) == entry.fingerprint && masked(l) != l.trim()
+        named(&entry.rule, &entry.file, l.trim()) == entry.fingerprint
+            && masked_in(&entry.file, l) != l.trim()
     })
 }
 
@@ -717,6 +724,41 @@ mod tests {
     }
 
     #[test]
+    fn a_fingerprint_in_a_configuration_file_says_nothing_past_an_ampersand() {
+        // Item 17 of the review of 1 to 4 October: a YAML value with `&` in it was found whole and
+        // masked only up to the `&`, so the rest of the credential went into the fingerprint.
+        let f = finding("secrets.credential-assignment", "config.yml", 2);
+        let app = |tag: &str, tail: &str| {
+            let dir =
+                std::env::temp_dir().join(format!("sv-review-yml-{tag}-{}", std::process::id()));
+            std::fs::remove_dir_all(&dir).ok();
+            std::fs::create_dir_all(&dir).unwrap();
+            let value = ["Xk7mQ92v", "&", tail].concat();
+            std::fs::write(
+                dir.join("config.yml"),
+                format!("db:\n  password: {value}\n"),
+            )
+            .unwrap();
+            dir
+        };
+        let (a, b) = (app("a", "LpR4sTz"), app("b", "ZZZZZZZ"));
+        // The setup: the scan finds the value there.
+        let text = std::fs::read_to_string(a.join("config.yml")).unwrap();
+        let rules =
+            crate::secrets::SecretRules::load(&sv_frameworks::data::file("secret-rules.json"))
+                .unwrap();
+        assert!(!crate::secrets::scan_text(&rules, "config.yml", &text).is_empty());
+        assert_eq!(
+            fingerprint(&a, &f),
+            fingerprint(&b, &f),
+            "the part after the `&` showed through the fingerprint"
+        );
+        for dir in [a, b] {
+            std::fs::remove_dir_all(dir).ok();
+        }
+    }
+
+    #[test]
     fn a_fingerprint_says_nothing_about_a_credential_the_report_does_not() {
         // Two keys alike in their first four characters and their length, which is what the report
         // shows, and different everywhere else: one fingerprint, so it cannot tell them apart, and
@@ -943,7 +985,12 @@ mod tests {
     const RESEAL: &str = "reseal";
 
     /// This computer's key in these tests, from the system's randomness.
-    fn key() -> crate::seal::Key {
+    /// This computer's key in the test, sealing for the app the test reads.
+    fn key() -> crate::seal::AppKey {
+        computer_key().for_app(&crate::seal::App::named_for_tests("app"))
+    }
+
+    fn computer_key() -> crate::seal::Key {
         static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
         KEY.get_or_init(|| crate::seal::Key::random().unwrap())
             .clone()
@@ -1159,7 +1206,9 @@ mod tests {
             ..good.clone()
         };
         // Sealed with another computer's key.
-        let other = crate::seal::Key::random().unwrap();
+        let other = crate::seal::Key::random()
+            .unwrap()
+            .for_app(&crate::seal::App::named_for_tests("app"));
         let elsewhere = sealed(&FindingReview {
             seal: None,
             ..good.clone()
@@ -1196,21 +1245,26 @@ mod tests {
             );
         }
 
-        // Where there is no key to check with, a sealed entry counts and says so; an unsealed one
-        // is still a proposal.
-        let no_key = super::apply(
-            Path::new("/no/app/folder"),
-            std::slice::from_ref(&elsewhere),
-            finding(),
-            today(),
-            &Checker::NoKey,
-            &|_, _| Looked::Ran,
-        );
-        assert!(no_key.findings.is_empty(), "{:?}", no_key.not_counted);
-        assert_eq!(
-            no_key.set_aside[0].sealed,
-            Sealed::Unchecked { key: other.id() }
-        );
+        // Where there is no key to check with, a sealed entry does not count either, and says
+        // what to do (item 8 of the review of 1 to 4 October); nor does one sealed for another
+        // app on this computer (item 11).
+        let shop = Checker::Key(computer_key().for_app(&crate::seal::App::named_for_tests("shop")));
+        for (checker, says) in [
+            (&Checker::NoKey, "run `sv review` once on this computer"),
+            (&shop, "another folder"),
+        ] {
+            let out = super::apply(
+                Path::new("/no/app/folder"),
+                std::slice::from_ref(&good),
+                finding(),
+                today(),
+                checker,
+                &|_, _| Looked::Ran,
+            );
+            assert_eq!(out.findings.len(), 1, "{says}");
+            assert!(out.set_aside.is_empty(), "{says}");
+            assert!(out.not_counted[0].contains(says), "{:?}", out.not_counted);
+        }
         let no_key = super::apply(
             Path::new("/no/app/folder"),
             &[unsealed],

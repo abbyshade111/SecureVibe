@@ -250,6 +250,33 @@ fn minutes_text(n: u32) -> String {
     format!("{n} minute{}", if n == 1 { "" } else { "s" })
 }
 
+/// Whether the cookies set at sign-in are what carries the signed-in session: the private page asked
+/// with them left out and every other cookie kept. `Some(true)` when it was refused, `Some(false)`
+/// when it still opened (the session lives in a cookie from before sign-in), `None` when there is
+/// no page to ask, nothing was set at sign-in, a token may carry the session, or the answer was a
+/// crash or a limiter's, which says neither. Until 6 October 2026 this was assumed, which gave a
+/// made-up value of an unrelated cookie set at sign-in as "the session" (the review of 1 to 4
+/// October, item 13).
+pub(super) fn sign_in_cookies_carry_session(
+    http: &mut dyn Http,
+    a: &SignedIn,
+    confirm: Option<&str>,
+) -> Option<bool> {
+    let confirm = confirm?;
+    if a.set_at_login.is_empty() || a.session.bearer.is_some() {
+        return None;
+    }
+    let mut without = a.session.clone();
+    without
+        .cookies
+        .retain(|(name, _)| !a.set_at_login.iter().any(|c| c.name == *name));
+    let answer = http.send(&get("session-without-sign-in-cookies", confirm, &without))?;
+    if answer.status >= 500 || super::rate_limited(&answer).is_some() {
+        return None;
+    }
+    Some(!(200..300).contains(&answer.status))
+}
+
 /// Whether a session value this check invented is refused (V7.2.1).
 ///
 /// The cookies the app set at sign-in are the session; every other cookie it gave (an anti-forgery
@@ -265,6 +292,7 @@ pub(super) fn invented_session_check(
     http: &mut dyn Http,
     signed_in: &SignedIn,
     confirm: Option<&str>,
+    carried: Option<bool>,
     out: &mut Outcome,
 ) {
     let Some(confirm) = confirm else {
@@ -291,11 +319,15 @@ pub(super) fn invented_session_check(
     }
     let mut session = signed_in.session.clone();
     let mut altered = Vec::new();
+    // Whether a cookie was shorter than the made-up value's least length, for the evidence to say
+    // so rather than call every value "the same length" (item 16 of the review of 1 to 4 October).
+    let mut lengthened = false;
     for (name, value) in &mut session.cookies {
         if !signed_in.set_at_login.iter().any(|c| c.name == *name) {
             continue;
         }
         // The same length, so nothing is refused merely for being the wrong shape.
+        lengthened |= value.chars().count() < 16;
         let invented: String = "sv0probe0invented0session0value0"
             .chars()
             .cycle()
@@ -310,6 +342,11 @@ pub(super) fn invented_session_check(
         return;
     }
     let altered = altered.join(", ");
+    let same_length = if lengthened {
+        "of the same length (16 characters where the real one was shorter)"
+    } else {
+        "of the same length"
+    };
     let control = ok(&http.send(&get(
         "invented-session-control",
         confirm,
@@ -334,13 +371,28 @@ pub(super) fn invented_session_check(
          check invented in {altered} and every other cookie kept: {}",
         if opened { "opened" } else { "refused" }
     ));
-    if opened {
+    if opened && carried != Some(true) {
+        // The page opening with a made-up value says the app took it only when the cookies changed
+        // are what carries the session; without them it may never have looked at them.
+        say(
+            format!(
+                "Whether a made-up session value is refused: {confirm} opened with {altered} made \
+                 up, but nothing showed those cookies carry the session ({}), so that it opened \
+                 says nothing about whether the session is checked.",
+                match carried {
+                    Some(false) => "the page opened without them too",
+                    _ => "the page could not be asked without them",
+                }
+            ),
+            out,
+        );
+    } else if opened {
         out.findings.push(finding(
             &SESSION_TOKEN_UNVERIFIED,
             "A made-up session value opens a private page",
             Severity::High,
             format!(
-                "With {altered}, the cookies set at sign-in, given values of the same length that \
+                "With {altered}, the cookies set at sign-in, given values {same_length} that \
                  this check made up, and the app's other cookies as they were, {confirm} still \
                  opened."
             ),
@@ -350,7 +402,7 @@ pub(super) fn invented_session_check(
             SESSION_TOKEN_UNVERIFIED.rule_id,
             SESSION_TOKEN_UNVERIFIED.requirement_ids,
             format!(
-                "{altered}, set at sign-in, given made-up values of the same length with the app's \
+                "{altered}, set at sign-in, given made-up values {same_length} with the app's \
                  other cookies kept, refused {confirm}, where the real session had just opened it"
             ),
         ));
@@ -1019,7 +1071,12 @@ pub(super) fn session_id_check(
     }
 }
 
-pub(super) fn session_checks(a: &SignedIn, signed_in_works: bool, out: &mut Outcome) {
+pub(super) fn session_checks(
+    a: &SignedIn,
+    signed_in_works: bool,
+    carried: Option<bool>,
+    out: &mut Outcome,
+) {
     if a.session.bearer.is_some() && a.set_at_login.is_empty() {
         out.not_assessed.push((
             "V3.3.2, V3.3.4, V7.2.4".to_owned(),
@@ -1063,6 +1120,45 @@ pub(super) fn session_checks(a: &SignedIn, signed_in_works: bool, out: &mut Outc
             ));
         }
         return;
+    }
+
+    // What sign-in set is the session only when the page was refused without it. Opened without it,
+    // the signed-in session is a cookie from before sign-in, which is the fixation V7.2.4 asks
+    // about; not shown either way, nothing here is judged on the guess (the review of 1 to 4
+    // October, item 13).
+    match carried {
+        Some(true) => {}
+        Some(false) => {
+            let names: Vec<&str> = a.before_login.iter().map(|(n, _)| n.as_str()).collect();
+            out.findings.push(finding(
+                &SESSION_RENEWAL,
+                "Signing in does not issue a new session",
+                Severity::High,
+                format!(
+                    "With the cookies sign-in set left out, the cookies from before sign-in ({}) \
+                     still opened a signed-in page: the session from before sign-in is the \
+                     signed-in session.",
+                    names.join(", ")
+                ),
+            ));
+            out.not_assessed.push((
+                "V3.3.2, V3.3.4".to_owned(),
+                "The signed-in session is carried by a cookie from before sign-in, so the cookies \
+                 set at sign-in are not the session and their attributes say nothing about it."
+                    .to_owned(),
+            ));
+            return;
+        }
+        None => {
+            out.not_assessed.push((
+                "V3.3.2, V3.3.4, V7.2.4".to_owned(),
+                "Which cookie carries the session could not be shown: no private page could be \
+                 asked with the cookies set at sign-in left out, so nothing here is judged on a \
+                 guess."
+                    .to_owned(),
+            ));
+            return;
+        }
     }
 
     let mut problems = Vec::new();
@@ -1352,6 +1448,33 @@ mod tests {
         assert!(verified_ids(&correct).contains(&SESSION_TOKEN_UNVERIFIED.rule_id));
     }
 
+    #[test]
+    fn a_made_up_session_value_is_called_the_same_length_only_when_it_is() {
+        // Item 16 of the review of 1 to 4 October: a made-up value is at least 16 characters, and
+        // the evidence called it "the same length" when the real one was shorter.
+        let scope = |o: &Outcome| {
+            o.verified
+                .iter()
+                .find(|v| v.check_id == SESSION_TOKEN_UNVERIFIED.rule_id)
+                .map(|v| v.scope.clone())
+                .unwrap_or_else(|| panic!("credited: {:?}", verified_ids(o)))
+        };
+        let long = scope(&run_against(Flaws::default(), &users()));
+        assert!(long.contains("of the same length with"), "{long}");
+        assert!(!long.contains("16 characters"), "{long}");
+        let short = scope(&run_against(
+            Flaws {
+                short_session_ids: true,
+                ..Default::default()
+            },
+            &users(),
+        ));
+        assert!(
+            short.contains("16 characters where the real one was shorter"),
+            "{short}"
+        );
+    }
+
     /// A run against the scripted app with a cookie set on the sign-in page before the session
     /// cookie, and, when `needed`, an app that treats a request without it as signed out.
     fn run_with_pre_login_cookie(believes_any: bool, needed: bool) -> Outcome {
@@ -1460,6 +1583,49 @@ mod tests {
     }
 
     #[test]
+    fn a_made_up_value_that_opens_the_page_is_a_finding_only_where_those_cookies_carry_the_session()
+    {
+        // The review of 1 to 4 October, item 13: an app whose session is the cookie from before
+        // sign-in, which sets another cookie at sign-in, was found to take a made-up session.
+        for carried in [Some(false), None] {
+            let mut app = Scripted {
+                open: vec!["invented-session-control", "invented-session"],
+                sent: Vec::new(),
+            };
+            let mut out = Outcome::default();
+            invented_session_check(
+                &mut app,
+                &signed_in_with(None, &["sid"]),
+                Some("/account"),
+                carried,
+                &mut out,
+            );
+            assert!(rule_ids(&out).is_empty(), "{carried:?}: {out:#?}");
+            assert!(out.verified.is_empty(), "{carried:?}: {out:#?}");
+            assert!(
+                out.not_assessed
+                    .iter()
+                    .any(|(id, why)| id == "V7.2.1" && why.contains("carry the session")),
+                "{carried:?}: {out:#?}"
+            );
+        }
+        // Shown to carry it: the finding stands.
+        let mut app = Scripted {
+            open: vec!["invented-session-control", "invented-session"],
+            sent: Vec::new(),
+        };
+        let mut out = Outcome::default();
+        invented_session_check(
+            &mut app,
+            &signed_in_with(None, &["sid"]),
+            Some("/account"),
+            Some(true),
+            &mut out,
+        );
+        assert_eq!(rule_ids(&out), vec![SESSION_TOKEN_UNVERIFIED.rule_id]);
+    }
+
+    #[test]
     fn a_refusal_is_credited_only_after_the_real_session_opened_the_page() {
         // The control opens, the made-up session does not: credited, and the request differed
         // from the real one in `sid` alone.
@@ -1472,6 +1638,7 @@ mod tests {
             &mut app,
             &signed_in_with(None, &["sid"]),
             Some("/account"),
+            Some(true),
             &mut out,
         );
         assert!(
@@ -1503,6 +1670,7 @@ mod tests {
             &mut app,
             &signed_in_with(None, &["sid"]),
             Some("/account"),
+            Some(true),
             &mut out,
         );
         assert!(
@@ -1526,7 +1694,7 @@ mod tests {
                 sent: Vec::new(),
             };
             let mut out = Outcome::default();
-            invented_session_check(&mut app, &signed_in, Some("/account"), &mut out);
+            invented_session_check(&mut app, &signed_in, Some("/account"), Some(true), &mut out);
             assert!(app.sent.is_empty(), "{:?}", app.sent);
             assert!(
                 out.verified.is_empty() && out.findings.is_empty(),

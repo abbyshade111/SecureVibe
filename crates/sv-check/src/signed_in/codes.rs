@@ -343,6 +343,41 @@ pub(super) fn email_code_guessing(
     let right_still_works = flow.signs_in(http, &code, &mut session, "after-guesses", out);
     let status_changed = last.0 != first_status;
     let refused = matches!(last.0, 0 | 423 | 429);
+    // The second wrong code past the limit is read too, as in `brute_force_check` (the review of
+    // 6 October, item 13): answered differently only there, the app let one more through than stated.
+    let next = answers[allowed as usize + 1].0;
+    // Only from real answers, every one up to the limit the same: a crash or no answer anywhere in
+    // the run is not the app pushing back, and must not read as a status that changed.
+    let real = |status: u16| status != 0 && status < 500;
+    let alike = answers[..=allowed as usize]
+        .iter()
+        .all(|a| a.0 == first_status);
+    if !(status_changed || refused)
+        && alike
+        && real(first_status)
+        && real(next)
+        && next != first_status
+    {
+        out.steps.push(format!(
+            "sent {attempts} wrong emailed codes in a row; the app answered {first_status} to the \
+             first {}, and {next} only to the last",
+            allowed + 1
+        ));
+        out.findings.push(finding(
+            &EMAIL_CODE_GUESSING,
+            "One more wrong emailed code than stated is let through",
+            Severity::Medium,
+            format!(
+                "securevibe.toml says the app should allow {allowed} wrong codes in a row. Sent \
+                 {attempts} wrong codes in a row through {}, the app answered {first_status} to the \
+                 first {}, the one past the limit included, and pushed back ({next}) only at the \
+                 code after it.",
+                flow.entry.use_code.path,
+                allowed + 1
+            ),
+        ));
+        return;
+    }
     let times: Vec<u128> = answers.iter().map(|a| a.1).collect();
     let (within, past) = times.split_at(allowed as usize);
     let slowing = super::signin::slowing(within, past, &[]);
@@ -1079,6 +1114,25 @@ mod tests {
         app.users.insert(admin.user, (admin.password, true));
         let o = run(&mut app, &users(), &acc, true, &codes_policy(3));
         assert_eq!(code_findings(&o), vec![EMAIL_CODE_GUESSING.rule_id]);
+    }
+
+    #[test]
+    fn a_code_limit_one_late_is_said_to_be() {
+        // The fake app refuses after three wrong codes; securevibe.toml says two. The third wrong
+        // code, the first past the limit, is answered as the first was (the review of 6 October,
+        // item 13).
+        let o = run_with(Flaws::default(), &codes_policy(2));
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == EMAIL_CODE_GUESSING.rule_id)
+            .unwrap_or_else(|| panic!("{:?}\n{:?}", o.steps, o.verified));
+        assert!(
+            found.description.contains("only at the code after it"),
+            "{}",
+            found.description
+        );
+        assert!(!code_credits(&o).contains(&EMAIL_CODE_GUESSING.rule_id));
     }
 
     #[test]

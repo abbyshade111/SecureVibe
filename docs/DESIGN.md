@@ -7213,6 +7213,20 @@ The deep review of `sv` at `eff3f17` found that `sv probe` would ask any address
 How it is held: three tests in `crates/sv-check/src/production.rs` and two in `crates/sv-cli/tests/probe_addresses.rs`,
 which put a `curl` of the test's own on the path and read what it was asked. Seven guards undone in turn, each caught.
 
+**Later, 5 October 2026: the IPv6 forms that carry an IPv4 address.** The second weekly review of the decision records
+found that `not_public` judged an IPv6 address by the IPv4 one inside it only when written `::ffff:a.b.c.d` or
+`::a.b.c.d`, though ADR-027 and the function's own comment said every such address. A 6to4 address such as
+`[2002:a00:1::]` reaches 10.0.0.1 through a relay, and a NAT64 one such as `[64:ff9b::a9fe:a9fe]` reaches
+169.254.169.254, where cloud machines keep their credentials, through a translator; both were let through. Low in
+practice, since 6to4 relays are mostly gone and a translator should not pass a private address on, but the promise was
+wider than the code. Now 6to4, NAT64's well-known prefix, and Teredo (whose client address is stored with each bit
+inverted) are judged by the IPv4 address they carry; NAT64's prefix for a network's own translator (`64:ff9b:1::/48`)
+is refused outright, since where it puts the IPv4 address is that network's choice; and the documentation ranges and
+IPv6's old site-local range are refused. Each form with a public address inside it is still accepted. Eight guards
+undone in turn, each caught by the probe's address test: 6to4, NAT64, and Teredo not judged; Teredo's bits not
+inverted; a network's own translator let through; the IPv4 and the IPv6 documentation ranges let through; and the
+site-local range let through.
+
 ## Design-time prompts, tried (4 October 2026)
 
 The prompt library (`docs/PROMPTS.md`) asks the AI coding tool for something `sv` checks; these ask it to decide
@@ -10018,6 +10032,42 @@ cases that say so and controls that must not. Fifteen guards were undone in turn
 no weight and were taken out: a second check that every binding of a checked name has a value, which the first
 already made, and a check for a name with no bindings, which cannot happen.
 
+## A redirect to a parameter every caller fills with the app's own route says so (5 October 2026)
+
+The redirect half of family-hub's item 7 (BACKLOG, "What the owner hit building family-hub"), the last of A1.
+`ast.open-redirect` flagged `redirect(destination)` in `familyhub/signin.py`, where `destination` was a parameter
+that every caller filled with `url_for("home.index")`. The finding said "possible" and to read the code first; the
+AI tool offered to remove the parameter, "which ... clears the finding", and the owner agreed. The removal did no
+harm there, but it was working code changed to quiet a rule.
+
+As for a destination a function checked (the section above), the finding stays, at the rule's own low confidence,
+and says what it found, as the owner decided on 5 October 2026 for that case. When the destination is a bare name
+that is a parameter of the Python function the redirect sits in, and the function does not give it another value,
+`scan_listing` looks, once every file is read, at every use of that function's name across the app's Python. When
+every use is a call, its own definition, or an import, there is at least one call, and every call passes, by
+position or by name, or leaves to a default, a value the rule already counts as safe on its own (`url_for(...)`,
+`reverse(...)`, a path on this site), the finding says so: "The value here is `destination`, a parameter of
+`finish_sign_in`, and each of its 2 calls in this app's Python passes the app's own route or a path on this site
+(`views.py` line 5 and `views.py` line 8), so it may already be safe: check that nothing else calls
+`finish_sign_in`, such as code `sv` did not read or another function of the same name, before changing anything.
+Removing the parameter only to make this finding go away is not a fix."
+
+It says nothing more when a call passes anything else, the name is handed on to be called elsewhere (`HOOKS =
+[finish_sign_in]`), nobody calls the function (a Flask view, whose arguments come from the address), a call spreads
+its arguments (`*args`), or the parameter can only be passed by name and a call leaves it out. A method's `self` or
+`cls` is not counted among the arguments, since `auth.go(...)` does not pass it.
+
+What it does not know, and says: a call by another name, a call from code `sv` did not read, and a different
+function of the same name, whose calls are counted as this one's. Python only; JavaScript and TypeScript keep the
+plain finding.
+
+How it is held: `a_destination_every_caller_fills_with_the_apps_own_route_says_so` (`crates/sv-check/src/ast.rs`),
+with three cases that say so and seven that must not. Ten guards broken in turn, each caught: the callers never
+looked up, a reassigned parameter believed, a name handed on taken as called, an import taken as another use, a
+spread believed (caught only by a fixture added for it, a spread over a safe default), a keyword-only parameter
+taken by position, a method's `self` counted, a default ignored, a keyword argument not read, and any value taken
+as the app's own route.
+
 ## `.env` with nothing leaving it out, in a folder not yet in git (5 October 2026)
 
 In the loop pilot every build was flagged `config.gitignore-covers-env` (high) by `sv report` on a copy that
@@ -10359,7 +10409,6 @@ Items 10, 11, and 12 of that review, at the owner's word ("take the false passes
 Broken on purpose: items 11 and 12 five ways, each caught (the accented-name test, and the new git test, among
 others). Item 10's guard is caught only by the Docker test, so on CI; here the break was shown in the browser instead.
 
-
 ## A copy of another project's library is listed apart (6 October 2026)
 
 Semgrep follow-up 1 (BACKLOG, the false-alarm research of 4 October). Of the 555 false alarms measured over 25 apps,
@@ -10391,3 +10440,272 @@ named, in SARIF and the summary; and a finding only in the copy still keeping V1
 `the_ai_tool_reads_the_apps_own_findings_before_those_in_a_copied_library` in `mcp.rs`. Fifteen guards were undone in
 turn and each was caught; a sixteenth, skipping a version after the word "License" or "Version", carried no weight
 beside the three-part rule and was taken out.
+
+## What the suite credits is counted, and held to the findings-only lists (6 October 2026)
+
+Running-app checks item 1 left one thing undone (BACKLOG). `docs/COVERAGE.md` had counted 21 checks as able to credit
+their requirements when none ever did, found on 3 October by reading the code. Nothing would catch the next one,
+because a check gives credit through helpers and tables of rules as often as by name.
+
+- **Every credit is written down.** In a debug build, which is what the test suite runs, `Verified::new` adds one
+  line to the file `SV_CREDIT_LOG` names: the check, its requirements, and the place in the code that gave it
+  (`#[track_caller]`). A release build has none of this, so `sv` itself writes nothing new anywhere.
+- **The census reads it** (`python3 tools/coverage.py --credits LOG`). A credit made in a test, in a test module, or in
+  a file that is a test of its own is a test building its own evidence and is left out, by the same line
+  `coverage.py` already draws (everything before a file's first `#[cfg(test)]` ships). It fails when a check listed as
+  only ever a finding (`RUST_FINDINGS_ONLY`, or `findingsOnly` on a tree-sitter rule) was credited; when one never
+  credited is not listed, which means it is findings-only or no test reaches its credit; and when a credit names a
+  requirement the check does not cite.
+- **CI runs it** after the tests, in the same job (`.github/workflows/rust.yml`).
+
+The first census found three more:
+
+- `probe.password-hints` (V6.4.2) only ever raises a finding.
+- `secrets.credential-assignment` (V13.2.3) never credits under its own name. A clean scan is credited as
+  `secrets.scan`, which names the requirements of `data/secret-rules.json`, and V13.2.3 is not one of them.
+- `probe.cors-any-origin` (V3.4.2) does credit, but no test reached it.
+
+The first two are now listed, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md` mark them as "only ever as a finding".
+The third has its test (`an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not`). The census
+agrees with every tree-sitter rule's flag as it was. No report changes: the reports never credited any of these.
+
+How it is held: `a_credit_is_written_down_with_the_place_that_gave_it` (`crates/sv-check/tests/credit_log.rs`) holds
+the line, and in CI it also writes a credit for a findings-only check from a test into the suite's own log, which the
+census must leave out. `the_census_of_credits_counts_only_what_a_check_gave` (`coverage_doc.rs`) feeds the census small
+logs whose answer is known. Ten guards were undone in turn, and each was caught by one or both.
+
+## The rest of the review of 5 and 6 October (6 October 2026)
+
+Items 13, 14, 16, and 17, at the owner's word ("take the remaining review items next"). With these, every item that
+review found is done.
+
+- **Both answers past the limit (item 13).** The password- and code-guessing checks send two attempts past the number
+  stated and read the status of only the first. An app that answered that one as it answered the first of all, and
+  pushed back only at the next, was said to have "answered the same every time", which was untrue. The second is read
+  now: pushed back only there, the app let one more through than was stated, and the finding says so, at medium.
+- **Whole names (item 14).** The preflight found `SV_ADMIN` inside `SV_ADMIN_PASSWORD`, so a seed that read only the
+  admin's password and made up the admin's name was said to read the accounts. A variable is now found only as a whole
+  name.
+- **Plain SARIF words (item 16).** Three texts in `findings.sarif` ended a line with `\\` where `\` was meant, which
+  left a backslash and a run of spaces in what GitHub shows.
+- **The seal of what was written, and env between dots (item 17).** A report seal was made from the files read back
+  after writing, so a file changed in that moment would have been sealed as `sv`'s. It is made from the bytes `sv`
+  wrote, and the next read finds any change. A bundle now leaves out `prod.env.local` and the like, `env` between dots,
+  unless a part of the name says it shows the form (`example`, `sample`, `template`, `dist`) or it ends in code.
+
+Broken on purpose ten ways, each caught. The first run missed two, the SARIF fallback words and the seal itself, which
+no test reached; each now has a test of its own.
+
+## The review of 1 to 4 October, batch 1: six false credits and accusations (6 October 2026)
+
+The review of the code merged on 1 to 4 October found 24 faults (BACKLOG, "A review of the code merged on 1 to 4
+October 2026"). At the owner's word they are fixed in batches, the worst first. This batch is the six where `sv` credited
+something it had not seen, or accused a correct app.
+
+- **A slow first answer is not a certificate problem (item 1).** `sv probe` asks HTTPS with verification on and, when
+  that fails, once more without, to tell an untrusted certificate from a host that is not there. Any failure followed
+  by an answer was called an untrusted certificate, a high finding. A host waking from sleep misses the 15-second limit
+  once and answers the retry. A failure is now a certificate problem only when curl says so (its message names the
+  certificate); otherwise the certificate, the stapled status, and the headers are not assessed, and the probe says to
+  run it again. Where it is a certificate problem, the stapled status and headers are now said not to have been read.
+- **Plain HTTP asked on its own port, and credited only for a refusal (item 2).** The plain request kept the port the
+  HTTPS address named, so `https://host:443/` had its "plain HTTP" asked of the TLS port; and any curl failure, a
+  timeout or an empty reply among them, was credited as "no plain-HTTP way in". It is now asked on port 80, held to the
+  checked address there too, and credited only for a refused connection; any other failure is not assessed.
+- **No proxy (item 3).** curl read this computer's proxy settings, and a proxy looks the name up itself, so the request
+  was not held to the address that was checked (ADR-027's pin). Shown here: with `HTTPS_PROXY` set, curl with the probe's
+  flags connected to the proxy; with `--noproxy '*'`, to the pinned address. curl is now always told to use no proxy.
+- **The app's own MCP server: a refusal must be one (item 4).** A rate limiter's 429 counted as the server refusing,
+  for five checks; it is now no answer, as ADR-021 reads it. Origin and Host (C10.3.3) are credited only when both
+  foreign requests were really refused and an ordinary request sent just after still starts a session, so a server
+  that refuses every second session is not credited for checking where requests come from. An ended session (C10.2.6) is
+  credited only for a real refusal, not a crash.
+- **An upload fetched back must be the upload (item 12).** The three checks that fetch an uploaded file back judged
+  whatever the address answered, so an app that keeps uploads under names of its own and answers every address with its
+  page was credited for not running the `.php`, and found to render the `.html` and keep the SVG's script (the page's
+  own `<script>`). Each now judges only an answer that carries the file's own mark; the SVG carries a second mark on
+  its drawing, which a cleaner that removes the script keeps.
+- **The cookie set at sign-in is the session only when the page needs it (item 13).** The checks took the cookies set at
+  sign-in to be the session. An app that keeps its session from before sign-in and sets an unrelated cookie at sign-in
+  was found to accept a made-up session (that cookie, altered) and credited for issuing a new session at sign-in. One
+  request now asks the private page with the cookies sign-in set left out: refused, they are the session and the checks
+  stand; opened, the session from before sign-in is the signed-in one, which is the renewal finding, and the cookie
+  checks are not assessed; not answered, nothing is judged on the guess.
+
+Broken on purpose twelve ways, each caught by a test written for it; two of the first run did not count (one would not
+compile, one had moved when the file was formatted) and were run again. Not tested against a real site or app.
+
+## The review of 1 to 4 October, batch 2: seals (6 October 2026)
+
+Items 8 and 11 of the review of the code merged on 1 to 4 October (BACKLOG) touched a decision the owner made
+(ADR-026), so the owner settled them before they were built. ADR-026 has a "Later, 6 October 2026" entry.
+
+- **No key, no credit (item 8).** On a computer where `sv review` had never run (CI, a container without the key, a
+  teammate's computer), any seal of the right form counted as the owner's, and the report said it was "recorded through
+  `sv review` on another computer". Such a computer cannot tell the owner's seal from one the AI coding tool wrote, so
+  that claimed more than was known. Now the entry is a proposal there. The report says it carries a seal this computer
+  cannot check, and what to do: run `sv review` once on this computer, or read the report on the computer that sealed
+  it. `Sealed::Unchecked` is gone, and with it the "on another computer" wording in the reports.
+- **A seal names its app (item 11).** A sealed answer copied from one app's `securevibe.toml` or `security-notes.md`
+  into another app's on the same computer counted there. A seal is now `v2:<key id>:<app id>:<mac>`:
+  - The app id is 16 hex characters of a SHA-256 of the app's folder, with every link followed, so the same folder
+    reached another way is the same app.
+  - The MAC covers the app id, so writing another app's id into a seal breaks it.
+  - A seal for another folder does not count, and the report says it was sealed for an app in another folder and to
+    run `sv review` there.
+  - It is the folder, not the name in `[app]`, because the AI coding tool can change the name to match.
+- **Seals made before this** (`v1:`) do not count, and the report says to run `sv review` once in the app. `sv review`
+  asks about every entry whose seal does not hold, so that one run seals them again. An app moved to another folder is
+  sealed again the same way.
+
+What it costs: an owner whose report is written on CI sees their recorded answers as proposals there unless the key is
+given to it, as the README already says to do for the container. That is the owner's decision. Report seals
+(ADR-034) are unchanged and still `v1:`.
+Broken on purpose nine ways, each caught by a test written for it: a seal counted with no key, the app's id left
+unchecked or out of the MAC, an old seal read as malformed, the folder not resolved, the app id not read as hex, the
+report or `sv review` given the wrong folder, and a folder that cannot be found taken for no key. One of the first runs
+did not compile and was run again. Not tried on CI with a real owner's key.
+
+## The review of 1 to 4 October, batch 3: the fetch and AI checks wait for and read the answer (6 October 2026)
+
+Items 5, 6, and 7 of the review of the code merged on 1 to 4 October (BACKLOG). Each check credited, or found, on an
+answer it had not waited for or had not read.
+
+- **A redirect not followed yet is not a redirect refused (item 5, V15.3.2).** `sv` asked the test server whether the
+  app had gone on from the redirecting address the moment the app answered. An app that answers first and fetches
+  afterwards, or whose fetch was still on its way, was credited for not following redirects. Now a redirect not followed
+  is asked about again three times, three seconds apart, before it counts as not followed. The credit also needs an
+  answer of the app's own: no answer, a crash (5xx), or a limiter (429, or 503 with `Retry-After`) says nothing about
+  whether the app chose not to follow, and is not assessed.
+- **A loop that ended on an error is not a limit (item 6, C9.1.2).** The agent limit was credited for any 2xx answer
+  with fewer than 40 tool rounds. That included an app that caught its own error part-way through the loop and answered
+  200 "Sorry, something went wrong". It also included an app that answered at once and ran the loop afterwards, read
+  part-way through. Now the rounds are read again, three seconds apart, until two reads agree; if they are still growing
+  after fifteen seconds, it is not assessed. An answer whose words say something went wrong ("went wrong", "error",
+  "exception", "failed", "failure", "timed out", "timeout", "traceback") is not taken for a limit either, and the
+  report quotes the word. A careful app whose ordinary answer happens to contain one of these words loses the credit
+  too: a lower bar would let the error through.
+- **A busy service is not a broken one (item 7, V16.5.2).** After the AI service fails on one message, a plain
+  message follows. A bare 429 on it was excused, but a 503 with `Retry-After`, which ADR-021 reads as a limiter's too,
+  was a Medium finding. Now either is waited out (the `Retry-After`, at most 60 seconds) and the message sent once
+  more; a limiter's answer again is not assessed, never a finding.
+
+Broken on purpose ten ways, each caught by a test written for it; the re-reads are on a fake clock in the tests, so
+no test waits for real. Not run against a real app here: the Docker tests that drive these checks run on CI.
+
+## The code-reading rules and lockfiles: five faults from the review of 1 to 4 October (6 October 2026)
+
+Items 18, 20, 21, 22, and 23 of the review (BACKLOG). Each was confirmed with a case that failed before the fix.
+
+- **The SQL rule read too few query calls** (item 18, `data/ast-rules.json`). A query built by hand and sent through
+  a call the rule did not read went unfound, and the clean result credited V1.2.4. Now read as well:
+  - Go's `QueryRowContext`, `Prepare`, and `PrepareContext`; the `Context` forms take the query second, as before.
+  - Kotlin's `prepareStatement` and `prepareCall`, with `executeLargeUpdate` and `addBatch`, as Java's are.
+  - C#'s `CommandText` set to a built string and then executed, as `cmd.CommandText = … + n` and inside
+    `new SqlCommand { CommandText = … }`. An assignment to any other property (`l.Text = "Hello " + n`) is not read.
+  The clean result names the calls it reads, so it now names these too.
+- **Lockfile disagreements for dependencies the readers never list** (item 20, `manifest_lock.rs`). A dependency from
+  a workspace (`workspace:*`), a folder (`file:`, `link:`, `./lib`), a repository (`git+…`, `github:…`, `user/repo`),
+  an archive's address, or the registry under another name (`npm:other@1.2.3`) is listed by what it is, if at all, so
+  its absence under its own name was a false "the lockfile does not have it". So was `pkg @ git+…` in
+  requirements.txt. Each is now not compared when missing. A registry package missing from the lockfile still
+  disagrees.
+- **A panic on a build file** (item 21, `gradle_range`). `implementation 'g:a:['` sliced `[1..0]`, and a range ending
+  in a letter outside ASCII would have sliced inside it. The brackets are now taken off as characters, and a range
+  must end with one: `[`, `(`, `[1.0,2é`, and `[1.0,2.0` read as no range. Maven's `]1.0,2.0[` still reads.
+- **`shell: true` on a fixed argument list** (item 22, `ast.rs`). `run(["ls", "-la"], shell=True)` and
+  `spawn("ls", ["-la"], { shell: true })` were reported, since the check for a fixed list knew Dart's, Swift's, and
+  Rust's names for a list and not Python's (`list`, `tuple`) or JavaScript's (`array`). A list holding a value
+  (`["ls", folder]`) is still found.
+- **`go.mod` was compared with itself** (item 23, `sbom.rs`). Since A3 the list of Go modules comes from go.mod's own
+  `require` lines, and the comparison was given that list, so it could never disagree. It is now given what go.sum
+  holds, while the list stays what go.mod says is built: a module go.mod requires at a version go.sum does not hold
+  disagrees.
+
+How it is held: cases added to `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one` (items 18 and 22) and
+`gradle_versions_are_read_as_gradle_resolves_them` (item 21), and two new tests,
+`a_dependency_from_somewhere_other_than_the_registry_is_not_said_to_disagree` and
+`go_mod_is_compared_with_go_sum_and_not_with_itself`, each with its control. Twelve guards were undone in turn, and
+each was caught.
+
+## A log line of plain traffic is not a record of a sign-in (6 October 2026)
+
+Item 14 of the review of 1 to 4 October (BACKLOG); items 5, 6, and 7, claimed with it, were built by session
+securevibe-e2 the same day (the section above). Before a line between the markers was read for a sign-in event, only
+`login.path` exactly as securevibe.toml writes it was taken out (`logs.rs`). `POST /login/ 200`, `/Login`, a query, a
+full address, or a prefix the app is mounted under left the word "login" in, and the request read as a record of the
+sign-in, which could credit V16.3.1. Now every path and address is taken out of the line first (`without_paths`),
+since a path says where a request went, never that it happened. Seven ways of writing the path, in plain and JSON
+lines, credit nothing, and the same lines with an event of the app's own beside them are credited
+(`an_access_log_writing_the_sign_in_path_another_way_is_not_a_record_either`). Undone, the guard is caught by that
+test.
+
+## The review of 1 to 4 October: a redirect read whichever way it goes (6 October 2026)
+
+Item 19 of the review of the code merged on 1 to 4 October (BACKLOG), V3.7.2. The open-redirect rule's safe patterns
+read how a destination starts, so `redirect("/home" if not nxt else nxt)` started like a path on the same site and was
+taken for one, and the requirement was credited.
+
+- **A choice is safe only when every value it can give is.** `a if c else b`, `c ? a : b`, `a or b`, `a and b`,
+  `a || b`, `a && b`, and `a ?? b`, in brackets or not, are read value by value; each must match the safe pattern or be
+  written out. `'/home' && next` gives the right-hand value, so the `and` forms count as choices too. Anything that is
+  not a choice is read as before.
+- **A `%` straight after the leading slash must be an escape** (`%2F`), not a slot that formatting fills in, so
+  `"/%s" % nxt` is not taken for a path on the same site either.
+
+Broken on purpose eight ways, each caught by a test written for it: the branches ignored, one branch of each kind of
+choice dropped (Python's, the ternary, `or`, `and`, `??`), brackets not looked into, and the `%` let through. The
+first run found the `or` and `??` branches carried no weight, because every example began with the variable; examples
+that begin with a path on the same site now hold them, and a bracketed choice of two paths holds the bracket.
+
+Items 18, 21, and 22 were built in this branch too, by mistake, after session securevibe-e9 had claimed and built
+them; see the BACKLOG note. Its fixes are the ones in `main`.
+
+## The review of 1 to 4 October, the last batch: items 9, 10, 15, 16, 17, and 24 (6 October 2026)
+
+The last of the review of the code merged on 1 to 4 October (BACKLOG). None of these credited or accused an app; each
+let something through that should not have, or kept something from working.
+
+- **A report from the future does not hold its folder for good (item 9).** `sv report` keeps a report in the folder
+  when it came from a run that started after this one, so a slow run does not replace a newer report. It believed the
+  start time written in `report.json`, so a report saying its run started in 2099 kept every later run from writing
+  there. A start more than a minute ahead of this computer's clock is no longer believed: no run started then. A report
+  from a run that started a little after this one is still kept. The time is still not checked against the report's
+  seal, because the reports written before seals, and on other computers, carry none.
+- **A line added inside a sealed notes section breaks its seal (item 10).** The lines that say who wrote a section
+  (`Written by: owner`), its seal (`Sealed by sv review: …`), and the tool's own byline were left out of what is sealed
+  wherever they stood. So the AI coding tool could add a line beginning with one of them anywhere in a section the owner
+  sealed, and the seal still held. Now each is left out only when it can carry nothing else:
+  - a `Written by:` line naming one of the two writers;
+  - a seal line holding a well-formed seal and nothing more;
+  - a byline only above the answer, before its first line.
+  
+  Anything else is part of the answer, sealed and shown with it. A line that only begins like a seal is never taken
+  for the seal, and is kept when the section is sealed again.
+- **The app's output and errors are read in the order it wrote them (item 15).** `docker logs` gives the two apart, and
+  they were read one after the other, so a window between two markers on one held nothing written to the other in
+  between. Docker now stamps each line with its time, and the lines are put back in that order. The miss could only
+  hide a logged event, never credit one.
+- **Two sentences of evidence say what was done (item 16).** The open-redirect evidence said "with `next` set" when
+  `next` and eight other return parameters were. The made-up-session evidence said "of the same length" when a cookie
+  shorter than 16 characters was given a 16-character value; it now says so.
+- **A value is masked as far as the scan finds it (item 17).** The scan reads a file's values in that file's own
+  shapes: YAML's `password: v&w`, `.properties`' `secret=v,w`, a Dockerfile's `ENV TOKEN v`, a shell script's
+  `export TOKEN=v`. The masking did not know which file a line came from, so it stopped at the `&` or `,`, or masked
+  nothing, and the fingerprint hashed the rest (deep review R4). Masking now gets the file's name, and masks exactly
+  what the scan found there.
+- **The smaller ones (item 24):**
+  - A tool's error note in its own report (a file it could not read, quoting the line) is redacted, as everything
+    else a tool says is.
+  - A JavaScript parameter written without brackets (`sql => db.query(sql)`), or unpacked from an object or list
+    (`({ sql }) => …`), is a parameter. Before, a constant of the same name made it look fixed.
+  - A requirement with two sections in the notes is asked about once in `sv review`, by its first section.
+  - Ctrl-C removes a report folder's lock only when it is still the file this run locked. Where the disk cannot
+    lock, it may be another run's.
+  - A report write through the MCP server that fails takes away the folders it made, so `out: "a/b/c"` leaves no
+    `a/b`.
+
+Broken on purpose nineteen ways, each caught by a test written for it. The first run found two breaks no test caught:
+a seal taken from any line that begins like one, and a tool note that names no file. Each now has its own test. Two
+other breaks were badly written and were run again. Item 15's ordering is tested on Docker's stamped output; the
+`--timestamps` request itself runs only on CI, where Docker is.
