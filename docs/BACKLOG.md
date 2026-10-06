@@ -3380,6 +3380,10 @@ another session is not a claim.
      `create` and `shows` under [stack.run.oidc] let the probes save a mark as the first person and see whose
      account each sign-in reaches. Not done: the static companion (a user lookup keyed on the email claim in
      the sign-in callback).
+     **The static companion claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Go ahead and
+     choose a backlog item when ready"), in branch `claude/securevibe-e2-oidc-email-lookup`: a findings-only code rule
+     for an account looked up by the email address the sign-in provider sent, written in the call or through a name
+     given it once. Read on `main` just before this claim: no other session had claimed it.
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
