@@ -1481,6 +1481,24 @@ fn collect_bindings<'a>(
             names_under(child, found);
         }
     }
+    // Every name a destructuring pattern binds: `{ a, b: c }` binds `a` and `c`, `[d, ...e]` binds
+    // `d` and `e`. A key renamed (`b`) is a property's name, not a binding, and is left out.
+    fn pattern_names<'a>(node: tree_sitter::Node<'a>, found: &mut Vec<tree_sitter::Node<'a>>) {
+        match node.kind() {
+            "identifier" | "shorthand_property_identifier_pattern" => found.push(node),
+            "pair_pattern" => {
+                if let Some(value) = node.child_by_field_name("value") {
+                    pattern_names(value, found);
+                }
+            }
+            _ => {
+                let mut cursor = node.walk();
+                for child in node.named_children(&mut cursor) {
+                    pattern_names(child, found);
+                }
+            }
+        }
+    }
     let field = |name: &str| node.child_by_field_name(name);
     match node.kind() {
         // Python `x = v`, JavaScript `x = v`.
@@ -1546,10 +1564,39 @@ fn collect_bindings<'a>(
                 }
             }
         }
+        // A JavaScript arrow function's one parameter written without brackets, `x => …`, which its
+        // grammar keeps outside any parameter list (item 24 of the review of 1 to 4 October).
+        "arrow_function" => {
+            if let Some(param) = field("parameter")
+                && param.kind() == "identifier"
+            {
+                add(param, None, false);
+            }
+        }
         // Parameters, in every function and lambda: their names only, never what their defaults name.
         "parameters" | "formal_parameters" | "lambda_parameters" | "parameter_list" => {
             let mut cursor = node.walk();
             for param in node.named_children(&mut cursor) {
+                // A destructured parameter binds every name in its pattern (item 24 of the review
+                // of 1 to 4 October): `({ query }) => …` and `([first, rest]) => …`.
+                let pattern = match param.kind() {
+                    "object_pattern" | "array_pattern" => Some(param),
+                    "required_parameter" | "optional_parameter" => param
+                        .child_by_field_name("pattern")
+                        .filter(|p| p.kind() != "identifier"),
+                    "assignment_pattern" => param
+                        .child_by_field_name("left")
+                        .filter(|p| p.kind() != "identifier"),
+                    _ => None,
+                };
+                if let Some(pattern) = pattern {
+                    let mut names = Vec::new();
+                    pattern_names(pattern, &mut names);
+                    for name in names {
+                        add(name, None, false);
+                    }
+                    continue;
+                }
                 let name = match param.kind() {
                     "identifier" => Some(param),
                     "default_parameter" | "typed_default_parameter" => {
@@ -5005,6 +5052,16 @@ mod tests {
         ("ast.sql-built-by-hand", "python", "SORT_ORDERS = {\"newest\": \"SELECT 1\"}\ndef f(db, key, request):\n    db.execute(SORT_ORDERS.get(key, request.args[\"sql\"]))\n", true),
         ("ast.sql-built-by-hand", "javascript", "const LIST = 'SELECT * FROM notes WHERE user_id = ?';\nfunction f(db, uid) { return db.query(LIST, [uid]); }", false),
         ("ast.sql-built-by-hand", "javascript", "let sql = 'SELECT 1';\nfunction f(db, x) { sql = sql + x; return db.query(sql); }", true),
+        // Item 24 of the review of 1 to 4 October: a parameter written without brackets, or
+        // unpacked from an object or a list, was not counted as a parameter, so a constant of the
+        // same name made it look fixed.
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nconst f = sql => db.query(sql);", true),
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nconst f = ({ sql }) => db.query(sql);", true),
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nconst f = ({ q: sql }) => db.query(sql);", true),
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nfunction f([sql]) { return db.query(sql); }", true),
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nfunction f({ sql } = {}) { return db.query(sql); }", true),
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nconst f = () => db.query(sql);", false),
+        ("ast.sql-built-by-hand", "javascript", "const sql = 'SELECT 1';\nconst f = ({ q: other }) => db.query(sql);", false),
         ("ast.sql-built-by-hand", "go", "package main\nconst q = \"SELECT * FROM notes WHERE user_id = $1\"\nfunc f(ctx context.Context, db *sql.DB, uid int) { db.QueryContext(ctx, q, uid) }", false),
         ("ast.sql-built-by-hand", "go", "package main\nfunc f(ctx context.Context, db *sql.DB, name string) { db.QueryContext(ctx, \"SELECT * FROM t WHERE n = '\"+name+\"'\") }", true),
         ("ast.sql-built-by-hand", "go", "package main\nfunc f(db *sql.DB) { db.Query(\"SELECT 1\") }", false),
