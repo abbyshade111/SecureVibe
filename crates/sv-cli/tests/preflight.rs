@@ -56,6 +56,22 @@ fn the_example_built_to_be_signed_in_to_has_nothing_to_look_at_and_is_left_as_it
             "{topic}: {text}"
         );
     }
+    // What the run will test, counted apart: its headers and cookie are in the code, and no limit
+    // on wrong passwords is, which is so (the example has none).
+    let (_, tests) = text
+        .split_once("## What `sv run` will test")
+        .expect("the section of what the run will test");
+    assert!(
+        tests.contains("\n1 to look at, 0 could not tell, 2 looks right."),
+        "{tests}"
+    );
+    for line in [
+        "**look at this** (sign-in-limit)",
+        "**looks right** (headers)",
+        "**looks right** (cookie)",
+    ] {
+        assert!(tests.contains(line), "{line}: {tests}");
+    }
     assert_eq!(
         snapshot(&dir),
         before,
@@ -71,6 +87,8 @@ fn an_app_started_on_loopback_is_said_before_it_is_run() {
     assert!(out.status.success(), "{text}");
     assert!(text.contains("**look at this** (listen)"), "{text}");
     assert!(text.contains("\n1 to look at,"), "{text}");
+    // It sends none of the four headers, and the preflight says so apart from what stops the run.
+    assert!(text.contains("**look at this** (headers)"), "{text}");
 }
 
 #[test]

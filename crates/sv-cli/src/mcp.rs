@@ -101,8 +101,8 @@ const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP ASVS 5.0, AIS
     with a topic before work in that area (adding a package, a CI workflow, anything with keys), \
     and follow the rules it gives while you code. Once the code is written, call \
     securevibe_preflight: it reads the code against what securevibe.toml tells `sv run`, without \
-    running anything, and says what would stop `sv run` starting the app or signing in; fix those \
-    before securevibe_check. Call securevibe_check after each feature is built, fix what it says \
+    running anything, and says what would stop `sv run` starting the app or signing in, and what \
+    the run will test that the code does not seem to have yet; fix those before securevibe_check. Call securevibe_check after each feature is built, fix what it says \
     needs attention, and call it again to see the fix took, before you say the work is done; one \
     check at the very end is too late to fix much. securevibe_check never says a requirement \
     passed: read what it says was not \
@@ -1757,10 +1757,11 @@ fn output_schema(tool: &str) -> Option<Value> {
                     "items": object(
                         json!({
                             "topic": string,
+                            "for": { "type": "string", "enum": ["needed", "tested"] },
                             "answer": { "type": "string", "enum": ["look-at-this", "could-not-tell", "looks-right"] },
                             "says": string,
                         }),
-                        &["topic", "answer", "says"],
+                        &["topic", "for", "answer", "says"],
                     ),
                 },
                 "notRead": strings,
@@ -2078,7 +2079,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_preflight",
             "title": "Will `sv run` be able to test it?",
-            "description": "Once there is code: reads the app's files against what securevibe.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
+            "description": "Once there is code: reads the app's files against what securevibe.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. It also says what the run will test that the code already hints at: a limit on wrong passwords, the security headers, the session cookie's SameSite, and an AI feature's screening, limit, and off switch. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
             "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },

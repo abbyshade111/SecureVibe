@@ -8,6 +8,10 @@
 //! they are looked for in the text of the app's files, so the AI tool that wrote them can fix them in
 //! the same conversation, and the MCP server still never starts the app.
 //!
+//! It also hints at some of what `sv run` will test (a limit on wrong passwords, the security
+//! headers, the session cookie's SameSite, an AI feature's screening, limit, and off switch), which the
+//! code often shows before anything runs (`tested`).
+//!
 //! Every answer is a reading of text, and says so: "looks right" means the thing was found, not
 //! that it works. Nothing here is evidence for any requirement, and nothing is credited.
 
@@ -20,11 +24,11 @@ use sv_scan::files::Listing;
 /// What one look found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Answer {
-    /// Something `sv run` needs appears to be missing or wrong.
+    /// Something `sv run` needs, or will test for, appears to be missing or wrong.
     Look,
     /// The text could not settle it either way.
     Unknown,
-    /// What `sv run` needs was found in the text. Not that it works.
+    /// What `sv run` needs, or will test for, was found in the text. Not that it works.
     Looks,
 }
 
@@ -56,13 +60,29 @@ pub enum Part {
 /// One thing `sv run` needs, and what was found about it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Item {
-    /// What was looked at: `start`, `listen`, `port`, `seed`, `accounts`, `tables`, `path`, `field`, `users`.
+    /// What was looked at: `start`, `listen`, `port`, `seed`, `accounts`, `tables`, `path`, `field`,
+    /// `users` for what `sv run` needs; `TESTED` for what it will test.
     pub topic: &'static str,
     pub answer: Answer,
     pub says: Vec<Part>,
 }
 
+/// The topics that are what `sv run` will test, not what it needs to run.
+const TESTED: &[&str] = &[
+    "headers",
+    "sign-in-limit",
+    "cookie",
+    "ai-screening",
+    "ai-limit",
+    "kill-switch",
+];
+
 impl Item {
+    /// Whether this is something `sv run` will test, rather than something it needs to run.
+    pub fn tested(&self) -> bool {
+        TESTED.contains(&self.topic)
+    }
+
     fn new(topic: &'static str, answer: Answer, says: Vec<Part>) -> Item {
         Item {
             topic,
@@ -136,6 +156,18 @@ impl Source {
             .map(|(name, _)| name.as_str())
     }
 
+    /// The first file, lockfiles left out, whose squashed text holds one of `words` (`squash`).
+    fn find_word(&self, words: &[&str]) -> Option<&str> {
+        self.files
+            .iter()
+            .filter(|(name, _)| !lockfile(name))
+            .find(|(_, text)| {
+                let text = squash(text);
+                words.iter().any(|word| text.contains(word))
+            })
+            .map(|(name, _)| name.as_str())
+    }
+
     fn text_of(&self, relative: &str) -> Option<&str> {
         self.files
             .iter()
@@ -189,8 +221,16 @@ fn files_in_command(command: &str, source: &Source) -> (Vec<String>, Vec<String>
     (found, missing)
 }
 
-/// Looks for each thing `sv run` will need, in `source`, as `manifest` asks for it.
+/// Looks for each thing `sv run` will need, and for what it will test that the code already shows,
+/// in `source`, as `manifest` asks for it.
 pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
+    let mut items = needs(manifest, source);
+    items.extend(tested(manifest, source));
+    sorted(items)
+}
+
+/// What `sv run` needs from the app to start it and sign in.
+fn needs(manifest: &Manifest, source: &Source) -> Vec<Item> {
     let run = &manifest.stack.run;
     let mut items = Vec::new();
     let set = |value: &Option<String>| {
@@ -314,7 +354,7 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
             Answer::Unknown,
             vec![sv("There is no [stack.run.users], so nothing about signing in was looked for, and `sv run` will report what a signed-in user can reach as not assessed.")],
         ));
-        return sorted(items);
+        return items;
     };
 
     // The seed: its file, the accounts it is given, and where the tables are made.
@@ -462,7 +502,277 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
         says.push(sv(" appear in no file. `sv` sends exactly the fields the settings list, so a field the app names differently is a sign-in that fails."));
         items.push(Item::new("field", Answer::Look, says));
     }
-    sorted(items)
+    items
+}
+
+/// What `sv run` will test that is often visible in the code before anything runs: a limit on wrong
+/// passwords, the security headers, the session cookie's SameSite, and an AI feature's screening, limit,
+/// and off switch. The loop trials' builders fixed nearly everything the check named in their code and
+/// left their running apps with as many problems as every other arm's, because only the run looks for
+/// these (BACKLOG, "Tell the builder, before it is done, what the code already shows about the running
+/// app"). A word found is a hint that the thing is there, never that it works, and a word missing
+/// is a hint it is not: the run is the evidence, and nothing here is credited.
+fn tested(manifest: &Manifest, source: &Source) -> Vec<Item> {
+    let run = &manifest.stack.run;
+    let mut items = Vec::new();
+
+    // The four headers `sv run` reads on the health path and the root page (`missing_headers` in
+    // `sv-check/src/probes.rs`): each named by itself, or set by a library that sends it.
+    const EVERY_HEADER: &[&str] = &["helmet", "talisman", "secureheaders"];
+    const SPRING: &[&str] = &["springbootstartersecurity", "enablewebsecurity"];
+    let headers: [(&str, Vec<&str>); 4] = [
+        (
+            "Content-Security-Policy",
+            [
+                &["contentsecuritypolicy", "cspdefaultsrc"][..],
+                EVERY_HEADER,
+            ]
+            .concat(),
+        ),
+        (
+            "X-Content-Type-Options",
+            [
+                &["xcontenttypeoptions", "nosniff", "securitymiddleware"][..],
+                EVERY_HEADER,
+                SPRING,
+            ]
+            .concat(),
+        ),
+        (
+            "a rule against being framed (X-Frame-Options or frame-ancestors)",
+            [
+                &["xframeoptions", "frameancestors"][..],
+                EVERY_HEADER,
+                SPRING,
+            ]
+            .concat(),
+        ),
+        (
+            "Referrer-Policy",
+            [&["referrerpolicy", "securitymiddleware"][..], EVERY_HEADER].concat(),
+        ),
+    ];
+    let mut named = Vec::new();
+    let mut unnamed = Vec::new();
+    for (header, words) in &headers {
+        match source.find_word(words) {
+            Some(file) => named.push((*header, file)),
+            None => unnamed.push(*header),
+        }
+    }
+    if unnamed.is_empty() {
+        let mut says = vec![sv(
+            "The four security headers `sv run` looks for are named in the code: ",
+        )];
+        for (i, (header, file)) in named.iter().enumerate() {
+            if i > 0 {
+                says.push(sv("; "));
+            }
+            says.push(sv(format!("{header} in ")));
+            says.push(app(*file));
+        }
+        says.push(sv("."));
+        items.push(Item::new("headers", Answer::Looks, says));
+    } else {
+        items.push(Item::new(
+            "headers",
+            Answer::Look,
+            vec![sv(format!(
+                "`sv run` asks the app's pages for four security headers, and the code names none of these, or a library that sends them: {}. If the framework or a server in front of the app sends them, ignore this.",
+                unnamed.join("; ")
+            ))],
+        ));
+    }
+
+    // A limit on wrong passwords, and the session cookie's SameSite, only where `sv run` signs in.
+    if run.users.as_ref().is_some_and(|u| u.login.is_some()) {
+        let from = items.len();
+        match source.find_word(LIMITS) {
+            Some(file) => items.push(Item::new(
+                "sign-in-limit",
+                Answer::Looks,
+                vec![
+                    sv("A limit on requests is named in "),
+                    app(file),
+                    sv(". `sv run` sends more wrong passwords to the sign-in than `failed-sign-ins` under [policy] allows, and looks for the limit to start; whether this one covers the sign-in is not in the text."),
+                ],
+            )),
+            None => items.push(Item::new(
+                "sign-in-limit",
+                Answer::Look,
+                vec![sv("No limit on requests or on failed sign-ins is named in the code. `sv run` sends wrong passwords to the sign-in, and an app that answers every one the same way is a finding: count the failures per account and per address, and refuse for a while past the number `failed-sign-ins` under [policy] states.")],
+            )),
+        }
+        if manifest.policy.failed_sign_ins.is_none() {
+            unstated(&mut items[from..], "sign-in-limit", "failed-sign-ins");
+        }
+        if let Some(file) = source.find_word(&["samesite"]) {
+            items.push(Item::new(
+                "cookie",
+                Answer::Looks,
+                vec![sv("SameSite is set in "), app(file), sv(".")],
+            ));
+        } else if let Some(framework) = sets_same_site_itself(source) {
+            items.push(Item::new(
+                "cookie",
+                Answer::Unknown,
+                vec![sv(format!(
+                    "SameSite is named nowhere, and {framework} sets it on its own session cookie unless told otherwise, so whether the cookie carries it could not be told from the text."
+                ))],
+            ));
+        } else {
+            items.push(Item::new(
+                "cookie",
+                Answer::Look,
+                vec![sv("SameSite is named nowhere. `sv run` reads the cookies the app sets at sign-in and looks for HttpOnly and SameSite (Lax or Strict) on each; most frameworks set HttpOnly themselves, few set SameSite.")],
+            ));
+        }
+    }
+
+    // The AI feature: screening what people type, a limit of its own, and the off switch.
+    if let Some(ai) = &run.ai {
+        let ai_from = items.len();
+        match source.find_word(SCREENS) {
+            Some(file) => items.push(Item::new(
+                "ai-screening",
+                Answer::Looks,
+                vec![
+                    sv("Screening of what people send the model is named in "),
+                    app(file),
+                    sv(". `sv run` sends messages written to take the model over, and looks whether they reach it."),
+                ],
+            )),
+            None => items.push(Item::new(
+                "ai-screening",
+                Answer::Look,
+                vec![sv("Nothing that screens what people send the model (a prompt-injection check, a moderation call, a guardrail) is named in the code. `sv run` sends messages written to take the model over, and one that reaches the model untouched is a finding.")],
+            )),
+        }
+        match source.find_word(LIMITS) {
+            Some(file) => items.push(Item::new(
+                "ai-limit",
+                Answer::Unknown,
+                vec![
+                    sv("A limit on requests is named in "),
+                    app(file),
+                    sv(", and whether it limits the AI feature on its own, apart from the rest of the app, could not be told. `sv run` sends the feature more messages than `ai-requests-per-minute` under [policy] allows, and looks for a limit on the feature alone."),
+                ],
+            )),
+            None => items.push(Item::new(
+                "ai-limit",
+                Answer::Look,
+                vec![sv("No limit on requests is named in the code. `sv run` sends the AI feature more messages than `ai-requests-per-minute` under [policy] allows, and a feature that answers every one is a finding.")],
+            )),
+        }
+        if manifest.policy.ai_requests_per_minute.is_none() {
+            unstated(&mut items[ai_from..], "ai-limit", "ai-requests-per-minute");
+        }
+        if let Some(name) = ai
+            .kill_switch
+            .as_deref()
+            .and_then(|s| s.split_once('=').map(|(n, _)| n.trim()))
+            .filter(|n| !n.is_empty())
+        {
+            match source.find(None, |t| names(t, name)) {
+                Some(file) => items.push(Item::new(
+                    "kill-switch",
+                    Answer::Looks,
+                    vec![sv("The off switch "), app(name), sv(" is read in "), app(file), sv(".")],
+                )),
+                None => items.push(Item::new(
+                    "kill-switch",
+                    Answer::Look,
+                    vec![
+                        sv("Nothing reads "),
+                        app(name),
+                        sv(", the off switch the settings name. `sv run` starts a second copy of the app with it set, and that copy must answer without calling the model."),
+                    ],
+                )),
+            }
+        }
+    }
+    items
+}
+
+/// The number a limit is held to is the owner's to state, and with none `sv run` does not try the
+/// limit at all: the item says so, whatever the code shows.
+fn unstated(items: &mut [Item], topic: &str, setting: &str) {
+    for item in items.iter_mut().filter(|i| i.topic == topic) {
+        item.says.push(sv(format!(
+            " `{setting}` under [policy] is not set, so `sv run` will not try this and will report it not assessed: the owner says the number."
+        )));
+    }
+}
+
+/// Words that name a limit on requests or on failed sign-ins, squashed as `squash` writes them:
+/// the common libraries (`express-rate-limit`, `flask_limiter`, `slowapi`, `Rack::Attack`,
+/// `django-axes`, Laravel's `throttle`), and the words a limit written by hand is named with.
+const LIMITS: &[&str] = &[
+    "ratelimit",
+    "limiter",
+    "throttl",
+    "rack::attack",
+    "djangoaxes",
+    "bruteforce",
+    "loginattempt",
+    "failedattempt",
+    "failedlogin",
+    "failedsignin",
+    "maxattempt",
+    "lockout",
+    "toomanyrequests",
+    "toomanyattempts",
+];
+
+/// Words that name screening of what is sent to a model.
+const SCREENS: &[&str] = &[
+    "promptinjection",
+    "jailbreak",
+    "ignorepreviousinstructions",
+    "ignoreallpreviousinstructions",
+    "guardrail",
+    "llmguard",
+    "promptguard",
+    "lakera",
+    "rebuff",
+    "moderation",
+];
+
+/// The framework, when the app is built on one that puts SameSite on its session cookie by default:
+/// Django and Rails both send `SameSite=Lax` unless told otherwise.
+fn sets_same_site_itself(source: &Source) -> Option<&'static str> {
+    let has = |file: &str, word: &str| {
+        source
+            .files
+            .iter()
+            .any(|(name, text)| name.rsplit('/').next() == Some(file) && text.contains(word))
+    };
+    if source.find(None, |t| t.contains("django.")).is_some() {
+        Some("Django")
+    } else if has("Gemfile", "rails") {
+        Some("Rails")
+    } else {
+        None
+    }
+}
+
+/// Text lowered, with the `-`, `_`, and spaces that tell `X-Frame-Options` from `X_FRAME_OPTIONS`
+/// and `XFrameOptionsMiddleware`, and `rate limit` from `rateLimit`, taken out.
+fn squash(text: &str) -> String {
+    text.chars()
+        .filter(|c| !matches!(c, '-' | '_' | ' '))
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+/// A lockfile lists every package installed, those the app never calls among them, so a word in
+/// one says nothing about the app's own code.
+fn lockfile(name: &str) -> bool {
+    let base = name.rsplit('/').next().unwrap_or(name);
+    base.ends_with(".lock")
+        || base.ends_with("-lock.json")
+        || base.ends_with("-lock.yaml")
+        || base == "go.sum"
 }
 
 fn path_item(what: &'static str, path: &str, source: &Source) -> Item {
@@ -510,7 +820,9 @@ pub fn of(app_dir: &Path) -> anyhow::Result<(Vec<Item>, Vec<String>)> {
     Ok((preflight(&manifest, &source), source.unread))
 }
 
-const OPENING: &str = "# Preflight: what `sv run` will need, looked for in the code\n\nNothing was run. Each answer is a reading of the app's files: \"looks right\" means what `sv run` needs was found in the text, not that it works, and \"look at this\" may be a route or a name built from parts. Nothing here is evidence for any requirement, and nothing is credited.\n";
+const OPENING: &str = "# Preflight: what `sv run` will need, and some of what it will test, looked for in the code\n\nNothing was run. Each answer is a reading of the app's files: \"looks right\" means what `sv run` needs was found in the text, not that it works, and \"look at this\" may be a route or a name built from parts. Nothing here is evidence for any requirement, and nothing is credited.\n";
+
+const TESTED_HEADING: &str = "\n## What `sv run` will test, as the code shows it now\n\nThese do not stop the run. Each is something the run will look for in the running app, and the code already hints whether it is there; fixing it now saves a finding later. A hint either way is not the run's answer.\n\n";
 
 pub fn markdown(items: &[Item], unread: &[String]) -> String {
     markdown_with(items, unread, &Fence::none())
@@ -518,20 +830,41 @@ pub fn markdown(items: &[Item], unread: &[String]) -> String {
 
 pub(crate) fn markdown_with(items: &[Item], unread: &[String], fence: &Fence) -> String {
     let mut out = String::from(OPENING);
-    let looks = items.iter().filter(|i| i.answer == Answer::Look).count();
-    out.push_str(&format!(
-        "\n{} to look at, {} could not tell, {} looks right.\n\n",
-        looks,
-        items.iter().filter(|i| i.answer == Answer::Unknown).count(),
-        items.iter().filter(|i| i.answer == Answer::Looks).count(),
-    ));
-    for item in items {
-        out.push_str(&format!(
+    // Each part counted on its own: the first says whether the run can start and sign in, and a
+    // hint of what it will test must not read as a reason it cannot.
+    let count = |tested: bool| {
+        let of = |answer: Answer| {
+            items
+                .iter()
+                .filter(|i| i.tested() == tested && i.answer == answer)
+                .count()
+        };
+        format!(
+            "{} to look at, {} could not tell, {} looks right.\n\n",
+            of(Answer::Look),
+            of(Answer::Unknown),
+            of(Answer::Looks)
+        )
+    };
+    out.push('\n');
+    out.push_str(&count(false));
+    let line = |item: &Item| {
+        format!(
             "- **{}** ({}): {}\n",
             item.answer.words(),
             item.topic,
             item.text(fence)
-        ));
+        )
+    };
+    for item in items.iter().filter(|i| !i.tested()) {
+        out.push_str(&line(item));
+    }
+    if items.iter().any(Item::tested) {
+        out.push_str(TESTED_HEADING);
+        out.push_str(&count(true));
+        for item in items.iter().filter(|i| i.tested()) {
+            out.push_str(&line(item));
+        }
     }
     if !unread.is_empty() {
         out.push_str("\nNot read, because they are too large: ");
@@ -553,6 +886,7 @@ pub fn to_json(items: &[Item], unread: &[String]) -> Value {
         "credits": "nothing",
         "items": items.iter().map(|item| json!({
             "topic": item.topic,
+            "for": if item.tested() { "tested" } else { "needed" },
             "answer": item.answer.id(),
             "says": item.text(&Fence::none()),
         })).collect::<Vec<_>>(),
@@ -663,9 +997,10 @@ mod tests {
             &manifest(RUN),
             &source(&[("app.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
         );
+        // What the run will test is hinted at below, apart from what it needs.
         let look: Vec<String> = items
             .iter()
-            .filter(|i| i.answer != Answer::Looks)
+            .filter(|i| !i.tested() && i.answer != Answer::Looks)
             .map(|i| i.text(&Fence::none()))
             .collect();
         assert!(look.is_empty(), "{look:?}");
@@ -871,5 +1206,250 @@ mod tests {
             .map(|i| i.answer)
             .collect();
         assert_eq!(login, vec![Answer::Look]);
+    }
+
+    /// The settings with an AI feature and its off switch, and [policy] as `policy` gives it.
+    fn ai_run(policy: &str) -> String {
+        format!(
+            "{RUN}[stack.run.ai]\nchat = {{ path = \"/chat\", json = {{ message = \"{{prompt}}\" }} }}\nkill-switch = \"AI_ENABLED=false\"\n{policy}"
+        )
+    }
+
+    const POLICY: &str = "[policy]\nfailed-sign-ins = 5\nai-requests-per-minute = 10\n";
+
+    fn tested_answers(items: &[Item]) -> Vec<(&'static str, Answer)> {
+        let mut out: Vec<_> = items
+            .iter()
+            .filter(|i| i.tested())
+            .map(|i| (i.topic, i.answer))
+            .collect();
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn an_app_that_shows_none_of_what_the_run_will_test_is_told_each() {
+        let items = preflight(
+            &manifest(&ai_run("")),
+            &source(&[("app.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
+        );
+        assert_eq!(
+            tested_answers(&items),
+            vec![
+                ("ai-limit", Answer::Look),
+                ("ai-screening", Answer::Look),
+                ("cookie", Answer::Look),
+                ("headers", Answer::Look),
+                ("kill-switch", Answer::Look),
+                ("sign-in-limit", Answer::Look),
+            ]
+        );
+        let headers = items.iter().find(|i| i.topic == "headers").unwrap();
+        for header in [
+            "Content-Security-Policy",
+            "X-Content-Type-Options",
+            "X-Frame-Options",
+            "Referrer-Policy",
+        ] {
+            assert!(
+                said(headers).contains(header),
+                "{header}: {}",
+                said(headers)
+            );
+        }
+        // With no number stated, the run does not try the limits, and each says so.
+        for topic in ["sign-in-limit", "ai-limit"] {
+            let item = items.iter().find(|i| i.topic == topic).unwrap();
+            assert!(said(item).contains("is not set"), "{topic}: {}", said(item));
+        }
+        let switch = items.iter().find(|i| i.topic == "kill-switch").unwrap();
+        assert!(said(switch).contains("AI_ENABLED"), "{}", said(switch));
+        // None of these is a reason the run cannot start: the needs above still have nothing.
+        assert!(
+            items
+                .iter()
+                .filter(|i| !i.tested())
+                .all(|i| i.answer == Answer::Looks)
+        );
+    }
+
+    const SHOWS_ALL: &str = "const helmet = require('helmet');\nconst rateLimit = require('express-rate-limit');\napp.use(session({ cookie: { sameSite: 'lax' } }));\nconst flagged = await openai.moderations.create({ input });\nif (process.env.AI_ENABLED === 'false') return off();\n";
+
+    #[test]
+    fn an_app_that_shows_each_is_told_where() {
+        let items = preflight(
+            &manifest(&ai_run(POLICY)),
+            &source(&[
+                ("app.py", GOOD_APP),
+                ("seed.py", GOOD_SEED),
+                ("server.js", SHOWS_ALL),
+            ]),
+        );
+        assert_eq!(
+            tested_answers(&items),
+            vec![
+                // A limit is there, and whether it is the AI feature's own is not in the text.
+                ("ai-limit", Answer::Unknown),
+                ("ai-screening", Answer::Looks),
+                ("cookie", Answer::Looks),
+                ("headers", Answer::Looks),
+                ("kill-switch", Answer::Looks),
+                ("sign-in-limit", Answer::Looks),
+            ]
+        );
+        for item in items.iter().filter(|i| i.tested()) {
+            assert!(!said(item).contains("is not set"), "{}", said(item));
+            assert!(said(item).contains("server.js"), "{}", said(item));
+        }
+    }
+
+    #[test]
+    fn each_header_is_found_however_it_is_spelled_and_the_one_missing_is_named() {
+        let manifest = manifest(RUN);
+        let headers = |files: &[(&str, &str)]| {
+            let items = preflight(&manifest, &source(files));
+            let item = items.into_iter().find(|i| i.topic == "headers").unwrap();
+            (item.answer, said(&item))
+        };
+        // Django's settings and middleware: every header but the policy.
+        let (answer, text) = headers(&[(
+            "settings.py",
+            "MIDDLEWARE = ['django.middleware.security.SecurityMiddleware', 'django.middleware.clickjacking.XFrameOptionsMiddleware']\n",
+        )]);
+        assert_eq!(answer, Answer::Look);
+        assert!(text.contains("Content-Security-Policy"), "{text}");
+        for other in ["X-Content-Type-Options", "framed", "Referrer-Policy"] {
+            assert!(!text.contains(other), "{other}: {text}");
+        }
+        // Each named by hand, in four spellings.
+        let (answer, _) = headers(&[(
+            "app.go",
+            "w.Header().Set(\"content-security-policy\", csp)\nres.setHeader('X-Content-Type-Options', 'nosniff')\nX_FRAME_OPTIONS = 'DENY'\nsetReferrerPolicy('no-referrer')\n",
+        )]);
+        assert_eq!(answer, Answer::Looks);
+        // Spring Security sends the type and framing headers by itself, not the other two.
+        let (answer, text) = headers(&[(
+            "pom.xml",
+            "<artifactId>spring-boot-starter-security</artifactId>\n",
+        )]);
+        assert_eq!(answer, Answer::Look);
+        assert!(text.contains("Content-Security-Policy"), "{text}");
+        assert!(text.contains("Referrer-Policy"), "{text}");
+        assert!(!text.contains("X-Content-Type-Options"), "{text}");
+        assert!(!text.contains("framed"), "{text}");
+        // One library that sends them all.
+        for library in [
+            "Talisman(app)",
+            "SecureHeaders::Configuration",
+            "app.use(helmet())",
+        ] {
+            assert_eq!(headers(&[("app", library)]).0, Answer::Looks, "{library}");
+        }
+    }
+
+    #[test]
+    fn a_limit_is_found_in_the_ways_it_is_written() {
+        let manifest = manifest(RUN);
+        for limit in [
+            "from flask_limiter import Limiter",
+            "MAX_LOGIN_ATTEMPTS = 5",
+            "return 'Too many attempts, try again later', 429",
+            "Rack::Attack.throttle('logins/ip')",
+            "const { RateLimiterMemory } = require('rate-limiter-flexible')",
+            "failed_logins[email] += 1",
+        ] {
+            let items = preflight(
+                &manifest,
+                &source(&[("app.py", GOOD_APP), ("limit.py", limit)]),
+            );
+            assert_eq!(
+                answers(&items, "sign-in-limit"),
+                vec![Answer::Looks],
+                "{limit}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_framework_that_sets_same_site_itself_could_not_be_told() {
+        let manifest = manifest(RUN);
+        for (file, text, framework) in [
+            (
+                "settings.py",
+                "INSTALLED_APPS = ['django.contrib.auth']\n",
+                "Django",
+            ),
+            ("Gemfile", "gem \"rails\", \"~> 7.1\"\n", "Rails"),
+        ] {
+            let items = preflight(&manifest, &source(&[("app.py", GOOD_APP), (file, text)]));
+            let cookie = items.iter().find(|i| i.topic == "cookie").unwrap();
+            assert_eq!(cookie.answer, Answer::Unknown, "{framework}");
+            assert!(said(cookie).contains(framework), "{}", said(cookie));
+        }
+    }
+
+    #[test]
+    fn a_word_in_a_lockfile_is_not_the_app_using_it() {
+        let items = preflight(
+            &manifest(RUN),
+            &source(&[
+                ("app.py", GOOD_APP),
+                (
+                    "package-lock.json",
+                    "{\"packages\": {\"node_modules/express-rate-limit\": {}, \"node_modules/helmet\": {}}}",
+                ),
+                ("yarn.lock", "helmet@^7:\nrate-limiter-flexible@^5:\n"),
+            ]),
+        );
+        assert_eq!(answers(&items, "sign-in-limit"), vec![Answer::Look]);
+        assert_eq!(answers(&items, "headers"), vec![Answer::Look]);
+    }
+
+    #[test]
+    fn what_the_run_does_not_try_is_not_hinted_at() {
+        // No sign-in, no AI feature: only the headers, which every run asks for.
+        let run = "[stack.run]\nimage = \"python:3.12-slim\"\nstart = \"python app.py\"\n";
+        let items = preflight(&manifest(run), &source(&[("app.py", GOOD_APP)]));
+        assert_eq!(tested_answers(&items), vec![("headers", Answer::Look)]);
+        // An AI feature with no off switch named: no off switch is looked for.
+        let no_switch = ai_run(POLICY).replace("kill-switch = \"AI_ENABLED=false\"\n", "");
+        let items = preflight(&manifest(&no_switch), &source(&[("app.py", GOOD_APP)]));
+        assert!(answers(&items, "kill-switch").is_empty());
+        assert_eq!(answers(&items, "ai-screening"), vec![Answer::Look]);
+    }
+
+    #[test]
+    fn what_the_run_will_test_is_its_own_section_and_count() {
+        let items = preflight(
+            &manifest(&ai_run(POLICY)),
+            &source(&[("app.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
+        );
+        let text = markdown(&items, &[]);
+        let (needs, tests) = text
+            .split_once("## What `sv run` will test")
+            .expect("the section is there");
+        // What the run needs is all found, and its count says so; the hints are counted apart.
+        assert!(
+            needs.contains("\n0 to look at, 0 could not tell,"),
+            "{needs}"
+        );
+        assert!(
+            tests.contains("\n6 to look at, 0 could not tell, 0 looks right."),
+            "{tests}"
+        );
+        for topic in TESTED {
+            assert!(!needs.contains(&format!("({topic})")), "{topic}: {needs}");
+        }
+        assert!(tests.contains("(kill-switch)"), "{tests}");
+        let json = to_json(&items, &[]);
+        for item in json["items"].as_array().unwrap() {
+            let topic = item["topic"].as_str().unwrap();
+            let expected = if TESTED.contains(&topic) {
+                "tested"
+            } else {
+                "needed"
+            };
+            assert_eq!(item["for"], expected, "{topic}");
+        }
     }
 }

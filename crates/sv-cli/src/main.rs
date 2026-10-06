@@ -166,7 +166,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &[],
         valued: &[],
-        help: "  sv preflight [PATH]\n                     once there is code: whether it gives `sv run` what securevibe.toml\n                     says, read from the files and never run; credits nothing\n",
+        help: "  sv preflight [PATH]\n                     once there is code: whether it gives `sv run` what securevibe.toml\n                     says, and hints at what the run will test, read from the files and\n                     never run; credits nothing\n",
     },
     Command {
         name: "brief",
