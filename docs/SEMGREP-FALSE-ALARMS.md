@@ -5,8 +5,16 @@ owner's asking ("I definitely still want to look into reducing false alarms from
 false alarms for all languages would be great as well"). Option C is the one in `docs/BACKLOG.md`'s Semgrep comparison:
 every rule the `semgrep` adapter's map names, from `semgrep/semgrep-rules` at `a84ff9c`. One row per finding, with its
 verdict and cause, is `docs/semgrep-false-alarms.csv`. Not kept here: the copy of the rules (the Semgrep Rules License
-does not allow redistributing them), the clones of the apps, Semgrep's raw output, and the throwaway scripts that made
+does not allow redistributing them, and allows using them only for internal business purposes, so `sv` may use them
+only while nothing built on them is sold), the clones of the apps, Semgrep's raw output, and the throwaway scripts that made
 the numbers. Every number below is as measured, and the verdicts are one reader's.
+
+**Option C is not what `sv` runs.** The adapter runs the packs `p/security-audit` and `p/default` (and
+`p/ai-best-practices` for an app that may call a model), which load 691 of the map's 1,035 rules (`data/semgrep-packs.json`,
+measured on 26 September 2026). Read against those two base packs, 440 of the 868 findings below came from rules `sv`
+runs (268 true, 164 false, 8 unsure), and 391 of the 555 false alarms came from rules it does not. Several rules
+discussed by name, such as `unsafe-dynamic-method`, `generic-api-key`, `prohibit-jquery-html`, and
+`html-in-template-string`, are in none of those packs. (Added 6 October 2026.)
 
 ## The short version
 
@@ -46,7 +54,8 @@ the numbers. Every number below is as measured, and the verdicts are one reader'
 - **Files:** each app was given the file list `sv` itself would give: every file whose extension
   `sv`'s `language_of` knows (`.py .js .ts .go .rb .php .java .cs .kt .html .vue` and the rest),
   outside `sv`'s `SKIP_DIRS` (`node_modules`, `vendor`, `dist`, `build`, `out`, `target`, `.venv`,
-  `coverage` and the rest), by name, as the adapter's `{files}` does. So test folders were scanned
+  `coverage` and the rest, as they were on 4 October; since H6, `vendor`, `dist`, `build`, `out`, `target`, and
+  `coverage` are left out only beside the manifest that explains them), by name, as the adapter's `{files}` does. So test folders were scanned
   (semgrep would skip them if given the folder), and `.json`, `.erb`, `.ejs`, `.jsp`, `.yml`,
   lockfiles and `.env` files were **not** given. Semgrep's own scanned-file list matched the list
   given for every app.
@@ -129,7 +138,7 @@ entities, and entity-expansion risk depends on the expat version).
 
 ## 2. Per rule
 
-All rules with 3 or more findings (108 rules fired in all; the rest are in `findings.csv`).
+All rules with 3 or more findings (108 rules fired in all; the rest are in `docs/semgrep-false-alarms.csv`).
 "First-party precision" is true / (true + false) over findings outside library and test files.
 
 | Rule | Total | On clean apps | On vulnerable apps | In library files | In test files | True | False | Unsure | First-party precision |
@@ -309,6 +318,13 @@ Each is a handful of findings spread over many rules, which a per-rule switch do
    `findings_against` V3.6.1).
 6. **Do not gate the Django rules by framework.** Their taint rules found real Flask SQL injection
    and XSS, and the CSRF-token rule found real missing tokens in Express and Go templates.
+
+**Since (6 October 2026):** (1) is built: a copy of a known library kept in the app has its findings listed after the
+app's own, named for the library, and still counted (DESIGN, "A copy of another project's library is listed apart").
+(2) needed no change, since the secret rules' findings in test code were already kept apart, and (4) is built narrower
+than C2: it spares a stored bcrypt hash and a hex digest under a name that says hash or digest, but not a hex value
+under a name that says only password, so it removes 3 of C2's 7 false alarms (DESIGN, "Semgrep follow-ups 2 and 4").
+(3), one finding per line, is not built.
 
 Per language: Ruby, Java and Go need only (1); JS/TS needs (1) and (2); Python's remaining noise is
 the long tail on microblog (6 `var-in-href`, 4 Django CSRF on a Flask-WTF app, 3 developer CLI

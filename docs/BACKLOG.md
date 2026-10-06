@@ -620,6 +620,8 @@ another session is not a claim.
     pinning check (V15.1.2) and in the scan's list of unpinned projects. Twelve guards broken in turn, each caught.
     **Still open:** a requirements file under another name without hashes is not judged by the pinning check, and a
     `Pipfile.lock` with no `Pipfile` beside it is not found.
+    **These two claimed on 6 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
+    backlog, in branch `claude/securevibe-e2-h9-rest`.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -1945,7 +1947,15 @@ another session is not a claim.
   arms' own tools were mostly unused (the plan called by three of eight builds offered it, all Haiku; the check by
   three of eight, once each), so the trial cannot say which of them does the work: what the testable builds share is
   the specification.
-
+  **Item 6 done on 6 October 2026** (DESIGN, "The loop at scale"; `docs/prompts/loop-scale/README.md`): seventy
+  builds, $21.34, with the specification in every request (protocol amendment 3) and the check and plan arms also run
+  with the other tools hidden (amendment 4). Every Sonnet build could be tested, in every arm; Haiku varied within
+  every arm, and on testability no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
+  (every build checked; all five Haiku and two Sonnet again after a fix), and fixed what the check named: the
+  committable `.env` in five loop builds, against 56 of 59 builds in the other arms that kept it.
+  **Later, 6 October 2026, at the owner's asking** (`loop-scale/README.md`, "Findings by group"): counted by group,
+  the loop arm's builds had fewer findings in their code than every build of five of the six other arms, for both
+  models, the first difference by the protocol's rule; the running apps' findings were the same in every arm.
 
 - **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
   trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
@@ -1963,6 +1973,35 @@ another session is not a claim.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
 
+- **Tell the builder, before it is done, what the code already shows about the running app.** Found on 6 October
+  2026 by session paper-facts, counting item 6's findings by group: the loop arm fixed nearly every problem in its
+  code that `securevibe_check` named, and its running apps had as many problems as every other arm's (per ten checks
+  answered, Sonnet 1.0 against 0.8 to 1.1, Haiku 2.4 against 2.0 to 2.6), because `sv run`'s checks are the only ones
+  that see them and the MCP server never starts the app. Several of the commonest are visible in the code without
+  running it: no limit on wrong passwords, the security headers, the session cookie's attributes, the AI feature's
+  screening of what it is sent. A part of `securevibe_preflight` (ADR-035), or of the check, that reads the code for
+  these and says "`sv run` will look for this, and the code does not seem to have it", running nothing, would give the
+  builder the chance the loop already takes with what the check says. Each would credit nothing, as the preflight
+  does; the run stays the evidence. The next loop trial could measure whether the running apps' findings then fall.
+
+- **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
+  by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
+  output was: Traceback (most recent call last):". `never_ready_detail` (`crates/sv-run/src/docker.rs`) quotes
+  `first_line` of the logs, and a Python error says what went wrong on its last line. The hint that follows, about an
+  app listening on `127.0.0.1`, is beside the point when the app crashed. Quote the last lines (the exception), and
+  give the loopback hint only when nothing crashed.
+
+- **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
+  paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
+  run` could not start them. `securevibe_preflight` names a seed file that is missing; the start command's file should
+  be named the same way (ADR-035).
+
+- **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
+  two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
+  ended, though the request said the owner would not be around (protocol amendment 1). For a person this is the right
+  thing; for a trial it loses the build. A stronger sentence, or a second turn that says "use the safer option", are
+  the two ways; either changes every arm's request and goes in the protocol first.
+
 - **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
   after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
   merged changes since it was last revised: `README.md`, `docs/GETTING-STARTED.md` (the owner's own guide),
@@ -1974,7 +2013,64 @@ another session is not a claim.
   no longer true, what `sv` does that it leaves out, and every number it gives (of tools, commands, checks,
   requirements) checked against the code. Plain language throughout, for a reader who is not a programmer. Records
   (`docs/adr/`) and DESIGN are histories and are not rewritten; a record that no longer matches gets a dated "Later"
-  entry instead. Not claimed.
+  entry instead.
+  **Claimed on 6 October 2026 by session securevibe-e10**, at the owner's asking to take the next unclaimed item, in
+  branch `claude/docs-review`. CLAUDE.md's `SV_DATA_DIR` line is left to session securevibe-e2, which claimed it.
+  **Part 1 done the same day:** every document read against `main` at `e9179b22` by five read-only helper agents,
+  one per group of documents, and each correction written here checked against the code by the session itself.
+  - `docs/GETTING-STARTED.md`: thirteen tools, not six; an owner's answer counts only once recorded with `sv review`,
+    now explained, with how to give the container the key folder; the design-time steps (`sv plan`, `sv brief`,
+    `sv preflight`); where the report is; exit code 3 for `sv check`; where a moved program looks for its data.
+  - `README.md`: the signed-out questions are more than four; seven wrong passwords, not six (the cap of 26 said);
+    `--fail-on attention` leaves out findings marked only for information; exit 3 for `sv check` and `sv audit`;
+    the report's five files and folder; the outside tools `--tools` runs; the coding rules are 18, drawn from 27 of
+    68 requirements; `sv preflight` and `sv prompts` named; SBD-MT-06 and SBD-AC-06 in `design-decisions.md`; an
+    answer recorded with `sv review`.
+  - `docs/PROMPTS.md`: three faults in `sv` the trials found are marked fixed; 3 of 14 design-time prompts shown to
+    work; V13.3.1's wording.
+  - `docs/THREAT-MODELING.md`: built, not proposed; 115 citations of 101 requirements; a "Since" section (v1
+    archived, MT-03 not built, `sv plan`'s threats, an answer never settles a threat, ATLAS).
+  - `docs/SEMGREP-FALSE-ALARMS.md`: the licence's non-commercial condition; option C is not what `sv` runs (440 of
+    the 868 findings, and 164 of the 555 false alarms, from rules it runs); `SKIP_DIRS` since H6; the CSV's name;
+    which recommendations are built.
+  - `docs/PARTIAL-CHECKS.md`: 57 of the 382 have gained a check; `signed_in.rs` is a folder.
+  - `examples/partly-passing`: `/tmp` is writable too.
+  - `docs/REQUIREMENTS.md` and `docs/COVERAGE.md` are generated and current (`tools/coverage.py --check` passes);
+    what is wrong in them is the generator's, below.
+  **Part 2, still claimed:** the text inside the code: `sv --help` and each command's help (`crates/sv-cli/src/main.rs`),
+  the specification `sv init` prints (`crates/sv-manifest/src/spec.rs`), the MCP server's instructions and tool
+  descriptions (`crates/sv-cli/src/mcp.rs`), and `tools/coverage.py`'s prose.
+
+- **Found by the documentation review (6 October 2026), in `sv` itself.** Each was found reading a document against
+  the code and confirmed in the code; each is **not claimed** and can be claimed on its own. Most important first.
+  1. **A clean run credits V15.2.4 on a check that cannot show it.** `ast.download-piped-to-shell` cites V15.2.4
+     (components and their dependencies come from the expected repository, no dependency confusion; level 3) and is
+     not `findingsOnly`, so a shell script with no `curl … | sh` credits V15.2.4 as checked. Not finding a download
+     piped to a shell says nothing about where the app's dependencies come from. Fix: make the rule finding-only for
+     V15.2.4 (a finding is evidence against it; nothing found credits nothing). A change to what counts as evidence:
+     ADR-018 changes with it.
+  2. **The starter `securevibe.toml` leaves `[stack.run.users]` in force with every key commented out.** It parses as
+     an empty section, not an absent one, so a run reports "[stack.run.users] … cannot be used: `login` is not set…"
+     where the spec says leaving it out reports the signed-in checks as not assessed (`crates/sv-manifest/src/spec.rs`,
+     the starter; `signed_in/mod.rs`). Fix: comment the header out, as the other optional sections are (part 2 of the
+     documentation review will do it if nobody claims it first).
+  3. **`admin-actions` needs `admin` too.** An admin account is made only when `admin` pages are listed, so with
+     `admin-actions` and no `admin`, V8.3.1 is not assessed with the reason "an admin is made by `seed`", which misleads
+     when `seed` is set. Fix: make the admin when `admin-actions` is listed, or say in the spec that it needs both.
+  4. **`sv run` exits 0 when the app could not start,** after printing "Not assessed". ADR-029's codes cover `sv check`,
+     `sv report`, and `sv audit` only; `sv run`'s are not decided. For the owner: should `sv run` exit 2 there?
+  5. **`securevibe_bundle` with no `path` is always refused** (the zip goes beside the app, and the server's own folder
+     has no "beside" it can write to), though the tool's description says `path` defaults to that folder. Fix the
+     description, or the default.
+  6. **`tools/coverage.py` writes three things wrong into `docs/REQUIREMENTS.md`:** a Rust `\\u{2014}` escape printed
+     as `u{2014}` (V2.2.2's row); "semgrep, N rules" counting distinct descriptions rather than rules (V1.2.4 says 1,
+     where 74 rules cite it); and a phrase repeated where a rule's own description joins two with "; ".
+  7. **`[data]` category names are not checked.** Only an exact match to the sensitive list raises the level, so a
+     misspelled `"Health"` quietly allows level 1. Fix: warn on a name not in the list.
+  8. **For the owner, about the prompt library:** the "settings file first" prompt, shown to work, says to "delete the
+     line instead of writing false" when unsure, where `sv init`'s own instructions say "if you are unsure whether a
+     capability is present, say true"; and it says `sv init` creates the file, where it prints it. Changing a shown
+     prompt's words may take its result away, so the owner decides which wording stands.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -2038,6 +2134,8 @@ another session is not a claim.
   in git, and naming the one thing `sv` cannot read (a global git ignore file on the computer). With no environment
   file it is still not assessed. Repositories are unchanged. Tested in `config.rs` and through `sv check`,
   `sv report`, and the MCP check together (`tests/env_plain_folder.rs`); four guards undone in turn were each caught.
+  **Seen working on 6 October 2026** in the loop's item 6: in five loop builds `securevibe_check` named the
+  `.gitignore`, the builder wrote one, and the final report did not find it.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
@@ -3198,6 +3296,10 @@ another session is not a claim.
      `probe.password-in-browser-storage` (V14.3.3) and `probe.token-in-browser-storage` (V10.1.1) are only ever
      findings. Not done: tokens sent to other sites (a hosted backend on another address receives them by
      design), and the pointers from the code (`setItem` calls with such key names).
+     **The pointers from the code claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("keep
+     going"), in branch `claude/securevibe-e9-storage-code`: two findings-only code rules for JavaScript and
+     TypeScript, a token (V10.1.1) or a password (V14.3.3) written into `localStorage`, `sessionStorage`, or a cookie
+     set from the page, by a key or cookie name that says so.
      **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
      backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
      share an email address. C9.5.3 stays unclaimed.
@@ -3343,6 +3445,11 @@ another session is not a claim.
      fifteen languages; every language has a case at 300,000 with SHA-256 or with no hash it can read, and each
      that names a hash has cases at 600,000 with SHA-256 and 300,000 with SHA-512. Eight guards broken in turn,
      each caught. Not done: SHA-1 counts between 210,000 and 1,300,000.
+     **SHA-1 counts between 210,000 and 1,300,000 claimed on 6 October 2026 by session securevibe-e9**, at the
+     owner's word ("keep going"), in branch `claude/securevibe-e9-pbkdf2-sha1`: where the call names SHA-1, the same
+     way SHA-256 is tied to 600,000.
+     **Done the same day** (DESIGN, "PBKDF2 with SHA-1 is held to 1,300,000 rounds"), in the thirteen languages where
+     the rule reads the hash. A hash named only by the function, or left to its default, is still held to 210,000.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
@@ -3625,6 +3732,12 @@ another session is not a claim.
   - **Does ADR-032 reach the outside tools?** It holds `sv`'s own `git` to running no program the app's repository
     names. Semgrep and CodeQL, run by `sv report --tools` in the app's folder, may run `git` themselves; the record
     does not say, and it was not checked.
+    **The owner's decision, 6 October 2026, on what was found** (Semgrep and Opengrep held only because `sv` names
+    files rather than folders, CodeQL unknown): add the guard. Every outside tool's environment sets git's
+    `core.fsmonitor` off, as `sv`'s own `git` does, held by a test with a planted repository; ADR-032 gets a Later
+    entry. **Claimed the same day by session securevibe-e2**, in branch `claude/securevibe-e2-git-guard`.
+    **Done the same day** (DESIGN, "The outside tools run no program an app's repository names"; ADR-032, "Later, 6
+    October 2026"). Not run with Semgrep or CodeQL themselves, which were not installed in the session.
 
   **The owner's decisions, 6 October 2026:**
   - Records for items 1, 2, 3, and 7, the four most costly; the other four stay as their DESIGN sections.
@@ -6655,6 +6768,8 @@ another session is not a claim.
   branch `claude/securevibe-e9-runner-names`: a declared test matched to the names jest, Vitest, Mocha, pytest's
   parameters, and Go's subtests report, and credited only when every case that matches it passed (today a failing
   case of the same name as a passing one is ignored). TAP and runners' own JSON stay unread.
+  **Done the same day** (DESIGN, "A test is found under the names its runner gives it"): matched as a whole part of
+  the name the runner reports, and credited only when every case that could be it passed.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,

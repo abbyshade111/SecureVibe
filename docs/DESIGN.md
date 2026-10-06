@@ -7374,6 +7374,27 @@ writes their manifest, or every arm is given the specification: the owner's choi
 sign-in limit locked `sv` out again, as in trial 3. Each is in the backlog.
 
 
+
+
+## The loop at scale (6 October 2026)
+
+Item 6 of "The loop" (`docs/prompts/loop-scale/README.md`): five builds a cell, Sonnet 5.5 and Haiku 4.5, on `sv` at
+`cd2478f8` with the preflight and the instructions that say when to check, and `sv init`'s specification in every
+request (protocol amendment 3), so the arms without the server could be tested at last. Seventy builds, $21.34.
+
+**Results.** With the specification, every Sonnet build was testable in every arm, at about the same level: the
+specification, not the server, makes a Sonnet app testable. Haiku varied within every arm, and no arm was above another
+by the rule. The loop arm did what the instructions now ask: every build checked, Haiku's all checked again after a
+fix, and where the check named the committable `.env` the builders fixed it, which almost no build in another arm did.
+At five a cell that is a pattern seen, not a difference by the rule.
+
+**What it found in the trial.** Limiting an arm by refusing tools, not hiding them, made the builders give up on all of
+SecureVibe's tools: the check arm never checked. Hidden, the check and the plan were asked for far more often
+(amendment 4). Item 3's arms were limited the refused way, and its write-up now says so.
+
+**What it found in `sv`.** A crash at start is reported by the first line of the error, which says nothing; the
+preflight does not check the start command's file; two Haiku builds still stopped to ask the owner. Each is in the
+backlog.
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
@@ -10709,3 +10730,66 @@ Broken on purpose nineteen ways, each caught by a test written for it. The first
 a seal taken from any line that begins like one, and a tool note that names no file. Each now has its own test. Two
 other breaks were badly written and were run again. Item 15's ordering is tested on Docker's stamped output; the
 `--timestamps` request itself runs only on CI, where Docker is.
+
+## A test is found under the names its runner gives it (6 October 2026)
+
+Left over from "Read the test runner's own report" (BACKLOG). When the app's suite fails, `sv` credits only the tests
+the runner's JUnit report says passed. It matched a test by its exact name, which runners often do not report:
+- jest and Mocha put the `describe` titles first (`search V1.2.4 binds its parameters`), and Vitest joins them with
+  ` > `;
+- pytest adds a parameter (`test_x[empty]`), and Go a subtest (`TestX/quotes`).
+
+Each of these was never credited from a failing suite. And a name was taken as passed when any case of that name
+passed, so two classes each with `test_V1_2_4_bound`, one failing, credited V1.2.4.
+
+- **Matched as the runner writes it** (`suite.rs`, `reports`). A title from `it('…')`, `test('…')`, or `describe('…')`
+  matches a reported name that is the title, or has it as a whole part set off by spaces (first for a `describe`,
+  last for a test, or between). An identifier from `def`, `func`, `fn`, `sub`, or `void` matches the name, or the
+  name followed by `[` or `/`. `searchV1.2.4 …`, `test_x_more`, and `TestXAll` are other tests.
+- **Every case that could be the test has to have passed** (`reported_passing`). At least one case has to match, and
+  a failing or skipped one among them credits nothing. So the wider matching can only ever take credit away from a
+  name it matches too widely, never add it. A suite that passed outright still credits without reading the report, as
+  before.
+- `SuiteOutcome::Failed` now carries the runner's cases, failed ones included, rather than the names that passed.
+  TAP and runners' own JSON are still not read.
+
+How it is held: `a_test_is_found_under_the_names_runners_give_it` (jest and Mocha, Vitest, exact, pytest's parameter,
+and Go's subtest, with names that only look alike as its control) and
+`a_failing_case_that_could_be_the_same_test_credits_nothing` (same names and parameters, with the failing cases gone as
+its control). Eight guards were undone in turn. Seven were caught. The eighth, a separate rule for Vitest's ` > `, was
+caught by nothing because ` > ` is set off by spaces already, and it was taken out.
+
+## PBKDF2 with SHA-1 is held to 1,300,000 rounds (6 October 2026)
+
+Left over from "A key made from a password with too few rounds" (BACKLOG, proposals item 9). The rule tied its
+figure to the hash where the call names it: 600,000 for SHA-256, and 210,000 for SHA-512 or a hash it cannot read.
+SHA-1, which OWASP's Password Storage Cheat Sheet puts at 1,300,000, was held to 210,000. Now a count below 1,300,000 is
+reported where the call names SHA-1, in each of the thirteen languages where the rule reads the hash: the same table
+(`argumentPatternsByHash` in `data/ast-rules.json`), with a SHA-1 entry beside each SHA-256 one. A hash named only by
+the function (Ruby's `pbkdf2_hmac_sha1`, OpenSSL's `PKCS5_PBKDF2_HMAC_SHA1`), or by leaving it out (C#'s
+`Rfc2898DeriveBytes` without a `HashAlgorithmName`, which uses SHA-1), is still held to 210,000: those calls have no
+argument naming the hash to read.
+
+How it is held: cases in `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one`, a count below 1,300,000
+reported and 1,300,000 itself not, with SHA-512 at the same count as a control. Where naming SHA-1 also fires another
+rule (the hash itself in C, C++, and Ruby's `Digest::SHA1`; `openssl enc`'s cipher), the positives are in
+`a_pbkdf2_count_below_1_300_000_is_reported_where_the_call_names_sha_1` instead. Fifteen guards were undone in turn
+(each language's SHA-1 entry, and the count's upper and lower edge), and each was caught.
+## The outside tools run no program an app's repository names (6 October 2026)
+
+ADR-032 holds `sv`'s own `git` to running no program the app's repository names: `core.fsmonitor` in a planted
+`.git/config` runs a program on every `git ls-files`. The second weekly review of the decision records asked whether
+the outside tools `sv report --tools` runs in the app's folder keep to it too. Read on 6 October 2026: Semgrep runs
+`git ls-files` for any folder it is given, and kept to the record only because `sv` hands it files one by one; Opengrep
+runs no git in that kind of scan; whether the closed `codeql` program runs git is not known.
+
+At the owner's word, every outside tool now starts with git's `core.fsmonitor` set off in its environment
+(`git::ENV_OVERRIDES`: `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=core.fsmonitor`, `GIT_CONFIG_VALUE_0=false`), set last in
+`adapters::prepared` so no adapter's settings undo it. Any git a tool starts inherits it, and a setting given this way
+wins over the repository's, from git 2.31; an older git ignores it, and with it the guard.
+
+The test runs a stand-in tool, `git ls-files` in a repository planted with `core.fsmonitor`, once started bare (the
+program runs: the control) and once through `prepared` (it does not), and holds that no adapter sets a `GIT_`
+variable. Broken on purpose three ways: the guard left out and the count set to 0 were each caught; the value set to
+`true` was not, and is not a break, since `true` turns on git's own built-in monitor, which runs no program the
+repository names. Not run with Semgrep or CodeQL themselves, which are not installed here.

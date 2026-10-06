@@ -1,7 +1,8 @@
 # Threat modeling without the AI tool: an investigation
 
 Asked for by the owner on 25 September 2026: could `sv` produce a threat model on its own, without
-asking the connected AI system? This is the answer, and a proposal. Nothing here is built yet.
+asking the connected AI system? This is the answer, and a proposal. All three parts were built on
+25 September 2026 (Progress, below); "Since", at the end, says what has changed after that.
 
 ## Short answer
 
@@ -143,7 +144,7 @@ C10), the documents the model searches (answers from documents the person may no
 content, sensitive fields embedded; C5.2.2, C8), the app's own separate services (calls between them
 not authenticated; V13.2), live WebSocket connections (a connection from another site, messages read
 on the network; V4.4), and several tenants in one system (V8.4.1, and, with retrieval, C8.1.1 and
-C5.3.1). 42 threats across 14 parts, citing 115 requirements, every citation under the guard. What
+C5.3.1). 42 threats across 14 parts, with 115 citations of 101 requirements, every citation under the guard. What
 remains is v1 reading the same file, which is a change to v1 and its own piece of work.
 
 ## Decided by the owner, 25 September 2026
@@ -167,3 +168,19 @@ part, then cannot place; within each, in the order of the parts of the app in th
    place? That changes v1's design engine and is separate from this.
 3. **Where it shows.** A section of the existing report, or its own file (`threat-model.md`) the way
    v1 writes one?
+
+## Since (reviewed 6 October 2026)
+
+- **v1 is archived.** On 26 September 2026 v1 moved to the `v1` branch, and nothing in this tree is v1's. Where this
+  page says v1 has, or will read, something, it means the archived v1; only `sv` reads `threats.json`, and a change
+  to v1 is made on its own branch. `server/src/design/threat-model.ts` is at the tag `v1-final`.
+- **The Secure by Design link (MT-03) was not built.** Nothing in `sv` ties the threat model to SBD-MT-03; only a
+  design-time prompt names it, and that prompt has no check. It stays a proposal.
+- **`sv plan` and `securevibe_plan`** (ADR-030) list the threats the answers in `securevibe.toml` raise, before any
+  code is written, but only those *not verified* or that it *cannot place*: a plan never says a threat was *found*
+  or *checked in part*, since nothing has been looked at yet. `sv brief` shows no threats.
+- **An answer is not a check.** A `[design]` answer, a section written down, or a statement never settles a threat;
+  only a check that ran moves one to *checked in part*.
+- **The AI threats name their MITRE ATLAS techniques** (`data/atlas-references.json`).
+- **The order:** a threat whose condition is unanswered is *cannot place* even when one of its requirements needs
+  attention.

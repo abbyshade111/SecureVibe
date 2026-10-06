@@ -2006,6 +2006,27 @@ mod tests {
     }
 
     #[test]
+    fn a_trace_refused_or_not_echoed_is_credited_and_one_echoed_is_not() {
+        // Until 6 October 2026 only the tests that run an app in Docker reached this credit, so
+        // the census of credits (`tools/coverage.py --credits`) failed wherever Docker was not.
+        let credited =
+            |r: ProbeResponse| verified_ids(&[r]).contains(&TRACE_ENABLED.rule_id.to_owned());
+        assert!(credited(response("trace", 405, &[], "Method Not Allowed")));
+        assert!(credited(response(
+            "trace",
+            200,
+            &[],
+            "<html>the usual home page</html>"
+        )));
+        assert!(!credited(response(
+            "trace",
+            200,
+            &[],
+            "TRACE / HTTP/1.0\r\nX-Probe-Echo: sv-probe-echo-value\r\n",
+        )));
+    }
+
+    #[test]
     fn a_trace_that_answers_normally_among_other_answers_is_not_reported() {
         // Second witness for the echo requirement, of a different shape: the whole suite, where the
         // app is careless about everything else and correct about TRACE. Loosening the echo check

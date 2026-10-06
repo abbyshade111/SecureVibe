@@ -41,6 +41,11 @@ Running-app checks answered (`answered` in `loop-measures.json`), each build:
    `securevibe_guidance`, which the instructions name, and was refused; one Haiku check build made six refused
    calls. The arms limited what the builder could use, not what it was told about.
 
+**Later, 6 October 2026.** The check and plan arms here listed every tool and refused the ones they leave out. Item
+6 found that refused builders give up on SecureVibe's tools altogether, the allowed ones included, and that with the
+others hidden the check and the plan are asked for far more often (`loop-scale/README.md`, protocol amendment 4). So
+point 3 above is in part a result of how the arms were limited, not only of what the builders chose.
+
 ## Why the low builds are low
 
 - **Sonnet check 2 (9):** the app's own limit on sign-in attempts answered the admin's sign-in with 429, so `sv` could

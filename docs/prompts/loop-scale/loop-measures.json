@@ -1,0 +1,1763 @@
+[
+ {
+  "build": "haiku-check-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 27,
+  "running_findings": 11,
+  "own_high": 1,
+  "cost_usd": 0.3329579999999999,
+  "seconds": 202.54,
+  "turns": 31,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-check-2",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_preflight"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 4,
+  "cost_usd": 0.1719384,
+  "seconds": 104.706,
+  "turns": 11,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-check-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_questions"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 6,
+  "running_findings": 3,
+  "own_high": 1,
+  "cost_usd": 0.2754004,
+  "seconds": 145.34,
+  "turns": 32,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-check-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 26,
+  "running_findings": 10,
+  "own_high": 1,
+  "cost_usd": 0.25069875,
+  "seconds": 205.929,
+  "turns": 10,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-check-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_notes_file"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 7,
+  "running_findings": 4,
+  "own_high": 1,
+  "cost_usd": 0.44849615,
+  "seconds": 265.493,
+  "turns": 40,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-checkhidden-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": false,
+  "answered": 7,
+  "running_findings": 3,
+  "own_high": 2,
+  "cost_usd": 0.3508966,
+  "seconds": 210.852,
+  "turns": 26,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-checkhidden-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   {
+    "needs_attention": [
+     "V11.4.4"
+    ],
+    "findings": [
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": []
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 27,
+  "running_findings": 10,
+  "own_high": 0,
+  "cost_usd": 0.3052616,
+  "seconds": 147.522,
+  "turns": 28,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-checkhidden-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 18,
+  "running_findings": 7,
+  "own_high": 2,
+  "cost_usd": 0.24750440000000004,
+  "seconds": 147.691,
+  "turns": 23,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-checkhidden-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 1,
+  "cost_usd": 0.06940660000000001,
+  "seconds": 48.628,
+  "turns": 2,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-checkhidden-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": false,
+  "answered": 6,
+  "running_findings": 3,
+  "own_high": 1,
+  "cost_usd": 0.1495819,
+  "seconds": 90.637,
+  "turns": 7,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-instructions-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 21,
+  "running_findings": 5,
+  "own_high": 2,
+  "cost_usd": 0.27640610000000004,
+  "seconds": 222.497,
+  "turns": 20,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-instructions-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 19,
+  "running_findings": 10,
+  "own_high": 2,
+  "cost_usd": 0.1462334,
+  "seconds": 132.921,
+  "turns": 9,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-instructions-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 1,
+  "cost_usd": 0.04211415,
+  "seconds": 23.862,
+  "turns": 3,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-instructions-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 21,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.24403094999999997,
+  "seconds": 173.785,
+  "turns": 23,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-instructions-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 36,
+  "running_findings": 16,
+  "own_high": 3,
+  "cost_usd": 0.2891437,
+  "seconds": 228.738,
+  "turns": 24,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-1",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_guidance",
+   "securevibe_notes_file",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_preflight",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   null,
+   null
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 9,
+  "own_high": 1,
+  "cost_usd": 0.45858925000000006,
+  "seconds": 197.702,
+  "turns": 41,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-2",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_notes_file",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_preflight",
+   "securevibe_check",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 3,
+  "attention_per_check": [
+   {
+    "needs_attention": [
+     "V11.4.4"
+    ],
+    "findings": [
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [
+     "V11.4.4"
+    ],
+    "findings": [
+     "ast.weak-password-key-derivation:medium",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 23,
+  "running_findings": 10,
+  "own_high": 0,
+  "cost_usd": 0.5027975000000001,
+  "seconds": 260.79,
+  "turns": 44,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-3",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_preflight",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 2,
+  "attention_per_check": [
+   {
+    "needs_attention": [
+     "V11.4.4"
+    ],
+    "findings": [
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": []
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 23,
+  "running_findings": 8,
+  "own_high": 0,
+  "cost_usd": 0.2260462,
+  "seconds": 108.422,
+  "turns": 20,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_notes_file",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_record_answer",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   {
+    "needs_attention": [
+     "SBD-AC-05",
+     "V13.2.3",
+     "V13.3.1"
+    ],
+    "findings": [
+     "secrets.credential-assignment:high",
+     "secrets.credential-assignment:high",
+     "secrets.credential-assignment:high",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": []
+   }
+  ],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 1,
+  "cost_usd": 0.56998245,
+  "seconds": 269.307,
+  "turns": 52,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-loop-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   {
+    "needs_attention": [
+     "SBD-AC-05",
+     "V11.4.4",
+     "V13.2.3",
+     "V13.3.1"
+    ],
+    "findings": [
+     "secrets.credential-assignment:high",
+     "ast.weak-password-key-derivation:medium",
+     "ast.weak-password-key-derivation:medium",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": []
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 22,
+  "running_findings": 9,
+  "own_high": 0,
+  "cost_usd": 0.29758025000000005,
+  "seconds": 174.286,
+  "turns": 22,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-none-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": false,
+  "answered": 7,
+  "running_findings": 3,
+  "own_high": 1,
+  "cost_usd": 0.18292324999999998,
+  "seconds": 115.506,
+  "turns": 16,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-none-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 29,
+  "running_findings": 11,
+  "own_high": 5,
+  "cost_usd": 0.18706319999999996,
+  "seconds": 144.659,
+  "turns": 9,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-none-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 0,
+  "cost_usd": 0.4869011,
+  "seconds": 212.202,
+  "turns": 65,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-none-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 24,
+  "running_findings": 11,
+  "own_high": 1,
+  "cost_usd": 0.19674255000000002,
+  "seconds": 138.888,
+  "turns": 13,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-none-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 21,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.20406264999999998,
+  "seconds": 193.313,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-plan-1",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_preflight"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 27,
+  "running_findings": 12,
+  "own_high": 2,
+  "cost_usd": 0.42538400000000004,
+  "seconds": 235.459,
+  "turns": 43,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-plan-2",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_preflight",
+   "securevibe_notes_file"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 21,
+  "running_findings": 7,
+  "own_high": 3,
+  "cost_usd": 0.38171295,
+  "seconds": 221.884,
+  "turns": 42,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-plan-3",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_plan",
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_preflight"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 19,
+  "running_findings": 8,
+  "own_high": 3,
+  "cost_usd": 0.4954348999999999,
+  "seconds": 269.646,
+  "turns": 44,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-plan-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_guidance"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 21,
+  "running_findings": 8,
+  "own_high": 3,
+  "cost_usd": 0.1902976,
+  "seconds": 106.022,
+  "turns": 17,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-plan-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_plan",
+   "securevibe_notes_file"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 26,
+  "running_findings": 10,
+  "own_high": 1,
+  "cost_usd": 0.29537875,
+  "seconds": 202.035,
+  "turns": 26,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-planhidden-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": false,
+  "signed_in": false,
+  "answered": 0,
+  "running_findings": 0,
+  "own_high": 1,
+  "cost_usd": 0.31311510000000004,
+  "seconds": 236.429,
+  "turns": 23,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-planhidden-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_plan"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 24,
+  "running_findings": 7,
+  "own_high": 2,
+  "cost_usd": 0.3549175000000001,
+  "seconds": 202.032,
+  "turns": 34,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-planhidden-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 26,
+  "running_findings": 10,
+  "own_high": 1,
+  "cost_usd": 0.34571384999999993,
+  "seconds": 221.148,
+  "turns": 33,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-planhidden-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 26,
+  "running_findings": 14,
+  "own_high": 1,
+  "cost_usd": 0.26826035,
+  "seconds": 178.313,
+  "turns": 13,
+  "stopped": "success"
+ },
+ {
+  "build": "haiku-planhidden-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_plan"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": false,
+  "answered": 6,
+  "running_findings": 3,
+  "own_high": 1,
+  "cost_usd": 0.33767259999999993,
+  "seconds": 188.046,
+  "turns": 27,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-check-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 31,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.3875611,
+  "seconds": 155.572,
+  "turns": 11,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-check-2",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_spec",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_preflight"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 8,
+  "own_high": 1,
+  "cost_usd": 0.3643577,
+  "seconds": 118.745,
+  "turns": 13,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-check-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2592491,
+  "seconds": 88.416,
+  "turns": 10,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-check-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.3321303,
+  "seconds": 123.089,
+  "turns": 9,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-check-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2993118,
+  "seconds": 107.931,
+  "turns": 8,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-checkhidden-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2930812,
+  "seconds": 105.652,
+  "turns": 8,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-checkhidden-2",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_check",
+   "securevibe_check",
+   "securevibe_preflight"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   null,
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 8,
+  "running_findings": 2,
+  "own_high": 1,
+  "cost_usd": 0.3075497,
+  "seconds": 109.557,
+  "turns": 10,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-checkhidden-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 29,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.2567065,
+  "seconds": 83.456,
+  "turns": 7,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-checkhidden-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 5,
+  "own_high": 0,
+  "cost_usd": 0.3283701,
+  "seconds": 105.898,
+  "turns": 10,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-checkhidden-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.2778916,
+  "seconds": 102.007,
+  "turns": 7,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-instructions-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.34001119999999996,
+  "seconds": 155.541,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-instructions-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.2597898,
+  "seconds": 107.158,
+  "turns": 5,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-instructions-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 29,
+  "running_findings": 4,
+  "own_high": 1,
+  "cost_usd": 0.30789730000000004,
+  "seconds": 133.345,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-instructions-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2755391,
+  "seconds": 118.968,
+  "turns": 5,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-instructions-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 30,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.2616353,
+  "seconds": 109.915,
+  "turns": 5,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-loop-1",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_preflight",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.3674295,
+  "seconds": 137.273,
+  "turns": 14,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-loop-2",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_preflight",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": []
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 7,
+  "own_high": 0,
+  "cost_usd": 0.3532036,
+  "seconds": 128.411,
+  "turns": 15,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-loop-3",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_preflight",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 29,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.36331009999999997,
+  "seconds": 136.988,
+  "turns": 16,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-loop-4",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": true,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_notes_file",
+   "securevibe_preflight",
+   "securevibe_check",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 2,
+  "attention_per_check": [
+   {
+    "needs_attention": [
+     "SBD-AC-05",
+     "V13.2.3",
+     "V13.3.1"
+    ],
+    "findings": [
+     "secrets.credential-assignment:high",
+     "config.security-contact:low"
+    ]
+   },
+   {
+    "needs_attention": [],
+    "findings": []
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 38,
+  "running_findings": 6,
+  "own_high": 0,
+  "cost_usd": 0.5293843000000001,
+  "seconds": 158.7,
+  "turns": 28,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-loop-5",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_preflight",
+   "securevibe_check"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 1,
+  "attention_per_check": [
+   {
+    "needs_attention": [],
+    "findings": [
+     "config.security-contact:low"
+    ]
+   }
+  ],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.3630657,
+  "seconds": 140.674,
+  "turns": 12,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-none-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2770774,
+  "seconds": 117.305,
+  "turns": 5,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-none-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.30314820000000003,
+  "seconds": 132.447,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-none-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 31,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.261779,
+  "seconds": 110.189,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-none-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.2544543,
+  "seconds": 121.61,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-none-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2740594,
+  "seconds": 107.779,
+  "turns": 10,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-plan-1",
+  "preflight_calls": 1,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_spec",
+   "securevibe_guidance",
+   "securevibe_preflight"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 4,
+  "own_high": 1,
+  "cost_usd": 0.3268447,
+  "seconds": 106.415,
+  "turns": 9,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-plan-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 35,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.3070771,
+  "seconds": 128.91,
+  "turns": 9,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-plan-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_spec",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_explain"
+  ],
+  "spec_before_code": true,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 33,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.49673080000000003,
+  "seconds": 189.537,
+  "turns": 26,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-plan-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.2166368,
+  "seconds": 80.322,
+  "turns": 8,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-plan-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_guidance",
+   "securevibe_before",
+   "securevibe_before",
+   "securevibe_before"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 31,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.3401215,
+  "seconds": 134.857,
+  "turns": 12,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-planhidden-1",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": false,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.282202,
+  "seconds": 113.885,
+  "turns": 7,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-planhidden-2",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 6,
+  "own_high": 1,
+  "cost_usd": 0.2555368,
+  "seconds": 94.566,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-planhidden-3",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan",
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 30,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.2957071,
+  "seconds": 117.33,
+  "turns": 8,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-planhidden-4",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 34,
+  "running_findings": 7,
+  "own_high": 1,
+  "cost_usd": 0.2765898,
+  "seconds": 111.007,
+  "turns": 6,
+  "stopped": "success"
+ },
+ {
+  "build": "sonnet-planhidden-5",
+  "preflight_calls": 0,
+  "checked_again_after_a_fix": false,
+  "sv_calls": [
+   "securevibe_plan"
+  ],
+  "spec_before_code": false,
+  "plan_before_code": true,
+  "checks": 0,
+  "attention_per_check": [],
+  "started": true,
+  "signed_in": true,
+  "answered": 32,
+  "running_findings": 5,
+  "own_high": 1,
+  "cost_usd": 0.3193425000000001,
+  "seconds": 129.299,
+  "turns": 7,
+  "stopped": "success"
+ }
+]

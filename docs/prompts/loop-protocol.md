@@ -91,3 +91,9 @@ spending more.
    Sonnet 5.5 and Haiku 4.5, on the plain brief: fifty builds, each capped at $1.50. Its `sv` is one release build
    from `main` with the preflight (ADR-035) and the instructions saying when to check, its commit recorded with the
    results; so item 6's loop arm is not the pilot's, and the two are reported apart.
+4. **6 October 2026, after item 6's fifty builds: the check and plan arms hide the tools they leave out.** Until
+   then they were limited with `--allowedTools` alone, so the other tools were still listed and refused when asked
+   for; the builders, told by the instructions to ask for the guidance and the preflight, were refused and gave up on
+   every SecureVibe tool, the check included (none of ten check builds called it). Two arms were added, `checkhidden`
+   and `planhidden`, the same with the others hidden by `--disallowedTools`, and run at the same size (twenty builds,
+   at the owner's word). Both versions are reported (`loop-scale/README.md`). Items 2 and 3 used the refused form.
