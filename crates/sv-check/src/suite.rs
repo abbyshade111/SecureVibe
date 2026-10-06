@@ -27,6 +27,7 @@
 //! is a check people turn off.
 
 use crate::finding::{Confidence, Finding, Location, Severity};
+use crate::junit::TestCase;
 use crate::verified::Verified;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
@@ -307,6 +308,12 @@ fn looks_like_a_test_declaration(line: &str) -> bool {
 /// *add* credit. A line whose name cannot be read, or which the runner named differently, is simply
 /// not matched and not credited — which is where things stood before the report was read at all.
 pub fn declared_test_name(line: &str) -> Option<String> {
+    declared_test(line).map(|(name, _)| name)
+}
+
+/// The name a test is declared with, and whether it is an identifier (`def test_x(`, `func TestX(`)
+/// rather than a title in quotes (`it('…')`), which runners report inside longer names.
+fn declared_test(line: &str) -> Option<(String, bool)> {
     let text = line.trim();
     // `def test_x(`, `func TestX(`, `fn test_x(`, `public void testX(`, `sub test_x {`.
     for keyword in ["def ", "func ", "fn ", "sub ", "void "] {
@@ -317,7 +324,7 @@ pub fn declared_test_name(line: &str) -> Option<String> {
                 .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
                 .collect();
             if !name.is_empty() {
-                return Some(name);
+                return Some((name, true));
             }
         }
     }
@@ -329,7 +336,7 @@ pub fn declared_test_name(line: &str) -> Option<String> {
             if quote == '\'' || quote == '"' || quote == '`' {
                 let name: String = rest[1..].chars().take_while(|c| *c != quote).collect();
                 if !name.is_empty() {
-                    return Some(name);
+                    return Some((name, false));
                 }
             }
         }
@@ -337,16 +344,50 @@ pub fn declared_test_name(line: &str) -> Option<String> {
     None
 }
 
+/// Whether a case the runner reported is, or is part of, the test declared as `declared`.
+///
+/// Runners report a test by more than its own name. pytest adds a parameter (`test_x[1]`) and Go a
+/// subtest (`TestX/empty`). jest and Mocha put the `describe` titles first, with a space
+/// (`search binds its parameters`), and Vitest with ` > `. A `describe` title is first in the names
+/// of the tests inside it. So a title is matched as a whole part of the name, set off by spaces,
+/// and an identifier as the name with a parameter or subtest after it.
+fn reports(declared: &str, identifier: bool, case: &str) -> bool {
+    if case == declared {
+        return true;
+    }
+    if identifier {
+        return case.starts_with(&format!("{declared}["))
+            || case.starts_with(&format!("{declared}/"));
+    }
+    // Vitest's ` > ` is set off by spaces too.
+    case.ends_with(&format!(" {declared}"))
+        || case.starts_with(&format!("{declared} "))
+        || case.contains(&format!(" {declared} "))
+}
+
+/// Whether the runner's report shows the test declared on `line` passed: at least one case is it,
+/// and every case that could be it passed. A failing or skipped case that could be the same test is
+/// enough to credit nothing, so a wider match can only ever take credit away, never add it wrongly:
+/// two tests named alike in different classes, one failing, credit neither.
+fn reported_passing(line: &str, cases: &[TestCase]) -> bool {
+    let Some((declared, identifier)) = declared_test(line) else {
+        return false;
+    };
+    let mut matched = cases
+        .iter()
+        .filter(|c| reports(&declared, identifier, &c.name))
+        .peekable();
+    matched.peek().is_some() && matched.all(|c| c.passed)
+}
+
 /// What the run said about the suite as a whole.
 #[derive(Debug, Clone, Copy)]
 pub enum SuiteOutcome<'a> {
     /// Every test passed. One exit code is enough to credit everything that named a requirement.
     Passed,
-    /// It did not pass. `passed` is the set of case names the runner's own report said came through,
-    /// when there was a report and it could be read; `None` when there was not.
-    Failed {
-        passed: Option<&'a BTreeSet<String>>,
-    },
+    /// It did not pass. `cases` are the runner's own report of each case and whether it came
+    /// through, when there was a report and it could be read; `None` when there was not.
+    Failed { cases: Option<&'a [TestCase]> },
 }
 
 /// Turns passing tests into evidence, and says where a test and its requirement share no words.
@@ -370,12 +411,10 @@ pub fn credit(
 ) -> (Vec<Verified>, Vec<Finding>) {
     let tests: Vec<&NamedTest> = match outcome {
         SuiteOutcome::Passed => tests.iter().collect(),
-        SuiteOutcome::Failed { passed: None } => return (Vec::new(), Vec::new()),
-        SuiteOutcome::Failed {
-            passed: Some(names),
-        } => tests
+        SuiteOutcome::Failed { cases: None } => return (Vec::new(), Vec::new()),
+        SuiteOutcome::Failed { cases: Some(cases) } => tests
             .iter()
-            .filter(|t| declared_test_name(&t.text).is_some_and(|name| names.contains(&name)))
+            .filter(|t| reported_passing(&t.text, cases))
             .collect(),
     };
     if tests.is_empty() {
@@ -712,7 +751,7 @@ mod tests {
         }];
         let describe =
             |_: &str| Some("Verify that the application uses parameterised queries".to_owned());
-        let (verified, findings) = credit(&tests, SuiteOutcome::Failed { passed: None }, &describe);
+        let (verified, findings) = credit(&tests, SuiteOutcome::Failed { cases: None }, &describe);
         assert!(verified.is_empty() && findings.is_empty());
 
         let (verified, _) = credit(&tests, SuiteOutcome::Passed, &describe);
