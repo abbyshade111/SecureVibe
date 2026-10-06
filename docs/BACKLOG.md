@@ -6116,6 +6116,10 @@ another session is not a claim.
   **Follow-ups, each claimable on its own, and they apply to today's packs as well as to option C:**
   1. Bundled third-party library files shown apart, detected by a known library's file (as retire.js does) rather
      than by long lines alone, and checked on apps the test was not written against.
+     **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking to pick another item, in branch
+     `claude/securevibe-e9-bundled-libraries`: a copy of a library kept in the app, known by its own banner, has its
+     findings listed apart, named for the library, and still counted; checked on library files and first-party code
+     the test was not written against.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
