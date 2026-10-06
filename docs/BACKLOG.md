@@ -3498,6 +3498,10 @@ another session is not a claim.
       serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
       Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
       in settings or built at run time.
+      **PHP, Ruby, Java, C#, and Rust claimed on 6 October 2026 by session securevibe-e2**, at the owner's word
+      ("continue to work off the backlog"), in branch `claude/securevibe-e2-static-more`: each handler read from its
+      framework's own source (Sinatra, Rack, Spring, Javalin, ASP.NET Core, tower-http, actix-files, warp), and `php -S`
+      with no document root in a script. A folder named in settings or built at run time stays out of reach.
   11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
       whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
       (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
