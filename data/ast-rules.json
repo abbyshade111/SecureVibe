@@ -1427,6 +1427,102 @@
       "nothingToFind": {
         "shell": "Tokens are not checked in shell scripts in any way this rule can speak to."
       }
+    },
+    {
+      "id": "ast.token-in-browser-storage",
+      "title": "A sign-in token is written where the page's scripts can read it",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "V10.1.1"
+      ],
+      "cwe": [
+        "CWE-922"
+      ],
+      "description": "The page's own code writes a value under a name that says it is a sign-in token (`token`, `jwt`, `accessToken`, `refresh`) into `localStorage` or `sessionStorage`, or into a cookie set from the page, which can never be `HttpOnly`.",
+      "impact": "Every script on the page can read what is kept there, so the first cross-site scripting bug or rogue package takes the token, and whoever has it is signed in as the person. A refresh token keeps them signed in for weeks.",
+      "fix": "Keep sign-in tokens out of the browser's storage. Let the server hold the session and give the browser an `HttpOnly` cookie, set by the server, or put a backend-for-frontend between the page and the sign-in provider so tokens never reach the page. If a token must be in the page, keep a short-lived access token in memory only, never the refresh token.",
+      "findingsOnly": true,
+      "queries": {
+        "javascript": "[(call_expression) (assignment_expression)] @hit @arg",
+        "typescript": "[(call_expression) (assignment_expression)] @hit @arg"
+      },
+      "argumentPatterns": {
+        "javascript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`](?:[^\\\"'`]*(?i:token|jwt|bearer)[^\\\"'`]*|(?i:auth|access|refresh))[\\\"'`]\\s*,)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`](?:[^\\\"'`]*(?i:token|jwt|bearer)[^\\\"'`]*|(?i:auth|access|refresh))[\\\"'`]\\s*\\]\\s*=)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*(?:\\w*(?i:token|jwt|bearer)\\w*|(?i:auth|access|refresh))\\s*=)|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*(?:\\w*(?i:token|jwt|bearer)\\w*|(?i:auth|access|refresh))\\s*=)",
+        "typescript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`](?:[^\\\"'`]*(?i:token|jwt|bearer)[^\\\"'`]*|(?i:auth|access|refresh))[\\\"'`]\\s*,)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`](?:[^\\\"'`]*(?i:token|jwt|bearer)[^\\\"'`]*|(?i:auth|access|refresh))[\\\"'`]\\s*\\]\\s*=)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*(?:\\w*(?i:token|jwt|bearer)\\w*|(?i:auth|access|refresh))\\s*=)|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*(?:\\w*(?i:token|jwt|bearer)\\w*|(?i:auth|access|refresh))\\s*=)"
+      },
+      "safeArgumentPatterns": {
+        "javascript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`][^\\\"'`]*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`][^\\\"'`]*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*\\w*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*\\w*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))",
+        "typescript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`][^\\\"'`]*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`][^\\\"'`]*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*\\w*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*\\w*(?i:csrf|xsrf|expir|ttl|push|fcm|apns|device|notif))"
+      },
+      "looksFor": "a value written into `localStorage`, `sessionStorage`, or a cookie set from the page, under a name that says it is a sign-in token; a name that does not say so, or a token kept some other way, is not seen, so finding none credits nothing",
+      "looksForIn": {
+        "javascript": "`localStorage.setItem(...)`, `sessionStorage[...] = ...`, `localStorage.token = ...`, and `document.cookie = 'token=...'`, by a name holding `token`, `jwt`, or `bearer`, or one that is `auth`, `access`, or `refresh`; a CSRF token, a push-notification token, and a token's expiry time are set aside",
+        "typescript": "`localStorage.setItem(...)`, `sessionStorage[...] = ...`, `localStorage.token = ...`, and `document.cookie = 'token=...'`, by a name holding `token`, `jwt`, or `bearer`, or one that is `auth`, `access`, or `refresh`; a CSRF token, a push-notification token, and a token's expiry time are set aside"
+      },
+      "nothingToFind": {
+        "python": "Python code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "go": "Go code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "php": "PHP code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "ruby": "Ruby code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "java": "Java code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "csharp": "C# code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "kotlin": "Kotlin code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "rust": "Rust code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "c": "C code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "cpp": "C++ code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "dart": "Dart in the browser reaches `localStorage` through `dart:html`, which is not read here; Flutter apps keep their storage outside the browser. A sign-in token written there is not found.",
+        "swift": "Swift code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into.",
+        "shell": "A shell script runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a sign-in token into."
+      }
+    },
+    {
+      "id": "ast.password-in-browser-storage",
+      "title": "A password is written into the browser's storage",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V14.3.3"
+      ],
+      "cwe": [
+        "CWE-922"
+      ],
+      "description": "The page's own code writes a value under a name that says it is a password (`password`, `passwd`, `pwd`, `passphrase`) into `localStorage` or `sessionStorage`, or into a cookie set from the page.",
+      "impact": "What is kept there stays on the computer after the person leaves and can be read by every script on the page, so anyone who uses the computer next, or the first cross-site scripting bug, has the password, which people use on other sites too.",
+      "fix": "Never keep the password in the browser. Send it once, when the person signs in, and keep the session the server gives back instead. A \"remember me\" option keeps a session longer; it never keeps the password.",
+      "findingsOnly": true,
+      "queries": {
+        "javascript": "[(call_expression) (assignment_expression)] @hit @arg",
+        "typescript": "[(call_expression) (assignment_expression)] @hit @arg"
+      },
+      "argumentPatterns": {
+        "javascript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`][^\\\"'`]*(?i:password|passwd|passphrase|pwd)[^\\\"'`]*[\\\"'`]\\s*,)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`][^\\\"'`]*(?i:password|passwd|passphrase|pwd)[^\\\"'`]*[\\\"'`]\\s*\\]\\s*=)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*\\w*(?i:password|passwd|passphrase|pwd)\\w*\\s*=)|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*\\w*(?i:password|passwd|passphrase|pwd)\\w*\\s*=)",
+        "typescript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`][^\\\"'`]*(?i:password|passwd|passphrase|pwd)[^\\\"'`]*[\\\"'`]\\s*,)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`][^\\\"'`]*(?i:password|passwd|passphrase|pwd)[^\\\"'`]*[\\\"'`]\\s*\\]\\s*=)|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*\\w*(?i:password|passwd|passphrase|pwd)\\w*\\s*=)|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*\\w*(?i:password|passwd|passphrase|pwd)\\w*\\s*=)"
+      },
+      "safeArgumentPatterns": {
+        "javascript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`][^\\\"'`]*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`][^\\\"'`]*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*\\w*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*\\w*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))",
+        "typescript": "(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*setItem\\s*\\(\\s*[\\\"'`][^\\\"'`]*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\[\\s*[\\\"'`][^\\\"'`]*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))|(?:^(?:(?:window|self|globalThis)\\s*\\.\\s*)?(?:localStorage|sessionStorage)\\s*\\.\\s*\\w*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))|(?:^document\\s*\\.\\s*cookie\\s*=\\s*[\\\"'`]\\s*\\w*(?i:show|hide|visib|strength|polic|hint|reset|expir|length|remember|changed|updated|last|forgot|confirm_?ed|valid))"
+      },
+      "looksFor": "a value written into `localStorage`, `sessionStorage`, or a cookie set from the page, under a name that says it is a password; a name that does not say so is not seen, so finding none credits nothing",
+      "looksForIn": {
+        "javascript": "`localStorage.setItem(...)`, `sessionStorage[...] = ...`, `localStorage.password = ...`, and `document.cookie = 'password=...'`, by a name holding `password`, `passwd`, `pwd`, or `passphrase`; a setting about the password field (shown, strength, a hint, or remembered) is set aside",
+        "typescript": "`localStorage.setItem(...)`, `sessionStorage[...] = ...`, `localStorage.password = ...`, and `document.cookie = 'password=...'`, by a name holding `password`, `passwd`, `pwd`, or `passphrase`; a setting about the password field (shown, strength, a hint, or remembered) is set aside"
+      },
+      "nothingToFind": {
+        "python": "Python code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "go": "Go code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "php": "PHP code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "ruby": "Ruby code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "java": "Java code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "csharp": "C# code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "kotlin": "Kotlin code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "rust": "Rust code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "c": "C code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "cpp": "C++ code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "dart": "Dart in the browser reaches `localStorage` through `dart:html`, which is not read here; Flutter apps keep their storage outside the browser. A password written there is not found.",
+        "swift": "Swift code runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into.",
+        "shell": "A shell script runs outside the browser, so it has no `localStorage`, `sessionStorage`, or page cookies to write a password into."
+      }
     }
   ]
 }
