@@ -3663,6 +3663,8 @@ another session is not a claim.
     files rather than folders, CodeQL unknown): add the guard. Every outside tool's environment sets git's
     `core.fsmonitor` off, as `sv`'s own `git` does, held by a test with a planted repository; ADR-032 gets a Later
     entry. **Claimed the same day by session securevibe-e2**, in branch `claude/securevibe-e2-git-guard`.
+    **Done the same day** (DESIGN, "The outside tools run no program an app's repository names"; ADR-032, "Later, 6
+    October 2026"). Not run with Semgrep or CodeQL themselves, which were not installed in the session.
 
   **The owner's decisions, 6 October 2026:**
   - Records for items 1, 2, 3, and 7, the four most costly; the other four stay as their DESIGN sections.
