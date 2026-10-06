@@ -200,10 +200,17 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
             "that is not a public address: give the host your app is served from".to_owned(),
         );
     }
+    // Plain HTTP is asked on its own port, 80, whatever port the HTTPS address names: asked on the
+    // HTTPS port it is a TLS port refusing plain text, which says nothing about whether plain HTTP
+    // is served (the review of 1 to 4 October, item 2).
+    let plain_host = match host.strip_prefix('[') {
+        Some(rest) => format!("[{}]", rest.split(']').next().unwrap_or_default()),
+        None => host.split(':').next().unwrap_or_default().to_owned(),
+    };
     Ok(Target {
         host: host.to_owned(),
         https: format!("https://{host}/"),
-        http: format!("http://{host}/"),
+        http: format!("http://{plain_host}/"),
     })
 }
 
@@ -364,7 +371,9 @@ fn resolve_args(target: &Target, addresses: &[std::net::IpAddr]) -> Vec<String> 
             std::net::IpAddr::V4(v4) => v4.to_string(),
         })
         .collect();
+    // The HTTPS port, as typed or 443, and 80 for the plain-HTTP question.
     let ports: Vec<&str> = match target_port(target) {
+        Some(port) if port != "80" => vec![port, "80"],
         Some(port) => vec![port],
         None => vec!["443", "80"],
     };
@@ -374,6 +383,13 @@ fn resolve_args(target: &Target, addresses: &[std::net::IpAddr]) -> Vec<String> 
         out.push(format!("{name}:{port}:{}", list.join(",")));
     }
     out
+}
+
+/// Whether curl's failure says the site refused the connection, rather than not answering in time,
+/// closing it without a word, or something on this computer's side.
+fn refused_connection(why: &str) -> bool {
+    let why = why.to_ascii_lowercase();
+    why.contains("connection refused") || why.contains("couldn't connect to server")
 }
 
 /// A redirect's destination, when it names one.
@@ -610,7 +626,33 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
         out.requested
             .push(format!("{} (without verification)", target.https));
         let unverified = http.get(&target.https, false);
+        // A certificate problem only when curl said it was one. A timeout, or a host waking from
+        // sleep, fails the first request and answers the second a moment later, and that says
+        // nothing about the certificate (the review of 1 to 4 October, item 1).
+        let about_certificate = why.to_ascii_lowercase().contains("certificate");
+        if unverified.reached() && !about_certificate {
+            out.not_assessed.push((
+                "V12.2.2, V12.1.1, V12.1.4, V3.4.1, V3.3.3".to_owned(),
+                format!(
+                    "{} did not answer the first request ({why}), and answered the next one a \
+                     moment later. That is not a certificate problem, and with only {MOST_REQUESTS} \
+                     requests to make, the certificate and the site's headers were not asked again. \
+                     Run `sv probe` again.",
+                    target.https
+                ),
+            ));
+            return out;
+        }
         if unverified.reached() {
+            out.not_assessed.push((
+                "V12.1.4, V3.4.1, V3.3.3".to_owned(),
+                format!(
+                    "{} answered only with certificate checking turned off, so its stapled status \
+                     and its headers were not read: an answer like that is not the one a visitor \
+                     gets.",
+                    target.https
+                ),
+            ));
             out.findings.push(finding(
                 &UNTRUSTED_CERTIFICATE,
                 format!(
@@ -865,6 +907,23 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
     // 4. Plain HTTP: is it still served, or does it send the browser to HTTPS?
     out.requested.push(target.http.clone());
     let plain = http.get(&target.http, true);
+    // Credited only for a connection refused: a timeout, an empty reply, or port 80 blocked on this
+    // computer's side is no answer about the site (the review of 1 to 4 October, item 2).
+    if let Some(why) = plain
+        .failure
+        .as_deref()
+        .filter(|why| !refused_connection(why))
+    {
+        out.not_assessed.push((
+            "V12.2.1".to_owned(),
+            format!(
+                "{} could not be asked ({why}), which is not the site refusing plain HTTP, so \
+                 whether it is served was not settled.",
+                target.http
+            ),
+        ));
+        return out;
+    }
     if !plain.reached() {
         out.verified.push(Verified::new(
             PLAIN_HTTP_SERVED.rule_id,
@@ -1150,6 +1209,155 @@ mod tests {
             "{:?}",
             out.not_assessed
         );
+    }
+
+    /// A fetcher whose first verified request to one address fails with `why`, and every later one
+    /// gets the site's answer.
+    struct FailsOnce {
+        site: FakeSite,
+        url: &'static str,
+        why: &'static str,
+        failed: bool,
+    }
+
+    impl Fetch for FailsOnce {
+        fn get(&mut self, url: &str, verify: bool) -> Answer {
+            if url == self.url && verify && !self.failed {
+                self.failed = true;
+                self.site.asked.push((url.to_owned(), verify));
+                return Answer {
+                    revocation: None,
+                    status: 0,
+                    headers: Vec::new(),
+                    failure: Some(self.why.to_owned()),
+                };
+            }
+            self.site.get(url, verify)
+        }
+    }
+
+    fn failure(why: &str) -> Answer {
+        Answer {
+            revocation: None,
+            status: 0,
+            headers: Vec::new(),
+            failure: Some(why.to_owned()),
+        }
+    }
+
+    #[test]
+    fn a_first_request_that_timed_out_is_not_called_a_certificate_problem() {
+        // The review of 1 to 4 October, item 1: a host waking from sleep misses the time limit
+        // once and answers the retry, and that was reported as an untrusted certificate.
+        let pages = [
+            ("https://example.test/", ok(&[])),
+            (
+                "http://example.test/",
+                redirect(301, "https://example.test/"),
+            ),
+        ];
+        let mut slow = FailsOnce {
+            site: site(&pages),
+            url: "https://example.test/",
+            why: "Operation timed out after 15001 milliseconds with 0 bytes received",
+            failed: false,
+        };
+        let out = run(&mut slow, &target());
+        assert!(slow.failed, "the setup: the first request failed");
+        assert!(
+            !rules(&out).contains(&UNTRUSTED_CERTIFICATE.rule_id),
+            "{:?}",
+            out.findings
+        );
+        assert!(
+            !out.verified
+                .iter()
+                .any(|v| v.check_id == UNTRUSTED_CERTIFICATE.rule_id)
+        );
+        assert!(
+            out.not_assessed
+                .iter()
+                .any(|(ids, why)| ids.contains("V12.2.2") && why.contains("timed out")),
+            "{:?}",
+            out.not_assessed
+        );
+        // The control: a failure that names the certificate is still the finding.
+        let mut bad = FailsOnce {
+            site: site(&pages),
+            url: "https://example.test/",
+            why: "SSL certificate problem: self-signed certificate",
+            failed: false,
+        };
+        let out = run(&mut bad, &target());
+        assert!(
+            rules(&out).contains(&UNTRUSTED_CERTIFICATE.rule_id),
+            "{:?}",
+            out.findings
+        );
+    }
+
+    #[test]
+    fn plain_http_is_credited_only_for_a_connection_refused_and_asked_on_port_80() {
+        // The review of 1 to 4 October, item 2.
+        let credited = |plain: Answer| {
+            let mut s = site(&[
+                ("https://example.test/", ok(&[])),
+                ("http://example.test/", plain),
+            ]);
+            run(&mut s, &target())
+                .verified
+                .iter()
+                .any(|v| v.check_id == PLAIN_HTTP_SERVED.rule_id)
+        };
+        assert!(credited(failure(
+            "Failed to connect to example.test port 80 after 3 ms: Connection refused"
+        )));
+        assert!(credited(failure(
+            "Failed to connect to example.test port 80 after 3 ms: Couldn't connect to server"
+        )));
+        for why in [
+            "Empty reply from server",
+            "Connection timed out after 15000 milliseconds",
+            "Operation timed out after 15001 milliseconds with 0 bytes received",
+        ] {
+            assert!(!credited(failure(why)), "{why} was credited");
+        }
+        // The plain question goes to port 80, whatever port the HTTPS address names, and is held
+        // to the checked address there too.
+        for (typed, http) in [
+            ("https://app.example.test:443/", "http://app.example.test/"),
+            (
+                "https://app.example.test:8443/x",
+                "http://app.example.test/",
+            ),
+            ("https://[2001:db8::1]:8443/", "http://[2001:db8::1]/"),
+        ] {
+            assert_eq!(read_target(typed).unwrap().http, http, "{typed}");
+        }
+        let t = read_target("https://app.example.test:8443/").unwrap();
+        let held = resolve_args(&t, &["203.0.113.7".parse().unwrap()]);
+        assert!(
+            held.iter().any(|a| a == "app.example.test:80:203.0.113.7"),
+            "{held:?}"
+        );
+        assert!(
+            held.iter()
+                .any(|a| a == "app.example.test:8443:203.0.113.7"),
+            "{held:?}"
+        );
+    }
+
+    #[test]
+    fn curl_is_told_to_use_no_proxy() {
+        // The review of 1 to 4 October, item 3: a proxy from this computer's settings looks the
+        // name up itself, so the request was not held to the checked address.
+        let curl = Curl::held_to(&target(), &["203.0.113.7".parse().unwrap()]);
+        let args = curl.args(&[]);
+        let at = args
+            .iter()
+            .position(|a| *a == "--noproxy")
+            .expect("--noproxy is passed");
+        assert_eq!(args[at + 1], "*");
     }
 
     #[test]
@@ -1928,7 +2136,17 @@ impl Curl {
     /// one request; plain web addresses only; and held to the addresses that were checked. Then the
     /// request's own flags.
     fn args<'a>(&'a self, own: &[&'a str]) -> Vec<&'a str> {
-        let mut args = vec!["--disable", "--globoff", "--proto", "=http,https"];
+        // No proxy, whatever this computer's settings say: a proxy looks the name up itself, so the
+        // request would not be held to the address that was checked (the review of 1 to 4
+        // October, item 3).
+        let mut args = vec![
+            "--disable",
+            "--globoff",
+            "--noproxy",
+            "*",
+            "--proto",
+            "=http,https",
+        ];
         args.extend(self.held.iter().map(String::as_str));
         args.extend(own.iter().copied());
         args
