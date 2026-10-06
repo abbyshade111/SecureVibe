@@ -6788,6 +6788,10 @@ another session is not a claim.
   `Logger::log(msg)`) parses as a `qualified_identifier`, not the plain `identifier` these queries match,
   and is not seen; neither is `std::cout << "Location: " << u`, a chain of `binary_expression` nodes and
   never a call at all. Both are real C++ idioms and both are named gaps, not silent ones.
+  **Both gaps claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog
+  item"), in branch `claude/securevibe-e9-cpp-scoped`: a call named through `std::`, `std::filesystem::`, or the
+  global `::` is read as the plain call, while a call on a class of the app's own (`Logger::log`) still is not; and
+  `std::cout << "Location: " << url` is read as the `printf` form is.
 
   The two "no grammar" tests this item said would break did, and now use Objective-C (`.m`/`.mm`,
   recognized by the scanner and deliberately left without a grammar) in C++'s place, continuing the same
@@ -7090,6 +7094,16 @@ another session is not a claim.
      keys would have to be kept where the AI coding tool cannot write. Under every design, "a person, not the tool, made
      this" stays unproven, as ADR-026 says. Building it would change ADR-026 and add a dependency, so its record goes in
      the same pull request, and it needs a claim and the owner's decision first.
+
+- **Seals as SSH signatures, so CI and a second computer can check them without being able to make one.** The owner
+  chose SSH signing on 6 October 2026, on the research above, and took every recommendation in the plan session
+  securevibe-e10 walked them through ("go with the recommendations please"). **Claimed the same day by session
+  securevibe-e10**, in branch `claude/ssh-seals`. **Record, `Status: proposed`:** ADR-043 (`docs/adr/ADR-043.md`),
+  to be made accepted in the pull request that builds it. In short: `sv review` makes a signing key of its own beside
+  `review-key`, with a passphrase if the owner wants one, and signs each answer (`v3:<app id>:<signature>`); a trusted
+  list (`~/.config/securevibe/allowed_signers`, or `SV_TRUSTED_SEALS` on CI) says which key may seal for which app; the
+  report names the key it trusted and where the list came from; today's `v2:` seals keep counting where they count
+  now, and `sv review` asks one yes to sign them again. One new dependency, `ssh-key`. Report seals are unchanged.
 
 ## Decided, not yet written down as ADRs
 
