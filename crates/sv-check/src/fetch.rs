@@ -58,6 +58,11 @@ fn asked(section: &FetchSection) -> &'static str {
     }
 }
 
+/// How many times, and how far apart, the test server is asked again whether a redirect was
+/// followed, before it counts as not followed.
+const FOLLOW_READS: u32 = 3;
+const FOLLOW_SECONDS: u64 = 3;
+
 /// What the feature needs from the rest of the run.
 pub struct Context<'a> {
     /// The users section and the account to sign in as, when the feature needs a signed-in user.
@@ -240,7 +245,24 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
         &pages,
     );
     let hop = fetched(http, &second);
-    let after = fetched(http, &format!("{second}-after"));
+    let mut after = fetched(http, &format!("{second}-after"));
+    // An app may answer before its fetch is done, or fetch in the background: what has not been
+    // followed yet may still be. Asked again a few times, a few seconds apart, before it counts as
+    // not followed (item 5 of the review of 1 to 4 October).
+    if hop == Some(true) && after == Some(false) {
+        for _ in 0..FOLLOW_READS {
+            http.wait(FOLLOW_SECONDS);
+            after = fetched(http, &format!("{second}-after"));
+            if after != Some(false) {
+                break;
+            }
+        }
+    }
+    // Credited only on an answer of the app's own: no answer, a crash (5xx), or a limiter's says
+    // nothing about whether it chose not to follow.
+    let answered = answer.as_ref().is_some_and(|r| {
+        r.status != 0 && r.status < 500 && crate::signed_in::rate_limited(r).is_none()
+    });
     out.steps.push(format!(
         "gave it an address that answers with a redirect ({}): {}",
         status(&answer),
@@ -261,12 +283,26 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
                  fetched the address it was given and then the one the redirect named."
             ),
         )),
+        (Some(true), Some(false)) if !answered => say(
+            "V15.3.2",
+            format!(
+                "Whether the feature follows a redirect: it fetched the redirecting address and \
+                 did not go on, but the app's own answer ({}) was no answer, a crash, or a limit, \
+                 so it may have stopped on an error rather than by choice.",
+                status(&answer)
+            ),
+            &mut out,
+        ),
         (Some(true), Some(false)) => out.verified.push(crate::Verified::new(
             FOLLOWS_REDIRECT.rule_id,
             FOLLOWS_REDIRECT.requirement_ids,
-            "given an address that answered with a redirect, the feature fetched that address and \
-             did not go on to the one the redirect named; one feature, one redirect"
-                .to_owned(),
+            format!(
+                "given an address that answered with a redirect, the feature fetched that address \
+                 and did not go on to the one the redirect named, asked again over {} seconds, and \
+                 the app answered ({}); one feature, one redirect",
+                u64::from(FOLLOW_READS) * FOLLOW_SECONDS,
+                status(&answer)
+            ),
         )),
         _ => say(
             "V15.3.2",
@@ -297,6 +333,13 @@ mod tests {
         broken: bool,
         /// Needs a signed-in user.
         needs_sign_in: bool,
+        /// Answers before its fetch is done, and follows the redirect only by the time the test
+        /// server has been asked this many times whether it did (0: it answers after fetching).
+        follows_late: u32,
+        /// Fetches the redirecting address, fails there, and answers 500.
+        crashes_on_redirect: bool,
+        /// Fetches the redirecting address, and its limiter answers 429 for the request.
+        limited_on_redirect: bool,
     }
 
     #[derive(Default)]
@@ -304,11 +347,19 @@ mod tests {
         flaws: Flaws,
         fetched: BTreeSet<String>,
         signed_in: bool,
+        /// A redirect still to be followed in the background, and the reads left before it is.
+        pending: Option<(String, u32)>,
+        /// Seconds sv waited, on this fake clock rather than a real one.
+        waited: u64,
     }
 
     const CANARY: &str = "http://sv-1-model:9100";
 
     impl Http for FakeApp {
+        fn wait(&mut self, seconds: u64) {
+            self.waited += seconds;
+        }
+
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
             let reply = |status: u16, body: &str| {
                 Some(ProbeResponse {
@@ -348,6 +399,16 @@ mod tests {
             } else if let Some(tag) = path.strip_prefix("/_sv/redirect/") {
                 // The redirect itself is recorded under its own tag, as the test server does.
                 self.fetched.insert(tag.to_owned());
+                if self.flaws.crashes_on_redirect {
+                    return reply(500, "Internal Server Error");
+                }
+                if self.flaws.limited_on_redirect {
+                    return reply(429, "Too Many Requests");
+                }
+                if self.flaws.follows_late > 0 {
+                    self.pending = Some((format!("{tag}-after"), self.flaws.follows_late));
+                    return reply(202, "Preview: on its way");
+                }
                 if self.flaws.follows {
                     self.fetched.insert(format!("{tag}-after"));
                 }
@@ -357,6 +418,15 @@ mod tests {
 
         fn model(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
             let tag = r.path.strip_prefix("/_sv/fetched/")?;
+            if let Some((late, reads)) = &mut self.pending
+                && late == tag
+            {
+                *reads -= 1;
+                if *reads == 0 {
+                    self.fetched.insert(late.clone());
+                    self.pending = None;
+                }
+            }
             Some(ProbeResponse {
                 id: r.id.clone(),
                 status: 200,
@@ -556,5 +626,77 @@ mod tests {
                 .iter()
                 .any(|w| w.contains("no `[stack.run.users]`"))
         );
+    }
+
+    #[test]
+    fn a_redirect_followed_late_or_a_crash_is_never_credited_as_not_followed() {
+        // Item 5 of the review of 1 to 4 October: an app that answers before it follows the
+        // redirect was credited for not following it, if sv asked before it had.
+        for reads in [2, 4] {
+            let (o, _) = ask(
+                Flaws {
+                    fetches_anything: true,
+                    follows_late: reads,
+                    ..Default::default()
+                },
+                &section(),
+            );
+            assert!(
+                found(&o).contains(&FOLLOWS_REDIRECT.rule_id),
+                "followed by read {reads}: {:?}",
+                o.steps
+            );
+            assert!(!credited(&o).contains(&FOLLOWS_REDIRECT.rule_id));
+        }
+        // One that crashed at the redirect, or whose limiter answered, did not choose anything:
+        // not assessed.
+        for (flaws, status) in [
+            (
+                Flaws {
+                    fetches_anything: true,
+                    crashes_on_redirect: true,
+                    ..Default::default()
+                },
+                "500",
+            ),
+            (
+                Flaws {
+                    fetches_anything: true,
+                    limited_on_redirect: true,
+                    ..Default::default()
+                },
+                "429",
+            ),
+        ] {
+            let (o, _) = ask(flaws, &section());
+            assert!(
+                !credited(&o).contains(&FOLLOWS_REDIRECT.rule_id),
+                "{status}"
+            );
+            assert!(!found(&o).contains(&FOLLOWS_REDIRECT.rule_id), "{status}");
+            assert!(
+                why(&o, "V15.3.2")
+                    .iter()
+                    .any(|w| w.contains(status) && w.contains("rather than by choice")),
+                "{status}: {:?}",
+                o.not_assessed
+            );
+        }
+        // The setup: one that answers and never follows is still credited, and says how long
+        // it was watched.
+        let (o, app) = ask(
+            Flaws {
+                fetches_anything: true,
+                ..Default::default()
+            },
+            &section(),
+        );
+        assert_eq!(app.waited, 9);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == FOLLOWS_REDIRECT.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", o.steps));
+        assert!(credit.scope.contains("over 9 seconds"), "{}", credit.scope);
     }
 }

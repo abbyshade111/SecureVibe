@@ -107,6 +107,7 @@ another session is not a claim.
   **Items 5, 6, and 7 claimed the same day by session securevibe-e2**, at the owner's word, as the third batch (the
   fetch and AI checks: each credits or accuses on an answer it did not wait for or read), in branch
   `claude/securevibe-e2-review-1to4-b3`. All three were confirmed by reading `fetch.rs` and `ai.rs` on `main` first.
+  **Items 5, 6, and 7 done the same day** (DESIGN, "The review of 1 to 4 October, batch 3").
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
