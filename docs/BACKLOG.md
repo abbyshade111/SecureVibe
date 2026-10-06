@@ -1945,7 +1945,12 @@ another session is not a claim.
   arms' own tools were mostly unused (the plan called by three of eight builds offered it, all Haiku; the check by
   three of eight, once each), so the trial cannot say which of them does the work: what the testable builds share is
   the specification.
-
+  **Item 6 done on 6 October 2026** (DESIGN, "The loop at scale"; `docs/prompts/loop-scale/README.md`): seventy
+  builds, $21.34, with the specification in every request (protocol amendment 3) and the check and plan arms also run
+  with the other tools hidden (amendment 4). Every Sonnet build could be tested, in every arm; Haiku varied within
+  every arm, and no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
+  (every build checked; all five Haiku and two Sonnet again after a fix), and fixed what the check named: the
+  committable `.env` in five loop builds, against 56 of 59 builds in the other arms that kept it.
 
 - **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
   trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
@@ -1963,6 +1968,24 @@ another session is not a claim.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
 
+- **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
+  by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
+  output was: Traceback (most recent call last):". `never_ready_detail` (`crates/sv-run/src/docker.rs`) quotes
+  `first_line` of the logs, and a Python error says what went wrong on its last line. The hint that follows, about an
+  app listening on `127.0.0.1`, is beside the point when the app crashed. Quote the last lines (the exception), and
+  give the loopback hint only when nothing crashed.
+
+- **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
+  paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
+  run` could not start them. `securevibe_preflight` names a seed file that is missing; the start command's file should
+  be named the same way (ADR-035).
+
+- **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
+  two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
+  ended, though the request said the owner would not be around (protocol amendment 1). For a person this is the right
+  thing; for a trial it loses the build. A stronger sentence, or a second turn that says "use the safer option", are
+  the two ways; either changes every arm's request and goes in the protocol first.
+
 - **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
   after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
   merged changes since it was last revised: `README.md`, `docs/GETTING-STARTED.md` (the owner's own guide),
@@ -1974,7 +1997,9 @@ another session is not a claim.
   no longer true, what `sv` does that it leaves out, and every number it gives (of tools, commands, checks,
   requirements) checked against the code. Plain language throughout, for a reader who is not a programmer. Records
   (`docs/adr/`) and DESIGN are histories and are not rewritten; a record that no longer matches gets a dated "Later"
-  entry instead. Not claimed.
+  entry instead.
+  **Claimed on 6 October 2026 by session securevibe-e10**, at the owner's asking to take the next unclaimed item, in
+  branch `claude/docs-review`. CLAUDE.md's `SV_DATA_DIR` line is left to session securevibe-e2, which claimed it.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -2038,6 +2063,8 @@ another session is not a claim.
   in git, and naming the one thing `sv` cannot read (a global git ignore file on the computer). With no environment
   file it is still not assessed. Repositories are unchanged. Tested in `config.rs` and through `sv check`,
   `sv report`, and the MCP check together (`tests/env_plain_folder.rs`); four guards undone in turn were each caught.
+  **Seen working on 6 October 2026** in the loop's item 6: in five loop builds `securevibe_check` named the
+  `.gitignore`, the builder wrote one, and the final report did not find it.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
@@ -3632,6 +3659,35 @@ another session is not a claim.
     **Done the same day** (DESIGN, "The outside tools run no program an app's repository names"; ADR-032, "Later, 6
     October 2026"). Not run with Semgrep or CodeQL themselves, which were not installed in the session.
 
+  **The owner's decisions, 6 October 2026:**
+  - Records for items 1, 2, 3, and 7, the four most costly; the other four stay as their DESIGN sections.
+  - The large shared files stay ungoverned: governing them would make nearly every pull request owe a line, and the
+    weekly review catches what slips through.
+  - ADR-032 and the outside tools: find out whether Semgrep and CodeQL run `git` in the app's folder, and report before
+    changing anything.
+
+  **Records 1, 2, 3, and 7, and the ADR-032 question, claimed the same day by session securevibe-e2**, at the owner's
+  word, in branch `claude/securevibe-e2-records`. Read on `main` just before this claim: no other session had claimed
+  them.
+  **Records 1, 2, 3, and 7 done the same day:** ADR-038 (the SQL injection probe's limits), ADR-039 (the sign-in token
+  checks and the key addresses they may name), ADR-040 (a credential over a sentence reported low), and ADR-041 (the
+  report folder's lock). Each was read against its DESIGN section and the pull requests named; each names the tests
+  that hold it.
+  **The ADR-032 question, answered the same day** (read, and one part tested; nothing changed):
+  - `sv` clears every outside tool's environment and passes no `GIT_*` variable, so a `git` a tool starts reads the
+    app's repository settings as they are. A test with git 2.43 in a repository planted with `core.fsmonitor`:
+    `git ls-files`, in every form tried, ran the planted program; `git ls-remote --get-url` and `git rev-parse` did not.
+  - **Semgrep** (its source, develop branch): lists files with `git ls-files` only for a folder it is given, and `sv`
+    names files one by one, so it does not today. Its Python front end runs `git ls-remote --get-url` on every scan,
+    which ran nothing planted. `--no-git-ignore` would not stop it running git.
+  - **Opengrep** (its source, main branch): runs no git in a plain scan of named files.
+  - **CodeQL:** not determined. Its extractors run no git; the `codeql` program itself is closed, and its manual
+    could not be read from the session.
+  - So `sv` is held to ADR-032 by the tools only because it names files rather than folders, and for CodeQL that is
+    unknown. The smallest guard: set `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=core.fsmonitor`, `GIT_CONFIG_VALUE_0=false`
+    in every outside tool's environment, the override `git.rs` already passes on git's command line; shown here to beat
+    the repository's own setting (git 2.31 or newer). For the owner to decide.
+
 - **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
   records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
   address by the IPv4 one inside it only when written `::ffff:a.b.c.d` or `::a.b.c.d`. A 6to4 address (`2002::/16`,
@@ -3649,7 +3705,10 @@ another session is not a claim.
   Eight guards broken in turn, each caught.
 
 - **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
-  (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line; **not claimed**.
+  (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line. **Claimed on 6 October 2026 by
+  session securevibe-e2**, with the records above, in branch `claude/securevibe-e2-records`.
+  **Already done** when claimed: CLAUDE.md on `main` reads "`SV_DATA_DIR` (the whole folder)", changed with ADR-036's
+  own commit (`1decd47`). Nothing to change.
 
 - **The weekly review's routine left no trace on its first Monday.** "Weekly decision-record review" was scheduled on
   4 October to run every Monday at 8:45 Eastern and claim its week here first. On 5 October nothing was claimed and no

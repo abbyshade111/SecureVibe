@@ -53,7 +53,16 @@ def use(calls, results):
                               'findings': [f"{f.get('rule_id')}:{f.get('severity')}" for f in answer.get('findings', [])]})
         except (json.JSONDecodeError, AttributeError):
             attention.append(None)
+    # A round is a check followed by a change to the app's code; "checked again" is a check after such a change.
+    order = [('check' if name == 'mcp__securevibe__securevibe_check' else
+              'edit' if name in ('Write', 'Edit') and not os.path.basename(args.get('file_path', '')).endswith(('.md', '.toml'))
+              else None) for _, name, args in calls]
+    order = [o for o in order if o]
+    rechecked = any(order[i] == 'check' and 'edit' in order[i + 1:j] for i in range(len(order))
+                    for j in range(i + 2, len(order) + 1) if j < len(order) + 1 and order[j - 1] == 'check' and j - 1 > i)
     return {
+        'preflight_calls': sum(1 for _, n in sv if n == 'securevibe_preflight'),
+        'checked_again_after_a_fix': rechecked,
         'sv_calls': [n for _, n in sv],
         'spec_before_code': 'securevibe_spec' in before,
         'plan_before_code': 'securevibe_plan' in before,
