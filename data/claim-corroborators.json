@@ -1307,24 +1307,31 @@
     {
       "condition": "public-api",
       "absenceIsEvidence": false,
-      "note": "An interface meant for other programs usually comes with a description of itself and a key to call it with. A key checked by hand against a query parameter leaves almost nothing behind, which is why absence settles nothing. A rate limiter is not listed: limiting requests is ordinary for any web app, and one of the usual ways to slow down password guessing, so it shows requests are limited, not who is calling.",
+      "note": "An interface meant for other programs usually comes with a description of itself and a key to call it with. A key read by hand from a query parameter (`?api_key=`) is matched as the frameworks read one; a key checked by hand any other way leaves almost nothing behind, which is why absence settles nothing. A rate limiter is not listed: limiting requests is ordinary for any web app, and one of the usual ways to slow down password guessing, so it shows requests are limited, not who is calling.",
       "packages": {
         "npm": [
           "swagger-ui-express",
           "@nestjs/swagger",
-          "swagger-jsdoc"
+          "swagger-jsdoc",
+          "@fastify/swagger",
+          "express-openapi-validator"
         ],
         "Python": [
           "drf-spectacular",
           "flasgger",
-          "djangorestframework-api-key"
+          "djangorestframework-api-key",
+          "drf-yasg",
+          "connexion",
+          "flask-smorest"
         ],
         "Ruby": [
-          "rswag"
+          "rswag",
+          "grape-swagger"
         ],
         "PHP": [
           "zircote/swagger-php",
-          "darkaonline/l5-swagger"
+          "darkaonline/l5-swagger",
+          "nelmio/api-doc-bundle"
         ],
         "Go": [
           "swaggo/swag",
@@ -1335,11 +1342,13 @@
         ],
         "Java (Maven)": [
           "springdoc-openapi-starter-webmvc-ui",
-          "springfox-swagger2"
+          "springfox-swagger2",
+          "springdoc-openapi-starter-webflux-ui"
         ],
         "Java (Gradle)": [
           "springdoc-openapi-starter-webmvc-ui",
-          "springfox-swagger2"
+          "springfox-swagger2",
+          "springdoc-openapi-starter-webflux-ui"
         ]
       },
       "files": [
@@ -1359,20 +1368,38 @@
           "api_key_header",
           "apikeyheader",
           "ratelimit(",
-          "@limiter."
+          "@limiter.",
+          "args.get('api_key'",
+          "args.get(\"api_key\"",
+          "query_params.get('api_key'",
+          "query_params.get(\"api_key\""
         ],
         "javascript": [
           "x-api-key",
           "apikeyauth",
-          "ratelimit({"
+          "ratelimit({",
+          "req.query.api_key",
+          "req.query.apikey",
+          "req.query['api_key']",
+          "req.query[\"api_key\"]",
+          "searchparams.get('api_key')",
+          "searchparams.get(\"api_key\")"
         ],
         "typescript": [
           "x-api-key",
           "apikeyauth",
-          "ratelimit({"
+          "ratelimit({",
+          "req.query.api_key",
+          "req.query.apikey",
+          "req.query['api_key']",
+          "req.query[\"api_key\"]",
+          "searchparams.get('api_key')",
+          "searchparams.get(\"api_key\")"
         ],
         "go": [
-          "x-api-key"
+          "x-api-key",
+          ".query(\"api_key\")",
+          "query().get(\"api_key\")"
         ],
         "java": [
           "x-api-key",
@@ -1382,10 +1409,14 @@
           "x-api-key"
         ],
         "ruby": [
-          "x-api-key"
+          "x-api-key",
+          "params[:api_key]",
+          "params['api_key']"
         ],
         "php": [
-          "x-api-key"
+          "x-api-key",
+          "$_get['api_key']",
+          "$_get[\"api_key\"]"
         ],
         "csharp": [
           "x-api-key"
@@ -1736,11 +1767,17 @@
           "langchain-community",
           "langgraph-checkpoint",
           "langgraph-checkpoint-sqlite",
-          "langgraph-checkpoint-postgres"
+          "langgraph-checkpoint-postgres",
+          "mem0ai",
+          "zep-cloud"
         ],
         "npm": [
           "@langchain/community",
-          "@langchain/langgraph-checkpoint"
+          "@langchain/langgraph-checkpoint",
+          "mem0ai",
+          "@getzep/zep-cloud",
+          "@langchain/langgraph-checkpoint-postgres",
+          "@langchain/langgraph-checkpoint-sqlite"
         ]
       },
       "source": {
@@ -1886,10 +1923,16 @@
         "Python": [
           "openai-whisper",
           "faster-whisper",
-          "speechrecognition"
+          "speechrecognition",
+          "assemblyai",
+          "deepgram-sdk",
+          "google-cloud-speech"
         ],
         "npm": [
-          "@google/generative-ai"
+          "@google/generative-ai",
+          "assemblyai",
+          "@deepgram/sdk",
+          "@google-cloud/speech"
         ]
       },
       "source": {

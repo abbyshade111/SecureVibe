@@ -6125,6 +6125,9 @@ another session is not a claim.
   work off the backlog"), in branch `claude/securevibe-e9-corroborators`: libraries that can only mean each claim
   (speech-to-text services for `multimodal-ai`, memory stores for `ai-history`, API documentation and key libraries for
   `public-api`), and a key read from a query parameter, each with a witness.
+  **Done the same day** (DESIGN, "Libraries that can only mean a claim, and a key read from a query parameter"): 21
+  library entries and 22 ways of reading `?api_key=`, each answering its claim on its own, with controls for a model
+  client, a web framework, and a key read from the environment.
   **A corroborator for `web-search`** (the answer added on 27 September 2026, which nothing reads from
   the code yet): **claimed on 27 September 2026 by session securevibe-e8. Done the same day:** the
   search services' libraries (Tavily, Exa, SerpApi, DuckDuckGo) and, in the code, `web_search` and
