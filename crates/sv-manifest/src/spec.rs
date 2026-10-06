@@ -26,7 +26,7 @@ start = ""                # e.g. "uvicorn app:app --host 0.0.0.0 --port $PORT"
 #   Listen on 0.0.0.0, not 127.0.0.1 or localhost: `sv` runs the app in a container and asks it
 #   from a second one, and an app listening on 127.0.0.1 answers only from inside its own.
 test = ""                 # e.g. "pytest -q". Name requirement ids in your test names — see below.
-test-report = ""          # where `test` writes JUnit XML, e.g. "junit.xml". See below.
+test-report = ""          # where `test` writes its report (JUnit XML, TAP, or JSON), e.g. "junit.xml". See below.
 # test-time-limit = 600     # seconds the tests may run before `sv` stops them; ten minutes if left out
 health = "/"              # a path that returns 200 once the app is up
 # graphql = "/graphql"      # where it answers GraphQL, if it does
@@ -372,9 +372,14 @@ switches off a requirement the code says applies.
 
   Writing a test report
 
-  If your test command can write JUnit XML, say where in `test-report` and have the command write
-  it there. Every common runner can: `pytest --junitxml=/sv-reports/junit.xml`, `gotestsum
-  --junitfile=…`, `jest --reporters=jest-junit`, Maven's surefire, RSpec's JUnit formatter.
+  If your test command can write a report of its own, say where in `test-report` and have the command
+  write it there. `sv` reads JUnit XML, which every common runner can write (`pytest
+  --junitxml=/sv-reports/junit.xml`, `gotestsum --junitfile=…`, `jest --reporters=jest-junit`,
+  Maven's surefire, RSpec's JUnit formatter); TAP (`node --test --test-reporter=tap
+  --test-reporter-destination=/sv-reports/tests.tap`, `bats --formatter tap`); the JSON `go test -json`
+  writes (`go test -json ./... > /sv-reports/go-test.json`); and the JSON jest and Vitest write
+  (`jest --json --outputFile=…`, `vitest run --reporter=json --outputFile=…`). It tells which by how
+  the file opens, and refuses a report it cannot read whole rather than counting part of it.
 
   It matters more than it sounds. Without a report `sv` sees one exit code, so a suite with a
   single failing test credits nothing at all — not even the forty tests that passed and named a
