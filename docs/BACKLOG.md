@@ -1579,6 +1579,11 @@ another session is not a claim.
      may be used for, and whether an answer given through it could fairly count as the owner's.
      **Claimed the same day by session securevibe-e2**, at the owner's word, for that research only, in branch
      `claude/securevibe-e2-elicitation-research`; nothing is built until the owner has read it.
+     **Researched the same day** (DESIGN, "Asking the owner through the AI tool's own form: research, not built"). An
+     answer given through elicitation cannot count as the owner's word: nothing lets `sv` tell a person from the AI tool
+     answering, and Claude Code documents settings that answer the form with no person shown it. Claude Code and VS Code
+     support it; Cursor and Codex CLI by secondary sources; Zed and Gemini CLI do not. Waiting on the owner: whether to
+     try a middle tier, "confirmed in the AI tool's form, not sealed", which would never stand in for `sv review`.
   7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
@@ -1735,6 +1740,12 @@ another session is not a claim.
   `sv` could say which sign-in hit the limit and stop counting the checks it blocked as unanswered.
   **The owner's decision, 5 October 2026:** both. **Claimed the same day by session securevibe-e2**, at the owner's word, in branch
   `claude/securevibe-e2-signin-limit`.
+  **Done on 5 October 2026 by session securevibe-e2.** The spec's `[stack.run.users]` says `sv` signs in up to 60
+  times in one run from one address, before the guessing check's wrong passwords (the scripted runs make 13 to 50, and
+  a test holds them and the spec to the number). A sign-in the limit still refuses after waiting is named in one gap,
+  as the limit working rather than the app failing, with what to change; the first user's no longer reads as a mistake
+  in securevibe.toml. Not tested against a real app with a sign-in limit. DESIGN, "Later, 5 October 2026: a sign-in the
+  app's limit refuses is named, and the spec says how many there are".
 
 - **`sv`'s plan is too big for an AI tool to take in as one answer.** Found on 5 October 2026 by session
   paper-facts, in the loop pilot. `securevibe_plan` gave 115,618 characters for the club app, and Claude Code saved it
@@ -4096,6 +4107,10 @@ another session is not a claim.
      went with its folder. What helps is an install that does not live in a folder somebody works in. Still the case
      on `main` at 6d4ce3f (`crates/sv-cli/src/main.rs`, lines 264 to 350 and others, read data through
      `CARGO_MANIFEST_DIR`).
+     **Claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking, in branch
+     `claude/securevibe-e9-movable`: every data file found through one place, `SV_DATA_DIR`, then beside the program,
+     then the build folder; and an install script that keeps `sv` and its data out of any working folder. Record:
+     ADR-036 (proposed).
   3. **The README's MCP instructions assume a command the desktop app does not install.** It gives
      `claude mcp add securevibe -- …`; in the desktop app that fails with `zsh: command not found:
      claude`. A `.mcp.json` in the app's folder works instead and needs nothing installed. Other tools

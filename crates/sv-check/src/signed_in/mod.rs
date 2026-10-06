@@ -634,6 +634,10 @@ pub(crate) struct SignedIn {
     /// Where the sign-in answer left the browser, for a reason when the session turns out not to
     /// be signed in: "answered 200", or "sent the browser to /login/2fa".
     pub(crate) landed: String,
+    /// Whether the sign-in was answered by the app's rate limiter, after the wait [`Patient`] gives
+    /// it: the limit on sign-in attempts refused `sv`, so nothing about the session says anything
+    /// about the app's checks or securevibe.toml.
+    pub(crate) limited: bool,
 }
 
 pub(crate) fn sign_in(
@@ -699,6 +703,7 @@ pub(crate) fn sign_in(
         set_at_login,
         before_login,
         landed,
+        limited: rate_limited(&response).is_some(),
     })
 }
 
@@ -748,6 +753,32 @@ fn sign_in_again(
     Some(fresh)
 }
 
+/// How many times one run signs in, at most, before the password-guessing check's wrong passwords
+/// at the very end: the number the spec gives a builder, so an app's own limit on sign-in attempts
+/// can be set to allow it in the copy `sv` runs. The busiest of the scripted runs signs in 50 times
+/// (`a_run_signs_in_no_more_often_than_the_spec_says`), which this leaves room above.
+pub const SIGN_INS_IN_A_RUN: usize = 60;
+
+/// The requirements whose checks need the first test user signed in.
+const NEEDS_A_SESSION: &str =
+    "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4";
+
+/// What the report says when the app's limit on sign-in attempts refused `sv`'s own sign-ins
+/// (`refused`, as request ids): the limit doing its job, not the app failing the checks it blocked,
+/// and what to change so the next run gets through.
+fn sign_in_limit_says(refused: &[String]) -> String {
+    format!(
+        "The app's limit on sign-in attempts refused `sv`'s own sign-in ({}) even after `sv` \
+         waited as the app asked. That is the limit working, not the app failing these checks, and \
+         not a mistake in securevibe.toml: the checks that needed that sign-in were not run, or \
+         not credited. `sv` signs in up to {SIGN_INS_IN_A_RUN} times in one run, all from one \
+         address, before the password-guessing check's wrong passwords at the end. Let the copy \
+         of the app `sv` runs allow that many (for example, through a setting only the test copy \
+         is started with), keep the real limit everywhere else, and run again.",
+        refused.join(", ")
+    )
+}
+
 /// Everything the signed-in probes can ask, given what securevibe.toml says.
 ///
 /// `seeded` says whether `seed` already made the accounts; when it did not, they are made through the
@@ -779,6 +810,10 @@ pub fn run_with(
     slow: bool,
 ) -> Outcome {
     let mut patient = Patient::new(http);
+    patient.login_path = users
+        .login
+        .as_ref()
+        .map(|login| login.path.split('?').next().unwrap_or_default().to_owned());
     let mut out = run_checks(&mut patient, users, accounts, seeded, policy, slow);
     withhold_what_rests_on_a_crash(&patient.crashed, &mut out);
     if patient.still_limited.is_empty() {
@@ -788,6 +823,23 @@ pub fn run_with(
     out.steps.push(format!(
         "the app's rate limiter was still answering after waiting as it asked: {limited}"
     ));
+    // The sign-ins the limit refused, said once and plainly, under every requirement whose check
+    // they kept from running or from being credited.
+    let refused_sign_ins = std::mem::take(&mut patient.limited_sign_ins);
+    if !refused_sign_ins.is_empty() {
+        let mut ids: Vec<&str> = out
+            .verified
+            .iter()
+            .flat_map(|v| v.requirement_ids.iter().map(String::as_str))
+            .collect();
+        if ids.is_empty() || refused_sign_ins.iter().any(|id| id == "login-a") {
+            ids.extend(NEEDS_A_SESSION.split(", "));
+        }
+        ids.sort_unstable();
+        ids.dedup();
+        out.not_assessed
+            .push((ids.join(", "), sign_in_limit_says(&refused_sign_ins)));
+    }
     for credit in std::mem::take(&mut out.verified) {
         out.not_assessed.push((
             credit.requirement_ids.join(", "),
@@ -1094,6 +1146,10 @@ struct Patient<'a> {
     inner: &'a mut dyn Http,
     /// Requests the limiter was still answering after the wait, as "id (status)".
     still_limited: Vec<String>,
+    /// The path sign-ins are sent to (`[stack.run.users] login`), without its query.
+    login_path: Option<String>,
+    /// Of `still_limited`, the sign-ins: requests other than GET to `login_path`, by id.
+    limited_sign_ins: Vec<String>,
     /// Seconds waited so far, against `MOST_WAITING`.
     waited: u64,
     /// Requests answered with a server error (5xx) or not answered at all: (request id, status or
@@ -1111,6 +1167,8 @@ impl<'a> Patient<'a> {
         Patient {
             inner,
             still_limited: Vec::new(),
+            login_path: None,
+            limited_sign_ins: Vec::new(),
             waited: 0,
             crashed: Vec::new(),
         }
@@ -1133,6 +1191,7 @@ impl Patient<'_> {
                     "{} ({}, not waited for: {MOST_WAITING} seconds already spent waiting)",
                     request.id, r.status
                 ));
+                self.note_sign_in(request);
             }
             return first;
         }
@@ -1142,8 +1201,18 @@ impl Patient<'_> {
         if let Some(r) = second.as_ref().filter(|r| rate_limited(r).is_some()) {
             self.still_limited
                 .push(format!("{} ({})", request.id, r.status));
+            self.note_sign_in(request);
         }
         second
+    }
+
+    /// Notes `request`, which the limiter is still answering, as a refused sign-in when it is one:
+    /// sent to the sign-in path, and not the GET for the sign-in page.
+    fn note_sign_in(&mut self, request: &ProbeRequest) {
+        let path = request.path.split('?').next().unwrap_or_default();
+        if request.method != "GET" && self.login_path.as_deref() == Some(path) {
+            self.limited_sign_ins.push(request.id.clone());
+        }
     }
 }
 
@@ -1293,8 +1362,16 @@ fn run_checks(
         None => false,
     };
     if confirm_path.is_some() && !signed_in_works && served_anonymously.is_empty() {
+        if a.limited {
+            // Not the sign-in request, the accounts, or the page: the app's limit refused it, and
+            // `run_with` says so, with what to change, once the run is over.
+            out.steps.push(
+                "signing in as A was refused by the app's limit on sign-in attempts".to_owned(),
+            );
+            return out;
+        }
         out.not_assessed.push((
-            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4, V14.3.2, V7.4.4".to_owned(),
+            NEEDS_A_SESSION.to_owned(),
             format!(
                 "Signing in as the first test user did not open {} — the sign-in request, the \
                  accounts, or the page is not what securevibe.toml says — so nothing here can say \
@@ -2322,6 +2399,97 @@ mod rate_limit_tests {
         verified_ids(o).contains(&PRIVATE_PAGE.rule_id)
     }
 
+    /// The not-assessed entry that names the sign-ins the app's limit refused, if there is one.
+    fn sign_in_limit_gap(o: &Outcome) -> Option<&(String, String)> {
+        o.not_assessed
+            .iter()
+            .find(|(_, why)| why.contains("limit on sign-in attempts refused"))
+    }
+
+    #[test]
+    fn a_sign_in_the_limit_refuses_is_named_and_not_blamed_on_the_app() {
+        // Control: no limiter, no such entry, and the admin page check is credited.
+        let mut control = limited("login-admin", 429, Some("5"), 0);
+        let o = run_limited(&mut control);
+        assert!(sign_in_limit_gap(&o).is_none(), "{:?}", o.not_assessed);
+        assert!(verified_ids(&o).contains(&ADMIN_PAGE.rule_id));
+
+        let mut limiter = limited("login-admin", 429, Some("5"), 99);
+        let o = run_limited(&mut limiter);
+        assert!(limiter.limited >= 2, "the setup: the limiter answered");
+        let (ids, why) = sign_in_limit_gap(&o).expect("the refused sign-in is said");
+        assert!(why.contains("(login-admin)"), "{why}");
+        assert!(why.contains("not the app failing"), "{why}");
+        assert!(
+            why.contains(&format!("up to {SIGN_INS_IN_A_RUN} times")),
+            "{why}"
+        );
+        // Listed under the requirements whose credit it held back, the admin page's among them.
+        for id in ADMIN_PAGE.requirement_ids {
+            assert!(ids.split(", ").any(|i| i == *id), "{id} missing from {ids}");
+        }
+        assert!(o.verified.is_empty(), "the credits are still withheld");
+        // One entry, not one per sign-in page or per credit.
+        assert_eq!(
+            o.not_assessed
+                .iter()
+                .filter(|(_, why)| why.contains("limit on sign-in attempts"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn the_first_sign_in_refused_by_the_limit_is_not_called_a_mistake_in_securevibe_toml() {
+        let mut limiter = limited("login-a", 429, Some("5"), 99);
+        let o = run_limited(&mut limiter);
+        assert!(limiter.limited >= 2, "the setup: the limiter answered");
+        assert!(
+            !o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("not what securevibe.toml says")),
+            "{:?}",
+            o.not_assessed
+        );
+        let (ids, why) = sign_in_limit_gap(&o).expect("the refused sign-in is said");
+        assert!(why.contains("(login-a)"), "{why}");
+        let mut expected: Vec<&str> = NEEDS_A_SESSION.split(", ").collect();
+        expected.sort_unstable();
+        assert_eq!(
+            ids,
+            &expected.join(", "),
+            "every check that needed A's session"
+        );
+
+        // The same sign-in refused for another reason is still the manifest's to look at.
+        let mut refused = limited("login-a", 401, None, 99);
+        let o = run_limited(&mut refused);
+        assert!(sign_in_limit_gap(&o).is_none(), "{:?}", o.not_assessed);
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("not what securevibe.toml says")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_limited_page_that_is_not_a_sign_in_is_not_called_one() {
+        // The sign-in page itself (GET), a private page, and a record created (POST elsewhere):
+        // limited, but not sign-ins.
+        for id in ["login-page-a", "private-anonymous", "owned-create"] {
+            let mut limiter = limited(id, 429, Some("5"), 99);
+            let o = run_limited(&mut limiter);
+            assert!(limiter.limited >= 2, "the setup: the limiter answered {id}");
+            assert!(
+                sign_in_limit_gap(&o).is_none(),
+                "{id}: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
     #[test]
     fn a_limiter_that_answers_once_is_waited_out_and_the_refusal_is_the_apps() {
         let mut control = limited("private-anonymous", 429, Some("7"), 0);
@@ -2584,11 +2752,15 @@ mod crash_tests {
         crash: Option<String>,
         silent: bool,
         sent: BTreeSet<String>,
+        /// Every request sent, in order and with repeats, as (id, method, path).
+        log: Vec<(String, String, String)>,
     }
 
     impl Http for Crashing {
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
             self.sent.insert(r.id.clone());
+            self.log
+                .push((r.id.clone(), r.method.clone(), r.path.clone()));
             if self.crash.as_deref() == Some(r.id.as_str()) {
                 if self.silent {
                     return None;
@@ -2605,6 +2777,8 @@ mod crash_tests {
         fn send_together(&mut self, rs: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
             for r in rs {
                 self.sent.insert(r.id.clone());
+                self.log
+                    .push((r.id.clone(), r.method.clone(), r.path.clone()));
             }
             let mut answers = self.app.send_together(rs)?;
             // One copy of the same instant crashes, as one of a burst can.
@@ -2674,6 +2848,12 @@ mod crash_tests {
 
         /// `run`, with the crash answered by nothing at all when `silent`.
         fn run_answering(&self, crash: Option<&str>, silent: bool) -> (Outcome, BTreeSet<String>) {
+            let (out, http) = self.run_logged(crash, silent);
+            (out, http.sent)
+        }
+
+        /// `run_answering`, giving back the fake app as the run left it, with every request sent.
+        fn run_logged(&self, crash: Option<&str>, silent: bool) -> (Outcome, Crashing) {
             let mut app = FakeApp::new(self.flaws);
             app.idle_limit = self.limits.0;
             app.lifetime_limit = self.limits.1;
@@ -2703,6 +2883,7 @@ mod crash_tests {
                 crash: crash.map(str::to_owned),
                 silent,
                 sent: BTreeSet::new(),
+                log: Vec::new(),
             };
             let out = run_with(
                 &mut http,
@@ -2712,7 +2893,7 @@ mod crash_tests {
                 &self.policy,
                 self.slow,
             );
-            (out, http.sent)
+            (out, http)
         }
 
         /// Crashes each request the run sends, one at a time. Every rule the run without a crash
@@ -2774,6 +2955,63 @@ mod crash_tests {
     /// crash. Listed here rather than read from `RESTS_ON_A_REFUSAL`, so a rule missing from that
     /// list is still tried.
     const ONLY_CREDITED: &[&Rule] = &[&CHANGE_ENDS_SESSIONS, &CHANGE_NOTIFIED];
+
+    #[test]
+    fn a_run_signs_in_no_more_often_than_the_spec_says() {
+        // Every sign-in, by what it is sent to rather than its id: the ids vary (`log-marker-…`,
+        // `redirect-login-…`), and a repeat under the same id is a second attempt to an app's limit.
+        let mut most = 0;
+        let mut guesses_seen = false;
+        for scenario in scenarios() {
+            let (_, http) = scenario.run_logged(None, false);
+            let login = scenario
+                .users
+                .login
+                .as_ref()
+                .expect("signs in")
+                .path
+                .clone();
+            let login = login.split('?').next().unwrap_or_default();
+            let sign_ins: Vec<&str> = http
+                .log
+                .iter()
+                .filter(|(_, method, path)| {
+                    method != "GET" && path.split('?').next() == Some(login)
+                })
+                .map(|(id, _, _)| id.as_str())
+                .collect();
+            // The password-guessing check's wrong passwords are meant to meet the limit, and come
+            // last of all the sign-ins, so a limit that stops them takes nothing else with it.
+            let first_guess = sign_ins.iter().position(|id| id.starts_with("guess-"));
+            if let Some(first) = first_guess {
+                guesses_seen = true;
+                assert!(
+                    sign_ins[first..].iter().all(|id| id.starts_with("guess-")),
+                    "{}: a sign-in after the guesses: {sign_ins:?}",
+                    scenario.name
+                );
+            }
+            let counted = first_guess.unwrap_or(sign_ins.len());
+            assert!(
+                counted <= SIGN_INS_IN_A_RUN,
+                "{}: {counted} sign-ins, more than the {SIGN_INS_IN_A_RUN} the spec states",
+                scenario.name
+            );
+            most = most.max(counted);
+        }
+        // The setup: the sign-ins are really counted, and the guesses really set apart.
+        assert!(
+            most >= 40,
+            "only {most} sign-ins counted in the busiest run"
+        );
+        assert!(guesses_seen, "no run made the guessing check's attempts");
+        // The spec gives the builder the same number.
+        assert!(
+            sv_manifest::spec::STARTER_MANIFEST
+                .contains(&format!("up to {SIGN_INS_IN_A_RUN} times")),
+            "the spec does not state the number"
+        );
+    }
 
     fn scenarios() -> Vec<Scenario> {
         // Sign-up and seeding both: the password rules need the app's own sign-up, and the role
