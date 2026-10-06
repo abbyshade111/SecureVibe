@@ -117,7 +117,7 @@ fn seal_in(
     sentence: &str,
     written: &[(&str, &[u8])],
 ) -> Result<Sealed, String> {
-    let (key, made) = Key::load_or_make_named(&folder, REPORT_KEY_FILE)?;
+    let (key, made) = Key::load_or_make_named(folder, REPORT_KEY_FILE)?;
     let digests = digests_of(written)?;
     let fields = fields(&digests);
     let seal = key.report_seal(&fields.iter().map(String::as_str).collect::<Vec<_>>());
