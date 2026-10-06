@@ -3636,6 +3636,24 @@ another session is not a claim.
   **Records 1, 2, 3, and 7, and the ADR-032 question, claimed the same day by session securevibe-e2**, at the owner's
   word, in branch `claude/securevibe-e2-records`. Read on `main` just before this claim: no other session had claimed
   them.
+  **Records 1, 2, 3, and 7 done the same day:** ADR-038 (the SQL injection probe's limits), ADR-039 (the sign-in token
+  checks and the key addresses they may name), ADR-040 (a credential over a sentence reported low), and ADR-041 (the
+  report folder's lock). Each was read against its DESIGN section and the pull requests named; each names the tests
+  that hold it.
+  **The ADR-032 question, answered the same day** (read, and one part tested; nothing changed):
+  - `sv` clears every outside tool's environment and passes no `GIT_*` variable, so a `git` a tool starts reads the
+    app's repository settings as they are. A test with git 2.43 in a repository planted with `core.fsmonitor`:
+    `git ls-files`, in every form tried, ran the planted program; `git ls-remote --get-url` and `git rev-parse` did not.
+  - **Semgrep** (its source, develop branch): lists files with `git ls-files` only for a folder it is given, and `sv`
+    names files one by one, so it does not today. Its Python front end runs `git ls-remote --get-url` on every scan,
+    which ran nothing planted. `--no-git-ignore` would not stop it running git.
+  - **Opengrep** (its source, main branch): runs no git in a plain scan of named files.
+  - **CodeQL:** not determined. Its extractors run no git; the `codeql` program itself is closed, and its manual
+    could not be read from the session.
+  - So `sv` is held to ADR-032 by the tools only because it names files rather than folders, and for CodeQL that is
+    unknown. The smallest guard: set `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=core.fsmonitor`, `GIT_CONFIG_VALUE_0=false`
+    in every outside tool's environment, the override `git.rs` already passes on git's command line; shown here to beat
+    the repository's own setting (git 2.31 or newer). For the owner to decide.
 
 - **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
   records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
@@ -3656,6 +3674,8 @@ another session is not a claim.
 - **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
   (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line. **Claimed on 6 October 2026 by
   session securevibe-e2**, with the records above, in branch `claude/securevibe-e2-records`.
+  **Already done** when claimed: CLAUDE.md on `main` reads "`SV_DATA_DIR` (the whole folder)", changed with ADR-036's
+  own commit (`1decd47`). Nothing to change.
 
 - **The weekly review's routine left no trace on its first Monday.** "Weekly decision-record review" was scheduled on
   4 October to run every Monday at 8:45 Eastern and claim its week here first. On 5 October nothing was claimed and no
