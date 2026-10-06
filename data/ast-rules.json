@@ -1284,7 +1284,7 @@
         "ruby": "^set\\s*\\(?\\s*:public_(folder|dir)\\s*,\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|File\\.expand_path\\(\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|['\"]\\.?/?['\"])\\s*\\)|Dir\\.pwd|['\"]\\.?/?['\"]|(settings\\.)?root)\\s*\\)?\\s*$|^use\\s*\\(?\\s*Rack::Static\\b.*(:root\\s*=>|\\broot:)\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|File\\.expand_path\\(\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|['\"]\\.?/?['\"])\\s*\\)|Dir\\.pwd|['\"]\\.?/?['\"]|(settings\\.)?root)\\s*[,)\\n]|^use\\s*\\(?\\s*Rack::Static\\b.*(:root\\s*=>|\\broot:)\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|File\\.expand_path\\(\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|['\"]\\.?/?['\"])\\s*\\)|Dir\\.pwd|['\"]\\.?/?['\"]|(settings\\.)?root)\\s*$|^(::)?Rack::Files?\\.new\\(\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|File\\.expand_path\\(\\s*(__dir__|File\\.dirname\\(\\s*__FILE__\\s*\\)|['\"]\\.?/?['\"])\\s*\\)|Dir\\.pwd|['\"]\\.?/?['\"]|(settings\\.)?root)\\s*[,)]",
         "java": "\\.addResourceLocations\\([^)]*\"file:\\.?/?\"\\s*[,)]|\\.addResourceLocations\\([^)]*\"file:\"\\s*\\+\\s*System\\.getProperty\\(\\s*\"user\\.dir\"\\s*\\)|\\.add\\(\\s*(\"\\.?/?\"|System\\.getProperty\\(\\s*\"user\\.dir\"\\s*\\))\\s*,\\s*Location\\.EXTERNAL\\s*\\)",
         "csharp": "new\\s+PhysicalFileProvider\\(\\s*(Directory\\.GetCurrentDirectory\\(\\)|AppContext\\.BaseDirectory|AppDomain\\.CurrentDomain\\.BaseDirectory|[\\w.]*ContentRootPath|@?\"\\.?/?\")\\s*\\)",
-        "rust": "^([\\w:]*::)?(ServeDir::new\\(\\s*\"\\.?/?\"\\s*\\)|Files::new\\(\\s*\"[^\"]*\"\\s*,\\s*\"\\.?/?\"\\s*\\)|fs::dir\\(\\s*\"\\.?/?\"\\s*\\))"
+        "rust": "^([\\w:]*::)?(ServeDir::new\\(\\s*(\"\\.?/?\"|env!\\(\\s*\"CARGO_MANIFEST_DIR\"\\s*\\))\\s*\\)|Files::new\\(\\s*\"[^\"]*\"\\s*,\\s*\"\\.?/?\"\\s*\\)|fs::dir\\(\\s*\"\\.?/?\"\\s*\\))"
       },
       "safeArgumentPatterns": {
         "shell": "\\s(-d|--directory)(\\s|=)|\\s-t\\s*([^.\\s]|\\.[^\\s/]|\\./\\S)"
@@ -1298,7 +1298,7 @@
         "ruby": "Sinatra's `set :public_folder` and Rack's `Rack::Static` (`root:`) or `Rack::Files.new` given `.`, `__dir__`, the file's own folder, or `Dir.pwd`",
         "java": "Spring's `addResourceLocations(\"file:./\")` or the folder the app was started from, and Javalin's `staticFiles.add(\".\", Location.EXTERNAL)`",
         "csharp": "ASP.NET Core's `UseStaticFiles`, `UseFileServer`, or `UseDirectoryBrowser` given a `PhysicalFileProvider` for the current folder, the build output, or the content root, where the code and `appsettings.json` are",
-        "rust": "tower-http's `ServeDir::new(\".\")`, actix-files' `Files::new(path, \".\")`, and warp's `fs::dir(\".\")`"
+        "rust": "tower-http's `ServeDir::new(\".\")` or the crate's own folder (`env!(\"CARGO_MANIFEST_DIR\")`), actix-files' `Files::new(path, \".\")`, and warp's `fs::dir(\".\")`"
       },
       "nothingToFind": {
         "php": "No PHP framework is looked for in PHP code (Laravel and Symfony serve only `public/`); PHP's own server, `php -S` with no document root, is looked for in shell scripts. A static-file handler set up in PHP code is not found.",
