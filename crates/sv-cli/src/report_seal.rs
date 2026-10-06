@@ -56,6 +56,19 @@ fn fields(digests: &BTreeMap<&'static str, String>) -> Vec<String> {
 }
 
 /// The SHA-256 of every sealed file in `dir`, each a plain file no larger than any report.
+/// The digest of each sealed file from the bytes `sv` wrote to it, every one of them required.
+fn digests_of(written: &[(&str, &[u8])]) -> Result<BTreeMap<&'static str, String>, String> {
+    let mut found = BTreeMap::new();
+    for name in SEALED {
+        let (_, bytes) = written
+            .iter()
+            .find(|(n, _)| *n == name)
+            .ok_or_else(|| format!("{name} was not written"))?;
+        found.insert(name, crate::bundle::sha256(bytes));
+    }
+    Ok(found)
+}
+
 fn digests(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
     let mut found = BTreeMap::new();
     for name in SEALED {
@@ -88,12 +101,15 @@ pub struct Sealed {
 }
 
 /// Seals the report `sv` has just written in `dir`, the marker last, while the run still holds the
-/// folder. `sentence` is what the marker says above the seal. `Err` says why it could not be sealed,
-/// for the caller to say; the report itself stands either way.
-pub fn seal(dir: &Path, sentence: &str) -> Result<Sealed, String> {
+/// folder. `written` is each sealed file's name and the bytes `sv` wrote to it: the seal is made from
+/// those, not from the files read back, so anything that changes a file between the writing and the
+/// sealing is not sealed as `sv`'s (the review of 6 October, item 17); the next read compares the
+/// files with the seal and finds the change. `sentence` is what the marker says above the seal.
+/// `Err` says why it could not be sealed, for the caller to say; the report itself stands either way.
+pub fn seal(dir: &Path, sentence: &str, written: &[(&str, &[u8])]) -> Result<Sealed, String> {
     let folder = key_folder()?;
     let (key, made) = Key::load_or_make_named(&folder, REPORT_KEY_FILE)?;
-    let digests = digests(dir)?;
+    let digests = digests_of(written)?;
     let fields = fields(&digests);
     let seal = key.report_seal(&fields.iter().map(String::as_str).collect::<Vec<_>>());
     crate::write_without_following(
@@ -145,4 +161,35 @@ pub fn proven(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
     let fields = fields(&digests);
     key.report_seal_holds(seal, &fields.iter().map(String::as_str).collect::<Vec<_>>())?;
     Ok(digests)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_seal_is_made_from_the_bytes_written_not_from_the_files_read_back() {
+        // The review of 6 October, item 17: a file changed between the writing and the sealing was
+        // sealed as sv's. The digests come from what sv wrote, whatever the folder holds by then.
+        let dir = std::env::temp_dir().join(format!("sv-seal-bytes-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        let written: Vec<(&str, &[u8])> =
+            SEALED.iter().map(|n| (*n, &b"sv wrote this"[..])).collect();
+        for name in SEALED {
+            std::fs::write(dir.join(name), "changed after").unwrap();
+        }
+        let from_bytes = digests_of(&written).unwrap();
+        let from_disk = digests(&dir).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        for name in SEALED {
+            assert_eq!(from_bytes[name], crate::bundle::sha256(b"sv wrote this"));
+            assert_ne!(
+                from_bytes[name], from_disk[name],
+                "the setup: the files differ"
+            );
+        }
+        // Every sealed file must be among what was written.
+        assert!(digests_of(&written[1..]).is_err());
+    }
 }
