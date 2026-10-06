@@ -6772,6 +6772,11 @@ another session is not a claim.
   case of the same name as a passing one is ignored). TAP and runners' own JSON stay unread.
   **Done the same day** (DESIGN, "A test is found under the names its runner gives it"): matched as a whole part of
   the name the runner reports, and credited only when every case that could be it passed.
+  **TAP and runners' own JSON claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("continue to
+  work off the backlog picking whatever item you want"), in branch `claude/securevibe-e2-test-reports`: a declared
+  `test-report` in TAP (versions 13 and 14, as `node --test`, `bats`, and `prove` write it), in `go test -json`, or in
+  the JSON jest and Vitest write (`--json`, `--reporter=json`) read the way JUnit XML is, failing closed on anything
+  it does not recognize.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,
