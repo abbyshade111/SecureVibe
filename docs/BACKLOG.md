@@ -3466,6 +3466,9 @@ another session is not a claim.
       cited as met.
     - Decisions made in the week's code with no record, each costly to undo without its reasons, are the entry
       "Records owed" below.
+  - **The second, for the week to 5 October 2026: claimed on 5 October 2026 by session securevibe-e10**, at the
+    owner's asking ("do the ADR weekly review if it hasn't already been done yet"), in branch `claude/adr-review-2`.
+    The scheduled routine's first Monday (5 October) left no claim and no review here.
 
 - **Records owed, from the first weekly review of the decision records (30 September 2026).** Each is a decision
   in code merged that week with no record, and costly to undo without its reasons. Its reasons are mostly already in
