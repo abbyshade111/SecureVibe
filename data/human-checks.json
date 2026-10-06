@@ -7,6 +7,11 @@
       "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice. Describing the flow in securevibe.toml as `flow` under [stack.run.users] lets `sv report --run` try the first two skips for you; the wrong order and the repeated step are still yours."
     },
     {
+      "id": "V12.1.2",
+      "title": "The live site offers only strong encryption settings",
+      "how": "`sv` does not check this: it takes dozens of connections to the live site, and `sv probe` keeps to four (the owner's decision, 6 October 2026). Run a scanner made for it against your live address, such as testssl.sh (`testssl.sh https://your-address`) or SSL Labs' free online test. The cipher list should show only ones rated strong or good, with forward secrecy, and no rating of weak, insecure, or vulnerable."
+    },
+    {
       "id": "V12.2.2",
       "title": "The certificate on the live site is one browsers trust",
       "how": "Open the live site in a browser and click the padlock. It should show a certificate issued by a public authority, with a date that has not passed, and the name should match the address. A warning page, or a certificate the app generated for itself, means no visitor can tell your site from an impostor."

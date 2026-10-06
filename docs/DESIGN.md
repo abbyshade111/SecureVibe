@@ -11204,6 +11204,56 @@ Broken on purpose six ways, each caught:
 - `format!` counted fixed;
 - the static-file rule's `CARGO_MANIFEST_DIR` form removed.
 
+## Four of the owner's decisions of 6 October 2026: `sv run`'s exit status, one word of a prompt, a builder with no owner, and the live site's ciphers
+
+Each was put to the owner with a recommendation, and each was decided as recommended (BACKLOG, the documentation
+review's items 4 and 8, "Builders told the owner is away still stop to ask", and "More probes", item 8).
+
+- **`sv run` exits 2 when the app could not be run** (ADR-029, Later, 6 October 2026). It printed "Not assessed" and
+  exited 0, which a CI job reads as a run that went well. Now 0 means the app ran, whatever was found; 2 that it could
+  not be started or never answered; 3 that `sv` itself failed. `sv run --help` and `sv --help` say so.
+- **"It creates" becomes "it prints"** in the shown "settings file first" prompt (`data/prompts.json`,
+  `docs/PROMPTS.md`), since `sv init` prints the file. Nothing else in a prompt shown to work was changed, and
+  `docs/PROMPTS.md` says the one word changed after its trial. Its advice to delete a line when unsure stays: like
+  `sv init`'s "say true", it leaves nothing excluded.
+- **A stronger sentence for a build with no owner** (the loop protocol's amendment 5, and `NO_OWNER` in
+  `docs/prompts/loop-pilot/loop_trial.py`): "do not stop to ask me anything", and "keep going until the app is built
+  and runs", for every arm of every trial after item 6.
+- **V12.1.2, the live site's cipher suites, stays unchecked by `sv`**, since it takes dozens of handshakes and
+  `sv probe` keeps to four. The report's "how to check it yourself" list (`data/human-checks.json`) now says so, and
+  names testssl.sh and SSL Labs' online test, with what a good result looks like.
+
+How it is held: the loopback tests in `crates/sv-cli/tests/loopback_start.rs` check exit 2 for an app that never
+answers, with a container backend and without one, and exit 0 for one that ran, its control (setting the not-assessed
+return to 0 turns the first red); `the_help_says_what_each_status_means` now covers `sv run`; and
+`the_live_sites_ciphers_are_left_to_a_scanner_the_owner_runs` (`crates/sv-check/tests/human_checks.rs`) holds the
+instruction, with V12.1.1, which `sv probe` does ask about, as its control.
+
+## Five Semgrep rules listed apart as "worth a look" (6 October 2026)
+
+Semgrep follow-up 5, decided by the owner on 6 October 2026 (ADR-023, Later). Five rules made 280 findings in the
+false-alarm measurement of 4 October, and one was real: `unsafe-dynamic-method`, `prohibit-jquery-html`,
+`detect-non-literal-regexp`, `plaintext-http-link`, and `var-in-href`. Mixed in with the rest, they buried the findings
+that were usually right.
+
+- **What moves:** a finding whose own rule is one of the five (`finding::WORTH_A_LOOK`, each in every language
+  Semgrep's map has it in), when no other tool reported it too and every other problem on its line is one of the five
+  as well. `Finding::worth_a_look` decides it from the finding as it stands, as `in_test_code` does from the path, so
+  nothing is stored and every report agrees.
+- **Where it goes:** after the app's own findings, with test code's and copied libraries' (`Finding::apart`), under a
+  heading naming it ("only worth a look"), and in the summary line ("1 of them is only worth a look, listed after the
+  app's own.").
+- **What is kept:** the whole finding, a note beside it ("Worth a look: the rule that found it was wrong 279 times in
+  280…"), its count against its requirements, and its place in SARIF, marked `worthALook`. The MCP server tells the AI
+  coding tool to read one before changing anything.
+
+How it is held: `only_a_usually_wrong_rule_alone_on_its_line_is_worth_a_look`, with another tool's report, a different
+problem on the line, another Semgrep rule, and the bare rule name as its controls;
+`the_rules_only_worth_a_look_were_wrong_279_times_in_280`, which checks the list against the measurement (279 false, 1
+true) and against every rule of the five names the adapter maps; and
+`a_finding_only_worth_a_look_is_listed_apart_in_full_and_still_counts`, through the Markdown, HTML, summary, and SARIF.
+Eight guards were undone in turn, and each was caught.
+
 ## An account found by the email address the sign-in provider sent, read from the code (6 October 2026)
 
 `probe.oidc-user-keyed-on-email` (DESIGN, "Two people with one email address at the sign-in provider") shows V10.5.2

@@ -113,7 +113,7 @@ fn run() -> Result<i32> {
         "rules" => finished(cmd_rules(rest)),
         "prompts" => finished(cmd_prompts(rest)),
         "probe" => finished(cmd_probe(rest)),
-        "run" => finished(cmd_run(rest)),
+        "run" => cmd_run(rest),
         "check" => cmd_check(rest),
         "sbom" => finished(cmd_sbom(rest.first().map(PathBuf::from))),
         "audit" => cmd_audit(rest),
@@ -219,7 +219,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &["--slow"],
         valued: &[],
-        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n",
+        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n                     exit status: 0 the app ran; 2 not assessed: it could not be started\n                     or never answered; 3 sv itself failed (no securevibe.toml, a bad manifest)\n",
     },
     Command {
         name: "check",
@@ -352,7 +352,7 @@ fn print_help() {
         "  sv --version       the version, the commit it was built from, and the folder it reads its\n                     data from\n",
     );
     text.push_str(
-        "\nEXIT STATUS:\n  For sv check, sv report and sv audit: 0 finished; 1 needs attention (sv audit, or\n  --fail-on); 2 not assessed (a check could not run); 3 sv itself failed. `sv COMMAND --help`\n  says what each means for it. Every other command ends with 0, or 3 when it failed.\n",
+        "\nEXIT STATUS:\n  For sv check, sv report, sv audit and sv run: 0 finished; 1 needs attention (sv audit, or\n  --fail-on); 2 not assessed (a check could not run); 3 sv itself failed. `sv COMMAND --help`\n  says what each means for it. Every other command ends with 0, or 3 when it failed.\n",
     );
     println!("{text}");
 }
@@ -1629,7 +1629,7 @@ fn rate_limited_gap(limited: &[String]) -> Option<sv_report::Gap> {
     })
 }
 
-fn cmd_run(args: &[String]) -> Result<()> {
+fn cmd_run(args: &[String]) -> Result<i32> {
     let mut app_dir = PathBuf::from(".");
     // Opt-in: waiting out the session timeouts the owner states can take as long as they are.
     let mut slow = false;
@@ -1662,6 +1662,9 @@ fn cmd_run(args: &[String]) -> Result<()> {
     match probe_the_running_app(&manifest, &app_dir, slow) {
         Err(reason) => {
             println!("\nNot assessed.\n\n{reason}");
+            // Nothing about the running app was checked, which ADR-029 says with a 2, as `sv check` and
+            // `sv report` do when a check could not run (the owner's decision, 6 October 2026).
+            return Ok(exit::NOT_ASSESSED);
         }
         Ok((outcome, plan)) => {
             if let Some(removed) = sv_run::cleanup::removed_sentence(&outcome.left_over_removed) {
@@ -1785,7 +1788,7 @@ fn cmd_run(args: &[String]) -> Result<()> {
             }
         }
     }
-    Ok(())
+    Ok(exit::CLEAN)
 }
 
 /// Looks for credentials left in the code.
