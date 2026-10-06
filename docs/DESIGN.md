@@ -11404,7 +11404,7 @@ Not run end to end with an app under `sv run`, which needs Docker. Pydantic was 
 
 Broken on purpose 17 ways, each caught.
 
-In the check (each by the test of the wrong shape, and the third by three more):
+In the check (each by the test of the wrong shape, and the fifth by three more):
 - the marker never looked for;
 - a crash credited;
 - an app that hides replies credited;
