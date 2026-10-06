@@ -1317,6 +1317,12 @@ mod tests {
             resealed.contains("Sealed by sv review: admins too"),
             "{resealed}"
         );
+        // And it is never taken for the seal, wherever it stands: the seal is the real one.
+        let sealed_file = format!(
+            "# Security notes\n\n## V6.1.1 — Sign-in\n\nWritten by: owner\n{SEALED_BY} v2:aa:bb:cc\n\n{body}\n{SEALED_BY} admins too\n"
+        );
+        let answers = read_answers(&Catalog::default(), &sealed_file);
+        assert_eq!(answers.seal_of("V6.1.1").as_deref(), Some("v2:aa:bb:cc"));
     }
 
     #[test]
