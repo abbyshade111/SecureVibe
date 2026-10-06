@@ -32,6 +32,8 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`.
 - `docs/COVERAGE.md` is generated: after changing a rule, an adapter map or a hard-coded citation, run
   `python3 tools/coverage.py`; a test fails while the document is out of date.
+- CI also runs the tests with `SV_CREDIT_LOG` set, then `python3 tools/coverage.py --credits <that file>`, which fails
+  when a check credits that is listed as only ever a finding, or never credits and is not listed.
 - `tools/pwned_passwords.py` has no test and needs the network: run it outside the Claude Code sandbox, whose proxy cuts
   the reads short.
 - Tests that start the app under test need a container backend (Docker or Colima); without one they assert the
