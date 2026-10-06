@@ -508,12 +508,16 @@ fn svg_check(
     out: &mut Outcome,
 ) {
     const MARKER: &str = "sv-probe-svg-marker-3d9e";
+    // The drawing's own mark, which a cleaner that keeps the drawing keeps too: how the image is
+    // told from anything else the address might answer with.
+    const SHAPE: &str = "sv-probe-svg-shape-3d9e";
     let svg = Upload {
         id: "upload-svg",
         name: "sv-probe.svg",
         contents: format!(
             "<svg xmlns=\"http://www.w3.org/2000/svg\"><script>/*{MARKER}*/</script>\
-             <foreignObject><div>{MARKER}</div></foreignObject><circle r=\"1\"/></svg>"
+             <foreignObject><div>{MARKER}</div></foreignObject><circle id=\"{SHAPE}\" \
+             r=\"1\"/></svg>"
         ),
     };
     let stored = send_upload(http, upload, &svg, session, token);
@@ -555,6 +559,20 @@ fn svg_check(
         ));
         return;
     };
+    // What came back is the uploaded image only when it carries one of the image's own marks. A
+    // page the app answers every address with is not it, and its `<script>` is not the image's
+    // (the review of 1 to 4 October, item 12).
+    if !fetched.body.contains(MARKER) && !fetched.body.contains(SHAPE) {
+        out.not_assessed.push((
+            "V1.3.4".to_owned(),
+            format!(
+                "What {path} answered is not the SVG image this check uploaded (none of its marks \
+                 is in it), so `serves-at` may not be where the app keeps uploads, and nothing \
+                 here saw whether the script was kept."
+            ),
+        ));
+        return;
+    }
     let body = fetched.body.to_lowercase();
     let kept: Vec<&str> = [
         ("<script", "its `<script>`"),
@@ -598,7 +616,7 @@ fn svg_check(
                 }
             ),
         ));
-    } else if body.contains("<circle") {
+    } else if fetched.body.contains(SHAPE) {
         out.steps.push(format!(
             "fetched an uploaded SVG back from {path}: cleaned, its drawing kept"
         ));
@@ -998,6 +1016,23 @@ fn served_upload_checks(
                     "The file was accepted but {path} answered {}, so `serves-at` is not where \
                      this app serves uploads and nothing here saw one served.",
                     fetched.status
+                ),
+            ));
+            continue;
+        }
+
+        // What came back is the uploaded file only when it carries its mark, whether as source, as
+        // output, or as a page: an app that answers every address with its own page sends back
+        // something else, which says nothing about how uploads are served (the review of 1 to 4
+        // October, item 12).
+        if !fetched.body.contains(MARKER) {
+            out.not_assessed.push((
+                rule.requirement_ids.join(", "),
+                format!(
+                    "What {path} answered is not the `{}` this check uploaded (its mark is not in \
+                     it), so `serves-at` may not be where the app keeps uploads, and nothing here \
+                     saw one served.",
+                    file.name
                 ),
             ));
             continue;
@@ -2040,6 +2075,43 @@ mod tests {
     }
 
     #[test]
+    fn a_page_the_app_answers_every_address_with_is_not_the_uploaded_file() {
+        // The review of 1 to 4 October, item 12: an app that keeps uploads under names of its own
+        // and answers unknown addresses with its page (and its `<script>`) was credited for not
+        // running the .php, and found to render the .html and keep the SVG's script.
+        let o = upload_run_keeping_app(
+            Flaws {
+                renames_every_upload: true,
+                answers_every_path: true,
+                ..Default::default()
+            },
+            &with_upload(Some("/files/{name}"), None),
+        )
+        .0;
+        for rule in [&UPLOAD_EXECUTED, &UPLOAD_RENDERED, &UPLOAD_SVG_SCRIPT] {
+            assert!(
+                !rule_ids(&o).contains(&rule.rule_id),
+                "{} found: {:?}",
+                rule.rule_id,
+                o.steps
+            );
+            assert!(
+                !verified_ids(&o).contains(&rule.rule_id),
+                "{} credited: {:?}",
+                rule.rule_id,
+                o.steps
+            );
+        }
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("is not the") && why.contains("this check uploaded")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
     fn a_name_cut_to_its_last_part_or_refused_is_credited() {
         // Cut to its last part, the default, as `secure_filename` does.
         let o = traversal_verdict(Flaws::default(), Some("/files/{name}"));
@@ -2324,7 +2396,7 @@ mod tests {
         assert!(
             o.not_assessed
                 .iter()
-                .any(|(ids, why)| ids == "V1.3.4" && why.contains("without its drawing")),
+                .any(|(ids, why)| ids == "V1.3.4" && why.contains("is not the SVG image")),
             "{:?}",
             o.not_assessed
         );
