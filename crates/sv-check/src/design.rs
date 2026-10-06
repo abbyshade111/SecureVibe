@@ -834,11 +834,5 @@ mod tests {
                 .title
                 .starts_with("securevibe.toml says you answered no")
         );
-
-        a.get_mut("V8.3.1").unwrap().recorded =
-            Ok(crate::seal::Sealed::Unchecked { key: "k".into() });
-        let out = evaluate(&questions(), &a, &all_apply, &everything_exists, true);
-        assert_eq!(out.attested.len(), 1);
-        assert!(out.attested[0].scope.contains("on another computer"));
     }
 }

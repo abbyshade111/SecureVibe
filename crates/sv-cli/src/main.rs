@@ -4166,8 +4166,8 @@ fn assemble_report_saying(
     // be written.
     let notes_catalog = sv_check::notes::Catalog::load(&notes_path())?;
     // What this computer can check `sv review`'s seals with (`sv_check::seal`): the owner's own
-    // answers, here and below, count as theirs only when `sv review` recorded them.
-    let seals = sv_check::seal::Checker::this_computer();
+    // answers, here and below, count as theirs only when `sv review` recorded them for this app.
+    let seals = sv_check::seal::Checker::for_app(app_dir);
     let notes = match std::fs::read_to_string(app_dir.join(&notes_catalog.file)) {
         Ok(text) => sv_check::notes::evidence(
             &notes_catalog,
