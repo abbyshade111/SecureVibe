@@ -92,6 +92,10 @@ another session is not a claim.
   **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
   the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
   `claude/securevibe-e9-review-1to4-batch2`.
+  **Items 5, 6, 7, and 14 done the same day by session securevibe-e9** (DESIGN, "Four running-app checks that could
+  credit or accuse wrongly"; ADR-021, "Later, 6 October 2026"). All four were real: the fetch check now waits for the
+  app's answer and asks again, the agent limit is credited only for the same stop twice and no rounds after the
+  answer, a 503 with `Retry-After` is the limiter's, and every path is taken out of a log line before its words are read.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,

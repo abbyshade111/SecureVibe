@@ -58,6 +58,10 @@ fn asked(section: &FetchSection) -> &'static str {
     }
 }
 
+/// Seconds to wait, after the app has answered, before a redirect not yet followed is taken as not
+/// followed.
+const FOLLOW_WAIT: u64 = 2;
+
 /// What the feature needs from the rest of the run.
 pub struct Context<'a> {
     /// The users section and the account to sign in as, when the feature needs a signed-in user.
@@ -239,14 +243,34 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
         &mut session,
         &pages,
     );
+    if answer.is_none() {
+        say(
+            "V15.3.2",
+            format!(
+                "Whether the feature follows a redirect: given an address that answers with one \
+                 ({url}), the app gave no answer, so it may still have been fetching when the test \
+                 server was asked."
+            ),
+            &mut out,
+        );
+        return out;
+    }
     let hop = fetched(http, &second);
-    let after = fetched(http, &format!("{second}-after"));
+    let mut after = fetched(http, &format!("{second}-after"));
+    if hop == Some(true) && after == Some(false) {
+        // An app may answer before its fetch is done, or fetch in the background: what has not
+        // followed the redirect yet is asked about again, a little later, before it is credited.
+        http.wait(FOLLOW_WAIT);
+        after = fetched(http, &format!("{second}-after"));
+    }
     out.steps.push(format!(
         "gave it an address that answers with a redirect ({}): {}",
         status(&answer),
         match (hop, after) {
             (Some(true), Some(true)) => "it fetched it and followed the redirect",
-            (Some(true), Some(false)) => "it fetched it and did not follow the redirect",
+            (Some(true), Some(false)) =>
+                "it fetched it and did not follow the redirect, asked again \
+                                           two seconds after the app answered",
             (Some(false), _) => "it did not fetch it",
             _ => "the test server could not say",
         }
@@ -265,7 +289,8 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
             FOLLOWS_REDIRECT.rule_id,
             FOLLOWS_REDIRECT.requirement_ids,
             "given an address that answered with a redirect, the feature fetched that address and \
-             did not go on to the one the redirect named; one feature, one redirect"
+             did not go on to the one the redirect named, two seconds after the app answered; one \
+             feature, one redirect"
                 .to_owned(),
         )),
         _ => say(
@@ -297,6 +322,10 @@ mod tests {
         broken: bool,
         /// Needs a signed-in user.
         needs_sign_in: bool,
+        /// Follows a redirect only after it has answered, as a fetch in the background does.
+        follows_after_answering: bool,
+        /// Gives no answer when given the redirecting address.
+        silent_on_redirect: bool,
     }
 
     #[derive(Default)]
@@ -304,6 +333,8 @@ mod tests {
         flaws: Flaws,
         fetched: BTreeSet<String>,
         signed_in: bool,
+        /// Fetches started that are done by the next wait.
+        pending: Vec<String>,
     }
 
     const CANARY: &str = "http://sv-1-model:9100";
@@ -351,8 +382,18 @@ mod tests {
                 if self.flaws.follows {
                     self.fetched.insert(format!("{tag}-after"));
                 }
+                if self.flaws.follows_after_answering {
+                    self.pending.push(format!("{tag}-after"));
+                }
+                if self.flaws.silent_on_redirect {
+                    return None;
+                }
             }
             reply(200, "Preview: a page")
+        }
+
+        fn wait(&mut self, _seconds: u64) {
+            self.fetched.extend(self.pending.drain(..));
         }
 
         fn model(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
@@ -446,6 +487,50 @@ mod tests {
         );
         assert_eq!(found(&o), [FETCHES_ANYWHERE.rule_id], "{:?}", o.steps);
         assert_eq!(credited(&o), [FOLLOWS_REDIRECT.rule_id]);
+    }
+
+    #[test]
+    fn a_redirect_followed_after_the_answer_is_found_and_one_with_no_answer_is_not_credited() {
+        // Found in the review of 1 to 4 October (item 5): the test server was asked the moment
+        // the app answered, or gave no answer, and a follow not yet made was credited.
+        let (o, app) = ask(
+            Flaws {
+                fetches_anything: true,
+                follows_after_answering: true,
+                ..Default::default()
+            },
+            &section(),
+        );
+        assert_eq!(
+            found(&o),
+            [FETCHES_ANYWHERE.rule_id, FOLLOWS_REDIRECT.rule_id],
+            "{:?}",
+            o.steps
+        );
+        assert!(credited(&o).is_empty());
+        assert_eq!(app.fetched.len(), 3, "{:?}", app.fetched);
+        for follows_after_answering in [false, true] {
+            let (o, app) = ask(
+                Flaws {
+                    fetches_anything: true,
+                    silent_on_redirect: true,
+                    follows_after_answering,
+                    ..Default::default()
+                },
+                &section(),
+            );
+            assert_eq!(found(&o), [FETCHES_ANYWHERE.rule_id], "{:?}", o.steps);
+            assert!(credited(&o).is_empty(), "{:?}", o.steps);
+            assert!(
+                why(&o, "V15.3.2")
+                    .iter()
+                    .any(|w| w.contains("the app gave no answer")),
+                "{:?}",
+                o.not_assessed
+            );
+            // The setup: the redirecting address really was fetched.
+            assert_eq!(app.fetched.len(), 2, "{:?}", app.fetched);
+        }
     }
 
     #[test]
