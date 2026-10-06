@@ -9,6 +9,14 @@ another session is not a claim.
 
 ## Next
 
+- **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
+  once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
+  23,600 lines in `crates/` and `data/`: among them the booking check sent as two users, the decisions file held to
+  the code, the safe-defaults switches, the sign-in limit, and the other sessions' work. Each fault that is
+  reproduced goes here as its own item, with how it was seen; those in this session's own work it fixes, and the rest
+  it leaves for their owners to claim. **Claimed on 6 October 2026 by session securevibe-e2**, at the owner's word, in
+  branch `claude/securevibe-e2-review-6oct`.
+
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
   closed as #682; this finding was not on `main`). `question_for` in `crates/sv-report/src/lib.rs` says it turns the
