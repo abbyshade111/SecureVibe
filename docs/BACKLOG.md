@@ -1712,6 +1712,11 @@ another session is not a claim.
   with a harm flag the owner read as the median counting apps that never started, and marked shown. No reading for
   `password-hashing` and `sessions-hard-to-steal`; `design-limits` stops the build to ask an owner who is away, and is
   kept shown with a warning. The library: 9 shown, 13 not shown, 9 not tried. Item 4 (how a prompt is delivered) is open.
+  **Item 4 claimed on 6 October 2026 by session paper-facts**, at the owner's word, in branch
+  `claude/prompt-delivery`, with two changes first: `securevibe_before` (and `sv brief`) gives the coding prompts shown
+  to work for the requirements a feature brings, which it did not (it gave only the design-time ones); and the
+  specification's fix for unreadable settings files (the item below), re-tested on 20 Haiku builds. Then the delivery
+  test: 40 builds with the full server, with the prompts in the brief and without, at the owner's approved size.
 
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
@@ -2044,6 +2049,8 @@ another session is not a claim.
   specification's `[stack.run.ai]` example says outright that it takes no `enabled`; `sv init` offers a way to check
   a draft file without the rest of a report; or `sv` accepts `enabled` there and says it is ignored. Each would be
   measured the same way: how many such builds' files `sv` can read.
+  **Claimed on 6 October 2026 by session paper-facts** with the item above (prompt delivery), for the
+  specification's wording only, in branch `claude/prompt-delivery`.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
