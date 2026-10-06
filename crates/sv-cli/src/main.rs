@@ -4829,6 +4829,7 @@ fn assemble_report_saying(
         });
     }
     let mut report = sv_report::build(sv_report::Inputs {
+        on_the_internet: manifest.app.deployment == sv_manifest::Deployment::Internet,
         app_name: if manifest.app.name.is_empty() {
             "This app"
         } else {

@@ -1000,7 +1000,7 @@ impl Server {
             .collect();
         let mut text = found.markdown(topic);
         // With no topic, the whole app's prompts shown to work come with the rules: what to ask of
-        // the code everywhere, as the brief for each feature gives that feature's (ADR-042).
+        // the code everywhere, as the brief for each feature gives that feature's (ADR-044).
         let prompts = if topic.is_none() {
             crate::whole_app_prompts(&self.loaded)?
         } else {
@@ -3352,7 +3352,7 @@ mod tests {
 
     #[test]
     fn every_coding_prompt_shown_to_work_reaches_the_builder_once_and_no_other_does() {
-        // ADR-042: the brief for a feature gives the shown prompts for the requirements it brings,
+        // ADR-044: the brief for a feature gives the shown prompts for the requirements it brings,
         // and the guidance gives the rest of the shown ones, for the whole app. Nothing not shown.
         let server = Server::new(&examples()).unwrap();
         let shown: std::collections::BTreeSet<String> = crate::coding_prompts()

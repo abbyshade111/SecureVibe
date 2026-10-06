@@ -1472,6 +1472,14 @@ another session is not a claim.
       a finding) and `probe.ai-service-failure-handled` (V16.5.2, credited when the app fails cleanly and keeps
       answering). Three guards broken in turn, each caught. Not done: a service that answers slowly or not at all,
       and a malformed structured answer (C7.1.1).
+      **C7.1.1 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Please continue to work off
+      the backlog when ready"), in branch `claude/securevibe-e2-structured-answers`. Read on `main` just before this
+      claim: no other session had claimed it. **Record, `Status: proposed`: ADR-042.** The test model answers in the
+      shape an app asks for (a JSON schema, JSON mode, or a forced tool), which today it never does, so an app that
+      asks for one fails every AI question for the test model's reason; and a new kind of message answers in the
+      wrong shape. The marker in the app's answer is a finding; credit only after an ordinary answer of the right shape
+      was seen shown, and the wrong one refused without failing. A service that answers slowly or not at all stays
+      unclaimed.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
@@ -5757,6 +5765,8 @@ another session is not a claim.
   see whether a browser would render it as part of the app (V3.2.1). Level 1 goes from 41 to 45 of
   70. See DESIGN, "The upload entry". Left over from it: V5.3.2 (paths built from submitted names)
   and V5.4.1/V5.4.2 (what the app sends back) are reachable the same way and were not written.
+  **Since done** (noted on 6 October 2026 by session securevibe-e9): V5.3.2 by `probe.upload-path-traversal`, and
+  V5.4.1 and V5.4.2 by `probe.download-unnamed` and `probe.download-name-injected` (`docs/COVERAGE.md`).
 
 - **Twelve more requirements the probes could reach, from a sweep of everything they cannot.**
   An analysis on 26 September 2026 (session securevibe-e9) of all 260 ASVS requirements no check
@@ -6091,6 +6101,13 @@ another session is not a claim.
   and a proxy's CONNECT status line read as a response. Left over: V4.1.2 (redirecting only where a
   browser is the client) needs a request shaped like an API client's and was not written, and the
   rest of deployment is still a "before going live" list nobody has written.
+  **The "before going live" list claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("pick
+  your next backlog item"), in branch `claude/securevibe-e9-live-list`: for an app that will be on the internet, the
+  report lists the requirements only the live site can answer, says which `sv probe` asks (and the command), and
+  which are the owner's to check by hand. It credits nothing.
+  **Done the same day** (DESIGN, "Before going live: what only the live site can answer"): a section in
+  `compliance.md`, `report.html`, and `report.json` for an app on the internet, each line with the `sv probe` command
+  that asks it, or, for V12.1.2, the scanner; held to the requirements `sv probe`'s checks cite.
   **V4.1.2 claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with
   both of those", asked whether `sv probe` may make one more request), in branch `claude/securevibe-e9-api-redirect`.
   **Record, `Status: proposed`** (to be a "Later" entry on ADR-027): `sv probe <address> --api <path>` asks one more
@@ -6766,6 +6783,10 @@ another session is not a claim.
   `Logger::log(msg)`) parses as a `qualified_identifier`, not the plain `identifier` these queries match,
   and is not seen; neither is `std::cout << "Location: " << u`, a chain of `binary_expression` nodes and
   never a call at all. Both are real C++ idioms and both are named gaps, not silent ones.
+  **Both gaps claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog
+  item"), in branch `claude/securevibe-e9-cpp-scoped`: a call named through `std::`, `std::filesystem::`, or the
+  global `::` is read as the plain call, while a call on a class of the app's own (`Logger::log`) still is not; and
+  `std::cout << "Location: " << url` is read as the `printf` form is.
 
   The two "no grammar" tests this item said would break did, and now use Objective-C (`.m`/`.mm`,
   recognized by the scanner and deliberately left without a grammar) in C++'s place, continuing the same
@@ -7016,6 +7037,68 @@ another session is not a claim.
      Each is a decision for the owner, and the research says which ones any design would need.
   5. **A recommendation**, with what it rests on, for the owner to decide: Kaspa, another approach, or keeping the
      record per computer.
+
+  **Note, 6 October 2026, session securevibe-e10.** The first findings. A read-only research agent read the sources
+  below; this session opened KIP-14, Kaspa's payload page, and the `ssh-keygen` manual itself and found them as quoted.
+  "Read" is what a source says; "inferred" is reasoning from it.
+  1. **What Kaspa offers.**
+     - *Data in a transaction:* since the Crescendo hard fork (5 May 2025, which also moved the network from 1 to 10
+       blocks a second), a native transaction may carry "arbitrary data in the payload field" (read: KIP-14,
+       github.com/kaspanet/kips, `kip-0014.md`; rusty-kaspa's README). For ordinary acceptance "the practical limit is
+       about 25 KB if the payload dominates the transaction" (read: docs.kaspa.org, "Transaction payload"). A seal's
+       hash or a public key fits many times over (inferred).
+     - *How long it stays:* KIP-14 suggests "rounding this up to 30 hours" for the pruning period, so an ordinary node
+       forgets a transaction after about 30 hours (read; rusty-kaspa's `consensus/core/src/config/params.rs` agrees, as
+       the agent read it). Only an archival node (`--archival`, "heavy disk usage", kaspa.aspectron.org) or a
+       third-party indexer keeps it, so checking a seal later needs one of those (inferred).
+     - *How fast it settles:* finality depth is "a 12-hour duration at 10 bps" (read: KIP-14). A first confirmation in
+       seconds is likely but was **not confirmed** in a primary source (the page for it returned 404).
+     - *Cost:* the default minimum relay fee is 100 sompi per gram of mass (read: rusty-kaspa,
+       `mining/src/mempool/config.rs`), and mass is the larger of compute and storage mass (kaspa.aspectron.org,
+       fees). A small transaction would cost a few thousandths of a KAS (inferred, **not confirmed**). The fee comes
+       from the sender's own coins, so publishing means buying KAS and keeping a wallet on the computer (inferred).
+  2. **What a chain would and would not fix** (inferred). It gives a public, dated record anyone can read: a public
+     key, or a seal's hash. It **cannot** show who made a seal: a wallet key on the owner's computer is as usable by an
+     AI coding tool running as the owner as `review-key` is, which is ADR-026's own limit ("not who was at the
+     keyboard"). It **cannot** tell a checking computer which key is the owner's: a key published on the chain is
+     trusted only if the checker already trusts the wallet that published it, so a list of trusted keys is still
+     needed. And it **cannot** keep a record readable on its own, past about 30 hours, without an archival node. The one
+     thing it adds beyond a public-key signature is a time nobody can backdate.
+  3. **Without a chain.**
+     - *Ed25519 signatures,* each person's public key listed somewhere a checker trusts: any computer checks offline,
+       and only the private key's holder signs (inferred). Rust: `ed25519-dalek` (crates.io, BSD-3-Clause).
+     - *SSH signatures,* with keys people already have: `ssh-keygen -Y sign` and `ssh-keygen -Y verify` with an
+       `allowed_signers_file` and a namespace (read: the OpenBSD `ssh-keygen` manual; checked by this session). Anyone
+       can check one with `ssh-keygen` alone. Rust: the `ssh-key` crate's `SshSig`, "ala `ssh-keygen -Y sign`/`-Y
+       verify`" (read: docs.rs, `ssh-key`, with its `ed25519` feature; Apache-2.0 or MIT).
+     - *Sigstore keyless signing:* free, but signing needs an identity provider (GitHub, Google) and the network, and
+       publishes the signer's identity in a public log; checking can be offline with its bundle format (read:
+       docs.sigstore.dev, "Security", "Overview", "Verifying"). No Rust crate was looked at.
+     - *In every design,* the list of trusted keys is the weak point: if the AI coding tool can edit it in the
+       repository, it can add a key of its own. It has to live where the tool cannot write (a CI setting, a file in the
+       person's own home folder), or every change to it has to be flagged (inferred).
+  4. **What each would cost `sv`'s rules.** `Cargo.lock` holds `hmac` and `sha2` and no signature crate today.
+     - *Kaspa:* a second exception to "no network of its own" (a node or indexer to publish, archival access to
+       check), the owner's money (KAS for every seal), and a Kaspa client and wallet as dependencies (not sized).
+     - *Ed25519:* no network, no money, one crate (`ed25519-dalek`).
+     - *SSH signatures:* no network, no money, one crate (`ssh-key`).
+     - *Sigstore:* the network to sign, an account, and a public record of who signed; crates not sized.
+  5. **Recommendation, for the owner to decide:** not Kaspa. SSH-format Ed25519 signatures (`ssh-key`) would let any
+     computer check a seal offline, with no shared secret, no money, and the "no network" rule unchanged, using a key
+     the person may already have and that `ssh-keygen -Y verify` can check without `sv`. The list of trusted public
+     keys would have to be kept where the AI coding tool cannot write. Under every design, "a person, not the tool, made
+     this" stays unproven, as ADR-026 says. Building it would change ADR-026 and add a dependency, so its record goes in
+     the same pull request, and it needs a claim and the owner's decision first.
+
+- **Seals as SSH signatures, so CI and a second computer can check them without being able to make one.** The owner
+  chose SSH signing on 6 October 2026, on the research above, and took every recommendation in the plan session
+  securevibe-e10 walked them through ("go with the recommendations please"). **Claimed the same day by session
+  securevibe-e10**, in branch `claude/ssh-seals`. **Record, `Status: proposed`:** ADR-043 (`docs/adr/ADR-043.md`),
+  to be made accepted in the pull request that builds it. In short: `sv review` makes a signing key of its own beside
+  `review-key`, with a passphrase if the owner wants one, and signs each answer (`v3:<app id>:<signature>`); a trusted
+  list (`~/.config/securevibe/allowed_signers`, or `SV_TRUSTED_SEALS` on CI) says which key may seal for which app; the
+  report names the key it trusted and where the list came from; today's `v2:` seals keep counting where they count
+  now, and `sv review` asks one yes to sign them again. One new dependency, `ssh-key`. Report seals are unchanged.
 
 ## Decided, not yet written down as ADRs
 

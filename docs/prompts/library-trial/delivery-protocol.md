@@ -22,7 +22,7 @@ the top, `sv report --run` one build at a time. What differs is said below.
 
 ## Part B: does `sv` deliver the prompts so that they work?
 
-- **The change tested:** ADR-042. The brief for a feature (`securevibe_before`) gives the coding prompts shown to work
+- **The change tested:** ADR-044. The brief for a feature (`securevibe_before`) gives the coding prompts shown to work
   for its requirements, and the guidance (`securevibe_guidance`) the rest of them, for the whole app.
 - **Arms:** every MCP tool attached (the loop arm of the loop trials), with no prompt in the request.
   - **today's `sv`:** `a9d6fea4`, which gives none of the coding prompts in the brief or the guidance;
