@@ -3114,6 +3114,11 @@ http.createServer((q, s) => {
     let b = ''; q.on('data', (c) => (b += c));
     return q.on('end', () => s.end('<p>' + new URLSearchParams(b).get('t').replace(/</g, '&lt;') + '</p>'));
   }
+  if (q.url === '/rawform') return s.end('<form method=post action=/raw><textarea name=t></textarea><button>Go</button></form>');
+  if (q.url === '/raw') {
+    let b = ''; q.on('data', (c) => (b += c));
+    return q.on('end', () => s.end('<p>' + new URLSearchParams(b).get('t') + '</p>'));
+  }
   s.end('<p>login</p>');
 }).listen(8080);"#;
         let started = backend.docker(&[
@@ -3161,6 +3166,14 @@ http.createServer((q, s) => {
                     Action::Goto("/private".into()),
                     Action::Eval("document.cookie".into()),
                     Action::Act("document.getElementById('bye').click(); true".into()),
+                    // The cross-site scripting check's own line and question, on a page that puts
+                    // the text in as markup: the script runs, and the driver's own world must see it
+                    // (the review of 6 October, item 10).
+                    Action::Fill {
+                        page: "/rawform".into(),
+                        text: sv_check::browser::markup_line("feedc0de"),
+                    },
+                    Action::Eval(sv_check::browser::markup_question("feedc0de")),
                 ],
             })
         });
@@ -3171,7 +3184,7 @@ http.createServer((q, s) => {
             "the app, the browser, or the forwarder did not start: {started:?}"
         );
         let mut answers = answers.flatten().expect("the driver gave no answer");
-        assert_eq!(answers.len(), 9, "{answers:?}");
+        assert_eq!(answers.len(), 11, "{answers:?}");
         assert_eq!(answers.remove(0), serde_json::json!({ "refused": [] }));
         assert_eq!(answers[0]["status"], 200, "{answers:?}");
         assert_eq!(answers[0]["path"], "/private", "{answers:?}");
@@ -3189,6 +3202,9 @@ http.createServer((q, s) => {
         );
         assert_eq!(answers[7]["found"], true, "{answers:?}");
         assert_eq!(answers[7]["after"]["path"], "/bye", "{answers:?}");
+        assert_eq!(answers[8]["after"]["path"], "/raw", "{answers:?}");
+        assert_eq!(answers[9]["value"]["element"], true, "{answers:?}");
+        assert_eq!(answers[9]["value"]["ran"], true, "{answers:?}");
     }
 
     #[test]

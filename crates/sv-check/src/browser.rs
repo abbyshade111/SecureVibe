@@ -272,12 +272,17 @@ fn sign_out_question(logout: &str) -> String {
 
 /// What the page is asked about the text typed into the form: whether the markup in it ran,
 /// whether it became part of the page, and whether it is there as the text that was typed.
-fn markup_question(token: &str) -> String {
+///
+/// Whether it ran is read from a mark the script leaves on the page itself, not from a variable it
+/// sets: the driver asks in a world of its own, which shares the page but not the page's script
+/// variables, so `window.sv_…` set by the script was never seen, and a script that ran was reported
+/// as stopped (the review of 6 October, item 10).
+pub fn markup_question(token: &str) -> String {
     format!(
         r#"(() => {{
   const t = {t};
   return {{
-    ran: window['sv_' + t] === 1,
+    ran: document.documentElement.getAttribute('data-sv-ran') === t,
     element: !!document.querySelector('[data-sv="' + t + '"], [data-sv-b="' + t + '"]'),
     as_text: (document.body ? document.body.innerText : '').includes('data-sv="' + t + '"'),
     present: document.documentElement.outerHTML.includes('sv-' + t),
@@ -290,9 +295,9 @@ fn markup_question(token: &str) -> String {
 /// The line typed into the form. It closes a quoted attribute first, so it gets out of one if the
 /// page puts it inside one, and then carries an image whose failure to load runs a line of script,
 /// and a bold tag, each marked so the page can be asked whether they became elements.
-fn markup_line(token: &str) -> String {
+pub fn markup_line(token: &str) -> String {
     format!(
-        "sv-{token} \"'><img src=x data-sv=\"{token}\" onerror=\"window.sv_{token}=1\"><b data-sv-b=\"{token}\">sv</b>"
+        "sv-{token} \"'><img src=x data-sv=\"{token}\" onerror=\"document.documentElement.setAttribute('data-sv-ran','{token}')\"><b data-sv-b=\"{token}\">sv</b>"
     )
 }
 

@@ -77,6 +77,8 @@ another session is not a claim.
   17 are not claimed.
   **Items 10, 11, and 12 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the false
   passes next"), in branch `claude/securevibe-e2-false-passes`.
+  **Items 10, 11, and 12 done the same day** (DESIGN, "Three false passes from the review of 5 and 6 October"). Item
+  10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
@@ -417,6 +419,10 @@ another session is not a claim.
     `claude/h4-review-triggers`: check against GitHub's documentation whether `pull_request_review` and
     `pull_request_review_comment` run with the secrets for a pull request from a fork, and make them privileged
     triggers if they do, or say in DESIGN why not if they do not.
+    **Done the same day** (DESIGN, "The review triggers run as `pull_request` does"): GitHub's documentation says both
+    run on the pull request's merge branch and, for a pull request from a fork, get no secrets but a read-only
+    `GITHUB_TOKEN`, as `pull_request` does. They are not privileged, and `sv`, which already judged them as
+    `pull_request`, now says why and holds it with a test; two guards broken in turn, each caught.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
@@ -6115,6 +6121,10 @@ another session is not a claim.
   **Follow-ups, each claimable on its own, and they apply to today's packs as well as to option C:**
   1. Bundled third-party library files shown apart, detected by a known library's file (as retire.js does) rather
      than by long lines alone, and checked on apps the test was not written against.
+     **Claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking to pick another item, in branch
+     `claude/securevibe-e9-bundled-libraries`: a copy of a library kept in the app, known by its own banner, has its
+     findings listed apart, named for the library, and still counted; checked on library files and first-party code
+     the test was not written against.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
