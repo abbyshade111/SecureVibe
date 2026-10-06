@@ -2955,6 +2955,18 @@ mod tests {
             bodies.len(),
             "a console with no page to test"
         );
+        // Each path as its tool's source serves it: a path written wrong asks where nothing is.
+        assert_eq!(
+            CONSOLES.iter().map(|c| c.path).collect::<Vec<_>>(),
+            [
+                "/console",
+                "/rails/info/properties",
+                "/debug/pprof/",
+                "/_ignition/health-check",
+                "/_profiler/empty/search/results?limit=10",
+                "/dev/dashboard/home",
+            ]
+        );
         for (console, body) in CONSOLES.iter().zip(bodies) {
             let findings = evaluate(&[
                 good_home(),
@@ -3025,6 +3037,11 @@ mod tests {
             (
                 "/dev/dashboard/home",
                 "<html><title>Dashboard</title><h1>Your dashboard</h1><footer>Made with love</footer></html>",
+            ),
+            // A page about LiveDashboard showing its script, without its footer.
+            (
+                "/dev/dashboard/home",
+                "<h1>Custom hooks</h1><pre>window.LiveDashboard.registerCustomHooks({})</pre>",
             ),
         ] {
             let findings = evaluate(&[good_home(), response(&console_id(path), 200, &[], body)]);
