@@ -31,9 +31,11 @@ ARMS = {
 SV_TOOLS = ['before', 'bundle', 'check', 'explain', 'guidance', 'notes_file', 'plan', 'preflight', 'prompts',
             'questions', 'record_answer', 'spec', 'write_report']
 # Amendment 1 (5 October 2026, after the pilot): a headless build has no owner to answer it, and the Haiku pilot
-# builds stopped to ask. Every build from then on ends its request with this, in every arm.
-NO_OWNER = ("\n\nI won't be around to answer questions while you build; where something needs deciding, choose the "
-            "safer option and write down what you chose.\n")
+# builds stopped to ask. Every build from then on ends its request with this, in every arm. Amendment 5 (6 October
+# 2026, after item 6, where 2 of 35 Haiku builds still stopped to ask): the stronger wording, for every trial after.
+NO_OWNER = ("\n\nI won't be around to answer questions while you build, so do not stop to ask me anything. Where "
+            "something needs deciding, choose the safer option, write down what you chose, and keep going until the "
+            "app is built and runs.\n")
 FILE_TOOLS = ['Read', 'Write', 'Edit', 'Glob', 'Grep']
 SHELL = 'Bash(python3:*)'
 # With --api, the Claude program gets the key from this helper when it needs it (apiKeyHelper), so the key is never in
