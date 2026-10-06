@@ -1697,6 +1697,27 @@ pub struct FileRead {
     pub parse_error: bool,
     /// Rules that could not run on this file because their query would not compile.
     pub broken: Vec<BrokenQuery>,
+    /// Findings whose value is a parameter of the Python function around them, for `scan_listing`
+    /// to look up that function's calls across the app.
+    pub parameter_destinations: Vec<ParameterDestination>,
+}
+
+/// A finding whose value is a parameter of the Python function it sits in
+/// (`def go(destination): return redirect(destination)`), and so is whatever that function's
+/// callers pass (family-hub item 7, the redirect half of A1).
+#[derive(Debug, Clone)]
+pub struct ParameterDestination {
+    pub rule_id: String,
+    pub file: String,
+    pub line: usize,
+    /// The function the finding sits in, and the parameter.
+    pub function: String,
+    pub parameter: String,
+    /// Where the parameter comes among those a caller passes by position, `self` and `cls` left out
+    /// of a method's; `None` when it can only be passed by name.
+    pub position: Option<usize>,
+    /// The parameter's default, when it has one, as written.
+    pub default: Option<String>,
 }
 
 /// Runs every rule over one file, and says whether the whole file was understood.
@@ -1709,6 +1730,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         findings: Vec::new(),
         parse_error: true,
         broken: Vec::new(),
+        parameter_destinations: Vec::new(),
     };
     let mut broken = Vec::new();
     let tsx = language == "typescript" && relative.to_lowercase().ends_with(".tsx");
@@ -1730,6 +1752,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
     };
 
     let mut out = Vec::new();
+    let mut parameter_destinations = Vec::new();
     for compiled in &rules.compiled {
         let query = if tsx {
             compiled.tsx.as_ref()
@@ -1904,6 +1927,27 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 .map(|c| c.node)
                 .or_else(|| m.captures().first().map(|c| c.node));
             let Some(node) = node else { continue };
+            // A destination that is the enclosing function's parameter is whatever its callers
+            // pass; `scan_listing` looks them up once every file is read.
+            if compiled.rule.says_when_checked
+                && language == "python"
+                && !bound_parameters
+                && !read_back
+                && checked_by.is_none()
+                && let Some(arg) = arg_node
+                && let Some((function, parameter, position, default)) =
+                    enclosing_parameter(arg, source.as_bytes())
+            {
+                parameter_destinations.push(ParameterDestination {
+                    rule_id: compiled.rule.id.clone(),
+                    file: relative.to_owned(),
+                    line: node.start_position().row + 1,
+                    function,
+                    parameter,
+                    position,
+                    default,
+                });
+            }
             out.push(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
@@ -1966,7 +2010,356 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         findings: out,
         parse_error: tree.root_node().has_error(),
         broken,
+        parameter_destinations,
     }
+}
+
+/// When `node` is a bare name that is a parameter of the Python function around it: the function's
+/// name, the parameter's, where it comes among the parameters a caller passes by position (`self`
+/// or `cls` left out of a method), and its default as written.
+fn enclosing_parameter(
+    node: tree_sitter::Node,
+    source: &[u8],
+) -> Option<(String, String, Option<usize>, Option<String>)> {
+    if node.kind() != "identifier" {
+        return None;
+    }
+    let name = node.utf8_text(source).ok()?;
+    let mut function = node.parent();
+    while let Some(f) = function {
+        if f.kind() == "function_definition" {
+            break;
+        }
+        // A lambda's or a class's own names are not the function's.
+        if matches!(f.kind(), "lambda" | "class_definition") {
+            return None;
+        }
+        function = f.parent();
+    }
+    let function = function?;
+    let function_name = function
+        .child_by_field_name("name")?
+        .utf8_text(source)
+        .ok()?;
+    // A parameter the function gives another value is no longer what its callers passed.
+    if binds_name(function.child_by_field_name("body")?, name, source) {
+        return None;
+    }
+    let parameters = function.child_by_field_name("parameters")?;
+    // A method, called as `obj.method(...)`, is not passed its `self` or `cls`.
+    let method = function
+        .parent()
+        .and_then(|block| block.parent())
+        .is_some_and(|p| p.kind() == "class_definition")
+        || function
+            .parent()
+            .filter(|p| p.kind() == "decorated_definition")
+            .and_then(|d| d.parent())
+            .and_then(|block| block.parent())
+            .is_some_and(|p| p.kind() == "class_definition");
+    let mut position = 0usize;
+    let mut by_position = true;
+    let mut cursor = parameters.walk();
+    for (index, parameter) in parameters.named_children(&mut cursor).enumerate() {
+        let (own, default) = match parameter.kind() {
+            "identifier" => (parameter.utf8_text(source).ok(), None),
+            "typed_parameter" => (
+                parameter
+                    .named_child(0)
+                    .and_then(|n| n.utf8_text(source).ok()),
+                None,
+            ),
+            "default_parameter" | "typed_default_parameter" => (
+                parameter
+                    .child_by_field_name("name")
+                    .and_then(|n| n.utf8_text(source).ok()),
+                parameter
+                    .child_by_field_name("value")
+                    .and_then(|n| n.utf8_text(source).ok()),
+            ),
+            // After `*` or `*args`, parameters can only be passed by name.
+            "list_splat_pattern" | "keyword_separator" => {
+                by_position = false;
+                continue;
+            }
+            _ => continue,
+        };
+        if method && index == 0 && matches!(own, Some("self" | "cls")) {
+            continue;
+        }
+        if own == Some(name) {
+            return Some((
+                function_name.to_owned(),
+                name.to_owned(),
+                by_position.then_some(position),
+                default.map(str::to_owned),
+            ));
+        }
+        position += 1;
+    }
+    // A name the function does not take is one it found elsewhere.
+    None
+}
+
+/// Whether anything in `body` gives `name` a value: an assignment, `+=`, `:=`, a `for` or `with`
+/// target, an `except ... as`, or a `del`. Nested functions and classes are their own scope.
+fn binds_name(body: tree_sitter::Node, name: &str, source: &[u8]) -> bool {
+    fn targets(node: tree_sitter::Node<'_>) -> Option<tree_sitter::Node<'_>> {
+        match node.kind() {
+            "assignment" | "augmented_assignment" => node.child_by_field_name("left"),
+            "named_expression" => node.child_by_field_name("name"),
+            "for_statement" | "for_in_clause" => node.child_by_field_name("left"),
+            "as_pattern" => node.child_by_field_name("alias"),
+            "delete_statement" => node.named_child(0),
+            _ => None,
+        }
+    }
+    let mut stack = vec![body];
+    while let Some(node) = stack.pop() {
+        if let Some(target) = targets(node) {
+            let mut inner = vec![target];
+            while let Some(t) = inner.pop() {
+                if t.kind() == "identifier" && t.utf8_text(source) == Ok(name) {
+                    return true;
+                }
+                let mut cursor = t.walk();
+                inner.extend(t.named_children(&mut cursor));
+            }
+        }
+        let mut cursor = node.walk();
+        for child in node.named_children(&mut cursor) {
+            if !matches!(child.kind(), "function_definition" | "class_definition") {
+                stack.push(child);
+            }
+        }
+    }
+    false
+}
+
+/// Adds to each finding whose value is a Python function's parameter what that function's calls
+/// across the app's Python pass, when every one passes what the rule counts as safe on its own
+/// (`url_for(...)`, a path on this site): family-hub item 7, where `redirect(destination)` was
+/// flagged though every caller passed `url_for("home.index")`, and the AI tool removed the
+/// parameter to clear the finding. The finding stays, at the rule's confidence, and says so; the
+/// owner's decision for a destination a function checked (A1, 5 October 2026) was to keep it and
+/// name what to check.
+///
+/// Said only when the calls are all there is to see: at least one call, every use of the name a
+/// call or its own definition or an import, and no call that spreads its arguments (`*args`).
+fn note_callers(
+    rules: &AstRules,
+    listing: &sv_scan::files::Listing,
+    scan: &mut AstScan,
+    pending: &[ParameterDestination],
+) {
+    if pending.is_empty() {
+        return;
+    }
+    let Some(grammar) = grammar("python") else {
+        return;
+    };
+    let mut parser = Parser::new();
+    if parser.set_language(&grammar).is_err() {
+        return;
+    }
+    let files: Vec<(String, String, tree_sitter::Tree)> = listing
+        .app_files()
+        .filter(|e| e.language == Some("python"))
+        .filter_map(|e| {
+            let text = e.read_text().ok()?;
+            let tree = parser.parse(&text, None)?;
+            Some((e.relative.clone(), text, tree))
+        })
+        .collect();
+    for destination in pending {
+        let Some(safe) = rules
+            .compiled
+            .iter()
+            .find(|c| c.rule.id == destination.rule_id)
+            .and_then(|c| c.safe_argument.get("python"))
+        else {
+            continue;
+        };
+        let mut passed: Vec<(String, usize)> = Vec::new();
+        let mut all_safe = true;
+        for (file, text, tree) in &files {
+            let Some(calls) = calls_of(tree.root_node(), text.as_bytes(), &destination.function)
+            else {
+                all_safe = false;
+                break;
+            };
+            for (line, arguments) in calls {
+                let given = arguments.and_then(|args| {
+                    argument(
+                        args,
+                        text.as_bytes(),
+                        &destination.parameter,
+                        destination.position,
+                    )
+                });
+                let value = match given {
+                    Some(Ok(value)) => Some(value),
+                    // A spread of arguments: what reaches the parameter is not written here.
+                    Some(Err(())) => None,
+                    None => destination.default.clone(),
+                };
+                match value {
+                    Some(value) if safe.is_match(value.trim()) => passed.push((file.clone(), line)),
+                    _ => all_safe = false,
+                }
+            }
+            if !all_safe {
+                break;
+            }
+        }
+        if !all_safe || passed.is_empty() {
+            continue;
+        }
+        let Some(finding) = scan.findings.iter_mut().find(|f| {
+            f.rule_id == destination.rule_id
+                && f.location.file == destination.file
+                && f.location.line == destination.line
+        }) else {
+            continue;
+        };
+        let n = passed.len();
+        let mut places: Vec<String> = passed
+            .iter()
+            .take(5)
+            .map(|(file, line)| format!("`{file}` line {line}"))
+            .collect();
+        if n > 5 {
+            places.push(format!("{} more", n - 5));
+        }
+        finding.description = format!(
+            "{} The value here is `{}`, a parameter of `{}`, and {} in this app's Python passes \
+             the app's own route or a path on this site ({}), so it may already be safe: check that \
+             nothing else calls `{}`, such as code `sv` did not read or another function of the \
+             same name, before changing anything. Removing the parameter only to make this finding \
+             go away is not a fix.",
+            finding.description,
+            destination.parameter,
+            destination.function,
+            if n == 1 {
+                "its one call".to_owned()
+            } else {
+                format!("each of its {n} calls")
+            },
+            and_list(&places),
+            destination.function,
+        );
+    }
+}
+
+/// Every call of `function` in a Python file, by its line and its argument list, called by its name
+/// (`go(...)`) or as an attribute (`auth.go(...)`). `None` when the name is used in any other way,
+/// such as handed to something else to call, since its calls are then not all here to read.
+fn calls_of<'a>(
+    root: tree_sitter::Node<'a>,
+    source: &[u8],
+    function: &str,
+) -> Option<Vec<(usize, Option<tree_sitter::Node<'a>>)>> {
+    let mut calls = Vec::new();
+    let mut stack = vec![root];
+    while let Some(node) = stack.pop() {
+        let mut cursor = node.walk();
+        stack.extend(node.named_children(&mut cursor));
+        if node.kind() != "identifier" || node.utf8_text(source) != Ok(function) {
+            continue;
+        }
+        let parent = node.parent()?;
+        let is_field = |p: tree_sitter::Node, field: &str| {
+            p.child_by_field_name(field)
+                .is_some_and(|c| c.id() == node.id())
+        };
+        fn called(callee: tree_sitter::Node<'_>) -> Option<tree_sitter::Node<'_>> {
+            callee
+                .parent()
+                .filter(|call| call.kind() == "call" && is_field_of(*call, "function", callee))
+        }
+        if parent.kind() == "function_definition" && is_field(parent, "name") {
+            continue;
+        }
+        if parent.kind() == "keyword_argument" && is_field(parent, "name") {
+            continue;
+        }
+        if let Some(call) = called(node) {
+            calls.push((
+                call.start_position().row + 1,
+                call.child_by_field_name("arguments"),
+            ));
+            continue;
+        }
+        if parent.kind() == "attribute"
+            && is_field(parent, "attribute")
+            && let Some(call) = called(parent)
+        {
+            calls.push((
+                call.start_position().row + 1,
+                call.child_by_field_name("arguments"),
+            ));
+            continue;
+        }
+        let mut up = Some(parent);
+        let mut imported = false;
+        while let Some(p) = up {
+            if matches!(p.kind(), "import_statement" | "import_from_statement") {
+                imported = true;
+                break;
+            }
+            up = p.parent();
+        }
+        if !imported {
+            return None;
+        }
+    }
+    Some(calls)
+}
+
+/// Whether `child` is `parent`'s field of that name.
+fn is_field_of(parent: tree_sitter::Node, field: &str, child: tree_sitter::Node) -> bool {
+    parent
+        .child_by_field_name(field)
+        .is_some_and(|c| c.id() == child.id())
+}
+
+/// What a call passes for a parameter: the keyword argument of its name, or the argument at its
+/// position. `None` when it passes none; `Some(Err(()))` when it spreads arguments (`*args`,
+/// `**kwargs`), so what reaches the parameter is not written in the call.
+fn argument(
+    arguments: tree_sitter::Node,
+    source: &[u8],
+    parameter: &str,
+    position: Option<usize>,
+) -> Option<Result<String, ()>> {
+    let mut cursor = arguments.walk();
+    let mut positional = Vec::new();
+    let mut spread = false;
+    for argument in arguments.named_children(&mut cursor) {
+        match argument.kind() {
+            "keyword_argument" => {
+                let name = argument
+                    .child_by_field_name("name")
+                    .and_then(|n| n.utf8_text(source).ok());
+                if name == Some(parameter) {
+                    return argument
+                        .child_by_field_name("value")
+                        .and_then(|v| v.utf8_text(source).ok())
+                        .map(|v| Ok(v.to_owned()));
+                }
+            }
+            "list_splat" | "dictionary_splat" => spread = true,
+            "comment" => {}
+            _ => positional.push(argument),
+        }
+    }
+    if spread {
+        return Some(Err(()));
+    }
+    position
+        .and_then(|p| positional.get(p))
+        .and_then(|a| a.utf8_text(source).ok())
+        .map(|a| Ok(a.to_owned()))
 }
 
 /// Runs the rules over every source file in the app whose language has a grammar.
@@ -1980,6 +2373,7 @@ pub fn scan_dir(rules: &AstRules, app_dir: &std::path::Path) -> AstScan {
 /// `scan_dir`, over a listing already made.
 pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstScan {
     let mut scan = AstScan::default();
+    let mut parameter_destinations = Vec::new();
     for entry in listing.app_files() {
         let Some(language) = entry.language else {
             continue;
@@ -2026,8 +2420,10 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
             hold_back(rules, &mut scan, language, &entry.relative, Some(&source));
         }
         scan.findings.extend(read.findings);
+        parameter_destinations.extend(read.parameter_destinations);
         note_broken(&mut scan, read.broken);
     }
+    note_callers(rules, listing, &mut scan, &parameter_destinations);
     scan.findings.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
@@ -3045,6 +3441,194 @@ mod tests {
             "const path = require('path');\nconst UPLOAD_DIR = 'uploads';\napp.get('/f/:id', async (req, res) => {\n  const file = await prisma.attachment.findUnique({ where: { id: req.params.id } });\n  res.sendFile(path.join(UPLOAD_DIR, file.storedName));\n});\n",
         );
         assert!(finding.description.contains(SAYS), "{finding:?}");
+    }
+
+    #[test]
+    fn a_destination_every_caller_fills_with_the_apps_own_route_says_so() {
+        // family-hub item 7: `redirect(destination)`, where every caller passed
+        // `url_for("home.index")`, and the AI tool removed the parameter to clear the finding. The
+        // finding stays in every case; only what it says changes.
+        const SAYS: &str = "passes the app's own route or a path on this site";
+        let scan_app = |name: &str, files: &[(&str, &str)]| {
+            let dir =
+                std::env::temp_dir().join(format!("sv-ast-callers-{name}-{}", std::process::id()));
+            std::fs::remove_dir_all(&dir).ok();
+            std::fs::create_dir_all(&dir).unwrap();
+            for (file, text) in files {
+                std::fs::write(dir.join(file), text).unwrap();
+            }
+            let scan = scan_dir(&rules(), &dir);
+            std::fs::remove_dir_all(&dir).ok();
+            let found: Vec<Finding> = scan
+                .findings
+                .into_iter()
+                .filter(|f| f.rule_id == "ast.open-redirect")
+                .collect();
+            assert_eq!(found.len(), 1, "{name}: the finding stays: {found:?}");
+            found.into_iter().next().unwrap()
+        };
+        let signin = "from flask import redirect, session\n\n\
+                      def finish_sign_in(user, destination):\n    \
+                      session['uid'] = user.id\n    \
+                      return redirect(destination)\n";
+        let views = |calls: &str| {
+            format!(
+                "from flask import url_for, request\nfrom signin import finish_sign_in\n\n{calls}"
+            )
+        };
+
+        // Every caller passes the app's own route, by position or by name: said, with each call.
+        let finding = scan_app(
+            "all-own",
+            &[
+                ("signin.py", signin),
+                (
+                    "views.py",
+                    &views(
+                        "def login(user):\n    return finish_sign_in(user, url_for('home.index'))\n\n\
+                         def join(user):\n    return finish_sign_in(user, destination='/welcome')\n",
+                    ),
+                ),
+            ],
+        );
+        assert!(
+            finding.description.contains(SAYS),
+            "{}",
+            finding.description
+        );
+        for part in [
+            "`destination`, a parameter of `finish_sign_in`",
+            "each of its 2 calls",
+            "`views.py` line 5",
+            "`views.py` line 8",
+            "is not a fix",
+        ] {
+            assert!(
+                finding.description.contains(part),
+                "{part}: {}",
+                finding.description
+            );
+        }
+
+        // A default the callers leave alone, and a method called on its object.
+        let defaulted = scan_app(
+            "default",
+            &[(
+                "app.py",
+                "from flask import redirect, url_for\n\n\
+                 def finish(user, destination=url_for('home.index')):\n    return redirect(destination)\n\n\
+                 def login(user):\n    return finish(user)\n",
+            )],
+        );
+        assert!(
+            defaulted.description.contains("its one call"),
+            "{}",
+            defaulted.description
+        );
+        let method = scan_app(
+            "method",
+            &[(
+                "app.py",
+                "from flask import redirect, url_for\n\n\
+                 class Auth:\n    def go(self, destination):\n        return redirect(destination)\n\n\
+                 def login(auth):\n    return auth.go(url_for('home.index'))\n",
+            )],
+        );
+        assert!(method.description.contains(SAYS), "{}", method.description);
+
+        // Not said: a caller passes what came in the request; the function is handed to something
+        // else to call; nobody calls it; it gives the parameter another value; a call spreads its
+        // arguments; the parameter can only be passed by name and the caller leaves it out.
+        for (name, files) in [
+            (
+                "one-from-request",
+                vec![
+                    ("signin.py", signin.to_owned()),
+                    (
+                        "views.py",
+                        views(
+                            "def login(user):\n    return finish_sign_in(user, url_for('home.index'))\n\n\
+                             def back(user):\n    return finish_sign_in(user, request.args.get('next'))\n",
+                        ),
+                    ),
+                ],
+            ),
+            (
+                "handed-on",
+                vec![
+                    ("signin.py", signin.to_owned()),
+                    (
+                        "views.py",
+                        views(
+                            "def login(user):\n    return finish_sign_in(user, url_for('home.index'))\n\n\
+                             HOOKS = [finish_sign_in]\n",
+                        ),
+                    ),
+                ],
+            ),
+            ("no-callers", vec![("signin.py", signin.to_owned())]),
+            (
+                "reassigned",
+                vec![
+                    (
+                        "signin.py",
+                        signin.replace(
+                            "    return redirect(destination)",
+                            "    destination = request.args.get('next') or destination\n    \
+                             return redirect(destination)",
+                        ),
+                    ),
+                    (
+                        "views.py",
+                        views(
+                            "def login(user):\n    return finish_sign_in(user, url_for('home.index'))\n",
+                        ),
+                    ),
+                ],
+            ),
+            (
+                "spread",
+                vec![
+                    ("signin.py", signin.to_owned()),
+                    (
+                        "views.py",
+                        views(
+                            "def login(user):\n    return finish_sign_in(user, url_for('home.index'))\n\n\
+                             def other(pair):\n    return finish_sign_in(*pair)\n",
+                        ),
+                    ),
+                ],
+            ),
+            // The default is the app's own route, but a spread may fill the parameter with anything.
+            (
+                "spread-over-default",
+                vec![(
+                    "app.py",
+                    "from flask import redirect, url_for\n\n\
+                     def finish(user, destination=url_for('home.index')):\n    return redirect(destination)\n\n\
+                     def login(args):\n    return finish(*args)\n"
+                        .to_owned(),
+                )],
+            ),
+            (
+                "by-name-only",
+                vec![(
+                    "app.py",
+                    "from flask import redirect, url_for\n\n\
+                     def finish(user, *, destination):\n    return redirect(destination)\n\n\
+                     def login(user):\n    return finish(user, url_for('home.index'))\n"
+                        .to_owned(),
+                )],
+            ),
+        ] {
+            let files: Vec<(&str, &str)> = files.iter().map(|(f, t)| (*f, t.as_str())).collect();
+            let finding = scan_app(name, &files);
+            assert!(
+                !finding.description.contains(SAYS),
+                "{name}: {}",
+                finding.description
+            );
+        }
     }
 
     #[test]
