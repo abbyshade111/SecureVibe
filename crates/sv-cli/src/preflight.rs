@@ -227,7 +227,7 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
             sv(", which is not in the app's folder."),
         ];
         if let Some(build) = set(&run.build) {
-            words.push(sv(&format!(
+            words.push(sv(format!(
                 " If the build step (`{build}`) makes it, ignore this."
             )));
         }
