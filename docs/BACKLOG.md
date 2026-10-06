@@ -96,6 +96,8 @@ another session is not a claim.
   credit or accuse wrongly"; ADR-021, "Later, 6 October 2026"). All four were real: the fetch check now waits for the
   app's answer and asks again, the agent limit is credited only for the same stop twice and no rounds after the
   answer, a 503 with `Retry-After` is the limiter's, and every path is taken out of a log line before its words are read.
+  **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
+  them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
@@ -1157,6 +1159,11 @@ another session is not a claim.
      function's calls across the app's Python, and when every one passes the app's own route (`url_for(...)`) or a
      path on this site, keep the finding and say so, naming each call, as the owner decided for a destination a
      function checked (item 3 of "Three false alarms on code that does the safe thing"). Not made quiet.
+     **Done the same day** (DESIGN, "A redirect to a parameter every caller fills with the app's own route says
+     so"): the finding stays, and when every use of the function's name across the app's Python is a call, its
+     definition, or an import, and every call passes or leaves to a default what the rule counts as safe on its own,
+     it names each call and says removing the parameter only to clear the finding is not a fix. Python only. Ten
+     guards broken in turn, each caught.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
