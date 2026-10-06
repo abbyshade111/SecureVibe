@@ -1081,6 +1081,79 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
     !has_interpolation(node, source)
 }
 
+/// Whether an argument is safe by a rule's `safeArgumentPattern` whichever way it goes. A pattern
+/// reads how the argument starts, so `redirect("/home" if not nxt else nxt)` starts like a path on
+/// the same site and was taken for one (item 19 of the review of 1 to 4 October). A choice between
+/// values (`a if c else b`, `c ? a : b`, `a or b`, `a and b`, `a || b`, `a && b`, `a ?? b`) is safe
+/// only when every value it can give is: by the pattern, or written out.
+fn safe_in_every_branch(
+    node: tree_sitter::Node,
+    source: &[u8],
+    pattern: &regex::Regex,
+    fixed: &Fixed,
+) -> bool {
+    match choice_branches(node, source) {
+        None => node
+            .utf8_text(source)
+            .is_ok_and(|text| pattern.is_match(text)),
+        Some(branches) => {
+            !branches.is_empty()
+                && branches.into_iter().all(|branch| {
+                    is_literal(branch, source, fixed)
+                        || safe_in_every_branch(branch, source, pattern, fixed)
+                })
+        }
+    }
+}
+
+/// The values a choice can give; `None` when the node is not a choice between values, and none at
+/// all when it is one whose values cannot be told apart, which nothing can then vouch for.
+fn choice_branches<'t>(
+    node: tree_sitter::Node<'t>,
+    source: &[u8],
+) -> Option<Vec<tree_sitter::Node<'t>>> {
+    let field = |name: &str| node.child_by_field_name(name);
+    let named = || {
+        let mut cursor = node.walk();
+        node.named_children(&mut cursor)
+            .filter(|c| c.kind() != "comment")
+            .collect::<Vec<_>>()
+    };
+    match node.kind() {
+        // Python's `a if c else b` has no field names: the value, the condition, the other value.
+        "conditional_expression" if field("consequence").is_none() => {
+            Some(match named().as_slice() {
+                [yes, _, no] => vec![*yes, *no],
+                _ => Vec::new(),
+            })
+        }
+        "conditional_expression" | "ternary_expression" | "conditional" => {
+            Some(match (field("consequence"), field("alternative")) {
+                (Some(yes), Some(no)) => vec![yes, no],
+                _ => Vec::new(),
+            })
+        }
+        // `a or b` and `a and b` in Python and Ruby, `a || b`, `a && b`, and `a ?? b` elsewhere:
+        // either side may be given, and `'/home' && next` gives the right one.
+        "boolean_operator" | "binary_expression" | "binary" => {
+            let operator = field("operator")
+                .and_then(|o| o.utf8_text(source).ok())
+                .unwrap_or_default();
+            matches!(operator, "or" | "and" | "||" | "&&" | "??").then(|| {
+                match (field("left"), field("right")) {
+                    (Some(left), Some(right)) => vec![left, right],
+                    _ => Vec::new(),
+                }
+            })
+        }
+        "parenthesized_expression" => match named().as_slice() {
+            [only] if choice_branches(*only, source).is_some() => Some(vec![*only]),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
 /// Whether anything is substituted into this literal, however deeply.
 fn has_interpolation(node: tree_sitter::Node, source: &[u8]) -> bool {
     // Kotlin's `"select $n"` has no interpolation node at all: the grammar splits it into plain
@@ -1888,8 +1961,10 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 }
             }
             if let Some(pattern) = compiled.safe_argument.get(language)
-                && let Some(text) = arg_text
-                && pattern.is_match(text)
+                && match arg_node {
+                    Some(arg) => safe_in_every_branch(arg, source.as_bytes(), pattern, &fixed),
+                    None => arg_text.is_some_and(|text| pattern.is_match(text)),
+                }
             {
                 continue;
             }
@@ -5023,6 +5098,29 @@ mod tests {
         // Same-site paths: one slash and then an ordinary path character cannot leave the site.
         ("ast.open-redirect", "python", "return redirect(f\"/notes/{note_id}\")", false),
         ("ast.open-redirect", "python", "return redirect(\"/notes/\" + str(note_id))", false),
+        // Item 19 of the review of 1 to 4 October: a destination was judged by how it starts, so a
+        // choice whose first value is a path on the same site was taken for one, and so was a path
+        // whose first character after the slash is a `%` that formatting fills in.
+        ("ast.open-redirect", "python", "return redirect(\"/home\" if not nxt else nxt)", true),
+        ("ast.open-redirect", "python", "return redirect(nxt or \"/home\")", true),
+        ("ast.open-redirect", "python", "return redirect(\"/notes/\" + str(i) or nxt)", true),
+        ("ast.open-redirect", "python", "return redirect(\"/home\" and nxt)", true),
+        ("ast.open-redirect", "python", "return redirect((\"/home\" if ok else nxt))", true),
+        ("ast.open-redirect", "python", "return redirect((\"/home\" if ok else \"/notes\"))", false),
+        ("ast.open-redirect", "python", "return redirect((\"/home\" if ok else request.args[\"next\"]))", true),
+        ("ast.open-redirect", "python", "return redirect(\"/%s\" % nxt)", true),
+        ("ast.open-redirect", "python", "return redirect(\"/home\" if ok else \"/notes\")", false),
+        ("ast.open-redirect", "python", "return redirect(\"/home\" if ok else url_for(\"index\"))", false),
+        ("ast.open-redirect", "python", "return redirect(\"/notes/%d\" % note_id)", false),
+        ("ast.open-redirect", "python", "return redirect(\"/caf%C3%A9/\" + slug)", false),
+        ("ast.open-redirect", "javascript", "res.redirect(req.query.next ?? '/home')", true),
+        ("ast.open-redirect", "javascript", "res.redirect(req.query.next || '/home')", true),
+        ("ast.open-redirect", "javascript", "res.redirect('/home' && req.query.next)", true),
+        ("ast.open-redirect", "javascript", "res.redirect('/notes/' + id || req.query.next)", true),
+        ("ast.open-redirect", "javascript", "res.redirect('/notes/' + id ?? req.query.next)", true),
+        ("ast.open-redirect", "javascript", "res.redirect('/notes/' + id || '/home')", false),
+        ("ast.open-redirect", "javascript", "res.redirect(ok ? '/a' : req.query.next)", true),
+        ("ast.open-redirect", "javascript", "res.redirect(ok ? '/a' : '/b/' + id)", false),
         ("ast.open-redirect", "python", "return redirect(\"/\" + next_url)", true),
         ("ast.open-redirect", "python", "return redirect(f\"/{next_url}\")", true),
         ("ast.open-redirect", "python", "return redirect(\"//\" + host)", true),

@@ -104,7 +104,15 @@ another session is not a claim.
   October 2026").
   **Items 18, 19, 21, and 22 claimed the same day by session securevibe-e2**, at the owner's word, as the fourth batch
   (the code-reading rules: two credit what they should not, one flags what is safe, and one stops `sv` on a build
-  file), in branch `claude/securevibe-e2-review-1to4-b4`.
+  file), in branch `claude/securevibe-e2-review-1to4-b4`. **That claim was a mistake for 18, 21, and 22**: session
+  securevibe-e9 had claimed them (with 20 and 23) about ten minutes before, and securevibe-e2 did not read `main`'s
+  backlog again before claiming, so it built them a second time. securevibe-e9's fixes went in first (#794) and stand;
+  securevibe-e2's copies were dropped, and only item 19 goes in from this branch. The same happened with items 5, 6,
+  and 7, which securevibe-e9 had claimed (with 14) at 03:41 and securevibe-e2 claimed again at 04:27 and built (#797,
+  merged); securevibe-e9's #790 now carries item 14 alone. Two sessions working the same review at once must read
+  `main`'s backlog just before each claim, not only at the start.
+  **Item 19 done the same day by session securevibe-e2** (DESIGN, "The review of 1 to 4 October: a redirect read
+  whichever way it goes").
 
   **Items 1, 2, 3, 4, 12, and 13 done the same day** (DESIGN, "The review of 1 to 4 October, batch 1").
   **Items 5, 6, and 7 claimed the same day by session securevibe-e2**, at the owner's word, as the third batch (the
