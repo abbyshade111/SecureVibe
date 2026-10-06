@@ -101,6 +101,8 @@ another session is not a claim.
   **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
   them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
 
+  **Items 1, 2, 3, 4, 12, and 13 done the same day** (DESIGN, "The review of 1 to 4 October, batch 1").
+
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
   23,600 lines in `crates/` and `data/`: among them the booking check sent as two users, the decisions file held to
@@ -3592,8 +3594,10 @@ another session is not a claim.
   whatever IPv4 address they carry, so `[2002:a00:1::]` is not refused as 10.0.0.1, and the documentation ranges
   (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 2001:db8::/32) are not refused either. Low in practice (6to4 relays
   are mostly gone, and a NAT64 gateway should not translate a private address), but the record and the code's own
-  comment promise more. **Not claimed.** Fix: judge both forms by their IPv4 address, refuse the documentation ranges,
+  comment promise more. Fix: judge both forms by their IPv4 address, refuse the documentation ranges,
   and hold each with a test; ADR-027 changes with it.
+  **Claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking to keep working off the backlog, in
+  branch `claude/probe-ipv6`.
 
 - **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
   (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line; **not claimed**.
