@@ -1563,6 +1563,7 @@ fn output_schema(tool: &str) -> Option<Value> {
             "description": string, "impact": string, "fix": string,
             "also_reported_by": strings, "fingerprint": string, "earlier_fingerprints": strings,
             "marked_test_code": { "type": "boolean" },
+            "bundled_library": string,
         }),
         &[
             "rule_id",
@@ -2339,10 +2340,11 @@ fn check_sections(
         findings.lead = format!("\n{} FINDINGS:\n", report.findings.len());
         if !in_tests.is_empty() {
             findings.lead.push_str(&format!(
-                "({} in the app itself first, then {} in test or sample code. Those still count; \
-                 fix a key or a copied pattern there as you would in the app.)\n",
+                "({} in the app itself first, then {} {}. Those still count; fix a key or a copied \
+                 pattern there as you would in the app, and a library by a newer copy, not an edit.)\n",
                 app.len(),
-                in_tests.len()
+                in_tests.len(),
+                sv_report::apart_named(&in_tests)
             ));
         }
         for f in app.into_iter().chain(in_tests) {
@@ -2907,6 +2909,36 @@ mod tests {
             result["structuredContent"]["counts"],
             serde_json::to_value(&report.counts).unwrap()
         );
+    }
+
+    #[test]
+    fn the_ai_tool_reads_the_apps_own_findings_before_those_in_a_copied_library() {
+        let root = std::env::temp_dir().join(format!("sv-mcp-library-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("public/js")).unwrap();
+        let call_eval = "function run(input) {\n  return eval(input);\n}\n";
+        std::fs::write(
+            root.join("public/js/jquery.min.js"),
+            format!("/*! jQuery v3.6.1 | (c) OpenJS Foundation */\n{call_eval}"),
+        )
+        .unwrap();
+        std::fs::write(root.join("public/js/app.js"), call_eval).unwrap();
+        std::fs::write(
+            root.join("securevibe.toml"),
+            "manifest-version = 1\n[app]\nname = \"Pages\"\n[stack]\nlanguages = [\"javascript\"]\n",
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let result = call(&server, "securevibe_check", json!({}));
+        std::fs::remove_dir_all(&root).ok();
+        let said = text(&result);
+        assert!(
+            said.contains("then 1 in copies of other projects' libraries kept in the app"),
+            "{said}"
+        );
+        let app = said.find("public/js/app.js:2").expect(said);
+        let copy = said.find("public/js/jquery.min.js:3").expect(said);
+        assert!(app < copy, "{said}");
     }
 
     #[test]

@@ -64,6 +64,9 @@ pub fn render(report: &Report) -> String {
             if !f.location.is_file() {
                 result["properties"]["place"] = json!(f.location.file);
             }
+            if let Some(library) = &f.bundled_library {
+                result["properties"]["inBundledLibrary"] = json!(library);
+            }
             if !f.fingerprint.is_empty() {
                 result["partialFingerprints"] = json!({ "svFingerprint/v1": f.fingerprint });
             }
@@ -366,6 +369,7 @@ mod tests {
             fingerprint: "0123456789abcdef".into(),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
         }
     }
 

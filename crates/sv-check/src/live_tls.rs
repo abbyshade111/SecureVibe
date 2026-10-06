@@ -71,6 +71,7 @@ fn finding(rule: &Rule, host: &str, description: String) -> Finding {
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: rule.rule_id.to_owned(),
         title: rule.title.to_owned(),
         severity: Severity::Low,
