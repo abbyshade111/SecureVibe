@@ -407,6 +407,10 @@ another session is not a claim.
     `claude/h4-review-triggers`: check against GitHub's documentation whether `pull_request_review` and
     `pull_request_review_comment` run with the secrets for a pull request from a fork, and make them privileged
     triggers if they do, or say in DESIGN why not if they do not.
+    **Done the same day** (DESIGN, "The review triggers run as `pull_request` does"): GitHub's documentation says both
+    run on the pull request's merge branch and, for a pull request from a fork, get no secrets but a read-only
+    `GITHUB_TOKEN`, as `pull_request` does. They are not privileged, and `sv`, which already judged them as
+    `pull_request`, now says why and holds it with a test; two guards broken in turn, each caught.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.
