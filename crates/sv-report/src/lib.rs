@@ -964,6 +964,34 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
             f.fingerprint
         ));
     }
+    for other in &f.also_on_this_line {
+        // `sv`'s own words for each other problem on the line; an outside tool's rule is named
+        // instead of quoted, since its text can carry the value it found.
+        let own = sv_check::finding::is_svs_own(&other.rule_id);
+        notes.push(format!(
+            "Also on this line, a problem of its own: `{}`, {} and {}{}{}.{} Fingerprint: `{}`, to set \
+             it aside on its own.",
+            other.rule_id,
+            other.severity.name(),
+            other.certainty(),
+            if own {
+                format!(": {}", other.title)
+            } else {
+                String::new()
+            },
+            if other.requirement_ids.is_empty() {
+                String::new()
+            } else {
+                format!(", about {}", other.requirement_ids.join(", "))
+            },
+            if own && !other.fix.is_empty() {
+                format!(" Fix: {}", other.fix)
+            } else {
+                String::new()
+            },
+            other.fingerprint
+        ));
+    }
     if !f.also_reported_by.is_empty() {
         notes.push(format!(
             "Also reported by: {}. One problem, found more than once, so it is listed once.",

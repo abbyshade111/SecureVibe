@@ -2017,11 +2017,15 @@ another session is not a claim.
   `first_line` of the logs, and a Python error says what went wrong on its last line. The hint that follows, about an
   app listening on `127.0.0.1`, is beside the point when the app crashed. Quote the last lines (the exception), and
   give the loopback hint only when nothing crashed.
+  **Claimed on 6 October 2026 by session securevibe-e9**, with the preflight's start file below, at the owner's word
+  ("Please continue to work off the backlog"), in branch `claude/securevibe-e9-start-failures`.
 
 - **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
   paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
   run` could not start them. `securevibe_preflight` names a seed file that is missing; the start command's file should
   be named the same way (ADR-035).
+  **Claimed on 6 October 2026 by session securevibe-e9**, with the crash's last line above, in branch
+  `claude/securevibe-e9-start-failures`.
 
 - **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
   two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
@@ -2105,6 +2109,11 @@ another session is not a claim.
      line instead of writing false" when unsure, where `sv init`'s own instructions say "if you are unsure whether a
      capability is present, say true"; and it says `sv init` creates the file, where it prints it. Changing a shown
      prompt's words may take its result away, so the owner decides which wording stands.
+  **Items 1, 3, 5, 6 (the count and the repeated phrase), and 7 claimed on 6 October 2026 by session securevibe-e9**, at
+  the owner's word ("Please continue to work off the backlog"), in branch `claude/securevibe-e9-doc-review-fixes`.
+  Item 1 changes what counts as evidence, so its record goes with it: **`Status: proposed`**, a "Later" entry on
+  ADR-018 saying `ast.download-piped-to-shell` is only ever a finding, since finding no download piped to a shell says
+  nothing about where the app's dependencies come from. Items 4 and 8 stay the owner's.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -3498,6 +3507,10 @@ another session is not a claim.
       serves read from its framework's source (Flask 3, Starlette, Gin 1.12, Echo 4.16, and Python's `http.server`).
       Four guards broken in turn, each caught. Not done: PHP, Ruby, Java, C#, and Rust frameworks, and a folder named
       in settings or built at run time.
+      **PHP, Ruby, Java, C#, and Rust claimed on 6 October 2026 by session securevibe-e2**, at the owner's word
+      ("continue to work off the backlog"), in branch `claude/securevibe-e2-static-more`: each handler read from its
+      framework's own source (Sinatra, Rack, Spring, Javalin, ASP.NET Core, tower-http, actix-files, warp), and `php -S`
+      with no document root in a script. A folder named in settings or built at run time stays out of reach.
   11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
       whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
       (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
@@ -6582,6 +6595,8 @@ another session is not a claim.
      (an outside tool's text can quote the value it found, so its rule is named instead). Reviews stay per problem:
      they are applied before the gathering, so a false alarm recorded for one rule never sets aside another
      problem on the same line. SARIF keeps one result per problem, for the tools that read it.
+     **Done the same day**, and the record accepted (ADR-023, "Later, 6 October 2026: one finding per line of code";
+     DESIGN, "One finding per line of code").
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
      **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
      `claude/semgrep-follow-ups-2-4`.

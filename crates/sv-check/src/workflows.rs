@@ -400,6 +400,7 @@ fn finding(
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: rule_id.into(),
         title,
         severity,

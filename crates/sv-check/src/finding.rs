@@ -165,6 +165,12 @@ pub struct Finding {
     /// it still counts. `None` until the report looks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bundled_library: Option<String>,
+    /// The other problems found on the same line of the same file, each whole, gathered into this
+    /// one so the owner reads the line once (`one_per_line`). This one is the most severe of them;
+    /// it names every requirement and CWE of the others, and each keeps its own rule, words, and
+    /// fingerprint here. Empty until the report gathers them.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub also_on_this_line: Vec<Finding>,
 }
 
 impl Finding {
@@ -442,6 +448,66 @@ pub fn merge_same_place(findings: Vec<Finding>) -> Vec<Finding> {
         .collect()
 }
 
+/// What is left on each line of the app's code, once what a person set aside is gone, as one
+/// finding per line: the owner reads a line once, whatever number of rules looked at it.
+///
+/// `merge_same_place` makes one finding of one weakness reported twice. This goes further, over
+/// different problems on one line (Semgrep follow-up 3, and the owner's decision of 6 October 2026,
+/// ADR-023): a line three rules each found something on was three entries to read, though it is one
+/// place to change. The one kept is chosen as `merge_same_place` chooses, the most severe first,
+/// so the line is never shown as less than its worst problem. It names every requirement and CWE of
+/// the others, so each still counts against what it is evidence about, and holds each of them whole
+/// in `also_on_this_line`, with its own rule, words, and fingerprint.
+///
+/// Run after reviews are applied, never before: a person's false alarm or accepted risk is about one
+/// problem, and gathered first, a verdict on one rule would set aside another problem on the line.
+/// Findings without a line of code (the running app, a settings file) are left as they are.
+pub fn one_per_line(findings: Vec<Finding>) -> Vec<Finding> {
+    let rank = |c: Confidence| match c {
+        Confidence::High => 0,
+        Confidence::Medium => 1,
+        Confidence::Low => 2,
+    };
+    let order = |f: &Finding| (f.severity, !is_svs_own(&f.rule_id), rank(f.confidence));
+    let mut lines: Vec<Vec<Finding>> = Vec::with_capacity(findings.len());
+    for f in findings {
+        let same = lines.iter().position(|members| {
+            let first = &members[0];
+            reads_code(first) && reads_code(&f) && first.location == f.location
+        });
+        match same {
+            Some(i) => lines[i].push(f),
+            None => lines.push(vec![f]),
+        }
+    }
+    lines
+        .into_iter()
+        .map(|mut members| {
+            if members.len() == 1 {
+                return members.remove(0);
+            }
+            let kept = (0..members.len())
+                .min_by_key(|&i| order(&members[i]))
+                .unwrap_or(0);
+            let mut keep = members.remove(kept);
+            for other in members {
+                for r in &other.requirement_ids {
+                    if !keep.requirement_ids.contains(r) {
+                        keep.requirement_ids.push(r.clone());
+                    }
+                }
+                for c in &other.cwe {
+                    if !keep.cwe.contains(c) {
+                        keep.cwe.push(c.clone());
+                    }
+                }
+                keep.also_on_this_line.push(other);
+            }
+            keep
+        })
+        .collect()
+}
+
 /// Whether a rule is `sv`'s own rather than an outside tool's, by the start of its name. A list of
 /// `sv`'s own, not of the tools, so a tool added to `data/adapters.json` and missed here is treated
 /// as a tool: its words are not preferred over `sv`'s, which is the safe way to be wrong.
@@ -512,7 +578,98 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
         }
+    }
+
+    #[test]
+    fn what_is_left_on_one_line_is_one_finding_led_by_its_worst_and_holding_the_rest() {
+        // Semgrep follow-up 3 and the owner's decision of 6 October 2026: three problems with no
+        // CWE in common on one line were three entries; they are one, and lose nothing.
+        let mut shell = at(
+            "ast.shell-command",
+            "app.py",
+            7,
+            &["CWE-78"],
+            Severity::High,
+        );
+        shell.requirement_ids = vec!["V1.2.5".into()];
+        shell.fingerprint = "fp-shell".into();
+        let mut redirect = at(
+            "semgrep.open-redirect",
+            "app.py",
+            7,
+            &["CWE-601"],
+            Severity::Medium,
+        );
+        redirect.requirement_ids = vec!["V3.7.2".into()];
+        redirect.fingerprint = "fp-redirect".into();
+        let mut weak = at(
+            "ast.weak-hash-function",
+            "app.py",
+            7,
+            &["CWE-328"],
+            Severity::Medium,
+        );
+        weak.requirement_ids = vec!["V11.4.1".into()];
+        weak.fingerprint = "fp-weak".into();
+        let elsewhere = at("ast.shell-command", "app.py", 8, &["CWE-78"], Severity::Low);
+        let other_file = at("ast.shell-command", "lib.py", 7, &["CWE-78"], Severity::Low);
+        let mut app = at(
+            "probe.trace-enabled",
+            "the running app",
+            1,
+            &["CWE-16"],
+            Severity::Low,
+        );
+        app.location = Location::running_app();
+        let mut app2 = at(
+            "probe.cors-any-origin",
+            "the running app",
+            1,
+            &["CWE-942"],
+            Severity::Low,
+        );
+        app2.location = Location::running_app();
+        let out = one_per_line(vec![
+            redirect.clone(),
+            weak.clone(),
+            shell.clone(),
+            elsewhere,
+            other_file,
+            app,
+            app2,
+        ]);
+        assert_eq!(out.len(), 5, "{out:?}");
+        let line = out
+            .iter()
+            .find(|f| f.location.line == 7 && f.location.file == "app.py")
+            .unwrap();
+        // The worst leads; at the same severity `sv`'s own rule would.
+        assert_eq!(line.rule_id, "ast.shell-command");
+        assert_eq!(line.fingerprint, "fp-shell");
+        let mut ids = line.requirement_ids.clone();
+        ids.sort();
+        assert_eq!(ids, ["V1.2.5", "V11.4.1", "V3.7.2"]);
+        let mut cwe = line.cwe.clone();
+        cwe.sort();
+        assert_eq!(cwe, ["CWE-328", "CWE-601", "CWE-78"]);
+        // Each other problem whole, with its own words and fingerprint.
+        assert_eq!(line.also_on_this_line, vec![redirect, weak]);
+        assert!(line.also_reported_by.is_empty());
+        // Of two at the same severity, `sv`'s own leads.
+        let mut tool = at("semgrep.x", "a.py", 1, &["CWE-1"], Severity::Medium);
+        tool.confidence = Confidence::High;
+        let own = at(
+            "ast.weak-hash-function",
+            "a.py",
+            1,
+            &["CWE-2"],
+            Severity::Medium,
+        );
+        let out = one_per_line(vec![tool, own]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].rule_id, "ast.weak-hash-function");
     }
 
     #[test]
@@ -991,6 +1148,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),
             severity: Severity::Critical,
