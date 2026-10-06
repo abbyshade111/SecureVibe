@@ -850,6 +850,59 @@ mod tests {
     }
 
     #[test]
+    fn security_md_keeps_app_text_in_gaps_and_reviews_inert() {
+        // The review of 6 October, item 4: both were written into security.md as they were.
+        let live = "![x](https://t.example/p.png) <img src=x> [click](https://e.example)";
+        let report = crate::Report {
+            app_name: "test".into(),
+            target_level: 1,
+            generated: None,
+            sv: Default::default(),
+            run_record: None,
+            run_note: None,
+            run_steps: Vec::new(),
+            test_output: None,
+            run_status: None,
+            ai_process: Default::default(),
+            counts: crate::Counts::default(),
+            requirements: vec![],
+            excluded: vec![],
+            undecided: vec![],
+            claims: vec![],
+            findings: vec![],
+            set_aside: Vec::new(),
+            reviews_not_counted: vec![format!("an entry: {live}")],
+            out_of_scope: vec![],
+            checklist_above_level: vec![],
+            tests_to_write: vec![],
+            only_you_can_check: Vec::new(),
+            questions_for_you: Vec::new(),
+            no_instructions_yet: 0,
+            named_not_credited: vec![],
+            not_for_tests: 0,
+            threats: Vec::new(),
+            threat_parts: Vec::new(),
+            threat_atlas_release: None,
+            satisfied_elsewhere: vec![],
+            gaps: vec![crate::Gap {
+                what: format!("a gap {live}"),
+                why: format!("because {live}"),
+            }],
+            examined: Vec::new(),
+            could_not_run: Vec::new(),
+            partly_read: Vec::new(),
+        };
+        let md = security(&report);
+        // The setup: all three reached the page.
+        for reached in ["a gap", "because", "an entry:"] {
+            assert!(md.contains(reached), "{reached} missing:\n{md}");
+        }
+        for live in ["![x](", "<img", "[click]("] {
+            assert!(!md.contains(live), "{live} is live in:\n{md}");
+        }
+    }
+
+    #[test]
     fn a_value_shown_as_code_cannot_close_its_span() {
         assert_eq!(code("app.py"), "`app.py`");
         assert_eq!(code("a`b.py"), "``a`b.py``");
