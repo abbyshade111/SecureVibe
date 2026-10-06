@@ -3607,6 +3607,10 @@ another session is not a claim.
   and hold each with a test; ADR-027 changes with it.
   **Claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking to keep working off the backlog, in
   branch `claude/probe-ipv6`.
+  **Done the same day** (DESIGN, "`sv probe` asks only public addresses", "Later, 5 October 2026"; ADR-027, "Later"):
+  6to4, NAT64's well-known prefix, and Teredo are judged by the IPv4 address they carry; NAT64's prefix for a
+  network's own translator is refused outright; the documentation ranges and IPv6's old site-local range are refused.
+  Eight guards broken in turn, each caught.
 
 - **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
   (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line; **not claimed**.

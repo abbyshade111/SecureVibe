@@ -241,6 +241,11 @@ pub fn not_public(ip: std::net::IpAddr) -> Option<&'static str> {
                 Some("an address kept for the network's own use")
             } else if a == 198 && (b == 18 || b == 19) {
                 Some("an address kept for testing networks")
+            } else if matches!(
+                (a, b, v4.octets()[2]),
+                (192, 0, 2) | (198, 51, 100) | (203, 0, 113)
+            ) {
+                Some("an address kept for documentation and examples, which reaches no computer")
             } else {
                 None
             }
@@ -249,12 +254,39 @@ pub fn not_public(ip: std::net::IpAddr) -> Option<&'static str> {
             if let Some(v4) = v6.to_ipv4_mapped() {
                 return not_public(IpAddr::V4(v4));
             }
-            let first = v6.segments()[0];
-            if v6.is_loopback() {
+            let segments = v6.segments();
+            let v4_in = |hi: u16, lo: u16| {
+                IpAddr::V4(std::net::Ipv4Addr::new(
+                    (hi >> 8) as u8,
+                    hi as u8,
+                    (lo >> 8) as u8,
+                    lo as u8,
+                ))
+            };
+            // Forms that carry an IPv4 address and are routed to it, judged by it (the second weekly
+            // review of the decision records, ADR-027): 6to4 (`2002::/16`), with the address in its
+            // second and third groups; NAT64's well-known prefix (`64:ff9b::/96`), with it in the
+            // last two; and Teredo (`2001::/32`), whose client's address is in the last two, each
+            // bit inverted.
+            match segments {
+                [0x2002, hi, lo, ..] => return not_public(v4_in(hi, lo)),
+                [0x64, 0xff9b, 0, 0, 0, 0, hi, lo] => return not_public(v4_in(hi, lo)),
+                [0x2001, 0, .., hi, lo] => return not_public(v4_in(!hi, !lo)),
+                _ => {}
+            }
+            let first = segments[0];
+            if segments[..3] == [0x64, 0xff9b, 1] {
+                // NAT64's prefix for a network's own translator (RFC 8215), where the IPv4 address
+                // sits wherever that network put it.
+                Some("an address for a network's own translator, which only reaches inside it")
+            } else if segments[..2] == [0x2001, 0xdb8] {
+                Some("an address kept for documentation and examples, which reaches no computer")
+            } else if v6.is_loopback() {
                 Some("this computer")
             } else if v6.is_unspecified() {
                 Some("an address that means no particular computer")
-            } else if first & 0xfe00 == 0xfc00 {
+            } else if first & 0xfe00 == 0xfc00 || first & 0xffc0 == 0xfec0 {
+                // Unique local addresses, and the site-local ones they replaced.
                 Some("a private network")
             } else if first & 0xffc0 == 0xfe80 {
                 Some("a link-local address, which only reaches this computer's own network")
@@ -1330,7 +1362,11 @@ mod tests {
                 "https://app.example.test:8443/x",
                 "http://app.example.test/",
             ),
-            ("https://[2001:db8::1]:8443/", "http://[2001:db8::1]/"),
+            // A public address: `2001:db8::/32` is kept for documentation, and refused.
+            (
+                "https://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:8443/",
+                "http://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]/",
+            ),
         ] {
             assert_eq!(read_target(typed).unwrap().http, http, "{typed}");
         }
@@ -2495,14 +2531,35 @@ mod curl_tests {
             ("https://255.255.255.255", "does not reach one computer"),
             ("https://app.localhost", "this machine"),
             ("https://localhost.", "this machine"),
+            // IPv6 forms that carry an IPv4 address, judged by it (ADR-027, "Later").
+            ("https://[2002:a00:1::]", "private network"),
+            ("https://[2002:7f00:1::1]", "this computer"),
+            ("https://[2002:a9fe:a9fe::]", "link-local"),
+            ("https://[64:ff9b::10.0.0.1]", "private network"),
+            ("https://[64:ff9b::a9fe:a9fe]", "link-local"),
+            (
+                "https://[2001:0:4136:e378:8000:63bf:f5ff:fffe]",
+                "private network",
+            ),
+            ("https://[64:ff9b:1::5db8:d70e]", "translator"),
+            // The ranges kept for documentation, and IPv6's old site-local one.
+            ("https://192.0.2.10", "documentation"),
+            ("https://198.51.100.7", "documentation"),
+            ("https://203.0.113.9", "documentation"),
+            ("https://[2001:db8::1]", "documentation"),
+            ("https://[fec0::1]", "private network"),
         ] {
             let refused = read_target(typed).expect_err(typed);
             assert!(refused.contains(says), "{typed}: {refused}");
         }
-        // The control: public addresses, typed as numbers, are still accepted.
+        // The control: public addresses, typed as numbers, are still accepted, and so are the
+        // forms above when the IPv4 address they carry is public.
         for typed in [
             "https://93.184.215.14",
             "https://[2606:2800:21f:cb07:6820:80da:af6b:8b2c]:8443",
+            "https://[2002:5db8:d70e::1]",
+            "https://[64:ff9b::5db8:d70e]",
+            "https://[2001:0:4136:e378:8000:63bf:a247:28f1]",
         ] {
             let target = read_target(typed).expect(typed);
             assert!(
