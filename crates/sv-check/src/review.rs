@@ -960,6 +960,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
         }
     }
 
@@ -1096,6 +1097,42 @@ mod tests {
         let out = apply(&[unsealed, fa("owner")], vec![a()], today());
         assert_eq!(out.set_aside.len(), 1, "{:?}", out.not_counted);
         assert!(out.findings.is_empty());
+    }
+
+    #[test]
+    fn a_false_alarm_on_one_problem_never_sets_aside_another_on_its_line() {
+        // The line is gathered after the reviews (ADR-023, Later, 6 October 2026), so a verdict
+        // on one rule leaves the other problem on the same line standing, and still counted.
+        let sql = finding("ast.sql", "app.py", 5);
+        let eval = finding("ast.eval", "app.py", 5);
+        let out = apply(
+            &[entry(
+                "ast.eval",
+                FALSE_ALARM,
+                Some("owner"),
+                "2026-09-27",
+                WHY,
+            )],
+            vec![sql, eval],
+            today(),
+        );
+        assert_eq!(out.set_aside.len(), 1, "{:?}", out.not_counted);
+        let line = crate::finding::one_per_line(out.findings);
+        assert_eq!(line.len(), 1);
+        assert_eq!(line[0].rule_id, "ast.sql");
+        assert!(line[0].also_on_this_line.is_empty());
+        // The control: with no verdict, both are on the line.
+        let both = apply(
+            &[],
+            vec![
+                finding("ast.sql", "app.py", 5),
+                finding("ast.eval", "app.py", 5),
+            ],
+            today(),
+        );
+        let line = crate::finding::one_per_line(both.findings);
+        assert_eq!(line.len(), 1);
+        assert_eq!(line[0].also_on_this_line.len(), 1);
     }
 
     #[test]

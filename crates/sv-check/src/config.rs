@@ -190,6 +190,7 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
             rule_id: "config.secrets-file-committed".into(),
             title: format!("A file that holds credentials is in version control (`{first}`)"),
             severity: Severity::Critical,
@@ -409,6 +410,7 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
         rule_id: "config.gitignore-covers-env".into(),
         title: "Nothing stops the environment file being committed".into(),
         severity: Severity::High,
@@ -526,6 +528,7 @@ fn versions_pinned(
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
             rule_id: "config.versions-pinned".into(),
             title: if names.len() == 1 {
                 format!("{} does not pin the versions it installs", names[0])
@@ -678,6 +681,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: "config.security-contact".into(),
         title: "There is no way to report a security problem".into(),
         severity: Severity::Low,

@@ -1484,6 +1484,7 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
         rule_id: "sbom.incomplete".into(),
         title: "The list of what this app ships is not complete".into(),
         severity: Severity::Medium,

@@ -208,6 +208,7 @@ fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> F
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: "hand.problem".to_owned(),
         title: format!(
             "Checked by hand, and it failed: {}",

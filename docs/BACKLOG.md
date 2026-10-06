@@ -6582,6 +6582,8 @@ another session is not a claim.
      (an outside tool's text can quote the value it found, so its rule is named instead). Reviews stay per problem:
      they are applied before the gathering, so a false alarm recorded for one rule never sets aside another
      problem on the same line. SARIF keeps one result per problem, for the tools that read it.
+     **Done the same day**, and the record accepted (ADR-023, "Later, 6 October 2026: one finding per line of code";
+     DESIGN, "One finding per line of code").
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.
      **Follow-ups 2 and 4 Claimed on 5 October 2026 by the cato-pipeline session**, at the owner's asking to continue with the backlog, in branch
      `claude/semgrep-follow-ups-2-4`.

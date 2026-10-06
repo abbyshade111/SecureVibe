@@ -763,6 +763,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: format!("advisory.{}", advisory.id),
         title: format!(
             "{} {} has a known vulnerability: {names}",
