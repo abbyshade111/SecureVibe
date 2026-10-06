@@ -349,6 +349,7 @@ fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Fin
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: "config.development-server-started".into(),
         title: "The app is started with a development server".into(),
         severity: Severity::Medium,
@@ -694,6 +695,7 @@ fn mcp_finding(file: &str, line: usize, launch: &Launch) -> Finding {
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: "config.mcp-server-unpinned".into(),
         title:
             "An MCP server is downloaded fresh, at whatever version is newest, every time it starts"

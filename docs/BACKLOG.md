@@ -161,6 +161,8 @@ another session is not a claim.
   passes next"), in branch `claude/securevibe-e2-false-passes`.
   **Items 10, 11, and 12 done the same day** (DESIGN, "Three false passes from the review of 5 and 6 October"). Item
   10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
+  **Items 13, 14, 16, and 17 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the
+  remaining review items next"), in branch `claude/securevibe-e2-review-rest`.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
@@ -1310,6 +1312,9 @@ another session is not a claim.
      mark each as "only ever as a finding". Not done: the test that would catch the next one. A check gives credit
      through helpers and tables of rules as often as by name, so reading the code for it is not reliable enough to
      fail a build on; running every check against the fake apps and collecting what each credited would be.
+     **The test claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking ("pick another item from
+     the backlog"), in branch `claude/securevibe-e9-credit-census`: record every credit the test suite gives, by check,
+     and fail when a check listed as findings-only is credited, or one never credited is not listed.
   2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
      refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
      refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
@@ -6214,6 +6219,10 @@ another session is not a claim.
      `claude/securevibe-e9-bundled-libraries`: a copy of a library kept in the app, known by its own banner, has its
      findings listed apart, named for the library, and still counted; checked on library files and first-party code
      the test was not written against.
+     **Done the same day** (DESIGN, "A copy of another project's library is listed apart"; ADR-023, Later): known
+     by a string only the library writes or the comment it opens with naming a version; its findings listed after the
+     app's own, named for the library, and still counted. On the library files at hand every bannered copy is named,
+     and none of the 661 first-party files of this repository and v1 is.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.

@@ -904,16 +904,30 @@ pub fn test_output_intro(t: &sv_check::suite::FailingOutput) -> String {
 /// What the reports say above the findings in test or sample code.
 pub const TEST_CODE_SECTION: &str = "Listed apart because they are in code that tests the app or \
      shows how to use it, not in the app itself: a folder or file named for tests, fixtures, or \
-     examples, Rust code built only for its tests, or a folder securevibe.toml says is not the app. They still count toward the requirements they \
-     are about. Test code can hold a real key, and sample code gets copied, so read each one before \
-     deciding it does not matter.";
+     examples, Rust code built only for its tests, or a folder securevibe.toml says is not the app; \
+     or in a copy of another project's library kept in the app, such as jQuery in public/js, named \
+     beside each. They still count toward the requirements they are about. Test code can hold a real \
+     key, sample code gets copied, and an old copy of a library carries that library's own problems, \
+     so read each one before deciding it does not matter.";
+
+/// What the reports call the findings listed apart, as they are: in test or sample code, in copies
+/// of other projects' libraries, or both. An app with no library copied in reads as it always has.
+pub fn apart_named(apart: &[&sv_check::Finding]) -> &'static str {
+    let libraries = apart.iter().any(|f| f.bundled_library.is_some());
+    let tests = apart.iter().any(|f| f.in_test_code());
+    match (tests, libraries) {
+        (_, false) => "in test or sample code",
+        (false, true) => "in copies of other projects' libraries kept in the app",
+        (true, true) => "in test or sample code, or in copies of other projects' libraries",
+    }
+}
 
 /// The findings in the app itself, then those in test or sample code, each in the report's order.
 /// Every report lists the two apart, the app's first: on `sv`'s own code, three findings in four
 /// were in its tests, and mixed together they buried the rest. Both still count toward the
 /// requirements they are about; this changes where a finding is listed, never whether it counts.
 pub fn app_then_tests(report: &Report) -> (Vec<&sv_check::Finding>, Vec<&sv_check::Finding>) {
-    report.findings.iter().partition(|f| !f.in_test_code())
+    report.findings.iter().partition(|f| !f.apart())
 }
 
 /// What the reports say beside a finding, besides the finding itself: how sure `sv` is, whether it
@@ -935,6 +949,13 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
              real key, and sample code gets copied."
                 .to_owned(),
         );
+    }
+    if let Some(library) = &f.bundled_library {
+        notes.push(format!(
+            "In a copy of {library} kept in the app, not the app's own code. It still counts: an old \
+             copy carries that library's own problems. The fix is a newer copy, or loading it from its \
+             package, never an edit to the copy."
+        ));
     }
     if !f.fingerprint.is_empty() {
         notes.push(format!(

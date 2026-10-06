@@ -1451,6 +1451,7 @@ pub fn parse_sarif_relative_to(
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
                 marked_test_code: false,
+                bundled_library: None,
                 rule_id: format!("{}.{}", adapter.id, rule_id),
                 title: if short.is_empty() {
                     format!("{} reported {rule_id}", adapter.name)
