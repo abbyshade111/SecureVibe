@@ -3510,6 +3510,11 @@ another session is not a claim.
       broken in turn, each caught; one that was not (a name boundary around `data.pkl`) was taken out rather than
       kept untested. Not done: a pickle saved under another name, protocol 0 and 1 pickles, which have no opening
       opcode, and a model downloaded when the app runs.
+      **A pickle under another name, and protocol 0 and 1 pickles, claimed on 6 October 2026 by session
+      securevibe-e2**, at the owner's word ("continue to work off the backlog picking whatever item you want"), in
+      branch `claude/securevibe-e2-pickles`: a file under any name whose bytes open as a protocol 2 to 5 pickle and end
+      with its `STOP`, and a file under a model file's name that reads as a protocol 0 or 1 pickle from its first
+      opcode to its `STOP`. A model downloaded when the app runs stays out of reach of reading files.
   12. **The code half of V9.2.3: a token check told not to check who the token is for.** From
       `docs/PARTIAL-CHECKS.md` and item 2 above, which says a code rule fits whichever way the owner decides the
       running probe. A rule for the explicit switches tutorials copy: `verify_aud` False in PyJWT and python-jose,
