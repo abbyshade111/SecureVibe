@@ -1997,7 +1997,9 @@ another session is not a claim.
   no longer true, what `sv` does that it leaves out, and every number it gives (of tools, commands, checks,
   requirements) checked against the code. Plain language throughout, for a reader who is not a programmer. Records
   (`docs/adr/`) and DESIGN are histories and are not rewritten; a record that no longer matches gets a dated "Later"
-  entry instead. Not claimed.
+  entry instead.
+  **Claimed on 6 October 2026 by session securevibe-e10**, at the owner's asking to take the next unclaimed item, in
+  branch `claude/docs-review`. CLAUDE.md's `SV_DATA_DIR` line is left to session securevibe-e2, which claimed it.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
