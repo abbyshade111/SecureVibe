@@ -81,6 +81,10 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-035](ADR-035.md) | A preflight of the run settings, read from the code and never run |
 | [ADR-036](ADR-036.md) | `sv` finds its data beside itself, and an install does not live in a working folder |
 | [ADR-037](ADR-037.md) | A Python project with no lockfile does not pin, `setup.py` and `setup.cfg` included |
+| [ADR-038](ADR-038.md) | The SQL injection probe only reads, only on `sv`'s own copy of the app, and only ever finds |
+| [ADR-039](ADR-039.md) | The sign-in token checks, and which key addresses they may name |
+| [ADR-040](ADR-040.md) | A credential name over a sentence is reported low, and says so |
+| [ADR-041](ADR-041.md) | One run at a time in a report folder, held by a lock file `sv` writes there |
 
 ## Where v1's records disagree with what v1 built
 

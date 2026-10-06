@@ -3623,6 +3623,10 @@ another session is not a claim.
   **Records 1, 2, 3, and 7, and the ADR-032 question, claimed the same day by session securevibe-e2**, at the owner's
   word, in branch `claude/securevibe-e2-records`. Read on `main` just before this claim: no other session had claimed
   them.
+  **Records 1, 2, 3, and 7 done the same day:** ADR-038 (the SQL injection probe's limits), ADR-039 (the sign-in token
+  checks and the key addresses they may name), ADR-040 (a credential over a sentence reported low), and ADR-041 (the
+  report folder's lock). Each was read against its DESIGN section and the pull requests named; each names the tests
+  that hold it. The ADR-032 question is reported separately.
 
 - **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
   records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
@@ -3643,6 +3647,8 @@ another session is not a claim.
 - **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
   (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line. **Claimed on 6 October 2026 by
   session securevibe-e2**, with the records above, in branch `claude/securevibe-e2-records`.
+  **Already done** when claimed: CLAUDE.md on `main` reads "`SV_DATA_DIR` (the whole folder)", changed with ADR-036's
+  own commit (`1decd47`). Nothing to change.
 
 - **The weekly review's routine left no trace on its first Monday.** "Weekly decision-record review" was scheduled on
   4 October to run every Monday at 8:45 Eastern and claim its week here first. On 5 October nothing was claimed and no
