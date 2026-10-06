@@ -48,8 +48,10 @@ of those builds had each fault put back, and every one was caught. So these four
 
 *What it showed:* with the prompt, the app had a filled-in `securevibe.toml` and `sv report` checked it. Without
 it, there was no such file, and `sv report` could not check the app at all. Deleting an unsure line matters:
-a capability left out is reported as "not assessed", which is honest, while `false` claims the requirements that
-depend on it do not apply.
+a capability left out is reported as "not assessed", which is honest, while `false` says the requirements that
+depend on it do not apply. `sv` looks for each claim in the code: where the code shows the capability anyway, the
+requirement still applies and the claim is reported as contradicted, but where the code cannot show it, a wrong
+`false` takes those requirements out unseen.
 One word was changed after the trial, at the owner's decision (6 October 2026): `sv init` prints the file rather
 than creating it, so "it creates" became "it prints". Nothing else in the prompt changed.
 
