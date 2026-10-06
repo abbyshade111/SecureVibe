@@ -9,6 +9,13 @@ another session is not a claim.
 
 ## Next
 
+- **A review of the code merged on 1 to 4 October 2026, for faults.** Asked for by the owner on 6 October 2026, after
+  the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read
+  the changes from `34ca633` to `0d5258e` in four parts, each fault is reproduced by running `sv` on a small app made for it
+  or confirmed by reading where noted, and goes here as its own item; those in this session's own work it fixes, and the
+  rest it leaves for whoever claims them. **Claimed on 6 October 2026 by session securevibe-e2**, at the owner's word,
+  in branch `claude/securevibe-e2-review-1to4`.
+
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
   23,600 lines in `crates/` and `data/`: among them the booking check sent as two users, the decisions file held to
