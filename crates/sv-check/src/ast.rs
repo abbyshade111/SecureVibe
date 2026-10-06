@@ -1071,6 +1071,12 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
                 .filter(|c| c.kind() != "comment")
                 .all(|c| is_literal(c, source, fixed));
     }
+    // Rust's macros that are read when the code is compiled: `env!("CARGO_MANIFEST_DIR")` and
+    // `include_str!("schema.sql")` are fixed text in the program, whatever anyone sends it. `format!` is
+    // not among them: it runs with the program.
+    if node.kind() == "macro_invocation" {
+        return compile_time_text(node, source);
+    }
     if !LITERAL_KINDS.contains(&node.kind()) {
         return false;
     }
@@ -1079,6 +1085,30 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
     // an f-string is still a plain `string` node in its grammar. Missing this reports every SQL query
     // built with an f-string as a constant, which is the case the rule exists for.
     !has_interpolation(node, source)
+}
+
+/// Rust's macros the compiler expands into fixed text, so what they give is in the program before it
+/// runs: the build's environment, a file's contents, where in the source the call is, a token written
+/// out as text, and `concat!` of these, which the compiler accepts only when all it joins is literal.
+const COMPILE_TIME_MACROS: &[&str] = &[
+    "env",
+    "option_env",
+    "include_str",
+    "include_bytes",
+    "file",
+    "line",
+    "column",
+    "module_path",
+    "stringify",
+    "concat",
+];
+
+/// Whether a Rust macro call gives text fixed when the code is compiled: one of
+/// `COMPILE_TIME_MACROS`, by its own name or a path ending in it (`std::env!`).
+fn compile_time_text(node: tree_sitter::Node, source: &[u8]) -> bool {
+    node.child_by_field_name("macro")
+        .and_then(|m| m.utf8_text(source).ok())
+        .is_some_and(|name| COMPILE_TIME_MACROS.contains(&name.rsplit("::").next().unwrap_or(name)))
 }
 
 /// Whether an argument is safe by a rule's `safeArgumentPattern` whichever way it goes. A pattern
@@ -5277,6 +5307,10 @@ mod tests {
         ("ast.file-path-from-value", "rust", "fn f(p: String) { let t = File::open(&p); }", true),
         ("ast.file-path-from-value", "rust", "fn f() { let t = File::open(\"app.toml\"); }", false),
         ("ast.file-path-from-value", "rust", "fn f(p: &str) { let t = Path::new(p); }", false),
+        ("ast.file-path-from-value", "rust", "fn f() { let t = File::open(env!(\"CARGO_MANIFEST_DIR\")); }", false),
+        ("ast.file-path-from-value", "rust", "fn f() { let t = fs::read_to_string(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/data.json\")); }", false),
+        ("ast.file-path-from-value", "rust", "fn f() { let t = File::open(std::env!(\"OUT_DIR\")); }", false),
+        ("ast.file-path-from-value", "rust", "fn f(dir: &str) { let t = File::open(format!(\"{}/data.json\", dir)); }", true),
         ("ast.file-path-from-value", "c", "void f(const char *p) { FILE *fp = fopen(p, \"r\"); }", true),
         ("ast.file-path-from-value", "c", "void f(void) { FILE *fp = fopen(\"/etc/app.conf\", \"r\"); }", false),
         ("ast.file-path-from-value", "cpp", "void f(const std::string &p) { FILE *fp = fopen(p.c_str(), \"r\"); }", true),
@@ -5957,6 +5991,7 @@ mod tests {
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app) { app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(Path.Combine(Directory.GetCurrentDirectory(), \"assets\")) }); } }", false),
         ("ast.static-files-from-app-folder", "rust", "fn app() -> Router { Router::new().nest_service(\"/\", ServeDir::new(\".\")) }", true),
         ("ast.static-files-from-app-folder", "rust", "fn app() -> Router { Router::new().fallback_service(ServeDir::new(\"./\")) }", true),
+        ("ast.static-files-from-app-folder", "rust", "fn app() -> Router { Router::new().fallback_service(ServeDir::new(env!(\"CARGO_MANIFEST_DIR\"))) }", true),
         ("ast.static-files-from-app-folder", "rust", "fn app() -> App<()> { App::new().service(actix_files::Files::new(\"/\", \"./\")) }", true),
         ("ast.static-files-from-app-folder", "rust", "fn routes() { let r = warp::fs::dir(\".\"); }", true),
         ("ast.static-files-from-app-folder", "rust", "fn app() -> Router { Router::new().nest_service(\"/assets\", ServeDir::new(\"assets\")) }", false),
