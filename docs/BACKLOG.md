@@ -15,8 +15,10 @@ another session is not a claim.
   or confirmed by reading where noted, and goes here as its own item; those in this session's own work it fixes, and the
   rest it leaves for whoever claims them. **Claimed on 6 October 2026 by session securevibe-e2**, at the owner's word,
   in branch `claude/securevibe-e2-review-1to4`.
-  **What it found, 6 October 2026.** Each item below was confirmed against `main` as it stands, by running something
-  or by reading where noted, and none was already in this backlog. Numbered so each can be claimed on its own; none is
+  **What it found, 6 October 2026.** Each item below was confirmed against `main` as it stands by a reviewer reading
+  the code (or running something, where noted); items 1, 8, 9, 12, 18, 21, and 22 were read again on `main` by this
+  session. None was already in this backlog. "Confirmed by reading" below means the reviewer's reading unless one of
+  those seven. Numbered so each can be claimed on its own; none is
   claimed yet. Items 8 and 11 touch a decision the owner made (ADR-026) and are the owner's to settle.
   1. **`sv probe` reports a slow first answer as an untrusted certificate** (V12.2.2, high). Any failure of the verified
      request followed by an unverified one that answers is called a certificate problem; a host that sleeps when idle
@@ -62,8 +64,8 @@ another session is not a claim.
   16. **Two untrue sentences**: the open-redirect evidence says "with `next` set" when nine parameters were, and the
       invented-session evidence says "the same length" for a cookie shorter than 16 characters. Confirmed by reading.
   17. **Masking is narrower than detection**: a Dockerfile `ENV NAME value`, and a YAML or properties value after a `&`
-      or `,`, are found and not wholly masked, so the fingerprint hashes the credential again (R4). Confirmed by testing
-      the patterns.
+      or `,`, are found and not wholly masked, so the fingerprint hashes the credential again (R4). A reviewer tested the
+      patterns with Python.
   18. **The SQL rule misses the usual query calls of some languages and credits V1.2.4**: Go's `QueryRowContext`,
       `Prepare`, `PrepareContext`; Kotlin's `prepareStatement`; C#'s `CommandText` assigned and then executed.
       Confirmed by reading `data/ast-rules.json`.
