@@ -509,7 +509,9 @@ fn tests_reported_in_tap_go_json_and_jest_json_are_credited_as_junit_ones_are() 
         ("jest JSON", jest, &js),
         ("go test -json", go_json.as_str(), &go),
     ] {
-        let cases = sv_check::test_report::parse(report)
+        // Through the function `sv report` reads a failed suite's report with.
+        let cases = sv_check::suite::reported_cases(Some(report))
+            .expect("a report was given")
             .unwrap_or_else(|e| panic!("{form} was refused: {}", e.why));
         let (verified, _) = credit(
             tests,
