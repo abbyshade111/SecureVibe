@@ -92,6 +92,9 @@ another session is not a claim.
   **Items 18, 20, 21, 22, and 23 claimed the same day by session securevibe-e9**, at the owner's word ("continue to
   work off the backlog"), as the next batch (the code-reading rules and lockfiles), in branch
   `claude/securevibe-e9-review-1to4-batch3`.
+  **Items 18, 20, 21, 22, and 23 done the same day by session securevibe-e9** (DESIGN, "The code-reading rules and
+  lockfiles: five faults from the review of 1 to 4 October"). All five were real; each fix has a case that failed
+  before it.
   **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
   the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
   `claude/securevibe-e9-review-1to4-batch2`.

@@ -277,6 +277,9 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         std::fs::read_to_string(app_dir.join(path)).ok()
     };
 
+    // What the manifest is compared with, when that is not the list itself. Go's list comes from
+    // go.mod (A3), so comparing go.mod with it would compare the file with itself.
+    let mut compared_with: Option<Vec<(String, String)>> = None;
     let locked: Option<Vec<(String, String)>> = match eco
         .lockfile
         .as_deref()
@@ -348,6 +351,7 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         }
         Some("go.sum") => {
             let sum = read("go.sum");
+            compared_with = sum.as_deref().map(from_go_sum);
             let modules = match read("go.mod") {
                 Some(go_mod) => from_go_mod(&go_mod, sum.as_deref()),
                 // No go.mod to say which version is used: every version go.sum holds, as before.
@@ -427,8 +431,11 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         let manifest_name = sv_scan::ecosystems::file_name(&eco.manifest);
         if lockfile_path != eco.manifest
             && let Some(manifest) = read(manifest_name)
-            && let Some(comparison) =
-                crate::manifest_lock::compare(manifest_name, &manifest, &pairs)
+            && let Some(comparison) = crate::manifest_lock::compare(
+                manifest_name,
+                &manifest,
+                compared_with.as_deref().unwrap_or(&pairs),
+            )
             && comparison != crate::manifest_lock::Comparison::default()
         {
             sbom.disagreements.push(Disagreement {
@@ -2907,6 +2914,42 @@ __metadata:
             "{:?}",
             sbom.unread
         );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn go_mod_is_compared_with_go_sum_and_not_with_itself() {
+        // Found in the review of 1 to 4 October (item 23): since A3 the list comes from go.mod,
+        // and the comparison was given that list, so go.mod could never disagree with go.sum.
+        let dir = scratch("go-mod-sum");
+        fs::write(
+            dir.join("go.mod"),
+            "module x\ngo 1.21\nrequire (\n  github.com/gorilla/websocket v1.5.1\n  github.com/google/uuid v1.6.0\n)\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("go.sum"),
+            "github.com/gorilla/websocket v1.4.2 h1:a=\ngithub.com/google/uuid v1.6.0 h1:b=\n",
+        )
+        .unwrap();
+        let sbom = build(&dir);
+        let differs: Vec<&str> = sbom
+            .disagreements
+            .iter()
+            .flat_map(|d| d.comparison.differs.iter().map(|x| x.asked.as_str()))
+            .collect();
+        assert_eq!(differs, ["github.com/gorilla/websocket v1.5.1"], "{sbom:?}");
+        // The list is still what go.mod says is built.
+        let mut versions: Vec<&str> = sbom.components.iter().map(|c| c.version.as_str()).collect();
+        versions.sort_unstable();
+        assert_eq!(versions, ["v1.5.1", "v1.6.0"]);
+        // The control: with go.sum holding the version go.mod asks for, nothing disagrees.
+        fs::write(
+            dir.join("go.sum"),
+            "github.com/gorilla/websocket v1.5.1 h1:a=\ngithub.com/google/uuid v1.6.0 h1:b=\n",
+        )
+        .unwrap();
+        assert!(build(&dir).disagreements.is_empty());
         fs::remove_dir_all(&dir).ok();
     }
 
