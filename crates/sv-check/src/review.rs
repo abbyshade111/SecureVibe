@@ -100,12 +100,18 @@ pub fn fingerprint(app_dir: &Path, f: &Finding) -> String {
 /// never named or shown as written, at the cost of reviews telling lines in one file apart only by
 /// where they are.
 pub fn masked(line: &str) -> String {
+    masked_in("", line)
+}
+
+/// `masked`, for a line of the file at `relative` in the app, masked in the shapes the scan reads
+/// that file's values in (`secrets::redact_text_in`), so a line is masked as far as it is found.
+pub fn masked_in(relative: &str, line: &str) -> String {
     static RULES: std::sync::LazyLock<Option<crate::secrets::SecretRules>> =
         std::sync::LazyLock::new(|| {
             crate::secrets::SecretRules::load(&sv_frameworks::data::file("secret-rules.json")).ok()
         });
     match &*RULES {
-        Some(rules) => crate::secrets::redact_text(rules, line.trim()).0,
+        Some(rules) => crate::secrets::redact_text_in(rules, relative, line.trim()).0,
         None => String::new(),
     }
 }
@@ -245,7 +251,7 @@ impl<'a> Texts<'a> {
                 }
                 std::fs::read_to_string(app_dir.join(file))
                     .ok()
-                    .map(|t| t.lines().map(masked).collect())
+                    .map(|t| t.lines().map(|l| masked_in(file, l)).collect())
             })
             .as_deref()
     }
@@ -346,7 +352,8 @@ fn written_unmasked(app_dir: &Path, entry: &FindingReview) -> bool {
         return false;
     };
     text.lines().any(|l| {
-        named(&entry.rule, &entry.file, l.trim()) == entry.fingerprint && masked(l) != l.trim()
+        named(&entry.rule, &entry.file, l.trim()) == entry.fingerprint
+            && masked_in(&entry.file, l) != l.trim()
     })
 }
 
@@ -714,6 +721,41 @@ mod tests {
             .filter(|(as_written, as_masked)| as_written != as_masked)
             .map(|(as_written, _)| as_written)
             .collect()
+    }
+
+    #[test]
+    fn a_fingerprint_in_a_configuration_file_says_nothing_past_an_ampersand() {
+        // Item 17 of the review of 1 to 4 October: a YAML value with `&` in it was found whole and
+        // masked only up to the `&`, so the rest of the credential went into the fingerprint.
+        let f = finding("secrets.credential-assignment", "config.yml", 2);
+        let app = |tag: &str, tail: &str| {
+            let dir =
+                std::env::temp_dir().join(format!("sv-review-yml-{tag}-{}", std::process::id()));
+            std::fs::remove_dir_all(&dir).ok();
+            std::fs::create_dir_all(&dir).unwrap();
+            let value = ["Xk7mQ92v", "&", tail].concat();
+            std::fs::write(
+                dir.join("config.yml"),
+                format!("db:\n  password: {value}\n"),
+            )
+            .unwrap();
+            dir
+        };
+        let (a, b) = (app("a", "LpR4sTz"), app("b", "ZZZZZZZ"));
+        // The setup: the scan finds the value there.
+        let text = std::fs::read_to_string(a.join("config.yml")).unwrap();
+        let rules =
+            crate::secrets::SecretRules::load(&sv_frameworks::data::file("secret-rules.json"))
+                .unwrap();
+        assert!(!crate::secrets::scan_text(&rules, "config.yml", &text).is_empty());
+        assert_eq!(
+            fingerprint(&a, &f),
+            fingerprint(&b, &f),
+            "the part after the `&` showed through the fingerprint"
+        );
+        for dir in [a, b] {
+            std::fs::remove_dir_all(dir).ok();
+        }
     }
 
     #[test]
