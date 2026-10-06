@@ -1843,6 +1843,8 @@ another session is not a claim.
      answering, and Claude Code documents settings that answer the form with no person shown it. Claude Code and VS Code
      support it; Cursor and Codex CLI by secondary sources; Zed and Gemini CLI do not. Waiting on the owner: whether to
      try a middle tier, "confirmed in the AI tool's form, not sealed", which would never stand in for `sv review`.
+     **The owner's decision, 6 October 2026: no, not for now.** Elicitation stays unused; `sv review` is the only way
+     an answer counts as the owner's.
   7. **A larger prompts trial.** One test app, one model, one build each so far. To say the help works with any tool:
      at least two AI tools or models and about three builds each, and a trial of the MCP flow itself (whether a tool
      with the server attached fetches the plan and briefs unasked, and whether the app comes out more testable).
@@ -2010,6 +2012,11 @@ another session is not a claim.
   these and says "`sv run` will look for this, and the code does not seem to have it", running nothing, would give the
   builder the chance the loop already takes with what the check says. Each would credit nothing, as the preflight
   does; the run stays the evidence. The next loop trial could measure whether the running apps' findings then fall.
+  **The owner's decision, 6 October 2026: yes**, as a planned change between trials, with the next trial measuring
+  whether the running apps' findings fall. **Claimed the same day by session securevibe-e9**, in branch
+  `claude/securevibe-e9-preflight-hints`. **Record, `Status: proposed`** (a "Later" entry on ADR-035): the preflight
+  also says, for each of the commonest running-app findings that the code shows no sign of handling, that `sv run`
+  will look for it; each is an answer of "Look", credits nothing, and never says the app is safe or unsafe.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -2037,6 +2044,9 @@ another session is not a claim.
   ended, though the request said the owner would not be around (protocol amendment 1). For a person this is the right
   thing; for a trial it loses the build. A stronger sentence, or a second turn that says "use the safer option", are
   the two ways; either changes every arm's request and goes in the protocol first.
+  **The owner's decision, 6 October 2026: the stronger sentence**, not a second turn, written into the loop protocol
+  as amendment 5 before the next trial. **Claimed the same day by session securevibe-e9**, in branch
+  `claude/securevibe-e9-owner-small`.
 
 - **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
   after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
@@ -2123,6 +2133,14 @@ another session is not a claim.
   2026). 1: the rule is findings-only. 3: `admin-actions` make an admin as `admin` pages do. 5: the bundle tool's
   `path` is required and says why. 6: the tool rules are counted by rule, and each phrase is said once. 7: a category
   not on the list holds the app to level 2, and the report names it; capitals and spaces are read through.
+  **The owner's decisions, 6 October 2026, on items 4 and 8**, as session securevibe-e9 recommended ("1 yes, 2 go with your recommendation, 3 the firmer sentence, 4 agree yes, 5 no for now agree, 6 yes agree with your
+  recommendation, 7 leave it unchecked and update report to give that information yes").
+  4: `sv run` exits 2 when the app could not start, as `sv check` and `sv report` do when a check could not run
+  (ADR-029). 8: only "`sv init` creates the file" becomes "prints"; the shown prompt's advice to delete the line when
+  unsure stays, since both it and `sv init`'s "say true" leave nothing excluded.
+  **Both claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-owner-small`. Item 4 changes
+  what an exit code says, so its record goes with it: **`Status: proposed`**, a "Later" entry on ADR-029: `sv run`
+  exits 2 when the app never answered or could not be started, 3 when `sv` itself failed, and 0 otherwise.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -5998,6 +6016,9 @@ another session is not a claim.
   "What the signed-in pages send to other sites". To item 8: V12.1.1 (L1) and V12.1.2 (L2), the protocol versions and
   ciphers the live site offers, where semgrep today sees only TLS settings written in code; a scan
   is dozens of handshakes, so what `sv probe`'s four-request cap means for it needs deciding first.
+  **The owner's decision on V12.1.2, 6 October 2026:** leave it unchecked, keeping `sv probe` to four requests, and
+  have the report say how to check it with a dedicated scanner such as testssl.sh. **Claimed the same day by session
+  securevibe-e9**, in branch `claude/securevibe-e9-owner-small`.
 
   Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
   reaches outside; only item 8 does, and only to the owner's own address.
@@ -6650,6 +6671,10 @@ another session is not a claim.
   5. Only then, and the owner's choice: the narrow "worth a look" tier (`unsafe-dynamic-method`,
      `detect-non-literal-regexp`, `prohibit-jquery-html`, `plaintext-http-link`, `var-in-href`), which costs one real
      finding in this corpus.
+     **The owner's decision, 6 October 2026: yes**, as long as a "worth a look" finding is still shown in full, only
+     listed apart. **Claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-worth-a-look`.
+     **Record, `Status: proposed`** (a "Later" entry on ADR-023): the five rules' findings are listed apart under
+     "worth a look", in full and still counted, as test code's are.
   Where to start, from both measurements: which rules make the false alarms (`var-in-href`,
   `html-in-template-string`, `detect-non-literal-regexp`, `unsafe-dynamic-method`, and
   `generic-api-key` on the hashes in `securevibe.provenance.json`), counted per rule against real
