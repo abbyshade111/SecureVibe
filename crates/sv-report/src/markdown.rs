@@ -847,6 +847,16 @@ mod tests {
         );
         assert_eq!(inert("C:\\path"), "C:\\\\path");
         assert_eq!(inert("plain words"), "plain words");
+        // A span never crosses a line end: a blank line or a list item ends the paragraph, and the
+        // backticks on either side are plain (the review of 6 October, item 15).
+        for between in ["\n\n", "\n- ", "\n# ", "\n"] {
+            let text = format!("`a{between}<img src=https://t/p>`");
+            assert!(
+                inert(&text).contains("&lt;img"),
+                "{text:?}: {}",
+                inert(&text)
+            );
+        }
     }
 
     #[test]
