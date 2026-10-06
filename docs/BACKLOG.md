@@ -6783,6 +6783,10 @@ another session is not a claim.
   `Logger::log(msg)`) parses as a `qualified_identifier`, not the plain `identifier` these queries match,
   and is not seen; neither is `std::cout << "Location: " << u`, a chain of `binary_expression` nodes and
   never a call at all. Both are real C++ idioms and both are named gaps, not silent ones.
+  **Both gaps claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog
+  item"), in branch `claude/securevibe-e9-cpp-scoped`: a call named through `std::`, `std::filesystem::`, or the
+  global `::` is read as the plain call, while a call on a class of the app's own (`Logger::log`) still is not; and
+  `std::cout << "Location: " << url` is read as the `printf` form is.
 
   The two "no grammar" tests this item said would break did, and now use Objective-C (`.m`/`.mm`,
   recognized by the scanner and deliberately left without a grammar) in C++'s place, continuing the same
