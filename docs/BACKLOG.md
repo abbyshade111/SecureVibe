@@ -6619,6 +6619,10 @@ another session is not a claim.
   will not match and its tests stay uncredited. A runner that reports a name unlike the declaration
   loses coverage silently rather than loudly. The parser understands JUnit XML only; TAP and the
   runners that emit their own JSON are not read.
+  **The name matching claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("keep going"), in
+  branch `claude/securevibe-e9-runner-names`: a declared test matched to the names jest, Vitest, Mocha, pytest's
+  parameters, and Go's subtests report, and credited only when every case that matches it passed (today a failing
+  case of the same name as a passing one is ignored). TAP and runners' own JSON stay unread.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,
