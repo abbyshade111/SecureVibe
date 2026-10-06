@@ -3384,6 +3384,12 @@ another session is not a claim.
      choose a backlog item when ready"), in branch `claude/securevibe-e2-oidc-email-lookup`: a findings-only code rule
      for an account looked up by the email address the sign-in provider sent, written in the call or through a name
      given it once. Read on `main` just before this claim: no other session had claimed it.
+     **Done the same day** (DESIGN, "An account found by the email address the sign-in provider sent, read from the
+     code"). `ast.account-found-by-provider-email` reports an account looked up by the provider's email address, in
+     eight languages. In five of them it also reports that address recorded as the session's user. Either is found
+     when written in place or through a name the same function sets. It is only ever a finding. Not done: a lookup
+     inside a helper function, and a session reached through another name (`examples/oidc-notes` writes
+     `s.user = claims.email`, which the running check finds and this rule does not).
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").

@@ -2268,7 +2268,6 @@ fn name_set_to(arg: tree_sitter::Node, source: &[u8], pattern: &regex::Regex) ->
                     node.named_children(&mut cursor).last()
                 });
             if let (Some(target), Some(value)) = (target, value)
-                && target.id() != value.id()
                 && text(target)
                     .split(',')
                     .any(|t| names.contains(t.trim().trim_start_matches('$')))
