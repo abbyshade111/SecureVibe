@@ -1071,7 +1071,7 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
                 .filter(|c| c.kind() != "comment")
                 .all(|c| is_literal(c, source, fixed));
     }
-    // Rust's macros that are read when the code is compiled: `env!("CARGO_MANIFEST_DIR")` and
+    // Rust's macros that are read when the code is compiled: `env!("OUT_DIR")` and
     // `include_str!("schema.sql")` are fixed text in the program, whatever anyone sends it. `format!` is
     // not among them: it runs with the program.
     if node.kind() == "macro_invocation" {
