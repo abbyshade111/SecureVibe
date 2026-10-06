@@ -3626,7 +3626,21 @@ another session is not a claim.
   **Records 1, 2, 3, and 7 done the same day:** ADR-038 (the SQL injection probe's limits), ADR-039 (the sign-in token
   checks and the key addresses they may name), ADR-040 (a credential over a sentence reported low), and ADR-041 (the
   report folder's lock). Each was read against its DESIGN section and the pull requests named; each names the tests
-  that hold it. The ADR-032 question is reported separately.
+  that hold it.
+  **The ADR-032 question, answered the same day** (read, and one part tested; nothing changed):
+  - `sv` clears every outside tool's environment and passes no `GIT_*` variable, so a `git` a tool starts reads the
+    app's repository settings as they are. A test with git 2.43 in a repository planted with `core.fsmonitor`:
+    `git ls-files`, in every form tried, ran the planted program; `git ls-remote --get-url` and `git rev-parse` did not.
+  - **Semgrep** (its source, develop branch): lists files with `git ls-files` only for a folder it is given, and `sv`
+    names files one by one, so it does not today. Its Python front end runs `git ls-remote --get-url` on every scan,
+    which ran nothing planted. `--no-git-ignore` would not stop it running git.
+  - **Opengrep** (its source, main branch): runs no git in a plain scan of named files.
+  - **CodeQL:** not determined. Its extractors run no git; the `codeql` program itself is closed, and its manual
+    could not be read from the session.
+  - So `sv` is held to ADR-032 by the tools only because it names files rather than folders, and for CodeQL that is
+    unknown. The smallest guard: set `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=core.fsmonitor`, `GIT_CONFIG_VALUE_0=false`
+    in every outside tool's environment, the override `git.rs` already passes on git's command line; shown here to beat
+    the repository's own setting (git 2.31 or newer). For the owner to decide.
 
 - **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
   records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
