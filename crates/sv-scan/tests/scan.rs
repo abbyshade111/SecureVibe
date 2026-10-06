@@ -2142,3 +2142,144 @@ fn python_dependency_declarations_sv_does_not_read_are_found() {
          a text file that is not a list are not declarations"
     );
 }
+
+#[test]
+fn a_pipfile_lock_with_no_pipfile_is_a_project_of_its_own_and_only_then() {
+    // `pipenv sync` installs from `Pipfile.lock` alone. Before, with no `Pipfile` beside it, the
+    // app had no Python as far as `sv` could tell (deep review H9, left open on 5 October 2026).
+    let lock = "{\"_meta\":{},\"default\":{\"flask\":{\"version\":\"==3.0.0\"}},\"develop\":{}}";
+    let projects = |files: &[&str]| {
+        let dir = scratch(&format!(
+            "pipfile-lock-{}",
+            files.join("-").replace('/', "_")
+        ));
+        for file in files {
+            let path = dir.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            let text = match path.file_name().and_then(|n| n.to_str()) {
+                Some("Pipfile.lock") => lock,
+                Some("Pipfile") => "[packages]\nflask = \"*\"\n",
+                Some("pyproject.toml") => "[project]\nname = \"x\"\ndependencies = [\"flask\"]\n",
+                _ => "flask==3.0.0\n",
+            };
+            std::fs::write(path, text).unwrap();
+        }
+        let found: Vec<(String, Option<String>)> = sv_scan::ecosystems::detect(&dir)
+            .into_iter()
+            .filter(|e| e.name == "Python")
+            .map(|e| (e.manifest, e.lockfile))
+            .collect();
+        let unpinned = sv_scan::ecosystems::unpinned(&dir);
+        std::fs::remove_dir_all(&dir).ok();
+        (found, unpinned)
+    };
+    let pair = |m: &str, l: Option<&str>| (m.to_owned(), l.map(str::to_owned));
+
+    let (found, unpinned) = projects(&["Pipfile.lock"]);
+    assert_eq!(found, [pair("Pipfile.lock", Some("Pipfile.lock"))]);
+    assert!(unpinned.is_empty(), "it is a lockfile: {unpinned:?}");
+    let (found, _) = projects(&["api/Pipfile.lock"]);
+    assert_eq!(found, [pair("api/Pipfile.lock", Some("api/Pipfile.lock"))]);
+
+    // Where something beside it already reads it as a lockfile, it is that project's, once.
+    let (found, _) = projects(&["Pipfile", "Pipfile.lock"]);
+    assert_eq!(found, [pair("Pipfile", Some("Pipfile.lock"))]);
+    let (found, _) = projects(&["requirements.txt", "Pipfile.lock"]);
+    assert_eq!(found, [pair("requirements.txt", Some("Pipfile.lock"))]);
+    // A `pyproject.toml` does not take it, so both are there, and the lone lockfile is read.
+    let (found, _) = projects(&["pyproject.toml", "Pipfile.lock"]);
+    assert_eq!(
+        found,
+        [
+            pair("pyproject.toml", None),
+            pair("Pipfile.lock", Some("Pipfile.lock"))
+        ]
+    );
+    // A `Pipfile` in another folder takes only its own.
+    let (found, _) = projects(&["api/Pipfile", "api/Pipfile.lock", "worker/Pipfile.lock"]);
+    assert_eq!(
+        found,
+        [
+            pair("api/Pipfile", Some("api/Pipfile.lock")),
+            pair("worker/Pipfile.lock", Some("worker/Pipfile.lock"))
+        ]
+    );
+}
+
+#[test]
+fn a_requirements_file_under_another_name_is_judged_for_pinning() {
+    // Deep review H9, left open on 5 October 2026: `requirements-dev.txt` or `requirements/prod.txt`
+    // without hashes was named as unread by the bill of materials and judged by nothing, so the
+    // pinning check passed on a lockfile beside it that leaves it out, and said "no package
+    // manifest" when it was alone.
+    let unpinned_in = |files: &[(&str, String)]| {
+        let names: Vec<&str> = files.iter().map(|(n, _)| *n).collect();
+        let dir = scratch(&format!(
+            "other-requirements-{}",
+            names.join("-").replace('/', "_")
+        ));
+        for (file, text) in files {
+            let path = dir.join(file);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        }
+        let listing = sv_scan::files::Listing::of(&dir);
+        let elsewhere: Vec<(String, Option<String>)> =
+            sv_scan::ecosystems::declared_elsewhere_in(&listing)
+                .into_iter()
+                .map(|e| (e.manifest, e.lockfile))
+                .collect();
+        let unpinned: Vec<String> = sv_scan::ecosystems::unpinned_in(&listing)
+            .into_iter()
+            .map(|e| e.manifest)
+            .collect();
+        std::fs::remove_dir_all(&dir).ok();
+        (elsewhere, unpinned)
+    };
+    let lock = "{\"_meta\":{},\"default\":{\"flask\":{\"version\":\"==3.0.0\"}},\"develop\":{}}";
+    let pipenv = || {
+        vec![
+            ("Pipfile", "[packages]\nflask = \"*\"\n".to_owned()),
+            ("Pipfile.lock", lock.to_owned()),
+        ]
+    };
+
+    // Exact versions without hashes, alone and beside a lockfile that does not list them.
+    let (elsewhere, unpinned) = unpinned_in(&[("requirements/prod.txt", "flask==3.0.0\n".into())]);
+    assert_eq!(elsewhere, [("requirements/prod.txt".to_owned(), None)]);
+    assert_eq!(unpinned, ["requirements/prod.txt"]);
+    let mut files = pipenv();
+    files.push(("requirements-dev.txt", "pytest>=8\n".into()));
+    let (_, unpinned) = unpinned_in(&files);
+    assert_eq!(
+        unpinned,
+        ["requirements-dev.txt"],
+        "the lockfile beside it leaves it out"
+    );
+
+    // Pinned and hashed, it is its own lockfile, alone or beside another.
+    let (elsewhere, unpinned) =
+        unpinned_in(&[("requirements/prod.txt", hashed(&["flask==3.0.0"]))]);
+    assert_eq!(
+        elsewhere,
+        [(
+            "requirements/prod.txt".to_owned(),
+            Some("requirements/prod.txt".to_owned())
+        )]
+    );
+    assert!(unpinned.is_empty(), "{unpinned:?}");
+    let mut files = pipenv();
+    files.push(("requirements-dev.txt", hashed(&["pytest==8.0.0"])));
+    let (_, unpinned) = unpinned_in(&files);
+    assert!(unpinned.is_empty(), "{unpinned:?}");
+
+    // A Conda environment is not judged here, and `requirements.txt` itself is `detect`'s.
+    let (elsewhere, _) = unpinned_in(&[
+        (
+            "environment.yml",
+            "name: lab\ndependencies:\n  - numpy\n".into(),
+        ),
+        ("requirements.txt", "flask==3.0.0\n".into()),
+    ]);
+    assert!(elsewhere.is_empty(), "{elsewhere:?}");
+}
