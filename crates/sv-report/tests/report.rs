@@ -2564,6 +2564,100 @@ fn findings_in_test_code_are_listed_after_the_apps_own_and_still_count() {
 }
 
 #[test]
+fn a_finding_only_worth_a_look_is_listed_apart_in_full_and_still_counts() {
+    // Semgrep follow-up 5 (the owner's decision, 6 October 2026): five rules wrong 279 times in 280
+    // are listed apart as "worth a look", shown in full, and still counted.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let mut own = finding(
+        "semgrep.python.lang.security.audit.eval-detected.eval-detected",
+        &["V1.3.1"],
+    );
+    own.title = "Found by a rule that is usually right".into();
+    own.severity = Severity::Low;
+    let mut look = finding(
+        "semgrep.javascript.lang.security.audit.unsafe-dynamic-method.unsafe-dynamic-method",
+        &["V1.2.1"],
+    );
+    look.title = "Found by a rule that is usually wrong".into();
+    look.severity = Severity::Critical;
+    look.location.file = "static/app.js".into();
+    // The control: the same rule, also reported by another tool, is not only worth a look.
+    let mut backed = look.clone();
+    backed.title = "Found by it and by another tool".into();
+    backed.location.line = 9;
+    backed.also_reported_by = vec!["ast.dynamic-code-execution".into()];
+    let report = build(inputs(&f, &buckets, vec![look, own, backed], &[]));
+
+    let status = |id: &str| {
+        report
+            .requirements
+            .iter()
+            .find(|r| r.id == id)
+            .unwrap()
+            .status
+    };
+    assert_eq!(status("V1.2.1"), Status::NeedsAttention, "it still counts");
+
+    let (app, apart) = sv_report::app_then_tests(&report);
+    let titles = |v: &[&Finding]| v.iter().map(|f| f.title.clone()).collect::<Vec<_>>();
+    assert_eq!(
+        titles(&apart),
+        ["Found by a rule that is usually wrong"],
+        "{:?}",
+        titles(&app)
+    );
+    assert_eq!(app.len(), 2);
+
+    let markdown = sv_report::markdown::security(&report);
+    let html = sv_report::html::page(&report);
+    for (name, page, heading) in [
+        ("markdown", &markdown, "## 1 only worth a look"),
+        ("html", &html, "<h2>1 only worth a look</h2>"),
+    ] {
+        let at = |needle: &str| {
+            page.rfind(needle)
+                .unwrap_or_else(|| panic!("{name} has {needle:?}: {page}"))
+        };
+        assert!(
+            at("Found by a rule that is usually right") < at(heading),
+            "{name}"
+        );
+        assert!(
+            at(heading) < at("Found by a rule that is usually wrong"),
+            "{name}"
+        );
+        // Shown in full, with why it is apart beside it.
+        assert!(
+            page.contains("Worth a look: the rule that found it was wrong 279 times in 280"),
+            "{name}"
+        );
+    }
+    let headline = sv_report::bluf::headline(&report);
+    assert!(
+        headline.contains("1 of them is only worth a look, listed after the app's own."),
+        "{headline}"
+    );
+    // And in SARIF, on its result only.
+    let sarif: serde_json::Value =
+        serde_json::from_str(&sv_report::sarif::render(&report)).unwrap();
+    let look_flags: Vec<bool> = sarif["runs"][0]["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["properties"]["worthALook"] == true)
+        .collect();
+    assert_eq!(
+        look_flags.iter().filter(|b| **b).count(),
+        1,
+        "{look_flags:?}"
+    );
+}
+
+#[test]
 fn when_every_finding_is_in_test_code_the_report_does_not_read_as_clean() {
     let f = frameworks();
     let buckets = Buckets {

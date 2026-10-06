@@ -906,19 +906,38 @@ pub const TEST_CODE_SECTION: &str = "Listed apart because they are in code that 
      shows how to use it, not in the app itself: a folder or file named for tests, fixtures, or \
      examples, Rust code built only for its tests, or a folder securevibe.toml says is not the app; \
      or in a copy of another project's library kept in the app, such as jQuery in public/js, named \
-     beside each. They still count toward the requirements they are about. Test code can hold a real \
-     key, sample code gets copied, and an old copy of a library carries that library's own problems, \
-     so read each one before deciding it does not matter.";
+     beside each; or only worth a look, from one of five Semgrep rules that were wrong 279 times in \
+     280 when measured on real apps, said beside each. They still count toward the requirements they \
+     are about. Test code can hold a real key, sample code gets copied, an old copy of a library \
+     carries that library's own problems, and one worth-a-look finding in 280 was real, so read each \
+     one before deciding it does not matter.";
 
 /// What the reports call the findings listed apart, as they are: in test or sample code, in copies
-/// of other projects' libraries, or both. An app with no library copied in reads as it always has.
-pub fn apart_named(apart: &[&sv_check::Finding]) -> &'static str {
-    let libraries = apart.iter().any(|f| f.bundled_library.is_some());
+/// of other projects' libraries, only worth a look, or more than one of these. An app with only test
+/// code apart reads as it always has.
+pub fn apart_named(apart: &[&sv_check::Finding]) -> String {
     let tests = apart.iter().any(|f| f.in_test_code());
-    match (tests, libraries) {
-        (_, false) => "in test or sample code",
-        (false, true) => "in copies of other projects' libraries kept in the app",
-        (true, true) => "in test or sample code, or in copies of other projects' libraries",
+    let libraries = apart.iter().any(|f| f.bundled_library.is_some());
+    let look = apart.iter().any(|f| f.worth_a_look());
+    let mut kinds: Vec<&str> = Vec::new();
+    if tests || !(libraries || look) {
+        kinds.push("in test or sample code");
+    }
+    if libraries {
+        kinds.push(if kinds.is_empty() {
+            "in copies of other projects' libraries kept in the app"
+        } else {
+            "in copies of other projects' libraries"
+        });
+    }
+    if look {
+        kinds.push("only worth a look");
+    }
+    match kinds.as_slice() {
+        [one] => (*one).to_owned(),
+        [first, second] => format!("{first}, or {second}"),
+        [first, second, third] => format!("{first}, {second}, or {third}"),
+        _ => unreachable!("one to three kinds"),
     }
 }
 
@@ -947,6 +966,14 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
         notes.push(
             "In test or sample code, not the app itself. It still counts: test code can hold a \
              real key, and sample code gets copied."
+                .to_owned(),
+        );
+    }
+    if f.worth_a_look() {
+        notes.push(
+            "Worth a look: the rule that found it was wrong 279 times in 280 when measured on real \
+             apps, so it is listed apart. It still counts, and the one in 280 was real, so read the \
+             code; if it is not a problem, it is a false alarm and the code can stay."
                 .to_owned(),
         );
     }
