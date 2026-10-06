@@ -3372,6 +3372,9 @@ another session is not a claim.
      fifteen languages; every language has a case at 300,000 with SHA-256 or with no hash it can read, and each
      that names a hash has cases at 600,000 with SHA-256 and 300,000 with SHA-512. Eight guards broken in turn,
      each caught. Not done: SHA-1 counts between 210,000 and 1,300,000.
+     **SHA-1 counts between 210,000 and 1,300,000 claimed on 6 October 2026 by session securevibe-e9**, at the
+     owner's word ("keep going"), in branch `claude/securevibe-e9-pbkdf2-sha1`: where the call names SHA-1, the same
+     way SHA-256 is tied to 600,000.
   10. **The static half of V13.4.7: a static-file handler pointed at the app's own folder.** Left from item 3, whose
       running half asks for private files by name. A rule that reads the code for a web framework told to serve files
       from the folder the code is in, or the current folder (Express's `static(__dirname)`, Flask's `static_folder`,
