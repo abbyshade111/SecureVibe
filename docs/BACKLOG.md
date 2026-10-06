@@ -620,6 +620,8 @@ another session is not a claim.
     pinning check (V15.1.2) and in the scan's list of unpinned projects. Twelve guards broken in turn, each caught.
     **Still open:** a requirements file under another name without hashes is not judged by the pinning check, and a
     `Pipfile.lock` with no `Pipfile` beside it is not found.
+    **These two claimed on 6 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
+    backlog, in branch `claude/securevibe-e2-h9-rest`.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -1945,7 +1947,12 @@ another session is not a claim.
   arms' own tools were mostly unused (the plan called by three of eight builds offered it, all Haiku; the check by
   three of eight, once each), so the trial cannot say which of them does the work: what the testable builds share is
   the specification.
-
+  **Item 6 done on 6 October 2026** (DESIGN, "The loop at scale"; `docs/prompts/loop-scale/README.md`): seventy
+  builds, $21.34, with the specification in every request (protocol amendment 3) and the check and plan arms also run
+  with the other tools hidden (amendment 4). Every Sonnet build could be tested, in every arm; Haiku varied within
+  every arm, and no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
+  (every build checked; all five Haiku and two Sonnet again after a fix), and fixed what the check named: the
+  committable `.env` in five loop builds, against 56 of 59 builds in the other arms that kept it.
 
 - **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
   trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
@@ -1963,6 +1970,24 @@ another session is not a claim.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
 
+- **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
+  by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
+  output was: Traceback (most recent call last):". `never_ready_detail` (`crates/sv-run/src/docker.rs`) quotes
+  `first_line` of the logs, and a Python error says what went wrong on its last line. The hint that follows, about an
+  app listening on `127.0.0.1`, is beside the point when the app crashed. Quote the last lines (the exception), and
+  give the loopback hint only when nothing crashed.
+
+- **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
+  paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
+  run` could not start them. `securevibe_preflight` names a seed file that is missing; the start command's file should
+  be named the same way (ADR-035).
+
+- **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
+  two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
+  ended, though the request said the owner would not be around (protocol amendment 1). For a person this is the right
+  thing; for a trial it loses the build. A stronger sentence, or a second turn that says "use the safer option", are
+  the two ways; either changes every arm's request and goes in the protocol first.
+
 - **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
   after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
   merged changes since it was last revised: `README.md`, `docs/GETTING-STARTED.md` (the owner's own guide),
@@ -1974,7 +1999,9 @@ another session is not a claim.
   no longer true, what `sv` does that it leaves out, and every number it gives (of tools, commands, checks,
   requirements) checked against the code. Plain language throughout, for a reader who is not a programmer. Records
   (`docs/adr/`) and DESIGN are histories and are not rewritten; a record that no longer matches gets a dated "Later"
-  entry instead. Not claimed.
+  entry instead.
+  **Claimed on 6 October 2026 by session securevibe-e10**, at the owner's asking to take the next unclaimed item, in
+  branch `claude/docs-review`. CLAUDE.md's `SV_DATA_DIR` line is left to session securevibe-e2, which claimed it.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -2038,6 +2065,8 @@ another session is not a claim.
   in git, and naming the one thing `sv` cannot read (a global git ignore file on the computer). With no environment
   file it is still not assessed. Repositories are unchanged. Tested in `config.rs` and through `sv check`,
   `sv report`, and the MCP check together (`tests/env_plain_folder.rs`); four guards undone in turn were each caught.
+  **Seen working on 6 October 2026** in the loop's item 6: in five loop builds `securevibe_check` named the
+  `.gitignore`, the builder wrote one, and the final report did not find it.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside
@@ -3630,6 +3659,10 @@ another session is not a claim.
   - **Does ADR-032 reach the outside tools?** It holds `sv`'s own `git` to running no program the app's repository
     names. Semgrep and CodeQL, run by `sv report --tools` in the app's folder, may run `git` themselves; the record
     does not say, and it was not checked.
+    **The owner's decision, 6 October 2026, on what was found** (Semgrep and Opengrep held only because `sv` names
+    files rather than folders, CodeQL unknown): add the guard. Every outside tool's environment sets git's
+    `core.fsmonitor` off, as `sv`'s own `git` does, held by a test with a planted repository; ADR-032 gets a Later
+    entry. **Claimed the same day by session securevibe-e2**, in branch `claude/securevibe-e2-git-guard`.
 
   **The owner's decisions, 6 October 2026:**
   - Records for items 1, 2, 3, and 7, the four most costly; the other four stay as their DESIGN sections.
@@ -6660,6 +6693,8 @@ another session is not a claim.
   branch `claude/securevibe-e9-runner-names`: a declared test matched to the names jest, Vitest, Mocha, pytest's
   parameters, and Go's subtests report, and credited only when every case that matches it passed (today a failing
   case of the same name as a passing one is ignored). TAP and runners' own JSON stay unread.
+  **Done the same day** (DESIGN, "A test is found under the names its runner gives it"): matched as a whole part of
+  the name the runner reports, and credited only when every case that could be it passed.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,

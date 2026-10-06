@@ -7374,6 +7374,27 @@ writes their manifest, or every arm is given the specification: the owner's choi
 sign-in limit locked `sv` out again, as in trial 3. Each is in the backlog.
 
 
+
+
+## The loop at scale (6 October 2026)
+
+Item 6 of "The loop" (`docs/prompts/loop-scale/README.md`): five builds a cell, Sonnet 5.5 and Haiku 4.5, on `sv` at
+`cd2478f8` with the preflight and the instructions that say when to check, and `sv init`'s specification in every
+request (protocol amendment 3), so the arms without the server could be tested at last. Seventy builds, $21.34.
+
+**Results.** With the specification, every Sonnet build was testable in every arm, at about the same level: the
+specification, not the server, makes a Sonnet app testable. Haiku varied within every arm, and no arm was above another
+by the rule. The loop arm did what the instructions now ask: every build checked, Haiku's all checked again after a
+fix, and where the check named the committable `.env` the builders fixed it, which almost no build in another arm did.
+At five a cell that is a pattern seen, not a difference by the rule.
+
+**What it found in the trial.** Limiting an arm by refusing tools, not hiding them, made the builders give up on all of
+SecureVibe's tools: the check arm never checked. Hidden, the check and the plan were asked for far more often
+(amendment 4). Item 3's arms were limited the refused way, and its write-up now says so.
+
+**What it found in `sv`.** A crash at start is reported by the first line of the error, which says nothing; the
+preflight does not check the start command's file; two Haiku builds still stopped to ask the owner. Each is in the
+backlog.
 ## A backslash in a file name (4 October 2026)
 
 The deep review of `sv` at `eff3f17`, sent by the cato-pipeline session, found that `sv bundle` read and zipped files
@@ -10709,6 +10730,34 @@ Broken on purpose nineteen ways, each caught by a test written for it. The first
 a seal taken from any line that begins like one, and a tool note that names no file. Each now has its own test. Two
 other breaks were badly written and were run again. Item 15's ordering is tested on Docker's stamped output; the
 `--timestamps` request itself runs only on CI, where Docker is.
+
+## A test is found under the names its runner gives it (6 October 2026)
+
+Left over from "Read the test runner's own report" (BACKLOG). When the app's suite fails, `sv` credits only the tests
+the runner's JUnit report says passed. It matched a test by its exact name, which runners often do not report:
+- jest and Mocha put the `describe` titles first (`search V1.2.4 binds its parameters`), and Vitest joins them with
+  ` > `;
+- pytest adds a parameter (`test_x[empty]`), and Go a subtest (`TestX/quotes`).
+
+Each of these was never credited from a failing suite. And a name was taken as passed when any case of that name
+passed, so two classes each with `test_V1_2_4_bound`, one failing, credited V1.2.4.
+
+- **Matched as the runner writes it** (`suite.rs`, `reports`). A title from `it('…')`, `test('…')`, or `describe('…')`
+  matches a reported name that is the title, or has it as a whole part set off by spaces (first for a `describe`,
+  last for a test, or between). An identifier from `def`, `func`, `fn`, `sub`, or `void` matches the name, or the
+  name followed by `[` or `/`. `searchV1.2.4 …`, `test_x_more`, and `TestXAll` are other tests.
+- **Every case that could be the test has to have passed** (`reported_passing`). At least one case has to match, and
+  a failing or skipped one among them credits nothing. So the wider matching can only ever take credit away from a
+  name it matches too widely, never add it. A suite that passed outright still credits without reading the report, as
+  before.
+- `SuiteOutcome::Failed` now carries the runner's cases, failed ones included, rather than the names that passed.
+  TAP and runners' own JSON are still not read.
+
+How it is held: `a_test_is_found_under_the_names_runners_give_it` (jest and Mocha, Vitest, exact, pytest's parameter,
+and Go's subtest, with names that only look alike as its control) and
+`a_failing_case_that_could_be_the_same_test_credits_nothing` (same names and parameters, with the failing cases gone as
+its control). Eight guards were undone in turn. Seven were caught. The eighth, a separate rule for Vitest's ` > `, was
+caught by nothing because ` > ` is set off by spaces already, and it was taken out.
 
 ## PBKDF2 with SHA-1 is held to 1,300,000 rounds (6 October 2026)
 
