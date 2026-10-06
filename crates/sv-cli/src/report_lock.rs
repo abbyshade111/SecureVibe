@@ -297,14 +297,30 @@ fn same_file(a: &Metadata, _b: &Metadata) -> bool {
     a.file_type().is_file()
 }
 
+/// How far ahead of this computer's clock a report's start may be and still be believed: clocks
+/// on one computer agree to well within this, and a run cannot have started in the future.
+const CLOCK_SKEW_MS: u64 = 60_000;
+
 /// Refuses to replace a report in `out_dir` that came from a run that started after this one.
 ///
 /// A report without a record, or that does not read, is replaced as before: there is nothing to say
-/// it is newer.
+/// it is newer. Nor is one whose run would have started in the future, by this computer's clock: no
+/// run did, and believing it kept every later run from writing its report there, for good (item 9
+/// of the review of 1 to 4 October).
 pub fn refuse_older(report: &sv_report::Report, out_dir: &Path, elsewhere: &str) -> Result<()> {
     let Some(mine) = &report.run_record else {
         return Ok(());
     };
+    refuse_older_than(mine, millis(SystemTime::now()), out_dir, elsewhere)
+}
+
+/// `refuse_older` for a run with this record, at `now_ms` by this computer's clock.
+fn refuse_older_than(
+    mine: &sv_report::RunRecord,
+    now_ms: u64,
+    out_dir: &Path,
+    elsewhere: &str,
+) -> Result<()> {
     let path = out_dir.join("report.json");
     // A link is refused when the report is written; it is not followed to read one either.
     let Ok(meta) = std::fs::symlink_metadata(&path) else {
@@ -323,7 +339,7 @@ pub fn refuse_older(report: &sv_report::Report, out_dir: &Path, elsewhere: &str)
     let Some(their_start) = record["started_unix_ms"].as_u64() else {
         return Ok(());
     };
-    if their_start <= mine.started_unix_ms {
+    if their_start <= mine.started_unix_ms || their_start > now_ms.saturating_add(CLOCK_SKEW_MS) {
         return Ok(());
     }
     let same_file = match record["securevibe_toml_sha256"].as_str() {
@@ -447,6 +463,41 @@ mod tests {
             std::fs::read_to_string(dir.join("elsewhere")).unwrap(),
             "theirs"
         );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_report_from_a_later_run_is_kept_and_one_from_the_future_is_not() {
+        let dir = folder("future");
+        let now = 1_791_053_580_000;
+        let mine = sv_report::RunRecord {
+            started: "2026-10-03T18:52:00Z".into(),
+            started_unix_ms: now - 60_000,
+            securevibe_toml_sha256: "a".repeat(64),
+        };
+        let there = |start: u64| {
+            std::fs::write(
+                dir.join("report.json"),
+                serde_json::json!({ "run_record": {
+                    "started": "then", "started_unix_ms": start,
+                    "securevibe_toml_sha256": "a".repeat(64),
+                }})
+                .to_string(),
+            )
+            .unwrap();
+            refuse_older_than(&mine, now, &dir, "give --out")
+        };
+        // A run that started after this one and before now: the report there is the newer, kept.
+        let kept = there(now - 30_000).err().expect("refused").to_string();
+        assert!(kept.contains("kept the newer one"), "{kept}");
+        // Within a minute of now still counts, for clocks that read a little apart.
+        assert!(there(now + 30_000).is_err());
+        // From the future, by this computer's clock: no run started then, so it is replaced, and
+        // a report that says so cannot hold the folder for good.
+        assert!(there(now + 86_400_000).is_ok());
+        assert!(there(u64::MAX).is_ok());
+        // An earlier one is replaced, as always.
+        assert!(there(now - 120_000).is_ok());
         std::fs::remove_dir_all(&dir).ok();
     }
 
