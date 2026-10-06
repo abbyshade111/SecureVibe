@@ -146,7 +146,7 @@ fn location(at: &sv_check::Location) -> Value {
         },
         "logicalLocations": [{ "name": at.file }],
         "message": { "text": format!(
-            "Seen in {}, which has no file or line of its own. It points at {RUNNING_APP_ANCHOR}, \\
+            "Seen in {}, which has no file or line of its own. It points at {RUNNING_APP_ANCHOR}, \
              which says how the app was started.",
             at.file
         ) }
@@ -247,14 +247,14 @@ fn rule_entry(id: &str, findings: &[&sv_check::Finding]) -> Value {
             alike(findings, |f| &f.impact)
                 .map(str::to_owned)
                 .unwrap_or_else(|| {
-                    "What this rule found differs from one result to the next; each result's \\
+                    "What this rule found differs from one result to the next; each result's \
                  message says what was found and why it matters."
                         .to_owned()
                 }),
             alike(findings, |f| &f.fix)
                 .map(str::to_owned)
                 .unwrap_or_else(|| {
-                    "Each result's message says what was found; the report `sv` wrote beside this \\
+                    "Each result's message says what was found; the report `sv` wrote beside this \
                  file says how to fix each one."
                         .to_owned()
                 }),
@@ -502,6 +502,12 @@ mod tests {
             assert!(place.starts_with("the running app"), "{location}");
             let said = location["message"]["text"].as_str().unwrap();
             assert!(said.contains("no file"), "{said}");
+            // One line of plain words (the review of 6 October, item 16: a stray backslash and a
+            // run of spaces were left in it).
+            assert!(
+                !said.contains(['\\', '\n']) && !said.contains("  "),
+                "{said:?}"
+            );
             assert_eq!(result["properties"]["place"], place, "{result}");
             // The address the probe asked stays in the result's own words.
             assert!(
@@ -626,6 +632,17 @@ mod tests {
 
         let tool = &forward["semgrep.sqli"];
         assert_eq!(tool["shortDescription"]["text"], "Semgrep's own title");
+        // Every rule's words are plain lines, the fallbacks for words its findings do not share
+        // included (the review of 6 October, item 16).
+        for (id, rule) in &forward {
+            for part in ["fullDescription", "help"] {
+                let text = rule[part]["text"].as_str().unwrap_or_default();
+                assert!(
+                    !text.contains(['\\', '\n']) && !text.contains("  "),
+                    "{id} {part}: {text:?}"
+                );
+            }
+        }
     }
 
     #[test]
