@@ -324,6 +324,10 @@ another session is not a claim.
     the new shapes find is passed over when it is text, a path, or a lower-case identifier: 90 false alarms in v1's
     `node_modules` without that, none with it. Nothing found before is lost. Twenty-four guards broken in turn, each
     caught. Not done: a passphrase with spaces written as a JSON value, and unquoted shell and Dockerfile lines.
+    **The two left claimed on 5 October 2026 by session securevibe-e9**, at the owner's asking to pick another item,
+    in branch `claude/securevibe-e9-h3-rest`: unquoted values in shell scripts and Dockerfiles (`export TOKEN=…`,
+    `ENV DB_PASSWORD …`), and a passphrase with spaces as a JSON value, if a way to read it can be shown not to bring
+    the message catalogs back.
   - **H4. High, Reproduced.** A workflow started by `issue_comment` that checks out the pull request's code with
     secrets is credited AC.12.1 (`workflows.rs` PRIVILEGED_TRIGGERS). Fix: add `issue_comment`,
     `pull_request_review_comment`, `discussion_comment`, and dispatch events that take a ref.
