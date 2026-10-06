@@ -403,6 +403,10 @@ another session is not a claim.
     can start; and `pull_request_review_comment` and `pull_request_review`, **still open**: whether GitHub gives them
     the secrets for a pull request from a fork could not be checked, since GitHub's documentation was not reachable
     from the session. Three guards broken in turn, each caught.
+    **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+    `claude/h4-review-triggers`: check against GitHub's documentation whether `pull_request_review` and
+    `pull_request_review_comment` run with the secrets for a pull request from a fork, and make them privileged
+    triggers if they do, or say in DESIGN why not if they do not.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.

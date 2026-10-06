@@ -80,6 +80,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-034](ADR-034.md) | A report is offered as `sv`'s only when its seal shows `sv` wrote it |
 | [ADR-035](ADR-035.md) | A preflight of the run settings, read from the code and never run |
 | [ADR-036](ADR-036.md) | `sv` finds its data beside itself, and an install does not live in a working folder |
+| [ADR-037](ADR-037.md) | A Python project with no lockfile does not pin, `setup.py` and `setup.cfg` included |
 
 ## Where v1's records disagree with what v1 built
 

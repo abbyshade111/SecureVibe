@@ -8770,6 +8770,7 @@ and `develop` read (one), the app's own folder named (one), a hashed `requiremen
 ## What a `requirements.txt` leaves out is named, and a `setup.py` with no lockfile does not pin (5 October 2026)
 
 The rest of H9 of the deep review: two places where `sv` stayed quiet about Python packages it had not checked.
+The second is recorded as ADR-037, at the owner's asking.
 
 **A `requirements.txt` read without a lockfile.** Only the lines that pin one version (`stripe==7.8.0`) say which
 version is installed, so only they are listed, marked as asked for. Every other line was dropped without a word: a
