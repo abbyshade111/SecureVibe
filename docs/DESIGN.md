@@ -11426,5 +11426,5 @@ Broken on purpose 10 ways, each caught:
 - the status ignored;
 - one console's path changed.
 
-The last two of the seven words, and the changed path, went uncaught at first. Two cases were added for them: a page
+The footer's words, and the changed path, went uncaught at first. Two cases were added for them: a page
 showing LiveDashboard's script, and the six paths pinned as their sources serve them.
