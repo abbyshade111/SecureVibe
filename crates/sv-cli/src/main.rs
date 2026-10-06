@@ -5467,6 +5467,7 @@ mod tests {
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
             rule_id: decided[0].switch.rule_id.to_owned(),
             title: "open".to_owned(),
             severity: sv_check::Severity::High,
