@@ -30,7 +30,7 @@ Unusable by the protocol's rule (stopped before writing an app), and reported he
 1. **With the specification in the request, every Sonnet build could be tested, in every arm,** about equally
    (29 to 38, but one at 8, which its own sign-in limit locked out). In item 3, without it, no build without the server could be tested at all. For Sonnet the
    specification does almost all of the work of making an app testable.
-2. **Haiku varies widely within every arm,** and no arm is above another by the protocol's rule. Of its six builds
+2. **Haiku varies widely within every arm,** and on testability no arm is above another by the protocol's rule. Of its six builds
    `sv` could not start, two wrote no app (above), three crashed when they started, and one wrote a manifest `sv`
    could not read (`can-act` under `[stack.run.ai]`).
 3. **The loop arm checked, fixed, and checked again.** Every loop build called `securevibe_check` (one to three
@@ -40,7 +40,8 @@ Unusable by the protocol's rule (stopped before writing an app), and reported he
    does not cover `.env`; each wrote one, and the final report did not find it. Across the other arms the same high
    finding is in 56 of the 59 builds with a report; in the loop arm, 5 of 10. Haiku's loop builds also have no
    credential assigned in code, where Haiku's other arms have one in 12 of 29 builds. Neither is a difference by the protocol's
-   rule (some builds in other arms have none either), so this is what was seen, at five builds a cell.
+   rule on its own (some builds in other arms have none either); taken together with the code's other findings, they
+   are ("Findings by group", below).
 5. **Refusing a tool is not the same as hiding it** (amendment 4). With the tools they leave out still listed but
    refused, the check arm called the check in none of ten builds: the builders asked for the guidance and the
    preflight, as the instructions say, were refused, and concluded every SecureVibe tool was off limits ("The
@@ -61,13 +62,42 @@ Unusable by the protocol's rule (stopped before writing an app), and reported he
 - **The preflight would not have caught the builds with no app:** it checks that the seed's file is there, not the
   start command's. Backlog.
 
-## Security, compared
+## Findings by group
 
-With every arm testable, the security measures can be read for the first time. The most common high findings of the
-running apps, across all seventy: no limit on wrong passwords (19 builds), weak session identifiers (9), session
-cookie attributes (8), a session still valid after signing out (8). None of these falls in one arm more than another
-at five builds a cell. The own-code findings are above: almost every app's `.gitignore` leaves `.env` committable,
-except where the check said so and the builder fixed it.
+Added on 6 October 2026, at the owner's asking, from the same seventy reports (`item6-findings.json`, every finding of
+every build; `vuln_chart.py` draws `fig8-findings-by-group.png`). With every arm testable, the security measures can
+be read for the first time, and they split in two.
+
+**In the code, what `securevibe_check` can see, the loop arm had almost none.** Findings per build, low and above:
+
+| Arm | Sonnet 5.5 | Haiku 4.5 |
+|---|---|---|
+| none (spec only) | 2.0 | 4.2 |
+| instructions | 2.0 | 4.2 |
+| check, refused | 2.0 | 5.6 |
+| check, hidden | 0.8 | 3.2 |
+| plan, refused | 2.0 | 6.0 |
+| plan, hidden | 2.0 | 4.8 |
+| **loop** | **0.6** | **0.4** |
+
+Builds with each, of ten per arm: the committable `.env` (high) 8 to 10 in every other arm, 5 in the loop; a weak
+password key derivation (medium) 2 to 5, and 0; a credential assigned in code (high) 1 to 3, and 0; no security contact
+(low) 4 to 10, and 0. **By the protocol's rule this is a difference, the first in the loop trials:** counting findings
+of every severity, every loop build has fewer than every build of five of the other six arms, for both models. The
+arm it is not below is check hidden, the other arm whose builders ran the check. Counting medium and high only, it
+holds for Haiku against check refused, plan refused, and plan hidden, and not for Sonnet, where nearly every build in
+every arm has the one `.env` finding. So what can be said is that builders that ran the check fixed what it named, and
+the code shows it; not that the apps became safer in general.
+
+**In the running app, what only `sv run` sees, every arm is the same.** Findings per ten checks answered, medium and
+above: Sonnet 0.8 to 1.1 in every arm (loop 1.0), Haiku 2.0 to 2.6 (loop 2.4). The most common: the AI feature passing
+hidden instructions on, or giving its own away (3 to 7 builds an arm); missing security headers; no limit on wrong
+passwords (2 to 4 an arm, the loop 4). The model matters far more than the arm: Haiku's apps have about two and a half
+times Sonnet's.
+
+**Why.** `securevibe_check` reads files; the running-app checks happen in `sv run`, which the MCP server does not
+start, so nothing tells the builder about them. The loop fixes what it is told. The backlog has the next step: say
+before the build ends what the code can already show about the running app.
 
 ## Cost and time
 

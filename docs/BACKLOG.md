@@ -1950,9 +1950,12 @@ another session is not a claim.
   **Item 6 done on 6 October 2026** (DESIGN, "The loop at scale"; `docs/prompts/loop-scale/README.md`): seventy
   builds, $21.34, with the specification in every request (protocol amendment 3) and the check and plan arms also run
   with the other tools hidden (amendment 4). Every Sonnet build could be tested, in every arm; Haiku varied within
-  every arm, and no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
+  every arm, and on testability no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
   (every build checked; all five Haiku and two Sonnet again after a fix), and fixed what the check named: the
   committable `.env` in five loop builds, against 56 of 59 builds in the other arms that kept it.
+  **Later, 6 October 2026, at the owner's asking** (`loop-scale/README.md`, "Findings by group"): counted by group,
+  the loop arm's builds had fewer findings in their code than every build of five of the six other arms, for both
+  models, the first difference by the protocol's rule; the running apps' findings were the same in every arm.
 
 - **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
   trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
@@ -1969,6 +1972,17 @@ another session is not a claim.
   every arm's request includes the specification, so the comparison is of what the loop adds beyond it.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
+
+- **Tell the builder, before it is done, what the code already shows about the running app.** Found on 6 October
+  2026 by session paper-facts, counting item 6's findings by group: the loop arm fixed nearly every problem in its
+  code that `securevibe_check` named, and its running apps had as many problems as every other arm's (per ten checks
+  answered, Sonnet 1.0 against 0.8 to 1.1, Haiku 2.4 against 2.0 to 2.6), because `sv run`'s checks are the only ones
+  that see them and the MCP server never starts the app. Several of the commonest are visible in the code without
+  running it: no limit on wrong passwords, the security headers, the session cookie's attributes, the AI feature's
+  screening of what it is sent. A part of `securevibe_preflight` (ADR-035), or of the check, that reads the code for
+  these and says "`sv run` will look for this, and the code does not seem to have it", running nothing, would give the
+  builder the chance the loop already takes with what the check says. Each would credit nothing, as the preflight
+  does; the run stays the evidence. The next loop trial could measure whether the running apps' findings then fall.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
