@@ -218,6 +218,21 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
         )),
     }
     let start = start.unwrap_or_default();
+    // The file the start command runs, named the way the seed's is: two loop builds wrote
+    // `start = "python app.py"` with no `app.py`, and `sv run` could not start them (6 October 2026).
+    for file in files_in_command(&start, source).1 {
+        let mut words = vec![
+            sv("The start command names "),
+            app(file),
+            sv(", which is not in the app's folder."),
+        ];
+        if let Some(build) = set(&run.build) {
+            words.push(sv(&format!(
+                " If the build step (`{build}`) makes it, ignore this."
+            )));
+        }
+        items.push(Item::new("start", Answer::Look, words));
+    }
 
     // Listening on every address.
     let everywhere =
@@ -586,6 +601,60 @@ mod tests {
             .filter(|i| i.topic == topic)
             .map(|i| i.answer)
             .collect()
+    }
+
+    /// Everything an item says, `sv`'s words and the app's names together.
+    fn said(item: &Item) -> String {
+        item.says
+            .iter()
+            .map(|p| match p {
+                Part::Sv(t) | Part::App(t) => t.as_str(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_start_command_naming_a_file_that_is_not_there_is_said() {
+        // The loop's item 6, 6 October 2026: `start = "python app.py"` with no `app.py`.
+        let items = preflight(
+            &manifest(RUN),
+            &source(&[("main.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
+        );
+        let start: Vec<&Item> = items
+            .iter()
+            .filter(|i| i.topic == "start" && i.answer == Answer::Look)
+            .collect();
+        assert_eq!(start.len(), 1, "{items:?}");
+        assert!(
+            said(start[0]).contains("app.py, which is not in the app's folder"),
+            "{}",
+            said(start[0])
+        );
+        // A build step may make it, and is named.
+        let built = RUN.replace(
+            "start = \"python app.py\"",
+            "start = \"python app.py\"\nbuild = \"python make.py\"",
+        );
+        let items = preflight(
+            &manifest(&built),
+            &source(&[("main.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
+        );
+        assert!(
+            items.iter().any(|i| i.topic == "start"
+                && said(i).contains("If the build step (`python make.py`) makes it")),
+            "{items:?}"
+        );
+        // The control: with the file there, nothing is said about it.
+        let items = preflight(
+            &manifest(RUN),
+            &source(&[("app.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
+        );
+        assert!(
+            !items
+                .iter()
+                .any(|i| i.topic == "start" && i.answer == Answer::Look),
+            "{items:?}"
+        );
     }
 
     #[test]

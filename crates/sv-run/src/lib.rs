@@ -59,6 +59,9 @@ pub enum CannotRun {
         waited_seconds: u64,
         detail: String,
         loopback: Option<&'static str>,
+        /// Whether its output shows it stopped with an error, which `detail` quotes. Then the error
+        /// is the cause, and a guess about where it listens would only crowd it.
+        crashed: bool,
     },
     /// The app's folder has files on this computer and arrived empty in the container: the
     /// container backend cannot see it. Colima shares only the home folder by default, and Docker
@@ -87,6 +90,7 @@ impl CannotRun {
                 waited_seconds,
                 detail,
                 loopback,
+                crashed,
             } => format!(
                 "The app started but never answered on its health path within {waited_seconds}s. \
                  {detail} {} This is reported as not assessed rather than as a failure: an app that \
@@ -95,6 +99,8 @@ impl CannotRun {
                     "The app tried to write outside the places it may: while `sv` runs it, its \
                      file system is read-only apart from /tmp, so keep its data under /tmp."
                         .to_owned()
+                } else if *crashed {
+                    "That error is why: fix it, and run this again.".to_owned()
                 } else {
                     match loopback {
                         Some(name) => format!(
@@ -845,6 +851,7 @@ mod tests {
             detail: "Its last output was: OSError: [Errno 30] Read-only file system: '/data'"
                 .to_owned(),
             loopback: None,
+            crashed: false,
         }
         .explain();
         assert!(refused.contains("keep its data under /tmp"), "{refused}");
@@ -853,6 +860,7 @@ mod tests {
             waited_seconds: 60,
             detail: "Its last output was: ModuleNotFoundError: No module named 'flask'".to_owned(),
             loopback: None,
+            crashed: false,
         }
         .explain();
         assert!(!other.contains("/tmp"), "{other}");
@@ -865,6 +873,7 @@ mod tests {
             waited_seconds: 60,
             detail: "Its last output was: WARNING: This is a development server.".to_owned(),
             loopback: None,
+            crashed: false,
         }
         .explain();
         assert!(unnamed.contains("127.0.0.1 or localhost"), "{unnamed}");
@@ -875,6 +884,7 @@ mod tests {
             waited_seconds: 60,
             detail: "Its last output was: WARNING: This is a development server.".to_owned(),
             loopback: Some("127.0.0.1"),
+            crashed: false,
         }
         .explain();
         assert!(
@@ -888,9 +898,21 @@ mod tests {
             detail: "Its last output was: OSError: [Errno 30] Read-only file system: '/data'"
                 .to_owned(),
             loopback: None,
+            crashed: false,
         }
         .explain();
         assert!(!read_only.contains("0.0.0.0"), "{read_only}");
+        // An app that crashed is told its error is why, and not given a guess about where it
+        // listens, even when its start command names a loopback address (the loop's item 6).
+        let crashed = CannotRun::NeverReady {
+            waited_seconds: 60,
+            detail: "It stopped with an error: KeyError: 'PORT_NUMBER'".to_owned(),
+            loopback: Some("127.0.0.1"),
+            crashed: true,
+        }
+        .explain();
+        assert!(crashed.contains("That error is why"), "{crashed}");
+        assert!(!crashed.contains("0.0.0.0"), "{crashed}");
     }
 
     #[test]
@@ -1364,11 +1386,13 @@ mod tests {
                 waited_seconds: 30,
                 detail: "no reply".into(),
                 loopback: None,
+                crashed: false,
             },
             CannotRun::NeverReady {
                 waited_seconds: 30,
                 detail: "no reply".into(),
                 loopback: Some("localhost"),
+                crashed: false,
             },
         ] {
             let text = reason.explain();
