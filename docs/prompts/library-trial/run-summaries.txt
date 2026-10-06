@@ -1,0 +1,2012 @@
+== haiku-none-1 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-none-10 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-none-2 (exit 2, run {'state': 'could-not-start', 'why': "The app started but never answered on its health path within 60s. Its last output was: python: can't open file '/app/app.py': [Errno 2] No such file or directory One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure."})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-3 (exit 3, no report:        | ^^^^^^^ /     `can-act` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `can-act` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-none-4 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: Signing in as the first test user got no answer from the app.
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: This needs a page only a signed-in user should see, listed under `private` in [stack.run.users], to be refused to somebody who has not signed in.
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-5 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-none-6 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-none-7 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-none-8 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-none-9 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_design_limits-1 (exit 3, no report: Error: no securevibe.toml in ~/sv-prompts/runs/haiku-p_design_limits-1. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-p_design_limits-10 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_design_limits-2 (exit 0, run {'answered': 42, 'asked': 42, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: Signing in as the first test user did not open /account — the sign-in request, the accounts, or the page is not what securevibe.toml says — so nothing here can 
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_design_limits-3 (exit 3, no report: Error: no securevibe.toml in ~/sv-prompts/runs/haiku-p_design_limits-3. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-p_design_limits-4 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_design_limits-5 (exit 3, no report: Error: no securevibe.toml in ~/sv-prompts/runs/haiku-p_design_limits-5. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-p_design_limits-6 (exit 3, no report: Error: no securevibe.toml in ~/sv-prompts/runs/haiku-p_design_limits-6. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-p_design_limits-7 (exit 3, no report: Error: no securevibe.toml in ~/sv-prompts/runs/haiku-p_design_limits-7. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-p_design_limits-8 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Of the 20 copies of POST /book sent at the same instant, only the first user's went through, and a rate limit turned 1 away (429) before they reached the action
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_design_limits-9 (exit 3, no report: Error: no securevibe.toml in ~/sv-prompts/runs/haiku-p_design_limits-9. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-p_password_hashing-1 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: FOUND
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_password_hashing-10 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_password_hashing-2 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: -
+      gap V8.2.2: Another user's records, and requests from another site: securevibe.toml lists no `owned` record under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: securevibe.toml lists no `owned` record to create.
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_password_hashing-3 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_password_hashing-4 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_password_hashing-5 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.2: The first user could not read back the record they created at /notes/1 (200), so another user being refused it would prove nothing.
+      gap V8.3.1: Admin actions whose refusal says nothing, because the admin could not be shown to do them either: POST /announcements (the admin's own request did not show on /
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_password_hashing-6 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. Its last output was: Defaulting to user installation because normal site-packages is not writeable Its build step (`pip install argon2-cffi`) ran inside the fence, where nothing can be downloaded and the file system is read-only apart from /tmp, so a step that installs packages cannot work there: install them into the image instead. One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_password_hashing-7 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_password_hashing-8 (exit 3, no report:        | ^^^^^ /     `ci-cd` is not a field of [capabilities]. Did you mean [repository]? `ci-cd` is a field there. /     The fields [capabilities] takes are `auth`, `oauth`, `authorization-server`, `mcp-server`, `jwt`, `uploads`, `payments`, `email`, `public-api`, `scheduler`, `multi-tenant`, `webrtc`, `external-apis`, `tls`, `out-of-band-auth`, `shared-hostname`, `multiple-services`, `ai`.)
+
+== haiku-p_password_hashing-9 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_private_pages_no_store-1 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: [stack.run.users] in securevibe.toml cannot be used: `admin-actions` are listed without `seed`, and an admin can only be made by `seed`; `admin` pages are liste
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_private_pages_no_store-10 (exit 3, no report:     21 | private = ["/account", "/notes", "/book", "/ask", "/admin"] /        |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ /     invalid type: sequence, expected a string)
+
+== haiku-p_private_pages_no_store-2 (exit 3, no report:     59 | [capabilities.ai] /        |               ^^ /     duplicate key)
+
+== haiku-p_private_pages_no_store-3 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_private_pages_no_store-4 (exit 3, no report:     38 | ai = true /        |      ^^^^ /     invalid type: boolean `true`, expected struct AiClaims (in [capabilities]))
+
+== haiku-p_private_pages_no_store-5 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_private_pages_no_store-6 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 400, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_private_pages_no_store-7 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: [stack.run.users] in securevibe.toml cannot be used: `admin-actions` are listed without `seed`, and an admin can only be made by `seed`; `admin` pages are liste
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_private_pages_no_store-8 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_private_pages_no_store-9 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_secrets_in_the_environment-1 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_secrets_in_the_environment-10 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_secrets_in_the_environment-2 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_secrets_in_the_environment-3 (exit 3, no report:     26 | signup = false /        |          ^^^^^ /     invalid type: boolean `false`, expected struct RequestTemplate (in [stack.run.users]))
+
+== haiku-p_secrets_in_the_environment-4 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_secrets_in_the_environment-5 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_secrets_in_the_environment-6 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. Its last output was: self.RequestHandlerClass(request, client_address, self) One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_secrets_in_the_environment-7 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_secrets_in_the_environment-8 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_secrets_in_the_environment-9 (exit 3, no report:     22 | signup = false /        |          ^^^^^ /     invalid type: boolean `false`, expected struct RequestTemplate (in [stack.run.users]))
+
+== haiku-p_security_headers-1 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_security_headers-10 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_security_headers-2 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_security_headers-3 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_security_headers-4 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: [stack.run.users] in securevibe.toml cannot be used: neither `seed` nor `signup` is set, so no accounts can be made; `admin-actions` are listed without `seed`, 
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_security_headers-5 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: Signing in as the first test user did not open /account — the sign-in request, the accounts, or the page is not what securevibe.toml says — so nothing here can 
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: FOUND
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: This needs a page only a signed-in user should see, listed under `private` in [stack.run.users], to be refused to somebody who has not signed in.
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_security_headers-6 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. Its last output was: Traceback (most recent call last): One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_security_headers-7 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_security_headers-8 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_security_headers-9 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 403, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_sessions_hard_to_steal-1 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_sessions_hard_to_steal-10 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the last of the 11 sent through /notes was refused with 400, which is not how a limit answers (429 Too Many Requests, or 50
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_sessions_hard_to_steal-2 (exit 0, run {'answered': 38, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_sessions_hard_to_steal-3 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_sessions_hard_to_steal-4 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_sessions_hard_to_steal-5 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: Signing in as the first test user did not open /account — the sign-in request, the accounts, or the page is not what securevibe.toml says — so nothing here can 
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: This needs a page only a signed-in user should see, listed under `private` in [stack.run.users], to be refused to somebody who has not signed in.
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_sessions_hard_to_steal-6 (exit 3, no report:        | ^^^^^^^ /     `enabled` is not a field of [stack.run.ai]. Did you mean [capabilities.ai]? `enabled` is a field there. /     The fields [stack.run.ai] takes are `chat`, `signed-in`, `base-url-env`, `kill-switch`, `mcp-url-env`, `record-tool`, `reads-owned`.)
+
+== haiku-p_sessions_hard_to_steal-7 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== haiku-p_sessions_hard_to_steal-8 (exit 2, run {'state': 'could-not-start', 'why': "The app started but never answered on its health path within 60s. Its last output was: python: can't open file '/app/app.py': [Errno 2] No such file or directory One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure."})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-p_sessions_hard_to_steal-9 (exit 3, no report:     39 | ai = true /        |      ^^^^ /     invalid type: boolean `true`, expected struct AiClaims (in [capabilities]))
+
+== sonnet-none-1 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-10 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-2 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-3 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-4 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: -
+      gap V8.2.2: Creating a record as the first user did not work (403), or did not say where it went, so there is nothing to ask another user to read.
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: credited
+      gap V2.4.1: Whether creating records is limited: the first of the burst through /notes was refused (403), so a refusal later on shows nothing.
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-5 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-6 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-7 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.2: Creating a record as the first user did not work (403), or did not say where it went, so there is nothing to ask another user to read.
+      gap V8.3.1: Admin actions whose refusal says nothing, because the admin could not be shown to do them either: POST /announcements (the admin's own request did not show on /
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: None of the 20 copies of POST /book sent at the same instant went through (no answer said "Booked"). Check `once` in securevibe.toml, and that the app starts th
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: credited
+      gap V2.4.1: Whether creating records is limited: the first of the burst through /notes was refused (403), so a refusal later on shows nothing.
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+      gap V7.4.1: Whether signing out ends the session: the sign-out request itself was refused (403), so there was no sign-out to test. Check `logout` in securevibe.toml.
+
+== sonnet-none-8 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-9 (exit 0, run {'answered': 39, 'asked': 39, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-1 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-10 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-2 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-3 (exit 0, run {'answered': 41, 'asked': 41, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-4 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-5 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-6 (exit 0, run {'answered': 42, 'asked': 42, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: FOUND
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-7 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_ai_feature_guard-8 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. Its last output was: error: TypeError("Handler.get_home() missing 1 required positional argument: \'self\'") One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== sonnet-p_ai_feature_guard-9 (exit 0, run {'answered': 40, 'asked': 40, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: credited
+    probe.other-users-data: credited
+      gap V8.3.1: A role written into the sign-up form: this needs both `signup` and an `admin` page under [stack.run.users].
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: credited
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+

@@ -1,7 +1,7 @@
 # Prompts for your AI coding tool
 
 These are instructions you can paste into the AI tool that builds your app (Claude Code, Cursor, Copilot, or
-another). Each one asks for something SecureVibe checks, and all but the four newest have been tried: the same small app was built
+another). Each one asks for something SecureVibe checks, and all but the newest have been tried: the same small app was built
 twice, once with the prompt and once without, and `sv` checked both. A prompt is listed under "Shown to work" only
 when the build with it passed its check and the build without it failed. The rest are listed apart, marked
 **not tested**, with what happened: they are worth using, but a prompt that has not been shown to change anything
@@ -64,11 +64,13 @@ than creating it, so "it creates" became "it prints". Nothing else in the prompt
 password or key committed to the history ran. Without it, the folder was not a git repository, so that check
 could not run.
 
-## Not yet shown to work
+### Send the security headers on every page
 
-**Not tested.** Each of these asks for something sound, and every build that used one did what it asked. But the
-test could not show that the prompt made the difference, so none of them has been shown to work. Use them, and
-check the result with `sv` as you would anything else.
+> Send these headers on every response the app gives, error pages and the home page included: a Content-Security-Policy that starts from `default-src 'self'` and includes `frame-ancestors 'none'` (or `'self'` if the app frames its own pages), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` or stricter. Set them in one place that every response passes through, so a new page cannot leave them out.
+
+*Requirements:* ASVS V3.4.3, V3.4.4, V3.4.5, V3.4.6.
+
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 6. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
 
 ### Keep keys and passwords out of the code
 
@@ -76,7 +78,29 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V13.3.1.
 
-*Not tested:* The build without the prompt already read its key from the environment, so there was nothing for the prompt to change.
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the check found a key in the code or a .env the .gitignore left committable in 6 of the 6 builds with a readable securevibe.toml; with it in 1 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 25, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. To be checked again: six of the ten builds with this prompt wrote a securevibe.toml sv could not read, against three of ten without it, which may be chance at this size or the prompt crowding out the specification.
+
+### Keep private pages out of the browser's cache
+
+> Send `Cache-Control: no-store` on every response that shows somebody's own data or anything only a signed-in person may see, its JSON answers and error pages included. `no-cache` and `private` are not enough: both let the browser keep a copy. Set it in one place that every signed-in response passes through, so a new page cannot leave it out. Write a test that a private page sends it.
+
+*Requirement:* ASVS V14.3.2.
+
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt a private page was left cacheable in 5 of the 5 builds whose private pages sv could open; with it in 0 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 22, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
+
+### Guard what goes into the AI feature and what comes out of it
+
+> Treat everything that reaches the model as untrusted: what people type, and any text the app adds from its own records. Before a message goes to the model, screen it for prompt-injection attempts, with a maintained classifier or a ruleset of the known patterns ("ignore your instructions", "reveal your system prompt" and the like), and refuse a flagged message with a plain explanation instead of sending it. Before a reply leaves the server, check it too: hold back or redact a reply that repeats the model's instructions or anything else meant only for the model, and keep secrets out of the instructions altogether; remove invisible and direction-changing characters (zero-width characters, Unicode tag characters, bidirectional overrides), and show each link's real address or drop a link whose text is a different address from its target. Write a test for each: an injection attempt is refused, a reply that repeats the instructions is held back, and a reply with hidden characters reaches the page without them.
+
+*Requirements:* AISVS C2.1.3, C7.3.2, C7.3.4.
+
+*What it showed (6 October 2026, Sonnet 5.5, ten builds with it and ten without):* Without the prompt, all ten builds passed the textbook prompt injection to the model, passed on a reply repeating their instructions, and let a reply's hidden characters or misleading link reach the page. With it, none of the nine whose AI feature answered did any of the three. As many apps started and could be signed in to (10 and 9), with the same median of running-app checks answered (32 and 32): no harm by the trial's rule.
+
+## Not yet shown to work
+
+**Not tested.** Each of these asks for something sound, and every build that used one did what it asked. But the
+test could not show that the prompt made the difference, so none of them has been shown to work. Use them, and
+check the result with `sv` as you would anything else.
 
 ### Build every database query with placeholders
 
@@ -108,7 +132,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V11.4.1, V11.4.4.
 
-*Not tested:* The build without the prompt already used a proper password hash.
+*Not tested:* The build without the prompt already used a proper password hash. Tried again on 6 October 2026 with Haiku 4.5: no reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8.
 
 ### Send people back only to pages on the same site
 
@@ -125,14 +149,6 @@ check the result with `sv` as you would anything else.
 *Requirement:* ASVS V1.3.1.
 
 *Not tested:* The build without the prompt allowed only a few safe tags itself. `sv`'s check reads which libraries an app uses, so it could not judge that build either way.
-
-### Send the security headers on every page
-
-> Send these headers on every response the app gives, error pages and the home page included: a Content-Security-Policy that starts from `default-src 'self'` and includes `frame-ancestors 'none'` (or `'self'` if the app frames its own pages), `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` or stricter. Set them in one place that every response passes through, so a new page cannot leave them out.
-
-*Requirements:* ASVS V3.4.3, V3.4.4, V3.4.5, V3.4.6. Not from the guide, which has no item on headers.
-
-*Not tested:* Both builds without the prompt already sent these headers from one place.
 
 ### Let other sites read the app only by name
 
@@ -158,39 +174,23 @@ check the result with `sv` as you would anything else.
 
 *Not tested:* Both builds without the prompt already refused all of these.
 
+### Make the session hard to steal, and end it properly
+
+> If the app keeps its own sessions, make each session id with the platform's cryptographically secure random generator, at least 128 bits of it (in Python, `secrets.token_urlsafe(32)`), and a new one at every sign-in. Send it only in a cookie set with HttpOnly and SameSite=Lax (or Strict), and Secure once the app is served over HTTPS, and never put it in a page, an address, or anything a script can read. When someone signs out, or a session expires, delete it on the server, so the old id opens nothing: clearing the browser's cookie is not enough. Where the framework's own session handling does all of this, use it rather than writing your own. Write a test for each: the cookie's attributes, and a session used again after signing out is refused.
+
+*Requirements:* ASVS V3.3.2, V3.3.4, V7.2.3, V7.4.1.
+
+*Not tested:* No reading by the trial's rule: without the prompt a session fault was there in 4 of the 5 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. Reading builds 1, 4 and 7, each did all the prompt asks.
+
 ## Not tried yet
 
-Written on 6 October 2026 for the commonest problems the loop trials found that no prompt above covers (`docs/prompts/loop-scale/README.md`, "Findings by group"). Each is held to a check like the others, and none has been tried: the prompt-library trial (BACKLOG, "Test the prompt library where the prompts have something to fix") will try them.
-
-### Guard what goes into the AI feature and what comes out of it
-
-> Treat everything that reaches the model as untrusted: what people type, and any text the app adds from its own records. Before a message goes to the model, screen it for prompt-injection attempts, with a maintained classifier or a ruleset of the known patterns ("ignore your instructions", "reveal your system prompt" and the like), and refuse a flagged message with a plain explanation instead of sending it. Before a reply leaves the server, check it too: hold back or redact a reply that repeats the model's instructions or anything else meant only for the model, and keep secrets out of the instructions altogether; remove invisible and direction-changing characters (zero-width characters, Unicode tag characters, bidirectional overrides), and show each link's real address or drop a link whose text is a different address from its target. Write a test for each: an injection attempt is refused, a reply that repeats the instructions is held back, and a reply with hidden characters reaches the page without them.
-
-*Requirements:* AISVS C2.1.3, C7.3.2, C7.3.4.
-
-*Not tested:* not tried yet.
+Written on 6 October 2026, with three others now above, for the commonest problems the loop trials found that no prompt covered (`docs/prompts/loop-scale/README.md`, "Findings by group"). It was left out of the prompt-library trial (`docs/prompts/library-trial/`): the trial's app seldom tempted this shortcut (in 2 of 8 Haiku builds and none of 10 Sonnet builds without any prompt), so it could not have shown anything. It needs an app that does.
 
 ### Accept changes only from the app's own pages
 
 > Every request that changes something (a form sent, an API call that creates, edits, or deletes) must carry an anti-forgery token that the app gave the page it came from, and the server refuses a request without a valid one; or the server checks the request's Origin header against the app's own address and refuses any other. Do both where the framework allows. Set SameSite=Lax or Strict on the session cookie as well, but as a second line, not instead of the check. Write a test that sends a change from another site's address without the token and shows it is refused.
 
 *Requirements:* ASVS V3.5.1.
-
-*Not tested:* not tried yet.
-
-### Keep private pages out of the browser's cache
-
-> Send `Cache-Control: no-store` on every response that shows somebody's own data or anything only a signed-in person may see, its JSON answers and error pages included. `no-cache` and `private` are not enough: both let the browser keep a copy. Set it in one place that every signed-in response passes through, so a new page cannot leave it out. Write a test that a private page sends it.
-
-*Requirements:* ASVS V14.3.2.
-
-*Not tested:* not tried yet.
-
-### Make the session hard to steal, and end it properly
-
-> If the app keeps its own sessions, make each session id with the platform's cryptographically secure random generator, at least 128 bits of it (in Python, `secrets.token_urlsafe(32)`), and a new one at every sign-in. Send it only in a cookie set with HttpOnly and SameSite=Lax (or Strict), and Secure once the app is served over HTTPS, and never put it in a page, an address, or anything a script can read. When someone signs out, or a session expires, delete it on the server, so the old id opens nothing: clearing the browser's cookie is not enough. Where the framework's own session handling does all of this, use it rather than writing your own. Write a test for each: the cookie's attributes, and a session used again after signing out is refused.
-
-*Requirements:* ASVS V3.3.2, V3.3.4, V7.2.3, V7.4.1.
 
 *Not tested:* not tried yet.
 

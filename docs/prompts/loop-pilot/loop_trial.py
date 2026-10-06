@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds the club app with a headless AI coding tool, one build per call, for the loop trials.
 
-    python3 loop_trial.py OUT ARM MODEL N [--budget USD] [--api] [--with-spec]
+    python3 loop_trial.py OUT ARM MODEL N [--budget USD] [--api] [--with-spec] [--prompt ID]
 
 Follows docs/prompts/loop-protocol.md. OUT is a folder under the home folder (Colima shares only that). Each build
 gets a fresh folder OUT/<model>-<arm>-<n>, the request (docs/prompts/trial-3/plain-brief.md) as its prompt, and,
@@ -55,7 +55,9 @@ def instructions(folder):
 
 def build(out, arm, model, n, budget, api):
     attach, sv_tools, with_instructions = ARMS[arm]
-    name = f'{model}-{arm}-{n}'
+    # A prompt arm is named after its prompt, with `_` for `-`, so a build's name still splits as model-arm-n.
+    label = ('p_' + sys.argv[sys.argv.index('--prompt') + 1].replace('-', '_')) if '--prompt' in sys.argv else arm
+    name = f'{model}-{label}-{n}'
     folder = os.path.join(out, name)
     os.makedirs(folder, exist_ok=False)
     request = open(os.path.join(REPO, 'docs/prompts/trial-3/plain-brief.md')).read()
@@ -66,6 +68,13 @@ def build(out, arm, model, n, budget, api):
         spec = subprocess.run([SV, 'init'], capture_output=True, text=True, timeout=60, check=True).stdout
         request = ("This is SecureVibe's specification for the securevibe.toml my apps need:\n\n" + spec
                    + '\n\n---\n\n' + request)
+    # The prompt-library trial (docs/prompts/library-trial/protocol.md): one library prompt added at the end.
+    if '--prompt' in sys.argv:
+        pid = sys.argv[sys.argv.index('--prompt') + 1]
+        library = [q for f in ('data/prompts.json', 'data/design-prompts.json')
+                   for q in json.load(open(os.path.join(REPO, f)))['prompts']]
+        text = next(q['prompt'] for q in library if q['id'] == pid)
+        request = request.rstrip('\n') + '\n\nFollow this while you build:\n\n' + text + '\n'
     if with_instructions:
         request = ('These are the instructions SecureVibe gives an AI coding tool; follow them:\n\n'
                    + instructions(folder) + '\n\n---\n\n' + request)

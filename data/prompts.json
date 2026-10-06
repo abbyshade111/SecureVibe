@@ -67,12 +67,12 @@
       },
       "inspired_by": "the guide's Security fundamentals: avoid hardcoded secrets",
       "tested": {
-        "date": "2026-10-03",
-        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key; then a Node.js recipe app inviting the shortcut (docs/prompts/trial-2/brief.md)",
-        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "The build without already read the API key from the environment, and the secrets scan found nothing in either: on this brief, with this model, the prompt changed nothing a check can see. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again read the key from the environment with a .gitignore leaving .env out, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md)."
+        "date": "2026-10-06",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
+        "result": "Without the prompt the check found a key in the code or a .env the .gitignore left committable in 6 of the 6 builds with a readable securevibe.toml; with it in 1 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 25, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. To be checked again: six of the ten builds with this prompt wrote a securevibe.toml sv could not read, against three of ten without it, which may be chance at this size or the prompt crowding out the specification. Before this, on 2026-10-03: The build without already read the API key from the environment, and the secrets scan found nothing in either: on this brief, with this model, the prompt changed nothing a check can see. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again read the key from the environment with a .gitignore leaving .env out, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md)."
       },
-      "status": "not-shown"
+      "status": "shown"
     },
     {
       "id": "database-placeholders",
@@ -171,10 +171,10 @@
       },
       "inspired_by": "the guide's Application security: strong cryptography",
       "tested": {
-        "date": "2026-10-03",
-        "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key; then a Node.js recipe app inviting the shortcut (docs/prompts/trial-2/brief.md)",
-        "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "The build without already hashed passwords with Werkzeug's `generate_password_hash`; the build with used Argon2id. Neither was flagged. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again hashed passwords with Node's `scrypt`, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md)."
+        "date": "2026-10-06",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
+        "result": "No reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8. Before this, on 2026-10-03: The build without already hashed passwords with Werkzeug's `generate_password_hash`; the build with used Argon2id. Neither was flagged. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again hashed passwords with Node's `scrypt`, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md)."
       },
       "status": "not-shown"
     },
@@ -249,12 +249,12 @@
       },
       "inspired_by": "not the guide, which has no item on headers: OWASP ASVS 5.0 section V3.4, which sv checks on the running app",
       "tested": {
-        "date": "2026-10-04",
-        "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
-        "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
-        "result": "Both builds without the prompt already sent a Content-Security-Policy with frame-ancestors, X-Content-Type-Options, and a Referrer-Policy from the one function every answer passes through, and probe.security-headers credited all six builds. The same build with those headers taken out was caught, so the check can see them missing on this app."
+        "date": "2026-10-06",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
+        "result": "Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 6. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. Before this, on 2026-10-04: Both builds without the prompt already sent a Content-Security-Policy with frame-ancestors, X-Content-Type-Options, and a Referrer-Policy from the one function every answer passes through, and probe.security-headers credited all six builds. The same build with those headers taken out was caught, so the check can see them missing on this app."
       },
-      "status": "not-shown"
+      "status": "shown"
     },
     {
       "id": "cross-site-access",
@@ -358,7 +358,13 @@
         "fails_when": "any of the three is a finding"
       },
       "inspired_by": "not the guide: OWASP AISVS 1.0, C2.1.3, C7.3.2, and C7.3.4, which sv checks on the running app; written on 6 October 2026 because these were the commonest running-app findings in the loop trials' item 6",
-      "status": "untested"
+      "status": "shown",
+      "tested": {
+        "date": "2026-10-06",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Sonnet 5.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
+        "result": "Without the prompt, all ten builds passed the textbook prompt injection to the model, passed on a reply repeating their instructions, and let a reply's hidden characters or misleading link reach the page. With it, none of the nine whose AI feature answered did any of the three. As many apps started and could be signed in to (10 and 9), with the same median of running-app checks answered (32 and 32): no harm by the trial's rule."
+      }
     },
     {
       "id": "changes-from-own-pages",
@@ -396,7 +402,13 @@
         "fails_when": "probe.private-page-cached is a finding"
       },
       "inspired_by": "not the guide: OWASP ASVS 5.0, V14.3.2, which sv checks on the running app; written on 6 October 2026, from the loop trials' item 6",
-      "status": "untested"
+      "status": "shown",
+      "tested": {
+        "date": "2026-10-06",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
+        "result": "Without the prompt a private page was left cacheable in 5 of the 5 builds whose private pages sv could open; with it in 0 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 22, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here."
+      }
     },
     {
       "id": "sessions-hard-to-steal",
@@ -420,7 +432,13 @@
         "fails_when": "any of the three is a finding"
       },
       "inspired_by": "the guide's Security fundamentals: secure session management; reworded and made checkable on 6 October 2026, from the loop trials' item 6",
-      "status": "untested"
+      "status": "not-shown",
+      "tested": {
+        "date": "2026-10-06",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
+        "result": "No reading by the trial's rule: without the prompt a session fault was there in 4 of the 5 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. Reading builds 1, 4 and 7, each did all the prompt asks."
+      }
     }
   ]
 }
