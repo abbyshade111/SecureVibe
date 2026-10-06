@@ -2876,6 +2876,9 @@ mod tests {
         uses_bad_shape: bool,
         /// It asks for a shape and fails, 500, on an answer that does not fit.
         crashes_on_bad_shape: bool,
+        /// It asks for a shape, asks the model again when an answer does not fit, and runs into its
+        /// own limit: 429 with `Retry-After`.
+        limits_bad_shape: bool,
     }
 
     /// How the fake app writes its model calls and the injection to its output.
@@ -3344,6 +3347,11 @@ mod tests {
             if self.flaws.asks_for_shape && reply.contains("SVBAD") {
                 if self.flaws.crashes_on_bad_shape {
                     return answer(500, "Internal Server Error".into());
+                }
+                if self.flaws.limits_bad_shape {
+                    let mut limited = answer(429, "{\"error\":\"slow down\"}".into());
+                    limited.headers.push(("retry-after".into(), "30".into()));
+                    return limited;
                 }
                 if !self.flaws.uses_bad_shape {
                     reply = "Sorry, the assistant could not answer that.".into();
@@ -4640,6 +4648,36 @@ mod tests {
                 .any(|w| w.contains("did not show the test model's plain reply")),
             "{:?}",
             hides.not_assessed
+        );
+        // Refused by a limit before it reached the model: said so, never taken for an app with no
+        // shape.
+        let unreached = ask(Flaws {
+            asks_for_shape: true,
+            one_message_only: true,
+            ..Default::default()
+        });
+        assert!(!credited(&unreached).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&unreached, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("did not reach it")),
+            "{:?}",
+            unreached.not_assessed
+        );
+        // Reached the model, and the app's answer is a limiter's: it says nothing either way.
+        let limited = ask(Flaws {
+            asks_for_shape: true,
+            limits_bad_shape: true,
+            ..Default::default()
+        });
+        assert!(!credited(&limited).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(!found(&limited).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&limited, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("a limit on how often")),
+            "{:?}",
+            limited.not_assessed
         );
         // An app that asked for no shape: nothing to break.
         let plain = ask(Flaws::default());
