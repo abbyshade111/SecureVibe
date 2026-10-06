@@ -2078,6 +2078,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 earlier_fingerprints: Vec::new(),
                 marked_test_code: false,
                 bundled_library: None,
+                also_on_this_line: Vec::new(),
                 rule_id: compiled.rule.id.clone(),
                 title: compiled.rule.title.clone(),
                 severity: compiled.rule.severity,

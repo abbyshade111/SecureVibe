@@ -17,9 +17,12 @@ pub fn render(report: &Report) -> String {
         .iter()
         .filter(|s| s.verdict == sv_check::review::FALSE_ALARM)
         .collect();
+    // Each problem a result of its own, as the tools that read SARIF expect: one gathered into
+    // another on its line (`one_per_line`) is listed again beside it, under its own rule.
     let every: Vec<&sv_check::Finding> = report
         .findings
         .iter()
+        .flat_map(|f| std::iter::once(f).chain(f.also_on_this_line.iter()))
         .chain(false_alarms.iter().map(|s| &s.finding))
         .collect();
     let rules: Vec<Value> = {
@@ -370,6 +373,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
         }
     }
 

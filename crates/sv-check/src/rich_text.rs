@@ -301,6 +301,7 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: "config.rich-text-without-sanitizer".into(),
         title: "A rich-text editor is used and no HTML sanitizer is anywhere in the app".into(),
         severity: Severity::Medium,

@@ -5316,6 +5316,9 @@ fn decisions_then_reviews(
                 .iter()
                 .any(|d| d.line == f.location.line && still_found.contains(d.switch.rule_id))
     });
+    // What is left on one line of the code is one finding, the worst first, holding the others
+    // (ADR-023, Later, 6 October 2026). After the reviews, which are each about one problem.
+    reviewed.findings = sv_check::finding::one_per_line(std::mem::take(&mut reviewed.findings));
     reviewed
 }
 
@@ -5494,6 +5497,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            also_on_this_line: Vec::new(),
             rule_id: decided[0].switch.rule_id.to_owned(),
             title: "open".to_owned(),
             severity: sv_check::Severity::High,
@@ -5532,6 +5536,64 @@ mod tests {
             as_is(findings)
         });
         assert!(set_aside.findings.is_empty(), "{:?}", set_aside.findings);
+    }
+
+    #[test]
+    fn a_line_is_gathered_after_the_reviews_so_a_verdict_sets_aside_one_problem_only() {
+        let at = |rule: &str| {
+            let mut f = sv_check::Finding {
+                rule_id: rule.to_owned(),
+                title: rule.to_owned(),
+                severity: sv_check::Severity::High,
+                confidence: sv_check::Confidence::Medium,
+                location: sv_check::Location {
+                    file: "app.py".to_owned(),
+                    line: 5,
+                },
+                secret: None,
+                requirement_ids: Vec::new(),
+                cwe: Vec::new(),
+                description: String::new(),
+                impact: String::new(),
+                fix: String::new(),
+                also_reported_by: Vec::new(),
+                fingerprint: String::new(),
+                earlier_fingerprints: Vec::new(),
+                marked_test_code: false,
+                bundled_library: None,
+                also_on_this_line: Vec::new(),
+            };
+            f.fingerprint = format!("fp-{rule}");
+            f
+        };
+        // A review that sets aside `ast.eval` by its rule, as a counted false alarm does.
+        let out =
+            decisions_then_reviews(vec![at("ast.sql"), at("ast.eval")], &[], |mut findings| {
+                assert_eq!(findings.len(), 2, "the review sees each problem on its own");
+                findings.retain(|f| f.rule_id != "ast.eval");
+                sv_check::review::Outcome {
+                    findings,
+                    set_aside: Vec::new(),
+                    not_counted: Vec::new(),
+                }
+            });
+        assert_eq!(out.findings.len(), 1);
+        assert_eq!(out.findings[0].rule_id, "ast.sql");
+        assert!(
+            out.findings[0].also_on_this_line.is_empty(),
+            "{:?}",
+            out.findings
+        );
+        // The control: with nothing set aside, the line is one finding holding the other.
+        let out = decisions_then_reviews(vec![at("ast.sql"), at("ast.eval")], &[], |findings| {
+            sv_check::review::Outcome {
+                findings,
+                set_aside: Vec::new(),
+                not_counted: Vec::new(),
+            }
+        });
+        assert_eq!(out.findings.len(), 1);
+        assert_eq!(out.findings[0].also_on_this_line.len(), 1);
     }
 
     #[test]

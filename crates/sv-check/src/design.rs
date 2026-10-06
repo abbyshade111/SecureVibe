@@ -309,6 +309,7 @@ fn said_no(question: &Question, who: &Who) -> Finding {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: "design.answered-no".to_owned(),
         title: format!("{} no: {}", who.answered(), question.title.to_lowercase()),
         // The owner reporting a missing control is as certain as this gets; how bad it is depends
@@ -358,6 +359,7 @@ fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: "design.where-is-not-there".to_owned(),
         title: format!("`{path}` is not in this app"),
         severity: Severity::Low,
@@ -393,6 +395,7 @@ fn never_built(question: &Question, path: &str, who: &Who) -> Finding {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: "design.planned-never-built".to_owned(),
         title: format!("Decided, never built: {}", question.title.to_lowercase()),
         severity: Severity::Low,

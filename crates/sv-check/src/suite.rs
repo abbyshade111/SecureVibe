@@ -503,6 +503,7 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        also_on_this_line: Vec::new(),
         rule_id: NAME_MISMATCH.into(),
         title: format!("A test named for {requirement_id} shares no words with it"),
         severity: Severity::Info,
