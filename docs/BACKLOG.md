@@ -1152,6 +1152,11 @@ another session is not a claim.
      function's calls across the app's Python, and when every one passes the app's own route (`url_for(...)`) or a
      path on this site, keep the finding and say so, naming each call, as the owner decided for a destination a
      function checked (item 3 of "Three false alarms on code that does the safe thing"). Not made quiet.
+     **Done the same day** (DESIGN, "A redirect to a parameter every caller fills with the app's own route says
+     so"): the finding stays, and when every use of the function's name across the app's Python is a call, its
+     definition, or an import, and every call passes or leaves to a default what the rule counts as safe on its own,
+     it names each call and says removing the parameter only to clear the finding is not a fix. Python only. Ten
+     guards broken in turn, each caught.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
@@ -1316,6 +1321,11 @@ another session is not a claim.
      **The test claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking ("pick another item from
      the backlog"), in branch `claude/securevibe-e9-credit-census`: record every credit the test suite gives, by check,
      and fail when a check listed as findings-only is credited, or one never credited is not listed.
+     **Done the same day:** `Verified::new` writes each credit, with the place that gave it, to `SV_CREDIT_LOG` in a
+     debug build, and `tools/coverage.py --credits` holds the lists to it after CI's tests (DESIGN, "What the suite
+     credits is counted"). The first census found three more: `probe.password-hints` (V6.4.2) and
+     `secrets.credential-assignment` (V13.2.3) never credit and are now listed, and `probe.cors-any-origin` credits
+     but no test reached it, which one now does.
   2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
      refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
      refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
@@ -3468,6 +3478,9 @@ another session is not a claim.
       cited as met.
     - Decisions made in the week's code with no record, each costly to undo without its reasons, are the entry
       "Records owed" below.
+  - **The second, for the week to 5 October 2026: claimed on 5 October 2026 by session securevibe-e10**, at the
+    owner's asking ("do the ADR weekly review if it hasn't already been done yet"), in branch `claude/adr-review-2`.
+    The scheduled routine's first Monday (5 October) left no claim and no review here.
 
 - **Records owed, from the first weekly review of the decision records (30 September 2026).** Each is a decision
   in code merged that week with no record, and costly to undo without its reasons. Its reasons are mostly already in
