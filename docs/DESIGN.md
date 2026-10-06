@@ -10759,6 +10759,25 @@ and Go's subtest, with names that only look alike as its control) and
 its control). Eight guards were undone in turn. Seven were caught. The eighth, a separate rule for Vitest's ` > `, was
 caught by nothing because ` > ` is set off by spaces already, and it was taken out.
 
+## The outside tools run no program an app's repository names (6 October 2026)
+
+ADR-032 holds `sv`'s own `git` to running no program the app's repository names: `core.fsmonitor` in a planted
+`.git/config` runs a program on every `git ls-files`. The second weekly review of the decision records asked whether
+the outside tools `sv report --tools` runs in the app's folder keep to it too. Read on 6 October 2026: Semgrep runs
+`git ls-files` for any folder it is given, and kept to the record only because `sv` hands it files one by one; Opengrep
+runs no git in that kind of scan; whether the closed `codeql` program runs git is not known.
+
+At the owner's word, every outside tool now starts with git's `core.fsmonitor` set off in its environment
+(`git::ENV_OVERRIDES`: `GIT_CONFIG_COUNT=1`, `GIT_CONFIG_KEY_0=core.fsmonitor`, `GIT_CONFIG_VALUE_0=false`), set last in
+`adapters::prepared` so no adapter's settings undo it. Any git a tool starts inherits it, and a setting given this way
+wins over the repository's, from git 2.31; an older git ignores it, and with it the guard.
+
+The test runs a stand-in tool, `git ls-files` in a repository planted with `core.fsmonitor`, once started bare (the
+program runs: the control) and once through `prepared` (it does not), and holds that no adapter sets a `GIT_`
+variable. Broken on purpose three ways: the guard left out and the count set to 0 were each caught; the value set to
+`true` was not, and is not a break, since `true` turns on git's own built-in monitor, which runs no program the
+repository names. Not run with Semgrep or CodeQL themselves, which are not installed here.
+
 ## A token or a password written into the browser's storage, read from the code (6 October 2026)
 
 Left over from "What the app keeps in the browser after signing in" (BACKLOG): "the pointers from the code". The

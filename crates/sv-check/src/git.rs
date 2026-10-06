@@ -17,6 +17,17 @@ use std::process::Command;
 /// same way.
 const OVERRIDES: [&str; 2] = ["-c", "core.fsmonitor=false"];
 
+/// The same override, as the environment of a program `sv` starts that may run `git` itself: the
+/// outside tools (`adapters::prepared`). Git reads settings given this way after the repository's own,
+/// so they win, as `-c` does, from git 2.31; an older git ignores them. Semgrep and Opengrep run
+/// `git ls-files` in a folder they are given and CodeQL may run git too, so without this they would
+/// keep to ADR-032 only by being handed files rather than folders (6 October 2026).
+pub(crate) const ENV_OVERRIDES: [(&str, &str); 3] = [
+    ("GIT_CONFIG_COUNT", "1"),
+    ("GIT_CONFIG_KEY_0", "core.fsmonitor"),
+    ("GIT_CONFIG_VALUE_0", "false"),
+];
+
 /// `git` with the overrides, run in `app_dir`.
 fn git(app_dir: &Path) -> Command {
     let mut command = Command::new("git");
