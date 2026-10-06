@@ -97,3 +97,11 @@ spending more.
    every SecureVibe tool, the check included (none of ten check builds called it). Two arms were added, `checkhidden`
    and `planhidden`, the same with the others hidden by `--disallowedTools`, and run at the same size (twenty builds,
    at the owner's word). Both versions are reported (`loop-scale/README.md`). Items 2 and 3 used the refused form.
+5. **6 October 2026, after item 6 and before any later trial: a stronger sentence for a build with no owner.** In
+   item 6, 2 of 35 Haiku builds still wrote only `securevibe.toml`, asked about sign-up, passwords, and sessions, and
+   ended, though amendment 1's sentence said the owner would not be around. At the owner's choice of the two ways
+   offered (a stronger sentence, or a second turn saying "use the safer option"), every build's request in every arm
+   now ends with: *"I won't be around to answer questions while you build, so do not stop to ask me anything. Where
+   something needs deciding, choose the safer option, write down what you chose, and keep going until the app is
+   built and runs."* A second turn was not chosen because every arm would have to be given it alike. Items 1 to 6
+   used amendment 1's sentence, and results across the change are reported with it named.

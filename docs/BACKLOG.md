@@ -2054,6 +2054,7 @@ another session is not a claim.
   **The owner's decision, 6 October 2026: the stronger sentence**, not a second turn, written into the loop protocol
   as amendment 5 before the next trial. **Claimed the same day by session securevibe-e9**, in branch
   `claude/securevibe-e9-owner-small`.
+  **Done the same day** (`docs/prompts/loop-protocol.md`, amendment 5, and `NO_OWNER` in `loop_trial.py`).
 
 - **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
   after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
@@ -2148,6 +2149,9 @@ another session is not a claim.
   **Both claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-owner-small`. Item 4 changes
   what an exit code says, so its record goes with it: **`Status: proposed`**, a "Later" entry on ADR-029: `sv run`
   exits 2 when the app never answered or could not be started, 3 when `sv` itself failed, and 0 otherwise.
+  **Both done the same day** (DESIGN, "Four of the owner's decisions of 6 October 2026"; ADR-029, Later, 6 October
+  2026): `sv run` exits 2 when the app could not be run, held against real containers; the prompt says "it prints",
+  and `docs/PROMPTS.md` says that one word changed after its trial.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -6026,6 +6030,8 @@ another session is not a claim.
   **The owner's decision on V12.1.2, 6 October 2026:** leave it unchecked, keeping `sv probe` to four requests, and
   have the report say how to check it with a dedicated scanner such as testssl.sh. **Claimed the same day by session
   securevibe-e9**, in branch `claude/securevibe-e9-owner-small`.
+  **Done the same day** (DESIGN, "Four of the owner's decisions of 6 October 2026"): a `human-checks.json` entry the
+  report shows beside V12.1.2, naming testssl.sh and SSL Labs' online test.
 
   Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
   reaches outside; only item 8 does, and only to the owner's own address.

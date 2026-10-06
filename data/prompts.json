@@ -5,7 +5,7 @@
     {
       "id": "settings-file-first",
       "title": "Describe the app to SecureVibe before writing code",
-      "prompt": "Before writing any code, run `sv init` in the project folder and fill in the securevibe.toml it creates: what the app does, who uses it, its languages, how to start it, and which of the listed capabilities it has. For any capability you are not sure about, delete the line instead of writing false. Keep the file up to date whenever the app gains or loses a capability.",
+      "prompt": "Before writing any code, run `sv init` in the project folder and fill in the securevibe.toml it prints: what the app does, who uses it, its languages, how to start it, and which of the listed capabilities it has. For any capability you are not sure about, delete the line instead of writing false. Keep the file up to date whenever the app gains or loses a capability.",
       "requirements": [],
       "check": {
         "kind": "static",
