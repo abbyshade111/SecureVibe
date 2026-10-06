@@ -60,11 +60,30 @@ fn an_app_that_never_starts_is_not_assessed_rather_than_failed() {
     p.start = "false".to_owned();
     let err = backend.run(&p, &[]).unwrap_err();
     match &err.reason {
-        CannotRun::NeverReady { .. } => {}
+        // `false` prints nothing, so nothing says it crashed: the control for the case below.
+        CannotRun::NeverReady { crashed, .. } => assert!(!crashed, "{err:?}"),
         other => panic!("expected NeverReady, got {other:?}"),
     }
     assert!(
         err.explain().contains("not been shown"),
+        "{}",
+        err.explain()
+    );
+
+    // One that stops with an error line is quoted by it, and told that the error is why.
+    p.start = "echo starting; echo \"KeyError: 'PORT_NUMBER'\" >&2; exit 1".to_owned();
+    let err = backend.run(&p, &[]).unwrap_err();
+    match &err.reason {
+        CannotRun::NeverReady {
+            crashed, detail, ..
+        } => {
+            assert!(crashed, "{err:?}");
+            assert!(detail.contains("KeyError: 'PORT_NUMBER'"), "{detail}");
+        }
+        other => panic!("expected NeverReady, got {other:?}"),
+    }
+    assert!(
+        err.explain().contains("That error is why"),
         "{}",
         err.explain()
     );
