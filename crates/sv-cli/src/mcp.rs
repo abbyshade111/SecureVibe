@@ -3372,14 +3372,25 @@ mod tests {
                 json!({ "path": "flask-booking", "feature": f.id }),
             );
             assert_eq!(brief["isError"], false, "{}: {brief}", f.id);
-            for p in brief["structuredContent"]["codingPrompts"].as_array().unwrap() {
+            for p in brief["structuredContent"]["codingPrompts"]
+                .as_array()
+                .unwrap()
+            {
                 assert_eq!(p["status"], "shown", "{}: {p}", f.id);
                 let id = p["id"].as_str().unwrap().to_owned();
-                assert!(text(&brief).contains(&format!("(`{id}`)")), "{}: {id} is in the data and not the text", f.id);
+                assert!(
+                    text(&brief).contains(&format!("(`{id}`)")),
+                    "{}: {id} is in the data and not the text",
+                    f.id
+                );
                 seen.push(id);
             }
         }
-        let guidance = call(&server, "securevibe_guidance", json!({ "path": "flask-booking" }));
+        let guidance = call(
+            &server,
+            "securevibe_guidance",
+            json!({ "path": "flask-booking" }),
+        );
         assert_eq!(guidance["isError"], false, "{guidance}");
         let whole_app: Vec<String> = guidance["structuredContent"]["prompts"]
             .as_array()
@@ -3389,21 +3400,33 @@ mod tests {
             .collect();
         assert!(!whole_app.is_empty(), "{guidance}");
         for id in &whole_app {
-            assert!(text(&guidance).contains(&format!("(`{id}`)")), "{id} is in the data and not the text");
+            assert!(
+                text(&guidance).contains(&format!("(`{id}`)")),
+                "{id} is in the data and not the text"
+            );
         }
         // A prompt a feature's brief gives is not repeated in the guidance; across features it may be.
         for id in &whole_app {
             assert!(!seen.contains(id), "{id} is in a brief and in the guidance");
         }
-        let reached: std::collections::BTreeSet<String> = seen.into_iter().chain(whole_app).collect();
-        assert_eq!(reached, shown, "every shown prompt, and only those, reaches the builder");
+        let reached: std::collections::BTreeSet<String> =
+            seen.into_iter().chain(whole_app).collect();
+        assert_eq!(
+            reached, shown,
+            "every shown prompt, and only those, reaches the builder"
+        );
         // On a topic, the guidance stays to that topic.
         let topic = call(
             &server,
             "securevibe_guidance",
             json!({ "path": "flask-booking", "topic": "ci-workflows" }),
         );
-        assert!(topic["structuredContent"]["prompts"].as_array().unwrap().is_empty());
+        assert!(
+            topic["structuredContent"]["prompts"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

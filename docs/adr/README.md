@@ -85,6 +85,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-039](ADR-039.md) | The sign-in token checks, and which key addresses they may name |
 | [ADR-040](ADR-040.md) | A credential name over a sentence is reported low, and says so |
 | [ADR-041](ADR-041.md) | One run at a time in a report folder, held by a lock file `sv` writes there |
+| [ADR-042](ADR-042.md) | The coding prompts shown to work reach the AI tool when it builds what they are for |
 
 ## Where v1's records disagree with what v1 built
 
