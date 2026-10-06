@@ -92,6 +92,9 @@ another session is not a claim.
   **Items 18, 20, 21, 22, and 23 claimed the same day by session securevibe-e9**, at the owner's word ("continue to
   work off the backlog"), as the next batch (the code-reading rules and lockfiles), in branch
   `claude/securevibe-e9-review-1to4-batch3`.
+  **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
+  the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
+  `claude/securevibe-e9-review-1to4-batch2`.
   **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
   them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
 
@@ -167,6 +170,8 @@ another session is not a claim.
   10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
   **Items 13, 14, 16, and 17 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the
   remaining review items next"), in branch `claude/securevibe-e2-review-rest`.
+  **Items 13, 14, 16, and 17 done the same day** (DESIGN, "The rest of the review of 5 and 6 October"). Every item of
+  this review is done.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
@@ -3484,6 +3489,33 @@ another session is not a claim.
   - **The second, for the week to 5 October 2026: claimed on 5 October 2026 by session securevibe-e10**, at the
     owner's asking ("do the ADR weekly review if it hasn't already been done yet"), in branch `claude/adr-review-2`.
     The scheduled routine's first Monday (5 October) left no claim and no review here.
+    **Done the same day.** Every record, ADR-015 to ADR-037, and the index, read against `main` at `56068c64` and the
+    week's merges (348 since 29 September, about 185 of them not claims), with five read-only helper agents, one per
+    group of records and one for the week's merges; the session checked the findings it wrote down against the code
+    itself. Each record's dated entry is "Later, 5 October 2026 (the second weekly review)".
+    - **Match:** ADR-015, 016, 017, 019, 022, 023, 024, 028, 029, 030, 031, 032, 033, 034, 035, 036, 037. Of these,
+      ADR-015, 017, 019, 022, 023, 024, and 030 had a file that carries their decision missing from their Governs list,
+      now added; ADR-019 also records that every run that signs in now starts the stand-in model (#710), ADR-030 that
+      the plan is fenced as data over MCP (#704), and ADR-031 how it is held.
+    - **Did not match, and amended:** ADR-018 (21 rules, not 18; Opengrep standing in for Semgrep, the owner's choice
+      of 3 October, had no record), ADR-020 and ADR-025 (seven `unsafe` blocks in the workspace, five in `sv`; three
+      JavaScript helpers compiled in, which ADR-020 never mentioned), ADR-021 (39 rows, not 36; H15's refusals; the
+      claim and the build behind its Status line), ADR-026 (`design-decisions.md`'s sections are sealed too), and
+      ADR-027 (an IPv6 address is judged by the IPv4 one inside it in two forms only, and the documentation ranges are
+      let through; the code's fix is the entry "`sv probe` and the IPv6 forms that carry an IPv4 address" below).
+    - **How late each new record came.** ADR-021 to ADR-025, the records the first review asked for: 5 to 8 days after
+      their decisions. ADR-026: about two hours, in its own pull request. ADR-027 to ADR-036: none; five of them were
+      written first, as `proposed`, with the claim. ADR-037: about 20 minutes, in its own pull request, after the
+      owner decided a record was owed.
+    - **The `ADR-0NN: unchanged, because ...` lines,** since the check began (4 October, 17:33 UTC): of 191 pull
+      requests merged since, 50 carried at least one, 73 lines in all, most for ADR-018 (16), ADR-019 (10), and
+      ADR-026 (9). None gives a reason shorter than 40 characters. The eight a helper flagged as likeliest to be wrong
+      (#615, #630, #710, #720, #722, #741, #756, #776) were read: each reason holds, though #615's and #710's described
+      changes their records now carry as "Later" entries.
+    - **Cited requirement ids** all exist in `data/frameworks` and fit what is said; none is cited as met where it
+      should not be.
+    - **Decisions with no record,** and two questions for the owner: the entry "Records owed, from the second weekly
+      review" below.
 
 - **Records owed, from the first weekly review of the decision records (30 September 2026).** Each is a decision
   in code merged that week with no record, and costly to undo without its reasons. Its reasons are mostly already in
@@ -3513,6 +3545,62 @@ another session is not a claim.
      reason is in a comment in `Cargo.toml` and in `DESIGN.md`). Switching to `panic = "abort"` to save size would
      leave fenced containers running. It could be a line in ADR-019 or ADR-020 rather than a record of its own.
   7. **The container image is published from CI and runs as user 10001** (#333). Lower than the rest.
+
+- **Records owed, from the second weekly review of the decision records (5 October 2026).** Each is a decision in
+  code merged in the week to 5 October with no record, costly to undo without its reasons; each is explained in
+  `DESIGN.md` under the heading named. **Not claimed; each can be claimed on its own**, and which are worth a record
+  is the owner's call. Most costly first:
+  1. **The SQL injection probe's limits** (#545, 3 October; DESIGN, the probe's section): read-only GET requests
+     only, only against the copy of the app `sv` starts itself, and only ever a finding. The owner set them on
+     4 October. A limit like this is the kind that is loosened later without its reason.
+  2. **Checks on the app's own sign-in tokens, and the key source they may name** (#544, 3 October, then #710,
+     5 October; DESIGN, "A sign-in token caught naming where its key is"): the owner left out `jku` and `kid` on
+     4 October and then had `jku` and `x5u` built through a test key server; `kid` stays out. No record traces it.
+  3. **A credential that reads like a sentence is reported low** (#597, 4 October; DESIGN, "A credential name over a
+     sentence is reported low, and says so"): a default that changes what a report concludes, the owner's choice.
+  4. **Cookies handed to the browser with their attributes, and a warning, not a refusal, when the start command
+     looks like it weakens the app** (#605, 4 October): changes the browser checks' evidence; the owner's choice.
+  5. **A run secret, `SV_ADMIN_TOTP_SECRET`, handed to the app's seed** (#600, 4 October; DESIGN, "An admin who
+     signs in with a code"): what `sv` passes into the app's container; the owner's choice.
+  6. **Log markers moved into the address, so the log check can pass for an app that keeps personal data out of its
+     log** (#601, 4 October): when a check credits; the owner's choice.
+  7. **A lock file in the report folder** (#589, 4 October; DESIGN, "One run at a time in a report folder"): a new
+     file `sv` writes into the app's folder. ADR-017 lists the report folder, so this may be a line there.
+  8. **Owner's choices with no code change:** V9.2.3 is not cited by the running probe (4 October); V8.3.1 stays
+     checked by hand only (5 October); phpcs-security-audit is not added (5 October); and the compressed-archive check
+     for V5.2.3 is to be built (3 October, archives up to about 1 GB, limits the owner sets), which should come with
+     its record as `proposed` in its claim.
+
+  **Two questions for the owner,** found by the same review:
+  - **Should records govern the large shared files?** Several decisions are enforced in `crates/sv-cli/src/mcp.rs`
+    (ADR-022's "the tool records only as the tool", ADR-028's prompts, ADR-034's report seal, ADR-035's preflight),
+    `crates/sv-cli/src/main.rs` (ADR-034, ADR-036's data check, ADR-029's code 3), and `crates/sv-check/src/config.rs`
+    (ADR-037's `versions_pinned`). None is governed by any record, so the check would not ask about a change that
+    undoes one. Governing them would make nearly every pull request owe a line, since those files change in most of
+    them. The review added the smaller files and left these for the owner to decide.
+  - **Does ADR-032 reach the outside tools?** It holds `sv`'s own `git` to running no program the app's repository
+    names. Semgrep and CodeQL, run by `sv report --tools` in the app's folder, may run `git` themselves; the record
+    does not say, and it was not checked.
+
+- **`sv probe` and the IPv6 forms that carry an IPv4 address.** Found by the second weekly review of the decision
+  records (ADR-027, "Later, 5 October 2026"). `not_public` (`crates/sv-check/src/production.rs`) judges an IPv6
+  address by the IPv4 one inside it only when written `::ffff:a.b.c.d` or `::a.b.c.d`. A 6to4 address (`2002::/16`,
+  the IPv4 address in its second and third groups) and a NAT64 one (`64:ff9b::/96`, in its last two) are let through
+  whatever IPv4 address they carry, so `[2002:a00:1::]` is not refused as 10.0.0.1, and the documentation ranges
+  (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24, 2001:db8::/32) are not refused either. Low in practice (6to4 relays
+  are mostly gone, and a NAT64 gateway should not translate a private address), but the record and the code's own
+  comment promise more. Fix: judge both forms by their IPv4 address, refuse the documentation ranges,
+  and hold each with a test; ADR-027 changes with it.
+  **Claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking to keep working off the backlog, in
+  branch `claude/probe-ipv6`.
+
+- **CLAUDE.md says `SV_DATA_DIR` "overrides the OWASP part".** Since ADR-036 it names the whole `data` folder
+  (`crates/sv-frameworks/src/data.rs`). Found by the second weekly review. One line; **not claimed**.
+
+- **The weekly review's routine left no trace on its first Monday.** "Weekly decision-record review" was scheduled on
+  4 October to run every Monday at 8:45 Eastern and claim its week here first. On 5 October nothing was claimed and no
+  pull request was opened; the owner asked a session to do the review that evening. Whether the routine ran and failed,
+  or did not run, was not checked from the session. **For the owner to look at,** in the routine's own history.
 
 - ~~**The app's own container is not run read-only.**~~ Found on 30 September 2026 by the first weekly review of the
   decision records (ADR-019, "Later, 30 September 2026"). The app's folder is mounted read-only and every helper
