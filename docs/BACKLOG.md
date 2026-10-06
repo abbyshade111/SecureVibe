@@ -405,6 +405,13 @@ another session is not a claim.
     **The rest claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
     `claude/h9-ranges-and-setup-py`: a requirement given as a range is named as not checked against the advisories,
     and an app whose Python dependencies are declared only in `setup.py` or `setup.cfg` is said to have none pinned.
+    **Done the same day** (DESIGN, "What a `requirements.txt` leaves out is named, and a `setup.py` with no lockfile
+    does not pin"): a `requirements.txt` read without a lockfile names everything it installs that it does not pin to
+    one version (ranges, bare names, wildcards, addresses, folders, and files pulled in with `-r`), read as pip reads
+    it; and a `setup.py` or `setup.cfg` that names packages, with no Python lockfile in its folder, is reported by the
+    pinning check (V15.1.2) and in the scan's list of unpinned projects. Twelve guards broken in turn, each caught.
+    **Still open:** a requirements file under another name without hashes is not judged by the pinning check, and a
+    `Pipfile.lock` with no `Pipfile` beside it is not found.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
