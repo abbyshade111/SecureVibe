@@ -105,3 +105,9 @@ spending more.
    something needs deciding, choose the safer option, write down what you chose, and keep going until the app is
    built and runs."* A second turn was not chosen because every arm would have to be given it alike. Items 1 to 6
    used amendment 1's sentence, and results across the change are reported with it named.
+6. **6 October 2026, after item 6 and before any later trial: the preflight says what `sv run` will look for.** At
+   the owner's decision, `securevibe_preflight` also reads the code for four of item 6's commonest running-app
+   findings (a limit on wrong passwords, the security headers, the session cookie's `SameSite`, and a screen on what an
+   AI feature is sent) and says "look at this" when nothing handles them (ADR-035, Later). It credits nothing. Item 6's
+   builds had the preflight without it, so the next trial measures whether its running apps' findings fall, and is
+   reported apart from item 6, with the `sv` commit it used.

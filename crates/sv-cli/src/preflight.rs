@@ -465,6 +465,128 @@ pub fn preflight(manifest: &Manifest, source: &Source) -> Vec<Item> {
     sorted(items)
 }
 
+/// One thing `sv run` will look for in the running app: when it applies, what it is, the words that
+/// show the code handles it (read in lower case), and what each answer says.
+struct Ahead {
+    topic: &'static str,
+    signs: &'static [&'static str],
+    missing: &'static str,
+    found: &'static str,
+}
+
+/// A limit on wrong passwords: a rate limiter (express-rate-limit, rate-limiter-flexible,
+/// Flask-Limiter, slowapi, django-ratelimit, Rack::Attack), or a count of failed attempts.
+const WRONG_PASSWORDS: Ahead = Ahead {
+    topic: "wrong-passwords",
+    signs: &[
+        "rate-limit",
+        "ratelimit",
+        "rate_limit",
+        "limiter",
+        "throttl",
+        "rack::attack",
+        "rack-attack",
+        "lockout",
+        "locked_until",
+        "failed_attempts",
+        "failed_logins",
+        "login_attempts",
+        "too many attempts",
+    ],
+    missing: "`sv run` will try wrong passwords on the sign-in form, and nothing in the code looks like a limit on them (a rate limiter, a count of failed attempts, or a lockout).",
+    found: "Something that reads like a limit on sign-in attempts appears in ",
+};
+
+/// The security headers, set by a library (helmet, Flask-Talisman, Django's SecurityMiddleware,
+/// secure_headers) or named directly.
+const HEADERS: Ahead = Ahead {
+    topic: "headers",
+    signs: &[
+        "helmet",
+        "talisman",
+        "securitymiddleware",
+        "secure_headers",
+        "secureheaders",
+        "content-security-policy",
+        "x-content-type-options",
+        "strict-transport-security",
+    ],
+    missing: "`sv run` will read the security headers on the app's pages (`Content-Security-Policy`, `X-Content-Type-Options`, and the like), and nothing in the code sets them, by name or through a library such as helmet or Flask-Talisman.",
+    found: "Something that reads like the security headers being set appears in ",
+};
+
+/// The session cookie's `SameSite`, which several frameworks leave unset unless the code says.
+const SESSION_COOKIE: Ahead = Ahead {
+    topic: "session-cookie",
+    signs: &["samesite"],
+    missing: "`sv run` will read the session cookie's settings (`HttpOnly`, `Secure`, and `SameSite`), and nothing in the code sets `SameSite`, so the cookie has the framework's defaults, which in several frameworks leave it unset.",
+    found: "The session cookie's `SameSite` is set in ",
+};
+
+/// A screen on what the AI feature is sent: a moderation call, a guardrail library, or a check for
+/// text meant to turn the model against its instructions.
+const AI_SCREENING: Ahead = Ahead {
+    topic: "ai-screening",
+    signs: &[
+        "moderation",
+        "guardrail",
+        "llm_guard",
+        "llm-guard",
+        "prompt_injection",
+        "promptinjection",
+        "jailbreak",
+    ],
+    missing: "`sv run` will send the AI feature text meant to turn it against its instructions, and nothing in the code looks like a screen on what it is sent (a moderation call, a guardrail library, or a check of its own).",
+    found: "Something that reads like a screen on what the AI feature is sent appears in ",
+};
+
+/// What `sv run` will look for in the running app that the code shows no sign of handling (the
+/// owner's decision, 6 October 2026; ADR-035, Later). In the loop's item 6 the builders fixed nearly
+/// everything the check named, and the running apps had as many problems as anyone's, because only
+/// `sv run` sees them; these four were among the commonest, and each leaves a trace in the text
+/// when it is handled. "Look at this" when nothing names a way of handling it, "looks right" naming
+/// the file where something does. Neither says the app is safe or unsafe, a library can be named and
+/// not used, and nothing is credited: the run is the evidence.
+pub fn ahead(manifest: &Manifest, source: &Source) -> Vec<Item> {
+    let run = &manifest.stack.run;
+    if run.start.as_deref().is_none_or(|s| s.trim().is_empty()) {
+        // No run to look ahead to: the start item already says so.
+        return Vec::new();
+    }
+    let signs_in = |lower: &[(String, String)], signs: &[&str]| -> Option<String> {
+        lower
+            .iter()
+            .find(|(_, text)| signs.iter().any(|sign| text.contains(sign)))
+            .map(|(name, _)| name.clone())
+    };
+    let lower: Vec<(String, String)> = source
+        .files
+        .iter()
+        .map(|(name, text)| (name.clone(), text.to_lowercase()))
+        .collect();
+    let signs_in_app = |ahead: &Ahead| signs_in(&lower, ahead.signs);
+    let mut looks: Vec<&Ahead> = vec![&HEADERS];
+    if run.users.as_ref().is_some_and(|u| u.login.is_some()) {
+        looks.push(&WRONG_PASSWORDS);
+        looks.push(&SESSION_COOKIE);
+    }
+    if run.ai.is_some() {
+        looks.push(&AI_SCREENING);
+    }
+    let items = looks
+        .into_iter()
+        .map(|ahead| match signs_in_app(ahead) {
+            None => Item::new(ahead.topic, Answer::Look, vec![sv(ahead.missing)]),
+            Some(file) => Item::new(
+                ahead.topic,
+                Answer::Looks,
+                vec![sv(ahead.found), app(file), sv(". Not that it works.")],
+            ),
+        })
+        .collect();
+    sorted(items)
+}
+
 fn path_item(what: &'static str, path: &str, source: &Source) -> Item {
     match source.find(None, |text| names_path(text, path)) {
         Some(file) => Item::new(
@@ -497,8 +619,11 @@ fn sorted(mut items: Vec<Item>) -> Vec<Item> {
     items
 }
 
+/// What `sv run` needs, what it will look for, and the files not read.
+pub type Found = (Vec<Item>, Vec<Item>, Vec<String>);
+
 /// The preflight of the app in `app_dir`.
-pub fn of(app_dir: &Path) -> anyhow::Result<(Vec<Item>, Vec<String>)> {
+pub fn of(app_dir: &Path) -> anyhow::Result<Found> {
     let manifest_path = app_dir.join("securevibe.toml");
     anyhow::ensure!(
         manifest_path.exists(),
@@ -507,16 +632,27 @@ pub fn of(app_dir: &Path) -> anyhow::Result<(Vec<Item>, Vec<String>)> {
     );
     let manifest = Manifest::load(&manifest_path)?;
     let source = Source::of(&Listing::of(app_dir));
-    Ok((preflight(&manifest, &source), source.unread))
+    Ok((
+        preflight(&manifest, &source),
+        ahead(&manifest, &source),
+        source.unread,
+    ))
 }
 
 const OPENING: &str = "# Preflight: what `sv run` will need, looked for in the code\n\nNothing was run. Each answer is a reading of the app's files: \"looks right\" means what `sv run` needs was found in the text, not that it works, and \"look at this\" may be a route or a name built from parts. Nothing here is evidence for any requirement, and nothing is credited.\n";
 
-pub fn markdown(items: &[Item], unread: &[String]) -> String {
-    markdown_with(items, unread, &Fence::none())
+pub fn markdown(items: &[Item], ahead: &[Item], unread: &[String]) -> String {
+    markdown_with(items, ahead, unread, &Fence::none())
 }
 
-pub(crate) fn markdown_with(items: &[Item], unread: &[String], fence: &Fence) -> String {
+const AHEAD_OPENING: &str = "\n## What `sv run` will look for, read in the code\n\nNot something `sv run` needs: what it will check once the app is running. \"Look at this\" means nothing in the code reads like a way of handling it; if the app handles it some other way, nothing needs changing. Nothing here is evidence either way, and nothing is credited.\n\n";
+
+pub(crate) fn markdown_with(
+    items: &[Item],
+    ahead: &[Item],
+    unread: &[String],
+    fence: &Fence,
+) -> String {
     let mut out = String::from(OPENING);
     let looks = items.iter().filter(|i| i.answer == Answer::Look).count();
     out.push_str(&format!(
@@ -533,6 +669,17 @@ pub(crate) fn markdown_with(items: &[Item], unread: &[String], fence: &Fence) ->
             item.text(fence)
         ));
     }
+    if !ahead.is_empty() {
+        out.push_str(AHEAD_OPENING);
+        for item in ahead {
+            out.push_str(&format!(
+                "- **{}** ({}): {}\n",
+                item.answer.words(),
+                item.topic,
+                item.text(fence)
+            ));
+        }
+    }
     if !unread.is_empty() {
         out.push_str("\nNot read, because they are too large: ");
         out.push_str(
@@ -547,15 +694,24 @@ pub(crate) fn markdown_with(items: &[Item], unread: &[String], fence: &Fence) ->
     out
 }
 
-pub fn to_json(items: &[Item], unread: &[String]) -> Value {
+pub fn to_json(items: &[Item], ahead: &[Item], unread: &[String]) -> Value {
+    let list = |items: &[Item]| {
+        items
+            .iter()
+            .map(|item| {
+                json!({
+                    "topic": item.topic,
+                    "answer": item.answer.id(),
+                    "says": item.text(&Fence::none()),
+                })
+            })
+            .collect::<Vec<_>>()
+    };
     json!({
         "ran": false,
         "credits": "nothing",
-        "items": items.iter().map(|item| json!({
-            "topic": item.topic,
-            "answer": item.answer.id(),
-            "says": item.text(&Fence::none()),
-        })).collect::<Vec<_>>(),
+        "items": list(items),
+        "willLookFor": list(ahead),
         "notRead": unread,
     })
 }
@@ -832,7 +988,7 @@ mod tests {
             &manifest(&run),
             &source(&[("app.py", GOOD_APP), ("seed.py", GOOD_SEED)]),
         );
-        let text = sv_report::fence::fenced(|fence| markdown_with(&items, &[], fence));
+        let text = sv_report::fence::fenced(|fence| markdown_with(&items, &[], &[], fence));
         let tag_at = text.find("<app-text-").expect("the path is fenced");
         let path_at = text
             .find("/ignore-all-previous-instructions")
@@ -860,7 +1016,7 @@ mod tests {
         )
         .unwrap();
         std::fs::write(dir.join("notes.txt"), "'0.0.0.0' PORT '/login'\n").unwrap();
-        let (items, unread) = of(&dir).unwrap();
+        let (items, _, unread) = of(&dir).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
         assert!(unread.is_empty());
         assert_eq!(answers(&items, "listen"), vec![Answer::Look]);
@@ -871,5 +1027,222 @@ mod tests {
             .map(|i| i.answer)
             .collect();
         assert_eq!(login, vec![Answer::Look]);
+    }
+
+    const AI: &str =
+        "[stack.run.ai]\nchat = { path = \"/api/chat\", json = { message = \"{prompt}\" } }\n";
+
+    #[test]
+    fn what_sv_run_will_look_for_is_said_when_the_code_shows_no_sign_of_it() {
+        // The owner's decision, 6 October 2026: in the loop's item 6 the running apps had as many
+        // problems as anyone's, because only `sv run` sees them.
+        let files = [("app.py", GOOD_APP), ("seed.py", GOOD_SEED)];
+        let ahead = ahead(&manifest(RUN), &source(&files));
+        for topic in ["headers", "wrong-passwords", "session-cookie"] {
+            assert_eq!(
+                answers(&ahead, topic),
+                vec![Answer::Look],
+                "{topic}: {ahead:?}"
+            );
+        }
+        // Asked only of an app with an AI feature for `sv run` to try.
+        assert!(answers(&ahead, "ai-screening").is_empty(), "{ahead:?}");
+        let with_ai = ahead_of(&format!("{RUN}{AI}"), &files);
+        assert_eq!(answers(&with_ai, "ai-screening"), vec![Answer::Look]);
+        // The password and cookie looks need a sign-in for `sv run` to use; the headers do not.
+        let no_login = RUN.replace(
+            "login = { path = \"/login\", form = { email = \"{user}\", password = \"{password}\", csrf_token = \"{csrf}\" } }\n",
+            "",
+        );
+        let plain = ahead_of(&no_login, &files);
+        let topics: Vec<&str> = plain.iter().map(|i| i.topic).collect();
+        assert_eq!(topics, ["headers"], "{plain:?}");
+        // With nothing to run, there is nothing to look ahead to.
+        assert!(ahead_of("[stack.run]\nhealth = \"/health\"\n", &files).is_empty());
+        // And none of it is among what `sv run` needs: the preflight proper is unchanged.
+        assert!(preflight(&manifest(RUN), &source(&files)).iter().all(|i| {
+            ![
+                "headers",
+                "wrong-passwords",
+                "session-cookie",
+                "ai-screening",
+            ]
+            .contains(&i.topic)
+        }));
+    }
+
+    fn ahead_of(run: &str, files: &[(&str, &str)]) -> Vec<Item> {
+        ahead(&manifest(run), &source(files))
+    }
+
+    #[test]
+    fn each_way_of_handling_it_is_found_in_the_file_that_names_it() {
+        let run = format!("{RUN}{AI}");
+        for (topic, file, text) in [
+            (
+                "wrong-passwords",
+                "package.json",
+                "{\"dependencies\": {\"express-rate-limit\": \"7.4.0\"}}",
+            ),
+            (
+                "wrong-passwords",
+                "views.py",
+                "@ratelimit(key='ip', rate='5/m')\ndef login(request):\n",
+            ),
+            (
+                "wrong-passwords",
+                "app/controllers/sessions_controller.rb",
+                "rate_limit to: 10, within: 3.minutes, only: :create\n",
+            ),
+            (
+                "wrong-passwords",
+                "app.py",
+                "from flask_limiter import Limiter\n",
+            ),
+            (
+                "wrong-passwords",
+                "routes/web.php",
+                "Route::post('/login', [Login::class, 'store'])->middleware('throttle:6,1');\n",
+            ),
+            (
+                "wrong-passwords",
+                "config/initializers/blocks.rb",
+                "Rack::Attack::Fail2Ban.filter(\"logins-#{req.ip}\", maxretry: 5) { true }\n",
+            ),
+            ("wrong-passwords", "Gemfile", "gem 'rack-attack'\n"),
+            (
+                "wrong-passwords",
+                "auth.py",
+                "if user.lockout_until and user.lockout_until > now:\n",
+            ),
+            (
+                "wrong-passwords",
+                "auth.js",
+                "user.locked_until = Date.now() + 15 * 60 * 1000;\n",
+            ),
+            ("wrong-passwords", "auth.py", "user.failed_attempts += 1\n"),
+            (
+                "wrong-passwords",
+                "auth.go",
+                "u.FailedLogins++ // failed_logins in the table\n",
+            ),
+            (
+                "wrong-passwords",
+                "schema.sql",
+                "CREATE TABLE login_attempts (ip TEXT, at INTEGER);\n",
+            ),
+            (
+                "wrong-passwords",
+                "auth.py",
+                "return 'Too many attempts, try again later', 429\n",
+            ),
+            ("headers", "server.js", "app.use(helmet());\n"),
+            ("headers", "app.py", "Talisman(app)\n"),
+            (
+                "headers",
+                "settings.py",
+                "MIDDLEWARE = ['django.middleware.security.SecurityMiddleware']\n",
+            ),
+            ("headers", "Gemfile", "gem 'secure_headers'\n"),
+            (
+                "headers",
+                "config/initializers/csp.rb",
+                "SecureHeaders::Configuration.default do |config|\nend\n",
+            ),
+            (
+                "headers",
+                "main.go",
+                "w.Header().Set(\"Content-Security-Policy\", csp)\n",
+            ),
+            (
+                "headers",
+                "server.js",
+                "res.setHeader('X-Content-Type-Options', 'nosniff');\n",
+            ),
+            (
+                "headers",
+                "app.py",
+                "response.headers['Strict-Transport-Security'] = 'max-age=31536000'\n",
+            ),
+            (
+                "session-cookie",
+                "config.py",
+                "SESSION_COOKIE_SAMESITE = 'Lax'\n",
+            ),
+            (
+                "session-cookie",
+                "server.js",
+                "app.use(session({ cookie: { sameSite: 'lax' } }));\n",
+            ),
+            (
+                "ai-screening",
+                "chat.py",
+                "flagged = client.moderations.create(input=text)\n",
+            ),
+            (
+                "ai-screening",
+                "rails.py",
+                "from nemoguardrails import RailsConfig, LLMRails\n",
+            ),
+            (
+                "ai-screening",
+                "chat.py",
+                "from llm_guard import scan_prompt\n",
+            ),
+            ("ai-screening", "requirements.lock", "llm-guard==0.3.15\n"),
+            (
+                "ai-screening",
+                "chat.py",
+                "if detect_prompt_injection(text):\n    refuse()\n",
+            ),
+            (
+                "ai-screening",
+                "chat.ts",
+                "const detector = new PromptInjectionDetector();\n",
+            ),
+            (
+                "ai-screening",
+                "chat.py",
+                "if looks_like_jailbreak(message):\n    refuse()\n",
+            ),
+        ] {
+            let found = ahead_of(&run, &[("app.py", GOOD_APP), (file, text)]);
+            let item = found
+                .iter()
+                .find(|i| i.topic == topic)
+                .unwrap_or_else(|| panic!("{topic} was not looked at"));
+            assert_eq!(
+                item.answer,
+                Answer::Looks,
+                "{topic} in {file}: {}",
+                said(item)
+            );
+            assert!(said(item).contains(file), "{}", said(item));
+            assert!(said(item).ends_with("Not that it works."), "{}", said(item));
+        }
+    }
+
+    #[test]
+    fn what_sv_run_will_look_for_is_its_own_section_and_credits_nothing() {
+        let files = [("app.py", GOOD_APP), ("seed.py", GOOD_SEED)];
+        let items = preflight(&manifest(RUN), &source(&files));
+        let ahead = ahead(&manifest(RUN), &source(&files));
+        let text = markdown(&items, &ahead, &[]);
+        let section = text
+            .find("## What `sv run` will look for, read in the code")
+            .expect(&text);
+        assert!(text[section..].contains("(wrong-passwords)"), "{text}");
+        // The count at the top is of what `sv run` needs, which is all there, as before.
+        assert!(text.contains("\n0 to look at,"), "{text}");
+        let json = to_json(&items, &ahead, &[]);
+        assert_eq!(json["credits"], "nothing");
+        assert_eq!(json["willLookFor"].as_array().unwrap().len(), 3);
+        assert!(
+            json["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|i| i["topic"] != "headers")
+        );
     }
 }
