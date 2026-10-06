@@ -4620,6 +4620,8 @@ fn assemble_report_saying(
     // What the manifest says is not the app is listed with test and sample code.
     // As the scan used it: none when the list would have set apart all the app's code (ADR-031).
     sv_check::finding::mark_not_the_app(&scan_report.not_the_app, &mut findings);
+    // A copy of another project's library kept in the app is listed apart, named for it.
+    sv_check::bundled::mark_bundled_libraries(app_dir, &mut findings);
     examined.push(match &run_status {
         // Started is still only part of what the app could be asked: what sits behind a sign-in
         // it could not reach, and the requirements no question reaches, are in the gaps.

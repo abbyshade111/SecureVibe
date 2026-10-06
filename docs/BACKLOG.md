@@ -6134,6 +6134,10 @@ another session is not a claim.
      `claude/securevibe-e9-bundled-libraries`: a copy of a library kept in the app, known by its own banner, has its
      findings listed apart, named for the library, and still counted; checked on library files and first-party code
      the test was not written against.
+     **Done the same day** (DESIGN, "A copy of another project's library is listed apart"; ADR-023, Later): known
+     by a string only the library writes or the comment it opens with naming a version; its findings listed after the
+     app's own, named for the library, and still counted. On the library files at hand every bannered copy is named,
+     and none of the 661 first-party files of this repository and v1 is.
   2. The secret rules' findings in test code kept apart with the rest.
   3. One finding per file and line, naming every rule and requirement.
   4. The narrow secret-rule exception: a hex digest or bcrypt hash assigned to a password or hash field.

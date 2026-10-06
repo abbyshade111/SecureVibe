@@ -11,6 +11,7 @@ pub mod ai;
 pub mod ast;
 pub mod browser;
 pub mod browser_storage;
+pub mod bundled;
 pub mod coding_rules;
 pub mod config;
 pub mod confirm;

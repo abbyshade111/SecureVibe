@@ -25,6 +25,7 @@ fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: rule_id.into(),
         title: "something".into(),
         severity: Severity::High,
