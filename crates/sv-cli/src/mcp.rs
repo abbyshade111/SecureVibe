@@ -1222,12 +1222,33 @@ impl Server {
         // "Hardening the MCP server", item 2). So the folder is made one level at a time, and a level
         // that is a link is refused before anything below it is created.
         let made = std::fs::symlink_metadata(app_dir.join(out)).is_err();
-        let out_dir = create_below(&app_dir, Path::new(out))?;
+        let (out_dir, made_folders) = create_below(&app_dir, Path::new(out))?;
+        // A write that fails takes away the folders it made, deepest first and only while empty, so
+        // `out: "a/b/c"` leaves no `a/b` behind (item 24 of the review of 1 to 4 October). The report
+        // folder itself goes with the lock (`claim_report_folder`); this is the ones above it.
+        let written = self.write_report_into(&app_dir, out, out_dir, made, progress);
+        if written.is_err() {
+            for folder in made_folders.iter().rev() {
+                let _ = std::fs::remove_dir(folder);
+            }
+        }
+        written
+    }
+
+    /// `write_report`, once the folder `out` names has been made below the app as `out_dir`.
+    fn write_report_into(
+        &self,
+        app_dir: &Path,
+        out: &str,
+        out_dir: PathBuf,
+        made: bool,
+        progress: &Progress,
+    ) -> Result<Value> {
         let resolved = out_dir
             .canonicalize()
             .with_context(|| format!("{} cannot be opened", out_dir.display()))?;
         anyhow::ensure!(
-            resolved.starts_with(&app_dir),
+            resolved.starts_with(app_dir),
             "out resolves to {}, which is outside the app at {}",
             resolved.display(),
             app_dir.display()
@@ -1485,8 +1506,20 @@ fn same_file(a: &std::fs::Metadata, b: &std::fs::Metadata) -> bool {
 
 /// Makes `relative` below `base` one folder at a time, refusing a level that is a link or is not a
 /// folder before anything below it is made. `relative` holds only plain names and `.`, which the
-/// caller has already checked.
-fn create_below(base: &Path, relative: &Path) -> Result<PathBuf> {
+/// caller has already checked. Gives the folder, and the ones it made, topmost first; refused part
+/// way, it takes away the ones it made.
+fn create_below(base: &Path, relative: &Path) -> Result<(PathBuf, Vec<PathBuf>)> {
+    let mut made = Vec::new();
+    let made_here = create_each(base, relative, &mut made);
+    if made_here.is_err() {
+        for folder in made.iter().rev() {
+            let _ = std::fs::remove_dir(folder);
+        }
+    }
+    made_here.map(|here| (here, made))
+}
+
+fn create_each(base: &Path, relative: &Path, made: &mut Vec<PathBuf>) -> Result<PathBuf> {
     let mut here = base.to_path_buf();
     for part in relative.components() {
         let Component::Normal(name) = part else {
@@ -1501,8 +1534,11 @@ fn create_below(base: &Path, relative: &Path) -> Result<PathBuf> {
             Ok(meta) => {
                 anyhow::ensure!(meta.is_dir(), "{} is not a folder", here.display());
             }
-            Err(_) => std::fs::create_dir(&here)
-                .with_context(|| format!("{} cannot be created", here.display()))?,
+            Err(_) => {
+                std::fs::create_dir(&here)
+                    .with_context(|| format!("{} cannot be created", here.display()))?;
+                made.push(here.clone());
+            }
         }
     }
     Ok(here)
@@ -2781,6 +2817,47 @@ mod tests {
         );
         // Refused for being a link, and said so, rather than refused by luck further on.
         assert!(text(&result).contains("is a link"), "{}", text(&result));
+    }
+
+    #[test]
+    fn a_write_that_fails_leaves_no_folder_it_made() {
+        // Item 24 of the review of 1 to 4 October: a failed write to `a/b/c` took `c` away with the
+        // lock and left `a/b`. Here the folders are made and the write then fails, on a manifest
+        // that does not read.
+        let root = scratch_app("left-behind", "flask-booking");
+        std::fs::create_dir_all(root.join("app/kept")).unwrap();
+        std::fs::write(
+            root.join("app/securevibe.toml"),
+            "manifest-version = [not toml",
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let failed = call(
+            &server,
+            "securevibe_write_report",
+            json!({ "path": "app", "out": "a/b/c" }),
+        );
+        let deep = call(
+            &server,
+            "securevibe_write_report",
+            json!({ "path": "app", "out": "kept/d/e" }),
+        );
+        let (a, kept, d) = (
+            root.join("app/a").exists(),
+            root.join("app/kept").is_dir(),
+            root.join("app/kept/d").exists(),
+        );
+        std::fs::remove_dir_all(&root).ok();
+        assert_eq!(
+            failed["isError"],
+            true,
+            "the setup: the write fails: {}",
+            text(&failed)
+        );
+        assert_eq!(deep["isError"], true, "{}", text(&deep));
+        assert!(!a, "a failed write left the folders it made");
+        assert!(!d, "or the ones it made below a folder that was there");
+        assert!(kept, "and a folder it did not make is kept");
     }
 
     #[test]
