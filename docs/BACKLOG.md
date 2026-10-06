@@ -617,7 +617,9 @@ another session is not a claim.
     for those four fixes, with item 1 of "Three false alarms on code that does the safe thing" (`SCHEMA`, and a
     lookup in a dictionary of fixed queries), which is the same fault. Not in this claim, and still open: that
     entry's items 2 and 3 (a path from the app's own database, a destination already checked) and the redirect half
-    of the family-hub item 7, which need a judgment about the app's own functions.
+    of the family-hub item 7, which need a judgment about the app's own functions. (Items 2 and 3 were done on
+    5 October 2026 by session securevibe-e9, #738, at the owner's decision; the redirect half of item 7 is claimed
+    under item 7 of "What the owner hit building family-hub".)
     **Done the same day** (DESIGN, "Names that stand for fixed text"): a per-file list of names the file binds once
     to fixed text, ALL_CAPS names bound once at the top of the module, and tables of fixed text, consulted wherever
     a rule asks whether an argument is fixed, in Python, JavaScript, TypeScript, and Go; Go's `...Context` calls
@@ -1061,6 +1063,11 @@ another session is not a claim.
      merged-in rule still counts. The family-hub line under `--tools` now reads "reads like a sentence", with
      Bandit in "also reported by", shown with a stand-in and with the real Bandit 1.9.4. Ten guards broken in turn,
      each caught. Changed: at the same severity a less sure `sv` finding is now kept over a tool's.
+     **The redirect half claimed on 5 October 2026 by session securevibe-e10**, at the owner's asking, in branch
+     `claude/a1-redirect-callers`: when the destination is a parameter of the enclosing function, look at that
+     function's calls across the app's Python, and when every one passes the app's own route (`url_for(...)`) or a
+     path on this site, keep the finding and say so, naming each call, as the owner decided for a destination a
+     function checked (item 3 of "Three false alarms on code that does the safe thing"). Not made quiet.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
