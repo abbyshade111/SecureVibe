@@ -505,7 +505,7 @@ mod tests {
             refuse_older_than(&mine, now, &dir, "give --out")
         };
         // A run that started after this one and before now: the report there is the newer, kept.
-        let kept = there(now - 30_000).err().expect("refused").to_string();
+        let kept = there(now - 30_000).expect_err("refused").to_string();
         assert!(kept.contains("kept the newer one"), "{kept}");
         // Within a minute of now still counts, for clocks that read a little apart.
         assert!(there(now + 30_000).is_err());

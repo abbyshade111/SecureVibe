@@ -1263,9 +1263,9 @@ impl Server {
             elsewhere,
             made,
         )?;
-        let mut report = self.report_for(&app_dir, progress)?;
+        let mut report = self.report_for(app_dir, progress)?;
         let mut notes = held.notes.clone();
-        if let Some((note, gap)) = crate::report_lock::manifest_changed(&report, &app_dir) {
+        if let Some((note, gap)) = crate::report_lock::manifest_changed(&report, app_dir) {
             notes.push(note);
             report.gaps.push(gap);
         }
