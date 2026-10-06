@@ -6091,6 +6091,10 @@ another session is not a claim.
   and a proxy's CONNECT status line read as a response. Left over: V4.1.2 (redirecting only where a
   browser is the client) needs a request shaped like an API client's and was not written, and the
   rest of deployment is still a "before going live" list nobody has written.
+  **The "before going live" list claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("pick
+  your next backlog item"), in branch `claude/securevibe-e9-live-list`: for an app that will be on the internet, the
+  report lists the requirements only the live site can answer, says which `sv probe` asks (and the command), and
+  which are the owner's to check by hand. It credits nothing.
   **V4.1.2 claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with
   both of those", asked whether `sv probe` may make one more request), in branch `claude/securevibe-e9-api-redirect`.
   **Record, `Status: proposed`** (to be a "Later" entry on ADR-027): `sv probe <address> --api <path>` asks one more
