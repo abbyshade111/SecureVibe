@@ -273,8 +273,10 @@ fn python_wants(text: &str) -> Vec<Wanted> {
         out.push(Wanted {
             key: python_name(name),
             asked: requirement.split_whitespace().collect::<Vec<_>>().join(""),
+            // A direct URL (`pkg @ git+https://…`) is installed without a version, and a
+            // lockfile reader may leave it out of the list: missing, it is not compared.
+            conditional: marker || rest.starts_with('@'),
             spec,
-            conditional: marker,
         });
     }
     out
@@ -376,17 +378,52 @@ fn npm_wants(text: &str) -> Option<Vec<Wanted>> {
         };
         for (name, range) in map {
             let range = range.as_str().unwrap_or_default();
+            let elsewhere = npm_elsewhere(range);
             out.push(Wanted {
                 key: name.clone(),
                 asked: format!("{name} {range}"),
-                spec: npm_spec(range).map_or(Spec::Unread, Spec::Npm),
+                spec: if elsewhere {
+                    Spec::Unread
+                } else {
+                    npm_spec(range).map_or(Spec::Unread, Spec::Npm)
+                },
                 // An optional dependency that failed to build is left out of nothing: npm still
-                // locks it. Nothing here is conditional.
-                conditional: false,
+                // locks it. Only one from somewhere other than the registry may be missing from
+                // the list read from the lockfile, which names packages by what they are.
+                conditional: elsewhere,
             });
         }
     }
     Some(out)
+}
+
+/// Whether a dependency comes from somewhere other than the registry under its own name: another
+/// package of the same workspace (`workspace:*`), a folder (`file:../lib`, `link:`, `./lib`),
+/// a repository (`git+https://…`, `github:user/repo`, `user/repo`), an archive's address, or the
+/// registry under another name (`npm:other@1.2.3`). The lockfile readers list it, if at all, by
+/// what it is, so its absence under this name says nothing.
+fn npm_elsewhere(range: &str) -> bool {
+    let range = range.trim();
+    const PREFIXES: &[&str] = &[
+        "workspace:",
+        "file:",
+        "link:",
+        "portal:",
+        "patch:",
+        "npm:",
+        "git+",
+        "git:",
+        "github:",
+        "gitlab:",
+        "bitbucket:",
+        "http:",
+        "https:",
+        "./",
+        "../",
+        "~/",
+        "/",
+    ];
+    PREFIXES.iter().any(|p| range.starts_with(p)) || (range.contains('/') && !range.contains(' '))
 }
 
 /// `1.2.3` as three numbers; `None` for a pre-release or anything else.
@@ -1173,9 +1210,14 @@ fn gradle_spec(text: &str) -> Spec {
 
 /// `[1.0,2.0)`, `[1.0,)`, `(,2.0]`: Maven's ranges, which Gradle reads, as clauses.
 fn gradle_range(text: &str) -> Option<Vec<(PyOp, String)>> {
+    // By character, not by byte: `[` alone, or a range ending in a letter outside ASCII, is not a
+    // range, and slicing it by byte would panic (`implementation 'g:a:['`).
     let open = text.chars().next()?;
-    let close = text.chars().last()?;
-    let inner = &text[1..text.len() - 1];
+    let close = text
+        .chars()
+        .last()
+        .filter(|c| [']', ')', '['].contains(c))?;
+    let inner = text.strip_prefix(open)?.strip_suffix(close)?;
     let (low, high) = inner.split_once(',')?;
     let mut clauses = Vec::new();
     if !low.trim().is_empty() {
@@ -1562,6 +1604,30 @@ mod tests {
             c.differs.into_iter().map(|d| d.asked).collect(),
             c.not_compared,
         )
+    }
+
+    #[test]
+    fn a_dependency_from_somewhere_other_than_the_registry_is_not_said_to_disagree() {
+        // Found in the review of 1 to 4 October (item 20): a workspace package, a folder, a
+        // repository, or an alias is not in the list read from the lockfile under its own name,
+        // and each was reported as the lockfile not having it.
+        let manifest = r#"{"dependencies": {
+            "@app/shared": "workspace:*", "lib": "file:../lib", "linked": "link:../linked",
+            "forked": "github:someone/forked", "short": "someone/short",
+            "repo": "git+https://example.com/repo.git", "tarball": "https://example.com/t.tgz",
+            "aliased": "npm:other@^1.2.0", "express": "^4.18.0", "missing": "^1.0.0"
+        }}"#;
+        let (differs, not_compared) = found("package.json", manifest, &[("express", "4.19.2")]);
+        // The control: a registry package missing from the lockfile still disagrees.
+        assert_eq!(differs, ["missing ^1.0.0"]);
+        assert_eq!(not_compared.len(), 8, "{not_compared:?}");
+        let (differs, not_compared) = found(
+            "requirements.txt",
+            "flask==3.0.0\nmylib @ git+https://example.com/mylib.git\nother==1.0\n",
+            &[("flask", "3.0.0")],
+        );
+        assert_eq!(differs, ["other==1.0"]);
+        assert_eq!(not_compared, ["mylib@git+https://example.com/mylib.git"]);
     }
 
     #[test]
@@ -1979,6 +2045,13 @@ dependencies {
             ("2.0.0", "2.1.0-rc1", None),
             ("latest.release", "1.0", None),
             ("$v", "1.0", None),
+            // Found in the review of 1 to 4 October (item 21): these panicked, or read a range
+            // that was not closed.
+            ("[", "1.0", None),
+            ("(", "1.0", None),
+            ("[1.0,2é", "1.0", None),
+            ("[1.0,2.0", "1.0", None),
+            ("]1.0,2.0[", "1.5", Some(true)),
         ] {
             assert_eq!(gradle(version, have), expected, "{version} against {have}");
         }
