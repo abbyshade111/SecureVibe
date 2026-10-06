@@ -493,6 +493,15 @@ pub struct RunOutcome {
 /// Fresh every run and never written anywhere but the app's own container: they exist to be signed
 /// in with once. The password carries every kind of character a password rule asks for, so an app
 /// with a strict policy still accepts it.
+/// The accounts a run makes for what securevibe.toml's users section asks: an admin when it lists
+/// admin pages or admin actions, and a two-factor secret when it names `totp` and a `seed`.
+pub fn accounts_for(users: &sv_manifest::UsersSection) -> sv_check::signed_in::Accounts {
+    new_accounts(
+        users.makes_an_admin(),
+        users.totp.is_some() && users.seed.is_some(),
+    )
+}
+
 pub fn new_accounts(with_admin: bool, with_totp: bool) -> sv_check::signed_in::Accounts {
     let account = |role: &str| {
         let tag = random_hex(6);
@@ -1227,6 +1236,32 @@ mod tests {
         assert_eq!(minutes(DOCKER_CALL_LIMIT), "20 minutes");
         assert_eq!(minutes(Duration::from_secs(60)), "1 minute");
         assert_eq!(minutes(Duration::from_secs(3)), "3 seconds");
+    }
+
+    #[test]
+    fn admin_actions_alone_make_an_admin_to_send_them_as() {
+        // The documentation review of 6 October 2026, item 3: only admin pages made an admin, so
+        // admin actions listed without them were never asked.
+        let users = |extra: &str| -> sv_manifest::UsersSection {
+            let m: Manifest = toml::from_str(&format!(
+                "[stack.run.users]\nlogin = {{ path = \"/login\", form = {{ email = \"{{user}}\", \
+                 password = \"{{password}}\" }} }}\nseed = \"python seed.py\"\nprivate = [\"/account\"]\n{extra}"
+            ))
+            .unwrap();
+            m.stack.run.users.unwrap()
+        };
+        let actions = users(
+            "[[stack.run.users.admin-actions]]\nmethod = \"POST\"\npath = \"/admin/notes/{marker}/delete\"\n",
+        );
+        assert!(!actions.admin_actions.is_empty() && actions.admin.is_empty());
+        assert!(accounts_for(&actions).admin.is_some());
+        assert!(
+            accounts_for(&users("admin = [\"/admin\"]\n"))
+                .admin
+                .is_some()
+        );
+        // The control: neither, no admin.
+        assert!(accounts_for(&users("")).admin.is_none());
     }
 
     #[test]
