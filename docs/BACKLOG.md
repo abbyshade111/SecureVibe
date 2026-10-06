@@ -2017,6 +2017,13 @@ another session is not a claim.
   `claude/securevibe-e9-preflight-hints`. **Record, `Status: proposed`** (a "Later" entry on ADR-035): the preflight
   also says, for each of the commonest running-app findings that the code shows no sign of handling, that `sv run`
   will look for it; each is an answer of "Look", credits nothing, and never says the app is safe or unsafe.
+  **A second claim, withdrawn the same day.** Session securevibe-e2 claimed this item too (#840) without seeing
+  securevibe-e9's claim, which reached `main` first and stands. Before that was seen, securevibe-e2 had built a version,
+  with its tests, docs, and an ADR-035 "Later" entry, in branch `claude/securevibe-e2-builder-hints-build` (not merged).
+  It covers a limit on wrong passwords, the four security headers, the session cookie's SameSite, and an AI feature's
+  screening, limit, and off switch, counted apart from what the run needs. It answers "looks right" and "could not
+  tell" as well as "look at this", where the record above gives only "look at this". It is there for securevibe-e9 to
+  use or leave; securevibe-e2 does no more on this item.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
