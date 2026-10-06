@@ -5949,6 +5949,7 @@ mod tests {
         ("ast.static-files-from-app-folder", "java", "class W { void f(ResourceHandlerRegistry r) { r.addResourceHandler(\"/**\").addResourceLocations(\"classpath:/static/\"); } }", false),
         ("ast.static-files-from-app-folder", "java", "class A { void f(JavalinConfig config) { config.staticFiles.add(\"/public\", Location.CLASSPATH); } }", false),
         ("ast.static-files-from-app-folder", "java", "class A { void f(List<String> xs) { xs.add(\".\"); } }", false),
+        ("ast.static-files-from-app-folder", "java", "class W { void f(ResourceHandlerRegistry r, String uploads) { r.addResourceHandler(\"/files/**\").addResourceLocations(\"file:\" + uploads); } }", false),
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app) { app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(Directory.GetCurrentDirectory()) }); } }", true),
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app, IWebHostEnvironment env) { app.UseFileServer(new FileServerOptions { FileProvider = new PhysicalFileProvider(env.ContentRootPath) }); } }", true),
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app) { app.UseStaticFiles(); } }", false),
