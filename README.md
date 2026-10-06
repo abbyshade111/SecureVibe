@@ -41,16 +41,18 @@ in a <script> block, an event handler or a javascript: link — is taken out and
 is really on. A page counts as unreadable only when something in it could not be taken out that way.
 
 `sv check`, `sv report` and `sv audit` end with a status a CI job can act on. 3 always means `sv` itself
-failed and there is no result: no `securevibe.toml`, one it cannot read, a folder that is not there, an option
-it does not know (every other command uses 3 for this too). `sv audit` exits 0 when every package was compared
+failed and there is no result: a folder that is not there, an option it does not know, or, for `sv report`,
+no `securevibe.toml` or one it cannot read (`sv check` and `sv audit` run without one, and read it when it is
+there; every other command uses 3 for a failure of its own too). `sv audit` exits 0 when every package was compared
 and none matched a known vulnerability, 1 when one did, and 2 when the comparison did not cover the whole app (no
 database, an ecosystem the database holds nothing about, or a list of packages `sv` could not complete).
 `sv check` and `sv report` exit 0 when they finished, and 2 when a check could not run: a file that could not be
 read, a file the parser could not make sense of, a language nothing here reads, a code rule that would not
 compile, no file of the app read at all, or (`sv report --run`) an app that could not be started. What a static
 run cannot see by its nature, such as requirements nothing verified or a check that needs a Dockerfile the app
-lacks, does not count, or every run would exit 2. Add `--fail-on attention` to exit 1 for any finding (or
-`attention:high` for high and critical only), `--fail-on not-assessed` to exit 2 also for a symbolic link not
+lacks, does not count, or every run would exit 2. Add `--fail-on attention` to exit 1 for any finding of low
+severity or worse, leaving out those marked only for information (or `attention:high` for high and critical
+only), `--fail-on not-assessed` to exit 2 also for a symbolic link not
 followed, a `--tools` tool that did not run, or an `--advisories` comparison that did not cover the app, or
 `--fail-on any` for both; 1 outranks 2. Packages
 in folders `securevibe.toml` says are not the app, such as example apps and test fixtures, are listed apart
@@ -68,9 +70,10 @@ of packages your app depends on is yours, and a check that quietly phones out is
 Outside tools you turn on with `--tools` are other people's programs, and semgrep fetches its rules the first
 time it runs. `sv run` starts containers, and Docker downloads any image it does not have yet.
 
-`sv run` also asks the running app four questions, as somebody who has not signed in: what headers it
-sends, what it says when asked for a page that is not there, whether it accepts a site it has never heard
-of, and whether it echoes requests back. What those questions cannot reach — anything behind a login — is
+`sv run` also asks the running app questions as somebody who has not signed in: among them, what headers
+and cookies it sends, what it says when asked for a page that is not there, whether it accepts a site it has
+never heard of, whether it echoes requests back, and whether it leaves source control, documentation, or a
+development console open to anyone. What those questions cannot reach — anything behind a login — is
 printed as *not assessed* before any finding, because a suite that only tries the front door and says
 nothing reads exactly like one that found nothing wrong.
 
@@ -89,9 +92,11 @@ exit code and one broken test costs the credit of every other test. There is no 
 somebody chose for other reasons. A test that names nothing is not evidence about anything in particular,
 which is a perfectly fair thing for a test to be — most tests are.
 
-`sv report` writes the whole thing out (add `--run` to start the app behind the fence and include what
-it answers, and `--tools` to run the security tool your language already has): one HTML file you can open by double-clicking it, the same
-thing as Markdown, the findings as SARIF for editors and CI, and the data as JSON. The reports lead with
+`sv report` writes the whole thing out, into a folder named `securevibe-report` inside the app's folder
+unless you give `--out` (add `--run` to start the app behind the fence and include what it answers, and
+`--tools` to run the outside security tools that are installed: Bandit, gosec, Brakeman, Semgrep, and CodeQL):
+`report.html`, one file you can open by double-clicking it; `compliance.md` and `security.md`, the same in
+Markdown; the findings as SARIF (`findings.sarif`) for editors and CI; and the data as JSON (`report.json`). The reports lead with
 what was **not** examined, say what each check covered when it found nothing wrong, and nothing in them
 says a requirement passed — `sv` is not able to establish
 that, so it does not claim it.
@@ -114,7 +119,7 @@ as valid input, who may do what, how long somebody stays signed in, how soon a l
 vulnerability gets updated. Nothing can read those out of the code, because what they ask for is a
 decision somebody made.
 
-`sv notes` writes `security-notes.md` beside your app: one question per requirement, in plain words,
+`sv notes` writes `security-notes.md` into your app's folder: one question per requirement, in plain words,
 with what `sv` already found underneath it — the outside services by the package that showed each one,
 the kinds of data you said the app holds. You write the answer. Running it again keeps everything you
 have written.
@@ -144,7 +149,8 @@ what would change that, not reading about it.
 
 One thing you can state as a number, and `sv` will hold your app to it: how many wrong passwords in
 a row it should allow before pushing back. Put `failed-sign-ins = 5` under `[policy]` in
-`securevibe.toml` and the checks make six wrong attempts and watch what the app does. That settles
+`securevibe.toml` and the checks make seven wrong attempts, two more than you allowed, and watch what the app
+does (at most 26, so a number above 24 is reported as not assessed). That settles
 V6.3.1, one of the Level 1 requirements, and it is a real check rather than your word: an app that
 only gives way after twenty attempts, when you said five, is reported. Say nothing and nothing is
 claimed either way.
@@ -170,7 +176,11 @@ the absence of one way to get it wrong is not the control AISVS asks for.
 The OWASP Secure by Design checklist is read too, alongside ASVS and AISVS. Its thirty-six controls are
 design review rather than scanning — whether trust zones are enforced, whether an incident response plan
 is rehearsed, whether your data has named owners — so nothing here can check a single one of them, and
-the reports say exactly that rather than counting them as things that were looked at. Its ids are written
+the reports say exactly that rather than counting them as things that were looked at. Two of them can be
+written down: SBD-MT-06 (what you do if something goes wrong) and SBD-AC-06 (the rules that might apply to
+the app), as sections of a `design-decisions.md` in the app's folder, which the design-time prompts write.
+A section marked as yours and recorded with `sv review` counts as *documented by the owner*; nothing in that
+file ever counts as checked. Its ids are written
 `SBD-AC-01` to keep them apart from AISVS Appendix C, which numbers its own requirements `AC.1.1`.
 The checklist has no levels; each control takes the level of the ASVS requirement that asks the same
 thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing in ASVS does.
@@ -294,8 +304,8 @@ rule, is your decision, or is reached by nothing in `sv`.
 by the OWASP AISVS project and its contributors, licensed under
 [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Its requirements were rewritten as
 instructions for an AI coding tool, and only those a coding tool can act on while it writes code are
-included (18 of 68; the owner's decisions among the rest are asked through `sv questions` and the
-security notes). Every copy `sv` writes carries this credit and the license, and the adapted text is
+included (18 rules, drawn from 27 of its 68 requirements; the owner's decisions among the rest are asked
+through `sv questions` and the security notes). Every copy `sv` writes carries this credit and the license, and the adapted text is
 shared under the same license. It does not reach your app's own code.
 
 If your tool reads another file instead of `AGENTS.md` (Claude Code reads `CLAUDE.md`, for example),
@@ -339,14 +349,14 @@ app from it, below), `securevibe_preflight` (what `sv run` will need, read from 
 `securevibe_before` (one feature's brief before it is built, below), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
 `securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
-work),
+work; `sv prompts`, or `sv prompts --requirement V1.2.4`, prints them at a terminal),
 `securevibe_check` (what
 applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
 its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),
 `securevibe_questions` (the questions only you can answer, for the tool to ask you one at a time), and
 `securevibe_notes_file` (the `security-notes.md` your written decisions go in), `securevibe_record_answer`
 (an answer written under one of those questions, always marked as the tool's own: once you have read it and agree,
-you change its `Written by:` line to `owner` yourself), and `securevibe_bundle`
+you change its `Written by:` line to `owner` yourself and record it with `sv review`), and `securevibe_bundle`
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
 
@@ -377,6 +387,13 @@ apply to the app now, and, if `securevibe.toml` does not say yet that the app ha
 once it does; the design-time prompts for the decisions to make first, in full; the coding rules that bear on it; the
 tests to write; and the settings `sv run` needs to test it, quoted from the spec. Like the plan, it writes nothing and
 credits nothing.
+
+**Before `--run`.** `sv preflight` (and `securevibe_preflight`, for the tool) looks in the app's files for what
+`sv run` will need from `[stack.run]`: a server listening on every address at `$PORT`, a seed that makes the test
+accounts, the sign-in form at the path and with the fields the settings give, the tables the app makes for itself,
+and so on. Each item says *looks right*, *look at this*, or *could not tell*. It reads text and runs nothing, so
+"looks right" means the thing was found, not that it works; the point is that the AI tool can fix a wrong setting in
+the same conversation, before a run is spent on it. It credits nothing.
 
 A check that takes longer than 50 seconds is stopped waiting for, and the tool is told it did not finish and that
 nothing was assessed, rather than being left waiting. Checking this whole repository takes about six seconds.
