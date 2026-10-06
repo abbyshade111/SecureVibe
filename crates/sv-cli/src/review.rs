@@ -18,7 +18,7 @@ use anyhow::{Context, Result, bail};
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use sv_check::advisories::Day;
-use sv_check::seal::{Checker, Key};
+use sv_check::seal::{App, AppKey, Checker, Key};
 
 /// One entry waiting for a person.
 enum Waiting {
@@ -99,12 +99,15 @@ fn review(
             out,
             "Made this computer's review key, in {}. It seals what you record here. Keep it \
              private: anyone who can read it can seal entries as you. Seals made with it count on \
-             this computer, and on a computer with no review key, such as CI, where they cannot be \
-             checked and the report says so.\n",
+             this computer only, and only in the app they were recorded for; on a computer with no \
+             review key, such as CI, they cannot be checked and do not count, and the report says \
+             so.\n",
             folder.join(sv_check::seal::KEY_FILE).display()
         )?;
     }
     let today = Day::today().context("this computer's clock is before 1970")?;
+    // Sealed for this app alone, so an answer copied into another app does not count there.
+    let key = key.for_app(&App::of(app_dir).map_err(anyhow::Error::msg)?);
     let checker = Checker::Key(key.clone());
     let rules = sv_check::secrets::SecretRules::load(&super::secret_rules_path())?;
 
@@ -396,7 +399,7 @@ fn record_finding(
     entry: &sv_manifest::FindingReview,
     rules: &sv_check::secrets::SecretRules,
     today: Day,
-    key: &Key,
+    key: &AppKey,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
 ) -> Result<Option<Recorded>> {
@@ -559,7 +562,7 @@ fn record_confirmation(
     proposed: &sv_manifest::Confirmed,
     current: &Current,
     today: Day,
-    key: &Key,
+    key: &AppKey,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
 ) -> Result<Option<sv_manifest::Confirmed>> {
@@ -662,7 +665,7 @@ fn notes_text(path: &Path) -> Result<Option<String>> {
 fn record_own(
     what: &str,
     fields: &[String],
-    key: &Key,
+    key: &AppKey,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
 ) -> Result<Option<String>> {
@@ -870,7 +873,8 @@ mod tests {
             Checker::Key(
                 Key::load_from(&self.keys())
                     .unwrap()
-                    .expect("a key was made"),
+                    .expect("a key was made")
+                    .for_app(&App::of(&self.app()).unwrap()),
             )
         }
     }
