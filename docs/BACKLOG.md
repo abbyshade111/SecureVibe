@@ -89,6 +89,9 @@ another session is not a claim.
   again with `sv review`.
   **Items 1, 2, 3, 4, 12, and 13 claimed the same day by session securevibe-e2**, at the owner's word, as the first
   batch (each credits or accuses wrongly), in branch `claude/securevibe-e2-review-1to4-batch1`.
+  **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
+  the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
+  `claude/securevibe-e9-review-1to4-batch2`.
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
