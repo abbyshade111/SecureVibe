@@ -82,9 +82,13 @@ impl Undo {
 /// The folders this process holds, by their lock's path, with what to undo for each. Kept so that
 /// `let_go_of_all` can let them go on the way out of a run stopped with Ctrl-C, which leaves through
 /// `std::process::exit`, where nothing is dropped.
-static LIVE: std::sync::Mutex<Vec<(PathBuf, Undo)>> = std::sync::Mutex::new(Vec::new());
+static LIVE: std::sync::Mutex<Vec<Live>> = std::sync::Mutex::new(Vec::new());
 
-fn live() -> std::sync::MutexGuard<'static, Vec<(PathBuf, Undo)>> {
+/// A folder this process holds: its lock's path, what to undo, and the lock file as this run
+/// opened and locked it, when the disk could lock it.
+type Live = (PathBuf, Undo, Option<Metadata>);
+
+fn live() -> std::sync::MutexGuard<'static, Vec<Live>> {
     LIVE.lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
@@ -93,7 +97,7 @@ impl Held {
     /// What to take away if the run ends without a report: `marker`, a file taking the folder
     /// wrote, and `folder`, if taking it made the folder.
     pub fn undo_unless_written(&self, marker: Option<PathBuf>, folder: Option<PathBuf>) {
-        if let Some(entry) = live().iter_mut().find(|(lock, _)| *lock == self.path) {
+        if let Some(entry) = live().iter_mut().find(|(lock, _, _)| *lock == self.path) {
             entry.1 = Undo { marker, folder };
         }
     }
@@ -107,8 +111,20 @@ impl Held {
 /// Lets go of every folder this process holds, removing their locks and undoing what taking them
 /// added. For a run leaving through `std::process::exit`.
 pub fn let_go_of_all() {
-    for (lock, undo) in live().drain(..) {
-        let _ = std::fs::remove_file(&lock);
+    let_go_of(live().drain(..).collect());
+}
+
+/// Lets go of these folders. A lock is removed only when its name is still the file this run locked,
+/// as `Drop` does: where the disk could not lock, or another run has since put its own lock there,
+/// the file is another run's, and removing it on Ctrl-C would leave that run's folder open to a
+/// third (item 24 of the review of 1 to 4 October).
+fn let_go_of(held: Vec<Live>) {
+    for (lock, undo, opened) in held {
+        if let (Some(opened), Ok(on_disk)) = (opened, std::fs::symlink_metadata(&lock))
+            && same_file(&on_disk, &opened)
+        {
+            let _ = std::fs::remove_file(&lock);
+        }
         undo.apply();
     }
 }
@@ -118,7 +134,7 @@ impl Drop for Held {
         let undo = {
             let mut live = live();
             live.iter()
-                .position(|(lock, _)| *lock == self.path)
+                .position(|(lock, _, _)| *lock == self.path)
                 .map(|at| live.remove(at).1)
                 .unwrap_or_default()
         };
@@ -139,7 +155,8 @@ impl Drop for Held {
 }
 
 fn held(file: Option<File>, path: PathBuf, notes: Vec<String>) -> Held {
-    live().push((path.clone(), Undo::default()));
+    let opened = file.as_ref().and_then(|f| f.metadata().ok());
+    live().push((path.clone(), Undo::default(), opened));
     Held { file, path, notes }
 }
 
@@ -498,6 +515,32 @@ mod tests {
         assert!(there(u64::MAX).is_ok());
         // An earlier one is replaced, as always.
         assert!(there(now - 120_000).is_ok());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn ctrl_c_removes_only_the_lock_this_run_holds() {
+        let dir = folder("ctrl-c");
+        let lock = dir.join(LOCK_NAME);
+        let make = || {
+            std::fs::write(&lock, "{}").unwrap();
+            std::fs::metadata(&lock).unwrap()
+        };
+        // Its own, still in place: removed.
+        let mine = make();
+        let_go_of(vec![(lock.clone(), Undo::default(), Some(mine))]);
+        assert!(!lock.exists(), "its own lock is removed");
+        // A disk that could not lock: the file is not known to be this run's, and is left.
+        make();
+        let_go_of(vec![(lock.clone(), Undo::default(), None)]);
+        assert!(lock.exists(), "a lock this run never held is left");
+        // Its own was removed and another run made one in its place: left.
+        // Moved aside rather than removed, so the new file cannot reuse its place on the disk.
+        let old = std::fs::metadata(&lock).unwrap();
+        std::fs::rename(&lock, dir.join("moved-aside")).unwrap();
+        make();
+        let_go_of(vec![(lock.clone(), Undo::default(), Some(old))]);
+        assert!(lock.exists(), "another run's lock is left");
         std::fs::remove_dir_all(&dir).ok();
     }
 
