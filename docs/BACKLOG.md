@@ -1062,6 +1062,11 @@ another session is not a claim.
      function's calls across the app's Python, and when every one passes the app's own route (`url_for(...)`) or a
      path on this site, keep the finding and say so, naming each call, as the owner decided for a destination a
      function checked (item 3 of "Three false alarms on code that does the safe thing"). Not made quiet.
+     **Done the same day** (DESIGN, "A redirect to a parameter every caller fills with the app's own route says
+     so"): the finding stays, and when every use of the function's name across the app's Python is a call, its
+     definition, or an import, and every call passes or leaves to a default what the rule counts as safe on its own,
+     it names each call and says removing the parameter only to clear the finding is not a fix. Python only. Ten
+     guards broken in turn, each caught.
   8. **`sv run --slow` waits out the idle timeout and then reuses the session it let expire.** family-hub,
      3 October: after the 31-minute wait (which did credit V7.3.1), the run's later steps went wrong: "A signed out
      (400)", record creation and the real-browser checks failed, where the normal run minutes before had passed
