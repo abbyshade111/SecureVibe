@@ -56,7 +56,7 @@ depend on it do not apply.
 > Make the project folder a git repository before writing the first file (`git init`), add a .gitignore straight
 > away that leaves out .env files, keys, and installed dependencies, and commit after each step that works.
 
-*Requirement:* ASVS V13.3.1 (secrets are kept out of the code and its history).
+*Requirement:* ASVS V13.3.1 (secrets are kept out of the source code and what is built from it).
 
 *What it showed:* with the prompt, the app was a git repository with a `.gitignore`, and `sv`'s check for a
 password or key committed to the history ran. Without it, the folder was not a git repository, so that check
@@ -82,7 +82,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V1.2.4.
 
-*Not tested:* The build with the prompt followed it, and `sv` wrongly flagged two of its safe queries. That is a fault in `sv`, recorded in the backlog.
+*Not tested:* The build with the prompt followed it, and `sv` wrongly flagged two of its safe queries. That is a fault in `sv`, recorded in the backlog, and fixed on 4 October 2026: both queries are now left alone. The prompt has not been tried again since.
 
 ### Run other programs without a shell
 
@@ -98,7 +98,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V5.3.2.
 
-*Not tested:* The build with the prompt followed it, and `sv` wrongly flagged the file path it read back from its own database. That is a fault in `sv`, recorded in the backlog.
+*Not tested:* The build with the prompt followed it, and `sv` wrongly flagged the file path it read back from its own database. That is a fault in `sv`, recorded in the backlog. Since 5 October 2026 the finding stays, at low confidence, and says the path was built from fixed text and a value read back from the app's own database. The prompt has not been tried again since.
 
 ### Store passwords with a password-hashing function
 
@@ -114,7 +114,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V3.7.2.
 
-*Not tested:* Both builds checked the address before redirecting, and `sv` flagged both: it cannot yet tell a checked redirect from an unchecked one. Recorded in the backlog.
+*Not tested:* Both builds checked the address before redirecting, and `sv` flagged both: it could not tell a checked redirect from an unchecked one. Recorded in the backlog. Since 5 October 2026 the finding stays, at low confidence, and names the function the address passed through (such as `safe_next`), as the owner decided. The prompt has not been tried again since.
 
 ### Clean formatted text before showing it
 
@@ -159,7 +159,7 @@ check the result with `sv` as you would anything else.
 The same prompts, with the checks behind them, are in `data/prompts.json`.
 
 Prompts for what to decide **before** any code is written (who may do what, limits, logging, sign-in), drawn from the
-OWASP Secure by Design checklist and tested the same way, are on a page of their own:
+OWASP Secure by Design checklist and held to the same test (3 of the 14 shown to work so far), are on a page of their own:
 [Prompts to give your AI coding tool before it writes any code](prompts/design-time.md). `sv prompts` and
 `securevibe_prompts` give those too; `sv prompts --requirement SBD-AC-03` finds them by the checklist control they
 help you answer.

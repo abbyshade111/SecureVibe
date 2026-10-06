@@ -2000,6 +2000,61 @@ another session is not a claim.
   entry instead.
   **Claimed on 6 October 2026 by session securevibe-e10**, at the owner's asking to take the next unclaimed item, in
   branch `claude/docs-review`. CLAUDE.md's `SV_DATA_DIR` line is left to session securevibe-e2, which claimed it.
+  **Part 1 done the same day:** every document read against `main` at `e9179b22` by five read-only helper agents,
+  one per group of documents, and each correction written here checked against the code by the session itself.
+  - `docs/GETTING-STARTED.md`: thirteen tools, not six; an owner's answer counts only once recorded with `sv review`,
+    now explained, with how to give the container the key folder; the design-time steps (`sv plan`, `sv brief`,
+    `sv preflight`); where the report is; exit code 3 for `sv check`; where a moved program looks for its data.
+  - `README.md`: the signed-out questions are more than four; seven wrong passwords, not six (the cap of 26 said);
+    `--fail-on attention` leaves out findings marked only for information; exit 3 for `sv check` and `sv audit`;
+    the report's five files and folder; the outside tools `--tools` runs; the coding rules are 18, drawn from 27 of
+    68 requirements; `sv preflight` and `sv prompts` named; SBD-MT-06 and SBD-AC-06 in `design-decisions.md`; an
+    answer recorded with `sv review`.
+  - `docs/PROMPTS.md`: three faults in `sv` the trials found are marked fixed; 3 of 14 design-time prompts shown to
+    work; V13.3.1's wording.
+  - `docs/THREAT-MODELING.md`: built, not proposed; 115 citations of 101 requirements; a "Since" section (v1
+    archived, MT-03 not built, `sv plan`'s threats, an answer never settles a threat, ATLAS).
+  - `docs/SEMGREP-FALSE-ALARMS.md`: the licence's non-commercial condition; option C is not what `sv` runs (440 of
+    the 868 findings, and 164 of the 555 false alarms, from rules it runs); `SKIP_DIRS` since H6; the CSV's name;
+    which recommendations are built.
+  - `docs/PARTIAL-CHECKS.md`: 57 of the 382 have gained a check; `signed_in.rs` is a folder.
+  - `examples/partly-passing`: `/tmp` is writable too.
+  - `docs/REQUIREMENTS.md` and `docs/COVERAGE.md` are generated and current (`tools/coverage.py --check` passes);
+    what is wrong in them is the generator's, below.
+  **Part 2, still claimed:** the text inside the code: `sv --help` and each command's help (`crates/sv-cli/src/main.rs`),
+  the specification `sv init` prints (`crates/sv-manifest/src/spec.rs`), the MCP server's instructions and tool
+  descriptions (`crates/sv-cli/src/mcp.rs`), and `tools/coverage.py`'s prose.
+
+- **Found by the documentation review (6 October 2026), in `sv` itself.** Each was found reading a document against
+  the code and confirmed in the code; each is **not claimed** and can be claimed on its own. Most important first.
+  1. **A clean run credits V15.2.4 on a check that cannot show it.** `ast.download-piped-to-shell` cites V15.2.4
+     (components and their dependencies come from the expected repository, no dependency confusion; level 3) and is
+     not `findingsOnly`, so a shell script with no `curl … | sh` credits V15.2.4 as checked. Not finding a download
+     piped to a shell says nothing about where the app's dependencies come from. Fix: make the rule finding-only for
+     V15.2.4 (a finding is evidence against it; nothing found credits nothing). A change to what counts as evidence:
+     ADR-018 changes with it.
+  2. **The starter `securevibe.toml` leaves `[stack.run.users]` in force with every key commented out.** It parses as
+     an empty section, not an absent one, so a run reports "[stack.run.users] … cannot be used: `login` is not set…"
+     where the spec says leaving it out reports the signed-in checks as not assessed (`crates/sv-manifest/src/spec.rs`,
+     the starter; `signed_in/mod.rs`). Fix: comment the header out, as the other optional sections are (part 2 of the
+     documentation review will do it if nobody claims it first).
+  3. **`admin-actions` needs `admin` too.** An admin account is made only when `admin` pages are listed, so with
+     `admin-actions` and no `admin`, V8.3.1 is not assessed with the reason "an admin is made by `seed`", which misleads
+     when `seed` is set. Fix: make the admin when `admin-actions` is listed, or say in the spec that it needs both.
+  4. **`sv run` exits 0 when the app could not start,** after printing "Not assessed". ADR-029's codes cover `sv check`,
+     `sv report`, and `sv audit` only; `sv run`'s are not decided. For the owner: should `sv run` exit 2 there?
+  5. **`securevibe_bundle` with no `path` is always refused** (the zip goes beside the app, and the server's own folder
+     has no "beside" it can write to), though the tool's description says `path` defaults to that folder. Fix the
+     description, or the default.
+  6. **`tools/coverage.py` writes three things wrong into `docs/REQUIREMENTS.md`:** a Rust `\\u{2014}` escape printed
+     as `u{2014}` (V2.2.2's row); "semgrep, N rules" counting distinct descriptions rather than rules (V1.2.4 says 1,
+     where 74 rules cite it); and a phrase repeated where a rule's own description joins two with "; ".
+  7. **`[data]` category names are not checked.** Only an exact match to the sensitive list raises the level, so a
+     misspelled `"Health"` quietly allows level 1. Fix: warn on a name not in the list.
+  8. **For the owner, about the prompt library:** the "settings file first" prompt, shown to work, says to "delete the
+     line instead of writing false" when unsure, where `sv init`'s own instructions say "if you are unsure whether a
+     capability is present, say true"; and it says `sv init` creates the file, where it prints it. Changing a shown
+     prompt's words may take its result away, so the owner decides which wording stands.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
