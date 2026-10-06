@@ -380,6 +380,14 @@ fn reported_passing(line: &str, cases: &[TestCase]) -> bool {
     matched.peek().is_some() && matched.all(|c| c.passed)
 }
 
+/// The cases a failed suite's own report gives, read in whichever form it is in
+/// (`test_report::parse`): `None` when the suite wrote no report, a refusal when it could not be read.
+pub fn reported_cases(
+    report: Option<&str>,
+) -> Option<Result<Vec<TestCase>, crate::junit::Unreadable>> {
+    report.map(crate::test_report::parse)
+}
+
 /// What the run said about the suite as a whole.
 #[derive(Debug, Clone, Copy)]
 pub enum SuiteOutcome<'a> {

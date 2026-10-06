@@ -6831,6 +6831,11 @@ another session is not a claim.
   `test-report` in TAP (versions 13 and 14, as `node --test`, `bats`, and `prove` write it), in `go test -json`, or in
   the JSON jest and Vitest write (`--json`, `--reporter=json`) read the way JUnit XML is, failing closed on anything
   it does not recognize.
+  **Done the same day** (DESIGN, "A test report in TAP, `go test -json`, or jest's JSON"): `test_report::parse` tells
+  the form by how the file opens and reads each into the cases JUnit gives; a skipped or TODO test, a test that never
+  finished, and any status but passed are not passes; a TAP report with no plan, a count that differs from its plan,
+  or a bail-out is refused whole. Fourteen guards broken in turn, each caught. Read from the formats' own
+  descriptions and from samples written here, not from reports produced by each runner on this machine.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,

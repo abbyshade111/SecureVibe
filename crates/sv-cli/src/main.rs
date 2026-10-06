@@ -3796,7 +3796,7 @@ fn assemble_report_saying(
                         let reported_cases = if result.exit_code == 0 {
                             None
                         } else {
-                            match result.report.as_deref().map(sv_check::junit::parse) {
+                            match sv_check::suite::reported_cases(result.report.as_deref()) {
                                 Some(Ok(cases)) => Some(cases),
                                 Some(Err(unreadable)) => {
                                     gaps.push(sv_report::Gap {
