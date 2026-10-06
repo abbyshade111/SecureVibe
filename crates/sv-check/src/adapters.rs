@@ -942,7 +942,7 @@ pub fn run_one_in(
             loaded: loaded_rules(&text),
             looked_away: {
                 let mut reasons = looked_away(adapter, &text, app_dir);
-                reasons.extend(did_not_finish(&text, app_dir));
+                reasons.extend(did_not_finish(rules, &text, app_dir));
                 if lists_scanned {
                     reasons.extend(unread_files(&files, scanned.as_deref()));
                 }
@@ -1266,8 +1266,10 @@ pub fn code_files_for(listing: &sv_scan::files::Listing, language: &str) -> Vec<
 /// H7 of the deep review: Bandit skipped a file it could not parse, said so in its SARIF
 /// (`executionSuccessful` false, and a notification naming the file), and the clean result was
 /// credited because nothing read either. An error-level notification, or a run marked unsuccessful,
-/// keeps the run from counting as clean; its findings still stand.
-pub fn did_not_finish(sarif: &str, app_dir: &Path) -> Vec<String> {
+/// keeps the run from counting as clean; its findings still stand. What a tool says in it is quoted
+/// as any line a tool writes is (`said`), every credential redacted, since a tool's message may quote
+/// the line it could not read (item 24 of the review of 1 to 4 October).
+pub fn did_not_finish(rules: &SecretRules, sarif: &str, app_dir: &Path) -> Vec<String> {
     let Ok(document) = serde_json::from_str::<serde_json::Value>(sarif) else {
         return Vec::new();
     };
@@ -1298,9 +1300,14 @@ pub fn did_not_finish(sarif: &str, app_dir: &Path) -> Vec<String> {
                     .map(|uri| relative_uri(uri, app_dir));
                 let message = note["message"]["text"].as_str().unwrap_or("").trim();
                 errors.push(match (file, message.is_empty()) {
-                    (Some(file), false) => format!("`{file}` ({})", first_line(message)),
+                    (Some(file), false) => {
+                        format!(
+                            "`{file}` ({})",
+                            said(rules, first_line(message), LINE_CHARS)
+                        )
+                    }
                     (Some(file), true) => format!("`{file}`"),
-                    (None, false) => first_line(message).to_owned(),
+                    (None, false) => said(rules, first_line(message), LINE_CHARS),
                     (None, true) => "an error it did not describe".to_owned(),
                 });
             }
@@ -2119,15 +2126,27 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             format!(r#"{{"runs":[{{"invocations":[{invocation}],"results":[]}}]}}"#)
         };
         // A warning is not a part of the run that failed.
-        assert!(did_not_finish(&report(r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"warning","message":{"text":"slow"}}]}"#), app).is_empty());
-        assert!(did_not_finish(&report(r#"{"executionSuccessful":true}"#), app).is_empty());
+        assert!(did_not_finish(&secret_rules(), &report(r#"{"executionSuccessful":true,"toolExecutionNotifications":[{"level":"warning","message":{"text":"slow"}}]}"#), app).is_empty());
+        assert!(
+            did_not_finish(
+                &secret_rules(),
+                &report(r#"{"executionSuccessful":true}"#),
+                app
+            )
+            .is_empty()
+        );
         // Unsuccessful with nothing said, and an error with no file, still count.
-        let quiet = did_not_finish(&report(r#"{"executionSuccessful":false}"#), app);
+        let quiet = did_not_finish(
+            &secret_rules(),
+            &report(r#"{"executionSuccessful":false}"#),
+            app,
+        );
         assert_eq!(
             quiet,
             ["its report says its run did not succeed, without saying why"]
         );
         let config = did_not_finish(
+            &secret_rules(),
             &report(
                 r#"{"executionSuccessful":true,"toolConfigurationNotifications":[{"level":"error","message":{"text":"bad profile\nmore"}}]}"#,
             ),
@@ -2139,12 +2158,36 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         );
         // A file named by its full path is shown from the app folder.
         let full = did_not_finish(
+            &secret_rules(),
             &report(
                 r#"{"toolExecutionNotifications":[{"level":"error","message":{"text":"x"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"file:///app/pkg/a.py"}}}]}]}"#,
             ),
             app,
         );
         assert!(full[0].contains("`pkg/a.py` (x)"), "{full:?}");
+        // A message quoting the line it could not read is quoted with its credential redacted.
+        let value = ["Xk7mQ92v", "LpR4sTzW"].concat();
+        let quoted = did_not_finish(
+            &secret_rules(),
+            &report(&format!(
+                r#"{{"toolExecutionNotifications":[{{"level":"error","message":{{"text":"could not parse: db_password = \"{value}\""}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"file:///app/settings.py"}}}}}}]}}]}}"#
+            )),
+            app,
+        );
+        assert!(
+            quoted[0].contains("could not parse"),
+            "the setup: {quoted:?}"
+        );
+        assert!(
+            !quoted[0].contains(&value[4..]),
+            "{}",
+            quoted[0].replace(&value, "<value>")
+        );
+        assert!(
+            quoted[0].contains("[redacted:"),
+            "{}",
+            quoted[0].replace(&value, "<value>")
+        );
     }
 
     #[test]
