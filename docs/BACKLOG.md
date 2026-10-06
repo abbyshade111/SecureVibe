@@ -1486,6 +1486,11 @@ another session is not a claim.
       wrong shape. The marker in the app's answer is a finding; credit only after an ordinary answer of the right shape
       was seen shown, and the wrong one refused without failing. A service that answers slowly or not at all stays
       unclaimed.
+      **Done the same day** (DESIGN, "Answers in the shape the app asked for, and C7.1.1"; ADR-042, accepted). The test
+      model answers in the shape asked for, through every API it speaks. `probe.ai-output-shape-unchecked` is a finding
+      when the app uses an answer that does not fit. It is credited only when the app showed a reply in the right shape
+      and refused the wrong one without failing. Shown with the OpenAI and Anthropic SDKs and zod against the real test
+      model; not run end to end under Docker here. A service that answers slowly or not at all is still not done.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
