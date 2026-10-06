@@ -194,7 +194,9 @@ fn verdict(r: &Option<ProbeResponse>) -> Verdict {
     let Some(r) = r else {
         return Verdict::NoAnswer;
     };
-    if r.status >= 500 {
+    // A server error is not an answer, and neither is a rate limiter's 429: a refusal it gave is
+    // the limiter's, not the server's own check (ADR-021; the review of 1 to 4 October, item 4).
+    if r.status >= 500 || r.status == 429 {
         return Verdict::NoAnswer;
     }
     let squeezed: String = r.body.chars().filter(|c| !c.is_whitespace()).collect();
@@ -840,7 +842,37 @@ fn where_from_and_session_end(
                 unchecked.join(" and for one ")
             ),
         ));
-    } else if from_page.is_some() && rebound.is_some() {
+    } else if verdict(&from_page) != Verdict::Refused || verdict(&rebound) != Verdict::Refused {
+        say(
+            "C10.3.3",
+            format!(
+                "Whether the MCP server checks Origin and Host: the requests with a foreign one \
+                 were answered {} and {}, and a crash or a rate limit is not a refusal.",
+                status(&from_page),
+                status(&rebound)
+            ),
+            out,
+        );
+    } else if !answered(&http.send(&request(
+        "mcp-ordinary-again",
+        "POST",
+        path,
+        Some(rpc(6, "initialize")),
+        None,
+        &[],
+    ))) {
+        // The control: an ordinary request, sent just after the two, still starts a session.
+        // A server that refuses every `initialize` after its first (one session for its life) refuses
+        // the foreign ones for that, not for where they came from (the review of 1 to 4 October,
+        // item 4).
+        say(
+            "C10.3.3",
+            "Whether the MCP server checks Origin and Host: an ordinary request sent just after \
+             the two was refused as well, so their refusal shows nothing about Origin or Host."
+                .to_owned(),
+            out,
+        );
+    } else {
         out.verified.push(crate::Verified::new(
             WHERE_FROM.rule_id,
             WHERE_FROM.requirement_ids,
@@ -852,14 +884,6 @@ fn where_from_and_session_end(
                 status(&rebound)
             ),
         ));
-    } else {
-        say(
-            "C10.3.3",
-            "Whether the MCP server checks Origin and Host: one of the two requests got no answer \
-             at all, which is not a refusal."
-                .to_owned(),
-            out,
-        );
     }
 
     // C10.2.6: the session ended as the transport says, then used again.
@@ -946,7 +970,7 @@ fn where_from_and_session_end(
                 status(&after)
             ),
         ));
-    } else if after.is_some() {
+    } else if verdict(&after) == Verdict::Refused {
         out.verified.push(crate::Verified::new(
             SESSION_KEPT.rule_id,
             SESSION_KEPT.requirement_ids,
@@ -962,7 +986,7 @@ fn where_from_and_session_end(
         say(
             "C10.2.6",
             "Whether an ended MCP session stays usable: the request after it was ended got no \
-             answer at all, which is not a refusal."
+             answer, a server error, or a rate limit, none of which is a refusal."
                 .to_owned(),
             out,
         );
@@ -1004,6 +1028,9 @@ mod tests {
         /// Its tool refuses a bad argument as a tool error (`isError: true`), not a JSON-RPC error.
         /// Not a fault.
         refuses_in_result: bool,
+        /// Keeps one session for its life: every `initialize` after the first is answered 400,
+        /// whatever its headers.
+        one_session_only: bool,
     }
 
     /// The largest request the careful fake reads, past the long argument and short of the large
@@ -1018,6 +1045,8 @@ mod tests {
         sessions: BTreeSet<String>,
         next: u32,
         sent: Vec<ProbeRequest>,
+        /// Requests answered with this status whatever they ask, by id: a crash or a limiter.
+        forced: Vec<(&'static str, u16)>,
     }
 
     impl FakeMcp {
@@ -1040,6 +1069,9 @@ mod tests {
                     body,
                 })
             };
+            if let Some((_, status)) = self.forced.iter().find(|(id, _)| *id == r.id) {
+                return reply(*status, Vec::new(), "{\"error\":\"forced\"}".into());
+            }
             if r.path != "/mcp" {
                 return reply(404, Vec::new(), String::new());
             }
@@ -1086,6 +1118,13 @@ mod tests {
             let method = body["method"].as_str().unwrap_or_default();
             let mut headers = Vec::new();
             if method == "initialize" {
+                if self.flaws.one_session_only && self.next > 0 {
+                    return reply(
+                        400,
+                        Vec::new(),
+                        "{\"error\":\"already initialized\"}".into(),
+                    );
+                }
                 if !self.flaws.stateless {
                     self.next += 1;
                     let s = format!("sess-{}", self.next);
@@ -1561,5 +1600,92 @@ mod tests {
                 .iter()
                 .any(|w| w.contains("not a refusal"))
         );
+    }
+
+    fn ask_forced(flaws: Flaws, forced: Vec<(&'static str, u16)>) -> Outcome {
+        let mut server = FakeMcp {
+            flaws,
+            forced,
+            ..Default::default()
+        };
+        run(
+            &mut server,
+            &McpServerSection {
+                path: "/mcp".into(),
+                ..Default::default()
+            },
+            None,
+        )
+    }
+
+    #[test]
+    fn a_crash_or_a_limit_is_not_a_refusal_of_where_a_request_came_from_or_of_an_ended_session() {
+        // The review of 1 to 4 October, item 4. The control: a careful server is credited for both.
+        let o = ask_forced(Flaws::default(), Vec::new());
+        assert!(credited(&o).contains(&WHERE_FROM.rule_id), "{:?}", o.steps);
+        assert!(
+            credited(&o).contains(&SESSION_KEPT.rule_id),
+            "{:?}",
+            o.steps
+        );
+        for status in [500, 429] {
+            let o = ask_forced(
+                Flaws {
+                    origin_unchecked: true,
+                    host_unchecked: true,
+                    session_survives: true,
+                    ..Default::default()
+                },
+                vec![
+                    ("mcp-foreign-origin", status),
+                    ("mcp-foreign-host", status),
+                    ("mcp-list-after", status),
+                ],
+            );
+            assert!(
+                !credited(&o).contains(&WHERE_FROM.rule_id),
+                "{status} {:?}",
+                o.steps
+            );
+            assert!(
+                !credited(&o).contains(&SESSION_KEPT.rule_id),
+                "{status} {:?}",
+                o.steps
+            );
+            assert!(!why(&o, "C10.3.3").is_empty(), "{status}: not said");
+            assert!(!why(&o, "C10.2.6").is_empty(), "{status}: not said");
+        }
+    }
+
+    #[test]
+    fn a_server_that_refuses_every_second_session_is_not_credited_for_checking_origin() {
+        let o = ask_forced(
+            Flaws {
+                origin_unchecked: true,
+                host_unchecked: true,
+                one_session_only: true,
+                ..Default::default()
+            },
+            Vec::new(),
+        );
+        assert!(!credited(&o).contains(&WHERE_FROM.rule_id), "{:?}", o.steps);
+        assert!(
+            why(&o, "C10.3.3")
+                .iter()
+                .any(|w| w.contains("ordinary request sent just after")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn a_limiter_is_not_a_refusal() {
+        let limited = Some(ProbeResponse {
+            id: "x".into(),
+            status: 429,
+            headers: Vec::new(),
+            body: "{\"error\":\"slow down\"}".into(),
+        });
+        assert_eq!(verdict(&limited), Verdict::NoAnswer);
     }
 }

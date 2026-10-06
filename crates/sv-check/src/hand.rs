@@ -431,12 +431,5 @@ mod tests {
             ..unrecorded
         });
         assert_eq!(problem.findings.len(), 1);
-        // Recorded on a computer that could not check the seal: the owner's, and it says so.
-        let elsewhere = run(Answer {
-            recorded: Ok(crate::seal::Sealed::Unchecked { key: "k".into() }),
-            ..answer(DONE, Some("2026-09-20"), Some("owner"), Some(SAW))
-        });
-        assert_eq!(elsewhere.by_owner.len(), 1);
-        assert!(elsewhere.by_owner[0].scope.contains("on another computer"));
     }
 }

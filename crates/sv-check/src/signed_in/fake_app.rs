@@ -193,6 +193,9 @@ pub(super) struct Flaws {
     /// Creating a note refuses `Origin: null`, as a strict cross-site defense might.
     pub(super) refuses_null_origin: bool,
     pub(super) keep_session_at_login: bool,
+    /// With `keep_session_at_login`, sets a cookie of no consequence at sign-in, as an app that
+    /// remembers the user's name for the page does: the only cookie sign-in sets is not the session.
+    pub(super) other_cookie_at_login: bool,
     pub(super) logout_keeps_session: bool,
     pub(super) no_httponly: bool,
     pub(super) broken_login: bool,
@@ -371,6 +374,9 @@ pub(super) struct Flaws {
     /// Saves a file whose name holds a `/` under a name of its own. Not a fault, and the safest
     /// arrangement, but one nothing outside the app can see.
     pub(super) renames_path_names: bool,
+    /// Saves every upload under a name of its own, so nothing is at the name it was sent with.
+    /// Not a fault.
+    pub(super) renames_every_upload: bool,
     /// Refuses `.txt` uploads, whatever is in them. Not a fault, but it leaves a refusal of the
     /// antivirus test file saying nothing.
     pub(super) refuses_text: bool,
@@ -1161,12 +1167,15 @@ impl FakeApp {
                     ));
                 }
                 if self.flaws.keep_session_at_login {
-                    self.sessions.insert(sid?, who);
-                    return Some(Self::respond(
-                        303,
-                        vec![("Location", "/account".into())],
-                        "",
-                    ));
+                    self.sessions.insert(sid?, who.clone());
+                    let mut headers = vec![("Location", "/account".to_owned())];
+                    if self.flaws.other_cookie_at_login {
+                        headers.push((
+                            "Set-Cookie",
+                            format!("username={who}; Path=/; HttpOnly; SameSite=Lax"),
+                        ));
+                    }
+                    return Some(Self::respond(303, headers, ""));
                 }
                 self.signed_in(who)
             }
@@ -1780,6 +1789,11 @@ impl FakeApp {
                 } else {
                     contents
                 };
+                let name = if self.flaws.renames_every_upload {
+                    format!("upload-{}", self.uploads.len())
+                } else {
+                    name
+                };
                 self.upload_times.insert(name.clone(), self.clock);
                 self.uploads.insert(name, contents);
                 Self::respond(201, vec![], "stored")
@@ -1795,6 +1809,14 @@ impl FakeApp {
                         && self.clock >= self.upload_times.get(name).copied().unwrap_or(0) + after
                 });
                 let Some(contents) = self.uploads.get(name).filter(|_| !set_aside) else {
+                    if self.flaws.answers_every_path {
+                        return Some(Self::respond(
+                            200,
+                            vec![("Content-Type", "text/html; charset=utf-8".into())],
+                            "<html><body>the app's own page, whatever was asked for\
+                             <script src=\"/app.js\"></script></body></html>",
+                        ));
+                    }
                     return Some(Self::respond(404, vec![], "no such file"));
                 };
                 if name.ends_with(".svg") {
@@ -2173,7 +2195,8 @@ impl FakeApp {
             ("GET", _) if self.flaws.answers_every_path => Self::respond(
                 200,
                 vec![("Content-Type", "text/html; charset=utf-8".into())],
-                "<html><body>the app's own page, whatever was asked for</body></html>",
+                "<html><body>the app's own page, whatever was asked for\
+                 <script src=\"/app.js\"></script></body></html>",
             ),
             _ => Self::respond(404, vec![], "none"),
         })

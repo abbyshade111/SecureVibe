@@ -27,6 +27,8 @@ fn an_owners_answer_is_theirs_only_as_recorded_and_not_changed_since() {
     let mut manifest = std::fs::read_to_string(example).unwrap();
     let config = dir.join("config");
     let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    // Sealed for this app, as `sv review` run in it seals.
+    let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
 
     let design = |answer: &str| sv_manifest::DesignAnswer {
         answer: answer.into(),

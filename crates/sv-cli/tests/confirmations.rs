@@ -22,7 +22,7 @@ fn status_of<'a>(compliance: &'a str, id: &str) -> &'a str {
 /// below is about what the confirmation says, so each is recorded the way a person would.
 #[allow(clippy::too_many_arguments)]
 fn sealed(
-    key: &sv_check::seal::Key,
+    key: &sv_check::seal::AppKey,
     section: &str,
     id: &str,
     by: &str,
@@ -80,6 +80,8 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
     );
     let config = dir.join("config");
     let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    // Sealed for this app, as `sv review` run in it seals.
+    let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
     let how = "Sent a POST to the site and got 405; only GET and HEAD work.";
     let d =
         |id: &str, by: &str, on: &str, answer: &str, location: Option<&str>, how: Option<&str>| {
