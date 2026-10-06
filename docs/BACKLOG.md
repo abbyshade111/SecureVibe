@@ -5958,6 +5958,8 @@ another session is not a claim.
   path on the same host, shaped like a program's request (JSON accepted, no browser headers). Answered with a redirect
   to HTTPS is a finding against V4.1.2; anything else credits nothing, since one address is not every endpoint. A run
   with `--api` may make five requests; without it, still four. Without `--api`, V4.1.2 is not assessed, and says why.
+  **Done the same day**, and the record accepted (ADR-027, "Later, 6 October 2026"; DESIGN, "V4.1.2: an API asked
+  over plain HTTP the way a program asks").
 
 - **Deadlines for known vulnerabilities (V15.2.1).** Asked for by the owner on 26 September 2026.
   V15.2.1 asks that the app contains no component that has *breached the documented remediation time
