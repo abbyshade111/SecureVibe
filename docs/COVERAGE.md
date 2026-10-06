@@ -33,7 +33,7 @@ What each kind of check needs before it can run:
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
 | OWASP ASVS 5.0 | 345 | 165 (48%) | 10 | 170 |
-| OWASP AISVS 1.0 | 191 | 37 (19%) | 0 | 154 |
+| OWASP AISVS 1.0 | 191 | 38 (20%) | 0 | 153 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
 
@@ -301,14 +301,14 @@ does not reach.
 | C4 Infrastructure, Configuration & Deployment Security | 14 | 1 | 0 | 13 |
 | C5 Access Control & Identity for AI Components & Users | 11 | 2 | 0 | 9 |
 | C6 Supply Chain Security for Models | 7 | 1 | 0 | 6 |
-| C7 Model Behavior, Output Control & Safety Assurance | 13 | 5 | 0 | 8 |
+| C7 Model Behavior, Output Control & Safety Assurance | 13 | 6 | 0 | 7 |
 | C8 Memory, Embeddings & Vector Database Security | 11 | 1 | 0 | 10 |
 | C9 Orchestration & Agentic Security | 34 | 7 | 0 | 27 |
 | C10 Model Context Protocol (MCP) Security | 23 | 9 | 0 | 14 |
 | C11 Adversarial Robustness | 17 | 2 | 0 | 15 |
 | C12 Monitoring, Logging & Anomaly Detection | 21 | 3 | 0 | 18 |
 
-18 of these 40 can only ever be marked *needs attention*: a check can
+18 of these 41 can only ever be marked *needs attention*: a check can
 show the control missing, and finding nothing does not show it present, so a clean run credits
 none of them. Most are `sv`'s own checks: rules that read the code, and questions asked of the
 running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's, and need `--tools`.
@@ -323,6 +323,7 @@ running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's
 - C5.2.2: found failing by sv's `probe.ai-retrieval-ignores-user`.
 - C5.2.4: found failing by sv's `probe.ai-reply-carries-others-data`.
 - C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
+- C7.1.1: settled by `probe.ai-output-shape-unchecked`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
 - C7.3.1: settled by `probe.ai-flagged-reply-shown`.
 - C7.3.2: settled by `probe.ai-instructions-leaked`.

@@ -1444,6 +1444,8 @@ another session is not a claim.
      with an always-true and an always-false condition as a number, as quoted text, and as quoted text either-or,
      each sent twice. Twenty guards broken in turn, each caught (one only after a test was added). Not done:
      requests that change data, JSON bodies, and conditions read by timing or by error messages.
+     **The owner's decision, 6 October 2026, on what is not done:** keep the probe as it is, reading only, on
+     `sv`'s own copy of the app (ADR-038): no requests that change data and no JSON bodies ("I agree with all your recommendations", 6 October 2026).
   8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
      a foreign address; a `Location` header pointing there is the finding.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -1453,6 +1455,8 @@ another session is not a claim.
      eight other return parameters, to the sign-in, the sign-in page opened signed in, and the sign-out. Three guards
      broken in turn, each caught. Not done: redirects outside the sign-in flow, which the app's own addresses would
      have to name, and a run against a real app.
+     **The owner's decision, 6 October 2026: yes** to redirects outside the sign-in flow, through a new optional
+     `securevibe.toml` field naming the app's own addresses that take a destination ("I agree with all your recommendations", 6 October 2026). Not claimed.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -1462,6 +1466,8 @@ another session is not a claim.
      only that cap ended it, and credited when the app stopped sooner with an answer, as a limit on tool rounds.
      Two guards broken in turn, each caught. Not done: the app's own tools named in `record-tool`, which may not
      be read-only, and C9.1.1's per-tool quotas and timeouts.
+     **The owner's decision, 6 October 2026:** call the app's own tools to test their limits only when
+     `securevibe.toml` marks them read-only ("I agree with all your recommendations", 6 October 2026). Not claimed.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
@@ -1480,6 +1486,11 @@ another session is not a claim.
       wrong shape. The marker in the app's answer is a finding; credit only after an ordinary answer of the right shape
       was seen shown, and the wrong one refused without failing. A service that answers slowly or not at all stays
       unclaimed.
+      **Done the same day** (DESIGN, "Answers in the shape the app asked for, and C7.1.1"; ADR-042, accepted). The test
+      model answers in the shape asked for, through every API it speaks. `probe.ai-output-shape-unchecked` is a finding
+      when the app uses an answer that does not fit. It is credited only when the app showed a reply in the right shape
+      and refused the wrong one without failing. Shown with the OpenAI and Anthropic SDKs and zod against the real test
+      model; not run end to end under Docker here. A service that answers slowly or not at all is still not done.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
@@ -1506,6 +1517,8 @@ another session is not a claim.
       **V2.4.1 done the same day** (DESIGN, "A burst of creations, held to a stated limit"): `probe.create-rate-unlimited`,
       one record more than a new `[policy] requests-per-minute`, created through `owned` by B. Nothing is judged without
       a stated number. Not done: functions other than `owned`, and a limit kept by a proxy in production.
+      **The owner's decision, 6 October 2026: yes** to functions other than `owned`, through a new optional
+      `securevibe.toml` field naming them ("I agree with all your recommendations", 6 October 2026). Not claimed.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -5093,6 +5106,9 @@ another session is not a claim.
   hold them. The image smoke test asks the container for a bundle and looks for the committed `.env` in it.
   **Left:** each outside tool's own SARIF (only `findings.sarif` is in), and a real decision about what a category could
   leave out, if anything can be said deterministically about it.
+  **The owner's decision, 6 October 2026, on the outside tools' own SARIF:** leave it out, and keep `sv`'s own
+  `findings.sarif`, which never carries a secret, since another tool's file can quote the value it found
+  ("I agree with all your recommendations", 6 October 2026).
 
   What goes in: the app's own files (without `node_modules`, build output, or anything in `SKIP_DIRS`),
   `securevibe.toml`, `security-notes.md`, the report (`report.html`, `compliance.md`, `security.md`,
@@ -5903,6 +5919,7 @@ another session is not a claim.
      V15.3.5 (type confusion) was in this list and is taken out of it: a probe for it sends
      sign-in requests shaped to get in without the password, and that is not a thing this
      session will build. It stays unclaimed. A
+     **The owner's decision, 6 October 2026: no**; V15.3.5 is not probed ("I agree with all your recommendations", 6 October 2026). A
      "too-deep" GraphQL query needs the schema, which introspection being off withholds; a
      thousand aliases of `__typename` needs none.
   2. **A mock identity provider inside the fence (~10, all Level 2).** One small container — an
@@ -6775,6 +6792,13 @@ another session is not a claim.
     The finding cites V1.3.12, which is above that app's target level; `sv` still listed it among the findings at
     medium, and the AI tool treated it like any other. The rule is Semgrep's; what `sv` shows, and at what
     weight, for a requirement the app is not held to is `sv`'s. This is follow-up 5's rule.
+  **The owner's decision, 6 October 2026** ("I agree with all your recommendations", 6 October 2026): when `sv`'s own running-app check verified a requirement in the
+  same run, an outside tool's finding that contradicts it is listed under "worth a look" rather than counted against
+  it; and a finding about a requirement above the app's target level is listed in a group of its own, apart from the
+  findings that count. **Claimed the same day by session securevibe-e9**, in branch
+  `claude/securevibe-e9-outranked`. **Record, `Status: proposed`** (a "Later" entry on ADR-023): both are listed in
+  full, still named in the report, and still seen in SARIF; the first no longer keeps a requirement `sv` checked from
+  being credited, the second never decided an applicable requirement's status in the first place.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
@@ -6830,6 +6854,8 @@ another session is not a claim.
   - **Predictable randomness (V11.5.1) was not written.** `Math.random()` and `random.choice` are fine
     for shuffling a list and wrong for a reset code, and what decides it is where the value goes,
     which a single query cannot see. A rule without that would mostly report shuffles.
+    **The owner's decision, 6 October 2026: not built**; V11.5.1 stays a requirement to check by hand
+    ("I agree with all your recommendations", 6 October 2026).
   - ~~Express's two-argument `res.redirect(301, url)`, Ruby's `send_file`, Java's `Paths.get`, and
     PHP's `include $x` are missed.~~ **Claimed on 26 September 2026 by session securevibe-e8. Done the
     same day**; see DESIGN, "Four ways of writing a path or a redirect that the rules missed". Ruby's

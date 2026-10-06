@@ -999,6 +999,27 @@ impl Server {
             .map(|r| json!({ "id": r.id, "topic": r.topic, "rule": r.rule, "cites": r.cites.keys().collect::<Vec<_>>() }))
             .collect();
         let mut text = found.markdown(topic);
+        // With no topic, the whole app's prompts shown to work come with the rules: what to ask of
+        // the code everywhere, as the brief for each feature gives that feature's (ADR-044).
+        let prompts = if topic.is_none() {
+            crate::whole_app_prompts(&self.loaded)?
+        } else {
+            Vec::new()
+        };
+        if !prompts.is_empty() {
+            text.push_str(
+                "\n## Prompts shown to work, for the whole app\n\nEach of these was given to an AI \
+                 coding tool building an app, and `sv` found that the problem it is for went away. \
+                 Follow them in all of the code, as you follow the rules above:\n\n",
+            );
+            for p in &prompts {
+                text.push_str(&format!("### {} (`{}`)\n\n", p.title, p.id));
+                for line in p.prompt.lines() {
+                    text.push_str(&format!("> {line}\n"));
+                }
+                text.push('\n');
+            }
+        }
         if topic.is_some() && given.is_empty() {
             text = format!(
                 "No rule on that topic applies to this app, according to securevibe.toml.\n\n{}\n",
@@ -1010,6 +1031,7 @@ impl Server {
             "content": [{ "type": "text", "text": text }],
             "structuredContent": {
                 "rules": given,
+                "prompts": prompts.iter().map(|p| json!({ "id": p.id, "title": p.title, "text": p.prompt })).collect::<Vec<_>>(),
                 "leftOut": if topic.is_none() { found.withheld } else { 0 },
                 "filteredBySecurevibeToml": found.filtered,
                 "attribution": {
@@ -1704,6 +1726,10 @@ fn output_schema(tool: &str) -> Option<Value> {
                     json!({ "id": string, "topic": string, "rule": string, "cites": strings }),
                     &["id", "topic", "rule", "cites"],
                 ) },
+                "prompts": { "type": "array", "items": object(
+                    json!({ "id": string, "title": string, "text": string }),
+                    &["id", "title", "text"],
+                ) },
                 "leftOut": count,
                 "filteredBySecurevibeToml": { "type": "boolean" },
                 "attribution": object(
@@ -1713,6 +1739,7 @@ fn output_schema(tool: &str) -> Option<Value> {
             }),
             &[
                 "rules",
+                "prompts",
                 "leftOut",
                 "filteredBySecurevibeToml",
                 "attribution",
@@ -1790,6 +1817,7 @@ fn output_schema(tool: &str) -> Option<Value> {
                     "conditions": strings,
                     "notApplying": count,
                     "prompts": item(&[("id", string.clone()), ("title", string.clone()), ("status", string.clone()), ("text", string.clone())]),
+                    "codingPrompts": item(&[("id", string.clone()), ("title", string.clone()), ("status", string.clone()), ("text", string.clone())]),
                     "rules": item(&[("id", string.clone()), ("topic", string.clone()), ("rule", string.clone())]),
                     "tests": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
                     "settings": item(&[("table", string.clone()), ("key", string.clone()), ("lines", string.clone())]),
@@ -1805,6 +1833,7 @@ fn output_schema(tool: &str) -> Option<Value> {
                     "conditions",
                     "notApplying",
                     "prompts",
+                    "codingPrompts",
                     "rules",
                     "tests",
                     "settings",
@@ -3319,6 +3348,85 @@ mod tests {
             .collect();
         let rules = sv_check::coding_rules::CodingRules::load(&crate::coding_rules_path()).unwrap();
         assert_eq!(offered, rules.topic_ids());
+    }
+
+    #[test]
+    fn every_coding_prompt_shown_to_work_reaches_the_builder_once_and_no_other_does() {
+        // ADR-044: the brief for a feature gives the shown prompts for the requirements it brings,
+        // and the guidance gives the rest of the shown ones, for the whole app. Nothing not shown.
+        let server = Server::new(&examples()).unwrap();
+        let shown: std::collections::BTreeSet<String> = crate::coding_prompts()
+            .unwrap()
+            .prompts
+            .iter()
+            .filter(|p| p.status == sv_check::prompts::Status::Shown)
+            .map(|p| p.id.clone())
+            .collect();
+        assert!(shown.len() >= 4, "{shown:?}");
+        let mut seen: Vec<String> = Vec::new();
+        let features = crate::brief::Features::load(&crate::feature_briefs_path()).unwrap();
+        for f in &features.features {
+            let brief = call(
+                &server,
+                "securevibe_before",
+                json!({ "path": "flask-booking", "feature": f.id }),
+            );
+            assert_eq!(brief["isError"], false, "{}: {brief}", f.id);
+            for p in brief["structuredContent"]["codingPrompts"]
+                .as_array()
+                .unwrap()
+            {
+                assert_eq!(p["status"], "shown", "{}: {p}", f.id);
+                let id = p["id"].as_str().unwrap().to_owned();
+                assert!(
+                    text(&brief).contains(&format!("(`{id}`)")),
+                    "{}: {id} is in the data and not the text",
+                    f.id
+                );
+                seen.push(id);
+            }
+        }
+        let guidance = call(
+            &server,
+            "securevibe_guidance",
+            json!({ "path": "flask-booking" }),
+        );
+        assert_eq!(guidance["isError"], false, "{guidance}");
+        let whole_app: Vec<String> = guidance["structuredContent"]["prompts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p["id"].as_str().unwrap().to_owned())
+            .collect();
+        assert!(!whole_app.is_empty(), "{guidance}");
+        for id in &whole_app {
+            assert!(
+                text(&guidance).contains(&format!("(`{id}`)")),
+                "{id} is in the data and not the text"
+            );
+        }
+        // A prompt a feature's brief gives is not repeated in the guidance; across features it may be.
+        for id in &whole_app {
+            assert!(!seen.contains(id), "{id} is in a brief and in the guidance");
+        }
+        let reached: std::collections::BTreeSet<String> =
+            seen.into_iter().chain(whole_app).collect();
+        assert_eq!(
+            reached, shown,
+            "every shown prompt, and only those, reaches the builder"
+        );
+        // On a topic, the guidance stays to that topic.
+        let topic = call(
+            &server,
+            "securevibe_guidance",
+            json!({ "path": "flask-booking", "topic": "ci-workflows" }),
+        );
+        assert!(
+            topic["structuredContent"]["prompts"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

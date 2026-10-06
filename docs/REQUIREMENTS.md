@@ -626,9 +626,9 @@ decided per app, from its `securevibe.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 37 can be checked, 0 where a check helps but a person decides, and 154 with no check.
+191 requirements: 38 can be checked, 0 where a check helps but a person decides, and 153 with no check.
 
-### Level 1 (51 requirements, 19 can be checked)
+### Level 1 (51 requirements, 20 can be checked)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -677,7 +677,7 @@ decided per app, from its `securevibe.toml` and its code.
 
 | Requirement | Coverage | Checks |
 |---|---|---|
-| **C7.1.1** Verify that the application validates all model outputs against a defined schema and rejects any output that does not match. | No check | – |
+| **C7.1.1** Verify that the application validates all model outputs against a defined schema and rejects any output that does not match. | Can be checked | The running app: `probe.ai-output-shape-unchecked`, if it fails: The app uses what the model answers even when it is not in the shape the app asked for. A model that goes wrong, or is talked into answering differently, then hands the app's code values it was never written for: text where a number goes, a list where text goes, fields nobody expected, shown to people or acted on. |
 | **C7.1.2** Verify that model-generated output is bounded by length limits and termination controls. | Can be checked | The running app: `probe.ai-output-unbounded`, if it fails: Without a limit the model may write for as long as it likes: slow answers, a large bill, and a reply nothing downstream was built to hold. |
 | **C7.3.1** Verify that automated classifiers scan every response and block content that matches defined harmful content categories. | Can be checked | The running app: `probe.ai-flagged-reply-shown`, if it fails: The app asks a moderation service whether a reply is harmful, is told it is, and shows it anyway, so the screen it pays for protects nobody. |
 | **C7.4.1** Verify that responses generated using retrieval-augmented generation (RAG) include attribution to the source documents. | No check | – |

@@ -211,6 +211,19 @@ const FAILURE_HANDLED: Rule = Rule {
           broken.",
 };
 
+const SHAPE_UNCHECKED: Rule = Rule {
+    rule_id: "probe.ai-output-shape-unchecked",
+    requirement_ids: &["C7.1.1"],
+    cwe: &["CWE-20"],
+    impact: "The app uses what the model answers even when it is not in the shape the app asked \
+             for. A model that goes wrong, or is talked into answering differently, then hands the \
+             app's code values it was never written for: text where a number goes, a list where \
+             text goes, fields nobody expected, shown to people or acted on.",
+    fix: "Check every answer from the model against the schema you asked for (with zod, Pydantic, a \
+          JSON-schema validator, or your library's own check) and refuse one that does not match: \
+          ask again, or answer that the assistant could not help, rather than using it.",
+};
+
 const AGENT_UNBOUNDED: Rule = Rule {
     rule_id: "probe.ai-agent-unbounded",
     requirement_ids: &["C9.1.2"],
@@ -348,6 +361,12 @@ struct Seen {
     rounds: u64,
     /// For a RECALL message, every `SV-PRIVATE-` marker anywhere in what the app sent the model.
     private_seen: Vec<String>,
+    /// For a BADSHAPE message, the shape the app asked the model for: `schema`, `json`, `tool`, or
+    /// empty when it asked for none.
+    shape: String,
+    /// For a BADSHAPE message, how many times the app asked: a library that checks the answer may
+    /// ask again.
+    bad_attempts: u64,
 }
 
 fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
@@ -425,6 +444,15 @@ fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
                     .collect()
             })
             .unwrap_or_default(),
+        shape: value
+            .get("shape")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_owned(),
+        bad_attempts: value
+            .get("bad_attempts")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(0),
     })
 }
 
@@ -1292,6 +1320,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
         http.wait(61);
     }
     more_questions(http, section, &mut ask, shows_replies, &mut out);
+    shape_questions(http, &mut ask, shows_replies, &mut out);
     failure_questions(http, &mut ask, shows_replies, &mut out);
     record_tool_questions(http, section, &mut ask, records, &mut out);
     retrieval_questions(http, &mut ask, notes, &mut out);
@@ -1780,6 +1809,113 @@ where
                 if seen.rounds == 1 { "" } else { "s" }
             ),
         ));
+    }
+}
+
+/// C7.1.1: the test model answers in the wrong shape for the one the app asked for (ADR-042).
+///
+/// The marker in the app's answer is the app using what did not fit. Credit only when the app showed
+/// the plain reply, which the test model gave in the right shape, and answered this one without the
+/// marker and without failing: an app that never shows a reply says nothing by not showing this one,
+/// and a crash rejects the answer without checking it. An app that asked for no shape gave the test
+/// model nothing to break.
+fn shape_questions<F>(http: &mut dyn Http, ask: &mut F, shows_replies: bool, out: &mut Outcome)
+where
+    F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
+{
+    let (bad, bad_answer) = ask(http, 41, "BADSHAPE", "What should I do next with my notes?");
+    let bad_seen = seen(http, &bad).unwrap_or_default();
+    if !bad_seen.received {
+        out.not_assessed.push((
+            "C7.1.1".to_owned(),
+            format!(
+                "Whether the app checks the model's answers against the shape it asked for: the \
+                 message the test model was to answer in the wrong shape did not reach it ({}).",
+                status(&bad_answer)
+            ),
+        ));
+        return;
+    }
+    let shape = match bad_seen.shape.as_str() {
+        "schema" => "the JSON schema",
+        "json" => "JSON",
+        "tool" => "the tool it made the model call",
+        _ => {
+            out.steps.push(
+                "sent a message the test model answers in the wrong shape: the app asked it for \
+                 no shape (no JSON schema, JSON mode, or forced tool)"
+                    .to_owned(),
+            );
+            out.not_assessed.push((
+                "C7.1.1".to_owned(),
+                "Whether the app checks the model's answers against the shape it asked for: it \
+                 asked the model for no shape (a JSON schema, JSON mode, or a tool the model must \
+                 call), so there was none to break. An app that reads the model's plain text has \
+                 no schema for this check to hold it to."
+                    .to_owned(),
+            ));
+            return;
+        }
+    };
+    let used = bad_answer
+        .as_ref()
+        .is_some_and(|r| decoded(&r.body).contains(&format!("SVBAD{bad}")));
+    out.steps.push(format!(
+        "had the test model answer in the wrong shape for {shape} the app asked for ({} \
+         request{} reached it): the app answered {}{}",
+        bad_seen.bad_attempts,
+        if bad_seen.bad_attempts == 1 { "" } else { "s" },
+        status(&bad_answer),
+        if used { ", using what did not fit" } else { "" }
+    ));
+    if used {
+        out.findings.push(finding(
+            &SHAPE_UNCHECKED,
+            "The AI feature uses an answer that is not in the shape it asked for",
+            Severity::Medium,
+            format!(
+                "The app asked the model for {shape}. The test model answered with every field the \
+                 wrong type and one field more, each carrying `SVBAD{bad}`, and the app's answer \
+                 carried it."
+            ),
+        ));
+        return;
+    }
+    let why_not = match &bad_answer {
+        None => Some("the app gave no answer".to_owned()),
+        Some(r) if crate::signed_in::rate_limited(r).is_some() => Some(format!(
+            "the app answered with a limit on how often it may be asked ({}), which says \
+             nothing either way",
+            r.status
+        )),
+        Some(r) if r.status >= 500 => Some(format!(
+            "the app failed ({}): it did not use the answer, but a crash rejects it without \
+             checking it",
+            r.status
+        )),
+        Some(_) if !shows_replies => Some(
+            "the app did not show the test model's plain reply either, so not showing this one \
+             says nothing about whether it checked it"
+                .to_owned(),
+        ),
+        Some(_) => None,
+    };
+    match why_not {
+        Some(why) => out.not_assessed.push((
+            "C7.1.1".to_owned(),
+            format!(
+                "Whether the app checks the model's answers against the shape it asked for: {why}."
+            ),
+        )),
+        None => out.verified.push(crate::Verified::new(
+            SHAPE_UNCHECKED.rule_id,
+            SHAPE_UNCHECKED.requirement_ids,
+            format!(
+                "the test model answering in the wrong shape for {shape} the app asked for: the app \
+                 answered {} without using it, where it shows the model's reply in the right shape",
+                status(&bad_answer)
+            ),
+        )),
     }
 }
 
@@ -2733,6 +2869,16 @@ mod tests {
         reply_filters_others: bool,
         /// Its record tool finds nothing for anybody, the caller's own records included.
         record_tool_broken: bool,
+        /// It asks the model for an answer that fits a JSON schema, and checks the answer against
+        /// it, answering with an apology when it does not fit.
+        asks_for_shape: bool,
+        /// It asks for a shape and uses the answer as it came, fitting or not.
+        uses_bad_shape: bool,
+        /// It asks for a shape and fails, 500, on an answer that does not fit.
+        crashes_on_bad_shape: bool,
+        /// It asks for a shape, asks the model again when an answer does not fit, and runs into its
+        /// own limit: 429 with `Retry-After`.
+        limits_bad_shape: bool,
     }
 
     /// How the fake app writes its model calls and the injection to its output.
@@ -2809,6 +2955,8 @@ mod tests {
         notes: Vec<(String, String, String)>,
         /// Who the request being answered came from, by its session cookie.
         caller: String,
+        /// For each BADSHAPE tag, the shape the app asked the model for (`schema` or empty).
+        shapes: BTreeMap<String, String>,
     }
 
     const MODEL: &str = "gpt-test";
@@ -2937,6 +3085,17 @@ mod tests {
                 _ => {}
             }
             let marker = format!("SV-REPLY-{tag}");
+            if kind == "BADSHAPE" {
+                // As the test model does: the wrong shape when the app asked for one.
+                let asked = self.flaws.asks_for_shape;
+                self.shapes
+                    .insert(tag.to_owned(), if asked { "schema" } else { "" }.to_owned());
+                if asked {
+                    return format!(
+                        "{{\"answer\":[\"SVBAD{tag}\"],\"sv_unexpected\":\"SVBAD{tag}\"}}"
+                    );
+                }
+            }
             if kind == "RECALL" {
                 // As the test model does: every private marker in what it was handed, repeated.
                 let found: Vec<String> = private_markers(message);
@@ -3184,6 +3343,20 @@ mod tests {
                     )
                 };
             }
+            // An answer in the wrong shape: checked and refused, used as it came, or a crash.
+            if self.flaws.asks_for_shape && reply.contains("SVBAD") {
+                if self.flaws.crashes_on_bad_shape {
+                    return answer(500, "Internal Server Error".into());
+                }
+                if self.flaws.limits_bad_shape {
+                    let mut limited = answer(429, "{\"error\":\"slow down\"}".into());
+                    limited.headers.push(("retry-after".into(), "30".into()));
+                    return limited;
+                }
+                if !self.flaws.uses_bad_shape {
+                    reply = "Sorry, the assistant could not answer that.".into();
+                }
+            }
             if !self.flaws.keeps_hidden {
                 reply = reply
                     .chars()
@@ -3401,6 +3574,8 @@ mod tests {
                             "failures": if self.kinds.get(tag).and_then(|k| k.last()).is_some_and(|k| k == "FAIL") { self.failures } else { 0 },
                             "rounds": self.rounds.get(tag).copied().unwrap_or(0),
                             "private_seen": self.private_seen.get(tag).cloned().unwrap_or_default(),
+                            "shape": self.shapes.get(tag).cloned().unwrap_or_default(),
+                            "bad_attempts": u64::from(self.shapes.contains_key(tag)),
                         })
                         .to_string()
                     }
@@ -4408,6 +4583,112 @@ mod tests {
             ],
             "{:?}",
             careful.steps
+        );
+    }
+
+    #[test]
+    fn an_answer_in_the_wrong_shape_is_credited_refused_and_found_used() {
+        // ADR-042. The app that checks the shape it asked for, and refuses what does not fit.
+        let checks = ask(Flaws {
+            asks_for_shape: true,
+            ..Default::default()
+        });
+        assert!(
+            credited(&checks).contains(&SHAPE_UNCHECKED.rule_id),
+            "{:?}",
+            checks.steps
+        );
+        assert!(!found(&checks).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            checks
+                .steps
+                .iter()
+                .any(|s| s.contains("wrong shape for the JSON schema")),
+            "{:?}",
+            checks.steps
+        );
+        // The app that uses it as it came.
+        let uses = ask(Flaws {
+            asks_for_shape: true,
+            uses_bad_shape: true,
+            ..Default::default()
+        });
+        assert!(
+            found(&uses).contains(&SHAPE_UNCHECKED.rule_id),
+            "{:#?}",
+            uses.findings
+        );
+        assert!(!credited(&uses).contains(&SHAPE_UNCHECKED.rule_id));
+        // A crash on it rejects the answer without checking it: neither.
+        let crashes = ask(Flaws {
+            asks_for_shape: true,
+            crashes_on_bad_shape: true,
+            ..Default::default()
+        });
+        assert!(!found(&crashes).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(!credited(&crashes).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&crashes, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("a crash rejects it without checking it")),
+            "{:?}",
+            crashes.not_assessed
+        );
+        // An app that never shows the model's reply says nothing by not showing this one.
+        let hides = ask(Flaws {
+            asks_for_shape: true,
+            hides_replies: true,
+            ..Default::default()
+        });
+        assert!(!credited(&hides).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(!found(&hides).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&hides, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("did not show the test model's plain reply")),
+            "{:?}",
+            hides.not_assessed
+        );
+        // Refused by a limit before it reached the model: said so, never taken for an app with no
+        // shape.
+        let unreached = ask(Flaws {
+            asks_for_shape: true,
+            one_message_only: true,
+            ..Default::default()
+        });
+        assert!(!credited(&unreached).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&unreached, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("did not reach it")),
+            "{:?}",
+            unreached.not_assessed
+        );
+        // Reached the model, and the app's answer is a limiter's: it says nothing either way.
+        let limited = ask(Flaws {
+            asks_for_shape: true,
+            limits_bad_shape: true,
+            ..Default::default()
+        });
+        assert!(!credited(&limited).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(!found(&limited).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&limited, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("a limit on how often")),
+            "{:?}",
+            limited.not_assessed
+        );
+        // An app that asked for no shape: nothing to break.
+        let plain = ask(Flaws::default());
+        assert!(!credited(&plain).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(!found(&plain).contains(&SHAPE_UNCHECKED.rule_id));
+        assert!(
+            why(&plain, "C7.1.1")
+                .iter()
+                .any(|w| w.contains("asked the model for no shape")),
+            "{:?}",
+            plain.not_assessed
         );
     }
 
