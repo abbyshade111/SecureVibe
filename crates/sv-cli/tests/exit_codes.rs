@@ -369,7 +369,7 @@ fn audit_keeps_0_1_and_2_and_its_errors_are_now_3() {
 
 #[test]
 fn the_help_says_what_each_status_means() {
-    for command in ["check", "report", "audit"] {
+    for command in ["check", "report", "audit", "run"] {
         let (code, said) = sv(&[command, "--help"]);
         assert_eq!(code, Some(0), "{said}");
         assert!(

@@ -2017,6 +2017,13 @@ another session is not a claim.
   `claude/securevibe-e9-preflight-hints`. **Record, `Status: proposed`** (a "Later" entry on ADR-035): the preflight
   also says, for each of the commonest running-app findings that the code shows no sign of handling, that `sv run`
   will look for it; each is an answer of "Look", credits nothing, and never says the app is safe or unsafe.
+  **A second claim, withdrawn the same day.** Session securevibe-e2 claimed this item too (#840) without seeing
+  securevibe-e9's claim, which reached `main` first and stands. Before that was seen, securevibe-e2 had built a version,
+  with its tests, docs, and an ADR-035 "Later" entry, in branch `claude/securevibe-e2-builder-hints-build` (not merged).
+  It covers a limit on wrong passwords, the four security headers, the session cookie's SameSite, and an AI feature's
+  screening, limit, and off switch, counted apart from what the run needs. It answers "looks right" and "could not
+  tell" as well as "look at this", where the record above gives only "look at this". It is there for securevibe-e9 to
+  use or leave; securevibe-e2 does no more on this item.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -2047,6 +2054,7 @@ another session is not a claim.
   **The owner's decision, 6 October 2026: the stronger sentence**, not a second turn, written into the loop protocol
   as amendment 5 before the next trial. **Claimed the same day by session securevibe-e9**, in branch
   `claude/securevibe-e9-owner-small`.
+  **Done the same day** (`docs/prompts/loop-protocol.md`, amendment 5, and `NO_OWNER` in `loop_trial.py`).
 
 - **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
   after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
@@ -2141,6 +2149,9 @@ another session is not a claim.
   **Both claimed the same day by session securevibe-e9**, in branch `claude/securevibe-e9-owner-small`. Item 4 changes
   what an exit code says, so its record goes with it: **`Status: proposed`**, a "Later" entry on ADR-029: `sv run`
   exits 2 when the app never answered or could not be started, 3 when `sv` itself failed, and 0 otherwise.
+  **Both done the same day** (DESIGN, "Four of the owner's decisions of 6 October 2026"; ADR-029, Later, 6 October
+  2026): `sv run` exits 2 when the app could not be run, held against real containers; the prompt says "it prints",
+  and `docs/PROMPTS.md` says that one word changed after its trial.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -3380,6 +3391,10 @@ another session is not a claim.
      `create` and `shows` under [stack.run.oidc] let the probes save a mark as the first person and see whose
      account each sign-in reaches. Not done: the static companion (a user lookup keyed on the email claim in
      the sign-in callback).
+     **The static companion claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Go ahead and
+     choose a backlog item when ready"), in branch `claude/securevibe-e2-oidc-email-lookup`: a findings-only code rule
+     for an account looked up by the email address the sign-in provider sent, written in the call or through a name
+     given it once. Read on `main` just before this claim: no other session had claimed it.
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
@@ -6019,6 +6034,8 @@ another session is not a claim.
   **The owner's decision on V12.1.2, 6 October 2026:** leave it unchecked, keeping `sv probe` to four requests, and
   have the report say how to check it with a dedicated scanner such as testssl.sh. **Claimed the same day by session
   securevibe-e9**, in branch `claude/securevibe-e9-owner-small`.
+  **Done the same day** (DESIGN, "Four of the owner's decisions of 6 October 2026"): a `human-checks.json` entry the
+  report shows beside V12.1.2, naming testssl.sh and SSL Labs' online test.
 
   Items 2, 3, and 6 are containers on the fenced network, so they keep `sv`'s rule that nothing
   reaches outside; only item 8 does, and only to the owner's own address.

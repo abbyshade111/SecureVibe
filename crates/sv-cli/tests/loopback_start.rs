@@ -41,8 +41,9 @@ fn docker_ok() -> bool {
         .unwrap_or(false)
 }
 
-/// `sv run` on the app, to the end: what it printed to standard output and to standard error.
-fn sv_run(app: &PathBuf) -> (String, String) {
+/// `sv run` on the app, to the end: what it printed to standard output and to standard error, and
+/// its exit status.
+fn sv_run(app: &PathBuf) -> (String, String, Option<i32>) {
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
         .arg("run")
         .arg(app)
@@ -51,6 +52,7 @@ fn sv_run(app: &PathBuf) -> (String, String) {
     (
         String::from_utf8_lossy(&out.stdout).into_owned(),
         String::from_utf8_lossy(&out.stderr).into_owned(),
+        out.status.code(),
     )
 }
 
@@ -63,7 +65,10 @@ fn an_app_listening_on_loopback_is_warned_about_and_named_as_the_likely_cause() 
              wget -q -O /dev/null http://127.0.0.1:$PORT/index.html && echo {ANSWERED_ITSELF}; wait"
         ),
     );
-    let (stdout, stderr) = sv_run(&loopback);
+    let (stdout, stderr, code) = sv_run(&loopback);
+    // Not assessed exits 2 (ADR-029, as the owner decided for `sv run` on 6 October 2026), with a
+    // backend or without one.
+    assert_eq!(code, Some(2), "{stdout}\n{stderr}");
     if !docker_ok() {
         println!("no container backend here; checking the honest-absence path instead");
         assert!(stdout.contains("Not assessed"), "{stdout}\n{stderr}");
@@ -99,10 +104,11 @@ fn the_same_app_listening_on_every_address_answers_and_is_not_warned_about() {
     // No self-check here: its own `127.0.0.1` would be warned about, rightly, since the warning
     // reads only the command line.
     let open = app("open", "httpd -f -h /app -p 0.0.0.0:$PORT");
-    let (stdout, stderr) = sv_run(&open);
+    let (stdout, stderr, code) = sv_run(&open);
     if !docker_ok() {
         println!("no container backend here; checking the honest-absence path instead");
         assert!(stdout.contains("Not assessed"), "{stdout}\n{stderr}");
+        assert_eq!(code, Some(2), "{stdout}\n{stderr}");
         return;
     }
     println!("container backend present; running the control app for real");
@@ -111,5 +117,7 @@ fn the_same_app_listening_on_every_address_answers_and_is_not_warned_about() {
         "the control must answer, or the loopback test's silence proves nothing: {stdout}\n{stderr}"
     );
     assert!(!stderr.contains("Warning: the start command"), "{stderr}");
+    // The control for the exit code: an app that ran exits 0, findings or not.
+    assert_eq!(code, Some(0), "{stdout}\n{stderr}");
     std::fs::remove_dir_all(&open).ok();
 }

@@ -289,3 +289,23 @@ fn every_requirement_only_a_person_can_settle_is_explained_somewhere() {
          line to human-checks.json, security-notes.json, or design-questions.json."
     );
 }
+
+#[test]
+fn the_live_sites_ciphers_are_left_to_a_scanner_the_owner_runs() {
+    // The owner's decision, 6 October 2026: V12.1.2 takes dozens of handshakes, `sv probe` keeps
+    // to four, so the report says how to check it with a tool made for it rather than staying silent.
+    let checks = human();
+    let ciphers = checks
+        .checks
+        .iter()
+        .find(|c| c.id == "V12.1.2")
+        .expect("V12.1.2 has an instruction");
+    assert!(ciphers.how.contains("testssl.sh"), "{}", ciphers.how);
+    assert!(
+        ciphers.how.contains("`sv` does not check this"),
+        "{}",
+        ciphers.how
+    );
+    // The control: V12.1.1, which `sv probe` does ask about, is not left to a scanner here.
+    assert!(!checks.checks.iter().any(|c| c.id == "V12.1.1"));
+}

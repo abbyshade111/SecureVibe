@@ -41,7 +41,7 @@ of those builds had each fault put back, and every one was caught. So these four
 
 ### Describe the app to SecureVibe before writing code
 
-> Before writing any code, run `sv init` in the project folder and fill in the securevibe.toml it creates: what
+> Before writing any code, run `sv init` in the project folder and fill in the securevibe.toml it prints: what
 > the app does, who uses it, its languages, how to start it, and which of the listed capabilities it has. For any
 > capability you are not sure about, delete the line instead of writing false. Keep the file up to date whenever
 > the app gains or loses a capability.
@@ -50,6 +50,8 @@ of those builds had each fault put back, and every one was caught. So these four
 it, there was no such file, and `sv report` could not check the app at all. Deleting an unsure line matters:
 a capability left out is reported as "not assessed", which is honest, while `false` claims the requirements that
 depend on it do not apply.
+One word was changed after the trial, at the owner's decision (6 October 2026): `sv init` prints the file rather
+than creating it, so "it creates" became "it prints". Nothing else in the prompt changed.
 
 ### Keep the app in git from the first file
 

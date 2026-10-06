@@ -1,5 +1,5 @@
-//! The exit status of `sv check`, `sv report` and `sv audit`, and of every run `sv` could not finish
-//! (DESIGN, "Exit codes for CI"; the deep review of 4 October 2026, R6).
+//! The exit status of `sv check`, `sv report`, `sv audit` and `sv run`, and of every run `sv` could not
+//! finish (DESIGN, "Exit codes for CI"; the deep review of 4 October 2026, R6).
 //!
 //! - 0: the run finished, and nothing below applies.
 //! - 1: something needs a person: `sv audit` found a known vulnerability, or `--fail-on attention`
@@ -7,6 +7,8 @@
 //! - 2: not assessed: a check could not run, or no file of the app was read (always), or, with
 //!   `--fail-on not-assessed`, something narrower that went unread. `sv audit`: the comparison did
 //!   not cover the whole app.
+//!   `sv run`: the app could not be started, or never answered, so nothing about it running was
+//!   checked (the owner's decision, 6 October 2026).
 //! - 3: `sv` itself failed: no securevibe.toml, a manifest it cannot read, a folder that is not
 //!   there, an option it does not know. Nothing about the app is known from such a run.
 //!
