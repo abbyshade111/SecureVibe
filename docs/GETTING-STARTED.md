@@ -167,7 +167,8 @@ has been shown to work.
 SecureVibe also helps before code is written, and its own instructions tell your AI tool when: a plan of
 what to decide before building (`securevibe_plan`, or `sv plan` at a terminal), a short brief before
 building one feature such as sign-in, uploads, or payments (`securevibe_before`, or `sv brief`), and a
-look at the settings `--run` will use, before it is run (`securevibe_preflight`, or `sv preflight`). None
+look at the settings `--run` will use, and at a few things it will test, before it is run (`securevibe_preflight`,
+or `sv preflight`). None
 of these checks anything or counts toward the report; they say what to decide and what to write.
 
 ## 5. Answer the questions

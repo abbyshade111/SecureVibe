@@ -11203,3 +11203,57 @@ Broken on purpose six ways, each caught:
 - a path to the macro not read;
 - `format!` counted fixed;
 - the static-file rule's `CARGO_MANIFEST_DIR` form removed.
+
+## The preflight hints at what the run will test (6 October 2026)
+
+In the loop trials, the builders that could call `securevibe_check` fixed nearly every problem it named in their code.
+Their running apps still had as many problems as every other arm's, because only `sv run` looks for those, and the MCP
+server never starts the app (BACKLOG, "Tell the builder, before it is done, what the code already shows about the
+running app"). Several of the commonest are visible in the code before anything runs.
+
+`sv preflight` and `securevibe_preflight` now say, in a section of their own, what the run will test that the code
+already hints at (`tested` in `crates/sv-cli/src/preflight.rs`):
+- **The four security headers** the run reads on the app's pages: Content-Security-Policy, X-Content-Type-Options, a
+  rule against being framed, and Referrer-Policy. Each is found by its own name, or by a library that sends it
+  (`helmet`, Flask-Talisman, `secure_headers`; Django's `SecurityMiddleware` for two of them; Spring Security for two).
+  The item names the ones found nowhere.
+- **A limit on wrong passwords**, where the run signs in: the common libraries (`express-rate-limit`, Flask-Limiter,
+  `Rack::Attack`, `django-axes`) and the words a hand-written one is named with (`MAX_LOGIN_ATTEMPTS`, "Too many
+  attempts", `failed_logins`).
+- **SameSite on the session cookie.** Django and Rails set it themselves, so for them a missing word is "could not
+  tell", not "look at this".
+- **For an AI feature:** screening of what people send the model (a prompt-injection check, a moderation call, a
+  guardrail); a limit, which is always "could not tell" when found, since whether it covers the feature apart from the
+  rest of the app is not in the text; and the off switch the settings name, read by its variable's name.
+
+How it reads:
+- Names are compared with the case, hyphens, underscores, and spaces taken out. So `X-Frame-Options`,
+  `X_FRAME_OPTIONS`, and `XFrameOptionsMiddleware` are the same name, and so are "too many attempts" and
+  `TooManyAttempts`.
+- Lockfiles are left out: they list every package installed, called or not.
+- When `failed-sign-ins` or `ai-requests-per-minute` is not set under [policy], the run does not try that limit, and
+  the item says so.
+
+What it is and is not:
+- **It credits nothing**, as the rest of the preflight does. A word found is a hint the thing is there, never that it
+  works, and the run stays the evidence.
+- **It is counted apart.** The first count still says only whether the run can start and sign in, so "0 to look at"
+  keeps its meaning, and a hint is never read as a reason the run cannot go ahead. The JSON gives each item `for`,
+  `needed` or `tested`, and the tool's output schema requires it.
+- **It can be wrong both ways**, as ADR-035 says of the rest. A header sent by a server in front of the app is not
+  in the code, and a limit's library in `package.json` may never be applied to the sign-in. Each item says what was
+  looked for, so a person can judge.
+
+On the examples: `notes-with-users` names its headers and its cookie's SameSite, and no limit on wrong passwords,
+which is so; `flask-booking` sends none of the four headers, which is so.
+
+Broken on purpose 22 ways, each caught:
+- the hints never counted apart, in the count or in the list;
+- lockfiles read;
+- each of the four ways names are squashed (case, hyphens, underscores, spaces) left out in turn;
+- Django and Rails not known to set SameSite;
+- the unset limit numbers not said, for the sign-in and for the AI feature;
+- `for` always `needed`;
+- the sign-in hints given with no sign-in;
+- Spring Security, the libraries, and Django's middleware each not counted for the headers they send;
+- SameSite, the screening, both limits, and the off switch each never found.

@@ -394,7 +394,9 @@ credits nothing.
 **Before `--run`.** `sv preflight` (and `securevibe_preflight`, for the tool) looks in the app's files for what
 `sv run` will need from `[stack.run]`: a server listening on every address at `$PORT`, a seed that makes the test
 accounts, the sign-in form at the path and with the fields the settings give, the tables the app makes for itself,
-and so on. Each item says *looks right*, *look at this*, or *could not tell*. It reads text and runs nothing, so
+and so on. A section of its own hints at what the run will *test* that the code already shows: a limit on wrong
+passwords, the security headers, the session cookie's SameSite, and an AI feature's screening, limit, and off switch.
+Each item says *looks right*, *look at this*, or *could not tell*. It reads text and runs nothing, so
 "looks right" means the thing was found, not that it works; the point is that the AI tool can fix a wrong setting in
 the same conversation, before a run is spent on it. It credits nothing.
 

@@ -2013,6 +2013,11 @@ another session is not a claim.
   **Claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Go ahead and choose a backlog item
   when ready"), in branch `claude/securevibe-e2-builder-hints`. Read on `main` just before this claim: no other session
   had claimed it.
+  **Done the same day** (DESIGN, "The preflight hints at what the run will test"; ADR-035, "Later"): the preflight now
+  has a section of its own for what the run will test that the code already hints at. That covers a limit on wrong
+  passwords, the four security headers, the session cookie's SameSite, and, for an AI feature, its screening, a limit,
+  and its off switch. Each is counted apart from what the run needs and credits nothing. Whether the running apps'
+  findings then fall is for the next loop trial to measure.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
