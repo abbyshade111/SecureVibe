@@ -3541,6 +3541,9 @@ another session is not a claim.
      `net/http/pprof`, Laravel's Ignition, Symfony's profiler, and Phoenix's LiveDashboard, each known by words read
      from its own source, as the two there are. Read on `main` just before this claim: no other session had claimed
      it.
+     **Done the same day** (DESIGN, "Four more development consoles"). Each of the four is known by words read from
+     its own source, and each answers only in its tool's development or debug mode. Spring Boot's Actuator is left
+     out, since exposing it is a setting rather than a debug mode.
   8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
      from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
      grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
