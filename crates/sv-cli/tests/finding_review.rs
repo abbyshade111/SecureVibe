@@ -101,14 +101,25 @@ fn config() -> PathBuf {
     .clone()
 }
 
-fn key() -> sv_check::seal::Key {
+/// The review key, sealing for the app in `dir` as `sv review` run there would.
+fn key(dir: &Path) -> sv_check::seal::AppKey {
     sv_check::seal::Key::load_or_make_in(&config().join("securevibe"))
         .unwrap()
         .0
+        .for_app(&sv_check::seal::App::of(dir).unwrap())
 }
 
-/// An entry; a person's is sealed as `sv review` seals it, the AI coding tool's is not.
-fn entry(rule: &str, file: &str, fingerprint: &str, verdict: &str, by: &str, why: &str) -> String {
+/// An entry of the app in `dir`; a person's is sealed as `sv review` seals it, the AI coding
+/// tool's is not.
+fn entry(
+    dir: &Path,
+    rule: &str,
+    file: &str,
+    fingerprint: &str,
+    verdict: &str,
+    by: &str,
+    why: &str,
+) -> String {
     let on = sv_check::advisories::Day::today().unwrap().show();
     let review = sv_manifest::FindingReview {
         rule: rule.into(),
@@ -126,7 +137,7 @@ fn entry(rule: &str, file: &str, fingerprint: &str, verdict: &str, by: &str, why
         let fields = sv_check::seal::finding_review_fields(&review);
         format!(
             "seal = \"{}\"\n",
-            key().seal(&sv_check::seal::as_strs(&fields))
+            key(dir).seal(&sv_check::seal::as_strs(&fields))
         )
     };
     format!(
@@ -164,6 +175,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
         format!(
             "{MANIFEST}{}{}{}",
             entry(
+                &dir,
                 "ast.open-redirect",
                 "app.py",
                 &redirect,
@@ -172,6 +184,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
                 why
             ),
             entry(
+                &dir,
                 "ast.sql-built-by-hand",
                 "app.py",
                 &sql,
@@ -180,6 +193,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
                 "Internal tool behind the VPN; parameterizing it is planned for next month."
             ),
             entry(
+                &dir,
                 "config.security-contact",
                 "SECURITY.md",
                 &contact,
@@ -438,6 +452,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
             "{MANIFEST}{}{}{}{}{}{}",
             // The rule ran over app.py and the line is fixed below: gone.
             entry(
+                &dir,
                 "ast.open-redirect",
                 "app.py",
                 &redirect,
@@ -447,6 +462,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
             ),
             // Reported only when the app's tests run, which needs --run: not looked for.
             entry(
+                &dir,
                 "tests.name-does-not-match-requirement",
                 "tests/test_notes.py",
                 "v2-0123456789abcdef",
@@ -456,6 +472,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
             ),
             // An outside tool, which runs only with --tools: not looked for.
             entry(
+                &dir,
                 "bandit.B608",
                 "app.py",
                 "v2-0123456789abcdef",
@@ -465,6 +482,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
             ),
             // A file the code rules could not read in full: not looked for.
             entry(
+                &dir,
                 "ast.sql-built-by-hand",
                 "broken.py",
                 "v2-0123456789abcdef",
@@ -474,6 +492,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
             ),
             // A rule this version does not have.
             entry(
+                &dir,
                 "ast.no-such-rule",
                 "app.py",
                 "v2-0123456789abcdef",
@@ -484,6 +503,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
             // Written with the fingerprint used before 5 October 2026, on a line no other
             // finding shares: it counts, as it did.
             entry(
+                &dir,
                 "ast.sql-built-by-hand",
                 "app.py",
                 &sv_check::review::named("ast.sql-built-by-hand", "app.py", sql_line),

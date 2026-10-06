@@ -943,7 +943,12 @@ mod tests {
     const RESEAL: &str = "reseal";
 
     /// This computer's key in these tests, from the system's randomness.
-    fn key() -> crate::seal::Key {
+    /// This computer's key in the test, sealing for the app the test reads.
+    fn key() -> crate::seal::AppKey {
+        computer_key().for_app(&crate::seal::App::named_for_tests("app"))
+    }
+
+    fn computer_key() -> crate::seal::Key {
         static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
         KEY.get_or_init(|| crate::seal::Key::random().unwrap())
             .clone()
@@ -1159,7 +1164,9 @@ mod tests {
             ..good.clone()
         };
         // Sealed with another computer's key.
-        let other = crate::seal::Key::random().unwrap();
+        let other = crate::seal::Key::random()
+            .unwrap()
+            .for_app(&crate::seal::App::named_for_tests("app"));
         let elsewhere = sealed(&FindingReview {
             seal: None,
             ..good.clone()
@@ -1196,21 +1203,26 @@ mod tests {
             );
         }
 
-        // Where there is no key to check with, a sealed entry counts and says so; an unsealed one
-        // is still a proposal.
-        let no_key = super::apply(
-            Path::new("/no/app/folder"),
-            std::slice::from_ref(&elsewhere),
-            finding(),
-            today(),
-            &Checker::NoKey,
-            &|_, _| Looked::Ran,
-        );
-        assert!(no_key.findings.is_empty(), "{:?}", no_key.not_counted);
-        assert_eq!(
-            no_key.set_aside[0].sealed,
-            Sealed::Unchecked { key: other.id() }
-        );
+        // Where there is no key to check with, a sealed entry does not count either, and says
+        // what to do (item 8 of the review of 1 to 4 October); nor does one sealed for another
+        // app on this computer (item 11).
+        let shop = Checker::Key(computer_key().for_app(&crate::seal::App::named_for_tests("shop")));
+        for (checker, says) in [
+            (&Checker::NoKey, "run `sv review` once on this computer"),
+            (&shop, "another folder"),
+        ] {
+            let out = super::apply(
+                Path::new("/no/app/folder"),
+                std::slice::from_ref(&good),
+                finding(),
+                today(),
+                checker,
+                &|_, _| Looked::Ran,
+            );
+            assert_eq!(out.findings.len(), 1, "{says}");
+            assert!(out.set_aside.is_empty(), "{says}");
+            assert!(out.not_counted[0].contains(says), "{:?}", out.not_counted);
+        }
         let no_key = super::apply(
             Path::new("/no/app/folder"),
             &[unsealed],

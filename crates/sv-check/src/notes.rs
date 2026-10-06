@@ -1171,7 +1171,12 @@ mod tests {
     use super::*;
 
     /// This computer's key in these tests, from the system's randomness.
-    fn key() -> crate::seal::Key {
+    /// This computer's key in the test, sealing for the app the test reads.
+    fn key() -> crate::seal::AppKey {
+        computer_key().for_app(&crate::seal::App::named_for_tests("app"))
+    }
+
+    fn computer_key() -> crate::seal::Key {
         static KEY: std::sync::OnceLock<crate::seal::Key> = std::sync::OnceLock::new();
         KEY.get_or_init(|| crate::seal::Key::random().unwrap())
             .clone()

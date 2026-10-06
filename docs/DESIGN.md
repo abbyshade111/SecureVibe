@@ -10521,6 +10521,64 @@ something it had not seen, or accused a correct app.
 Broken on purpose twelve ways, each caught by a test written for it; two of the first run did not count (one would not
 compile, one had moved when the file was formatted) and were run again. Not tested against a real site or app.
 
+## The review of 1 to 4 October, batch 2: seals (6 October 2026)
+
+Items 8 and 11 of the review of the code merged on 1 to 4 October (BACKLOG) touched a decision the owner made
+(ADR-026), so the owner settled them before they were built. ADR-026 has a "Later, 6 October 2026" entry.
+
+- **No key, no credit (item 8).** On a computer where `sv review` had never run (CI, a container without the key, a
+  teammate's computer), any seal of the right form counted as the owner's, and the report said it was "recorded through
+  `sv review` on another computer". Such a computer cannot tell the owner's seal from one the AI coding tool wrote, so
+  that claimed more than was known. Now the entry is a proposal there. The report says it carries a seal this computer
+  cannot check, and what to do: run `sv review` once on this computer, or read the report on the computer that sealed
+  it. `Sealed::Unchecked` is gone, and with it the "on another computer" wording in the reports.
+- **A seal names its app (item 11).** A sealed answer copied from one app's `securevibe.toml` or `security-notes.md`
+  into another app's on the same computer counted there. A seal is now `v2:<key id>:<app id>:<mac>`:
+  - The app id is 16 hex characters of a SHA-256 of the app's folder, with every link followed, so the same folder
+    reached another way is the same app.
+  - The MAC covers the app id, so writing another app's id into a seal breaks it.
+  - A seal for another folder does not count, and the report says it was sealed for an app in another folder and to
+    run `sv review` there.
+  - It is the folder, not the name in `[app]`, because the AI coding tool can change the name to match.
+- **Seals made before this** (`v1:`) do not count, and the report says to run `sv review` once in the app. `sv review`
+  asks about every entry whose seal does not hold, so that one run seals them again. An app moved to another folder is
+  sealed again the same way.
+
+What it costs: an owner whose report is written on CI sees their recorded answers as proposals there unless the key is
+given to it, as the README already says to do for the container. That is the owner's decision. Report seals
+(ADR-034) are unchanged and still `v1:`.
+Broken on purpose nine ways, each caught by a test written for it: a seal counted with no key, the app's id left
+unchecked or out of the MAC, an old seal read as malformed, the folder not resolved, the app id not read as hex, the
+report or `sv review` given the wrong folder, and a folder that cannot be found taken for no key. One of the first runs
+did not compile and was run again. Not tried on CI with a real owner's key.
+
+## The review of 1 to 4 October, batch 3: the fetch and AI checks wait for and read the answer (6 October 2026)
+
+Items 5, 6, and 7 of the review of the code merged on 1 to 4 October (BACKLOG). Each check credited, or found, on an
+answer it had not waited for or had not read.
+
+- **A redirect not followed yet is not a redirect refused (item 5, V15.3.2).** `sv` asked the test server whether the
+  app had gone on from the redirecting address the moment the app answered. An app that answers first and fetches
+  afterwards, or whose fetch was still on its way, was credited for not following redirects. Now a redirect not followed
+  is asked about again three times, three seconds apart, before it counts as not followed. The credit also needs an
+  answer of the app's own: no answer, a crash (5xx), or a limiter (429, or 503 with `Retry-After`) says nothing about
+  whether the app chose not to follow, and is not assessed.
+- **A loop that ended on an error is not a limit (item 6, C9.1.2).** The agent limit was credited for any 2xx answer
+  with fewer than 40 tool rounds. That included an app that caught its own error part-way through the loop and answered
+  200 "Sorry, something went wrong". It also included an app that answered at once and ran the loop afterwards, read
+  part-way through. Now the rounds are read again, three seconds apart, until two reads agree; if they are still growing
+  after fifteen seconds, it is not assessed. An answer whose words say something went wrong ("went wrong", "error",
+  "exception", "failed", "failure", "timed out", "timeout", "traceback") is not taken for a limit either, and the
+  report quotes the word. A careful app whose ordinary answer happens to contain one of these words loses the credit
+  too: a lower bar would let the error through.
+- **A busy service is not a broken one (item 7, V16.5.2).** After the AI service fails on one message, a plain
+  message follows. A bare 429 on it was excused, but a 503 with `Retry-After`, which ADR-021 reads as a limiter's too,
+  was a Medium finding. Now either is waited out (the `Retry-After`, at most 60 seconds) and the message sent once
+  more; a limiter's answer again is not assessed, never a finding.
+
+Broken on purpose ten ways, each caught by a test written for it; the re-reads are on a fake clock in the tests, so
+no test waits for real. Not run against a real app here: the Docker tests that drive these checks run on CI.
+
 ## The code-reading rules and lockfiles: five faults from the review of 1 to 4 October (6 October 2026)
 
 Items 18, 20, 21, 22, and 23 of the review (BACKLOG). Each was confirmed with a case that failed before the fix.

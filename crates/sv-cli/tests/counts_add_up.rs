@@ -69,6 +69,8 @@ fn app_with_every_status(name: &str) -> PathBuf {
 
     let key_dir = dir.join("config").join("securevibe");
     let (key, _) = sv_check::seal::Key::load_or_make_in(&key_dir).unwrap();
+    // Sealed for this app, as `sv review` run in it seals.
+    let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
 
     // The security notes: the owner's own section, sealed as `sv review` seals it.
     let made = sv(&dir).arg("notes").arg(&dir).output().expect("sv runs");
