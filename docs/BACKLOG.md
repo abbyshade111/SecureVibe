@@ -1963,6 +1963,19 @@ another session is not a claim.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
 
+- **A review of all of `sv`'s documentation, against what `sv` does now.** Asked for by the owner on 5 October 2026,
+  after many changes in a short time. Every document a person or an AI tool reads, read against the code and the
+  merged changes since it was last revised: `README.md`, `docs/GETTING-STARTED.md` (the owner's own guide),
+  `docs/PROMPTS.md`, `docs/COVERAGE.md`, `docs/PARTIAL-CHECKS.md`, `docs/REQUIREMENTS.md`, `docs/THREAT-MODELING.md`,
+  `docs/SEMGREP-FALSE-ALARMS.md`, `sv --help` and each command's help, the specification `sv init` prints
+  (`crates/sv-manifest/src/spec.rs`), the MCP server's instructions and tool descriptions (`crates/sv-cli/src/mcp.rs`),
+  and the examples' comments. Known gaps when it was asked for: `docs/GETTING-STARTED.md` names none of `sv plan`,
+  `sv brief`, or `sv preflight`, and `README.md` does not name `sv preflight`. For each document: what it says that is
+  no longer true, what `sv` does that it leaves out, and every number it gives (of tools, commands, checks,
+  requirements) checked against the code. Plain language throughout, for a reader who is not a programmer. Records
+  (`docs/adr/`) and DESIGN are histories and are not rewritten; a record that no longer matches gets a dated "Later"
+  entry instead. Not claimed.
+
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
   signed-in checks had nothing to work with. A correct limit is what the owner wants; `sv` signs in many times in a
