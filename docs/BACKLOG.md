@@ -95,19 +95,22 @@ another session is not a claim.
   **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
   the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
   `claude/securevibe-e9-review-1to4-batch2`.
-  **Items 5, 6, 7, and 14 done the same day by session securevibe-e9** (DESIGN, "Four running-app checks that could
-  credit or accuse wrongly"; ADR-021, "Later, 6 October 2026"). All four were real: the fetch check now waits for the
-  app's answer and asks again, the agent limit is credited only for the same stop twice and no rounds after the
-  answer, a 503 with `Retry-After` is the limiter's, and every path is taken out of a log line before its words are read.
+  **Item 14 done the same day by session securevibe-e9** (DESIGN, "A log line of plain traffic is not a record of a
+  sign-in"): every path is taken out of a log line before its words are read. Items 5, 6, and 7 were built by session
+  securevibe-e2 in #797, which merged first, so this session's versions of them were dropped.
   **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
   them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
   **Items 8 and 11 done the same day** (DESIGN, "The review of 1 to 4 October, batch 2: seals"; ADR-026, "Later, 6
   October 2026").
+  **Items 18, 19, 21, and 22 claimed the same day by session securevibe-e2**, at the owner's word, as the fourth batch
+  (the code-reading rules: two credit what they should not, one flags what is safe, and one stops `sv` on a build
+  file), in branch `claude/securevibe-e2-review-1to4-b4`.
 
   **Items 1, 2, 3, 4, 12, and 13 done the same day** (DESIGN, "The review of 1 to 4 October, batch 1").
   **Items 5, 6, and 7 claimed the same day by session securevibe-e2**, at the owner's word, as the third batch (the
   fetch and AI checks: each credits or accuses on an answer it did not wait for or read), in branch
   `claude/securevibe-e2-review-1to4-b3`. All three were confirmed by reading `fetch.rs` and `ai.rs` on `main` first.
+  **Items 5, 6, and 7 done the same day** (DESIGN, "The review of 1 to 4 October, batch 3").
 
 - **A review of the code merged on 5 and 6 October 2026, for faults.** Asked for by the owner on 6 October 2026,
   once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,

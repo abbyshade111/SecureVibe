@@ -432,8 +432,35 @@ fn seen(http: &mut dyn Http, tag: &str) -> Option<Seen> {
 /// as `LOOP_CAP` in `assets/model-provider.mjs`.
 const LOOP_CAP: u64 = 40;
 
-/// Seconds to wait after the app answers a looping message before its rounds are counted again.
-const LOOP_WAIT: u64 = 3;
+/// How many times the rounds of an MCPLOOP message are read again, and how far apart, before the
+/// loop is taken to have stopped where the last two reads agree.
+const LOOP_SETTLE_READS: u32 = 5;
+const LOOP_SETTLE_SECONDS: u64 = 3;
+
+/// The words in an answer that say the app stopped on an error, not by choice: the first one
+/// found, as it is written there. Plain words a person would see, not codes.
+fn says_something_went_wrong(body: &str) -> Option<String> {
+    const WORDS: [&str; 8] = [
+        "went wrong",
+        "error",
+        "exception",
+        "failed",
+        "failure",
+        "timed out",
+        "timeout",
+        "traceback",
+    ];
+    let lower = body.to_lowercase();
+    WORDS
+        .iter()
+        .filter_map(|w| lower.find(w).map(|at| (at, w.len())))
+        .min()
+        .map(|(at, len)| {
+            body.get(at..at + len)
+                .unwrap_or(&lower[at..at + len])
+                .to_owned()
+        })
+}
 
 /// The text as a browser or a JSON reader would get it: JSON's `\u` escapes read, surrogate pairs
 /// included (Python writes a character outside the first plane as two), and HTML's numeric and
@@ -1653,113 +1680,104 @@ fn record_tool_questions<F>(
 ///
 /// Asked only once the tool has been shown to work, so that rounds stopping is the app's doing and
 /// not a tool that never answered. Credited when the app stopped asking the model before the test
-/// model would have, with an answer, and the same way twice: the rounds are counted again a little
-/// after each answer, since an app may answer while its loop goes on, and a second message has to
-/// stop at the same round, since an error caught part-way and answered 200 stops wherever it
-/// happens. A finding when only the test model's own stop ended it. An app that answered with an
-/// error is neither: a crash part-way is not a budget.
+/// model would have, with an answer; a finding when only the test model's own stop ended it. An
+/// app that answered with an error is neither: a crash part-way is not a budget. That covers an
+/// error the app caught and answered 200 with (item 6 of the review of 1 to 4 October), so an
+/// answer whose words say something went wrong is not credited; and an app that answered before
+/// its loop ended, so the rounds are read again until they stop growing.
 fn agent_limit<F>(http: &mut dyn Http, probe: &mut F, out: &mut Outcome)
 where
     F: FnMut(&mut dyn Http, u32, &str) -> (String, Option<ProbeResponse>, Seen),
 {
-    let mut runs = Vec::new();
-    for n in [33, 36] {
-        let (tag, answer, first) = probe(http, n, "MCPLOOP");
-        let answered = answer
-            .as_ref()
-            .is_some_and(|r| (200..300).contains(&r.status));
-        // Counted again a little later: rounds still being run after the app answered are rounds
-        // no limit stopped.
-        let mut rounds = first.rounds;
-        if answered && (1..LOOP_CAP).contains(&rounds) {
-            http.wait(LOOP_WAIT);
-            rounds = seen(http, &tag).map_or(rounds, |s| s.rounds.max(rounds));
-        }
-        out.steps.push(format!(
-            "had the test model ask for the MCP tool again after every result ({}): the app sent \
-             back {} result{} before it stopped{}",
-            status(&answer),
-            rounds,
-            if rounds == 1 { "" } else { "s" },
-            if rounds == first.rounds {
-                String::new()
-            } else {
-                format!(", {} of them after it had answered", rounds - first.rounds)
-            }
-        ));
-        let went_on = rounds > first.rounds;
-        runs.push((rounds, answered, went_on, status(&answer)));
-        // The first message settles it unless it would be credited.
-        if rounds >= LOOP_CAP || rounds == 0 || !answered || went_on {
+    let (tag, answer, mut seen) = probe(http, 33, "MCPLOOP");
+    // The loop may still be running when the app has answered (a reply sent at once, the work
+    // done after): read the rounds again until two reads a few seconds apart agree.
+    let mut settled = false;
+    for _ in 0..LOOP_SETTLE_READS {
+        if seen.rounds >= LOOP_CAP {
+            settled = true;
             break;
         }
+        http.wait(LOOP_SETTLE_SECONDS);
+        let again = self::seen(http, &tag).unwrap_or_default();
+        if again.rounds == seen.rounds {
+            settled = true;
+            break;
+        }
+        seen = again;
     }
-    let (rounds, answered, went_on, ref answer) = runs[runs.len() - 1];
-    let not_assessed = |why: String, out: &mut Outcome| {
-        out.not_assessed.push((
-            "C9.1.2".to_owned(),
-            format!(
-                "Whether the AI feature limits how many tools one message may run: the test model \
-                 asked for the tool again after every result, and the app {why}."
-            ),
-        ));
-    };
-    if rounds >= LOOP_CAP {
+    out.steps.push(format!(
+        "had the test model ask for the MCP tool again after every result ({}): the app sent back \
+         {} result{} before it stopped",
+        status(&answer),
+        seen.rounds,
+        if seen.rounds == 1 { "" } else { "s" }
+    ));
+    let answered = answer
+        .as_ref()
+        .is_some_and(|r| (200..300).contains(&r.status));
+    let error_words = answer
+        .as_ref()
+        .and_then(|r| says_something_went_wrong(&decoded(&r.body)));
+    if seen.rounds >= LOOP_CAP {
         out.findings.push(finding(
             &AGENT_UNBOUNDED,
             "The AI feature lets the model call tools without a limit",
             Severity::Medium,
             format!(
                 "The test model asked for the MCP tool again after every result, and the app ran \
-                 it {LOOP_CAP} times for one message{}; the test model stopped then, and the app \
-                 had not.",
-                if went_on {
-                    ", going on after it had answered"
-                } else {
-                    ""
-                }
+                 it {LOOP_CAP} times for one message; the test model stopped then, and the app had \
+                 not."
             ),
         ));
-    } else if rounds == 0 || !answered {
-        not_assessed(
+    } else if seen.rounds == 0 || !answered {
+        out.not_assessed.push((
+            "C9.1.2".to_owned(),
             format!(
-                "{} ({answer})",
-                if rounds == 0 {
+                "Whether the AI feature limits how many tools one message may run: the test model \
+                 asked for the tool again after every result, and the app {} ({}).",
+                if seen.rounds == 0 {
                     "sent back no result at all"
                 } else {
                     "answered with an error before the test model stopped"
-                }
+                },
+                status(&answer)
             ),
-            out,
-        );
-    } else if went_on {
-        not_assessed(
+        ));
+    } else if let Some(words) = error_words {
+        out.not_assessed.push((
+            "C9.1.2".to_owned(),
             format!(
-                "answered ({answer}) while it went on running the tool, so what stopped it was not \
-                 seen to be the app"
+                "Whether the AI feature limits how many tools one message may run: the app stopped \
+                 after {} round{}, but its answer ({}) says \"{words}\", so it may have stopped on \
+                 an error rather than a limit.",
+                seen.rounds,
+                if seen.rounds == 1 { "" } else { "s" },
+                status(&answer)
             ),
-            out,
-        );
-    } else if runs.len() < 2 || runs[0].0 != rounds {
-        not_assessed(
+        ));
+    } else if !settled {
+        out.not_assessed.push((
+            "C9.1.2".to_owned(),
             format!(
-                "stopped after {} round{} for one message and {rounds} for the next, which reads \
-                 as something failing part-way rather than a limit",
-                runs[0].0,
-                if runs[0].0 == 1 { "" } else { "s" }
+                "Whether the AI feature limits how many tools one message may run: the app \
+                 answered, and its tool rounds were still growing ({} so far) after {} seconds, so \
+                 where they stop was not seen.",
+                seen.rounds,
+                LOOP_SETTLE_READS as u64 * LOOP_SETTLE_SECONDS
             ),
-            out,
-        );
+        ));
     } else {
         out.verified.push(crate::Verified::new(
             AGENT_UNBOUNDED.rule_id,
             AGENT_UNBOUNDED.requirement_ids,
             format!(
                 "a model that asked for a tool again after every result, stopped by the app after \
-                 {} round{} for each of two messages, where the test model would have gone on to \
-                 {LOOP_CAP}; a limit on tool rounds, not shown for tokens or spending",
-                rounds,
-                if rounds == 1 { "" } else { "s" }
+                 {} round{} where the test model would have gone on to {LOOP_CAP}, the count read \
+                 again {LOOP_SETTLE_SECONDS} seconds later and unchanged, and the app's answer \
+                 naming no error; a limit on tool rounds, not shown for tokens or spending",
+                seen.rounds,
+                if seen.rounds == 1 { "" } else { "s" }
             ),
         ));
     }
@@ -1770,7 +1788,9 @@ where
 /// The failure has to reach the test model, or it was not a failure of the service. What the app
 /// answers it must not carry the service's error (`SVERR` and the tag) or a trace; and the plain
 /// message after it must still be answered, with its reply when the app shows replies at all. A
-/// limiter's 429 on that second message says nothing either way and is not assessed.
+/// limiter's answer on that second message (a 429, or a 503 with `Retry-After`, as ADR-021 reads
+/// them) says nothing either way: it is waited out and the message sent once more, and if the
+/// limiter answers again it is not assessed (item 7 of the review of 1 to 4 October).
 fn failure_questions<F>(http: &mut dyn Http, ask: &mut F, shows_replies: bool, out: &mut Outcome)
 where
     F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
@@ -1825,12 +1845,21 @@ where
         ));
     }
 
-    let (after, after_answer) = ask(
-        http,
-        32,
-        "PLAIN",
-        "Thanks. Can you help me with something else?",
-    );
+    const AFTER: &str = "Thanks. Can you help me with something else?";
+    let (mut after, mut after_answer) = ask(http, 32, "PLAIN", AFTER);
+    if let Some(secs) = after_answer
+        .as_ref()
+        .and_then(crate::signed_in::rate_limited)
+    {
+        out.steps.push(format!(
+            "the plain message after it was answered by a limiter ({}); waited {secs} second{} and \
+             sent it once more",
+            status(&after_answer),
+            if secs == 1 { "" } else { "s" }
+        ));
+        http.wait(secs);
+        (after, after_answer) = ask(http, 32, "PLAIN", AFTER);
+    }
     let after_seen = seen(http, &after).unwrap_or_default();
     let answered = after_answer.as_ref().is_some_and(|r| {
         (200..300).contains(&r.status)
@@ -1847,17 +1876,17 @@ where
             "it did not reach the model"
         }
     ));
-    // A limiter's answer: 429, or a 503 that says when to come back (ADR-021).
     if after_answer
         .as_ref()
-        .is_some_and(|r| crate::signed_in::rate_limited(r).is_some())
+        .and_then(crate::signed_in::rate_limited)
+        .is_some()
     {
         out.not_assessed.push((
             "V16.5.2".to_owned(),
             format!(
                 "Whether the AI feature keeps working after its service fails: the message sent \
-                 afterwards was answered {}, a limit on how often it may be asked, which says \
-                 nothing either way.",
+                 afterwards was answered by a limit on how often it may be asked ({}), twice, \
+                 which says nothing either way.",
                 status(&after_answer)
             ),
         ));
@@ -2676,15 +2705,17 @@ mod tests {
         passes_model_error: bool,
         /// It runs the model's tool calls for as long as the model asks.
         unbounded_tool_loop: bool,
-        /// It answers after two tool rounds and runs the rest of them afterwards, up to this many.
-        loop_goes_on_after_answering: Option<u64>,
-        /// An error it catches ends the tool rounds where it happens: after three, then seven.
-        loop_ends_on_an_error: bool,
+        /// Its tool loop fails after three rounds, and it catches the error and answers 200 with
+        /// an apology.
+        loop_error_caught: bool,
+        /// It answers a tool-loop message at once and runs the loop afterwards, with no limit:
+        /// this many more rounds each time sv reads them (0: it does not).
+        loop_in_background: u64,
         /// After the model service fails once, every message is answered 500.
         down_after_model_error: bool,
-        /// After the model service fails once, the next message is answered by a limiter: 503
-        /// with `Retry-After`.
-        busy_after_model_error: bool,
+        /// After the model service fails once, it is busy for this many seconds: every message is
+        /// answered by a limiter, 503 with `Retry-After: 7`, as a busy service answers.
+        busy_after_model_error: u64,
         /// It asks for its model by a name that moves (`gpt-4o-latest`).
         floating_model: bool,
         /// Its record of each model call names the signed-in user.
@@ -2740,12 +2771,12 @@ mod tests {
     struct FakeChat {
         /// Set once the model failed, for an app that then stops working.
         broken: bool,
+        /// Until when, on the fake clock, the app is busy, for an app that is busy for a while.
+        busy_until: u64,
         /// How many messages the model failed on.
         failures: u64,
         /// For each MCPLOOP tag, how many tool rounds the app ran.
         rounds: BTreeMap<String, u64>,
-        /// Rounds the app runs after it has answered, done by the next wait.
-        rounds_later: Vec<(String, u64)>,
         /// For each RECALL tag, every private marker the model was handed.
         private_seen: BTreeMap<String, Vec<String>>,
         flaws: Flaws,
@@ -2951,16 +2982,22 @@ mod tests {
                 // model's cap ends it.
                 let rounds = if self.flaws.unbounded_tool_loop {
                     LOOP_CAP
-                } else if let Some(later) = self.flaws.loop_goes_on_after_answering {
-                    self.rounds_later.push((tag.into(), later));
+                } else if self.flaws.loop_error_caught {
+                    3
+                } else if self.flaws.loop_in_background > 0 {
+                    // Two rounds by the time it answers; the rest come while sv reads.
                     2
-                } else if self.flaws.loop_ends_on_an_error {
-                    if self.rounds.is_empty() { 3 } else { 7 }
                 } else {
                     5
                 };
                 self.rounds.insert(tag.into(), rounds);
                 self.mcp.insert(tag.into(), (true, true, String::new()));
+                if self.flaws.loop_error_caught {
+                    return "Sorry, something went wrong while looking that up.".to_owned();
+                }
+                if self.flaws.loop_in_background > 0 {
+                    return "Working on it.".to_owned();
+                }
                 return format!("{marker} I will stop here.");
             }
             if kind.starts_with("MCP") {
@@ -3058,13 +3095,13 @@ mod tests {
             if self.flaws.quota.is_some_and(|q| self.passed_on >= q) {
                 return answer(429, "{\"error\":\"quota used up\"}".into());
             }
+            if self.clock < self.busy_until {
+                let mut busy = answer(503, "{\"error\":\"busy, try again shortly\"}".into());
+                busy.headers.push(("retry-after".into(), "7".into()));
+                return busy;
+            }
             if self.broken {
                 return answer(500, "{\"error\":\"internal error\"}".into());
-            }
-            if self.flaws.busy_after_model_error && self.failures > 0 && self.passed_on > 0 {
-                let mut busy = answer(503, "{\"error\":\"busy\"}".into());
-                busy.headers.push(("retry-after".into(), "30".into()));
-                return busy;
             }
             if let Some(limit) = self.flaws.rate_limit {
                 let now = self.clock;
@@ -3132,6 +3169,7 @@ mod tests {
             {
                 self.failures += 1;
                 self.broken = self.flaws.down_after_model_error;
+                self.busy_until = self.clock + self.flaws.busy_after_model_error;
                 return if self.flaws.passes_model_error {
                     answer(
                         500,
@@ -3224,9 +3262,6 @@ mod tests {
 
         fn wait(&mut self, seconds: u64) {
             self.clock += seconds;
-            for (tag, rounds) in self.rounds_later.drain(..) {
-                self.rounds.insert(tag, rounds);
-            }
         }
 
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
@@ -3342,6 +3377,12 @@ mod tests {
                 "{\"ok\":true}".to_owned()
             } else {
                 let tag = r.path.trim_start_matches("/_sv/seen/");
+                if self.flaws.loop_in_background > 0
+                    && let Some(rounds) = self.rounds.get_mut(tag)
+                {
+                    // The loop goes on after the answer: more rounds at every read, to the cap.
+                    *rounds = (*rounds + self.flaws.loop_in_background).min(LOOP_CAP);
+                }
                 match self.seen.get(tag) {
                     Some((_, system, bounded, fetched)) => {
                         let (input, output) = usage(tag);
@@ -4368,6 +4409,54 @@ mod tests {
             "{:?}",
             careful.steps
         );
+    }
+
+    #[test]
+    fn a_busy_service_after_a_failure_is_waited_out_and_never_taken_for_a_broken_one() {
+        // Item 7 of the review of 1 to 4 October: a limiter's 503 with `Retry-After` on the message
+        // after the failure was a finding. Busy for a few seconds, it is waited out and the message
+        // asked again.
+        let once = ask(Flaws {
+            busy_after_model_error: 5,
+            ..Default::default()
+        });
+        assert!(found(&once).is_empty(), "{:#?}", once.findings);
+        assert!(
+            credited(&once).contains(&FAILURE_HANDLED.rule_id),
+            "{:?}",
+            once.steps
+        );
+        assert!(
+            once.steps
+                .iter()
+                .any(|s| s.contains("answered by a limiter") && s.contains("waited 7 seconds")),
+            "{:?}",
+            once.steps
+        );
+        // Busy again after the wait: not assessed, never a finding, never credited.
+        let still = ask(Flaws {
+            busy_after_model_error: 600,
+            ..Default::default()
+        });
+        assert!(
+            !found(&still).contains(&FAILURE_HANDLED.rule_id),
+            "{:#?}",
+            still.findings
+        );
+        assert!(!credited(&still).contains(&FAILURE_HANDLED.rule_id));
+        assert!(
+            why(&still, "V16.5.2")
+                .iter()
+                .any(|w| w.contains("a limit on how often") && w.contains("twice")),
+            "{:?}",
+            still.not_assessed
+        );
+        // The setup: an app that really stays down after the failure is still found.
+        let down = ask(Flaws {
+            down_after_model_error: true,
+            ..Default::default()
+        });
+        assert!(found(&down).contains(&FAILURE_HANDLED.rule_id));
     }
 
     #[test]
@@ -5481,13 +5570,7 @@ mod tests {
             .iter()
             .find(|v| v.check_id == AGENT_UNBOUNDED.rule_id)
             .unwrap_or_else(|| panic!("{:?}", careful.steps));
-        assert!(
-            credit
-                .scope
-                .contains("after 5 rounds for each of two messages"),
-            "{}",
-            credit.scope
-        );
+        assert!(credit.scope.contains("after 5 rounds"), "{}", credit.scope);
 
         let unbounded = ask_mcp(Flaws {
             unbounded_tool_loop: true,
@@ -5509,83 +5592,55 @@ mod tests {
     }
 
     #[test]
-    fn a_limiters_503_after_the_service_fails_is_not_read_as_the_feature_broken() {
-        // Found in the review of 1 to 4 October (item 7): only a 429 was taken as the limiter's,
-        // where ADR-021 takes a 503 with `Retry-After` as one too.
-        let o = ask(Flaws {
-            busy_after_model_error: true,
+    fn a_loop_that_ended_on_an_error_or_had_not_ended_is_never_taken_for_a_limit() {
+        // Item 6 of the review of 1 to 4 October: an error the app caught, answered 200, was
+        // credited as a limit of three rounds.
+        let caught = ask_mcp(Flaws {
+            loop_error_caught: true,
             ..Default::default()
         });
+        assert!(!credited(&caught).contains(&AGENT_UNBOUNDED.rule_id));
+        assert!(!found(&caught).contains(&AGENT_UNBOUNDED.rule_id));
         assert!(
-            !found(&o).contains(&FAILURE_HANDLED.rule_id),
-            "{:?}",
-            o.steps
-        );
-        assert!(!credited(&o).contains(&FAILURE_HANDLED.rule_id));
-        assert!(
-            why(&o, "V16.5.2")
+            why(&caught, "C9.1.2")
                 .iter()
-                .any(|w| w.contains("answered 503") && w.contains("says nothing either way")),
+                .any(|w| w.contains("after 3 rounds") && w.contains("\"went wrong\"")),
             "{:?}",
-            o.not_assessed
+            caught.not_assessed
         );
-        // The control: a 503 that says nothing of when to come back is the app's own answer.
-        let down = ask(Flaws {
-            down_after_model_error: true,
-            ..Default::default()
-        });
-        assert!(found(&down).contains(&FAILURE_HANDLED.rule_id));
-    }
-
-    #[test]
-    fn an_agent_that_answers_mid_loop_or_stops_on_an_error_is_not_credited() {
-        // Found in the review of 1 to 4 October (item 6): any answer of 200 with fewer rounds
-        // than the test model's own stop was credited as a limit.
-        let later = ask_mcp(Flaws {
-            loop_goes_on_after_answering: Some(LOOP_CAP),
-            ..Default::default()
-        });
-        assert!(!credited(&later).contains(&AGENT_UNBOUNDED.rule_id));
-        assert!(
-            found(&later).contains(&AGENT_UNBOUNDED.rule_id),
-            "{:?}",
-            later.steps
-        );
-        assert!(
-            later
-                .steps
-                .iter()
-                .any(|s| s.contains(&format!("{} of them after it had answered", LOOP_CAP - 2))),
-            "{:?}",
-            later.steps
-        );
-        // One that goes on after answering and then stops on its own is not shown to be a limit.
+        // An app that answered at once and ran its loop afterwards, with no limit: read until the
+        // rounds stop growing, it is found, not credited for the two rounds done when it answered.
         let background = ask_mcp(Flaws {
-            loop_goes_on_after_answering: Some(6),
+            loop_in_background: 7,
             ..Default::default()
         });
+        assert!(
+            found(&background).contains(&AGENT_UNBOUNDED.rule_id),
+            "{:?}",
+            background.steps
+        );
         assert!(!credited(&background).contains(&AGENT_UNBOUNDED.rule_id));
-        assert!(!found(&background).contains(&AGENT_UNBOUNDED.rule_id));
-        assert!(
-            why(&background, "C9.1.2")
-                .iter()
-                .any(|w| w.contains("while it went on running the tool")),
-            "{:?}",
-            background.not_assessed
-        );
-        let error = ask_mcp(Flaws {
-            loop_ends_on_an_error: true,
+        // One whose rounds were still growing when sv stopped reading: where they stop was not
+        // seen, so neither.
+        let slow = ask_mcp(Flaws {
+            loop_in_background: 1,
             ..Default::default()
         });
-        assert!(!credited(&error).contains(&AGENT_UNBOUNDED.rule_id));
-        assert!(!found(&error).contains(&AGENT_UNBOUNDED.rule_id));
+        assert!(!credited(&slow).contains(&AGENT_UNBOUNDED.rule_id));
+        assert!(!found(&slow).contains(&AGENT_UNBOUNDED.rule_id));
         assert!(
-            why(&error, "C9.1.2")
+            why(&slow, "C9.1.2")
                 .iter()
-                .any(|w| w.contains("after 3 rounds for one message and 7 for the next")),
+                .any(|w| w.contains("still growing")),
             "{:?}",
-            error.not_assessed
+            slow.not_assessed
         );
+        // The words that say something went wrong, found however they are written.
+        assert_eq!(
+            says_something_went_wrong("{\"reply\":\"Request TIMED OUT\"}").as_deref(),
+            Some("TIMED OUT")
+        );
+        assert_eq!(says_something_went_wrong("Here are your notes."), None);
     }
 
     fn mcp_why(o: &Outcome) -> Vec<&str> {

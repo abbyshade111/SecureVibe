@@ -10552,35 +10552,41 @@ unchecked or out of the MAC, an old seal read as malformed, the folder not resol
 report or `sv review` given the wrong folder, and a folder that cannot be found taken for no key. One of the first runs
 did not compile and was run again. Not tried on CI with a real owner's key.
 
-## Four running-app checks that could credit or accuse wrongly (6 October 2026)
+## The review of 1 to 4 October, batch 3: the fetch and AI checks wait for and read the answer (6 October 2026)
 
-Items 5, 6, 7, and 14 of the review of 1 to 4 October (BACKLOG). Each was confirmed by reading the code and then shown
-by a fake app the check had to get right, and each fix is held by that fake.
+Items 5, 6, and 7 of the review of the code merged on 1 to 4 October (BACKLOG). Each check credited, or found, on an
+answer it had not waited for or had not read.
 
-- **The fetch check's V15.3.2 credit** (`fetch.rs`). Given an address that redirects, the feature was credited with
-  not following the redirect as soon as the test server had seen the first fetch and not the second, whether or not
-  the app had answered. Now an app that gave no answer leaves V15.3.2 not assessed, and one that answered is asked
-  about again two seconds later (`FOLLOW_WAIT`, by the app's clock), since a fetch in the background can follow the
-  redirect after the answer. The fake follows only once it has answered, or gives no answer:
-  `a_redirect_followed_after_the_answer_is_found_and_one_with_no_answer_is_not_credited`.
-- **The AI agent limit's C9.1.2 credit** (`ai.rs`). Any answer of 200 with fewer tool rounds than the test model's
-  own stop was a limit. Now the rounds are counted again three seconds after the answer (`LOOP_WAIT`), and a second
-  message has to stop at the same round. Rounds that grew mean the loop went on after the answer: a finding at the
-  test model's cap, and otherwise not assessed. Two messages stopping at different rounds read as an error caught
-  part-way, which is not a budget. The credit's scope now says "for each of two messages". Three fakes:
-  `an_agent_that_answers_mid_loop_or_stops_on_an_error_is_not_credited`.
-- **A limiter's 503 on the AI failure check** (`ai.rs`). The plain message after a failure was read as the limiter's
-  only when answered 429. ADR-021 counts a 503 with `Retry-After` too, and so does this now (`rate_limited`):
-  `a_limiters_503_after_the_service_fails_is_not_read_as_the_feature_broken`, with a 503 without `Retry-After`
-  still a finding as its control.
-- **A log line of plain traffic and V16.3.1** (`logs.rs`). Before a line between the markers was read for a sign-in
-  event, only `login.path` exactly as securevibe.toml writes it was taken out. `POST /login/ 200`, `/Login`, a query,
-  a full address, or a prefix the app is mounted under left the word "login" in, and the request read as a record of
-  the sign-in. Now every path and address is taken out of the line first (`without_paths`), since a path says where a
-  request went, never that it happened. Seven ways of writing the path, in plain and JSON lines, credit nothing, and
-  the same lines with an event beside them are credited:
-  `an_access_log_writing_the_sign_in_path_another_way_is_not_a_record_either`.
+- **A redirect not followed yet is not a redirect refused (item 5, V15.3.2).** `sv` asked the test server whether the
+  app had gone on from the redirecting address the moment the app answered. An app that answers first and fetches
+  afterwards, or whose fetch was still on its way, was credited for not following redirects. Now a redirect not followed
+  is asked about again three times, three seconds apart, before it counts as not followed. The credit also needs an
+  answer of the app's own: no answer, a crash (5xx), or a limiter (429, or 503 with `Retry-After`) says nothing about
+  whether the app chose not to follow, and is not assessed.
+- **A loop that ended on an error is not a limit (item 6, C9.1.2).** The agent limit was credited for any 2xx answer
+  with fewer than 40 tool rounds. That included an app that caught its own error part-way through the loop and answered
+  200 "Sorry, something went wrong". It also included an app that answered at once and ran the loop afterwards, read
+  part-way through. Now the rounds are read again, three seconds apart, until two reads agree; if they are still growing
+  after fifteen seconds, it is not assessed. An answer whose words say something went wrong ("went wrong", "error",
+  "exception", "failed", "failure", "timed out", "timeout", "traceback") is not taken for a limit either, and the
+  report quotes the word. A careful app whose ordinary answer happens to contain one of these words loses the credit
+  too: a lower bar would let the error through.
+- **A busy service is not a broken one (item 7, V16.5.2).** After the AI service fails on one message, a plain
+  message follows. A bare 429 on it was excused, but a 503 with `Retry-After`, which ADR-021 reads as a limiter's too,
+  was a Medium finding. Now either is waited out (the `Retry-After`, at most 60 seconds) and the message sent once
+  more; a limiter's answer again is not assessed, never a finding.
 
-Eight guards were undone in turn, and each was caught by its test. One, the "went on after answering" reason, was at
-first caught by nothing, because the fake's background loop reached the cap and was found anyway; a fake whose
-background loop stops below the cap now holds it.
+Broken on purpose ten ways, each caught by a test written for it; the re-reads are on a fake clock in the tests, so
+no test waits for real. Not run against a real app here: the Docker tests that drive these checks run on CI.
+
+## A log line of plain traffic is not a record of a sign-in (6 October 2026)
+
+Item 14 of the review of 1 to 4 October (BACKLOG); items 5, 6, and 7, claimed with it, were built by session
+securevibe-e2 the same day (the section above). Before a line between the markers was read for a sign-in event, only
+`login.path` exactly as securevibe.toml writes it was taken out (`logs.rs`). `POST /login/ 200`, `/Login`, a query, a
+full address, or a prefix the app is mounted under left the word "login" in, and the request read as a record of the
+sign-in, which could credit V16.3.1. Now every path and address is taken out of the line first (`without_paths`),
+since a path says where a request went, never that it happened. Seven ways of writing the path, in plain and JSON
+lines, credit nothing, and the same lines with an event of the app's own beside them are credited
+(`an_access_log_writing_the_sign_in_path_another_way_is_not_a_record_either`). Undone, the guard is caught by that
+test.
