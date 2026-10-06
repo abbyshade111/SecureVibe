@@ -2400,7 +2400,8 @@ fn check_sections(
         if !in_tests.is_empty() {
             findings.lead.push_str(&format!(
                 "({} in the app itself first, then {} {}. Those still count; fix a key or a copied \
-                 pattern there as you would in the app, and a library by a newer copy, not an edit.)\n",
+                 pattern there as you would in the app, a library by a newer copy, not an edit, and \
+                 read one only worth a look before changing anything.)\n",
                 app.len(),
                 in_tests.len(),
                 sv_report::apart_named(&in_tests)
