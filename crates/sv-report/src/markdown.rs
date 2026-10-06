@@ -414,6 +414,27 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
+    // What only the live site can answer, for an app that will be on the internet (`crate::live`).
+    if !report.before_going_live.is_empty() {
+        out.push_str("## Before going live\n\n");
+        out.push_str("These can be answered only by the app's own live site, so nothing in this report has checked them, and none is counted as met. Once the app is on the internet at its own address, run `sv probe` against it: it makes a handful of read-only requests to that address and nothing else, sends no cookies or credentials, and cannot change anything. It prints its answers where it runs; they are not added to this report.\n\n");
+        out.push_str("| requirement | what it asks | how |\n|---|---|---|\n");
+        for item in &report.before_going_live {
+            let how = match (&item.command, &item.by_hand) {
+                (Some(command), _) => format!("`{command}` asks this."),
+                (None, Some(by_hand)) => by_hand.clone(),
+                (None, None) => String::new(),
+            };
+            out.push_str(&format!(
+                "| {} | {} | {} |\n",
+                cell(&item.id),
+                cell(&item.what),
+                cell(&how)
+            ));
+        }
+        out.push('\n');
+    }
+
     // Level 1 only. The whole list is 87 rows of requirement ids for an owner who is not a
     // programmer, and it reads as a to-do list aimed at somebody else — which it is: its real
     // audience is the AI coding tool, and `sv mcp` gives that one the complete list. What is left
@@ -887,6 +908,7 @@ mod tests {
             checklist_above_level: vec![],
             tests_to_write: vec![],
             only_you_can_check: Vec::new(),
+            before_going_live: Vec::new(),
             questions_for_you: Vec::new(),
             no_instructions_yet: 0,
             named_not_credited: vec![],

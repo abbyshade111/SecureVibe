@@ -54,6 +54,7 @@ fn inputs<'a>(
         set_aside: Vec::new(),
         reviews_not_counted: Vec::new(),
         app_name: "Test",
+        on_the_internet: false,
         target_level: 1,
         generated: None,
         made_by: Default::default(),
@@ -931,6 +932,7 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         set_aside: Vec::new(),
         reviews_not_counted: Vec::new(),
         app_name: "Chain",
+        on_the_internet: false,
         target_level: 3,
         generated: None,
         made_by: Default::default(),
@@ -2928,4 +2930,109 @@ fn what_has_to_be_answered_is_asked_as_a_question_never_said_as_an_answer() {
         "the page asks too"
     );
     assert!(!html.contains("No WebSocket library is used"));
+}
+
+#[test]
+fn an_app_on_the_internet_is_told_what_only_its_live_site_can_answer() {
+    // The `sv probe` item's "before going live" list: these read "not verified" with nothing saying
+    // that one command against the live site asks them.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec![
+            "V12.2.1".into(),
+            "V3.4.1".into(),
+            "V4.1.2".into(),
+            "V12.1.2".into(),
+            "V1.2.1".into(),
+        ],
+        ..Default::default()
+    };
+    // V3.4.1 settled by a check that ran here is not listed again.
+    let verified = [Verified::new(
+        "some.check",
+        &["V3.4.1"],
+        "the headers".into(),
+    )];
+    let mut i = inputs(&f, &buckets, vec![], &verified);
+    i.on_the_internet = true;
+    let report = build(i);
+    let ids: Vec<&str> = report
+        .before_going_live
+        .iter()
+        .map(|l| l.id.as_str())
+        .collect();
+    assert_eq!(
+        ids,
+        ["V12.2.1", "V4.1.2", "V12.1.2"],
+        "the control V1.2.1 is not about the live site"
+    );
+    let api = &report.before_going_live[1];
+    assert_eq!(
+        api.command.as_deref(),
+        Some("sv probe https://your-address --api /a/path/of/your/api")
+    );
+    let ciphers = &report.before_going_live[2];
+    assert!(ciphers.command.is_none());
+    assert!(ciphers.by_hand.as_deref().unwrap().contains("testssl.sh"));
+    // Listed, never counted: the requirements are still not verified.
+    assert!(
+        report
+            .requirements
+            .iter()
+            .filter(|r| ids.contains(&r.id.as_str()))
+            .all(|r| r.status == Status::NotVerified)
+    );
+
+    let markdown = sv_report::markdown::compliance(&report);
+    assert!(markdown.contains("## Before going live"), "{markdown}");
+    assert!(
+        markdown.contains("| V12.2.1 | The site answers over HTTPS, and plain HTTP is no way in | `sv probe https://your-address` asks this. |"),
+        "{markdown}"
+    );
+    let html = sv_report::html::page(&report);
+    assert!(html.contains("<h2>Before going live</h2>"), "{html}");
+    assert!(html.contains("<code>sv probe https://your-address</code> asks this."));
+    let json = serde_json::to_value(&report).unwrap();
+    assert_eq!(json["before_going_live"].as_array().unwrap().len(), 3);
+
+    // The control: the same app, not on the internet, has no such list.
+    let local = build(inputs(&f, &buckets, vec![], &verified));
+    assert!(local.before_going_live.is_empty());
+    assert!(!sv_report::markdown::compliance(&local).contains("Before going live"));
+}
+
+#[test]
+fn every_requirement_sv_probe_answers_is_listed() {
+    // The list is held to the probe's own source: each requirement its checks cite (outside their
+    // tests) is listed as one `sv probe` asks, and nothing is listed as asked that it does not cite.
+    let src = |file: &str| {
+        let text = std::fs::read_to_string(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../sv-check/src")
+                .join(file),
+        )
+        .unwrap();
+        let end = text.find("#[cfg(test)]").unwrap_or(text.len());
+        text[..end].to_owned()
+    };
+    let text = src("production.rs") + &src("live_tls.rs");
+    let mut cited = std::collections::BTreeSet::new();
+    for piece in text.split('"').skip(1).step_by(2) {
+        let id = piece.trim();
+        if id.starts_with('V')
+            && id[1..].split('.').count() == 3
+            && id[1..]
+                .split('.')
+                .all(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
+        {
+            cited.insert(id.to_owned());
+        }
+    }
+    assert!(cited.len() >= 5, "the probe's source was read: {cited:?}");
+    let asked: std::collections::BTreeSet<String> = sv_report::live::LIVE_SITE
+        .iter()
+        .filter(|l| !matches!(l.asker, sv_report::live::Asker::ByHand(_)))
+        .map(|l| l.id.to_owned())
+        .collect();
+    assert_eq!(asked, cited);
 }

@@ -489,6 +489,27 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
+    // What only the live site can answer, for an app that will be on the internet (`crate::live`).
+    if !report.before_going_live.is_empty() {
+        b.push_str("<h2>Before going live</h2>\n");
+        b.push_str(&format!("<p>{}</p>\n", escape("These can be answered only by the app's own live site, so nothing in this report has checked them, and none is counted as met. Once the app is on the internet at its own address, run sv probe against it: it makes a handful of read-only requests to that address and nothing else, sends no cookies or credentials, and cannot change anything. It prints its answers where it runs; they are not added to this report.")));
+        b.push_str("<table>\n<tr><th>requirement</th><th>what it asks</th><th>how</th></tr>\n");
+        for item in &report.before_going_live {
+            let how = match (&item.command, &item.by_hand) {
+                (Some(command), _) => format!("<code>{}</code> asks this.", escape(command)),
+                (None, Some(by_hand)) => escape(by_hand),
+                (None, None) => String::new(),
+            };
+            b.push_str(&format!(
+                "<tr><td><code>{}</code></td><td>{}</td><td>{}</td></tr>\n",
+                escape(&item.id),
+                escape(&item.what),
+                how
+            ));
+        }
+        b.push_str("</table>\n");
+    }
+
     // Level 1 only; see the note in the Markdown renderer. `sv mcp` gives the AI coding tool the
     // whole list, and report.json carries it.
     let level_one: Vec<&crate::TestToWrite> = report
@@ -738,6 +759,7 @@ mod tests {
             checklist_above_level: vec![],
             tests_to_write: vec![],
             only_you_can_check: Vec::new(),
+            before_going_live: Vec::new(),
             questions_for_you: Vec::new(),
             no_instructions_yet: 0,
             named_not_credited: vec![],
