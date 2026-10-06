@@ -204,6 +204,7 @@ RUST_CHECKS = {
     "probe.certificate-not-trusted": ("production", ["V12.2.2"]),
     "probe.plain-http-served": ("production", ["V12.2.1"]),
     "probe.ocsp-not-stapled": ("production", ["V12.1.4"]),
+    "probe.api-redirected-to-https": ("production", ["V4.1.2"]),
     "probe.old-tls-accepted": ("production", ["V12.1.1"]),
     "probe.no-hsts": ("production", ["V3.4.1"]),
     "live.ech-not-offered": ("production", ["V12.1.5"]),
@@ -310,6 +311,8 @@ RUST_FINDINGS_ONLY = {
     # `secrets.scan`, which names the requirements of `data/secret-rules.json` and not V13.2.3.
     "probe.password-hints",
     "secrets.credential-assignment",
+    # One API address the owner names is not every endpoint (ADR-027, Later, 6 October 2026).
+    "probe.api-redirected-to-https",
 }
 
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
