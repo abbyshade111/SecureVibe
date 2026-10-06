@@ -481,6 +481,7 @@ mod tests {
             set_at_login: Vec::new(),
             before_login: Vec::new(),
             landed: String::new(),
+            limited: false,
         };
         let mut out = Outcome::default();
         null_origin_check(&mut app, &users().owned.unwrap(), &[], &a, &mut out);
