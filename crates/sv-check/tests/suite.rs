@@ -458,6 +458,76 @@ fn a_test_the_runner_skipped_is_not_credited() {
     );
 }
 
+#[test]
+fn tests_reported_in_tap_go_json_and_jest_json_are_credited_as_junit_ones_are() {
+    // The same suite of three tests, each naming a requirement, one failing and one skipped, read
+    // from each form `test_report` reads. Only the one that passed is credited, from every form.
+    let root = scratch("report-forms");
+    write(
+        &root,
+        "test/notes.test.js",
+        "describe('notes', () => {\n  it('are private V13.3.1', () => {});\n  \
+         it('escape output V1.2.1', () => {});\n  it.skip('bind queries V1.2.4', () => {});\n});\n",
+    );
+    write(
+        &root,
+        "notes_test.go",
+        "func TestPrivate_V13_3_1(t *testing.T) {}\nfunc TestEscape_V1_2_1(t *testing.T) {}\n\
+         func TestBound_V1_2_4(t *testing.T) {}\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    let js: Vec<_> = found
+        .iter()
+        .filter(|t| t.file.ends_with(".js"))
+        .cloned()
+        .collect();
+    let go: Vec<_> = found
+        .iter()
+        .filter(|t| t.file.ends_with(".go"))
+        .cloned()
+        .collect();
+    assert_eq!((js.len(), go.len()), (3, 3), "{found:?}");
+
+    let tap = "TAP version 13\n# Subtest: notes\n    ok 1 - are private V13.3.1\n    \
+               not ok 2 - escape output V1.2.1\n    ok 3 - bind queries V1.2.4 # SKIP\n    1..3\n\
+               not ok 1 - notes\n1..1\n";
+    let jest = r#"{"testResults":[{"name":"test/notes.test.js","assertionResults":[
+        {"fullName":"notes are private V13.3.1","status":"passed"},
+        {"fullName":"notes escape output V1.2.1","status":"failed"},
+        {"fullName":"notes bind queries V1.2.4","status":"pending"}]}]}"#;
+    let go_json = [
+        ("TestPrivate_V13_3_1", "pass"),
+        ("TestEscape_V1_2_1", "fail"),
+        ("TestBound_V1_2_4", "skip"),
+    ]
+    .iter()
+    .map(|(t, a)| format!("{{\"Action\":\"{a}\",\"Package\":\"app\",\"Test\":\"{t}\"}}\n"))
+    .collect::<String>();
+
+    for (form, report, tests) in [
+        ("TAP", tap, &js),
+        ("jest JSON", jest, &js),
+        ("go test -json", go_json.as_str(), &go),
+    ] {
+        // Through the function `sv report` reads a failed suite's report with.
+        let cases = sv_check::suite::reported_cases(Some(report))
+            .expect("a report was given")
+            .unwrap_or_else(|e| panic!("{form} was refused: {}", e.why));
+        let (verified, _) = credit(
+            tests,
+            SuiteOutcome::Failed {
+                cases: Some(&cases),
+            },
+            &describe_nothing(),
+        );
+        let ids: Vec<&str> = verified
+            .iter()
+            .flat_map(|v| v.requirement_ids.iter().map(String::as_str))
+            .collect();
+        assert_eq!(ids, ["V13.3.1"], "{form}: {verified:?}");
+    }
+}
+
 fn describe_nothing() -> impl Fn(&str) -> Option<String> {
     |_: &str| None
 }
