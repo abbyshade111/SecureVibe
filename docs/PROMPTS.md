@@ -1,7 +1,7 @@
 # Prompts for your AI coding tool
 
 These are instructions you can paste into the AI tool that builds your app (Claude Code, Cursor, Copilot, or
-another). Each one asks for something SecureVibe checks, and each one has been tried: the same small app was built
+another). Each one asks for something SecureVibe checks, and all but the four newest have been tried: the same small app was built
 twice, once with the prompt and once without, and `sv` checked both. A prompt is listed under "Shown to work" only
 when the build with it passed its check and the build without it failed. The rest are listed apart, marked
 **not tested**, with what happened: they are worth using, but a prompt that has not been shown to change anything
@@ -155,6 +155,42 @@ check the result with `sv` as you would anything else.
 *Requirements:* ASVS V8.2.1, V8.2.2, V8.3.1.
 
 *Not tested:* Both builds without the prompt already refused all of these.
+
+## Not tried yet
+
+Written on 6 October 2026 for the commonest problems the loop trials found that no prompt above covers (`docs/prompts/loop-scale/README.md`, "Findings by group"). Each is held to a check like the others, and none has been tried: the prompt-library trial (BACKLOG, "Test the prompt library where the prompts have something to fix") will try them.
+
+### Guard what goes into the AI feature and what comes out of it
+
+> Treat everything that reaches the model as untrusted: what people type, and any text the app adds from its own records. Before a message goes to the model, screen it for prompt-injection attempts, with a maintained classifier or a ruleset of the known patterns ("ignore your instructions", "reveal your system prompt" and the like), and refuse a flagged message with a plain explanation instead of sending it. Before a reply leaves the server, check it too: hold back or redact a reply that repeats the model's instructions or anything else meant only for the model, and keep secrets out of the instructions altogether; remove invisible and direction-changing characters (zero-width characters, Unicode tag characters, bidirectional overrides), and show each link's real address or drop a link whose text is a different address from its target. Write a test for each: an injection attempt is refused, a reply that repeats the instructions is held back, and a reply with hidden characters reaches the page without them.
+
+*Requirements:* AISVS C2.1.3, C7.3.2, C7.3.4.
+
+*Not tested:* not tried yet.
+
+### Accept changes only from the app's own pages
+
+> Every request that changes something (a form sent, an API call that creates, edits, or deletes) must carry an anti-forgery token that the app gave the page it came from, and the server refuses a request without a valid one; or the server checks the request's Origin header against the app's own address and refuses any other. Do both where the framework allows. Set SameSite=Lax or Strict on the session cookie as well, but as a second line, not instead of the check. Write a test that sends a change from another site's address without the token and shows it is refused.
+
+*Requirements:* ASVS V3.5.1.
+
+*Not tested:* not tried yet.
+
+### Keep private pages out of the browser's cache
+
+> Send `Cache-Control: no-store` on every response that shows somebody's own data or anything only a signed-in person may see, its JSON answers and error pages included. `no-cache` and `private` are not enough: both let the browser keep a copy. Set it in one place that every signed-in response passes through, so a new page cannot leave it out. Write a test that a private page sends it.
+
+*Requirements:* ASVS V14.3.2.
+
+*Not tested:* not tried yet.
+
+### Make the session hard to steal, and end it properly
+
+> If the app keeps its own sessions, make each session id with the platform's cryptographically secure random generator, at least 128 bits of it (in Python, `secrets.token_urlsafe(32)`), and a new one at every sign-in. Send it only in a cookie set with HttpOnly and SameSite=Lax (or Strict), and Secure once the app is served over HTTPS, and never put it in a page, an address, or anything a script can read. When someone signs out, or a session expires, delete it on the server, so the old id opens nothing: clearing the browser's cookie is not enough. Where the framework's own session handling does all of this, use it rather than writing your own. Write a test for each: the cookie's attributes, and a session used again after signing out is refused.
+
+*Requirements:* ASVS V3.3.2, V3.3.4, V7.2.3, V7.4.1.
+
+*Not tested:* not tried yet.
 
 The same prompts, with the checks behind them, are in `data/prompts.json`.
 
