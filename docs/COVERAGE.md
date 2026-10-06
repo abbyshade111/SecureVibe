@@ -106,7 +106,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V14.3.3 | L2 | Reads the code: `ast.password-in-browser-storage`; Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `ast.password-in-browser-storage`, `probe.password-in-browser-storage`) |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
-| V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` |
+| V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` (sv only ever as a finding: `ast.download-piped-to-shell`) |
 
 ### Settled by asking the running app (111)
 

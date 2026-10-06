@@ -1973,7 +1973,16 @@ fn tool_list() -> Value {
             "name": "securevibe_bundle",
             "title": "Bundle the app and its report",
             "description": "Write one zip beside the app (never inside it) holding the app's files, the full report, the bill of materials and a SHA-256 for every file, for the person to keep or hand on. It leaves out anything that could hold a secret (files the credential scan flagged, environment files, keys, databases, links, editor folders, files it could not read) and lists each with the reason. Offer it once the report is written, only if the person wants it. It cannot tell which files hold data about the app's people. The app must be a folder below the one this server was started for, since the zip goes beside it: with no `path`, it is refused.",
-            "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
+            // Its own `path`, required: the zip goes beside the app, so the server's own folder, the
+            // default everywhere else, is always refused here (the documentation review, item 5).
+            "inputSchema": {
+                "type": "object",
+                "properties": { "path": {
+                    "type": "string",
+                    "description": "The app's folder, relative to the folder this server was started for, and below it: the zip is written beside the app, so that folder itself cannot be bundled."
+                } },
+                "required": ["path"]
+            },
             "annotations": { "readOnlyHint": false, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false }
         },
         {
@@ -5446,6 +5455,19 @@ mod tests {
             .map(|t| t["name"].as_str().unwrap())
             .collect();
         assert!(names.contains(&"securevibe_bundle"), "{names:?}");
+        // The documentation review, item 5: with no `path` the bundle is always refused, so its
+        // schema requires one and says nothing of a default.
+        let bundle = listed["result"]["tools"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "securevibe_bundle")
+            .unwrap();
+        assert_eq!(bundle["inputSchema"]["required"], json!(["path"]));
+        let said = bundle["inputSchema"]["properties"]["path"]["description"]
+            .as_str()
+            .unwrap();
+        assert!(!said.contains("Defaults"), "{said}");
         let written = call(&server, "securevibe_write_report", json!({ "path": "app" }));
         assert!(
             text(&written).contains("securevibe_bundle")

@@ -449,6 +449,9 @@ def check_words():
 
 # Requirement id -> {tool: [what each of its rules looks for]}, for the outside tools.
 TOOL_RULES = defaultdict(lambda: defaultdict(list))
+# Requirement id -> {tool: the ids of its rules that speak to it}, to count rules rather than their
+# descriptions, which many rules share.
+TOOL_RULE_IDS = defaultdict(lambda: defaultdict(set))
 
 
 def appendix_c(path):
@@ -529,17 +532,19 @@ def evidence():
             for q in rule["requirements"] + rule.get("findings_against", []):
                 NOT_RUN[q].add(rule_id)
         rules = {k: v for k, v in adapter["rules"].items() if loaded is None or k in loaded}
-        for rule in rules.values():
+        for rule_id, rule in rules.items():
             for q in rule["requirements"]:
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
                 CREDITED_BY_TOOL[q].add(adapter["id"])
+                TOOL_RULE_IDS[q][adapter["id"]].add(rule_id)
                 if rule.get("what"):
                     TOOL_RULES[q][adapter["id"]].append(rule["what"])
         for rule_id, rule in rules.items():
             for q in rule.get("findings_against", []):
                 if adapter["id"] not in ev[q]["tools"]:
                     ev[q]["tools"].append(adapter["id"])
+                TOOL_RULE_IDS[q][adapter["id"]].add(rule_id)
                 if rule.get("what"):
                     TOOL_RULES[q][adapter["id"]].append(rule["what"])
                 # The AI rules by their folder, which names the family across vendors and
@@ -968,14 +973,17 @@ def requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only
             for t in tiers(q):
                 for c in ev[q][t]:
                     if t == "tools":
-                        what = TOOL_RULES[q].get(c, [])
+                        # Each phrase once: one rule's words can join two with "; " that
+                        # another rule says alone.
+                        what = sorted({p.strip() for w in TOOL_RULES[q].get(c, [])
+                                       for p in w.split("; ") if p.strip()})
                         finding_only = c not in CREDITED_BY_TOOL[q]
                         checks.append({
                             "id": c, "kind": tier_name[t], "tool": True,
                             "label": "Its rules look for",
-                            "words": "; ".join(sorted(set(what))[:6])
-                                     + (f"; and {len(set(what)) - 6} more" if len(set(what)) > 6 else ""),
-                            "rules": len(set(what)), "finding_only": finding_only,
+                            "words": "; ".join(what[:6])
+                                     + (f"; and {len(what) - 6} more" if len(what) > 6 else ""),
+                            "rules": len(TOOL_RULE_IDS[q][c]), "finding_only": finding_only,
                             "credited_only": False,
                         })
                     else:
