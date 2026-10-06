@@ -178,6 +178,24 @@ pub(super) fn once_check(
                 once.method, once.path
             ),
         ));
+    } else if got > 1 {
+        // More than one copy said it went through, all for one user. Whether that is one taking
+        // answered again or several takings the answers cannot tell, and the other user's refusals
+        // do not settle it: nothing shows they could have taken it, and an app that refuses them
+        // for a reason of its own would be credited for a race it lost (the review of 6 October,
+        // item 5).
+        out.not_assessed.push((
+            IDS.to_owned(),
+            format!(
+                "Of the {AT_ONCE} copies of {} {} sent at the same instant, only the {holder} \
+                 user's went through, but {got} of their copies said so (\"{}\"). Whether that \
+                 is one taking said again or {got} takings cannot be told from the answers, and \
+                 the other user's refusals do not show they could have taken it. So this is not \
+                 credited. If the app says \"{}\" again to a repeat, name in `completed` words \
+                 only a first taking shows.",
+                once.method, once.path, once.completed, once.completed
+            ),
+        ));
     } else if let Some(why) = signed_in_now(http, users, &sessions[usize::from(by_a > 0)]) {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -196,9 +214,8 @@ pub(super) fn once_check(
             DONE_TWICE.requirement_ids,
             format!(
                 "{} {} sent {AT_ONCE} times at the same instant, {each} copies as each of two test \
-                 users: it went through for the {holder} user only ({got} of their copies said so, \
-                 repeats of their own taking it), and every copy from the other was refused. One \
-                 race, tried once",
+                 users: it went through once, for the {holder} user, and every other copy was \
+                 refused. One race, tried once",
                 once.method, once.path
             ),
         ));
@@ -259,7 +276,9 @@ mod tests {
     #[test]
     fn a_repeat_the_holder_is_told_went_through_is_not_a_second_booking() {
         // The false alarm of 4 October 2026: a correct app answers a repeat from the person who
-        // already holds the seat with "Booked" again, and every copy came from that person.
+        // already holds the seat with "Booked" again, and every copy came from that person. Not a
+        // finding; and not credited either, since ten "Booked" answers to one user could as well be
+        // ten bookings (the review of 6 October, item 5).
         let o = run(Flaws {
             booking_repeat_says_booked: true,
             ..Default::default()
@@ -270,10 +289,10 @@ mod tests {
             o.findings,
             o.steps
         );
+        assert!(!verified_ids(&o).contains(&DONE_TWICE.rule_id));
         assert!(
-            verified_ids(&o).contains(&DONE_TWICE.rule_id),
-            "{:?}\n{}",
-            o.steps,
+            why_not(&o).contains("cannot be told from the answers"),
+            "{}",
             why_not(&o)
         );
         // The setup: the holder really was told so more than once, and the other user never was.

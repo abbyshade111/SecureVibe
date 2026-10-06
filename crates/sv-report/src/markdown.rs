@@ -38,7 +38,10 @@ pub fn inert(text: &str) -> String {
             // The closing run: the next run of exactly `n` backticks.
             let mut j = i + n;
             let mut close = None;
-            while j < chars.len() {
+            // Never past the end of the line: a blank line, a list item, or a heading ends the
+            // paragraph, and a span with it (the review of 6 October, item 15). Stopping at any line
+            // end escapes a little more than a renderer would read, never less.
+            while j < chars.len() && chars[j] != '\n' {
                 if chars[j] == '`' {
                     let m = run_at(j);
                     if m == n {
@@ -705,7 +708,12 @@ pub fn security(report: &Report) -> String {
         // truth about the app, and it is only the truth about the part that was examined.
         out.push_str("## What was not examined\n\n");
         for gap in &report.gaps {
-            out.push_str(&format!("- **{}** — {}\n", gap.what, gap.why));
+            // App text reaches both: a file path, the decisions file's own words.
+            out.push_str(&format!(
+                "- **{}** — {}\n",
+                inert(&gap.what),
+                inert(&gap.why)
+            ));
         }
         out.push('\n');
     }
@@ -722,7 +730,8 @@ pub fn security(report: &Report) -> String {
             ));
             for (line, report_it) in &set_aside {
                 out.push_str(&format!(
-                    "- {line} [Report it against the rule]({report_it})\n"
+                    "- {} [Report it against the rule]({report_it})\n",
+                    inert(line)
                 ));
             }
             out.push_str(&format!("\n{}\n\n", crate::FALSE_ALARM_WHY));
@@ -735,7 +744,7 @@ pub fn security(report: &Report) -> String {
                  record one as your decision, run `sv review` in your own terminal.\n\n",
             );
             for line in &report.reviews_not_counted {
-                out.push_str(&format!("- {line}\n"));
+                out.push_str(&format!("- {}\n", inert(line)));
             }
             out.push('\n');
         }
