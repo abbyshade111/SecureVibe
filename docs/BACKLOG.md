@@ -6787,6 +6787,9 @@ another session is not a claim.
   item"), in branch `claude/securevibe-e9-cpp-scoped`: a call named through `std::`, `std::filesystem::`, or the
   global `::` is read as the plain call, while a call on a class of the app's own (`Logger::log`) still is not; and
   `std::cout << "Location: " << url` is read as the `printf` form is.
+  **Done the same day** (DESIGN, "C++ calls named through `std::` or `::`, a Location header streamed to `cout`, and
+  C's SQL calls"): nine rules read the scoped form, `ast.open-redirect` reads the `cout` chain, and, found on the way,
+  C's and C++'s SQL calls are judged by their query rather than their connection, which had reported every one.
 
   The two "no grammar" tests this item said would break did, and now use Objective-C (`.m`/`.mm`,
   recognized by the scanner and deliberately left without a grammar) in C++'s place, continuing the same
