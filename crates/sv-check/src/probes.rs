@@ -2156,6 +2156,30 @@ mod tests {
     }
 
     #[test]
+    fn an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not() {
+        // Until 6 October 2026 no test reached this credit: the census of what the suite credits
+        // (`tools/coverage.py --credits`) found it.
+        let fixed = response(
+            "cors",
+            200,
+            &[("Access-Control-Allow-Origin", "https://app.example")],
+            "",
+        );
+        assert!(!ids(&evaluate(std::slice::from_ref(&fixed))).contains(&CORS_ANY_ORIGIN.rule_id));
+        assert!(verified_ids(&[fixed]).contains(&CORS_ANY_ORIGIN.rule_id.to_owned()));
+        // An app that sends no Access-Control-Allow-Origin was not asked the question.
+        let silent = response("cors", 200, &[], "");
+        assert!(!verified_ids(&[silent]).contains(&CORS_ANY_ORIGIN.rule_id.to_owned()));
+        let echoed = response(
+            "cors",
+            200,
+            &[("Access-Control-Allow-Origin", STRANGER)],
+            "",
+        );
+        assert!(!verified_ids(&[echoed]).contains(&CORS_ANY_ORIGIN.rule_id.to_owned()));
+    }
+
+    #[test]
     fn a_root_that_is_not_there_is_not_judged() {
         // An app that serves only an API answers its root with a 404: nothing there is a page.
         let mut root = good_root();

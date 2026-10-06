@@ -1228,6 +1228,11 @@ another session is not a claim.
      **The test claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking ("pick another item from
      the backlog"), in branch `claude/securevibe-e9-credit-census`: record every credit the test suite gives, by check,
      and fail when a check listed as findings-only is credited, or one never credited is not listed.
+     **Done the same day:** `Verified::new` writes each credit, with the place that gave it, to `SV_CREDIT_LOG` in a
+     debug build, and `tools/coverage.py --credits` holds the lists to it after CI's tests (DESIGN, "What the suite
+     credits is counted"). The first census found three more: `probe.password-hints` (V6.4.2) and
+     `secrets.credential-assignment` (V13.2.3) never credit and are now listed, and `probe.cors-any-origin` credits
+     but no test reached it, which one now does.
   2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
      refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
      refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
