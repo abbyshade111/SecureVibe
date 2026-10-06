@@ -3621,6 +3621,7 @@ mod tests {
         // Recorded through `sv review`, as the owner's word counts only then: sealed with the
         // key this test process uses, whatever the computer running it has.
         let (key, _) = sv_check::seal::Key::load_or_make_in(test_keys()).unwrap();
+        let key = key.for_app(&sv_check::seal::App::of(&root.join("app")).unwrap());
         let seal = |result: &str, how: &str| {
             let check = sv_manifest::HandCheck {
                 result: result.into(),
