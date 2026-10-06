@@ -716,8 +716,7 @@ impl Answers {
         self.get_answer(id).and_then(|body| {
             body.lines()
                 .filter_map(sealed_by)
-                .filter(|seal| is_seal(seal))
-                .next_back()
+                .rfind(|seal| is_seal(seal))
         })
     }
 
