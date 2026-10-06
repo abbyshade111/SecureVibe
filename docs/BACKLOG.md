@@ -3231,6 +3231,8 @@ another session is not a claim.
      going"), in branch `claude/securevibe-e9-storage-code`: two findings-only code rules for JavaScript and
      TypeScript, a token (V10.1.1) or a password (V14.3.3) written into `localStorage`, `sessionStorage`, or a cookie
      set from the page, by a key or cookie name that says so.
+     **Done the same day** (DESIGN, "A token or a password written into the browser's storage, read from the code"):
+     `ast.token-in-browser-storage` and `ast.password-in-browser-storage`, both only ever findings.
      **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
      backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
      share an email address. C9.5.3 stays unclaimed.
