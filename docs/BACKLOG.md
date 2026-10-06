@@ -1225,6 +1225,9 @@ another session is not a claim.
      mark each as "only ever as a finding". Not done: the test that would catch the next one. A check gives credit
      through helpers and tables of rules as often as by name, so reading the code for it is not reliable enough to
      fail a build on; running every check against the fake apps and collecting what each credited would be.
+     **The test claimed on 6 October 2026 by session securevibe-e9**, at the owner's asking ("pick another item from
+     the backlog"), in branch `claude/securevibe-e9-credit-census`: record every credit the test suite gives, by check,
+     and fail when a check listed as findings-only is credited, or one never credited is not listed.
   2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
      refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
      refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
