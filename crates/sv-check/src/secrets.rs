@@ -2835,16 +2835,20 @@ SIGNING_KEY=generate_with_openssl_rand
                 value.as_str(),
             ),
         ] {
-            // The setup: the scan really finds it in that file.
+            // The setup: the scan really finds it in that file. No message here names the value or
+            // the line holding it, so a failure prints nothing that looks like a credential.
             assert!(
                 !scan_text(&rules(), file, &line).is_empty(),
-                "the setup: {file} {line:?} is found"
+                "the setup: the value in {file} is found"
             );
             let (out, n) = redact_text_in(&rules(), file, &line);
-            assert!(n >= 1, "{file}: {out}");
+            assert!(n >= 1, "{file}: nothing was masked");
             // Not one part of the value is left, before or after the `&` or `,`.
-            for part in [&secret[..8], &secret[9..]] {
-                assert!(!out.contains(part), "{file}: {part:?} left in {out:?}");
+            for (which, part) in [("first", &secret[..8]), ("last", &secret[9..])] {
+                assert!(
+                    !out.contains(part),
+                    "{file}: the {which} part of the value was left"
+                );
             }
         }
     }
