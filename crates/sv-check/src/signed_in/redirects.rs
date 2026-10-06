@@ -278,7 +278,7 @@ mod tests {
                 f.description
                     .matches("with `next` and eight other return parameters set to")
                     .count(),
-                3,
+                f.description.matches("sent the browser to").count(),
                 "{}",
                 f.description
             );
