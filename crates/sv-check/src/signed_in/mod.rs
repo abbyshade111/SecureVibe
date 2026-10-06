@@ -1455,8 +1455,19 @@ fn run_checks(
     //    the session works — the only way, when the private page turned out to be open to all.
     let owned_read = owned_checks(http, users, accounts, &a, &mut out);
 
-    // 4. The session cookie, and whether signing in made a new one.
-    session_checks(&a, signed_in_works || owned_read.is_some(), &mut out);
+    // 4. The session cookie, and whether signing in made a new one, once it is shown which cookies
+    //    carry the session.
+    let carried = sign_in_cookies_carry_session(
+        http,
+        &a,
+        confirm_path.as_deref().filter(|_| signed_in_works),
+    );
+    session_checks(
+        &a,
+        signed_in_works || owned_read.is_some(),
+        carried,
+        &mut out,
+    );
 
     // 4b. The markers the log check reads afterwards. Done here because the successful one has to
     //     be a sign-in that really worked, and the refused one a page that is really private.
@@ -1490,6 +1501,7 @@ fn run_checks(
         http,
         &a,
         confirm_path.clone().filter(|_| signed_in_works).as_deref(),
+        carried,
         &mut out,
     );
     client_side_validation_check(http, users, accounts, &mut out);
@@ -1897,6 +1909,35 @@ mod tests {
         let found = rule_ids(&o);
         assert!(found.contains(&PRIVATE_PAGE.rule_id), "{found:?}");
         assert!(found.contains(&SESSION_RENEWAL.rule_id), "{found:?}");
+    }
+
+    #[test]
+    fn a_cookie_set_at_sign_in_is_the_session_only_when_the_page_needs_it() {
+        // The review of 1 to 4 October, item 13: an app that keeps its session from before sign-in
+        // and sets an unrelated cookie at sign-in was found to take a made-up session (that cookie,
+        // altered) and credited for renewing its session.
+        let o = run_against(
+            Flaws {
+                keep_session_at_login: true,
+                other_cookie_at_login: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let found = rule_ids(&o);
+        assert!(found.contains(&SESSION_RENEWAL.rule_id), "{found:?}");
+        assert!(
+            !found.contains(&SESSION_TOKEN_UNVERIFIED.rule_id),
+            "{found:?}"
+        );
+        assert!(!verified_ids(&o).contains(&SESSION_RENEWAL.rule_id));
+        assert!(!verified_ids(&o).contains(&SESSION_COOKIE.rule_id));
+        // The setup: sign-in really did set that cookie, and only it.
+        assert!(
+            o.steps.iter().any(|s| s.contains("signed in as A")),
+            "{:?}",
+            o.steps
+        );
     }
 
     #[test]
