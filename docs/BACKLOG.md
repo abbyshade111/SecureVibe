@@ -3536,6 +3536,11 @@ another session is not a claim.
      joins the error-page markers. `probe.ai-floating-model-sent` (C3.2.3) reads the model name the app sent the test
      model. Five guards broken in turn, each caught. Not done: other frameworks' consoles, and looking up whether a
      name without `latest` is an alias its vendor moves.
+     **Other frameworks' consoles claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Please
+     continue to work off the backlog when ready"), in branch `claude/securevibe-e2-more-consoles`: Go's
+     `net/http/pprof`, Laravel's Ignition, Symfony's profiler, and Phoenix's LiveDashboard, each known by words read
+     from its own source, as the two there are. Read on `main` just before this claim: no other session had claimed
+     it.
   8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
      from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
      grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
