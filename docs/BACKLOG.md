@@ -89,6 +89,9 @@ another session is not a claim.
   again with `sv review`.
   **Items 1, 2, 3, 4, 12, and 13 claimed the same day by session securevibe-e2**, at the owner's word, as the first
   batch (each credits or accuses wrongly), in branch `claude/securevibe-e2-review-1to4-batch1`.
+  **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
+  the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
+  `claude/securevibe-e9-review-1to4-batch2`.
   **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
   them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
 
@@ -164,6 +167,8 @@ another session is not a claim.
   10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
   **Items 13, 14, 16, and 17 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the
   remaining review items next"), in branch `claude/securevibe-e2-review-rest`.
+  **Items 13, 14, 16, and 17 done the same day** (DESIGN, "The rest of the review of 5 and 6 October"). Every item of
+  this review is done.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
