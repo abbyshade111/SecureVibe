@@ -3227,6 +3227,10 @@ another session is not a claim.
      `probe.password-in-browser-storage` (V14.3.3) and `probe.token-in-browser-storage` (V10.1.1) are only ever
      findings. Not done: tokens sent to other sites (a hosted backend on another address receives them by
      design), and the pointers from the code (`setItem` calls with such key names).
+     **The pointers from the code claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("keep
+     going"), in branch `claude/securevibe-e9-storage-code`: two findings-only code rules for JavaScript and
+     TypeScript, a token (V10.1.1) or a password (V14.3.3) written into `localStorage`, `sessionStorage`, or a cookie
+     set from the page, by a key or cookie name that says so.
      **V10.5.2 claimed on 29 September 2026 by session securevibe-e2**, at the owner's asking to take another
      backlog item, in branch `claude/securevibe-e2-oidc-same-email`: two people at the test sign-in provider who
      share an email address. C9.5.3 stays unclaimed.
