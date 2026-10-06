@@ -1945,7 +1945,12 @@ another session is not a claim.
   arms' own tools were mostly unused (the plan called by three of eight builds offered it, all Haiku; the check by
   three of eight, once each), so the trial cannot say which of them does the work: what the testable builds share is
   the specification.
-
+  **Item 6 done on 6 October 2026** (DESIGN, "The loop at scale"; `docs/prompts/loop-scale/README.md`): seventy
+  builds, $21.34, with the specification in every request (protocol amendment 3) and the check and plan arms also run
+  with the other tools hidden (amendment 4). Every Sonnet build could be tested, in every arm; Haiku varied within
+  every arm, and no arm is above another by the protocol's rule. The loop arm checked, fixed, and checked again
+  (every build checked; all five Haiku and two Sonnet again after a fix), and fixed what the check named: the
+  committable `.env` in five loop builds, against 56 of 59 builds in the other arms that kept it.
 
 - **Builders are told to check, and do not check again.** Found on 5 October 2026 by session paper-facts, in the loop
   trials: of the twelve builds with `securevibe_check` available (pilot and item 3), five called it, each once,
@@ -1962,6 +1967,24 @@ another session is not a claim.
   every arm's request includes the specification, so the comparison is of what the loop adds beyond it.
   **The owner's decision, 5 October 2026:** the first, a tester writes the manifest for those builds from the code, so the comparison
   is of the apps. For session paper-facts, which runs the trials.
+
+- **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
+  by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
+  output was: Traceback (most recent call last):". `never_ready_detail` (`crates/sv-run/src/docker.rs`) quotes
+  `first_line` of the logs, and a Python error says what went wrong on its last line. The hint that follows, about an
+  app listening on `127.0.0.1`, is beside the point when the app crashed. Quote the last lines (the exception), and
+  give the loopback hint only when nothing crashed.
+
+- **The preflight does not check that the start command's file is there.** Found on 6 October 2026 by session
+  paper-facts, in item 6: two builds wrote `securevibe.toml` with `start = "python app.py"` and no `app.py`, and `sv
+  run` could not start them. `securevibe_preflight` names a seed file that is missing; the start command's file should
+  be named the same way (ADR-035).
+
+- **Builders told the owner is away still stop to ask.** Found on 6 October 2026 by session paper-facts, in item 6:
+  two of 35 Haiku builds wrote only `securevibe.toml`, asked the owner about sign-up, passwords and sessions, and
+  ended, though the request said the owner would not be around (protocol amendment 1). For a person this is the right
+  thing; for a trial it loses the build. A stronger sentence, or a second turn that says "use the safer option", are
+  the two ways; either changes every arm's request and goes in the protocol first.
 
 - **An app's own limit on sign-in attempts locks `sv` out.** Found on 5 October 2026 by session paper-facts, in the
   loop trials and trial 3 before them: an app that limits sign-ins answered `sv`'s admin sign-in with 429, and the
@@ -2025,6 +2048,8 @@ another session is not a claim.
   in git, and naming the one thing `sv` cannot read (a global git ignore file on the computer). With no environment
   file it is still not assessed. Repositories are unchanged. Tested in `config.rs` and through `sv check`,
   `sv report`, and the MCP check together (`tests/env_plain_folder.rs`); four guards undone in turn were each caught.
+  **Seen working on 6 October 2026** in the loop's item 6: in five loop builds `securevibe_check` named the
+  `.gitignore`, the builder wrote one, and the final report did not find it.
 
 - **The specification does not say when `seed` runs, and the prompts trial's brief says the opposite of what `sv`
   does.** Found on 5 October 2026 by session paper-facts, running the third prompts trial. `sv run` runs `seed` inside

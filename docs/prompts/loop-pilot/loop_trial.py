@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds the club app with a headless AI coding tool, one build per call, for the loop trials.
 
-    python3 loop_trial.py OUT ARM MODEL N [--budget USD] [--api]
+    python3 loop_trial.py OUT ARM MODEL N [--budget USD] [--api] [--with-spec]
 
 Follows docs/prompts/loop-protocol.md. OUT is a folder under the home folder (Colima shares only that). Each build
 gets a fresh folder OUT/<model>-<arm>-<n>, the request (docs/prompts/trial-3/plain-brief.md) as its prompt, and,
@@ -23,7 +23,13 @@ ARMS = {
     'instructions': (False, [], True),
     'check': (True, ['mcp__securevibe__securevibe_spec', 'mcp__securevibe__securevibe_check'], False),
     'plan': (True, ['mcp__securevibe__securevibe_spec', 'mcp__securevibe__securevibe_plan'], False),
+    # Amendment 4 (item 6): the same two arms with the server's other tools hidden (--disallowedTools), not only
+    # refused, after the refused builders gave up on every SecureVibe tool, the allowed ones included.
+    'checkhidden': (True, ['mcp__securevibe__securevibe_spec', 'mcp__securevibe__securevibe_check'], False),
+    'planhidden': (True, ['mcp__securevibe__securevibe_spec', 'mcp__securevibe__securevibe_plan'], False),
 }
+SV_TOOLS = ['before', 'bundle', 'check', 'explain', 'guidance', 'notes_file', 'plan', 'preflight', 'prompts',
+            'questions', 'record_answer', 'spec', 'write_report']
 # Amendment 1 (5 October 2026, after the pilot): a headless build has no owner to answer it, and the Haiku pilot
 # builds stopped to ask. Every build from then on ends its request with this, in every arm.
 NO_OWNER = ("\n\nI won't be around to answer questions while you build; where something needs deciding, choose the "
@@ -53,6 +59,11 @@ def build(out, arm, model, n, budget, api):
     request = open(os.path.join(REPO, 'docs/prompts/trial-3/plain-brief.md')).read()
     if '--before-amendment-1' not in sys.argv:
         request = request.rstrip('\n') + NO_OWNER
+    # Amendment 3 (item 6): every arm's request starts with `sv init`'s output, the specification.
+    if '--with-spec' in sys.argv:
+        spec = subprocess.run([SV, 'init'], capture_output=True, text=True, timeout=60, check=True).stdout
+        request = ("This is SecureVibe's specification for the securevibe.toml my apps need:\n\n" + spec
+                   + '\n\n---\n\n' + request)
     if with_instructions:
         request = ('These are the instructions SecureVibe gives an AI coding tool; follow them:\n\n'
                    + instructions(folder) + '\n\n---\n\n' + request)
@@ -63,6 +74,10 @@ def build(out, arm, model, n, budget, api):
            '--output-format', 'stream-json', '--verbose', '--max-budget-usd', str(budget)]
     if api:
         cmd += ['--settings', json.dumps({'apiKeyHelper': KEY_HELPER})]
+    if arm.endswith('hidden'):
+        hidden = [f'mcp__securevibe__securevibe_{t}' for t in SV_TOOLS
+                  if f'mcp__securevibe__securevibe_{t}' not in sv_tools]
+        cmd += ['--disallowedTools', ' '.join(hidden)]
     if attach:
         config = {'mcpServers': {'securevibe': {'command': SV, 'args': ['mcp', '--root', folder]}}}
         cfg = os.path.join(out, name + '.mcp.json')
