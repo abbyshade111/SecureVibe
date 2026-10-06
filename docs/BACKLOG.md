@@ -2040,6 +2040,12 @@ another session is not a claim.
   **Part 2, still claimed:** the text inside the code: `sv --help` and each command's help (`crates/sv-cli/src/main.rs`),
   the specification `sv init` prints (`crates/sv-manifest/src/spec.rs`), the MCP server's instructions and tool
   descriptions (`crates/sv-cli/src/mcp.rs`), and `tools/coverage.py`'s prose.
+  **Part 2 done the same day:** the help (`sv run`, `sv check`, `sv audit`, `sv report`, `sv bundle`, `sv review`,
+  `sv sbom`, `sv mcp`, `--version`, and the exit codes, which are only check's, report's, and audit's); the spec (the
+  starter's `[stack.run.users]` commented out, `admin-actions` needing `admin`, data names spelled as listed, `tls`,
+  the unanswered claim state, `sv brief` for a feature's prompts, a test report's credit, and "Tests worth writing
+  first"); the MCP server's instructions and five tool descriptions; and `tools/coverage.py`'s prose and its `\u{…}`
+  escapes. With that, the review is done.
 
 - **Found by the documentation review (6 October 2026), in `sv` itself.** Each was found reading a document against
   the code and confirmed in the code; each is **not claimed** and can be claimed on its own. Most important first.
@@ -2052,8 +2058,8 @@ another session is not a claim.
   2. **The starter `securevibe.toml` leaves `[stack.run.users]` in force with every key commented out.** It parses as
      an empty section, not an absent one, so a run reports "[stack.run.users] … cannot be used: `login` is not set…"
      where the spec says leaving it out reports the signed-in checks as not assessed (`crates/sv-manifest/src/spec.rs`,
-     the starter; `signed_in/mod.rs`). Fix: comment the header out, as the other optional sections are (part 2 of the
-     documentation review will do it if nobody claims it first).
+     the starter; `signed_in/mod.rs`). Fix: comment the header out, as the other optional sections are. **Done**, in
+     part 2 of the documentation review.
   3. **`admin-actions` needs `admin` too.** An admin account is made only when `admin` pages are listed, so with
      `admin-actions` and no `admin`, V8.3.1 is not assessed with the reason "an admin is made by `seed`", which misleads
      when `seed` is set. Fix: make the admin when `admin-actions` is listed, or say in the spec that it needs both.
@@ -2064,7 +2070,8 @@ another session is not a claim.
      description, or the default.
   6. **`tools/coverage.py` writes three things wrong into `docs/REQUIREMENTS.md`:** a Rust `\\u{2014}` escape printed
      as `u{2014}` (V2.2.2's row); "semgrep, N rules" counting distinct descriptions rather than rules (V1.2.4 says 1,
-     where 74 rules cite it); and a phrase repeated where a rule's own description joins two with "; ".
+     where 74 rules cite it); and a phrase repeated where a rule's own description joins two with "; ". The escape
+     is **done**, in part 2 of the documentation review; the count and the repeated phrase are still open.
   7. **`[data]` category names are not checked.** Only an exact match to the sensitive list raises the level, so a
      misspelled `"Health"` quietly allows level 1. Fix: warn on a name not in the list.
   8. **For the owner, about the prompt library:** the "settings file first" prompt, shown to work, says to "delete the
