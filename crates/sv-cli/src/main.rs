@@ -211,8 +211,8 @@ const COMMANDS: &[Command] = &[
         name: "probe",
         word: Some("URL"),
         flags: &[],
-        valued: &["--hsts-preload"],
-        help: "  sv probe URL [--hsts-preload FILE]\n                     ask your own live site the few things only it can answer\n",
+        valued: &["--hsts-preload", "--api"],
+        help: "  sv probe URL [--hsts-preload FILE] [--api PATH]\n                     ask your own live site the few things only it can answer;\n                     --api names an address of the app's API, such as /api/health,\n                     to ask over plain HTTP the way a program asks (one more request)\n",
     },
     Command {
         name: "run",
@@ -863,6 +863,9 @@ fn cmd_probe(args: &[String]) -> Result<()> {
     // A copy of Chromium's HSTS preload list the owner downloaded. `sv` never fetches it: looking a
     // name up in somebody else's service tells that service which site is being checked.
     let mut preload_file: Option<PathBuf> = None;
+    // A path of the app's API, asked over plain HTTP as a program asks (V4.1.2). Typed here, like
+    // the address, and never read from a file (ADR-027).
+    let mut api: Option<&str> = None;
     let mut rest = args.iter();
     while let Some(arg) = rest.next() {
         match arg.as_str() {
@@ -871,6 +874,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
                     rest.next()
                         .context("--hsts-preload needs the list's file")?,
                 ));
+            }
+            "--api" => {
+                api = Some(
+                    rest.next()
+                        .context("--api needs a path of the app's API, such as /api/health")?,
+                );
             }
             other if other.starts_with('-') => bail!("unknown option: {other}"),
             other => url = Some(other),
@@ -892,6 +901,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
         );
     };
     let target = sv_check::production::read_target(url).map_err(|why| anyhow::anyhow!("{why}"))?;
+    let target = match api {
+        Some(path) => target
+            .with_api(path)
+            .map_err(|why| anyhow::anyhow!("{why}"))?,
+        None => target,
+    };
     if !sv_check::production::Curl::available() {
         bail!(
             "`curl` is not on this computer, and this check uses it for the connection so that the \
@@ -905,7 +920,12 @@ fn cmd_probe(args: &[String]) -> Result<()> {
     );
     println!(
         "Read-only: it fetches headers from that address over HTTPS and over plain HTTP, sends no \
-         cookies and no credentials, and follows no redirect to any other host.\n"
+         cookies and no credentials, and follows no redirect to any other host.{}\n",
+        if target.api.is_some() {
+            " It also asks the API address you named, over plain HTTP, the way a program would."
+        } else {
+            ""
+        }
     );
 
     // Looked up once, here, and every address checked before anything is sent: a name that leads

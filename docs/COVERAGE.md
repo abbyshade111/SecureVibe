@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 164 (48%) | 10 | 171 |
+| OWASP ASVS 5.0 | 345 | 165 (48%) | 10 | 170 |
 | OWASP AISVS 1.0 | 191 | 37 (19%) | 0 | 154 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
@@ -44,7 +44,7 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 57 | 11 | 1 | 6 | 37 | 21 | 3 |
-| L2 | 183 | 86 | 10 | 0 | 19 | 45 | 28 | 1 |
+| L2 | 183 | 87 | 10 | 0 | 19 | 45 | 28 | 2 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 With nothing beyond plain `sv check`, 24 ASVS requirements can be settled. 30 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
@@ -62,7 +62,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V1 Encoding and Sanitization | 30 | 19 | 0 | 11 |
 | V2 Validation and Business Logic | 13 | 2 | 2 | 9 |
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
-| V4 API and Web Service | 16 | 9 | 0 | 7 |
+| V4 API and Web Service | 16 | 10 | 0 | 6 |
 | V5 File Handling | 13 | 8 | 1 | 4 |
 | V6 Authentication | 47 | 23 | 1 | 23 |
 | V7 Session Management | 19 | 10 | 0 | 9 |
