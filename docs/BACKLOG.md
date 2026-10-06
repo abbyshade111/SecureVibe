@@ -98,6 +98,9 @@ another session is not a claim.
   **Items 5, 6, 7, and 14 claimed the same day by session securevibe-e9**, at the owner's word ("continue to work off
   the backlog"), as the next batch (each running-app check that may credit or accuse wrongly), in branch
   `claude/securevibe-e9-review-1to4-batch2`.
+  **Item 14 done the same day by session securevibe-e9** (DESIGN, "A log line of plain traffic is not a record of a
+  sign-in"): every path is taken out of a log line before its words are read. Items 5, 6, and 7 were built by session
+  securevibe-e2 in #797, which merged first, so this session's versions of them were dropped.
   **Items 8 and 11 claimed the same day by session securevibe-e2**, at the owner's word and as the owner decided
   them, as the second batch (seals), in branch `claude/securevibe-e2-review-1to4-seals`.
   **Items 8 and 11 done the same day** (DESIGN, "The review of 1 to 4 October, batch 2: seals"; ADR-026, "Later, 6

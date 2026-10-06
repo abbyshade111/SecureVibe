@@ -128,6 +128,16 @@ fn says_failed(line: &str) -> bool {
     FAILED.is_match(line)
 }
 
+/// A line with its addresses and paths taken out: `POST /login 200`, `"path":"/auth/sign_in"`, and
+/// `http://app/login?next=/` are where a request went, not an event, however the app writes them.
+fn without_paths(line: &str) -> String {
+    static PLACES: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r#"(^|[\s"'=(\[:,])(?:[a-zA-Z][a-zA-Z0-9+.-]*://[^\s"'<>]*|/[^\s"'<>,;)\]}]*)"#)
+            .expect("valid pattern")
+    });
+    PLACES.replace_all(line, "$1 ").into_owned()
+}
+
 /// The line recording the one sign-in inside a window: one that names a sign-in event, saying it
 /// failed when `failed` and not saying so otherwise.
 fn sign_in_event<'a>(log: &'a str, w: &Window, failed: bool) -> Option<&'a str> {
@@ -137,6 +147,10 @@ fn sign_in_event<'a>(log: &'a str, w: &Window, failed: bool) -> Option<&'a str> 
         } else {
             line.replace(w.login_path.as_str(), " ")
         };
+        // And every other path: securevibe.toml's `login.path` written differently in the log
+        // (`/login/`, `/Login`, `/login?next=/`, a prefix the app is mounted under) is still the
+        // request, not a record of it.
+        let words = without_paths(&words);
         names_sign_in(&words) && says_failed(&words) == failed
     })
 }
@@ -1030,6 +1044,59 @@ GET /sv-log-after-ok-4a91 404
             "{:?}",
             o.not_assessed
         );
+    }
+
+    #[test]
+    fn an_access_log_writing_the_sign_in_path_another_way_is_not_a_record_either() {
+        // Found in the review of 1 to 4 October (item 14): only `login.path` exactly as
+        // securevibe.toml writes it was taken out, so the same request written another way
+        // read as a sign-in event and credited V16.3.1.
+        for (logged, json) in [
+            ("/login/", false),
+            ("/Login", false),
+            ("/login?next=/account", false),
+            ("http://app:3000/login", false),
+            ("/api/v1/auth/login", false),
+            ("/user/sign_in", true),
+            ("/auth/signin", true),
+        ] {
+            let line = |status: u16| {
+                if json {
+                    format!("{{\"path\":\"{logged}\",\"status\":{status}}}")
+                } else {
+                    format!("POST {logged} {status}")
+                }
+            };
+            let log = format!(
+                "GET /sv-log-before-failed-4a91 404\n{}\nGET /sv-log-after-failed-4a91 404\n\
+                 GET /sv-log-before-ok-4a91 404\n{}\nGET /sv-log-after-ok-4a91 404\n",
+                line(401),
+                line(303)
+            );
+            let o = evaluate(&private_markers(), &log);
+            assert!(
+                !ids(&o).contains(&"probe.authentication-logged"),
+                "{logged}: {o:?}"
+            );
+            assert!(
+                o.not_assessed
+                    .iter()
+                    .any(|(id, why)| id == "V16.3.1" && why.contains("Neither sign-in")),
+                "{logged}: {:?}",
+                o.not_assessed
+            );
+        }
+        // The control: the same lines with an event of the app's own beside each are credited.
+        let log = "\
+GET /sv-log-before-failed-4a91 404
+POST /login/ 401 event=login_failed
+GET /sv-log-after-failed-4a91 404
+GET /sv-log-before-ok-4a91 404
+POST /login/ 303 event=user.signin
+GET /sv-log-after-ok-4a91 404
+";
+        let o = evaluate(&private_markers(), log);
+        assert!(ids(&o).contains(&"probe.authentication-logged"), "{o:?}");
     }
 
     #[test]
