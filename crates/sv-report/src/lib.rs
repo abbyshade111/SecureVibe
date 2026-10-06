@@ -1061,6 +1061,12 @@ fn recorded(s: &sv_check::review::SetAside, did: &str) -> String {
             "Recorded through `sv review` on this computer: {who} {did} on {}",
             s.on
         ),
+        sv_check::seal::Sealed::Signed { key, from } => format!(
+            "Recorded through `sv review` and signed with key {key}, which {} trusts for this \
+             app: {who} {did} on {}",
+            from.named(),
+            s.on
+        ),
     }
 }
 

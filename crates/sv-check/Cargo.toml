@@ -33,6 +33,10 @@ sv-manifest = { path = "../sv-manifest" }
 hmac = "0.13"
 sha1 = "0.11"
 sha2 = "0.11"
+# SSH-format Ed25519 signatures for `sv review`'s seals (ADR-043): a key made from the system's
+# randomness, kept in OpenSSH's own format, with a passphrase if the owner wants one.
+ssh-key = { version = "0.6.7", default-features = false, features = ["std", "ed25519", "encryption", "getrandom"] }
+ssh-encoding = { version = "0.2", features = ["alloc"] }
 
 [dev-dependencies]
 sv-frameworks = { path = "../sv-frameworks" }

@@ -191,14 +191,7 @@ impl Key {
         use hmac::{Hmac, KeyInit, Mac};
         let mut mac =
             <Hmac<sha2::Sha256>>::new_from_slice(&self.bytes).expect("HMAC takes any key");
-        mac.update(domain.as_bytes());
-        for field in fields {
-            // Each field with its length first, so moving text from one field to the next changes
-            // the seal.
-            mac.update(format!("{}:", field.len()).as_bytes());
-            mac.update(field.as_bytes());
-            mac.update(b"\n");
-        }
+        mac.update(&framed(domain, fields));
         mac.finalize().into_bytes().to_vec()
     }
 
@@ -339,14 +332,20 @@ impl AppKey {
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Sealed {
-    /// Checked with this computer's key.
+    /// Checked with this computer's review key.
     Here,
+    /// A signature, checked against a list of trusted keys that names its key for this app
+    /// (ADR-043): the key's fingerprint, and where the list came from.
+    Signed {
+        key: String,
+        from: crate::signed::ListFrom,
+    },
 }
 
-/// What this computer can check one app's seals with.
+/// What this computer can check one app's `review-key` seals with.
 #[derive(Debug, Clone)]
-pub enum Checker {
-    /// No key here: nothing sealed can be checked, so nothing sealed counts.
+pub enum Hmac {
+    /// No key here: nothing sealed with one can be checked, so nothing sealed with one counts.
     NoKey,
     /// This computer's key, for the app being checked.
     Key(AppKey),
@@ -355,23 +354,86 @@ pub enum Checker {
     Broken(String),
 }
 
+/// What this computer can check one app's seals with: its review key, for seals made with one
+/// (`v2:`), and a list of trusted keys, for signed seals (`v3:`, ADR-043).
+#[derive(Debug, Clone)]
+pub struct Checker {
+    hmac: Hmac,
+    trust: crate::signed::Trust,
+    /// The app being checked, by its folder here, or why it cannot be told.
+    app: Result<App, String>,
+}
+
 impl Checker {
-    /// What this computer has, from the folder `Key::folder` names, for the app in `app_folder`.
+    /// What this computer has, from the folder `Key::folder` names and SV_TRUSTED_SEALS, for the
+    /// app in `app_folder`.
     pub fn for_app(app_folder: &Path) -> Checker {
-        Checker::in_folder(Key::folder().as_deref(), app_folder)
+        let folder = Key::folder();
+        let mut checker = Checker::in_folder(folder.as_deref(), app_folder);
+        checker.trust = crate::signed::Trust::load(
+            folder.as_deref(),
+            std::env::var_os(crate::signed::TRUSTED_VARIABLE),
+        );
+        checker
     }
 
-    /// What a key folder holds for the app in `app_folder`, or no key when there is no folder to
-    /// look in.
+    /// What a key folder holds for the app in `app_folder`, or nothing when there is no folder to
+    /// look in. SV_TRUSTED_SEALS is not read.
     pub fn in_folder(folder: Option<&Path>, app_folder: &Path) -> Checker {
-        match folder.map(Key::load_from) {
-            None | Some(Ok(None)) => Checker::NoKey,
-            Some(Ok(Some(key))) => match App::of(app_folder) {
-                Ok(app) => Checker::Key(key.for_app(&app)),
-                Err(why) => Checker::Broken(why),
+        let app = App::of(app_folder);
+        let hmac = match folder.map(Key::load_from) {
+            None | Some(Ok(None)) => Hmac::NoKey,
+            Some(Ok(Some(key))) => match &app {
+                Ok(app) => Hmac::Key(key.for_app(app)),
+                Err(why) => Hmac::Broken(why.clone()),
             },
-            Some(Err(why)) => Checker::Broken(why),
+            Some(Err(why)) => Hmac::Broken(why),
+        };
+        Checker {
+            hmac,
+            trust: folder.map_or(crate::signed::Trust::None, crate::signed::Trust::in_folder),
+            app,
         }
+    }
+
+    /// No review key and no list of trusted keys: nothing sealed counts.
+    pub fn no_key() -> Checker {
+        Checker {
+            hmac: Hmac::NoKey,
+            trust: crate::signed::Trust::None,
+            app: Err("no app was named".to_owned()),
+        }
+    }
+
+    /// This review key, for its app, and no list of trusted keys.
+    pub fn key(key: AppKey) -> Checker {
+        Checker {
+            app: Ok(key.app.clone()),
+            hmac: Hmac::Key(key),
+            trust: crate::signed::Trust::None,
+        }
+    }
+
+    /// A review key that cannot be used, for this reason.
+    pub fn broken(why: impl Into<String>) -> Checker {
+        Checker {
+            hmac: Hmac::Broken(why.into()),
+            ..Checker::no_key()
+        }
+    }
+
+    /// The same, checking signed seals against `trust`, for the app in `app` here.
+    pub fn trusting(self, trust: crate::signed::Trust, app: Option<App>) -> Checker {
+        Checker {
+            trust,
+            app: app.map_or(self.app, Ok),
+            ..self
+        }
+    }
+
+    /// The review key it checks `v2:` seals with.
+    pub fn hmac(&self) -> &Hmac {
+        &self.hmac
     }
 
     /// Whether an entry with these fields and this seal counts, and where its seal was checked.
@@ -399,14 +461,23 @@ impl Checker {
             .ok_or(Unrecorded::NoSeal)?;
         let (key_id, app_id, mac) = match parse_review(seal).ok_or(Unrecorded::Malformed)? {
             Parsed::BeforeApps => return Err(Unrecorded::BeforeApps),
+            Parsed::Signed { app, signature } => {
+                let (key, from) = self.trust.check(
+                    self.app.as_ref().map_err(String::as_str),
+                    app,
+                    &signature,
+                    fields,
+                )?;
+                return Ok(Sealed::Signed { key, from });
+            }
             Parsed::Current { key, app, mac } => (key, app, mac),
         };
-        match self {
-            Checker::NoKey => Err(Unrecorded::NoKeyHere),
-            Checker::Broken(why) => Err(Unrecorded::KeyBroken(why.clone())),
-            Checker::Key(key) if key.id() != key_id => Err(Unrecorded::OtherKey(key_id.to_owned())),
-            Checker::Key(key) if key.app.id != app_id => Err(Unrecorded::OtherApp),
-            Checker::Key(key) => {
+        match &self.hmac {
+            Hmac::NoKey => Err(Unrecorded::NoKeyHere),
+            Hmac::Broken(why) => Err(Unrecorded::KeyBroken(why.clone())),
+            Hmac::Key(key) if key.id() != key_id => Err(Unrecorded::OtherKey(key_id.to_owned())),
+            Hmac::Key(key) if key.app.id != app_id => Err(Unrecorded::OtherApp),
+            Hmac::Key(key) => {
                 // Compared in full, whatever differs first: the time taken says nothing useful.
                 let expected = key.mac(fields);
                 let same = expected.len() == mac.len()
@@ -435,6 +506,14 @@ pub enum Unrecorded {
     /// Sealed before seals named the app they were made for.
     BeforeApps,
     Mismatch,
+    /// Signed, but this computer has no list of trusted keys to check it against.
+    NoTrustedList,
+    /// Signed, and the list of trusted keys here cannot be read.
+    TrustBroken(String),
+    /// Signed with a key the list does not name: its fingerprint, and the list.
+    NotTrusted(String, crate::signed::ListFrom),
+    /// Signed with a key the list names, but for other apps only.
+    TrustedForAnotherApp(String, crate::signed::ListFrom),
 }
 
 impl Unrecorded {
@@ -445,11 +524,12 @@ impl Unrecorded {
                                    their own terminal"
                 .to_owned(),
             Unrecorded::Malformed => "its `seal` is not one `sv review` writes".to_owned(),
-            Unrecorded::NoKeyHere => "it carries a seal this computer cannot check: `sv review` has \
-                                      never been run here, so there is no review key to check it \
-                                      with, and a made-up seal would look the same. To count it, \
-                                      run `sv review` once on this computer, or read the report on \
-                                      the computer it was sealed on"
+            Unrecorded::NoKeyHere => "it carries a seal this computer cannot check: there is no \
+                                      review key here to check it with, and a made-up seal would \
+                                      look the same. To count it, run `sv review` once on this \
+                                      computer, or once on the computer it was sealed on, which \
+                                      signs it again so that any computer given your list of \
+                                      trusted keys can check it"
                 .to_owned(),
             Unrecorded::KeyBroken(why) => format!(
                 "this computer's review key cannot be used ({why}), and no seal can be checked here"
@@ -470,6 +550,27 @@ impl Unrecorded {
             Unrecorded::Mismatch => "its seal does not match what it says: it was changed after \
                                      `sv review` recorded it, or the seal was not made by `sv review`"
                 .to_owned(),
+            Unrecorded::NoTrustedList => format!(
+                "it is signed, but this computer has no list of trusted keys to check the \
+                 signature against, and a made-up one would look the same. To count it, run \
+                 `sv review` once on this computer, or set {} to the line `sv review` showed you \
+                 (on CI, from a repository variable)",
+                crate::signed::TRUSTED_VARIABLE
+            ),
+            Unrecorded::TrustBroken(why) => format!(
+                "it is signed, but the list of trusted keys cannot be used ({why}), and no \
+                 signature can be checked here"
+            ),
+            Unrecorded::NotTrusted(key, from) => format!(
+                "it is signed with a key ({key}) that {} does not name, and anyone can make a key \
+                 and sign with it",
+                from.named()
+            ),
+            Unrecorded::TrustedForAnotherApp(key, from) => format!(
+                "it is signed with a key ({key}) that {} trusts for another app only, and a \
+                 seal counts only in the app it was made for",
+                from.named()
+            ),
         }
     }
 }
@@ -498,11 +599,24 @@ enum Parsed<'a> {
         app: &'a str,
         mac: Vec<u8>,
     },
+    /// `v3:<16 hex>:<hex>`, a signature (ADR-043).
+    Signed { app: &'a str, signature: Vec<u8> },
 }
 
 fn parse_review(seal: &str) -> Option<Parsed<'_>> {
     if parse(seal).is_some() {
         return Some(Parsed::BeforeApps);
+    }
+    let id = |t: &str| t.len() == 16 && unhex(t).is_some();
+    if let Some(rest) = seal.strip_prefix("v3:") {
+        let (app, signature) = rest.split_once(':')?;
+        if !id(app) || signature.is_empty() {
+            return None;
+        }
+        return Some(Parsed::Signed {
+            app,
+            signature: unhex(signature)?,
+        });
     }
     let mut parts = seal.split(':');
     let (Some("v2"), Some(key), Some(app), Some(mac), None) = (
@@ -514,7 +628,6 @@ fn parse_review(seal: &str) -> Option<Parsed<'_>> {
     ) else {
         return None;
     };
-    let id = |t: &str| t.len() == 16 && unhex(t).is_some();
     if !id(key) || !id(app) || mac.len() != 64 {
         return None;
     }
@@ -525,7 +638,19 @@ fn parse_review(seal: &str) -> Option<Parsed<'_>> {
     })
 }
 
-fn hex(bytes: &[u8]) -> String {
+/// What a seal is made over: the domain, then each field with its length first, so moving text
+/// from one field to the next changes the seal.
+pub(crate) fn framed(domain: &str, fields: &[&str]) -> Vec<u8> {
+    let mut out = domain.as_bytes().to_vec();
+    for field in fields {
+        out.extend_from_slice(format!("{}:", field.len()).as_bytes());
+        out.extend_from_slice(field.as_bytes());
+        out.push(b'\n');
+    }
+    out
+}
+
+pub(crate) fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
@@ -627,9 +752,13 @@ pub fn notes_fields(requirement: &str, prose: &str) -> Vec<String> {
 }
 
 /// What the reports add after "you answered yes" for an answer recorded through `sv review`.
-pub fn recorded_where(sealed: &Sealed) -> &'static str {
+pub fn recorded_where(sealed: &Sealed) -> String {
     match sealed {
-        Sealed::Here => ", recorded through `sv review` on this computer",
+        Sealed::Here => ", recorded through `sv review` on this computer".to_owned(),
+        Sealed::Signed { key, from } => format!(
+            ", recorded through `sv review` and signed with key {key}, which {} trusts for this app",
+            from.named()
+        ),
     }
 }
 
@@ -661,7 +790,7 @@ mod tests {
         // Made by the same key over the same fields, each fails where the other is checked.
         assert!(key.report_seal_holds(&report, &fields).is_ok());
         assert!(key.report_seal_holds(&review, &fields).is_err());
-        let checker = super::Checker::Key(key.for_app(&app()));
+        let checker = super::Checker::key(key.for_app(&app()));
         assert!(checker.check(Some(&review), &fields).is_ok());
         assert!(checker.check(Some(&report), &fields).is_err());
     }
@@ -694,7 +823,7 @@ mod tests {
     fn a_seal_holds_on_the_computer_that_made_it_and_nowhere_it_was_changed() {
         let k = sealer(0);
         let seal = k.seal(FIELDS);
-        let here = Checker::Key(k.clone());
+        let here = Checker::key(k.clone());
         assert_eq!(here.check(Some(&seal), FIELDS), Ok(Sealed::Here));
         // Any field changed, or text moved from one field to the next, breaks it.
         for changed in [
@@ -720,7 +849,7 @@ mod tests {
 
     #[test]
     fn no_seal_or_a_malformed_one_is_a_proposal_wherever_it_is_read() {
-        for checker in [Checker::NoKey, Checker::Key(sealer(1))] {
+        for checker in [Checker::no_key(), Checker::key(sealer(1))] {
             for seal in [
                 None,
                 Some(""),
@@ -751,17 +880,17 @@ mod tests {
     #[test]
     fn a_seal_counts_only_where_this_computers_key_checks_it() {
         let seal = sealer(2).seal(FIELDS);
-        let err = Checker::Key(sealer(3))
+        let err = Checker::key(sealer(3))
             .check(Some(&seal), FIELDS)
             .unwrap_err();
         assert!(err.contains("not this computer's"), "{err}");
         // A computer with no key cannot tell the owner's seal from one the AI coding tool wrote,
         // so it counts nothing sealed, and says what to do (item 8 of the review of 1 to 4 October).
         assert_eq!(
-            Checker::NoKey.recorded(Some(&seal), FIELDS),
+            Checker::no_key().recorded(Some(&seal), FIELDS),
             Err(Unrecorded::NoKeyHere)
         );
-        let err = Checker::NoKey.check(Some(&seal), FIELDS).unwrap_err();
+        let err = Checker::no_key().check(Some(&seal), FIELDS).unwrap_err();
         for says in [
             "cannot check",
             "run `sv review` once on this computer",
@@ -770,7 +899,7 @@ mod tests {
         ] {
             assert!(err.contains(says), "{says}: {err}");
         }
-        let err = Checker::Broken("it is a folder".into())
+        let err = Checker::broken("it is a folder")
             .check(Some(&seal), FIELDS)
             .unwrap_err();
         assert!(err.contains("it is a folder"), "{err}");
@@ -780,7 +909,7 @@ mod tests {
     fn a_seal_counts_only_in_the_app_it_was_made_for() {
         // Item 11 of the review of 1 to 4 October: the same key, the same fields, another app.
         let seal = sealer(0).seal(FIELDS);
-        let there = Checker::Key(key(0).for_app(&other_app()));
+        let there = Checker::key(key(0).for_app(&other_app()));
         assert_eq!(
             there.recorded(Some(&seal), FIELDS),
             Err(Unrecorded::OtherApp)
@@ -799,7 +928,7 @@ mod tests {
         let theirs = key(0).for_app(&other_app()).seal(FIELDS);
         assert_eq!(there.check(Some(&theirs), FIELDS), Ok(Sealed::Here));
         assert_eq!(
-            Checker::Key(sealer(0)).recorded(Some(&theirs), FIELDS),
+            Checker::key(sealer(0)).recorded(Some(&theirs), FIELDS),
             Err(Unrecorded::OtherApp)
         );
     }
@@ -813,13 +942,13 @@ mod tests {
             k.id(),
             hex(&k.mac_in("sv review seal v1\n", FIELDS))
         );
-        for checker in [Checker::NoKey, Checker::Key(sealer(0))] {
+        for checker in [Checker::no_key(), Checker::key(sealer(0))] {
             assert_eq!(
                 checker.recorded(Some(&old), FIELDS),
                 Err(Unrecorded::BeforeApps)
             );
         }
-        let err = Checker::Key(sealer(0))
+        let err = Checker::key(sealer(0))
             .check(Some(&old), FIELDS)
             .unwrap_err();
         assert!(err.contains("Run `sv review` once in this app"), "{err}");
@@ -848,7 +977,7 @@ mod tests {
         let keys = dir.join("keys");
         Key::load_or_make_in(&keys).unwrap();
         let checker = Checker::in_folder(Some(&keys), &dir.join("none"));
-        assert!(matches!(checker, Checker::Broken(_)), "{checker:?}");
+        assert!(matches!(checker.hmac(), Hmac::Broken(_)), "{checker:?}");
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -875,21 +1004,21 @@ mod tests {
         let shown = format!("{made:?}");
         assert!(!shown.contains(&hex(&made.bytes)), "{shown}");
         assert!(
-            matches!(Checker::in_folder(Some(&folder), &dir), Checker::Key(k) if k.id() == made.id())
+            matches!(Checker::in_folder(Some(&folder), &dir).hmac(), Hmac::Key(k) if k.id() == made.id())
         );
         let shown = format!("{:?}", made.for_app(&app()));
         assert!(!shown.contains(&hex(&made.bytes)), "{shown}");
         assert!(matches!(
-            Checker::in_folder(Some(&dir.join("none")), &dir),
-            Checker::NoKey
+            Checker::in_folder(Some(&dir.join("none")), &dir).hmac(),
+            Hmac::NoKey
         ));
-        assert!(matches!(Checker::in_folder(None, &dir), Checker::NoKey));
+        assert!(matches!(Checker::in_folder(None, &dir).hmac(), Hmac::NoKey));
         // Something that is not a key is refused, never quietly replaced, and no seal counts.
         std::fs::write(folder.join(KEY_FILE), "not a key\n").unwrap();
         assert!(Key::load_from(&folder).is_err());
         assert!(Key::load_or_make_in(&folder).is_err());
         let broken = Checker::in_folder(Some(&folder), &dir);
-        assert!(matches!(broken, Checker::Broken(_)), "{broken:?}");
+        assert!(matches!(broken.hmac(), Hmac::Broken(_)), "{broken:?}");
         let seal = made.for_app(&App::of(&dir).unwrap()).seal(FIELDS);
         assert!(broken.check(Some(&seal), FIELDS).is_err());
         std::fs::remove_dir_all(&dir).ok();

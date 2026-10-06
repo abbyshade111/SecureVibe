@@ -44,6 +44,7 @@ pub mod running;
 pub mod sbom;
 pub mod seal;
 pub mod secrets;
+pub mod signed;
 pub mod signed_in;
 pub mod suite;
 pub mod test_report;

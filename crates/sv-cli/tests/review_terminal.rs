@@ -1,6 +1,6 @@
 //! `sv review` end to end (deep review R1): it runs only in a terminal, what it records counts in
-//! the report of the app it was recorded in, on the computer that holds the key, and the report
-//! says why anywhere else.
+//! the report of the app it was recorded in, on the computer whose list of trusted keys names its
+//! key and on any computer given that list (ADR-043), and the report says why anywhere else.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -59,13 +59,23 @@ fn scratch(name: &str) -> Scratch {
 fn sv(config: &Path) -> Command {
     let mut c = Command::new(env!("CARGO_BIN_EXE_sv"));
     c.env("XDG_CONFIG_HOME", config)
-        .env_remove("RUST_BACKTRACE");
+        .env_remove("RUST_BACKTRACE")
+        .env_remove(sv_check::signed::TRUSTED_VARIABLE);
     c
 }
 
 fn report(app: &Path, config: &Path) -> String {
+    report_given(app, config, None)
+}
+
+/// The report, on a computer given `list` as SV_TRUSTED_SEALS when there is one.
+fn report_given(app: &Path, config: &Path, list: Option<&str>) -> String {
     let out_dir = app.join("report");
-    let run = sv(config)
+    let mut sv = sv(config);
+    if let Some(list) = list {
+        sv.env(sv_check::signed::TRUSTED_VARIABLE, list);
+    }
+    let run = sv
         .arg("report")
         .arg(app)
         .arg("--out")
@@ -134,11 +144,13 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     let run = Command::new("python3")
         .arg("-c")
         .arg(PTY)
-        .arg("owner\n")
+        // No passphrase on the key it makes, then the owner's name.
+        .arg("\nowner\n")
         .arg(env!("CARGO_BIN_EXE_sv"))
         .arg("review")
         .arg(&app)
         .env("XDG_CONFIG_HOME", &config)
+        .env_remove(sv_check::signed::TRUSTED_VARIABLE)
         .output()
         .expect("python3 runs");
     let said = String::from_utf8_lossy(&run.stdout);
@@ -155,26 +167,56 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
         !recorded.contains(&earlier) && recorded.contains(&format!("fingerprint = \"{todays}\"")),
         "{recorded}"
     );
+    let keys = config.join("securevibe");
     assert!(
-        config.join("securevibe").join("review-key").is_file(),
-        "the setup: a key was made"
+        keys.join(sv_check::signed::SIGNING_KEY_FILE).is_file(),
+        "the setup: a signing key was made"
     );
+    assert!(
+        !keys.join(sv_check::seal::KEY_FILE).exists(),
+        "no review key is made any more"
+    );
+    let list = std::fs::read_to_string(keys.join(sv_check::signed::TRUSTED_FILE)).unwrap();
+    // `sv review` showed the line to give CI: the public half, and its fingerprint.
+    assert!(said.contains(list.trim()), "{said}");
+    assert!(said.contains("SHA256:"), "{said}");
 
-    // On this computer the seal is checked.
+    // On this computer the signature is checked against its own list.
     let here = report(&app, &config);
     assert!(
-        here.contains("Recorded through `sv review` on this computer: the owner set it aside"),
+        here.contains("Recorded through `sv review` and signed with key SHA256:"),
         "{here}"
     );
-    // Where there is no key, it does not count: the seal cannot be checked, and a made-up one
+    assert!(
+        here.contains(
+            "which this computer's list of trusted keys trusts for this app: the owner set it aside"
+        ),
+        "{here}"
+    );
+    // Where there is no list, it does not count: the seal cannot be checked, and a made-up one
     // would look the same. The report says what to do (item 8 of the review of 1 to 4 October).
     let none = report(&app, &s.0.join("no-key"));
-    assert!(none.contains("cannot check"), "{none}");
+    assert!(none.contains("no list of trusted keys"), "{none}");
     assert!(
-        none.contains("run `sv review` once on this computer"),
+        none.contains("set SV_TRUSTED_SEALS to the line `sv review` showed you"),
         "{none}"
     );
     assert!(!none.contains("set it aside as a false alarm on"), "{none}");
+    // Given the list, as CI is, with no key and the app in another folder: it counts, and the
+    // report says where the list came from (ADR-043).
+    let ci_app = s.0.join("ci");
+    std::fs::create_dir_all(&ci_app).unwrap();
+    for file in ["app.py", "securevibe.toml"] {
+        std::fs::copy(app.join(file), ci_app.join(file)).unwrap();
+    }
+    let ci = report_given(&ci_app, &s.0.join("no-key"), Some(&list));
+    assert!(
+        ci.contains(
+            "which the list of trusted keys in SV_TRUSTED_SEALS trusts for this app: the owner set \
+             it aside"
+        ),
+        "{ci}"
+    );
     // Copied into another app's folder on this computer, it does not count there (item 11), and
     // still counts where it was recorded.
     let copy = s.0.join("copy");
@@ -189,14 +231,16 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
         "{copied}"
     );
     assert!(
-        report(&app, &config).contains("Recorded through `sv review` on this computer"),
+        report(&app, &config).contains("Recorded through `sv review` and signed with key"),
         "the setup: it still counts in its own app"
     );
-    // On a computer with another key, it is a proposal: a made-up seal would look the same.
-    let other = s.0.join("other");
-    sv_check::seal::Key::load_or_make_in(&other.join("securevibe")).unwrap();
-    let elsewhere = report(&app, &other);
-    assert!(elsewhere.contains("not this computer's"), "{elsewhere}");
+    // On a computer whose list trusts another key for this app, it is a proposal: anyone can make
+    // a key and sign with it.
+    let other = s.0.join("other").join("securevibe");
+    let theirs = sv_check::signed::SigningKey::make_in(&other, None).unwrap();
+    sv_check::signed::trust_here(&other, &theirs, &sv_check::seal::App::of(&app).unwrap()).unwrap();
+    let elsewhere = report(&app, &s.0.join("other"));
+    assert!(elsewhere.contains("does not name"), "{elsewhere}");
     assert!(!elsewhere.contains("set it aside as a false alarm on"));
     // A word of the reason changed after it was recorded: a proposal again.
     let manifest = std::fs::read_to_string(app.join("securevibe.toml")).unwrap();

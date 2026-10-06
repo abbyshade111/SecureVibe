@@ -18,3 +18,5 @@ sv-scan = { path = "../sv-scan" }
 sv-run = { path = "../sv-run" }
 sv-check = { path = "../sv-check" }
 toml_edit = "0.25"
+# To read a passphrase without showing it (ADR-043); already a dependency of sv-run.
+libc = "0.2"
