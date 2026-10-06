@@ -3511,6 +3511,15 @@ another session is not a claim.
       ("continue to work off the backlog"), in branch `claude/securevibe-e2-static-more`: each handler read from its
       framework's own source (Sinatra, Rack, Spring, Javalin, ASP.NET Core, tower-http, actix-files, warp), and `php -S`
       with no document root in a script. A folder named in settings or built at run time stays out of reach.
+      **Done the same day** (DESIGN, "Static files from the app's own folder, in five more languages"): Ruby (Sinatra's
+      `public_folder`, Rack's `Static` and `Files`), Java (Spring's `addResourceLocations`, Javalin's `staticFiles.add`
+      with `Location.EXTERNAL`), C# (`UseStaticFiles`, `UseFileServer`, `UseDirectoryBrowser` given a
+      `PhysicalFileProvider` for the app's folder), Rust (`ServeDir::new`, actix's `Files::new`, warp's `fs::dir`), and
+      `php -S` with no `-t`, or `-t .`, in a script. Each read from the project's own source. Sixteen guards broken in
+      turn, each caught in the end; the one that was not at first showed the Spring pattern also matched `"file:" +`
+      any folder, and was narrowed. Still not seen: Rack's `Static` with no `root:` (its default is the folder the app
+      was started in, but only below the `urls:` it is given), Spark Java, Kotlin's Ktor, PHP code itself, and any
+      folder named in settings or built at run time.
   11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
       whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
       (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
@@ -6869,6 +6878,12 @@ another session is not a claim.
   written only below the app. Starting the app and running other people's tools are not offered: each
   runs code, and that stays the person's decision at a terminal. Left over: MCP resources (the report
   files as resources rather than paths) and progress notifications for a long check.
+
+- **`ast.file-path-from-value` reports a path Rust fixes when it compiles.** Found on 6 October 2026 by session
+  securevibe-e2, writing witnesses for the static-file rule: `ServeDir::new(env!("CARGO_MANIFEST_DIR"))` is reported
+  as a file path built from a value, though `env!` is read when the code is compiled and no visitor can change it.
+  The same is likely for `concat!` and `include_str!`. A fix teaches the rule that these macros give fixed text, with a
+  witness each way. Not claimed.
 
 ## Decided, not yet written down as ADRs
 
