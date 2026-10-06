@@ -10825,4 +10825,4 @@ ignoring whether the other manifest is there (3), or ignoring which lockfiles it
 their own lockfile (2), always their own lockfile (2), or not judged at all (2); a Conda file judged (1); a `setup.py`
 beside a lockfile judged (1); the pinning check leaving the declared files out (2); and the new wording never chosen (1).
 The rule that checks which lockfiles the other manifest lists is caught by one test only, which was written to catch
-it: a `Pipfile` in one folder and a lone `Pipfile.lock` in another.
+it: a `pyproject.toml` beside a lone `Pipfile.lock`, which must leave both projects in place.
