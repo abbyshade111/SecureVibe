@@ -5770,6 +5770,8 @@ another session is not a claim.
   see whether a browser would render it as part of the app (V3.2.1). Level 1 goes from 41 to 45 of
   70. See DESIGN, "The upload entry". Left over from it: V5.3.2 (paths built from submitted names)
   and V5.4.1/V5.4.2 (what the app sends back) are reachable the same way and were not written.
+  **Since done** (noted on 6 October 2026 by session securevibe-e9): V5.3.2 by `probe.upload-path-traversal`, and
+  V5.4.1 and V5.4.2 by `probe.download-unnamed` and `probe.download-name-injected` (`docs/COVERAGE.md`).
 
 - **Twelve more requirements the probes could reach, from a sweep of everything they cannot.**
   An analysis on 26 September 2026 (session securevibe-e9) of all 260 ASVS requirements no check
@@ -6108,6 +6110,9 @@ another session is not a claim.
   your next backlog item"), in branch `claude/securevibe-e9-live-list`: for an app that will be on the internet, the
   report lists the requirements only the live site can answer, says which `sv probe` asks (and the command), and
   which are the owner's to check by hand. It credits nothing.
+  **Done the same day** (DESIGN, "Before going live: what only the live site can answer"): a section in
+  `compliance.md`, `report.html`, and `report.json` for an app on the internet, each line with the `sv probe` command
+  that asks it, or, for V12.1.2, the scanner; held to the requirements `sv probe`'s checks cite.
   **V4.1.2 claimed on 6 October 2026 by session securevibe-e9**, at the owner's word ("Yes, please go ahead with
   both of those", asked whether `sv probe` may make one more request), in branch `claude/securevibe-e9-api-redirect`.
   **Record, `Status: proposed`** (to be a "Later" entry on ADR-027): `sv probe <address> --api <path>` asks one more

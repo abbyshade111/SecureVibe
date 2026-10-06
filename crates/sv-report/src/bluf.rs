@@ -307,6 +307,7 @@ mod tests {
             checklist_above_level: Vec::new(),
             tests_to_write: Vec::new(),
             only_you_can_check: Vec::new(),
+            before_going_live: Vec::new(),
             questions_for_you: Vec::new(),
             no_instructions_yet: 0,
             named_not_credited: Vec::new(),
