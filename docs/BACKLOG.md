@@ -72,6 +72,9 @@ another session is not a claim.
   17. **Smaller, suspected or narrow:** the report seal hashes the files as read back from disk, not the bytes `sv`
       wrote, so a write in that moment would be sealed (suspected, a race); `prod.env.local` and the like go into a
       bundle (confirmed by reading `bundle.rs`).
+  **Items 1 to 9 and 15 done on 6 October 2026 by session securevibe-e2** (DESIGN, "The review of 5 and 6 October:
+  what it found, and what of it was fixed"); 15 was taken with 4, being in the same function. Items 13, 14, 16, and
+  17 are not claimed.
   **Items 10, 11, and 12 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the false
   passes next"), in branch `claude/securevibe-e2-false-passes`.
   **Items 10, 11, and 12 done the same day** (DESIGN, "Three false passes from the review of 5 and 6 October"). Item

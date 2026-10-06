@@ -183,6 +183,14 @@ fn quoted(text: &str) -> String {
     }
 }
 
+/// The files in the app folder `sv` reads by name, which the server refuses to read through a link:
+/// the manifest, the security notes, and the decisions file.
+const READ_BY_NAME: [&str; 3] = [
+    "securevibe.toml",
+    "security-notes.md",
+    sv_check::decisions::FILE,
+];
+
 pub struct Server {
     /// The folder every path is resolved against, canonical.
     root: PathBuf,
@@ -782,6 +790,15 @@ impl Server {
             return Err(refused());
         }
         anyhow::ensure!(resolved.is_dir(), "{asked} is not a folder");
+        // The files read by name: a link among them could name a file outside the root, and a
+        // manifest that does not parse is quoted back in the error, a line of whatever it points at
+        // with it (the review of 6 October, item 1). Refused as reports and notes refuse a link.
+        for name in READ_BY_NAME {
+            crate::refuse_link(
+                &resolved.join(name),
+                "Make it a file of the app's own, and ask again.",
+            )?;
+        }
         Ok(resolved)
     }
 
@@ -3630,6 +3647,50 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
         assert_eq!(result["isError"], true, "{}", text(&result));
         assert_eq!(after, "not the app's", "the link was written through");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_file_read_by_name_is_not_read_through_a_link_out_of_the_root() {
+        // A value that looks like a key, built at run time so the file holds none.
+        let value = format!("{}{}{}", "FAKE", "x".repeat(12), std::process::id());
+        for name in READ_BY_NAME {
+            let root = scratch_app(&format!("read-link-{name}"), "tested-notes");
+            let outside = root.join("outside.txt");
+            std::fs::write(&outside, format!("API_KEY=\"{value}\"\n")).unwrap();
+            let linked = root.join("app").join(name);
+            std::fs::remove_file(&linked).ok();
+            std::os::unix::fs::symlink(&outside, &linked).unwrap();
+            // Served from the app folder, so the link's target is outside the root.
+            let server = Server::new(&root.join("app")).unwrap();
+            for tool in [
+                "securevibe_check",
+                "securevibe_plan",
+                "securevibe_preflight",
+            ] {
+                let result = call(&server, tool, json!({}));
+                let said = text(&result);
+                assert_eq!(result["isError"], true, "{name}, {tool}: {said}");
+                assert!(said.contains("is a link"), "{name}, {tool}: {said}");
+                assert!(
+                    !said.contains(&value),
+                    "{name}, {tool}: the file outside was quoted"
+                );
+            }
+            std::fs::remove_dir_all(&root).ok();
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_file_read_by_name_that_is_a_file_is_read() {
+        // The control for the test above: the setup reads the manifest when it is a file, so the
+        // refusal there is the link's.
+        let root = scratch_app("read-plain", "tested-notes");
+        let server = Server::new(&root.join("app")).unwrap();
+        let result = call(&server, "securevibe_plan", json!({}));
+        std::fs::remove_dir_all(&root).ok();
+        assert_ne!(result["isError"], true, "{}", text(&result));
     }
 
     /// Whether `value` has the shape `schema` describes, for the parts of JSON Schema the tools'
