@@ -44,7 +44,7 @@ pub fn worst_findings(report: &Report) -> (Vec<&sv_check::Finding>, usize) {
     let mut findings: Vec<&sv_check::Finding> = report.findings.iter().collect();
     // The app's own first: a critical in a test is named after a low in the app, since the report
     // lists it apart, but it is still named when there is room.
-    findings.sort_by_key(|f| (f.in_test_code(), severity_rank(f.severity)));
+    findings.sort_by_key(|f| (f.apart(), severity_rank(f.severity)));
     let shown = findings.len().min(NAMED_FINDINGS);
     let rest = findings.len() - shown;
     (findings.into_iter().take(shown).collect(), rest)
@@ -115,15 +115,17 @@ pub fn headline(report: &Report) -> String {
             report.counts.not_verified, report.counts.applicable
         );
     }
-    let in_tests = report.findings.iter().filter(|f| f.in_test_code()).count();
-    let apart = match in_tests {
+    let listed_apart: Vec<&sv_check::Finding> =
+        report.findings.iter().filter(|f| f.apart()).collect();
+    let named = crate::apart_named(&listed_apart);
+    let apart = match listed_apart.len() {
         0 => String::new(),
         m if m == n => format!(
-            " {} in test or sample code, not the app itself.",
+            " {} {named}, not the app's own code.",
             if n == 1 { "It is" } else { "All are" }
         ),
         m => format!(
-            " {m} of them {} in test or sample code, listed after the app's own.",
+            " {m} of them {} {named}, listed after the app's own.",
             if m == 1 { "is" } else { "are" }
         ),
     };
@@ -415,6 +417,7 @@ mod tests {
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
             rule_id: rule.into(),
             title: "Something".into(),
             severity: Severity::High,

@@ -399,6 +399,7 @@ fn finding(
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: rule_id.into(),
         title,
         severity,

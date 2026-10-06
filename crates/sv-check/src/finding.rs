@@ -159,6 +159,12 @@ pub struct Finding {
     /// (`mark_not_the_app`). False until the report looks.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub marked_test_code: bool,
+    /// The library, and its version when it says, when the file is a copy of another project's
+    /// library kept in the app, such as `jQuery 3.6.1` in `public/js/jquery.min.js`
+    /// (`bundled::mark_bundled_libraries`). Listed apart from the app's own code, never hidden:
+    /// it still counts. `None` until the report looks.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bundled_library: Option<String>,
 }
 
 impl Finding {
@@ -193,6 +199,12 @@ impl Finding {
     /// code gets copied.
     pub fn in_test_code(&self) -> bool {
         self.marked_test_code || is_test_path(&self.location.file)
+    }
+
+    /// Whether the reports list this finding apart from the app's own code: in test or sample code,
+    /// or in a copy of another project's library kept in the app. Either way it still counts.
+    pub fn apart(&self) -> bool {
+        self.in_test_code() || self.bundled_library.is_some()
     }
 }
 
@@ -499,6 +511,7 @@ mod tests {
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
         }
     }
 
@@ -977,6 +990,7 @@ mod tests {
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
+            bundled_library: None,
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),
             severity: Severity::Critical,

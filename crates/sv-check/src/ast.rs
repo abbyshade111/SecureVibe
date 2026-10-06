@@ -1909,6 +1909,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
                 marked_test_code: false,
+                bundled_library: None,
                 rule_id: compiled.rule.id.clone(),
                 title: compiled.rule.title.clone(),
                 severity: compiled.rule.severity,
