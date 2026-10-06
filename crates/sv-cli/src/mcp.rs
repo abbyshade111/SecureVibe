@@ -1607,6 +1607,14 @@ fn output_schema(tool: &str) -> Option<Value> {
             "also_reported_by": strings, "fingerprint": string, "earlier_fingerprints": strings,
             "marked_test_code": { "type": "boolean" },
             "bundled_library": string,
+            // Why the report lists it apart (ADR-023, Later, 6 October 2026).
+            "outranked": object(
+                json!({
+                    "why": { "type": "string", "enum": ["not-held-to", "checked-while-running"] },
+                    "check": string,
+                }),
+                &["why"],
+            ),
             // The other problems on the same line, each a finding of this same shape.
             "also_on_this_line": { "type": "array", "items": { "type": "object" } },
         }),
@@ -4028,6 +4036,28 @@ mod tests {
             .map(|r| serde_json::to_value(route(r)).unwrap())
             .to_vec())
         );
+    }
+
+    #[test]
+    fn a_finding_listed_apart_for_what_outranks_it_keeps_the_declared_shape() {
+        // ADR-023, Later, 6 October 2026: `outranked` is written by the report, and the schema says
+        // what each kind looks like, so an AI tool reading the check's result can rely on it.
+        use sv_check::finding::Outranked;
+        let finding =
+            &output_schema("securevibe_check").unwrap()["properties"]["findings"]["items"];
+        let shape = &finding["properties"]["outranked"];
+        for kind in [
+            Outranked::NotHeldTo,
+            Outranked::CheckedWhileRunning {
+                check: "probe.cross-site-request-accepted".into(),
+            },
+        ] {
+            let value = serde_json::to_value(&kind).unwrap();
+            if let Err(why) = conforms(&value, shape, "outranked") {
+                panic!("{why}: {value}");
+            }
+        }
+        assert!(conforms(&json!({ "why": "something-else" }), shape, "t").is_err());
     }
 
     #[test]

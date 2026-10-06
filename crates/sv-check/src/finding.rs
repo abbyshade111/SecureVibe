@@ -171,6 +171,25 @@ pub struct Finding {
     /// fingerprint here. Empty until the report gathers them.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub also_on_this_line: Vec<Finding>,
+    /// Why the report lists the finding apart though nothing about its file or rule says so: it is
+    /// about requirements the app is not held to, or an outside tool's finding about requirements
+    /// `sv`'s own check of the running app verified in the same run (`Outranked`). `None` until the
+    /// report looks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outranked: Option<Outranked>,
+}
+
+/// Why a finding is listed apart from the ones that count (the owner's decision of 6 October 2026;
+/// ADR-023, Later). Either way it is shown in full and still named in every report.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "why", rename_all = "kebab-case")]
+pub enum Outranked {
+    /// Every requirement it names is one the app is not held to: above its target level, or not
+    /// applying to it. It never decided an applicable requirement's status.
+    NotHeldTo,
+    /// An outside tool's finding about requirements `sv`'s own check of the running app verified in
+    /// the same run, named here. It no longer keeps them from being credited.
+    CheckedWhileRunning { check: String },
 }
 
 /// Semgrep rules whose findings are listed apart as "worth a look" (Semgrep follow-up 5, the owner's
@@ -203,7 +222,8 @@ impl Finding {
     }
 
     /// Whether this finding keeps a requirement it names from being *checked*: true for every finding
-    /// but the few that say, in their own text, that they leave the credit alone.
+    /// but the few that say, in their own text, that they leave the credit alone, and an outside
+    /// tool's finding that `sv`'s own check of the running app outranked (`Outranked`).
     ///
     /// Those are listed by name in `INFORMATION_ONLY`, and must also be `Severity::Info`, so raising
     /// one's severity makes it count again rather than quietly staying beside the credit. A finding
@@ -211,6 +231,9 @@ impl Finding {
     /// including a tool's at `info`: a tool's lowest level is still the tool saying something is
     /// wrong, and nothing in its text says otherwise. (BACKLOG, family-hub item 6, 4 October 2026.)
     pub fn withholds_credit(&self) -> bool {
+        if matches!(self.outranked, Some(Outranked::CheckedWhileRunning { .. })) {
+            return false;
+        }
         !(self.severity == Severity::Info
             && self.also_reported_by.is_empty()
             && INFORMATION_ONLY.contains(&self.rule_id.as_str()))
@@ -236,7 +259,10 @@ impl Finding {
     /// in a copy of another project's library kept in the app, or only worth a look. Whichever it
     /// is, it is shown in full and still counts.
     pub fn apart(&self) -> bool {
-        self.in_test_code() || self.bundled_library.is_some() || self.worth_a_look()
+        self.in_test_code()
+            || self.bundled_library.is_some()
+            || self.worth_a_look()
+            || self.outranked.is_some()
     }
 }
 
@@ -604,6 +630,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            outranked: None,
             also_on_this_line: Vec::new(),
         }
     }
@@ -1174,6 +1201,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            outranked: None,
             also_on_this_line: Vec::new(),
             rule_id: "secrets.anthropic-key".into(),
             title: "Anthropic API key found in a file".into(),

@@ -239,6 +239,7 @@ fn finding(about: &Rule, title: &str, severity: Severity, description: String) -
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        outranked: None,
         also_on_this_line: Vec::new(),
         rule_id: about.rule_id.to_owned(),
         title: title.to_owned(),
