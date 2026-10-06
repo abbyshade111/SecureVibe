@@ -234,6 +234,20 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
         report(&app, &config).contains("Recorded through `sv review` and signed with key"),
         "the setup: it still counts in its own app"
     );
+    // Given a list that trusts the key for another app only: a proposal, and it says so.
+    let another = sv_check::seal::App::of(&s.0.join("no-key").join("..")).unwrap();
+    let mine = sv_check::seal::App::of(&app).unwrap();
+    assert_ne!(another.id(), mine.id());
+    let for_another = report_given(
+        &ci_app,
+        &s.0.join("no-key"),
+        Some(&list.replace(mine.id(), another.id())),
+    );
+    assert!(
+        for_another.contains("trusts for another app only"),
+        "{for_another}"
+    );
+    assert!(!for_another.contains("set it aside as a false alarm on"));
     // On a computer whose list trusts another key for this app, it is a proposal: anyone can make
     // a key and sign with it.
     let other = s.0.join("other").join("securevibe");

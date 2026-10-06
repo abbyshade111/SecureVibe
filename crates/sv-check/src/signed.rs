@@ -591,6 +591,11 @@ mod tests {
         (key, seal)
     }
 
+    /// A seal made for `app`.
+    fn copy_seal(key: &SigningKey, app: &App) -> String {
+        key.for_app(app).seal(FIELDS).unwrap()
+    }
+
     /// The list `text` holds, as SV_TRUSTED_SEALS gives it, checking the app in `folder`.
     fn given(text: &str, folder: &Path) -> Checker {
         Checker::no_key().trusting(
@@ -651,6 +656,40 @@ mod tests {
         assert_eq!(
             copied.recorded(Some(&seal), FIELDS),
             Err(Unrecorded::OtherApp)
+        );
+        // This computer's list, trusting the key for the copy too: a seal whose app id is swapped
+        // for the copy's breaks there, since the signature covers it.
+        let copy = App::of(&s.0.join("copy")).unwrap();
+        trust_here(&s.keys(), &key, &copy).unwrap();
+        let swapped = seal.replacen(s.app().id(), copy.id(), 1);
+        let copied = Checker::in_folder(Some(&s.keys()), &s.0.join("copy"));
+        assert!(
+            copied
+                .recorded(Some(&copy_seal(&key, &copy)), FIELDS)
+                .is_ok(),
+            "the setup: the copy's own seal counts in the copy"
+        );
+        assert_eq!(
+            copied.recorded(Some(&swapped), FIELDS),
+            Err(Unrecorded::Mismatch)
+        );
+        // This computer's list, its line limited to another namespace: it trusts nothing for `sv`.
+        let list = std::fs::read_to_string(s.keys().join(TRUSTED_FILE)).unwrap();
+        std::fs::write(s.keys().join(TRUSTED_FILE), list.replace(NAMESPACE, "git")).unwrap();
+        assert_eq!(
+            here.recorded(Some(&seal), FIELDS),
+            Ok(Sealed::Signed {
+                key: key.fingerprint(),
+                from: ListFrom::ThisComputer
+            }),
+            "the setup: a checker reads the list when it is made"
+        );
+        assert_eq!(
+            Checker::in_folder(Some(&s.keys()), &s.0.join("app")).recorded(Some(&seal), FIELDS),
+            Err(Unrecorded::NotTrusted(
+                key.fingerprint(),
+                ListFrom::ThisComputer
+            ))
         );
         // No list here: nothing signed can be checked, and it says what to do.
         let none = Checker::in_folder(Some(&s.0.join("other-keys")), &s.0.join("app"));

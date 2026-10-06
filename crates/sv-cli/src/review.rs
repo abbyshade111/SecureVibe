@@ -1543,6 +1543,87 @@ mod tests {
     }
 
     #[test]
+    fn only_an_older_seal_that_holds_here_is_signed_again_without_asking() {
+        // One entry sealed with this computer's review key, and one with another computer's: the
+        // first is offered to be signed again at one yes, the second is asked about, since this
+        // computer cannot tell it from one the AI coding tool made up.
+        let s = Scratch::new("older");
+        let fp = sv_check::review::named("ast.open-redirect", "app.py", LINE);
+        let entry = |why: &str| {
+            format!(
+                "\n[[finding-review]]\nrule = \"ast.open-redirect\"\nfile = \"app.py\"\n\
+                 fingerprint = \"{fp}\"\nverdict = \"false-alarm\"\nwhy = \"{why}\"\n\
+                 by = \"owner\"\non = \"2026-10-05\"\n"
+            )
+        };
+        let theirs_why = "Another reason, on another computer, and long enough to be one.";
+        with_app(&s, &format!("{HEAD}{}{}", entry(WHY), entry(theirs_why)));
+        let (here, _) = Key::load_or_make_in(&s.keys()).unwrap();
+        let (there, _) = Key::load_or_make_in(&s.0.join("there")).unwrap();
+        let app = App::of(&s.app()).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let mut doc: toml_edit::DocumentMut = s.manifest().parse().unwrap();
+        for (i, key) in [(0, &here), (1, &there)] {
+            let seal = key.for_app(&app).seal(&sv_check::seal::as_strs(
+                &sv_check::seal::finding_review_fields(&m.finding_review[i]),
+            ));
+            finding_table(&mut doc, i)
+                .unwrap()
+                .insert("seal", toml_edit::value(seal));
+        }
+        std::fs::write(s.app().join("securevibe.toml"), doc.to_string()).unwrap();
+        // Yes to signing again; then Enter for the other, which is asked about.
+        let (result, out) = s.run("yes\n\n");
+        result.unwrap();
+        assert!(out.contains("1 entry was recorded"), "{out}");
+        assert!(out.contains("Signed 1 again"), "{out}");
+        assert!(out.contains("[1 of 1]"), "{out}");
+        assert!(out.contains(theirs_why), "{out}");
+        assert!(out.contains("Recorded 0 of 1"), "{out}");
+        assert!(finding_counts(&s, 0));
+        assert!(!finding_counts(&s, 1));
+        let after = s.manifest();
+        assert_eq!(after.matches("seal = \"v3:").count(), 1, "{after}");
+        assert_eq!(after.matches("seal = \"v2:").count(), 1, "{after}");
+        // The signing key `sv review` made is its owner's alone.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(s.keys().join(sv_check::signed::SIGNING_KEY_FILE))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
+    }
+
+    #[test]
+    fn a_list_of_trusted_keys_sv_cannot_read_in_full_is_never_added_to() {
+        let s = Scratch::new("bad-list");
+        with_app(&s, &format!("{HEAD}{}", proposal(WHY)));
+        let manifest = s.manifest();
+        std::fs::create_dir_all(s.keys()).unwrap();
+        let theirs = sv_check::signed::SigningKey::make_in(&s.0.join("theirs"), None).unwrap();
+        let line = theirs
+            .trusted_line(&App::of(&s.app()).unwrap())
+            .unwrap()
+            .replace("namespaces=", "cert-authority,namespaces=");
+        std::fs::write(
+            s.keys().join(sv_check::signed::TRUSTED_FILE),
+            format!("{line}\n"),
+        )
+        .unwrap();
+        let (result, _) = s.run("owner\n");
+        let err = format!("{}", result.unwrap_err());
+        assert!(err.contains("cert-authority"), "{err}");
+        assert_eq!(s.manifest(), manifest);
+        assert_eq!(
+            std::fs::read_to_string(s.keys().join(sv_check::signed::TRUSTED_FILE)).unwrap(),
+            format!("{line}\n")
+        );
+    }
+
+    #[test]
     fn a_passphrase_is_asked_for_when_chosen_and_nothing_signs_without_it() {
         let s = Scratch::new("passphrase");
         with_app(&s, &format!("{HEAD}{}", proposal(WHY)));
