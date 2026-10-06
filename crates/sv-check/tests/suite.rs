@@ -10,6 +10,7 @@ mod scratch;
 use scratch::Scratch;
 use std::collections::BTreeSet;
 use std::path::Path;
+use sv_check::junit::TestCase;
 use sv_check::suite::{SuiteOutcome, credit, declared_test_name, tests_naming_requirements};
 
 fn scratch(name: &str) -> Scratch {
@@ -188,7 +189,7 @@ fn a_failing_suite_credits_nothing_however_many_tests_name_a_requirement() {
     assert_eq!(found.len(), 3, "{found:?}");
 
     let describe = |_: &str| Some("Verify something".to_owned());
-    let (verified, findings) = credit(&found, SuiteOutcome::Failed { passed: None }, &describe);
+    let (verified, findings) = credit(&found, SuiteOutcome::Failed { cases: None }, &describe);
     assert!(
         verified.is_empty() && findings.is_empty(),
         "one exit code does not say which of the three it came from: {verified:?} {findings:?}"
@@ -237,17 +238,15 @@ fn a_failing_suite_credits_the_tests_its_runner_says_passed() {
     let describe = |_: &str| None;
 
     // Without a report, a failing suite still credits nothing at all.
-    let (none, _) = credit(&found, SuiteOutcome::Failed { passed: None }, &describe);
+    let (none, _) = credit(&found, SuiteOutcome::Failed { cases: None }, &describe);
     assert!(none.is_empty(), "{none:?}");
 
     // With one, the test the runner named as passing is credited and the other is not.
-    let passed: BTreeSet<String> = ["test_V1_2_4_search_is_bound".to_string()]
-        .into_iter()
-        .collect();
+    let passed = cases(&["test_V1_2_4_search_is_bound"], &[]);
     let (verified, _) = credit(
         &found,
         SuiteOutcome::Failed {
-            passed: Some(&passed),
+            cases: Some(&passed),
         },
         &describe,
     );
@@ -275,11 +274,11 @@ fn reading_the_report_can_only_ever_add_credit() {
     let describe = |_: &str| None;
 
     let (whole_suite, _) = credit(&found, SuiteOutcome::Passed, &describe);
-    let nothing_passed: BTreeSet<String> = BTreeSet::new();
+    let nothing_passed = cases(&[], &[]);
     let (with_empty_report, _) = credit(
         &found,
         SuiteOutcome::Failed {
-            passed: Some(&nothing_passed),
+            cases: Some(&nothing_passed),
         },
         &describe,
     );
@@ -291,37 +290,136 @@ fn reading_the_report_can_only_ever_add_credit() {
 }
 
 #[test]
-fn a_test_the_runner_named_differently_is_simply_not_credited() {
-    // The safe direction, asserted rather than assumed. Matching is an exact identifier match; a
-    // runner that reports something else (jest concatenates its describe blocks) leaves the test
-    // uncredited, which is where it stood before the report was read at all.
-    let root = scratch("unmatched");
+fn a_test_is_found_under_the_names_runners_give_it() {
+    // Until 6 October 2026 matching was exact, so a test whose runner reports it inside a longer
+    // name was never credited from a failing suite: jest and Mocha put the `describe` titles first,
+    // Vitest joins them with ` > `, pytest adds a parameter, and Go a subtest.
+    let root = scratch("runner-names");
     write(
         &root,
         "tests/search.test.ts",
-        "it('V1.2.4 binds its parameters', () => {});\n",
+        "describe('search', () => {\n  it('V1.2.4 binds its parameters', () => {});\n});\n",
+    );
+    write(
+        &root,
+        "tests/test_auth.py",
+        "def test_V13_3_1_no_literal_secret(value):\n    pass\n",
+    );
+    write(
+        &root,
+        "app/auth_test.go",
+        "func TestV1_2_2Escapes(t *testing.T) {}\n",
     );
     let found = tests_naming_requirements(&root, &known());
-    assert_eq!(found.len(), 1);
-    assert_eq!(
-        declared_test_name(&found[0].text).as_deref(),
-        Some("V1.2.4 binds its parameters")
+    assert_eq!(found.len(), 3, "{found:?}");
+    let credited = |reported: &[TestCase]| {
+        let (verified, _) = credit(
+            &found,
+            SuiteOutcome::Failed {
+                cases: Some(reported),
+            },
+            &describe_nothing(),
+        );
+        let mut ids: Vec<String> = verified
+            .into_iter()
+            .flat_map(|v| v.requirement_ids)
+            .collect();
+        ids.sort();
+        ids
+    };
+    for (runner, title) in [
+        ("jest and Mocha", "search V1.2.4 binds its parameters"),
+        ("Vitest", "search > V1.2.4 binds its parameters"),
+        ("exact", "V1.2.4 binds its parameters"),
+    ] {
+        assert_eq!(
+            credited(&cases(
+                &[
+                    title,
+                    "test_V13_3_1_no_literal_secret[empty]",
+                    "TestV1_2_2Escapes/quotes"
+                ],
+                &["the homepage renders"]
+            )),
+            ["V1.2.2", "V1.2.4", "V13.3.1"],
+            "{runner}"
+        );
+    }
+    // A name that holds the title only inside a word, or another test's name, is not it.
+    assert!(
+        credited(&cases(
+            &[
+                "searchV1.2.4 binds its parameters",
+                "test_V13_3_1_no_literal_secrets",
+                "TestV1_2_2EscapesAll"
+            ],
+            &["the homepage renders"]
+        ))
+        .is_empty()
     );
+}
 
-    let jest_style: BTreeSet<String> = ["search > V1.2.4 binds its parameters".to_string()]
-        .into_iter()
-        .collect();
+#[test]
+fn a_failing_case_that_could_be_the_same_test_credits_nothing() {
+    // Until 6 October 2026 a passing case was enough, whatever else of the same name failed: two
+    // classes each with `test_V1_2_4_bound`, one failing, credited V1.2.4. Every case that could be
+    // the test has to have passed, so a wider match can only ever take credit away.
+    let root = scratch("same-name");
+    write(
+        &root,
+        "tests/test_search.py",
+        "class TestA:\n    def test_V1_2_4_bound(self):\n        pass\n",
+    );
+    write(
+        &root,
+        "tests/search.test.js",
+        "it('V1.2.2 escapes its output', () => {});\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    assert_eq!(found.len(), 2, "{found:?}");
+    for reported in [
+        cases(
+            &["test_V1_2_4_bound", "V1.2.2 escapes its output"],
+            &["test_V1_2_4_bound", "admin V1.2.2 escapes its output"],
+        ),
+        cases(
+            &["test_V1_2_4_bound[a]", "a > V1.2.2 escapes its output"],
+            &["test_V1_2_4_bound[b]", "b > V1.2.2 escapes its output"],
+        ),
+    ] {
+        let (verified, _) = credit(
+            &found,
+            SuiteOutcome::Failed {
+                cases: Some(&reported),
+            },
+            &describe_nothing(),
+        );
+        assert!(verified.is_empty(), "{reported:?}: {verified:?}");
+    }
+    // The control: with the failing ones gone, both are credited.
+    let reported = cases(&["test_V1_2_4_bound", "V1.2.2 escapes its output"], &[]);
     let (verified, _) = credit(
         &found,
         SuiteOutcome::Failed {
-            passed: Some(&jest_style),
+            cases: Some(&reported),
         },
         &describe_nothing(),
     );
-    assert!(
-        verified.is_empty(),
-        "no exact match, so no credit: {verified:?}"
-    );
+    assert_eq!(verified.len(), 2, "{verified:?}");
+}
+
+/// A runner's report: these cases passed, and these did not.
+fn cases(passed: &[&str], failed: &[&str]) -> Vec<TestCase> {
+    let case = |name: &&str, passed: bool| TestCase {
+        name: (*name).to_owned(),
+        classname: "c".to_owned(),
+        passed,
+    };
+    passed
+        .iter()
+        .map(|n| case(n, true))
+        .chain(failed.iter().map(|n| case(n, false)))
+        .collect()
 }
 
 #[test]
@@ -342,16 +440,15 @@ fn a_test_the_runner_skipped_is_not_credited() {
   <testcase classname="c" name="test_V1_2_4_needs_a_database"><skipped message="no database"/></testcase>
 </testsuite>"#;
     let cases = sv_check::junit::parse(report).expect("the report reads");
-    let passed = sv_check::junit::passed_names(&cases);
     assert!(
-        passed.is_empty(),
-        "a skipped case is not a passing one: {passed:?}"
+        cases.iter().all(|c| !c.passed),
+        "a skipped case is not a passing one: {cases:?}"
     );
 
     let (verified, _) = credit(
         &found,
         SuiteOutcome::Failed {
-            passed: Some(&passed),
+            cases: Some(&cases),
         },
         &describe_nothing(),
     );

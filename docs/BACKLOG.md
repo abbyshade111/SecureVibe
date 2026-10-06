@@ -620,6 +620,8 @@ another session is not a claim.
     pinning check (V15.1.2) and in the scan's list of unpinned projects. Twelve guards broken in turn, each caught.
     **Still open:** a requirements file under another name without hashes is not judged by the pinning check, and a
     `Pipfile.lock` with no `Pipfile` beside it is not found.
+    **These two claimed on 6 October 2026 by session securevibe-e2**, at the owner's asking to continue with the
+    backlog, in branch `claude/securevibe-e2-h9-rest`.
   - **H10. High, Reproduced.** npm lockfile v1 is read only at the top level; nested copies are dropped.
     **Claimed on 4 October 2026 by session securevibe-e2**, with H8, H10, and H11, at the owner's asking to continue
     with the backlog, in branch `claude/securevibe-e2-advisory-match`.
@@ -6741,6 +6743,8 @@ another session is not a claim.
   branch `claude/securevibe-e9-runner-names`: a declared test matched to the names jest, Vitest, Mocha, pytest's
   parameters, and Go's subtests report, and credited only when every case that matches it passed (today a failing
   case of the same name as a passing one is ignored). TAP and runners' own JSON stay unread.
+  **Done the same day** (DESIGN, "A test is found under the names its runner gives it"): matched as a whole part of
+  the name the runner reports, and credited only when every case that could be it passed.
 
 - ~~**The MCP server.**~~ Done on 25 September 2026. `sv mcp --root DIR` speaks MCP over stdio
   (`crates/sv-cli/src/mcp.rs`, no SDK) with four tools: `securevibe_spec`, `securevibe_check`,

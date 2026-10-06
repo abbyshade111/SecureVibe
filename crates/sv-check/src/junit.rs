@@ -17,8 +17,6 @@
 //! not understand `properties`, `system-out`, or anything else with content worth interpreting — it
 //! skips those by name, and refuses any element it has never heard of.
 
-use std::collections::BTreeSet;
-
 /// One case as the runner reported it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TestCase {
@@ -194,15 +192,6 @@ pub fn parse(xml: &str) -> Result<Vec<TestCase>, Unreadable> {
         return Err(refuse("the report names no test cases at all"));
     }
     Ok(out)
-}
-
-/// The names of every case that passed.
-pub fn passed_names(cases: &[TestCase]) -> BTreeSet<String> {
-    cases
-        .iter()
-        .filter(|c| c.passed)
-        .map(|c| c.name.clone())
-        .collect()
 }
 
 fn starts_with(chars: &[char], at: usize, text: &str) -> bool {
@@ -381,16 +370,6 @@ mod tests {
         assert!(
             !cases[3].passed,
             "a skipped test did not run, so it is not evidence"
-        );
-        assert_eq!(
-            passed_names(&cases),
-            [
-                "test_V1_2_4_search_is_bound",
-                "test_V13_3_1_no_literal_secret"
-            ]
-            .iter()
-            .map(|s| s.to_string())
-            .collect()
         );
     }
 
