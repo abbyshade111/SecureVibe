@@ -19,6 +19,7 @@ pub(crate) fn finding(
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: rule.rule_id.to_owned(),
         title: title.to_owned(),
         severity,

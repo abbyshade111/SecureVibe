@@ -762,6 +762,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
+        bundled_library: None,
         rule_id: format!("advisory.{}", advisory.id),
         title: format!(
             "{} {} has a known vulnerability: {names}",
