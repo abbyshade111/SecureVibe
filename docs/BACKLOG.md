@@ -72,6 +72,10 @@ another session is not a claim.
   17. **Smaller, suspected or narrow:** the report seal hashes the files as read back from disk, not the bytes `sv`
       wrote, so a write in that moment would be sealed (suspected, a race); `prod.env.local` and the like go into a
       bundle (confirmed by reading `bundle.rs`).
+  **Items 10, 11, and 12 claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("take the false
+  passes next"), in branch `claude/securevibe-e2-false-passes`.
+  **Items 10, 11, and 12 done the same day** (DESIGN, "Three false passes from the review of 5 and 6 October"). Item
+  10 was shown fixed in Chromium here; its test runs only where Docker does, on CI.
 
 - **The "what has to be answered" table prints a condition's exclusion sentence as its question.** Found on 5 October
   2026 by the cato-pipeline session while building R12 (its branch was superseded by securevibe-e9's, #674, and
@@ -412,6 +416,10 @@ another session is not a claim.
     `claude/h4-review-triggers`: check against GitHub's documentation whether `pull_request_review` and
     `pull_request_review_comment` run with the secrets for a pull request from a fork, and make them privileged
     triggers if they do, or say in DESIGN why not if they do not.
+    **Done the same day** (DESIGN, "The review triggers run as `pull_request` does"): GitHub's documentation says both
+    run on the pull request's merge branch and, for a pull request from a fork, get no secrets but a read-only
+    `GITHUB_TOKEN`, as `pull_request` does. They are not privileged, and `sv`, which already judged them as
+    `pull_request`, now says why and holds it with a test; two guards broken in turn, each caught.
   - **H5. High, Reproduced.** Next.js and modern Node redirect and file calls are missed (bare `redirect()`,
     `NextResponse.redirect`, `window.location = ...`, `fs/promises` `readFile`, `fs.promises.readFile`), but
     TypeScript coverage is claimed.

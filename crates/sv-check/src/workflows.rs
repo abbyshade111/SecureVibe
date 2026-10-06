@@ -53,10 +53,13 @@ const OTHER_PIPELINES: &[&str] = &[
 /// was credited AC.12.1 (deep review H4).
 ///
 /// Left out: `workflow_dispatch` and `repository_dispatch`, which only somebody with write access or a
-/// token can start, so "a stranger started it" does not hold. Also left out, and not settled:
-/// `pull_request_review_comment` and `pull_request_review`, which the review proposed adding. Whether
-/// GitHub gives them the secrets when the pull request comes from a fork could not be checked against
-/// GitHub's documentation when this was written (BACKLOG, deep review H4).
+/// token can start, so "a stranger started it" does not hold. Also left out: `pull_request_review`
+/// and `pull_request_review_comment`, which the review proposed adding. GitHub's documentation ("Events
+/// that trigger workflows", read 5 October 2026) says of both, as of `pull_request`, that "with the
+/// exception of GITHUB_TOKEN, secrets are not passed to the runner when a workflow is triggered from a
+/// forked repository", that the token is then read-only, and that they run on the pull request's merge
+/// branch, where `issue_comment` runs on the default branch. They are `pull_request` started by a review,
+/// and are judged as `pull_request` is (DESIGN, "The review triggers run as `pull_request` does").
 const PRIVILEGED_TRIGGERS: &[&str] = &[
     "pull_request_target",
     "workflow_run",
@@ -973,6 +976,59 @@ jobs:
                 report.not_assessed
             );
         }
+    }
+
+    #[test]
+    fn the_review_triggers_are_judged_as_pull_request_is() {
+        // Deep review H4's open half. GitHub gives a workflow started by a review, or a comment on
+        // the diff, of a pull request from a fork no secrets and a read-only token, as it does
+        // `pull_request` (DESIGN, "The review triggers run as `pull_request` does"). So the same
+        // workflow, checking out the pull request's code with a secret in its environment, must come
+        // out the same way under each.
+        let body = "\
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - run: npm ci && npm test
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+";
+        let outcome = |on: &str| {
+            let report = run("review", &[("review.yml", &format!("{on}{body}"))], &[]);
+            let mut credited: Vec<String> =
+                credited(&report).iter().map(|s| s.to_string()).collect();
+            credited.sort();
+            let mut found: Vec<String> = found(&report).iter().map(|s| s.to_string()).collect();
+            found.sort();
+            (found, credited, unassessed(&report).len())
+        };
+        let pull_request = outcome("on: pull_request\n");
+        assert!(
+            pull_request.1.contains(&"AC.12.1".to_owned()),
+            "the setup: `pull_request` must be credited for this to say anything: {pull_request:?}"
+        );
+        for on in [
+            "on: pull_request_review\n",
+            "on:\n  pull_request_review:\n    types: [submitted]\n",
+            "on: [pull_request_review_comment]\n",
+        ] {
+            assert_eq!(outcome(on), pull_request, "{on:?}");
+        }
+        // The control: the same workflow under `issue_comment`, which runs with the secrets, is found.
+        assert!(
+            outcome("on: issue_comment\n")
+                .0
+                .contains(&FORK_CODE.to_owned()),
+            "{:?}",
+            outcome("on: issue_comment\n")
+        );
     }
 
     #[test]

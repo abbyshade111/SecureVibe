@@ -270,22 +270,32 @@ fn gitignore_covers_env(app_dir: &Path) -> Outcome {
         };
     };
 
-    let covered = gitignore_ignores(&text, ".env");
-
-    if covered {
-        Outcome::Passed(&["V13.3.1"])
-    } else if root.is_none() {
+    // `.env`, whether or not it is there yet, and every environment file that is: a `.gitignore`
+    // that leaves out `.env` alone does not leave out `.env.production` beside it (the review of
+    // 6 October, item 12).
+    let mut names = vec![".env".to_owned()];
+    names.extend(
+        env_files_at_root(app_dir)
+            .into_iter()
+            .filter(|n| n != ".env"),
+    );
+    let Some(open) = names.iter().find(|name| !gitignore_ignores(&text, name)) else {
+        return Outcome::Passed(&["V13.3.1"]);
+    };
+    if root.is_none() {
         Outcome::Failed(Box::new(env_not_ignored_finding(
             ".gitignore",
-            "The .gitignore file does not leave out `.env`. This folder is not a git repository \
-             yet; when it becomes one, nothing in it stops `.env` being committed."
-                .to_owned(),
+            format!(
+                "The .gitignore file does not leave out `{open}`. This folder is not a git \
+                 repository yet; when it becomes one, nothing in it stops `{open}` being committed."
+            ),
         )))
     } else {
         Outcome::Failed(Box::new(env_not_ignored_finding(
             ".gitignore",
-            "The .gitignore file does not list `.env`, so nothing stops it being committed."
-                .to_owned(),
+            format!(
+                "The .gitignore file does not list `{open}`, so nothing stops it being committed."
+            ),
         )))
     }
 }
@@ -816,6 +826,26 @@ mod tests {
     }
 
     #[test]
+    fn a_secrets_file_committed_in_a_folder_with_an_accented_name_is_found() {
+        // The review of 6 October, item 11: git quoted the name, and the check read `secrets.json"`.
+        let Some(dir) = git_repo("accented") else {
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        fs::create_dir_all(dir.join("données")).unwrap();
+        fs::write(dir.join("données/secrets.json"), "{}\n").unwrap();
+        commit_all(&dir);
+        let report = check_dir(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let found = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.secrets-file-committed")
+            .unwrap_or_else(|| panic!("not found: {report:?}"));
+        assert_eq!(found.location.file, "données/secrets.json");
+    }
+
+    #[test]
     fn an_example_file_is_meant_to_be_committed() {
         let Some(dir) = git_repo("example") else {
             println!("git is not available here, so this cannot be exercised");
@@ -913,6 +943,52 @@ mod tests {
                 .iter()
                 .any(|f| f.rule_id == "config.gitignore-covers-env"),
             "{report:?}"
+        );
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn every_environment_file_at_the_root_must_be_left_out() {
+        // The review of 6 October, item 12: `.env` left out, `.env.production` beside it not.
+        let dir = scratch("env-files");
+        fs::write(dir.join(".env.production"), "SESSION_SECRET=x\n").unwrap();
+        fs::write(dir.join(".env.example"), "SESSION_SECRET=\n").unwrap();
+        let outcome = |gitignore: &str| {
+            fs::write(dir.join(".gitignore"), gitignore).unwrap();
+            check_dir(&dir)
+        };
+        let report = outcome(".env\n");
+        let found = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.gitignore-covers-env")
+            .unwrap_or_else(|| panic!("credited: {report:?}"));
+        assert!(
+            found.description.contains("`.env.production`"),
+            "{}",
+            found.description
+        );
+        // Left out by a pattern, or by name, it passes; the template is meant to be committed.
+        for covering in [
+            ".env\n.env.*\n!.env.example\n",
+            ".env*\n",
+            ".env\n.env.production\n",
+        ] {
+            assert!(
+                outcome(covering)
+                    .passed
+                    .iter()
+                    .any(|p| p.check_id == "config.gitignore-covers-env"),
+                "{covering:?}"
+            );
+        }
+        // `.env` itself is still asked for when it is not there yet.
+        assert!(
+            outcome(".env.production\n")
+                .findings
+                .iter()
+                .any(|f| f.rule_id == "config.gitignore-covers-env"
+                    && f.description.contains("`.env`")),
         );
         fs::remove_dir_all(&dir).ok();
     }
