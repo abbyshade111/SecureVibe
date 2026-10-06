@@ -195,7 +195,7 @@ fn opcode(op: u8) -> Option<(u8, Arg)> {
         b'C' => (3, Counted(1)),
         0x8c => (4, Counted(1)),
         0x8d | 0x8e => (4, Counted(8)),
-        0x8f | 0x90 | 0x91 | 0x92 | 0x93 | 0x94 => (4, None),
+        0x8f..=0x94 => (4, None),
         0x95 => (4, Fixed(8)),
         0x96 => (5, Counted(8)),
         0x97 | 0x98 => (5, None),
