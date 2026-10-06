@@ -130,6 +130,15 @@ pub struct AstRule {
     /// function: no rule can read every such function, and one named so usually does what it says.
     #[serde(default)]
     pub says_when_checked: bool,
+    /// When true, `argumentPatterns` also matches through a name: a name in `@arg` that the function
+    /// around the call sets, in an assignment or a declaration, to text the pattern matches.
+    ///
+    /// `email = userinfo["email"]` and then `User.query.filter_by(email=email)` is the same lookup as
+    /// `filter_by(email=userinfo["email"])`, and the usual way it is written. Read in the function
+    /// around the call (or the whole file outside any function), in every language, since a name
+    /// set in another function is another variable.
+    #[serde(default)]
+    pub argument_names_read: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
@@ -2028,6 +2037,11 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             if let Some(pattern) = for_hash.or_else(|| compiled.argument.get(language)) {
                 match arg_text {
                     Some(text) if pattern.is_match(text) => {}
+                    Some(_)
+                        if compiled.rule.argument_names_read
+                            && arg_node.is_some_and(|arg| {
+                                name_set_to(arg, source.as_bytes(), pattern)
+                            }) => {}
                     _ => continue,
                 }
             }
@@ -2168,6 +2182,104 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         broken,
         parameter_destinations,
     }
+}
+
+/// The nodes that set a name to a value, in the grammars `sv` reads: an assignment (`x = v`,
+/// `$x = v`, `x := v`) or a declaration with a value (`let x = v`, `String x = v`, `var x = v`).
+const SETTERS: &[&str] = &[
+    "assignment",
+    "assignment_expression",
+    "assignment_statement",
+    "short_var_declaration",
+    "var_spec",
+    "variable_declarator",
+];
+
+/// The nodes that are a function, a method, or a closure, in the grammars `sv` reads.
+const FUNCTIONS: &[&str] = &[
+    "function_definition",
+    "function_declaration",
+    "function_expression",
+    "function",
+    "generator_function_declaration",
+    "arrow_function",
+    "method_definition",
+    "method_declaration",
+    "constructor_declaration",
+    "local_function_statement",
+    "lambda",
+    "lambda_expression",
+    "func_literal",
+    "method",
+    "singleton_method",
+    "anonymous_function",
+    "anonymous_function_creation_expression",
+    "function_item",
+    "closure_expression",
+];
+
+/// Whether a name in `arg` is set, in the function around it, to text `pattern` matches.
+fn name_set_to(arg: tree_sitter::Node, source: &[u8], pattern: &regex::Regex) -> bool {
+    let text = |n: tree_sitter::Node| n.utf8_text(source).unwrap_or("");
+    // The names in the argument, `$` left off PHP's.
+    let mut names = BTreeSet::new();
+    let mut stack = vec![arg];
+    while let Some(node) = stack.pop() {
+        // A name after a dot (`u.email`) or a keyword's own name (`email=` in Python) is a field
+        // or a parameter, not a variable the function sets.
+        let member = node.parent().is_some_and(|parent| {
+            ["attribute", "property", "name", "field"]
+                .iter()
+                .any(|field| is_field_of(parent, field, node))
+        });
+        // JavaScript's `{ email }` is a name too, written as a property.
+        if matches!(
+            node.kind(),
+            "identifier" | "variable_name" | "shorthand_property_identifier"
+        ) && !member
+        {
+            names.insert(text(node).trim_start_matches('$'));
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.named_children(&mut cursor));
+    }
+    if names.is_empty() {
+        return false;
+    }
+    // The function around the call, or the file.
+    let mut scope = arg;
+    while let Some(parent) = scope.parent() {
+        scope = parent;
+        if FUNCTIONS.contains(&scope.kind()) {
+            break;
+        }
+    }
+    let mut stack = vec![scope];
+    while let Some(node) = stack.pop() {
+        if SETTERS.contains(&node.kind()) {
+            let target = ["left", "name", "pattern"]
+                .iter()
+                .find_map(|f| node.child_by_field_name(f));
+            let value = ["right", "value"]
+                .iter()
+                .find_map(|f| node.child_by_field_name(f))
+                .or_else(|| {
+                    let mut cursor = node.walk();
+                    node.named_children(&mut cursor).last()
+                });
+            if let (Some(target), Some(value)) = (target, value)
+                && text(target)
+                    .split(',')
+                    .any(|t| names.contains(t.trim().trim_start_matches('$')))
+                && pattern.is_match(text(value))
+            {
+                return true;
+            }
+        }
+        let mut cursor = node.walk();
+        stack.extend(node.named_children(&mut cursor));
+    }
+    false
 }
 
 /// When `node` is a bare name that is a parameter of the Python function around it: the function's
@@ -6019,6 +6131,54 @@ mod tests {
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithoutClaimsValidation()) }", true),
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { v := provider.Verifier(&oidc.Config{ClientID: \"my-api\", SkipClientIDCheck: false}) }", false),
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithAudience(\"my-api\")) }", false),
+        ("ast.account-found-by-provider-email", "python", "user = User.query.filter_by(email=token[\"userinfo\"][\"email\"]).first()", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    userinfo = oauth.google.authorize_access_token()[\"userinfo\"]\n    email = userinfo[\"email\"]\n    user = User.query.filter_by(email=email).first()\n", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    idinfo = id_token.verify_oauth2_token(tok, requests.Request(), CLIENT_ID)\n    row = db.execute(\"SELECT id FROM users WHERE email = ?\", (idinfo.get(\"email\"),)).fetchone()\n", true),
+        ("ast.account-found-by-provider-email", "python", "user = User.query.filter_by(sub=token[\"userinfo\"][\"sub\"]).first()", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    sub, email = userinfo[\"sub\"], userinfo[\"email\"]\n    user = User.query.filter_by(email=email).first()\n", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    email = userinfo[\"email\"]\n    stored = db.session.execute(select(User.email).where(User.sub == userinfo[\"sub\"])).scalar()\n", false),
+        ("ast.account-found-by-provider-email", "python", "def login():\n    email = request.form[\"email\"]\n    user = User.query.filter_by(email=email).first()\n", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    email = userinfo[\"email\"]\n    send_welcome(email)\n", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    email = userinfo[\"email\"]\ndef login():\n    user = User.query.filter_by(email=email).first()\n", false),
+        ("ast.account-found-by-provider-email", "javascript", "passport.use(new GoogleStrategy(opts, async (at, rt, profile, done) => { const user = await User.findOne({ email: profile.emails[0].value }); done(null, user); }));", true),
+        ("ast.account-found-by-provider-email", "javascript", "async function callback(req) { const payload = ticket.getPayload(); const email = ticket.getPayload().email; return prisma.user.findUnique({ where: { email } }); }", true),
+        ("ast.account-found-by-provider-email", "javascript", "async function callback(req) { const claims = tokenSet.claims(); return prisma.user.findUnique({ where: { email: claims.email } }); }", true),
+        ("ast.account-found-by-provider-email", "javascript", "passport.use(new GoogleStrategy(opts, async (at, rt, profile, done) => { const user = await User.findOne({ googleId: profile.id }); done(null, user); }));", false),
+        ("ast.account-found-by-provider-email", "javascript", "async function login(req) { const email = req.body.email; return prisma.user.findUnique({ where: { email } }); }", false),
+        ("ast.account-found-by-provider-email", "javascript", "async function callback() { await mailer.send({ to: claims.email, subject: 'Welcome' }); }", false),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/callback', async (req, res) => { const claims = tokenSet.claims(); res.render('welcome', { email: claims.email }); });", false),
+        ("ast.account-found-by-provider-email", "typescript", "export async function signIn(claims: Claims) { return db.user.findFirst({ where: { email: claims.email } }); }", true),
+        ("ast.account-found-by-provider-email", "typescript", "export async function signIn(userInfo: UserInfo) { const email: string = userInfo.email; return users.findOneBy({ email }); }", true),
+        ("ast.account-found-by-provider-email", "typescript", "export async function signIn(claims: Claims) { return db.user.findFirst({ where: { sub: claims.sub } }); }", false),
+        ("ast.account-found-by-provider-email", "typescript", "export async function signIn(form: Form) { const email: string = form.email; return users.findOneBy({ email }); }", false),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  auth = request.env['omniauth.auth']\n  user = User.find_by(email: auth.info.email)\nend\n", true),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  email = request.env['omniauth.auth']['info']['email']\n  user = User.find_or_create_by(email: email)\nend\n", true),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  auth = request.env['omniauth.auth']\n  user = User.find_by(provider: auth.provider, uid: auth.uid)\nend\n", false),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  user = User.find_by(email: params[:email])\nend\n", false),
+        ("ast.account-found-by-provider-email", "go", "package m\nfunc callback() { var claims struct{ Email string }\n idToken.Claims(&claims)\n db.Where(\"email = ?\", claims.Email).First(&user) }", true),
+        ("ast.account-found-by-provider-email", "go", "package m\nfunc callback() { email := userInfo.Email\n row := db.QueryRow(\"SELECT id FROM users WHERE email = $1\", email) }", true),
+        ("ast.account-found-by-provider-email", "go", "package m\nfunc callback() { var claims struct{ Subject string }\n idToken.Claims(&claims)\n db.Where(\"sub = ?\", claims.Subject).First(&user) }", false),
+        ("ast.account-found-by-provider-email", "go", "package m\nfunc login(r *http.Request) { email := r.FormValue(\"email\")\n row := db.QueryRow(\"SELECT id FROM users WHERE email = $1\", email) }", false),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $user = User::where('email', Socialite::driver('google')->user()->getEmail())->first(); }", true),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $email = $googleUser->getEmail();\n $user = User::firstOrCreate(['email' => $email]); }", true),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $user = User::where('google_id', $googleUser->getId())->first(); }", false),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction login($request) { $email = $request->input('email');\n $user = User::where('email', $email)->first(); }", false),
+        ("ast.account-found-by-provider-email", "java", "class C { User f(OidcUser oidcUser) { return userRepository.findByEmail(oidcUser.getEmail()); } }", true),
+        ("ast.account-found-by-provider-email", "java", "class C { User f(OAuth2User principal) { String email = principal.getAttribute(\"email\"); return userRepository.findByEmail(email); } }", true),
+        ("ast.account-found-by-provider-email", "java", "class C { User f(OidcUser oidcUser) { return userRepository.findBySubject(oidcUser.getSubject()); } }", false),
+        ("ast.account-found-by-provider-email", "java", "class C { User f(LoginForm form) { String email = form.getEmail(); return userRepository.findByEmail(email); } }", false),
+        ("ast.account-found-by-provider-email", "csharp", "class C { async Task F() { var user = await _userManager.FindByEmailAsync(info.Principal.FindFirstValue(ClaimTypes.Email)); } }", true),
+        ("ast.account-found-by-provider-email", "csharp", "class C { async Task F() { var email = info.Principal.FindFirstValue(ClaimTypes.Email);\n var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email); } }", true),
+        ("ast.account-found-by-provider-email", "csharp", "class C { async Task F() { var user = await _userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey); } }", false),
+        ("ast.account-found-by-provider-email", "csharp", "class C { async Task F(LoginModel model) { var user = await _userManager.FindByEmailAsync(model.Email); } }", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    token = oauth.google.authorize_access_token()\n    session[\"user\"] = token[\"userinfo\"][\"email\"]\n", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    token = oauth.google.authorize_access_token()\n    session[\"user\"] = token[\"userinfo\"][\"sub\"]\n    session[\"email\"] = token[\"userinfo\"][\"email\"]\n", false),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/callback', async (req, res) => { const claims = tokenSet.claims(); req.session.userId = claims.email; });", true),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/callback', async (req, res) => { const claims = tokenSet.claims(); req.session.userId = claims.sub; req.session.email = claims.email; });", false),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  session[:user_id] = request.env['omniauth.auth']['info']['email']\nend\n", true),
+        ("ast.account-found-by-provider-email", "ruby", "def create\n  session[:user_id] = request.env['omniauth.auth']['uid']\nend\n", false),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $_SESSION['user_id'] = $googleUser->getEmail(); }", true),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $_SESSION['user_id'] = $googleUser->getId(); }", false),
         // A token's own `jku`, `x5u`, or `jwk` handed to what fetches or makes its key (V9.1.3). The
         // quiet cases: a fixed address, a check against a list, a log line, an address parsed for
         // its host, and a token being made with a `jku` of the app's own.
@@ -6255,6 +6415,7 @@ mod tests {
             "ast.static-files-from-app-folder",
             "ast.token-audience-not-checked",
             "ast.token-key-source-from-token",
+            "ast.account-found-by-provider-email",
         ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {
