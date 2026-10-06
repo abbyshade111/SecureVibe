@@ -107,7 +107,16 @@ pub struct Sealed {
 /// files with the seal and finds the change. `sentence` is what the marker says above the seal.
 /// `Err` says why it could not be sealed, for the caller to say; the report itself stands either way.
 pub fn seal(dir: &Path, sentence: &str, written: &[(&str, &[u8])]) -> Result<Sealed, String> {
-    let folder = key_folder()?;
+    seal_in(&key_folder()?, dir, sentence, written)
+}
+
+/// `seal`, with the report key kept in `folder`.
+fn seal_in(
+    folder: &Path,
+    dir: &Path,
+    sentence: &str,
+    written: &[(&str, &[u8])],
+) -> Result<Sealed, String> {
     let (key, made) = Key::load_or_make_named(&folder, REPORT_KEY_FILE)?;
     let digests = digests_of(written)?;
     let fields = fields(&digests);
@@ -191,5 +200,43 @@ mod tests {
         }
         // Every sealed file must be among what was written.
         assert!(digests_of(&written[1..]).is_err());
+    }
+
+    #[test]
+    fn the_seal_written_holds_for_the_bytes_and_not_for_a_file_changed_before_sealing() {
+        let base = std::env::temp_dir().join(format!("sv-seal-in-{}", std::process::id()));
+        std::fs::remove_dir_all(&base).ok();
+        let (keys, dir) = (base.join("keys"), base.join("report"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let written: Vec<(&str, &[u8])> =
+            SEALED.iter().map(|n| (*n, &b"sv wrote this"[..])).collect();
+        // Changed on disk after the writing, before the sealing.
+        for name in SEALED {
+            std::fs::write(dir.join(name), "changed after").unwrap();
+        }
+        seal_in(&keys, &dir, "a report\n", &written).expect("sealed");
+        let marker = std::fs::read_to_string(dir.join(sv_scan::ecosystems::REPORT_MARKER)).unwrap();
+        let seal = marker
+            .lines()
+            .find_map(|l| l.strip_prefix(SEAL_LINE))
+            .expect("the marker holds a seal")
+            .to_owned();
+        let key = Key::load_named(&keys, REPORT_KEY_FILE)
+            .unwrap()
+            .expect("the key");
+        let holds = |digests: &BTreeMap<&'static str, String>| {
+            let fields = fields(digests);
+            key.report_seal_holds(
+                &seal,
+                &fields.iter().map(String::as_str).collect::<Vec<_>>(),
+            )
+        };
+        let (bytes, disk) = (digests_of(&written).unwrap(), digests(&dir).unwrap());
+        std::fs::remove_dir_all(&base).ok();
+        assert!(holds(&bytes).is_ok(), "the seal is of what sv wrote");
+        assert!(
+            holds(&disk).is_err(),
+            "the files changed before sealing are not sealed as sv's"
+        );
     }
 }

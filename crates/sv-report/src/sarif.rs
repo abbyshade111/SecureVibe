@@ -646,6 +646,29 @@ mod tests {
     }
 
     #[test]
+    fn a_rule_whose_findings_differ_is_described_in_plain_lines() {
+        // The review of 6 October, item 16: the words used when a rule's findings do not share
+        // them carried a stray backslash and a run of spaces.
+        let a = finding("othertool.thing", "a.py", 1, "One");
+        let mut b = finding("othertool.thing", "b.py", 2, "Two");
+        b.impact = "Another impact.".into();
+        b.fix = "Another fix.".into();
+        let rules = rules_by_id(&sarif_of(vec![a, b]));
+        let rule = &rules["othertool.thing"];
+        for part in ["fullDescription", "help"] {
+            let text = rule[part]["text"].as_str().unwrap();
+            assert!(
+                text.contains("result's message"),
+                "the setup: the fallback is used: {text}"
+            );
+            assert!(
+                !text.contains(['\\', '\n']) && !text.contains("  "),
+                "{part}: {text:?}"
+            );
+        }
+    }
+
+    #[test]
     fn a_secret_rule_is_described_from_its_own_data() {
         let catalog: serde_json::Value = serde_json::from_str(
             &std::fs::read_to_string(
