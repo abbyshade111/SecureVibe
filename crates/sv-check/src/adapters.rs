@@ -2178,6 +2178,23 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
             quoted[0].contains("could not parse"),
             "the setup: {quoted:?}"
         );
+        // And one that names no file.
+        let unfiled = did_not_finish(
+            &secret_rules(),
+            &report(&format!(
+                r#"{{"toolExecutionNotifications":[{{"level":"error","message":{{"text":"could not parse: db_password = \"{value}\""}}}}]}}"#
+            )),
+            app,
+        );
+        assert!(
+            unfiled[0].contains("could not parse"),
+            "the setup: {unfiled:?}"
+        );
+        assert!(
+            !unfiled[0].contains(&value[4..]),
+            "{}",
+            unfiled[0].replace(&value, "<value>")
+        );
         assert!(
             !quoted[0].contains(&value[4..]),
             "{}",
