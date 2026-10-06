@@ -94,7 +94,7 @@ message. Instead:
    path). VS Code fills in `${workspaceFolder}` with the open folder, so there is no path to type.
 4. Name it `securevibe`, and save it for the **Workspace** (this app only).
 5. In the `.vscode/mcp.json` it opens, click **Start** above `securevibe`. In the chat, the tools
-   button should now list the six `securevibe_` tools.
+   button should now list the thirteen `securevibe_` tools.
 
 The file it writes looks like this:
 
@@ -164,6 +164,12 @@ More prompts like these, each for one thing SecureVibe checks, are in [the promp
 `sv prompts` prints them, and your AI tool can fetch them with `securevibe_prompts`. Each says whether it
 has been shown to work.
 
+SecureVibe also helps before code is written, and its own instructions tell your AI tool when: a plan of
+what to decide before building (`securevibe_plan`, or `sv plan` at a terminal), a short brief before
+building one feature such as sign-in, uploads, or payments (`securevibe_before`, or `sv brief`), and a
+look at the settings `--run` will use, before it is run (`securevibe_preflight`, or `sv preflight`). None
+of these checks anything or counts toward the report; they say what to decide and what to write.
+
 ## 5. Answer the questions
 
 The tool will ask you things no program can know: how long someone may stay signed in, what the app
@@ -174,10 +180,28 @@ counts it for less than your own answer.
 The answers to the questions about the app's rules go in `security-notes.md`. The tool writes them there, and
 every one it writes starts with `Written by: AI coding tool`, even when it is writing down what you told it:
 `sv` cannot tell your words from the tool's. Read what it wrote, and where it says what you decided, change
-that line to `Written by: owner` yourself. Only then does the report count it as yours.
+that line to `Written by: owner` yourself. Then record it, in your own terminal:
+
+```bash
+sv review ~/code/my-app
+```
+
+It goes through each answer that does not yet count as yours, shows it, asks your name or `owner`, and
+seals it with a key kept in your own settings folder. Only then does the report count it as yours: a line
+saying `owner` that was never recorded this way still counts as the tool's word, because a tool trying to
+quiet a warning could write that line too. The same goes for an answer the tool confirmed and you looked
+at yourself, and for a finding set aside as a false alarm. `sv review` needs a terminal someone is typing
+in, so your AI tool cannot run it for you. The README ("Setting a finding aside, confirming an answer, or
+giving your own") says more, including how to run it from the container, with `-it` and your key folder.
+
+**If your AI tool uses the container** (section 3), the report it writes cannot check those seals unless
+it can see the key folder too. Add `"-v", "/Users/you/.config/securevibe:/sv-config/securevibe", "-e",
+"XDG_CONFIG_HOME=/sv-config"` to `args`, before the image name, with your own home folder (this has not
+been tried in an AI tool yet). Without it, recorded answers count as the tool's word in those reports.
 
 Some questions are checks to make by hand, such as opening the live site and looking at the padlock.
-The tool walks you through them and records what you saw.
+The tool walks you through them and records what you saw; that record, too, counts as yours once you
+have recorded it with `sv review`.
 
 ## 6. What you get without anything more, and what you do not
 
@@ -191,10 +215,15 @@ rather than in Docker, because starting your app means starting containers of it
 download for that yet, so it means building SecureVibe yourself. The steps are at the end of this
 section, under "Installing SecureVibe on your computer, for `--run`".
 
+**Where the report is.** When your AI tool writes the report (`securevibe_write_report`), or you run
+`sv report`, it goes in a folder named `securevibe-report` inside the app's folder. Open `report.html` in
+a browser; `compliance.md` and `security.md` say the same in plain text for your AI tool.
+
 If you later run SecureVibe in an automatic check (CI) whenever the code changes, the number it ends with
 says what happened. 0: it finished. 2: some check could not run, such as a file it could not read or a
-language it does not read, so that run left part of the app unchecked. 3: SecureVibe itself failed (no
-`securevibe.toml`, or one it cannot read), so there is no result at all. 1 comes only from `sv audit` (a
+language it does not read, so that run left part of the app unchecked. 3: SecureVibe itself failed (an
+option it does not know, a folder that is not there, or, for `sv report`, no `securevibe.toml` or one it
+cannot read), so there is no result at all. 1 comes only from `sv audit` (a
 known vulnerability) or when you ask for it: `sv check . --fail-on attention:high` stops the check when
 anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
 exactly what each number covers.
@@ -284,8 +313,8 @@ not taken effect: open a new terminal window, or look for the line at the end of
 than a dozen of its own files (the security standards and its rules). The installed copy reads the ones
 the script put beside it, so moving, renaming, or deleting the folder you built it in does not stop it.
 Use `~/.local/bin/sv` wherever a full path is asked for, as in your AI tool's settings; it stays the same
-when you build again. A copy of the program on its own, without its `data` folder beside it, still cannot
-find those files and says where it looked. Before 5 October 2026 the guide had you use the program in
+when you build again. A copy of the program on its own, without its `data` folder beside it, falls back to
+the folder it was built in; once that is gone, it cannot find those files and says where it looked. Before 5 October 2026 the guide had you use the program in
 the build folder; if your `PATH` or your AI tool's settings name `…/securevibe/target/release/sv`, change
 them to `~/.local/bin/sv`.
 

@@ -11,7 +11,7 @@ import sys
 import unittest
 from xml.sax.saxutils import quoteattr
 
-# `/app` is mounted read-only by `sv`, so the report goes to the one writable place it provides.
+# `/app` is mounted read-only by `sv`, so the report goes to /sv-reports, which it keeps writable (as is /tmp).
 # Outside a `sv` run — running this by hand — fall back to a local folder.
 REPORT = os.environ.get("JUNIT_REPORT") or (
     "/sv-reports/junit.xml" if os.path.isdir("/sv-reports") else "reports/junit.xml"

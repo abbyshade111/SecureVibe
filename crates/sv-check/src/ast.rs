@@ -5775,6 +5775,28 @@ mod tests {
         ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 600000, EVP_sha256(), 32, out); }", false),
         ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC_SHA1(pw, n, salt, sn, 2048, 32, out); }", true),
         ("ast.weak-password-key-derivation", "cpp", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1300000, EVP_sha1(), 32, out); }", false),
+        // SHA-1 needs 1,300,000 rounds, where the call names it (6 October 2026): below that is
+        // reported, at it is not, and the same count with SHA-512 is not.
+        ("ast.weak-password-key-derivation", "c", "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1000000, EVP_sha512(), 32, out); }", false),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac('sha1', pw, salt, 1_000_000)", true),
+        ("ast.weak-password-key-derivation", "python", "k = PBKDF2HMAC(algorithm=hashes.SHA1(), length=32, salt=s, iterations=600000)", true),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac('sha1', pw, salt, 1_300_000)", false),
+        ("ast.weak-password-key-derivation", "python", "k = hashlib.pbkdf2_hmac('sha512', pw, salt, 1_000_000)", false),
+        ("ast.weak-password-key-derivation", "javascript", "const k = crypto.pbkdf2Sync(pw, salt, 1000000, 32, 'sha1');", true),
+        ("ast.weak-password-key-derivation", "javascript", "crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 600000, hash: 'SHA-1' }, base, aes, false, use);", true),
+        ("ast.weak-password-key-derivation", "javascript", "const k = crypto.pbkdf2Sync(pw, salt, 1300000, 32, 'sha1');", false),
+        ("ast.weak-password-key-derivation", "typescript", "const k: Buffer = pbkdf2Sync(pw, salt, 1_000_000, 32, 'sha1');", true),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k := pbkdf2.Key(pw, salt, 1_000_000, 32, sha1.New) }", true),
+        ("ast.weak-password-key-derivation", "go", "package m\nfunc f() { k, err := pbkdf2.Key(sha1.New, pw, salt, 1_300_000, 32) }", false),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = hash_pbkdf2(\"sha1\", $pw, $salt, 1000000, 32);", true),
+        ("ast.weak-password-key-derivation", "php", "<?php $k = openssl_pbkdf2($pw, $salt, 32, 1300000, 'sha1');", false),
+        ("ast.weak-password-key-derivation", "ruby", "k = OpenSSL::KDF.pbkdf2_hmac(pw, salt: s, iterations: 1_000_000, length: 32, hash: 'sha1')", true),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 1000000, HashAlgorithmName.SHA1); } }", true),
+        ("ast.weak-password-key-derivation", "csharp", "class A { void F() { var k = new Rfc2898DeriveBytes(pw, salt, 1300000, HashAlgorithmName.SHA1); } }", false),
+        ("ast.weak-password-key-derivation", "rust", "fn f() { pbkdf2::pbkdf2::<Hmac<Sha1>>(pw, salt, 1_000_000, &mut key); }", true),
+        ("ast.weak-password-key-derivation", "dart", "final k = Pbkdf2(macAlgorithm: Hmac.sha1(), iterations: 1000000, bits: 256);", true),
+        ("ast.weak-password-key-derivation", "swift", "func f() { CCKeyDerivationPBKDF(CCPBKDFAlgorithm(kCCPBKDF2), pw, pwLen, salt, saltLen, CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA1), 1000000, &key, 32) }", true),
+        ("ast.weak-password-key-derivation", "shell", "openssl enc -aes-256-cbc -pbkdf2 -md sha1 -iter 1300000 -in a -out b", false),
         ("ast.weak-password-key-derivation", "kotlin", "fun f() { val s = PBEKeySpec(pw, salt, 1000, 256) }", true),
         ("ast.weak-password-key-derivation", "kotlin", "fun f() { val s = PBEKeySpec(pw, salt, 600_000, 256) }", false),
         ("ast.weak-password-key-derivation", "kotlin", "fun f() { val s = PBEKeySpec(pw, salt, rounds, 256) }", false),
@@ -6076,6 +6098,48 @@ mod tests {
         );
         assert_eq!(names, ["A", "d"], "{names:?}");
         assert_eq!(tables, ["T"], "{tables:?}");
+    }
+
+    #[test]
+    fn a_pbkdf2_count_below_1_300_000_is_reported_where_the_call_names_sha_1() {
+        // Where naming SHA-1 also fires another rule (the hash itself in C, C++, and Ruby's
+        // `Digest::SHA1`; `openssl enc`'s unauthenticated cipher), the witness table above cannot
+        // hold a positive, so these are here, each with its count at 1,300,000 as the control.
+        let rules = rules();
+        for (language, below, at) in [
+            (
+                "c",
+                "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1299999, EVP_sha1(), 32, out); }",
+                "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1300000, EVP_sha1(), 32, out); }",
+            ),
+            (
+                "cpp",
+                "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1000000, EVP_sha1(), 32, out); }",
+                "void f() { PKCS5_PBKDF2_HMAC(pw, n, salt, sn, 1300000, EVP_sha1(), 32, out); }",
+            ),
+            (
+                "ruby",
+                "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 1_000_000, 32, OpenSSL::Digest::SHA1.new)",
+                "k = OpenSSL::PKCS5.pbkdf2_hmac(pw, salt, 1_300_000, 32, OpenSSL::Digest::SHA1.new)",
+            ),
+            (
+                "shell",
+                "openssl enc -aes-256-cbc -pbkdf2 -md sha1 -iter 1000000 -in a -out b",
+                "openssl enc -aes-256-cbc -pbkdf2 -md sha1 -iter 1300000 -in a -out b",
+            ),
+        ] {
+            let fires = |source: &str| {
+                ids(&scan_file(
+                    &rules,
+                    language,
+                    &format!("src/app.{language}"),
+                    source,
+                ))
+                .contains(&"ast.weak-password-key-derivation")
+            };
+            assert!(fires(below), "{language}: {below}");
+            assert!(!fires(at), "{language}: {at}");
+        }
     }
 
     #[test]
