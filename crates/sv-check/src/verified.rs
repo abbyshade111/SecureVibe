@@ -32,11 +32,38 @@ pub struct Verified {
 }
 
 impl Verified {
+    #[track_caller]
     pub fn new(check_id: &str, requirement_ids: &[&str], scope: String) -> Self {
+        #[cfg(debug_assertions)]
+        census(check_id, requirement_ids, std::panic::Location::caller());
         Verified {
             check_id: check_id.to_owned(),
             requirement_ids: requirement_ids.iter().map(|s| (*s).to_owned()).collect(),
             scope,
         }
+    }
+}
+
+/// In a debug build (the test suite), with `SV_CREDIT_LOG` set, each credit is added to that file as
+/// one line: the check, its requirements, and the place in the code that gave it.
+/// `tools/coverage.py --credits` reads the file, to tell which checks the suite saw give credit.
+#[cfg(debug_assertions)]
+fn census(check_id: &str, requirement_ids: &[&str], at: &std::panic::Location) {
+    use std::io::Write;
+    let Some(log) = std::env::var_os("SV_CREDIT_LOG") else {
+        return;
+    };
+    let line = format!(
+        "{check_id}\t{}\t{}:{}\n",
+        requirement_ids.join(","),
+        at.file(),
+        at.line()
+    );
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log)
+    {
+        let _ = file.write_all(line.as_bytes());
     }
 }

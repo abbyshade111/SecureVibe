@@ -10018,6 +10018,42 @@ cases that say so and controls that must not. Fifteen guards were undone in turn
 no weight and were taken out: a second check that every binding of a checked name has a value, which the first
 already made, and a check for a name with no bindings, which cannot happen.
 
+## A redirect to a parameter every caller fills with the app's own route says so (5 October 2026)
+
+The redirect half of family-hub's item 7 (BACKLOG, "What the owner hit building family-hub"), the last of A1.
+`ast.open-redirect` flagged `redirect(destination)` in `familyhub/signin.py`, where `destination` was a parameter
+that every caller filled with `url_for("home.index")`. The finding said "possible" and to read the code first; the
+AI tool offered to remove the parameter, "which ... clears the finding", and the owner agreed. The removal did no
+harm there, but it was working code changed to quiet a rule.
+
+As for a destination a function checked (the section above), the finding stays, at the rule's own low confidence,
+and says what it found, as the owner decided on 5 October 2026 for that case. When the destination is a bare name
+that is a parameter of the Python function the redirect sits in, and the function does not give it another value,
+`scan_listing` looks, once every file is read, at every use of that function's name across the app's Python. When
+every use is a call, its own definition, or an import, there is at least one call, and every call passes, by
+position or by name, or leaves to a default, a value the rule already counts as safe on its own (`url_for(...)`,
+`reverse(...)`, a path on this site), the finding says so: "The value here is `destination`, a parameter of
+`finish_sign_in`, and each of its 2 calls in this app's Python passes the app's own route or a path on this site
+(`views.py` line 5 and `views.py` line 8), so it may already be safe: check that nothing else calls
+`finish_sign_in`, such as code `sv` did not read or another function of the same name, before changing anything.
+Removing the parameter only to make this finding go away is not a fix."
+
+It says nothing more when a call passes anything else, the name is handed on to be called elsewhere (`HOOKS =
+[finish_sign_in]`), nobody calls the function (a Flask view, whose arguments come from the address), a call spreads
+its arguments (`*args`), or the parameter can only be passed by name and a call leaves it out. A method's `self` or
+`cls` is not counted among the arguments, since `auth.go(...)` does not pass it.
+
+What it does not know, and says: a call by another name, a call from code `sv` did not read, and a different
+function of the same name, whose calls are counted as this one's. Python only; JavaScript and TypeScript keep the
+plain finding.
+
+How it is held: `a_destination_every_caller_fills_with_the_apps_own_route_says_so` (`crates/sv-check/src/ast.rs`),
+with three cases that say so and seven that must not. Ten guards broken in turn, each caught: the callers never
+looked up, a reassigned parameter believed, a name handed on taken as called, an import taken as another use, a
+spread believed (caught only by a fixture added for it, a spread over a safe default), a keyword-only parameter
+taken by position, a method's `self` counted, a default ignored, a keyword argument not read, and any value taken
+as the app's own route.
+
 ## `.env` with nothing leaving it out, in a folder not yet in git (5 October 2026)
 
 In the loop pilot every build was flagged `config.gitignore-covers-env` (high) by `sv report` on a copy that
@@ -10390,6 +10426,39 @@ named, in SARIF and the summary; and a finding only in the copy still keeping V1
 `the_ai_tool_reads_the_apps_own_findings_before_those_in_a_copied_library` in `mcp.rs`. Fifteen guards were undone in
 turn and each was caught; a sixteenth, skipping a version after the word "License" or "Version", carried no weight
 beside the three-part rule and was taken out.
+
+## What the suite credits is counted, and held to the findings-only lists (6 October 2026)
+
+Running-app checks item 1 left one thing undone (BACKLOG). `docs/COVERAGE.md` had counted 21 checks as able to credit
+their requirements when none ever did, found on 3 October by reading the code. Nothing would catch the next one,
+because a check gives credit through helpers and tables of rules as often as by name.
+
+- **Every credit is written down.** In a debug build, which is what the test suite runs, `Verified::new` adds one
+  line to the file `SV_CREDIT_LOG` names: the check, its requirements, and the place in the code that gave it
+  (`#[track_caller]`). A release build has none of this, so `sv` itself writes nothing new anywhere.
+- **The census reads it** (`python3 tools/coverage.py --credits LOG`). A credit made in a test, in a test module, or in
+  a file that is a test of its own is a test building its own evidence and is left out, by the same line
+  `coverage.py` already draws (everything before a file's first `#[cfg(test)]` ships). It fails when a check listed as
+  only ever a finding (`RUST_FINDINGS_ONLY`, or `findingsOnly` on a tree-sitter rule) was credited; when one never
+  credited is not listed, which means it is findings-only or no test reaches its credit; and when a credit names a
+  requirement the check does not cite.
+- **CI runs it** after the tests, in the same job (`.github/workflows/rust.yml`).
+
+The first census found three more:
+
+- `probe.password-hints` (V6.4.2) only ever raises a finding.
+- `secrets.credential-assignment` (V13.2.3) never credits under its own name. A clean scan is credited as
+  `secrets.scan`, which names the requirements of `data/secret-rules.json`, and V13.2.3 is not one of them.
+- `probe.cors-any-origin` (V3.4.2) does credit, but no test reached it.
+
+The first two are now listed, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md` mark them as "only ever as a finding".
+The third has its test (`an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not`). The census
+agrees with every tree-sitter rule's flag as it was. No report changes: the reports never credited any of these.
+
+How it is held: `a_credit_is_written_down_with_the_place_that_gave_it` (`crates/sv-check/tests/credit_log.rs`) holds
+the line, and in CI it also writes a credit for a findings-only check from a test into the suite's own log, which the
+census must leave out. `the_census_of_credits_counts_only_what_a_check_gave` (`coverage_doc.rs`) feeds the census small
+logs whose answer is known. Ten guards were undone in turn, and each was caught by one or both.
 
 ## The review of 1 to 4 October, batch 1: six false credits and accusations (6 October 2026)
 
