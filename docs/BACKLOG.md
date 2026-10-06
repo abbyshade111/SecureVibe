@@ -3532,6 +3532,12 @@ another session is not a claim.
       branch `claude/securevibe-e2-pickles`: a file under any name whose bytes open as a protocol 2 to 5 pickle and end
       with its `STOP`, and a file under a model file's name that reads as a protocol 0 or 1 pickle from its first
       opcode to its `STOP`. A model downloaded when the app runs stays out of reach of reading files.
+      **Done the same day** (DESIGN, "A pickle under any name, and the old pickles with nothing to know them by"):
+      `walks_as_pickle` reads a file opcode by opcode, as `pickletools` describes each, and counts it only when it ends
+      exactly at its `STOP`; a file under a model file's name that does not open with `PROTO` is walked with protocols
+      0 and 1, and every other file that is not code is opened for two bytes and walked when they are a `PROTO`.
+      Twelve guards broken in turn, each caught (one only after a witness was added). Still not seen: a protocol 0 or
+      1 pickle under another name, and a model downloaded when the app runs.
   12. **The code half of V9.2.3: a token check told not to check who the token is for.** From
       `docs/PARTIAL-CHECKS.md` and item 2 above, which says a code rule fits whichever way the owner decides the
       running probe. A rule for the explicit switches tutorials copy: `verify_aud` False in PyJWT and python-jose,
