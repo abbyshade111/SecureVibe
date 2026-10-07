@@ -118,6 +118,8 @@ another session is not a claim.
      `sv`'s own rule or Semgrep's equivalent cites it. B310 and G106 are named with no requirement, saying why: B310
      fires on every `urlopen`, fixed addresses included, and G106 is about SSH, which the TLS requirements do not
      cover. No credit changes, so no ADR is proposed.
+     **Done the same day** (DESIGN, "Bandit's and gosec's findings for injection and unescaped output name their
+     requirement"), with two tests in `crates/sv-check/tests/citations.rs`.
   13. **Running checks an attacker would try first.** (`docs/GAP-ANALYSIS.md`, 3.5.) Each claimable on its own: (a)
      mass assignment beyond sign-up: B sends `owner`/`user_id`/`role` on `owned.create`, `creates`, and
      `change-email`; (b) stored cross-site scripting: a second `owned` record with `<sv-x>` in its marker, and a
