@@ -31,6 +31,9 @@ another session is not a claim.
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
      in the counts for checks that rest on one sample. The wording part changes how a report concludes: a record.
+     **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with items 7 and 4"), in
+     branch `claude/owned-depth`: all three parts. **`Status: proposed`: ADR-053.** Read on `main` just before this
+     claim: no other session had claimed it.
   5. **The coverage documents count requirements that can never be credited as "can settle".**
      (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
      tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
@@ -192,6 +195,9 @@ another session is not a claim.
      attention:high` for a CI workflow.
      **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("feel free to pick something
      else from the backlog"), in branch `claude/securevibe-e2-report-points`.
+     **Done the same day** (DESIGN, "Smaller report points from the gap analysis"; ADR-029, Later): the wording
+     fixed, every sentence of the short version held to the banned words, and `--fail-on attention:high` named in
+     the specification and the MCP instructions.
   29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
      (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
      V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
