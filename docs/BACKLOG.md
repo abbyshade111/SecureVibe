@@ -38,6 +38,8 @@ another session is not a claim.
      (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
      tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
      section's sentence about them for ASVS (`tools/coverage.py`).
+     **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+     backlog"), in branch `claude/securevibe-e2-can-be-credited`.
   6. **The development-server check passes `python app.py` that starts Flask's debugger.** (`docs/GAP-ANALYSIS.md`,
      1.9.) A code rule for `app.run(debug=True)`, `app.debug = True`, and Django's `DEBUG = True` (finding only), or
      have `config.development-server-started` say the script it runs decides, instead of passing.
