@@ -7301,3 +7301,7 @@ revisits that ruling. Whether one should is the owner's question.
 the decision that `sv` checks apps in many languages, with its own rules among the checks, is **claimed
 the same day by session securevibe-e8** and drafted as ADR-018. **Accepted by the owner the same day**, and
 done: `docs/adr/ADR-018.md`.
+
+- **`ast.weak-password-key-derivation` cites V11.4.4 only, where storing passwords is V11.4.2.** Found on 7 October 2026
+  by both independent reviews of the prompt library. **The owner's decision the same day: cite both. Claimed by session
+  paper-facts**, in branch `claude/kdf-citation`; the record, `Status: proposed`, is ADR-048.
