@@ -7750,17 +7750,26 @@ done: `docs/adr/ADR-018.md`.
   response" and may miss the same pages.
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
   `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day:** `production-server` now says how to keep the version out of Python's built-in server
+  (`server_version`, `sys_version`; tried by hand: the header becomes `app`, which `probe.version-disclosed` passes), and
+  `isolate-the-window` how to give Python's own error pages the headers. Both sentences are untried, and the library
+  says so. `security-headers` and `private-pages-no-store` are left as they are until a trial shows the same miss.
 - **Two more mistakes in the settings files Haiku writes.** Found on 7 October 2026 by session paper-facts, in the
   revision trial: of the 12 files of 80 `sv` could not read, six put `admin` or `seed` under `[stack.run]` (they belong
   under `[stack.run.users]`) and three wrote `ai = true` under `[capabilities]` (it is `enabled = true` under
   `[capabilities.ai]`, already an item above). A sentence in the specification for each, as the two of 6 October did.
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
   `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day:** the specification's `[stack.run]` says `seed`, `admin` and the other sign-in keys go under
+  `[stack.run.users]`, and that its header line must be uncommented too. Whether it works is for the next trial that
+  counts unreadable files.
 - **The trial runner prints nothing while it checks.** Found on 7 October 2026 by the owner, watching the revision
   trial: the Terminal tab said "to check: 104" for three hours, and only counting `report.json` files showed progress.
   `tools/prompt_trial.py` and the trial scripts should print one line as each build's check finishes.
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
   `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day:** `tools/prompt_trial.py` prints `[3/104] build: started, 95s` on stderr as each check
+  finishes, so it shows even when the summaries are sent elsewhere.
 - **The earlier trials' totals for running checks that only report findings were too small.** Found on 7 October 2026
   by session paper-facts (the revision protocol's Amendment 2): the scorers of the prompt-library, delivery and at-start
   tests counted a running check as asked only when one of its rules said something, where `protocol.md` says when the
@@ -7770,3 +7779,8 @@ done: `docs/adr/ADR-018.md`.
   `delivery.md` and `start.md`, and those two verdicts, are to be corrected.
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
   `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (`score_recount.py`): the figures corrected in `README.md`, `delivery.md`, `start.md`, the
+  library and the guides, and the three verdict files replaced by the recount. The prompt-library trial's verdicts
+  stand; `private-pages-no-store` on Haiku is "no reading" in the delivery and at-start tests. Found on the way:
+  `data/design-prompts.json` and ADR-028 said the revised `design-limits` and `design-sign-in` were tried in the
+  revision trial, which left design prompts out; corrected, with a dated correction on ADR-028.
