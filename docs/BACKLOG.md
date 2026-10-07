@@ -154,6 +154,22 @@ another session is not a claim.
      on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
      deleted.
 
+- **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
+  the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
+  start in `docs/GAP-ANALYSIS.md`.
+  1. **The app's own tests in a tier of their own** (1.1). A new status, below *checked*; ids read only from code;
+     requirements a test cannot show never credited by tests. **`Status: proposed`: ADR-050.**
+  2. **The tests required before merging, and every commit on `main` tested** (7.1). `test` made a required check
+     (a repository setting the owner makes, since a session cannot), and `rust.yml`'s concurrency group on `main` made
+     one per commit so no run there is cancelled. **`Status: proposed`: ADR-051.**
+  3. **Semgrep's any-language rules credited only for files Semgrep scanned** (1.2). Narrows what counts as evidence:
+     ADR-018, Later.
+  4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
+     V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
+  **All four claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, each in its own branch
+  (`claude/securevibe-e2-app-tests-tier`, `claude/securevibe-e2-tests-required`,
+  `claude/securevibe-e2-semgrep-scanned`, `claude/securevibe-e2-git-history-keys`).
+
 - **V6.5.3: a sign-in, reset, or two-factor code made with an ordinary random number generator.** From
   `docs/PARTIAL-CHECKS.md` (V6.5.3, level 2, "reads the code, finding only"), which no check of `sv`'s own speaks to.
   Python's `random.randint` and its kin, JavaScript's `Math.random`, Java's `java.util.Random` and
