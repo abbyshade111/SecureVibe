@@ -19,6 +19,9 @@ another session is not a claim.
   proposals put here, each for the owner to decide; adding it as a framework `sv` cites, like ASVS and AISVS, is a
   decision with a record of its own, as the frameworks it already loads were. Read the list's own text before saying
   what any item asks, as with every citation.
+  **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick your next backlog
+  item"), in branch `claude/securevibe-e9-agentic-skills`. Read on `main` just before this claim: no other session had
+  claimed it.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
