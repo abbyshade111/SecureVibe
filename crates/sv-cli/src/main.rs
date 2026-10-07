@@ -1803,6 +1803,9 @@ fn cmd_run(args: &[String]) -> Result<i32> {
                 println!("\n{removed}");
             }
             println!("\nThe app started and answered on {}.", plan.health_path);
+            if let Some(installed) = sv_run::install::sentence(&outcome.installed) {
+                println!("\n{installed}");
+            }
             println!("\n{}", outcome.fence.explain());
             let (findings, verified, signed_in_not_assessed) =
                 running_app_evidence(&outcome, &plan);
@@ -3858,6 +3861,12 @@ fn assemble_report_saying(
                     plan.health_path,
                     outcome.fence.explain()
                 ));
+                if let (Some(note), Some(installed)) = (
+                    run_note.as_mut(),
+                    sv_run::install::sentence(&outcome.installed),
+                ) {
+                    note.push_str(&format!(" {installed}"));
+                }
                 if let (Some(note), Some(removed)) = (
                     run_note.as_mut(),
                     sv_run::cleanup::removed_sentence(&outcome.left_over_removed),
