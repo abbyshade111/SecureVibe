@@ -9,6 +9,18 @@ another session is not a claim.
 
 ## Next
 
+- **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
+  `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
+  and `probe.private-page-headers` credit V3.4.3 for any Content-Security-Policy, where V3.4.3 asks for a policy that
+  includes `object-src 'none'` and `base-uri 'none'` and defines an allowlist. **The owner's decision: "The check should
+  look for them."** (2) `ast.weak-password-key-derivation` cites only V11.4.4 (a key made from a password), where code
+  storing passwords is V11.4.2. **The owner's decision: "Yes, fix the citation."** (A third question, a time limit on
+  each tool call for C9.1.1, the owner judged not worth building.) **Claimed the same day by session
+  securevibe-e2**, at the owner's word, in branch `claude/securevibe-e2-csp-directives`: the header check names a
+  policy without `object-src 'none'`, `base-uri 'none'`, or a `default-src` or `script-src`; the rule cites V11.4.2
+  beside V11.4.4. **Record, `Status: proposed`: ADR-047** for the first, and a "Later" entry on ADR-018 for the second,
+  in the pull request that builds them. Read on `main` just before this claim: no other session had claimed either.
+
 - **A review of the code merged on 1 to 4 October 2026, for faults.** Asked for by the owner on 6 October 2026, after
   the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read
   the changes from `34ca633` to `0d5258e` in four parts, each fault is reproduced by running `sv` on a small app made for it
