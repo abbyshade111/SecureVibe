@@ -22,6 +22,25 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick your next backlog
   item"), in branch `claude/securevibe-e9-agentic-skills`. Read on `main` just before this claim: no other session had
   claimed it.
+  **Done the same day:** `docs/AGENTIC-SKILLS-TOP-10.md`, read from the list's own repository at `d6f7d7d` (owasp.org
+  is blocked here).
+  - **What it is:** a list of ten risks, not requirements; version 1.0 still in public review; CC BY-SA 4.0.
+  - **Its references:** its ASVS references use ASVS 4.0's numbering, and each points elsewhere in 5.0. It never
+    mentions AISVS.
+  - **Where it reaches an app built with an AI tool:** AISVS C9.3 and C10.1 already ask the same things.
+  - **The gap:** the person's own AI tool's files in the project folder, which `sv` leaves out on purpose
+    (`launch.rs`).
+
+  Three proposals, each for the owner to decide (the document has the detail):
+  1. **Read the AI coding tool's own files in the project folder** (hooks that run commands, permission settings that
+     allow everything, MCP servers started unpinned, base-address overrides), and report them in a section of their
+     own, apart from the app's grade, as notices. AST02, AST03, AST07. No ASVS or AISVS requirement fits, so it cites
+     none. Small to medium. **Not claimed; waiting on the owner.**
+  2. **Hidden characters in the instruction files committed in the folder** (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`,
+     `.cursor/rules/`, and their like): Unicode tag characters and right-to-left overrides, only ever a finding. AST04.
+     Cites none. Small. **Not claimed; waiting on the owner.**
+  3. **Adopting the list as a framework `sv` cites:** this session recommends not now, and looking again at its v1.0
+     release (planned for the fourth quarter of 2026). **Waiting on the owner.**
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
