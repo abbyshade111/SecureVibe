@@ -1521,6 +1521,17 @@ another session is not a claim.
       when the app uses an answer that does not fit. It is credited only when the app showed a reply in the right shape
       and refused the wrong one without failing. Shown with the OpenAI and Anthropic SDKs and zod against the real test
       model; not run end to end under Docker here. A service that answers slowly or not at all is still not done.
+      **A service that answers slowly or not at all claimed on 7 October 2026 by session securevibe-e9**, at the
+      owner's word ("Please continue to work off the backlog when ready"), in branch `claude/securevibe-e9-ai-hang`.
+      Read on `main` just before this claim: no other session had claimed it. The test model takes one message and
+      answers nothing for 40 seconds. Credited (V16.5.2) when the app answered that message itself within the 15
+      seconds `sv` waits on any request, without the service's error, and then answered a plain message; a finding when
+      the plain message after it was not answered either; not assessed when only the hanging message went unanswered,
+      since an app whose own limit is longer than 15 seconds cannot be told from one with none. Asked last, and the
+      hold waited out, so an app it blocks does not spoil the checks after it.
+      **Done the same day** (DESIGN, "Later, 7 October 2026: a service that answers nothing"). The test model's
+      `HANG` holds a message unanswered for 40 seconds; `probe.ai-service-hang-handled` judges the app as claimed. Run
+      with Node against the real test model script; not run end to end under Docker here.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
@@ -2149,6 +2160,12 @@ another session is not a claim.
   session writes `docs/prompts/reviews/<its name>.md` in a pull request of its own: the wording of every prompt, and
   suggestions for new ones, each tied to an `sv` check and the requirement's own text. Suggestions are tried the way
   the library's prompts are before any is marked shown. Asked of the two cloud sessions that build `sv`.
+  **The prompts at the start, done on 7 October 2026** (`docs/prompts/library-trial/start.md`): forty builds, $18.11.
+  For Sonnet, the keys-and-`.env` prompt works given at the start (9 of 10 builds without, 0 of 10 with), the first
+  delivery through `sv` the rule calls working; the AI prompt removed two of its three problems, not the third. Haiku's
+  baseline had already fallen (with `git` allowed and the guidance's prompts), so its comparisons have no reading. No
+  harm. This test and the delivery test used the loop protocol's owner-away sentence from before its Amendment 5,
+  said in `start.md`.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
@@ -2164,6 +2181,13 @@ another session is not a claim.
   `enabled = true` under `[capabilities.ai]`. A line under `[capabilities]` saying the AI feature's answers go in
   `[capabilities.ai]`, and the starter file's own `[capabilities.ai]` example saying `enabled`, would be measured as
   Part A was. Two builds also wrote the same key twice; `sv`'s message for that already says which.
+
+- **`sv`'s credential rule reads a form's anti-forgery token placeholder as a credential.** Found on 7 October 2026 by
+  session paper-facts, in the start-of-build test: one Haiku app drew eight `secrets.credential-assignment` findings
+  (high) at lines like `<input type=hidden name=csrf_token value="{html.escape(csrf_token)}">`: a template filling in
+  the token the app made for that page, the protection V3.5.1 asks for. A value that is a `{...}` or `{{...}}`
+  placeholder, or a call (`html.escape(...)`), is not a written-in secret. A fixture of exactly this line, and the
+  rule kept quiet on it, would hold the fix.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
