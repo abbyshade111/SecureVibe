@@ -7,8 +7,14 @@
 //! `GRANT_IMPLICIT` on its application model), Doorkeeper 5.9.9 (`grant_flows`, whose flows are
 //! named `password` and `implicit`), fosite 0.49.0 (the compose factories for each, and
 //! `ComposeAllEnabled`, which turns on both), and node-oauth2-server 5.3.0 (a client's `grants`,
-//! which may hold `password`; its implicit response type throws "Not implemented"). league's
-//! oauth2-server is not here: its source could not be fetched from this session to read.
+//! which may hold `password`; its implicit response type throws "Not implemented").
+//!
+//! And two more, whose source was read on 7 October 2026: league/oauth2-server on its main branch
+//! (a grant is switched on by handing an instance to `AuthorizationServer::enableGrantType`, and the
+//! two are `Grant\PasswordGrant` and `Grant\ImplicitGrant`), and Laravel Passport 13 (which builds
+//! league's server and switches the two on only after `Passport::enablePasswordGrant()` or
+//! `Passport::enableImplicitGrant()`; Passport before 12 had the password grant on with no switch to
+//! find, and that is not seen).
 //!
 //! Only ever a finding. Settings kept in a database, or in a library not listed, are not seen, so
 //! finding nothing credits nothing. A line that names a grant to refuse it (`if grant ==
@@ -56,6 +62,13 @@ static NODE: LazyLock<Regex> =
 static FLOW_WORD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?:^|[\s,'"\[(:])(password|implicit)(?:$|[\s,'"\])])"#).unwrap()
 });
+static LEAGUE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\bnew\s+\\?(?:League\\OAuth2\\Server\\Grant\\)?(PasswordGrant|ImplicitGrant)\s*\(")
+        .unwrap()
+});
+static PASSPORT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\bPassport::(enablePasswordGrant|enableImplicitGrant)\s*\(").unwrap()
+});
 static QUOTED_PASSWORD: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"['"`]password['"`]"#).unwrap());
 
@@ -100,6 +113,24 @@ const LIBRARIES: &[Library] = &[
         extensions: &["js", "mjs", "cjs", "ts", "mts", "cts"],
         comment: "//",
         switches: &NODE,
+    },
+    Library {
+        name: "league/oauth2-server",
+        ecosystem: "PHP",
+        packages: &["league/oauth2-server"],
+        marker: "League\\OAuth2\\Server",
+        extensions: &["php"],
+        comment: "//",
+        switches: &LEAGUE,
+    },
+    Library {
+        name: "Laravel Passport",
+        ecosystem: "PHP",
+        packages: &["laravel/passport"],
+        marker: "Laravel\\Passport",
+        extensions: &["php"],
+        comment: "//",
+        switches: &PASSPORT,
     },
 ];
 
@@ -225,7 +256,8 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
                     .to_owned()
             } else {
                 "no sign-in server library `sv` knows (django-oauth-toolkit, Doorkeeper, fosite, \
-                 node-oauth2-server) is used in the app's files"
+                 node-oauth2-server, league/oauth2-server, Laravel Passport) is used in the app's \
+                 files"
                     .to_owned()
             },
         ));
@@ -350,6 +382,29 @@ mod tests {
             "password",
             "line 6",
         ),
+        // league's own documentation: a grant built and handed to `enableGrantType`.
+        (
+            "src/oauth.php",
+            "<?php\n\nuse League\\OAuth2\\Server\\AuthorizationServer;\nuse League\\OAuth2\\Server\\Grant\\PasswordGrant;\n\n$server = new AuthorizationServer($clients, $tokens, $scopes, $privateKey, $encryptionKey);\n$grant = new PasswordGrant($users, $refreshTokens);\n$server->enableGrantType($grant, new \\DateInterval('PT1H'));\n",
+            "<?php\n\nuse League\\OAuth2\\Server\\AuthorizationServer;\nuse League\\OAuth2\\Server\\Grant\\AuthCodeGrant;\n\n$server = new AuthorizationServer($clients, $tokens, $scopes, $privateKey, $encryptionKey);\n$grant = new AuthCodeGrant($authCodes, $refreshTokens, new \\DateInterval('PT10M'));\n// $server->enableGrantType(new PasswordGrant($users, $refreshTokens));\n$server->enableGrantType($grant, new \\DateInterval('PT1H'));\n",
+            "password",
+            "line 7",
+        ),
+        (
+            "src/implicit.php",
+            "<?php\n\n$server = new \\League\\OAuth2\\Server\\AuthorizationServer($clients, $tokens, $scopes, $privateKey, $encryptionKey);\n$server->enableGrantType(\n    new \\League\\OAuth2\\Server\\Grant\\ImplicitGrant(new \\DateInterval('PT1H')),\n    new \\DateInterval('PT1H')\n);\n",
+            "<?php\n\n$server = new \\League\\OAuth2\\Server\\AuthorizationServer($clients, $tokens, $scopes, $privateKey, $encryptionKey);\n$server->enableGrantType(\n    new \\League\\OAuth2\\Server\\Grant\\ClientCredentialsGrant(),\n    new \\DateInterval('PT1H')\n);\n",
+            "implicit",
+            "line 5",
+        ),
+        // Passport's documentation: the switches in a service provider's `boot`.
+        (
+            "app/Providers/AppServiceProvider.php",
+            "<?php\n\nnamespace App\\Providers;\n\nuse Laravel\\Passport\\Passport;\n\nclass AppServiceProvider extends ServiceProvider\n{\n    public function boot(): void\n    {\n        Passport::enableImplicitGrant();\n        Passport::tokensExpireIn(now()->addDays(15));\n    }\n}\n",
+            "<?php\n\nnamespace App\\Providers;\n\nuse Laravel\\Passport\\Passport;\n\nclass AppServiceProvider extends ServiceProvider\n{\n    public function boot(): void\n    {\n        Passport::tokensExpireIn(now()->addDays(15));\n    }\n}\n",
+            "implicit",
+            "line 11",
+        ),
     ];
 
     #[test]
@@ -404,6 +459,12 @@ mod tests {
             "package main\n\nfunc ComposeAllEnabled() {}\n",
         )
         .unwrap();
+        // A PHP app's own class of that name, with no league in it.
+        fs::write(
+            dir.join("Grants.php"),
+            "<?php\n\nclass PasswordGrant {}\n\n$grant = new PasswordGrant();\n",
+        )
+        .unwrap();
         let report = run(&dir);
         assert!(found(&report).is_none(), "{report:?}");
         let passed = report
@@ -444,6 +505,37 @@ mod tests {
         .unwrap();
         let report = run(&dir);
         assert!(found(&report).is_some(), "{report:?}");
+        fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn passport_among_the_packages_counts_where_the_file_calls_it_by_its_alias() {
+        // Laravel lets a file name Passport by its short alias, with no `use Laravel\Passport`.
+        let dir = scratch("passport");
+        fs::write(
+            dir.join("composer.json"),
+            "{\"require\": {\"laravel/passport\": \"^13.0\"}}",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("composer.lock"),
+            "{\"packages\": [{\"name\": \"laravel/passport\", \"version\": \"v13.0.2\"}], \"packages-dev\": []}",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("boot.php"),
+            "<?php\n\n\\Passport::enablePasswordGrant();\n",
+        )
+        .unwrap();
+        let report = run(&dir);
+        let finding = found(&report).unwrap_or_else(|| panic!("{report:?}"));
+        assert!(
+            finding
+                .description
+                .contains("Laravel Passport: the password grant"),
+            "{}",
+            finding.description
+        );
         fs::remove_dir_all(&dir).ok();
     }
 }
