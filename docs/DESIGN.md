@@ -12108,4 +12108,17 @@ was not confirmed.
 **What it does not see.** A generator kept in a variable and used later (`rng = Random()`, then `rng.nextInt()`),
 whose type a query cannot know; Go's `math/rand` imported under another name; and a code given a name that says
 nothing. Finding none credits nothing.
-BREAKS_PLACEHOLDER_RANDOM
+**Break and watch.** The rule has witnesses both ways in every language, and two cases guard the generator's own
+name: `secrets.choice` in Python and `SecureRandom.rand` in Ruby, each using the same method name as the weak
+generator. **Eight guards were broken in turn, and each was caught:**
+- the names not judged at all (a quiet case reported in every one of the ten languages);
+- variable and field names not read (six cases: JavaScript, PHP, Ruby, and three in Python);
+- the function's name not read (seven cases, in six languages);
+- keyword arguments not read (Python's `verification_code=`);
+- Kotlin's declaration not read;
+- `code` matched inside other words (`color_code` reported, and the `code`-alone rule turned into a miss);
+- Python's module not judged (`secrets.choice` reported);
+- Ruby's receiver not judged (`SecureRandom.rand` reported).
+
+The Kotlin break was missed at first: its case was `fun sendOtp()`, whose name alone was enough. The case is now
+`fun notify(…)` with `val otp: Int = …`, so only the declaration can find it, and the break is caught.

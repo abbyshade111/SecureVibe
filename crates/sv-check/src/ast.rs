@@ -6610,7 +6610,7 @@ mod tests {
         ("ast.insecure-random-for-code", "java", "class A { int resetCode() { return ThreadLocalRandom.current().nextInt(1000000); } }", true),
         ("ast.insecure-random-for-code", "java", "class A { String sendOtp() { String otp = String.valueOf(new SecureRandom().nextInt(900000) + 100000); return otp; } }", false),
         ("ast.insecure-random-for-code", "java", "class A { int roll() { int face = new Random().nextInt(6) + 1; return face; } }", false),
-        ("ast.insecure-random-for-code", "kotlin", "fun sendOtp() { val otp = Random.nextInt(100000, 999999); mail(otp) }", true),
+        ("ast.insecure-random-for-code", "kotlin", "fun notify(user: User) { val otp: Int = Random.nextInt(100000, 999999); mail(user, otp) }", true),
         ("ast.insecure-random-for-code", "kotlin", "fun roll() { val face = Random.nextInt(1, 7); show(face) }", false),
         ("ast.insecure-random-for-code", "go", "package m\nfunc sendOtp() { code := rand.Intn(900000) + 100000; mail(code) }", true),
         ("ast.insecure-random-for-code", "go", "package m\nfunc newResetToken() string { return fmt.Sprintf(\"%x\", rand.Int63()) }", true),
