@@ -89,6 +89,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-043](ADR-043.md) | A seal is a signature any computer can check, against keys the owner chose to trust (proposed) |
 | [ADR-044](ADR-044.md) | The coding prompts shown to work reach the AI tool when it builds what they are for |
 | [ADR-045](ADR-045.md) | The app's own tools are called in a loop only when the owner marks them read-only |
+| [ADR-046](ADR-046.md) | Compressed archives sent to the upload, to the limits the owner states (proposed) |
 
 ## Where v1's records disagree with what v1 built
 

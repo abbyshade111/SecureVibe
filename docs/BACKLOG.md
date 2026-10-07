@@ -1531,7 +1531,10 @@ another session is not a claim.
       one record more than a new `[policy] requests-per-minute`, created through `owned` by B. Nothing is judged without
       a stated number. Not done: functions other than `owned`, and a limit kept by a proxy in production.
       **The owner's decision, 6 October 2026: yes** to functions other than `owned`, through a new optional
-      `securevibe.toml` field naming them ("I agree with all your recommendations", 6 October 2026). Not claimed.
+      `securevibe.toml` field naming them ("I agree with all your recommendations", 6 October 2026).
+      **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("go ahead"), in branch
+      `claude/securevibe-e9-create-rate`: an optional `creates` list under [stack.run.users], each a request that
+      makes a record, held to the same `[policy] requests-per-minute` as `owned`'s create.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -1574,6 +1577,12 @@ another session is not a claim.
       `crates/sv-check/src/signed_in/uploads.rs`, its rule in `rules.rs` and `RESTS_ON_A_REFUSAL`; the fake app's upload
       handler reads text today; and a place just before step 10 of `run_checks`, with a fresh sign-in, fits "takes no
       other check with it" better than step 6b.
+      **V5.2.3 (compressed bombs) claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("go ahead
+      when you're ready"), in branch `claude/securevibe-e2-archive-bombs`, to the owner's decisions above, with the
+      list of formats: `max-unpacked-bytes`, `max-files`, and `unpacks-archives` on the `upload` entry; an ordinary small
+      archive of each format first, then one just over each limit, sent after every other upload check. Read on `main`
+      just before this claim: no other session had claimed it (securevibe-e9's claim of 5 October, #751, was closed
+      unmerged). **Record, `Status: proposed`: ADR-046.**
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
