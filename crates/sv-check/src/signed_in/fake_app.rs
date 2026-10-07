@@ -2494,6 +2494,11 @@ pub(super) fn admin_secret() -> Vec<u8> {
 
 /// Runs the suite against the fake app, seeded the way `seed` would seed it.
 pub(super) fn run_against(flaws: Flaws, users: &UsersSection) -> Outcome {
+    run_against_keeping(flaws, users).0
+}
+
+/// As `run_against`, and the app afterwards, for a test that reads what was sent to it.
+pub(super) fn run_against_keeping(flaws: Flaws, users: &UsersSection) -> (Outcome, FakeApp) {
     let mut app = FakeApp::new(flaws);
     let acc = accounts();
     app.users
@@ -2510,7 +2515,8 @@ pub(super) fn run_against(flaws: Flaws, users: &UsersSection) -> Outcome {
         app.totp
             .insert(totp.account.user.clone(), totp.secret.clone());
     }
-    run(&mut app, users, &acc, true, &Default::default())
+    let o = run(&mut app, users, &acc, true, &Default::default());
+    (o, app)
 }
 
 /// A run with no seeded admin, for the fixtures that sign up rather than being seeded.

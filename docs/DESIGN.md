@@ -3344,6 +3344,12 @@ had before the owner's decision of 5 October 2026 ("Later, 5 October 2026: two u
 has finished no flow when it tries these, so a wrong order ending in `completed` cannot be that. The
 hand check now says the other orders, and the last step again, are still the owner's.
 
+Five guards broken in turn, each caught: either new order left out, a two-step flow given them too,
+and the wrong order moved after the skip past the middle (which turns 36 tests red, the correct app's
+among them). The fifth, the first step sent once too few times, was caught by nothing at first: the
+counting fake app keeps its count against the account, and a step left over from the try before made
+up the difference. A test now reads the app's own record of what each try sent.
+
 ### The admin page, as support for V8.3.1
 
 V8.3.1 asks that access rules are enforced on the server, at a layer the browser cannot get round,

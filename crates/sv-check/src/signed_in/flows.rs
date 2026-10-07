@@ -331,6 +331,43 @@ mod tests {
     }
 
     #[test]
+    fn each_try_sends_the_steps_it_names_and_no_others() {
+        // What each try sends is what makes it the order it says. Read from the app's own record
+        // of requests, because an app that keeps its progress against the account can make a try
+        // one step short finish anyway, with a step left over from the try before.
+        let (o, app) = run_against_keeping(Flaws::default(), &users());
+        let sent = |who: &str| -> Vec<String> {
+            app.clock_log
+                .iter()
+                .filter_map(|(id, _)| id.strip_prefix(&format!("flow-{who}-")))
+                // The page each step's anti-forgery token is read from is asked for too.
+                .filter(|step| step.chars().all(|c| c.is_ascii_digit()))
+                .map(str::to_owned)
+                .collect()
+        };
+        assert_eq!(sent("a"), ["0", "1", "2"], "{:?}", o.steps);
+        for (who, how_many, how) in [
+            ("flow-b0", 1, "straight to the last step"),
+            ("flow-b1", 3, "the steps between the first and the last"),
+            (
+                "flow-b2",
+                3,
+                "the first step once for each step before the last",
+            ),
+            ("flow-b3", 2, "the first step and then the last"),
+        ] {
+            assert_eq!(sent(who).len(), how_many, "{who}: {:?}", sent(who));
+            let said = format!("as B, {how}");
+            assert!(
+                o.steps.iter().any(|s| s.starts_with(&said)),
+                "{who} is not {how}: {:?}",
+                o.steps
+            );
+        }
+        assert!(sent("flow-b4").is_empty(), "a fifth try: {:?}", o.steps);
+    }
+
+    #[test]
     fn a_refusal_that_mentions_the_finishing_words_is_still_a_refusal() {
         // The owner's words can turn up on an error page ("an order is placed only after…"). An
         // answer counts as finished only when the app accepted it.
