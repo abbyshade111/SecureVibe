@@ -4279,6 +4279,9 @@ another session is not a claim.
   new alert; alerts on `main` were not readable from the session, and any that appear in
   `crates/sv-run/assets/`, whose stand-in services misbehave on purpose, are each to be read and dismissed
   with its reason, or fixed.
+  **Closed on 7 October 2026:** the owner looked at the Security tab's code scanning page for `main`: 0 open alerts,
+  65 closed, and every tool working. Nothing in `crates/sv-run/assets/` was waiting to be read or dismissed, and the
+  recent pull requests' CodeQL checks each said "No new alerts in code changed by this pull request".
 
 - **Let the owner confirm what the AI coding tool said, and count it for more.** Asked for by the owner on
   27 September 2026, after trying the interview in VS Code: "give an option for a human to validate
@@ -6807,6 +6810,9 @@ another session is not a claim.
   `claude/securevibe-e9-outranked`. **Record, `Status: proposed`** (a "Later" entry on ADR-023): both are listed in
   full, still named in the report, and still seen in SARIF; the first no longer keeps a requirement `sv` checked from
   being credited, the second never decided an applicable requirement's status in the first place.
+  **Done the same day** (DESIGN, "A finding outranked by `sv`'s own run, and one about a requirement the app is not
+  held to"; ADR-023, Later): `Finding::outranked`, set by the report; both kinds listed apart, in full, and marked in
+  SARIF, `report.json`, and the MCP server's schema.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters

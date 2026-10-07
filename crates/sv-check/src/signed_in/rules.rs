@@ -20,6 +20,7 @@ pub(crate) fn finding(
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        outranked: None,
         also_on_this_line: Vec::new(),
         rule_id: rule.rule_id.to_owned(),
         title: title.to_owned(),

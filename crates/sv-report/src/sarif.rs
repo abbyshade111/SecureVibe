@@ -73,6 +73,16 @@ pub fn render(report: &Report) -> String {
             if f.worth_a_look() {
                 result["properties"]["worthALook"] = json!(true);
             }
+            match &f.outranked {
+                Some(sv_check::finding::Outranked::CheckedWhileRunning { check }) => {
+                    result["properties"]["worthALook"] = json!(true);
+                    result["properties"]["outrankedBy"] = json!(check);
+                }
+                Some(sv_check::finding::Outranked::NotHeldTo) => {
+                    result["properties"]["notHeldTo"] = json!(true);
+                }
+                None => {}
+            }
             if !f.fingerprint.is_empty() {
                 result["partialFingerprints"] = json!({ "svFingerprint/v1": f.fingerprint });
             }
@@ -377,6 +387,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            outranked: None,
             also_on_this_line: Vec::new(),
         }
     }

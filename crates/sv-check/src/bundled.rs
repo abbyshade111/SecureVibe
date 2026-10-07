@@ -260,6 +260,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            outranked: None,
             also_on_this_line: Vec::new(),
         };
         let mut findings = vec![
