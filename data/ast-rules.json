@@ -1650,6 +1650,9 @@
         "shell": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)"
       },
       "looksFor": "an error handler that answers \"yes\" directly (returns true, or calls `next()` with nothing), inside a function whose name says it checks something; a handler that swallows the error and lets the function go on to a \"yes\" further down is not looked for, so finding none credits nothing",
+      "looksForIn": {
+        "shell": "`|| return 0` (a command's failure answered with success) inside a shell function whose name says it checks something; `|| true` and a function that simply ends after the failure are not looked for"
+      },
       "queries": {
         "python": "(except_clause (block (return_statement (true) @arg) @hit))",
         "javascript": "[(catch_clause body: (statement_block (return_statement (true) @arg) @hit))\n (catch_clause body: (statement_block (expression_statement (call_expression function: (identifier) arguments: (arguments)) @arg) @hit))]",

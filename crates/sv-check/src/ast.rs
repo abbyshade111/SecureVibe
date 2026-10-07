@@ -2350,12 +2350,11 @@ fn words_of(name: &str) -> String {
             let next_lower = chars.get(i + 1).is_some_and(|n| n.is_lowercase());
             // A new word starts at a capital after a small letter or a digit (`verifyToken`), or
             // at the last capital of a run followed by a small letter (`JWTValid`).
-            if (previous.is_lowercase() || previous.is_ascii_digit())
-                || (previous.is_uppercase() && next_lower)
-            {
-                if !out.is_empty() && !out.ends_with('_') {
-                    out.push('_');
-                }
+            let starts_word = previous.is_lowercase()
+                || previous.is_ascii_digit()
+                || (previous.is_uppercase() && next_lower);
+            if starts_word && !out.is_empty() && !out.ends_with('_') {
+                out.push('_');
             }
         }
         out.extend(c.to_lowercase());
