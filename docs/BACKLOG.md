@@ -9,6 +9,17 @@ another session is not a claim.
 
 ## Next
 
+- **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
+  2026. Not claimed. A reading, not a build: what the list is (its version, date, status, and license, and whether it
+  is a numbered list of risks like the other Top 10s or a set of requirements `sv` could cite), where it overlaps what
+  `sv` already reads (AISVS 1.0, its Appendix C, and the AI-feature, MCP, and agent checks), and what it adds. For each
+  item: whether an app built with an AI coding tool could have the problem, whether `sv` could check for it (reading
+  the code, the running app, or neither), and what that would take. Also whether it bears on how `sv` itself is used
+  by an AI coding tool (the MCP server, the prompts, the coding rules). The result is a document in `docs/` and
+  proposals put here, each for the owner to decide; adding it as a framework `sv` cites, like ASVS and AISVS, is a
+  decision with a record of its own, as the frameworks it already loads were. Read the list's own text before saying
+  what any item asks, as with every citation.
+
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
   and `probe.private-page-headers` credit V3.4.3 for any Content-Security-Policy, where V3.4.3 asks for a policy that
