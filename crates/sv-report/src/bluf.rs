@@ -163,6 +163,9 @@ pub fn counted(report: &Report) -> Vec<(String, usize)> {
             let label = match status {
                 Status::NeedsAttention => "something found a problem",
                 Status::Checked => "an automated check looked and found nothing wrong",
+                Status::AppTested => {
+                    "your app's own tests, written by your AI coding tool, ran without failing (not a check of sv's)"
+                }
                 Status::Documented => "you answered the question in the security notes",
                 Status::ByHand => "you checked by hand and wrote down what you saw",
                 Status::Attested => "you answered yes about how the app is built",
@@ -617,6 +620,7 @@ mod tests {
             findings: Vec::new(),
             information: Vec::new(),
             checked_by: Vec::new(),
+            tested_by: Vec::new(),
             supported_by: Vec::new(),
             documented_by: Vec::new(),
             attested_by: Vec::new(),

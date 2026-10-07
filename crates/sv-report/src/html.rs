@@ -33,7 +33,7 @@ td.n { text-align: right; width: 6rem; }
 .needs-attention { color: var(--bad); font-weight: 600; }
 .not-verified { color: var(--unknown); }
 .checked { color: var(--dim); }
-.documented { color: var(--dim); font-style: italic; }
+.documented, .app-tested { color: var(--dim); font-style: italic; }
 .attested, .stated, .by-hand { color: var(--unknown); font-style: italic; }
 .note { color: var(--dim); }
 .bluf { border: 1px solid var(--edge); border-left: 4px solid var(--bad); border-radius: 6px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
@@ -58,6 +58,7 @@ fn status_class(status: Status) -> &'static str {
     match status {
         Status::NeedsAttention => "needs-attention",
         Status::Checked => "checked",
+        Status::AppTested => "app-tested",
         Status::Documented => "documented",
         Status::Attested => "attested",
         Status::Stated => "stated",
@@ -309,6 +310,14 @@ pub fn page(report: &Report) -> String {
                     line.checked_by
                         .iter()
                         .map(|c| format!("{}: {}", c.check_id, c.scope))
+                        .collect::<Vec<_>>()
+                        .join("; ")
+                ),
+                Status::AppTested => format!(
+                    " \u{2014} written by your AI coding tool, not a check of sv's: {}",
+                    line.tested_by
+                        .iter()
+                        .map(|c| c.scope.clone())
                         .collect::<Vec<_>>()
                         .join("; ")
                 ),

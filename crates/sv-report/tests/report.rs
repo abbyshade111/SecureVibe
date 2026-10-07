@@ -219,22 +219,24 @@ fn an_information_only_finding_sits_beside_the_credit_not_over_it() {
         .iter()
         .find(|r| r.id == "V1.2.1")
         .unwrap();
-    assert_eq!(line.status, Status::Checked, "the test's credit stands");
+    // The app's own tests are a tier of their own (ADR-050), never *checked*.
+    assert_eq!(line.status, Status::AppTested, "the test's credit stands");
     assert!(line.findings.is_empty(), "{:?}", line.findings);
     assert_eq!(
         line.information,
         vec![sv_check::suite::NAME_MISMATCH.to_owned()]
     );
     assert_eq!(report.counts.needs_attention, 0);
-    assert_eq!(report.counts.checked, 2);
+    assert_eq!(report.counts.app_tested, 2);
+    assert_eq!(report.counts.checked, 0);
     // Beside the credit, not lost: the status cell names it, and the finding is still listed.
     let markdown = sv_report::markdown::compliance(&report);
     let html = sv_report::html::page(&report);
     for rendered in [&markdown, &html] {
         let row = rendered
             .lines()
-            .find(|l| l.contains("V1.2.1") && l.contains("app-tests"))
-            .unwrap_or_else(|| panic!("no checked row for V1.2.1 in:\n{rendered}"));
+            .find(|l| l.contains("V1.2.1") && l.contains("tests/test_app.py:3"))
+            .unwrap_or_else(|| panic!("no tested row for V1.2.1 in:\n{rendered}"));
         assert!(
             row.contains(sv_check::suite::NAME_MISMATCH) && row.contains("for information"),
             "the warning has to be shown beside the credit: {row}"
@@ -288,7 +290,97 @@ fn a_real_finding_still_needs_attention_beside_an_information_only_one() {
         assert_eq!(line.status, Status::NeedsAttention, "{what}");
         assert!(line.findings.contains(&real.rule_id), "{what}: {line:?}");
         assert_eq!(report.counts.checked, 0, "{what}");
+        assert_eq!(report.counts.app_tested, 0, "{what}");
     }
+}
+
+#[test]
+fn the_app_s_own_tests_are_a_tier_below_a_check_of_sv_s() {
+    // ADR-050. A passing test the AI coding tool wrote is its own status, never *checked*, and
+    // counted apart. The control: the same requirement with a check of `sv`'s satisfied as well is
+    // *checked*, with the test shown beside it rather than lost.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let passed = a_passing_test_for(&["V1.2.1"]);
+    let report = build(inputs(&f, &buckets, vec![], &passed));
+    let line = &report.requirements[0];
+    assert_eq!(line.status, Status::AppTested);
+    assert!(line.checked_by.is_empty(), "{line:?}");
+    assert_eq!(line.tested_by.len(), 1, "{line:?}");
+    assert_eq!((report.counts.checked, report.counts.app_tested), (0, 1));
+    let markdown = sv_report::markdown::compliance(&report);
+    assert!(
+        markdown.contains("tested only by the app's own tests"),
+        "the opening sentence counts it apart:\n{markdown}"
+    );
+    // Every table that counts what applies has its row, and adds up with it: the end-to-end count
+    // test cannot give this status without a container to run the app in.
+    let html = sv_report::html::page(&report);
+    let md_row = markdown
+        .lines()
+        .find(|l| l.starts_with("| Applies, the app's own tests"))
+        .unwrap_or_else(|| panic!("no row for it in:\n{markdown}"));
+    assert!(md_row.trim_end().ends_with("| 1 |"), "{md_row}");
+    assert!(
+        html.contains("Applies, the app&#39;s own tests")
+            || html.contains("Applies, the app's own tests"),
+        "{html}"
+    );
+    assert!(
+        markdown
+            .contains("your app's own tests, written by your AI coding tool, ran without failing"),
+        "the short version lists it:\n{markdown}"
+    );
+    assert_eq!(
+        report
+            .counts
+            .by_status()
+            .iter()
+            .map(|(_, n)| n)
+            .sum::<usize>(),
+        report.counts.applicable
+    );
+
+    let mut both = passed.clone();
+    both.push(Verified::new(
+        "ast.sql",
+        &["V1.2.1"],
+        "the files this rule reads".to_owned(),
+    ));
+    let report = build(inputs(&f, &buckets, vec![], &both));
+    let line = &report.requirements[0];
+    assert_eq!(line.status, Status::Checked);
+    assert_eq!(line.checked_by.len(), 1, "only sv's own check: {line:?}");
+    assert_eq!(line.tested_by.len(), 1, "{line:?}");
+    assert_eq!((report.counts.checked, report.counts.app_tested), (1, 0));
+}
+
+#[test]
+fn a_test_naming_a_requirement_tests_cannot_show_only_supports_it() {
+    // ADR-050. A requirement asking for documentation, a deployment setting, or a process is left
+    // off the tests to write because a test cannot show it, so a test naming one is supporting
+    // evidence and nothing more. The same test naming one a test can show is credited.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into(), "V1.3.1".into()],
+        ..Default::default()
+    };
+    let passed = a_passing_test_for(&["V1.2.1", "V1.3.1"]);
+    let mut i = inputs(&f, &buckets, vec![], &passed);
+    i.not_for_tests = ["V1.3.1".to_owned()].into();
+    let report = build(i);
+    let line = report
+        .requirements
+        .iter()
+        .find(|r| r.id == "V1.3.1")
+        .unwrap();
+    assert_eq!(line.status, Status::NotVerified, "{line:?}");
+    assert!(line.tested_by.is_empty(), "{line:?}");
+    assert_eq!(line.supported_by.len(), 1, "shown as supporting: {line:?}");
+    assert_eq!(status_of(&report, "V1.2.1"), Status::AppTested);
 }
 
 #[test]
@@ -317,7 +409,7 @@ fn a_person_saying_the_test_does_match_leaves_its_credit_standing() {
         reviewed(finding("ast.sql", &["V1.3.1"])),
     ];
     let report = build(i);
-    assert_eq!(status_of(&report, "V1.2.1"), Status::Checked);
+    assert_eq!(status_of(&report, "V1.2.1"), Status::AppTested);
     assert_eq!(status_of(&report, "V1.3.1"), Status::NotVerified);
 }
 
