@@ -125,6 +125,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   one of the thing to take, which either user could take (set it up in `seed`), and nothing else in
 #   the run may take it. A `private` page is needed, to show both users were signed in.
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
+# creates = [{ path = "/comments", form = { text = "{marker}", csrf_token = "{csrf}" } }]
+#   Other requests that each create a record, held to `requests-per-minute` under [policy] as
+#   `owned`'s create is; `{marker}` where a value must differ from one record to the next.
 # change-password = { path = "/password", form = { current = "{password}", new = "{new_password}", csrf_token = "{csrf}" } }
 # change-email = { path = "/account/email", form = { password = "{password}", email = "{new_email}", csrf_token = "{csrf}" } }
 #   Changing the signed-in user's email address, with `{password}` where the app asks for the
@@ -231,7 +234,8 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
 # failed-codes = 5        # wrong emailed sign-in codes in a row before pushing back (with `email-code`)
 # ai-requests-per-minute = 20   # messages a minute the AI feature passes on before refusing (with `ai`)
-# requests-per-minute = 30   # records a minute one user can create through `owned` before the app
+# requests-per-minute = 30   # records a minute one user can create through `owned` (and each of
+#                            # `creates`) before the app
 #                            # pushes back; one more than this is sent
 # idle-timeout-minutes = 15       # how long a session may sit unused (checked by `sv run --slow`)
 # session-lifetime-minutes = 60   # how long a session may last however busy (`sv run --slow`, up to 90)

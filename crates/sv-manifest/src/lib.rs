@@ -566,6 +566,11 @@ pub struct UsersSection {
     pub once: Option<OnceAction>,
     #[serde(default)]
     pub owned: Option<OwnedSection>,
+    /// Other requests that each create a record, beside `owned`'s `create`: each is sent one more
+    /// time than `[policy] requests-per-minute` inside a minute by the second user, as `owned`'s is
+    /// (V2.4.1). Put `{marker}` where a value must differ from one record to the next.
+    #[serde(default)]
+    pub creates: Vec<RequestTemplate>,
     /// Changes the signed-in user's password: `{password}` is the current one, `{new_password}`
     /// the new. Asked last, with an account made for it through `signup`, or with A when there is
     /// no `signup`.

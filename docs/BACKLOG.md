@@ -1527,6 +1527,8 @@ another session is not a claim.
       **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("go ahead"), in branch
       `claude/securevibe-e9-create-rate`: an optional `creates` list under [stack.run.users], each a request that
       makes a record, held to the same `[policy] requests-per-minute` as `owned`'s create.
+      **Done the same day** (DESIGN, "The creation rate, beyond `owned`"): `creates`, each burst and judged on its
+      own.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
