@@ -572,8 +572,9 @@ impl Server {
     fn instructions(&self) -> String {
         format!(
             "{INSTRUCTIONS}{}, adding `--advisories` and a folder of OSV advisories they have \
-             downloaded to compare the packages.",
-            at_a_terminal("<the app's folder>", "--run --tools")
+             downloaded to compare the packages.{}",
+            at_a_terminal("<the app's folder>", "--run --tools"),
+            crate::prompts_at_start()
         )
     }
 
@@ -2150,7 +2151,12 @@ fn spec() -> Value {
     json!({
         "content": [{
             "type": "text",
-            "text": format!("{}\n{}", sv_manifest::spec::STARTER_MANIFEST, sv_manifest::spec::INSTRUCTIONS),
+            "text": format!(
+                "{}\n{}{}",
+                sv_manifest::spec::STARTER_MANIFEST,
+                sv_manifest::spec::INSTRUCTIONS,
+                crate::prompts_at_start()
+            ),
         }],
         "isError": false,
     })
@@ -3356,6 +3362,47 @@ mod tests {
             .collect();
         let rules = sv_check::coding_rules::CodingRules::load(&crate::coding_rules_path()).unwrap();
         assert_eq!(offered, rules.topic_ids());
+    }
+
+    #[test]
+    fn the_prompts_shown_to_work_are_where_every_builder_starts_and_no_others() {
+        // The backlog's "Put the prompts shown to work where every builder starts": the end of the
+        // opening instructions, and of the specification (`securevibe_spec`, as `sv init` prints it).
+        let library = crate::coding_prompts().unwrap();
+        let server = Server::new(&examples()).unwrap();
+        let hello = server
+            .handle(&json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"t","version":"0"}}}))
+            .unwrap();
+        let instructions = hello["result"]["instructions"].as_str().unwrap().to_owned();
+        let spec = text(&call(&server, "securevibe_spec", json!({}))).to_owned();
+        let mut shown = 0;
+        for p in &library.prompts {
+            let named = format!("(`{}`)", p.id);
+            let is_shown = p.status == sv_check::prompts::Status::Shown;
+            shown += usize::from(is_shown);
+            for (place, said) in [("instructions", &instructions), ("spec", &spec)] {
+                assert_eq!(
+                    said.contains(&named),
+                    is_shown,
+                    "{place}: {} is {}",
+                    p.id,
+                    p.status.as_str()
+                );
+                if is_shown {
+                    assert!(
+                        said.contains(&p.prompt),
+                        "{place}: {} is named but not given in full",
+                        p.id
+                    );
+                }
+            }
+        }
+        assert!(shown >= 4, "{shown}");
+        // After everything else the instructions say, so they still open with how to use the server.
+        assert!(
+            instructions.starts_with("SecureVibe checks"),
+            "{instructions}"
+        );
     }
 
     #[test]

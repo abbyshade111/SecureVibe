@@ -102,6 +102,7 @@ fn run() -> Result<i32> {
         "init" => {
             println!("{}", spec::STARTER_MANIFEST);
             println!("{}", spec::INSTRUCTIONS);
+            print!("{}", prompts_at_start());
             Ok(exit::CLEAN)
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
@@ -494,6 +495,34 @@ pub(crate) fn design_prompts() -> Result<sv_check::prompts::Prompts> {
 pub(crate) fn coding_prompts() -> Result<sv_check::prompts::Prompts> {
     let paths = prompts_paths();
     sv_check::prompts::Prompts::load_all(&[&paths[0]])
+}
+
+/// The coding prompts shown to work, in full, for the two places every builder reads before any code:
+/// the end of the specification (`sv init`, `securevibe_spec`) and of the MCP server's opening
+/// instructions. In the delivery test (docs/prompts/library-trial/delivery.md) a prompt pasted where
+/// the builder starts did better than the same prompt fetched mid-build, every time. Read from
+/// `data/prompts.json`, so the list cannot drift from the library; empty if it cannot be read.
+pub(crate) fn prompts_at_start() -> String {
+    let Ok(library) = coding_prompts() else {
+        return String::new();
+    };
+    let shown: Vec<_> = library
+        .prompts
+        .iter()
+        .filter(|p| p.status == sv_check::prompts::Status::Shown)
+        .collect();
+    if shown.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(
+        "\n## Prompts shown to work\n\nEach of these was given to an AI coding tool building an app, \
+         and `sv` found that the problem it is for went away (docs/PROMPTS.md). Follow them while you \
+         build, as you follow the rest of these instructions:\n",
+    );
+    for p in shown {
+        out.push_str(&format!("\n### {} (`{}`)\n\n{}\n", p.title, p.id, p.prompt));
+    }
+    out
 }
 
 /// The coding prompts shown to work that no feature's brief gives, because none of their
