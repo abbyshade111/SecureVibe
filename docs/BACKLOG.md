@@ -9,6 +9,21 @@ another session is not a claim.
 
 ## Next
 
+- **A deep gap analysis of SecureVibe, start to finish.** Asked for by the owner on 7 October 2026: "a deep gap
+  analysis of SecureVibe - the process start to finish, etc. and let me know where there are blind spots or areas for
+  improvement". The whole path a person takes, read against the code: installing `sv`, writing `securevibe.toml`,
+  building with an AI coding tool and the MCP server, `sv check`, `sv run` behind the fence, `sv probe`, the reports,
+  reviews and seals, and what the counts claim. A reading, not a build: the result is a document in `docs/` that
+  names each blind spot with the evidence for it, and proposals for the owner to choose from; nothing in `sv`
+  changes with it.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, in branch
+  `claude/securevibe-e2-gap-analysis`.
+  **Done the same day** (`docs/GAP-ANALYSIS.md`): five reviewers, one stage each, read-only, with the most serious
+  claims checked again in the code. Findings in seven parts (credit stronger than the evidence, false alarms, what is
+  never looked at, whose word counts in the build loop, getting started, the reports, the project's own health), the
+  coverage numbers by kind of run, and ten places to start. Nothing is built from it until the owner chooses; the
+  ones that change evidence, what `sv` runs, or the repository's settings are marked as decisions.
+
 - **V6.5.3: a sign-in, reset, or two-factor code made with an ordinary random number generator.** From
   `docs/PARTIAL-CHECKS.md` (V6.5.3, level 2, "reads the code, finding only"), which no check of `sv`'s own speaks to.
   Python's `random.randint` and its kin, JavaScript's `Math.random`, Java's `java.util.Random` and
@@ -1861,6 +1876,8 @@ another session is not a claim.
   failing, those shown to work first, each saying which of the app's requirements it is for. With no report, they say
   to make one first. The feature brief and the guidance (ADR-044) are not touched. Read on `main` just before this
   claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "Prompts for what an app's last report shows unproven"). A real `sv report` and
+  then `sv prompts --app` hold the report's shape to what is read. Every part of the 3 October decisions is now built.
   **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
   in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds

@@ -8,7 +8,10 @@ when the build with it passed its check and the build without it failed. The res
 should not be trusted as if it had.
 
 `sv prompts` prints the same prompts at a terminal (`sv prompts --requirement V1.2.4` for those aimed at one
-requirement), and an AI coding tool connected to `sv mcp` can fetch them with `securevibe_prompts`. The [design-time
+requirement), and an AI coding tool connected to `sv mcp` can fetch them with `securevibe_prompts`. Once `sv report`
+has checked your app, `sv prompts --app <folder>` offers only the prompts for what that report shows unproven, and
+says which of your app's requirements each is for; the AI tool asks the same with `securevibe_prompts` and the app's
+folder. The [design-time
 prompts](prompts/design-time.md) are also offered there as MCP prompts, for you to choose from your tool.
 
 The prompts are written in this project's own words. Some were inspired by the Cloud Security Alliance's
