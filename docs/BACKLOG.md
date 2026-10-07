@@ -3554,6 +3554,9 @@ another session is not a claim.
      `net/http/pprof`, Laravel's Ignition, Symfony's profiler, and Phoenix's LiveDashboard, each known by words read
      from its own source, as the two there are. Read on `main` just before this claim: no other session had claimed
      it.
+     **Done the same day** (DESIGN, "Four more development consoles"). Each of the four is known by words read from
+     its own source, and each answers only in its tool's development or debug mode. Spring Boot's Actuator is left
+     out, since exposing it is a setting rather than a debug mode.
   8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
      from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
      grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
@@ -3565,6 +3568,10 @@ another session is not a claim.
      names read from its own source, and only where the library is among the app's packages or the file names it.
      Six guards broken in turn, each caught. Not done: league/oauth2-server (its source could not be fetched here),
      Spring (whose authorization server has no password grant to switch on), and settings kept in a database.
+     **league/oauth2-server claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please pick
+     whatever you want to work on next from the backlog"), in branch `claude/securevibe-e2-league-grants`: its password
+     and implicit grants switched on, read from its source, which can be fetched now. Read on `main` just before this
+     claim: no other session had claimed it.
   9. **V11.4.4: an encryption key made from a password with too little work.** From `docs/PARTIAL-CHECKS.md`: a
      code rule for PBKDF2 with a literal iteration count below OWASP's figure, and a single hash of a password used
      as a key. Only ever a finding; a count read from a setting is not judged.
