@@ -106,6 +106,12 @@ pub fn explain(text: &str, error: &toml::de::Error) -> String {
     let Some(span) = error.span() else {
         return shown;
     };
+    if let Some(said) = section_already_a_value(text, &span, error.message()) {
+        let snippet = shown
+            .strip_suffix(&format!("{}\n", error.message()))
+            .unwrap_or(&shown);
+        return format!("{snippet}{said}\n");
+    }
     let Ok(document) = toml::de::DeTable::parse(text) else {
         return shown;
     };
@@ -152,9 +158,122 @@ pub fn explain(text: &str, error: &toml::de::Error) -> String {
             }
             said
         }
-        None => format!("{message} (in {here})"),
+        None => match at.key.as_deref().and_then(|key| {
+            let mut place = at.table.clone();
+            place.push(Place::Key(key.to_owned()));
+            Some((key, all.iter().find(|s| s.matches(&place))?))
+        }) {
+            // A section written as one value: `ai = true` under [capabilities], where the AI
+            // feature's answers are a section of their own. serde says only "invalid type:
+            // boolean `true`, expected struct AiClaims", which names a type in `sv`'s code.
+            Some((key, section)) => {
+                let name = section.name();
+                let mut said = format!(
+                    "`{key}` under {here} is not one value: it is a section of its own, {name}. \
+                     Write {name} on a line of its own, with its fields below it."
+                );
+                if section.fields.contains(&"enabled") {
+                    said.push_str(
+                        " Whether the app has it at all is `enabled = true` or `enabled = false` \
+                         there.",
+                    );
+                }
+                said.push_str(&format!(
+                    "\nThe fields {name} takes are {}.",
+                    section
+                        .fields
+                        .iter()
+                        .map(|f| format!("`{f}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+                said
+            }
+            None => format!("{message} (in {here})"),
+        },
     };
     format!("{snippet}{said}\n")
+}
+
+/// `ai = true` under [capabilities] and, further down, a `[capabilities.ai]` header: toml says
+/// "duplicate key" at the header's last name and nothing else, and the file cannot be read with
+/// positions kept to say more. The header's own line says which section, and the earlier line is
+/// the one to take out. Only a `[section]` header whose last name the error points at is answered;
+/// a key written twice keeps toml's message, which already shows the line.
+fn section_already_a_value(
+    text: &str,
+    span: &std::ops::Range<usize>,
+    message: &str,
+) -> Option<String> {
+    if message != "duplicate key" {
+        return None;
+    }
+    let key = text.get(span.clone())?.trim_matches('"');
+    let start = text.get(..span.start)?.rfind('\n').map_or(0, |i| i + 1);
+    let end = text
+        .get(span.end..)?
+        .find('\n')
+        .map_or(text.len(), |i| span.end + i);
+    let line = text.get(start..end)?.trim();
+    let inside = line
+        .strip_prefix('[')
+        .filter(|rest| !rest.starts_with('['))?
+        .split(']')
+        .next()?;
+    let names: Vec<&str> = inside
+        .split('.')
+        .map(|n| n.trim().trim_matches('"'))
+        .collect();
+    let (last, parent) = names.split_last()?;
+    if *last != key {
+        return None;
+    }
+    // The same header written twice is pointed at the same way: answer only when the earlier
+    // line really is `key = ...` in the parent section.
+    let mut current: Vec<&str> = Vec::new();
+    let earlier = text.get(..start)?.lines().any(|line| {
+        let line = line.trim();
+        if let Some(header) = line.strip_prefix('[') {
+            current = header
+                .trim_start_matches('[')
+                .split(']')
+                .next()
+                .unwrap_or_default()
+                .split('.')
+                .map(|n| n.trim().trim_matches('"'))
+                .collect();
+            return false;
+        }
+        current == parent
+            && line
+                .split_once('=')
+                .is_some_and(|(name, _)| name.trim().trim_matches('"') == key)
+    });
+    if !earlier {
+        return None;
+    }
+    let here = describe(
+        &parent
+            .iter()
+            .map(|n| Place::Key((*n).to_owned()))
+            .collect::<Vec<_>>(),
+    );
+    let place: Vec<Place> = names.iter().map(|n| Place::Key((*n).to_owned())).collect();
+    let name = describe(&place);
+    let mut said = format!(
+        "{name} starts a section here, but `{key}` was already given a value under {here}, \
+         higher up the file. It can be one or the other: take the `{key} = ...` line out of {here}."
+    );
+    if sections()
+        .iter()
+        .any(|s| s.matches(&place) && s.fields.contains(&"enabled"))
+    {
+        said.push_str(
+            " If that line said whether the app has it at all, write it here instead, as \
+             `enabled = true` or `enabled = false`.",
+        );
+    }
+    Some(said)
 }
 
 /// The field serde's `deny_unknown_fields` names, from its message.
@@ -206,9 +325,11 @@ fn or_list(items: &[String]) -> String {
     }
 }
 
-/// Where an error's position is: the table it is in.
+/// Where an error's position is: the table it is in, and the key whose plain value it points at,
+/// if it points at one.
 struct Located {
     table: Vec<Place>,
+    key: Option<String>,
 }
 
 /// The table holding the key or value the span points into. A span on a key is that key's error,
@@ -223,6 +344,7 @@ fn locate(
         if within(span, &key.span()) {
             return Some(Located {
                 table: path.clone(),
+                key: None,
             });
         }
         path.push(Place::Key(name));
@@ -244,6 +366,7 @@ fn locate_value(
         toml::de::DeValue::Table(inner) => locate(inner, span, path).or_else(|| {
             within(span, &value.span()).then(|| Located {
                 table: path.clone(),
+                key: None,
             })
         }),
         toml::de::DeValue::Array(items) => {
@@ -260,8 +383,11 @@ fn locate_value(
         // An error on a plain value is in the table that holds its key.
         _ => within(span, &value.span()).then(|| {
             let mut table = path.clone();
-            table.pop();
-            Located { table }
+            let key = match table.pop() {
+                Some(Place::Key(key)) => Some(key),
+                _ => None,
+            };
+            Located { table, key }
         }),
     }
 }
@@ -590,6 +716,89 @@ mod tests {
     }
 
     #[test]
+    fn a_section_written_as_one_value_is_named_as_a_section() {
+        // Haiku 4.5's file in the delivery test (6 October 2026): `ai = true` straight under
+        // [capabilities], where serde says only "expected struct AiClaims".
+        let text = "manifest-version = 1\n[app]\nname = \"club\"\n\n[capabilities]\nauth = true\n\
+                    ai = true\n";
+        let message = said(text);
+        assert!(
+            message.contains(
+                "`ai` under [capabilities] is not one value: it is a section of its own, \
+                 [capabilities.ai]. Write [capabilities.ai] on a line of its own"
+            ),
+            "{message}"
+        );
+        assert!(
+            message.contains("`enabled = true` or `enabled = false` there."),
+            "{message}"
+        );
+        assert!(
+            message.contains("The fields [capabilities.ai] takes are `enabled`"),
+            "{message}"
+        );
+        // The line and the pointer to it are kept; the name of `sv`'s own type is not shown.
+        assert!(message.contains("7 | ai = true"), "{message}");
+        assert!(!message.contains("AiClaims"), "{message}");
+    }
+
+    #[test]
+    fn a_value_and_then_a_section_of_the_same_name_says_which_line_to_take_out() {
+        // The delivery test's other unreadable files: `ai = true` under [capabilities], then the
+        // starter file's own [capabilities.ai] header. toml says only "duplicate key".
+        let text = "manifest-version = 1\n[capabilities]\nai = true\n\n[capabilities.ai]\n\
+                    can-act = false\n";
+        let message = said(text);
+        assert!(
+            message.contains(
+                "[capabilities.ai] starts a section here, but `ai` was already given a value \
+                 under [capabilities], higher up the file. It can be one or the other: take the \
+                 `ai = ...` line out of [capabilities]."
+            ),
+            "{message}"
+        );
+        assert!(
+            message.contains("write it here instead, as `enabled = true` or `enabled = false`."),
+            "{message}"
+        );
+        // The pointer toml draws is kept, and toml's own two words are not repeated.
+        assert!(message.contains("5 | [capabilities.ai]"), "{message}");
+        assert!(!message.contains("duplicate key"), "{message}");
+        // A section with no `enabled` is not told to write one.
+        let message = said("manifest-version = 1\n[stack]\nrun = 1\n[stack.run]\nhealth = \"/\"\n");
+        assert!(
+            message.contains("[stack.run] starts a section here, but `run` was already given"),
+            "{message}"
+        );
+        assert!(!message.contains("enabled"), "{message}");
+    }
+
+    #[test]
+    fn a_key_written_twice_keeps_tomls_message() {
+        let message = said("manifest-version = 1\n[capabilities]\nauth = true\nauth = false\n");
+        assert!(message.contains("duplicate key"), "{message}");
+        assert!(message.contains("4 | auth = false"), "{message}");
+        assert!(!message.contains("starts a section"), "{message}");
+        // A section header written twice is not a value then a section either.
+        let message = said("[capabilities.ai]\ncan-act = true\n[capabilities.ai]\nrag = true\n");
+        assert!(!message.contains("already given a value"), "{message}");
+    }
+
+    #[test]
+    fn a_section_with_no_enabled_field_is_not_told_to_write_one() {
+        let message = said("manifest-version = 1\napp = \"club\"\n");
+        assert!(
+            message.contains(
+                "`app` under the top level (before any [section]) is not one value: \
+                 it is a section of its own, [app]."
+            ),
+            "{message}"
+        );
+        assert!(!message.contains("enabled"), "{message}");
+        assert!(message.contains("The fields [app] takes are"), "{message}");
+    }
+
+    #[test]
     fn a_field_no_section_takes_suggests_nothing() {
         let message = said("[capabilities.ai]\nenabledd = true\n");
         assert!(
@@ -699,5 +908,8 @@ mod tests {
         let message = said("[capabilities.ai]\nenabled = \"yes\"\n");
         assert!(message.contains("(in [capabilities.ai])"), "{message}");
         assert!(message.contains("line 2"), "{message}");
+        // `enabled` is a yes or no, not a section: nothing to say beyond toml's own message.
+        assert!(message.contains("invalid type"), "{message}");
+        assert!(!message.contains("section of its own"), "{message}");
     }
 }

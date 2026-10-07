@@ -2263,6 +2263,11 @@ another session is not a claim.
   itself, such as a session secret, the prompt could say to create a random one at first start and keep it in the
   app's data folder, and stop only for keys from outside (an AI service's). A change to a shown prompt's text is a
   new test of it.
+  **Done on 7 October 2026**, found by session securevibe-e2 when it came to claim this: the prompt library's revision
+  after the independent reviews (`f78f5ea`) changed the prompt to say this. A missing key for an outside service
+  starts the app with that feature off, and a missing session key is made at random when the app starts. The revised
+  text is tried again in `docs/prompts/library-trial/revision-protocol.md` (the `secrets-in-the-environment` arm), and
+  its status as shown stands only once that trial agrees.
 
 - **`ai = true` under `[capabilities]`: the specification's next sentence.** Found on 6 October 2026 by session
   paper-facts, in the delivery test: after the two new sentences, the commonest unreadable settings file left was
@@ -2273,6 +2278,11 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and pick the next backlog
   item"), in branch `claude/securevibe-e2-capabilities-ai`. Not a decision by CLAUDE.md's list (the spec's wording,
   and a clearer refusal message; nothing counted changes), so no ADR is proposed; ADR-028 gets a Later line.
+  **Done the same day** (DESIGN, "`ai = true` under `[capabilities]`, said in the spec and in the refusal"): the spec
+  says among the `[capabilities]` answers that whether the app has an AI feature is `enabled` under
+  `[capabilities.ai]`, and `sv`'s refusal says the same in plain words, for `ai = true` alone and for `ai = true` with a
+  `[capabilities.ai]` header below it (toml's "duplicate key"). Whether the sentence works is for the next trial that
+  counts unreadable files.
 
 - **`sv`'s credential rule reads a form's anti-forgery token placeholder as a credential.** Found on 7 October 2026 by
   session paper-facts, in the start-of-build test: one Haiku app drew eight `secrets.credential-assignment` findings
@@ -7439,3 +7449,5 @@ done: `docs/adr/ADR-018.md`.
   under this item, one line each, with the size, whether it can be made again, and which session made it, then asks
   the owner. Nothing is deleted without the owner's yes; a folder another session made is that session's to list.
   The standing rule is in `CLAUDE.md` ("Keep the disk tidy").
+  - Session securevibe-e2 (7 October 2026): a cloud session, so nothing of its own is on the Mac. Its build folder
+    and scratch files are in its own cloud container, which is removed when the session ends.
