@@ -895,9 +895,9 @@
   }
  },
  "haiku:private-pages-no-store": {
-  "verdict": "not shown",
+  "verdict": "no reading",
   "today": {
-   "asked": 6,
+   "asked": 8,
    "problem": 3,
    "started": 10,
    "signed_in": 8,
@@ -944,7 +944,7 @@
     },
     {
      "build": "haiku-loop-6",
-     "asked": false,
+     "asked": true,
      "problem": false,
      "started": true,
      "signed_in": true,
@@ -968,7 +968,7 @@
     },
     {
      "build": "haiku-loop-9",
-     "asked": false,
+     "asked": true,
      "problem": false,
      "started": true,
      "signed_in": true,
@@ -985,7 +985,7 @@
    ]
   },
   "delivering": {
-   "asked": 5,
+   "asked": 6,
    "problem": 1,
    "started": 7,
    "signed_in": 6,
@@ -1016,7 +1016,7 @@
     },
     {
      "build": "haiku-loop-4",
-     "asked": false,
+     "asked": true,
      "problem": false,
      "started": true,
      "signed_in": true,

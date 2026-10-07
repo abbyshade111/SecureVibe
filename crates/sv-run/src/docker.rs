@@ -2520,9 +2520,8 @@ fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse
     })
 }
 
-/// How much of a body is kept: enough to recognize a stack trace, not enough to copy a page out of
-/// somebody's app.
-const KEPT_CHARS: usize = 4000;
+/// How much of a body is kept (`sv_check::probes::KEPT_CHARS`).
+const KEPT_CHARS: usize = sv_check::probes::KEPT_CHARS;
 /// How much is kept on each side of the reflection probes' value, when it comes back further down.
 const AROUND_ECHO: usize = 200;
 /// How many times it is kept further down.
