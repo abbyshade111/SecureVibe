@@ -11419,6 +11419,26 @@ What it does not look for, as its `looksFor` says:
 name. The rule does not find it, and the running check does. Kotlin, Rust, Swift, Dart, C, and C++ each say no sign-in
 library of theirs is looked for. Shell says a script does not handle a provider's answer.
 
+**Later, 7 October 2026: the session under another name.** A second switch, `functionNamesRead`, is the other side
+of `argumentNamesRead`. When a rule's `@fn` does not match as written, the name it begins with is read as each value
+the function around it sets that name to, and the pattern is tried again with the value in its place. With
+`s = req.session`, `s.user = claims.email` is tried as `req.session.user`, and found.
+
+- **The witness.** `examples/oidc-notes` gets its session from a helper of its own, `const s = session(req, res)`. So
+  the JavaScript and TypeScript patterns now also take a session that a call returns, such as `session(...)`,
+  `getSession(...)`, or iron-session's `await getIronSession(cookies(), options)`. `sv report` on the example now
+  reports line 120 (`s.user = … claims.email …`), which the running check had found alone.
+- **Python and Ruby.** `s = session` is the same session object, so `s["user"]` counts. `s = dict(session)` is a copy,
+  and does not.
+- **PHP.** Only a reference counts. `$s = &$_SESSION` is the session under another name. `$s = $_SESSION` copies the
+  array, and writing to the copy changes nothing in the session, so reading it as the session would be a false alarm.
+- **Where the name is read.** Only in the function around the line, as `argumentNamesRead` reads it. A name set in
+  another function is another variable.
+
+The first version only read a name followed by `.`, `[`, or `->`. Taking that out turned no test red. A bare alias,
+`const find = findOne`, read as `findOne` is a correct finding anyway, so the condition went rather than stay
+untested. A lookup inside a helper function is still not followed.
+
 What is left alone:
 - the same lookups keyed on `sub`, `uid`, `googleId`, `getId()`, or `FindByLoginAsync`;
 - a sign-in form's own email address;
