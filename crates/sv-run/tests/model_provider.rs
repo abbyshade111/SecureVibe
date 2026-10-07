@@ -363,3 +363,187 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
 fn call_json(port: u16, body: serde_json::Value) -> String {
     call(port, "POST", "/v1/chat/completions", &body.to_string())
 }
+
+/// One request to one of the three shapes, and its answer as JSON.
+fn post(port: u16, path: &str, body: serde_json::Value) -> serde_json::Value {
+    serde_json::from_str(&call(port, "POST", path, &body.to_string())).expect("a JSON answer")
+}
+
+#[test]
+fn the_test_model_answers_in_the_shape_the_app_asked_for() {
+    // ADR-042: an ordinary reply fits the shape asked for, BADSHAPE breaks it, and what was seen
+    // says which shape was asked for.
+    if Command::new("node").arg("--version").output().is_err() {
+        println!("no Node here; the test model cannot be run, so nothing is checked");
+        return;
+    }
+    let (_server, port) = start().expect("the test model starts under Node");
+    let schema = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "answer": {"type": "string"},
+            "score": {"type": "integer", "minimum": -9007199254740991_i64},
+            "count": {"type": "integer", "minimum": 3},
+            "mood": {"type": "string", "enum": ["calm", "busy"]},
+            "steps": {"type": "array", "items": {"$ref": "#/$defs/step"}}
+        },
+        "required": ["answer", "score", "count", "mood", "steps"],
+        "additionalProperties": false,
+        "$defs": {"step": {"type": "object", "properties": {"text": {"type": "string"}}}}
+    });
+    let user = |text: &str| serde_json::json!([{"role": "user", "content": text}]);
+
+    // OpenAI's chat completions with a JSON schema: the reply fits it, the reply's text in its
+    // text fields, the first of an enum, a `$ref` followed.
+    let fits = post(
+        port,
+        "/v1/chat/completions",
+        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-PLAIN-5a01"),
+            "response_format": {"type": "json_schema", "json_schema": {"name": "a", "schema": schema}}}),
+    );
+    let content: serde_json::Value =
+        serde_json::from_str(fits["choices"][0]["message"]["content"].as_str().unwrap())
+            .expect("JSON that parses");
+    assert!(
+        content["answer"]
+            .as_str()
+            .unwrap()
+            .contains("SV-REPLY-5a01"),
+        "{content}"
+    );
+    // Zero where the schema allows it (zod writes a whole number's minimum as -(2^53 - 1)), and
+    // the nearest number it allows where it does not.
+    assert_eq!(content["score"], 0);
+    assert_eq!(content["count"], 3);
+    assert_eq!(content["mood"], "calm");
+    assert!(
+        content["steps"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("SV-REPLY-5a01"),
+        "{content}"
+    );
+    assert_eq!(content.as_object().unwrap().len(), 5, "{content}");
+
+    // BADSHAPE with the same schema: every field the wrong type, carrying the marker, one more field.
+    let bad = post(
+        port,
+        "/v1/chat/completions",
+        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-BADSHAPE-5a02"),
+            "response_format": {"type": "json_schema", "json_schema": {"name": "a", "schema": schema}}}),
+    );
+    let content: serde_json::Value =
+        serde_json::from_str(bad["choices"][0]["message"]["content"].as_str().unwrap())
+            .expect("JSON that parses, in the wrong shape");
+    assert_eq!(
+        content["answer"],
+        serde_json::json!(["SVBAD5a02"]),
+        "{content}"
+    );
+    assert_eq!(content["score"], "SVBAD5a02");
+    assert_eq!(content["mood"], "SVBAD5a02");
+    assert_eq!(content["sv_unexpected"], "SVBAD5a02");
+    let was = seen(port, "5a02");
+    assert_eq!(was["shape"], "schema", "{was}");
+    assert_eq!(was["bad_attempts"], 1, "{was}");
+
+    // JSON mode: a JSON object holding the reply, and BADSHAPE's answer is not JSON at all.
+    let mode = serde_json::json!({"type": "json_object"});
+    let fits = post(
+        port,
+        "/v1/chat/completions",
+        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-PLAIN-5a03"), "response_format": mode}),
+    );
+    let content: serde_json::Value =
+        serde_json::from_str(fits["choices"][0]["message"]["content"].as_str().unwrap()).unwrap();
+    assert!(
+        content["reply"].as_str().unwrap().contains("SV-REPLY-5a03"),
+        "{content}"
+    );
+    let bad = post(
+        port,
+        "/v1/chat/completions",
+        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-BADSHAPE-5a04"), "response_format": mode}),
+    );
+    let text = bad["choices"][0]["message"]["content"].as_str().unwrap();
+    assert!(text.contains("SVBAD5a04"), "{text}");
+    assert!(
+        serde_json::from_str::<serde_json::Value>(text).is_err(),
+        "{text}"
+    );
+    assert_eq!(seen(port, "5a04")["shape"], "json");
+
+    // Anthropic's messages with a forced tool, as Instructor and the AI SDK ask: a call to it with
+    // arguments that fit, and BADSHAPE's arguments that do not.
+    let tool = serde_json::json!([{"name": "answer", "input_schema": schema}]);
+    let forced = serde_json::json!({"type": "tool", "name": "answer"});
+    let fits = post(
+        port,
+        "/v1/messages",
+        serde_json::json!({"model": "m", "max_tokens": 50, "messages": user("Hi SV-PROBE-PLAIN-5a05"),
+            "tools": tool, "tool_choice": forced}),
+    );
+    assert_eq!(fits["content"][0]["type"], "tool_use", "{fits}");
+    assert_eq!(fits["content"][0]["name"], "answer");
+    assert!(
+        fits["content"][0]["input"]["answer"]
+            .as_str()
+            .unwrap()
+            .contains("SV-REPLY-5a05")
+    );
+    let bad = post(
+        port,
+        "/v1/messages",
+        serde_json::json!({"model": "m", "max_tokens": 50, "messages": user("Hi SV-PROBE-BADSHAPE-5a06"),
+            "tools": tool, "tool_choice": forced}),
+    );
+    assert_eq!(
+        bad["content"][0]["input"]["answer"],
+        serde_json::json!(["SVBAD5a06"]),
+        "{bad}"
+    );
+    assert_eq!(seen(port, "5a06")["shape"], "tool");
+
+    // OpenAI's chat completions with a forced function: the same, as arguments in a string.
+    let functions = serde_json::json!([{"type": "function", "function": {"name": "answer", "parameters": schema}}]);
+    let fits = post(
+        port,
+        "/v1/chat/completions",
+        serde_json::json!({"model": "m", "messages": user("Hi SV-PROBE-PLAIN-5a07"), "tools": functions,
+            "tool_choice": {"type": "function", "function": {"name": "answer"}}}),
+    );
+    let call = &fits["choices"][0]["message"]["tool_calls"][0]["function"];
+    assert_eq!(call["name"], "answer", "{fits}");
+    let args: serde_json::Value =
+        serde_json::from_str(call["arguments"].as_str().unwrap()).unwrap();
+    assert!(
+        args["answer"].as_str().unwrap().contains("SV-REPLY-5a07"),
+        "{args}"
+    );
+
+    // The Responses API with `text.format`.
+    let fits = post(
+        port,
+        "/v1/responses",
+        serde_json::json!({"model": "m", "input": "Hi SV-PROBE-PLAIN-5a08",
+            "text": {"format": {"type": "json_schema", "name": "a", "schema": schema}}}),
+    );
+    let content: serde_json::Value =
+        serde_json::from_str(fits["output_text"].as_str().unwrap()).unwrap();
+    assert!(
+        content["answer"]
+            .as_str()
+            .unwrap()
+            .contains("SV-REPLY-5a08"),
+        "{content}"
+    );
+
+    // The control: no shape asked for, a plain reply as before, and BADSHAPE says so.
+    let plain = chat(port, "Hi SV-PROBE-BADSHAPE-5a09");
+    let text = plain["choices"][0]["message"]["content"].as_str().unwrap();
+    assert!(
+        text.contains("SV-REPLY-5a09") && !text.contains("SVBAD"),
+        "{text}"
+    );
+    assert_eq!(seen(port, "5a09")["shape"], "");
+}

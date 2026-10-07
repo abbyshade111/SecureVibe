@@ -107,6 +107,7 @@ RUST_CHECKS = {
     "probe.ai-floating-model-sent": ("running", ["C3.2.3"]),
     "probe.ai-service-error-shown": ("running", ["V16.5.1"]),
     "probe.ai-service-failure-handled": ("running", ["V16.5.2"]),
+    "probe.ai-output-shape-unchecked": ("running", ["C7.1.1"]),
     "probe.ai-agent-unbounded": ("running", ["C9.1.2"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
@@ -326,8 +327,10 @@ RUST_CREDITS_ONLY = {
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as
 # worked examples of a [design] answer. The design questions cite their requirements in
 # `data/design-questions.json`, and they are deliberately absent from this document: an answer there
-# is the owner's word, which is the one thing this file must not count as coverage.
-MENTIONS = {"AC.4.1", "SBD-AC-01", "V6.2.1", "V3.3.1", "V8.3.1", "V2.2.2", "V13.2.1"}
+# is the owner's word, which is the one thing this file must not count as coverage. V12.1.2 is named in the
+# report's "Before going live" list (`crates/sv-report/src/live.rs`) as one to check with a scanner, which
+# credits nothing.
+MENTIONS = {"AC.4.1", "SBD-AC-01", "V6.2.1", "V3.3.1", "V8.3.1", "V2.2.2", "V13.2.1", "V12.1.2"}
 
 ID = r"(?:V|C)\d+\.\d+\.\d+|AC\.\d+\.\d+|SBD-[A-Z]+-\d+"
 

@@ -11348,6 +11348,132 @@ Broken on purpose 23 ways. Each of these 22 was caught by the witness written fo
 The 23rd, a guard against reading a node as both the name and its value, was caught by nothing. A bare name never
 matches an email pattern, so it could not change a result, and it was taken out.
 
+## Before going live: what only the live site can answer (6 October 2026)
+
+The `sv probe` item's leftover (BACKLOG, "A production check"): "the rest of deployment becomes a 'before going live'
+list in the report", never written. A report for an app on the internet showed V12.2.1, V12.2.2, V12.1.1, V3.4.1,
+V3.3.3, and V4.1.2 as "not verified", with nothing saying that one command against the live site asks them.
+
+- **For an app securevibe.toml says will be on the internet** (`deployment = "internet"`; `sv probe` asks only public
+  addresses, so no other deployment can use it), `compliance.md` and `report.html` have a "Before going live" section
+  after "What only you can check", and `report.json` carries it as `before_going_live`.
+- **What it lists** (`sv_report::live::LIVE_SITE`): each requirement `sv probe`'s checks cite, with what it asks in plain
+  words and the command (`sv probe https://your-address`, with `--api` for V4.1.2 and `--hsts-preload` for V3.7.4), and
+  V12.1.2, which the owner decided on 6 October 2026 to leave to a scanner. Only those that apply at the app's level,
+  and only while nothing has settled them: a check that ran here, or one the owner recorded by hand, takes a line off.
+- **It credits nothing.** `sv probe` prints its answers where it runs and never adds them to a report; the section
+  says so, and the requirements stay "not verified".
+
+How it is held: `an_app_on_the_internet_is_told_what_only_its_live_site_can_answer` (`crates/sv-report/tests/report.rs`),
+with a requirement not about the live site, one settled by a check, and an app not on the internet as its controls;
+`every_requirement_sv_probe_answers_is_listed`, which reads `production.rs` and `live_tls.rs` and holds the list to
+the requirements they cite; and `an_app_on_the_internet_has_a_before_going_live_list_and_one_kept_local_does_not`
+(`crates/sv-cli/tests/before_going_live.rs`), through `sv report`. Eight guards were undone in turn, and each was
+caught.
+
+## C++ calls named through `std::` or `::`, a Location header streamed to `cout`, and C's SQL calls (6 October 2026)
+
+The two gaps "Grammars for C++" named (BACKLOG), and a fault found on the way.
+
+- **A scoped call is read as the plain one.** `std::system(cmd)`, `std::fopen(path)`, `std::filesystem::remove(path)`,
+  and `::unlink(path)` parse as a `qualified_identifier`, which the C++ queries did not match. Nine rules now take the
+  whole name as `@fn`, and each C++ name pattern allows `std::`, `std::filesystem::`, or the global `::` in front.
+  A call on a class of the app's own (`Logger::system(msg)`, `Cache::remove(key)`) still is not read as the library
+  call: its name is not one of those. `ast.token-key-source-from-token` already took any scope, since `cpr::Get` is
+  the call it is for.
+- **`std::cout << "Location: " << url`** is read as `printf("Location: %s", url)` is, by a second shape in
+  `ast.open-redirect`: a chain whose left end is `cout` (with or without `std::`), whose text says `Location:`, and
+  whose next part is not fixed text. `std::cerr`, another header, and a fixed address are not reported.
+- **C's and C++'s SQL calls judged the connection, not the query.** `sqlite3_exec`, `mysql_query`,
+  `mysql_real_query`, and `PQexec` take the connection first and the query second, and `ast.sql-built-by-hand`
+  judged the first argument, so every such call was reported, a fixed query included. Found by the fixed-query
+  control the C++ witnesses needed; the rule now judges the second argument (`argumentPositions`), in C as in C++.
+
+How it is held: twenty-nine new witnesses in `the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one`
+(`crates/sv-check/src/ast.rs`), each rule's scoped form with a control (a class of the app's own, a fixed argument,
+another stream, another header), and C's SQL calls both ways. Twenty-four guards were undone in turn, each caught; a
+check that the `cout` chain's operator is `<<` was taken out, since no code puts `cout` and a header's text either
+side of anything else.
+
+## Answers in the shape the app asked for, and C7.1.1 (6 October 2026)
+
+An app can ask its AI service for an answer in a set shape:
+- a JSON schema (OpenAI's `response_format` or the Responses API's `text.format`, Anthropic's structured outputs);
+- plain JSON mode;
+- a tool the model is made to call (`tool_choice`), which is how Instructor, the Vercel AI SDK, and LangChain get
+  structured answers.
+
+The test model `sv run` puts in place of the service answered all of these in plain text. An app that asked for a
+shape cannot read that, so its AI questions failed for the test model's reason. And where the check reads a failure
+as the app's own, it was a false finding: after the service failed, the plain message that followed came back with
+no reply, and that is `probe.ai-service-failure-handled`'s finding.
+
+**The test model answers in the shape asked for (ADR-042).** `shapeOf` in `assets/model-provider.mjs` reads it from
+any of the three APIs, and `fit` builds the answer:
+- with a JSON schema: JSON that fits it, with the reply's text in every text field, the first value of an enum, and
+  a number of zero where the schema allows it (else the nearest it does: zod writes a whole number's minimum as
+  -(2^53 - 1));
+- in JSON mode: `{"reply": …}`;
+- with a forced tool: a call to that tool, with arguments that fit its schema.
+
+`$ref`s are followed, and `anyOf` takes its first branch that is not null. Every kind of message keeps its meaning:
+LEAK's instructions and HIDDEN's characters are in the text fields as they were in the text.
+
+**C7.1.1 (AISVS, level 1)** asks that the app checks every answer from the model against the shape it defined, and
+refuses one that does not match. A new kind of message, `BADSHAPE`, answers in the wrong shape:
+- every field the wrong type, each carrying `SVBAD<tag>` (text where text goes is put in a list, so an app that uses
+  the field as it came shows the marker);
+- one field the schema does not have;
+- in JSON mode, text that is not JSON at all.
+
+What was seen says which shape the app asked for, and how many times it asked, since a library that checks may ask
+again.
+
+`probe.ai-output-shape-unchecked` (C7.1.1):
+- **A finding** when the marker is in the app's answer: it used what did not fit.
+- **Credit** when the app answered without the marker and without failing, but only where it showed the test
+  model's plain reply in the right shape. An app that never shows a reply says nothing by not showing this one.
+- **Not assessed:**
+  - when the app asked for no shape (an app reading plain text has no schema for this to hold it to);
+  - when it crashed (a 5xx rejects the answer, but not by checking it);
+  - when a limiter answered;
+  - when the message never reached the test model.
+
+The question is asked before the service is made to fail, so an app the failure leaves broken does not lose it.
+
+Shown working with real client libraries, against the real test model under Node, outside `sv`:
+- The OpenAI SDK's `parse` with a zod schema read the right shape, over chat completions (plain and streamed) and
+  the Responses API, and refused the wrong one with zod's own error.
+- The Anthropic SDK, with a forced tool, did the same, plain and streamed.
+- An app that called `JSON.parse` and used the field as it came showed the marker.
+
+Not run end to end with an app under `sv run`, which needs Docker. Pydantic was not tried.
+
+Broken on purpose 17 ways, each caught.
+
+In the check (each by the test of the wrong shape, and the fifth by three more):
+- the marker never looked for;
+- a crash credited;
+- an app that hides replies credited;
+- a limiter's answer credited;
+- an app with no shape taken for one with a schema;
+- a message that never arrived not said;
+- the question never asked.
+
+In the test model (each by the test that runs it under Node):
+- the shape never read;
+- an enum ignored;
+- text not put in a list;
+- no extra field;
+- JSON mode's wrong shape written as valid JSON;
+- a `$ref` not followed;
+- a minimum not kept;
+- a forced tool not answered;
+- the shape not recorded;
+- zod's minimum used as written.
+
+Not done: a service that answers slowly or not at all.
+
 ## Seals become signatures (6 October 2026)
 
 The owner chose SSH signing for `sv review` (ADR-043, after the Kaspa research in BACKLOG), and took every

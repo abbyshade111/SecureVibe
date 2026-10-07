@@ -26,6 +26,7 @@ pub mod groups;
 pub mod html;
 pub mod interview;
 pub mod json;
+pub mod live;
 pub mod markdown;
 pub mod sarif;
 pub mod threats;
@@ -696,6 +697,9 @@ pub struct Report {
     /// The applicable requirements only a person can settle, each with what doing something about
     /// it involves. Empty when the catalogs were not given.
     pub only_you_can_check: Vec<sv_check::human::Item>,
+    /// For an app that will be on the internet, the requirements only its live site can answer,
+    /// and who answers each (`live`). Empty for any other app. Credits nothing.
+    pub before_going_live: Vec<live::LiveItem>,
     /// How many of those no catalog has an instruction for: the design-review controls, which are
     /// standards that are checklists already. Counted rather than listed.
     pub no_instructions_yet: usize,
@@ -1161,6 +1165,9 @@ pub fn false_alarm_lines(report: &Report) -> Vec<String> {
 /// Everything the renderers need, gathered from the crates that produced it.
 pub struct Inputs<'a> {
     pub app_name: &'a str,
+    /// Whether securevibe.toml says the app will be on the internet, which is when the report lists
+    /// what only its live site can answer (`live`).
+    pub on_the_internet: bool,
     pub target_level: u8,
     pub generated: Option<String>,
     /// See `Report::sv`.
@@ -1638,6 +1645,12 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .count(),
     };
 
+    // Before `requirements` moves into the report.
+    let before_going_live = if inputs.on_the_internet {
+        live::before_going_live(&requirements)
+    } else {
+        Vec::new()
+    };
     Report {
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
@@ -1661,6 +1674,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         satisfied_elsewhere,
         checklist_above_level,
         tests_to_write,
+        before_going_live,
         only_you_can_check,
         no_instructions_yet,
         questions_for_you,

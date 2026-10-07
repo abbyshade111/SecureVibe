@@ -490,6 +490,30 @@ pub(crate) fn design_prompts() -> Result<sv_check::prompts::Prompts> {
     sv_check::prompts::Prompts::load_all(&[&paths[1]])
 }
 
+/// The coding prompts, read on their own: the first of the library's files.
+pub(crate) fn coding_prompts() -> Result<sv_check::prompts::Prompts> {
+    let paths = prompts_paths();
+    sv_check::prompts::Prompts::load_all(&[&paths[0]])
+}
+
+/// The coding prompts shown to work that no feature's brief gives, because none of their
+/// requirements is one a feature brings (security headers, keys kept out of the code): the ones
+/// for the whole app, which `securevibe_guidance` gives with its rules. Each shown prompt so reaches
+/// a builder once, from the brief for its feature or from the guidance read before any code.
+pub(crate) fn whole_app_prompts(loaded: &Loaded) -> Result<Vec<sv_check::prompts::Prompt>> {
+    let features = brief::Features::load(&feature_briefs_path())?;
+    let mut brought = std::collections::BTreeSet::new();
+    for f in &features.features {
+        brought.extend(brief::brought(f, &loaded.frameworks, &loaded.config_rules).all);
+    }
+    Ok(coding_prompts()?
+        .prompts
+        .into_iter()
+        .filter(|p| p.status == sv_check::prompts::Status::Shown)
+        .filter(|p| !p.requirements.iter().any(|r| brought.contains(r)))
+        .collect())
+}
+
 /// The plan for an app from its brief, built from the report's own parts (ADR-030).
 pub(crate) fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
     let manifest = Manifest::load(&app_dir.join("securevibe.toml"))?;
@@ -532,6 +556,7 @@ pub(crate) fn brief_for(
         &brought,
         &loaded.frameworks,
         &design_prompts()?,
+        &coding_prompts()?,
         &rules,
     ))
 }
@@ -4804,6 +4829,7 @@ fn assemble_report_saying(
         });
     }
     let mut report = sv_report::build(sv_report::Inputs {
+        on_the_internet: manifest.app.deployment == sv_manifest::Deployment::Internet,
         app_name: if manifest.app.name.is_empty() {
             "This app"
         } else {
