@@ -67,6 +67,8 @@ pub(super) struct FakeApp {
     pub(super) clock: u64,
     /// How far each user has got through the checkout.
     checkout: BTreeMap<String, u32>,
+    /// Every checkout step each user has had accepted since their last finished order, in order.
+    checkout_done: BTreeMap<String, Vec<u32>>,
     pub(super) users: BTreeMap<String, (String, bool)>, // user -> (password, is admin)
     sessions: BTreeMap<String, String>,                 // session id -> user ("" = not signed in)
     notes: Vec<(String, String)>,                       // (owner, text)
@@ -218,6 +220,12 @@ pub(super) struct Flaws {
     pub(super) flow_broken: bool,
     /// A refused checkout step sends the browser back to the first step, as many apps do.
     pub(super) flow_refusal_redirects: bool,
+    /// A checkout step needs only as many steps accepted before it as come before it, whichever
+    /// they were: the first step done twice opens the last.
+    pub(super) flow_counts_steps: bool,
+    /// The last checkout step needs every step before it done at some point, in any order, and
+    /// the steps before it can be taken in any order.
+    pub(super) flow_any_order: bool,
     /// A two-factor code can be used again.
     pub(super) totp_reusable: bool,
     /// An activation code works again after it has been used.
@@ -2277,9 +2285,12 @@ impl FakeApp {
                 };
                 let n: u32 = step["/checkout/".len()..].parse().ok()?;
                 let reached = self.checkout.get(&who).copied().unwrap_or(0);
+                let done = self.checkout_done.get(&who).cloned().unwrap_or_default();
                 let allowed = self.flaws.flow_unguarded
                     || reached + 1 == n
-                    || (self.flaws.flow_checks_first_only && n == 3 && reached >= 1);
+                    || (self.flaws.flow_checks_first_only && n == 3 && reached >= 1)
+                    || (self.flaws.flow_counts_steps && done.len() as u32 + 1 >= n)
+                    || (self.flaws.flow_any_order && (n < 3 || (1..n).all(|k| done.contains(&k))));
                 if (!allowed || !token_ok) && self.flaws.flow_refusal_redirects {
                     return Some(Self::respond(
                         303,
@@ -2299,10 +2310,12 @@ impl FakeApp {
                     ));
                 }
                 if n < 3 {
+                    self.checkout_done.entry(who.clone()).or_default().push(n);
                     self.checkout.insert(who, n);
                     return Some(Self::respond(200, vec![], "next step"));
                 }
                 self.checkout.remove(&who);
+                self.checkout_done.remove(&who);
                 if self.flaws.flow_broken {
                     return Some(Self::respond(200, vec![], "something went wrong"));
                 }

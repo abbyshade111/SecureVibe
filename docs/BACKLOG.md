@@ -6122,6 +6122,10 @@ another session is not a claim.
      before the last and then the last, and the steps between first and last sent before the first and then the last.
      Repeating the last step after the flow finished is left out on purpose: an app's answer cannot tell "done now"
      from "already yours", the false alarm the owner settled for `probe.action-done-twice` on 5 October 2026.
+     **Done the same day** (DESIGN, "Later, 7 October 2026: a step done twice, and the wrong order"). The order of
+     the tries turned out to be a guard of its own: with progress kept against the account, the skip past the middle
+     left a correct app holding B at step two, and the wrong order after it finished, so the wrong order now goes
+     second. Not yet run against a real app in a container.
      **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
