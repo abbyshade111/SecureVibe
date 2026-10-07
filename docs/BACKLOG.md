@@ -6247,6 +6247,8 @@ another session is not a claim.
   path rule follows a variable the script set from `QUERY_STRING` and the like, with the `argumentNamesRead` switch
   #846 added. The redirect rule needs nothing: in shell it already reports a `Location` header printed from any
   variable. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A web request value copied into another variable, in shell"). The path rule follows a
+  variable the script sets from a request variable, anywhere in the script, since shell variables are global.
 
 - ~~**Signed-in checks in one container.**~~ Done on 25 September 2026 by session securevibe-e8. Every
   request is now an `exec` into one sidecar started per run, not a container of its own: a signed-in run
