@@ -12062,4 +12062,19 @@ list of internal certificates the app trusts is not built.
 **Break and watch.** Three tests: fourteen files, each writing a switch-off a different way, each found on its own
 line; eleven that leave checking on, describe it, comment it out, or keep it for development, none found and the
 clean reading crediting nothing; and a file over 2 MB with the setting on its last line, found on that line.
-BREAKS_PLACEHOLDER
+**Eleven guards broken in turn, each caught:**
+- the setting not read at all (ten of the fourteen found cases, and the large file);
+- Dockerfile's space form (`ENV NAME 0`) not read;
+- any digit taken for `0` (`=1` reported);
+- the name-and-value pair not read (the Kubernetes case);
+- a name kept past its own value line (`- name: PORT` then `value: "0"` reported);
+- comments read;
+- prose read;
+- development and test files read;
+- developer tools' folders read;
+- Deno's flag with a list of addresses counted;
+- a file over 2 MB not read.
+
+The developer-tools break was missed at first: its case was `.vscode/launch.json`, and the listing never hands
+`.vscode` to any check, so the case guarded nothing. It is now `.claude/settings.json`, with an assertion that the
+listing reaches it, and the break is caught.

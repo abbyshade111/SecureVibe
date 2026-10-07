@@ -299,20 +299,72 @@ mod tests {
     fn each_way_of_switching_checking_off_is_found_where_it_is_written() {
         let dir = scratch("found");
         let files: &[(&str, &str, usize)] = &[
-            ("Dockerfile", "FROM node:22\nENV NODE_TLS_REJECT_UNAUTHORIZED=0\nCMD [\"node\", \"server.js\"]\n", 2),
-            ("api.Dockerfile", "FROM python:3.12\nENV PYTHONHTTPSVERIFY 0\n", 2),
-            ("docker-compose.yml", "services:\n  web:\n    environment:\n      NODE_TLS_REJECT_UNAUTHORIZED: \"0\"\n", 4),
-            ("compose.yaml", "services:\n  web:\n    environment:\n      - NODE_TLS_REJECT_UNAUTHORIZED=0\n", 4),
-            ("k8s/deploy.yaml", "env:\n  - name: NODE_TLS_REJECT_UNAUTHORIZED\n    value: \"0\"\n", 3),
+            (
+                "Dockerfile",
+                "FROM node:22\nENV NODE_TLS_REJECT_UNAUTHORIZED=0\nCMD [\"node\", \"server.js\"]\n",
+                2,
+            ),
+            (
+                "api.Dockerfile",
+                "FROM python:3.12\nENV PYTHONHTTPSVERIFY 0\n",
+                2,
+            ),
+            (
+                "docker-compose.yml",
+                "services:\n  web:\n    environment:\n      NODE_TLS_REJECT_UNAUTHORIZED: \"0\"\n",
+                4,
+            ),
+            (
+                "compose.yaml",
+                "services:\n  web:\n    environment:\n      - NODE_TLS_REJECT_UNAUTHORIZED=0\n",
+                4,
+            ),
+            (
+                "k8s/deploy.yaml",
+                "env:\n  - name: NODE_TLS_REJECT_UNAUTHORIZED\n    value: \"0\"\n",
+                3,
+            ),
             (".env", "PORT=3000\nNODE_TLS_REJECT_UNAUTHORIZED=0\n", 2),
-            (".github/workflows/deploy.yml", "jobs:\n  d:\n    env:\n      PYTHONHTTPSVERIFY: '0'\n", 4),
-            ("start.sh", "#!/bin/sh\nexport NODE_TLS_REJECT_UNAUTHORIZED=0\nnode server.js\n", 2),
-            ("package.json", "{\n  \"scripts\": {\n    \"start\": \"NODE_TLS_REJECT_UNAUTHORIZED=0 node server.js\"\n  }\n}\n", 3),
-            ("server.js", "const https = require('https');\nprocess.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';\n", 2),
-            ("agent.js", "const https = require('https');\nhttps.globalAgent.options.rejectUnauthorized = false;\n", 2),
-            ("app.py", "import os, ssl\nos.environ[\"PYTHONHTTPSVERIFY\"] = \"0\"\n", 2),
-            ("fetch.py", "import ssl\nssl._create_default_https_context = ssl._create_unverified_context\n", 2),
-            ("Procfile", "web: deno run --allow-net --unsafely-ignore-certificate-errors main.ts\n", 1),
+            (
+                ".github/workflows/deploy.yml",
+                "jobs:\n  d:\n    env:\n      PYTHONHTTPSVERIFY: '0'\n",
+                4,
+            ),
+            (
+                "start.sh",
+                "#!/bin/sh\nexport NODE_TLS_REJECT_UNAUTHORIZED=0\nnode server.js\n",
+                2,
+            ),
+            (
+                "package.json",
+                "{\n  \"scripts\": {\n    \"start\": \"NODE_TLS_REJECT_UNAUTHORIZED=0 node server.js\"\n  }\n}\n",
+                3,
+            ),
+            (
+                "server.js",
+                "const https = require('https');\nprocess.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';\n",
+                2,
+            ),
+            (
+                "agent.js",
+                "const https = require('https');\nhttps.globalAgent.options.rejectUnauthorized = false;\n",
+                2,
+            ),
+            (
+                "app.py",
+                "import os, ssl\nos.environ[\"PYTHONHTTPSVERIFY\"] = \"0\"\n",
+                2,
+            ),
+            (
+                "fetch.py",
+                "import ssl\nssl._create_default_https_context = ssl._create_unverified_context\n",
+                2,
+            ),
+            (
+                "Procfile",
+                "web: deno run --allow-net --unsafely-ignore-certificate-errors main.ts\n",
+                1,
+            ),
         ];
         for (name, text, _) in files {
             let path = dir.join(name);
@@ -335,7 +387,10 @@ mod tests {
             .find(|f| f.location.file == "k8s/deploy.yaml")
             .unwrap();
         assert_eq!(one.requirement_ids, ["V12.3.2", "V12.3.4"]);
-        assert!(one.description.contains("`NODE_TLS_REJECT_UNAUTHORIZED` set to `0`"));
+        assert!(
+            one.description
+                .contains("`NODE_TLS_REJECT_UNAUTHORIZED` set to `0`")
+        );
         assert!(report.passed.iter().all(|p| p.check_id != CHECKS_OFF));
     }
 
@@ -344,26 +399,58 @@ mod tests {
         let dir = scratch("quiet");
         let files: &[(&str, &str)] = &[
             // Left on, or set to anything but 0.
-            ("Dockerfile", "FROM node:22\nENV NODE_TLS_REJECT_UNAUTHORIZED=1\nENV NODE_TLS_REJECT_UNAUTHORIZED_LOG=0\n"),
-            ("k8s/deploy.yaml", "env:\n  - name: NODE_TLS_REJECT_UNAUTHORIZED\n    value: \"1\"\n  - name: PORT\n    value: \"0\"\n"),
-            ("deno.Procfile", "web: deno run --unsafely-ignore-certificate-errors=internal.example main.ts\n"),
-            ("client.js", "const agent = new https.Agent({ ca: fs.readFileSync('ca.pem') });\n"),
+            (
+                "Dockerfile",
+                "FROM node:22\nENV NODE_TLS_REJECT_UNAUTHORIZED=1\nENV NODE_TLS_REJECT_UNAUTHORIZED_LOG=0\n",
+            ),
+            (
+                "k8s/deploy.yaml",
+                "env:\n  - name: NODE_TLS_REJECT_UNAUTHORIZED\n    value: \"1\"\n  - name: PORT\n    value: \"0\"\n",
+            ),
+            (
+                "deno.Procfile",
+                "web: deno run --unsafely-ignore-certificate-errors=internal.example main.ts\n",
+            ),
+            (
+                "client.js",
+                "const agent = new https.Agent({ ca: fs.readFileSync('ca.pem') });\n",
+            ),
             // Commented out.
             (".env", "# NODE_TLS_REJECT_UNAUTHORIZED=0\nPORT=3000\n"),
-            ("app.py", "# ssl._create_default_https_context = ssl._create_unverified_context\n"),
+            (
+                "app.py",
+                "# ssl._create_default_https_context = ssl._create_unverified_context\n",
+            ),
             // Described, not made.
-            ("README.md", "Never set NODE_TLS_REJECT_UNAUTHORIZED=0 in production.\n"),
+            (
+                "README.md",
+                "Never set NODE_TLS_REJECT_UNAUTHORIZED=0 in production.\n",
+            ),
             // Kept for development and tests.
             ("Dockerfile.dev", "ENV NODE_TLS_REJECT_UNAUTHORIZED=0\n"),
             (".env.development", "NODE_TLS_REJECT_UNAUTHORIZED=0\n"),
-            ("tests/conftest.py", "import ssl\nssl._create_default_https_context = ssl._create_unverified_context\n"),
-            (".vscode/launch.json", "{\"env\": {\"NODE_TLS_REJECT_UNAUTHORIZED\": \"0\"}}\n"),
+            (
+                "tests/conftest.py",
+                "import ssl\nssl._create_default_https_context = ssl._create_unverified_context\n",
+            ),
+            (
+                ".claude/settings.json",
+                "{\"env\": {\"NODE_TLS_REJECT_UNAUTHORIZED\": \"0\"}}\n",
+            ),
         ];
         for (name, text) in files {
             let path = dir.join(name);
             fs::create_dir_all(path.parent().unwrap()).unwrap();
             fs::write(path, text).unwrap();
         }
+        // The setup: the developer tool's folder is one the listing reads, so leaving it out is
+        // this check's doing.
+        assert!(
+            Listing::of(&dir)
+                .app_files()
+                .any(|f| f.relative == ".claude/settings.json"),
+            "the listing does not reach the developer tool's folder"
+        );
         let report = run(&dir);
         fs::remove_dir_all(&dir).ok();
         assert!(lines_found(&report).is_empty(), "{report:?}");
@@ -372,7 +459,10 @@ mod tests {
             .iter()
             .find(|p| p.check_id == CHECKS_OFF)
             .expect("a clean reading is said");
-        assert!(clean.requirement_ids.is_empty(), "a clean reading credits nothing");
+        assert!(
+            clean.requirement_ids.is_empty(),
+            "a clean reading credits nothing"
+        );
         assert!(clean.scope.contains("files: none sets"), "{}", clean.scope);
     }
 
