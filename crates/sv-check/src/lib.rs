@@ -8,6 +8,7 @@
 pub mod adapters;
 pub mod advisories;
 pub mod ai;
+pub mod ai_tool;
 pub mod ast;
 pub mod browser;
 pub mod browser_storage;

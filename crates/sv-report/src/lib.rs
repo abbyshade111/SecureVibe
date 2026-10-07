@@ -700,6 +700,9 @@ pub struct Report {
     /// For an app that will be on the internet, the requirements only its live site can answer,
     /// and who answers each (`live`). Empty for any other app. Credits nothing.
     pub before_going_live: Vec<live::LiveItem>,
+    /// What the AI coding tool's own files in the folder let it do (ADR-049). Not the app, so it
+    /// credits nothing and finds nothing; the report says it apart from everything else.
+    pub ai_tool: sv_check::ai_tool::AiToolFiles,
     /// How many of those no catalog has an instruction for: the design-review controls, which are
     /// standards that are checklists already. Counted rather than listed.
     pub no_instructions_yet: usize,
@@ -1195,6 +1198,9 @@ pub struct Inputs<'a> {
     /// Whether securevibe.toml says the app will be on the internet, which is when the report lists
     /// what only its live site can answer (`live`).
     pub on_the_internet: bool,
+    /// What the AI coding tool's own files in the folder let it do (ADR-049): its own section of
+    /// the report, never counted toward the app's grade.
+    pub ai_tool: sv_check::ai_tool::AiToolFiles,
     pub target_level: u8,
     pub generated: Option<String>,
     /// See `Report::sv`.
@@ -1754,6 +1760,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         checklist_above_level,
         tests_to_write,
         before_going_live,
+        ai_tool: inputs.ai_tool,
         only_you_can_check,
         no_instructions_yet,
         questions_for_you,

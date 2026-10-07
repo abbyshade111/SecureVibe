@@ -435,6 +435,31 @@ pub fn compliance(report: &Report) -> String {
         out.push('\n');
     }
 
+    // The AI coding tool's own files (ADR-049): apart from the app's grade, and graded by nothing.
+    if !report.ai_tool.notes.is_empty() || !report.ai_tool.not_read.is_empty() {
+        out.push_str("## What your AI coding tool's files let it do\n\n");
+        out.push_str("These files in the project folder belong to the AI coding tool you build with, not to the app, so nothing here counts toward the app's grade or any requirement. Each line is something a file lets the tool do on the computer that opens this folder: run a command, send its work or its key somewhere, act without asking, or start a server. You may have set it up on purpose. If you did not, or do not know where it came from, look before you trust the folder. Claude Code asks before it uses a folder's own settings for the first time. The risk column names the OWASP Agentic Skills Top 10 risk it speaks to; that list is not one this report is graded against.\n\n");
+        if !report.ai_tool.notes.is_empty() {
+            out.push_str("| file | tool | what it lets the tool do | risk |\n|---|---|---|---|\n");
+            for note in &report.ai_tool.notes {
+                out.push_str(&format!(
+                    "| {} | {} | {} | {} |\n",
+                    cell(&format!("`{}`", note.file)),
+                    cell(&note.tool),
+                    cell(&note.what),
+                    cell(note.risk)
+                ));
+            }
+            out.push('\n');
+        }
+        if !report.ai_tool.not_read.is_empty() {
+            out.push_str(&format!(
+                "Not read: {}.\n\n",
+                inert(&report.ai_tool.not_read.join("; "))
+            ));
+        }
+    }
+
     // Level 1 only. The whole list is 87 rows of requirement ids for an owner who is not a
     // programmer, and it reads as a to-do list aimed at somebody else — which it is: its real
     // audience is the AI coding tool, and `sv mcp` gives that one the complete list. What is left
@@ -909,6 +934,7 @@ mod tests {
             tests_to_write: vec![],
             only_you_can_check: Vec::new(),
             before_going_live: Vec::new(),
+            ai_tool: Default::default(),
             questions_for_you: Vec::new(),
             no_instructions_yet: 0,
             named_not_credited: vec![],

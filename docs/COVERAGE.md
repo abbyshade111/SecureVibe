@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 167 (48%) | 10 | 168 |
+| OWASP ASVS 5.0 | 345 | 168 (49%) | 10 | 167 |
 | OWASP AISVS 1.0 | 191 | 38 (20%) | 0 | 153 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
@@ -44,10 +44,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 57 | 11 | 1 | 6 | 37 | 21 | 3 |
-| L2 | 183 | 89 | 15 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 90 | 17 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 29 ASVS requirements can be settled. 27 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 31 ASVS requirements can be settled. 26 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -64,7 +64,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3 Web Frontend Security | 31 | 22 | 0 | 9 |
 | V4 API and Web Service | 16 | 10 | 0 | 6 |
 | V5 File Handling | 13 | 8 | 1 | 4 |
-| V6 Authentication | 47 | 23 | 1 | 23 |
+| V6 Authentication | 47 | 24 | 1 | 22 |
 | V7 Session Management | 19 | 10 | 0 | 9 |
 | V8 Authorization | 13 | 4 | 1 | 8 |
 | V9 Self-contained Tokens | 7 | 5 | 0 | 2 |
@@ -79,7 +79,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (29)
+### Settled by reading the code (31)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -91,6 +91,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Signed in: `probe.upload-path-traversal`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V6.5.3 | L2 | Reads the code: `ast.insecure-random-for-code` (sv only ever as a finding: `ast.insecure-random-for-code`) |
 | V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.3 | L2 | Reads the code: `ast.token-audience-not-checked` (sv only ever as a finding: `ast.token-audience-not-checked`) |
 | V10.1.1 | L2 | Reads the code: `ast.token-in-browser-storage`; Signed in: `probe.token-in-browser-storage` (sv only ever as a finding: `ast.token-in-browser-storage`, `probe.token-in-browser-storage`) |
@@ -103,6 +104,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V11.4.2 | L2 | Reads the code: `ast.weak-password-key-derivation`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
 | V11.4.4 | L2 | Reads the code: `ast.weak-password-key-derivation` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
+| V11.5.1 | L2 | Reads the code: `ast.insecure-random-for-code`; Outside tools: `gosec`, `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.insecure-random-for-code`) |
 | V12.3.2 | L2 | Reads the code: `config.certificate-checks-off`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `config.certificate-checks-off`) |
 | V12.3.4 | L2 | Reads the code: `config.certificate-checks-off` (sv only ever as a finding: `config.certificate-checks-off`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
@@ -236,7 +238,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (27)
+### Settled only by an outside tool (26)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -257,7 +259,6 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.2.3 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V11.3.4 | L3 | Outside tools: `gosec`, `semgrep` (gosec only ever as a finding: `G407`; semgrep only ever as a finding: `gcm-nonce-reuse`, `openssl-cbc-static-iv`) |
 | V11.4.3 | L2 | Outside tools: `semgrep` |
-| V11.5.1 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript` |
 | V12.1.2 | L2 | Outside tools: `semgrep` |
 | V12.3.1 | L2 | Outside tools: `semgrep` |
 | V12.3.3 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `grpc-client-insecure-connection`, `grpc-nodejs-insecure-connection`, `grpc-server-insecure-connection`) |
