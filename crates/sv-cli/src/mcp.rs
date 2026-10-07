@@ -1057,6 +1057,61 @@ impl Server {
             .get("requirement")
             .and_then(Value::as_str)
             .filter(|q| !q.is_empty());
+        if args.get("path").and_then(Value::as_str).is_some() {
+            anyhow::ensure!(
+                requirement.is_none(),
+                "give either requirement or path, not both"
+            );
+            let report = self
+                .app_dir(args)?
+                .join("securevibe-report")
+                .join("report.json");
+            // A link could point outside the root, as for every other file read here.
+            if let Ok(meta) = std::fs::symlink_metadata(&report) {
+                anyhow::ensure!(
+                    !meta.file_type().is_symlink(),
+                    "securevibe-report/report.json is a link to somewhere else, so it is not read"
+                );
+            }
+            let (prompts, offered, gaps, _) = crate::prompts_for_report(&report)?;
+            let chosen: Vec<Value> = offered
+                .iter()
+                .filter_map(|(id, for_ids)| {
+                    let p = prompts.prompts.iter().find(|p| &p.id == id)?;
+                    Some(json!({
+                        "id": p.id, "title": p.title, "prompt": p.prompt,
+                        "requirements": p.requirements, "sbdControls": p.sbd_controls,
+                        "status": p.status.as_str(),
+                        "result": p.tested.as_ref().map(|t| t.result.as_str()),
+                        "forRequirements": for_ids,
+                    }))
+                })
+                .collect();
+            // The report is a file in the app's folder, so nothing in it is repeated as written: only
+            // requirement ids the library itself names reach the text, each with fixed words for its
+            // status.
+            let offered_refs: Vec<(&sv_check::prompts::Prompt, Vec<String>)> = offered
+                .iter()
+                .filter_map(|(id, ids)| {
+                    Some((prompts.prompts.iter().find(|p| &p.id == id)?, ids.clone()))
+                })
+                .collect();
+            let text = prompts.gaps_markdown(
+                &offered_refs,
+                &gaps,
+                "the app's last report (securevibe-report/report.json)",
+            );
+            return Ok(json!({
+                "content": [{ "type": "text", "text": text }],
+                "structuredContent": {
+                    "prompts": chosen,
+                    "credit": prompts.credit,
+                    "report": "securevibe-report/report.json",
+                    "unproven": gaps.len(),
+                },
+                "isError": false,
+            }));
+        }
         let (prompts, ids, text) = crate::prompts_for(&self.loaded.frameworks, requirement)?;
         let chosen: Vec<Value> = ids
             .iter()
@@ -1866,10 +1921,13 @@ fn output_schema(tool: &str) -> Option<Value> {
                         "sbdControls": strings,
                         "status": { "type": "string", "enum": ["shown", "not-shown", "untested"] },
                         "result": { "type": ["string", "null"] },
+                        "forRequirements": strings,
                     }),
                     &["id", "title", "prompt", "requirements", "sbdControls", "status", "result"],
                 ) },
                 "credit": string,
+                "report": string,
+                "unproven": count,
             }),
             &["prompts", "credit"],
         ),
@@ -2104,6 +2162,10 @@ fn tool_list() -> Value {
                     "requirement": {
                         "type": "string",
                         "description": "Only the prompts for this requirement or Secure by Design control, such as V1.2.4 or SBD-AC-03. Leave it out for all of them."
+                    },
+                    "path": {
+                        "type": "string",
+                        "description": "The app's folder. Give it for only the prompts for what the app's last report (securevibe-report/report.json, written by securevibe_write_report) shows unproven: a finding, nothing shown, or only someone's word, each prompt saying which of those requirements it is for. With no report there yet, write one first."
                     }
                 }
             },
@@ -3680,6 +3742,107 @@ mod tests {
         );
         assert_eq!(result["isError"], true, "{result}");
         assert!(text(&result).contains("ci-workflows"), "{}", text(&result));
+    }
+
+    #[test]
+    fn prompts_are_offered_for_what_the_app_s_last_report_shows_unproven() {
+        let root = std::env::temp_dir().join(format!("sv-mcp-gaps-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("app/securevibe-report")).unwrap();
+        std::fs::create_dir_all(root.join("bare")).unwrap();
+        // A failing header requirement, a query requirement nothing showed, and one checked.
+        std::fs::write(
+            root.join("app/securevibe-report/report.json"),
+            json!({ "requirements": [
+                { "id": "V3.4.3", "status": "needs-attention" },
+                { "id": "V1.2.4", "status": "not-verified" },
+                { "id": "V14.3.2", "status": "checked" },
+            ]})
+            .to_string(),
+        )
+        .unwrap();
+        let server = Server::new(&root).unwrap();
+        let offered = call(&server, "securevibe_prompts", json!({ "path": "app" }));
+        let bare = call(&server, "securevibe_prompts", json!({ "path": "bare" }));
+        let both = call(
+            &server,
+            "securevibe_prompts",
+            json!({ "path": "app", "requirement": "V1.2.4" }),
+        );
+        std::fs::remove_dir_all(&root).ok();
+
+        let listed: Vec<(&str, Vec<&str>)> = offered["structuredContent"]["prompts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| {
+                (
+                    p["id"].as_str().unwrap(),
+                    p["forRequirements"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|r| r.as_str().unwrap())
+                        .collect(),
+                )
+            })
+            .collect();
+        // The header prompt, shown to work, comes before the placeholders one, which is not; the
+        // cache prompt is for a requirement already checked, and is not offered.
+        assert_eq!(
+            listed,
+            vec![
+                ("security-headers", vec!["V3.4.3"]),
+                ("database-placeholders", vec!["V1.2.4"]),
+            ],
+            "{offered}"
+        );
+        assert_eq!(offered["structuredContent"]["unproven"], 2);
+        let words = text(&offered);
+        assert!(words.contains("For: V3.4.3 (a finding)."), "{words}");
+        assert!(
+            words.contains("For: V1.2.4 (nothing shown yet)."),
+            "{words}"
+        );
+        assert!(
+            !words.contains("private-pages") && !words.contains("no-store"),
+            "{words}"
+        );
+        // With no report, it says to make one; asked both ways at once, it says to pick one.
+        assert_eq!(bare["isError"], true, "{bare}");
+        assert!(
+            text(&bare).contains("securevibe_write_report"),
+            "{}",
+            text(&bare)
+        );
+        assert_eq!(both["isError"], true, "{both}");
+    }
+
+    #[test]
+    fn a_report_that_is_a_link_out_of_the_app_is_not_read_for_prompts() {
+        let root = std::env::temp_dir().join(format!("sv-mcp-gaps-link-{}", std::process::id()));
+        let outside =
+            std::env::temp_dir().join(format!("sv-mcp-gaps-outside-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("app/securevibe-report")).unwrap();
+        std::fs::write(
+            &outside,
+            json!({ "requirements": [{ "id": "V3.4.3", "status": "needs-attention" }] })
+                .to_string(),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&outside, root.join("app/securevibe-report/report.json"))
+            .unwrap();
+        let server = Server::new(&root).unwrap();
+        let result = call(&server, "securevibe_prompts", json!({ "path": "app" }));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::remove_file(&outside).ok();
+        #[cfg(unix)]
+        {
+            assert_eq!(result["isError"], true, "{result}");
+            assert!(text(&result).contains("is a link"), "{}", text(&result));
+        }
     }
 
     #[test]

@@ -205,8 +205,8 @@ const COMMANDS: &[Command] = &[
         name: "prompts",
         word: None,
         flags: &[],
-        valued: &["--requirement"],
-        help: "  sv prompts [--requirement ID]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03\n",
+        valued: &["--requirement", "--app", "--report"],
+        help: "  sv prompts [--requirement ID | --app DIR | --report FILE]\n                     prompts to give your AI coding tool, each saying whether it has\n                     been shown to work; --requirement gives only those for one requirement\n                     or Secure by Design control, such as V1.2.4 or SBD-AC-03; --app gives\n                     those for what the app's last report (DIR/securevibe-report/report.json,\n                     or --report FILE) shows unproven\n",
     },
     Command {
         name: "probe",
@@ -1298,13 +1298,66 @@ pub(crate) fn prompts_for(
     Ok((prompts, ids, text))
 }
 
-/// Prints the prompts for the AI coding tool, for one requirement or all of them.
-fn cmd_prompts(args: &[String]) -> Result<()> {
-    let requirement = args
+/// The prompts for the requirements an app's last report shows with no evidence (the owner's
+/// decision of 3 October 2026, "`sv` can offer the right prompt for a requirement that still has no
+/// evidence"). Read from the report, so it says what the report said when it was written: a new
+/// report is the only way to see what changed since.
+///
+/// Gives the library, the ids offered with the requirements each is for, the gaps, and the text.
+pub(crate) fn prompts_for_report(
+    report: &Path,
+) -> Result<(
+    sv_check::prompts::Prompts,
+    Vec<(String, Vec<String>)>,
+    std::collections::BTreeMap<String, String>,
+    String,
+)> {
+    let text = std::fs::read_to_string(report).map_err(|e| {
+        anyhow::anyhow!(
+            "there is no report to read at {} ({e}). Make one first: `sv report`, or \
+             `securevibe_write_report` from the AI coding tool.",
+            report.display()
+        )
+    })?;
+    let json: serde_json::Value = serde_json::from_str(&text)
+        .with_context(|| format!("{} is not a report `sv` can read", report.display()))?;
+    let gaps = sv_check::prompts::gaps_in_report(&json)
+        .with_context(|| format!("reading {}", report.display()))?;
+    let paths = prompts_paths();
+    let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
+    let offered = prompts.for_gaps(&gaps);
+    let markdown = prompts.gaps_markdown(&offered, &gaps, &format!("`{}`", report.display()));
+    let ids = offered
         .iter()
-        .position(|a| a == "--requirement")
-        .and_then(|i| args.get(i + 1))
-        .map(String::as_str);
+        .map(|(p, ids)| (p.id.clone(), ids.clone()))
+        .collect();
+    Ok((prompts, ids, gaps, markdown))
+}
+
+/// Prints the prompts for the AI coding tool: for one requirement, for what an app's last report
+/// shows unproven, or all of them.
+fn cmd_prompts(args: &[String]) -> Result<()> {
+    let value = |flag: &str| {
+        args.iter()
+            .position(|a| a == flag)
+            .and_then(|i| args.get(i + 1))
+            .map(String::as_str)
+    };
+    let requirement = value("--requirement");
+    let report = match (value("--report"), value("--app")) {
+        (Some(file), _) => Some(PathBuf::from(file)),
+        (None, Some(app)) => Some(Path::new(app).join("securevibe-report").join("report.json")),
+        (None, None) => None,
+    };
+    if let Some(report) = report {
+        anyhow::ensure!(
+            requirement.is_none(),
+            "give either --requirement or --app (or --report), not both"
+        );
+        let (_, _, _, text) = prompts_for_report(&report)?;
+        print!("{text}");
+        return Ok(());
+    }
     let frameworks = load_frameworks(&data_dir()?)?;
     let (_, _, text) = prompts_for(&frameworks, requirement)?;
     print!("{text}");
