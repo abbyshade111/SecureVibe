@@ -43,6 +43,11 @@ another session is not a claim.
      website cannot send. When the session's token is not a cookie, send them without it; a refusal then means
      another site cannot send the token (not a finding). Add a fixture: a token-based JSON API that accepts any
      Origin.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-token-forgery`. Both requests sent as another site
+     (`probe.cross-site-request-accepted`, V3.5.1, and `probe.preflight-skipped`, V3.5.2) lose the `Authorization` header a browser
+     would not send; a refusal then credits nothing, since without the token it may only mean "not signed in".
+     **`Status: proposed`**: a Later entry on ADR-021, made accepted in the pull request that builds it.
   8. **Single-page apps get a false "private page open to anyone".** (`docs/GAP-ANALYSIS.md`, 2.2.) An anonymous 2xx
      counts as served (`signed_in/mod.rs`), so a React or Vite app's page shell for `/dashboard` is reported high.
      Treat an answer identical to the root page's as a shell, not judged; tell builders in the spec to list API
@@ -176,9 +181,13 @@ another session is not a claim.
      ADR-018, Later.
   4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
      V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
+     **Done the same day** (DESIGN, "A key file committed once is still in the history"; ADR-032, Later, 7 October
+     2026): `git log` reads every file ever added, with the programs it could run switched off; a shallow copy is
+     "not assessed"; four more key-file names.
   **All four claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, each in its own branch
   (`claude/securevibe-e2-app-tests-tier`, `claude/securevibe-e2-tests-required`,
   `claude/securevibe-e2-semgrep-scanned`, `claude/securevibe-e2-git-history-keys`).
+
 - **A deep gap analysis of SecureVibe, start to finish.** Asked for by the owner on 7 October 2026: "a deep gap
   analysis of SecureVibe - the process start to finish, etc. and let me know where there are blind spots or areas for
   improvement". The whole path a person takes, read against the code: installing `sv`, writing `securevibe.toml`,

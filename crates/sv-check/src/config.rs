@@ -108,7 +108,22 @@ const SECRET_FILES: &[&str] = &[
     ".npmrc",
     ".pypirc",
     ".netrc",
+    // Firebase's and Google Cloud's server key as their own guides name it, Cloudflare Workers'
+    // local secrets, and the Rails key that unlocks `credentials.yml.enc`.
+    "serviceAccountKey.json",
+    ".dev.vars",
+    "master.key",
 ];
+
+/// Whether `name` is a file whose whole job is holding credentials: one of `SECRET_FILES`, an
+/// environment file (`.env.staging`), or a Firebase admin key as the console names its download
+/// (`my-app-firebase-adminsdk-abc12-0123456789.json`). A template meant to be committed is not.
+fn is_secret_file(name: &str) -> bool {
+    !is_example_file(name)
+        && (SECRET_FILES.contains(&name)
+            || name.starts_with(".env.")
+            || (name.contains("-firebase-adminsdk-") && name.ends_with(".json")))
+}
 
 /// Names that are meant to be committed: a template showing which settings exist, with no values in it.
 fn is_example_file(name: &str) -> bool {
@@ -176,13 +191,33 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
         }
     };
 
-    let committed: Vec<&String> = tracked
-        .iter()
-        .filter(|path| {
-            let name = path.rsplit('/').next().unwrap_or(path);
-            !is_example_file(name) && (SECRET_FILES.contains(&name) || name.starts_with(".env."))
-        })
-        .collect();
+    let secret = |path: &&String| is_secret_file(path.rsplit('/').next().unwrap_or(path));
+    let committed: Vec<&String> = tracked.iter().filter(secret).collect();
+
+    // Not tracked now is not never committed: a file committed once and untracked since (what this
+    // finding's own fix says to do) is still in every copy of the history. Until 7 October 2026 only
+    // the tracked files were read, and V13.3.1 was credited after the fix (the gap analysis, 1.3).
+    if committed.is_empty() {
+        let Some(added) = crate::git::ever_added(app_dir) else {
+            return Outcome::NotAssessed(
+                "git could not read this repository's history, so `sv` cannot say whether a \
+                 secrets file was committed in the past and untracked since."
+                    .to_owned(),
+            );
+        };
+        let past: Vec<&String> = added.iter().filter(secret).collect();
+        if let Some(first) = past.first() {
+            return Outcome::Failed(Box::new(in_history_finding(first, past.len())));
+        }
+        if crate::git::is_shallow(app_dir) != Some(false) {
+            return Outcome::NotAssessed(
+                "This repository holds only its most recent commits (a shallow copy), so `sv` \
+                 could not read whether a secrets file was committed earlier. Fetching the whole \
+                 history (`git fetch --unshallow`) lets this check read it."
+                    .to_owned(),
+            );
+        }
+    }
 
     match committed.first() {
         None => Outcome::Passed(&["V13.3.1"]),
@@ -219,6 +254,54 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
                   .env.example with the names and no values."
                 .into(),
         })),
+    }
+}
+
+/// A file that holds credentials, committed in the past and no longer tracked: still in the history.
+fn in_history_finding(first: &str, count: usize) -> Finding {
+    Finding {
+        also_reported_by: Vec::new(),
+        fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
+        marked_test_code: false,
+        bundled_library: None,
+        outranked: None,
+        also_on_this_line: Vec::new(),
+        rule_id: "config.secrets-file-committed".into(),
+        title: format!(
+            "A file that holds credentials was committed, and is still in the history (`{first}`)"
+        ),
+        severity: Severity::Critical,
+        confidence: Confidence::High,
+        location: Location {
+            file: first.to_owned(),
+            line: 1,
+        },
+        secret: None,
+        requirement_ids: vec!["V13.3.1".into()],
+        cwe: vec!["CWE-540".into(), "CWE-538".into()],
+        description: if count == 1 {
+            format!(
+                "`{first}` was committed to git at some point. It is not tracked now, but every \
+                 commit that held it still does, in this folder and in every copy of the repository."
+            )
+        } else {
+            format!(
+                "`{first}` and {} other file(s) that hold credentials were committed to git at some \
+                 point. They are not tracked now, but the commits that held them still do.",
+                count - 1
+            )
+        },
+        impact:
+            "Anyone who has, or ever had, a copy of the repository (a clone, a fork, a backup, \
+                 the hosting service) can read the credentials in those commits. Untracking the \
+                 file stopped new commits from holding it, not the old ones."
+                .into(),
+        fix: "Change every credential that was in the file: that is what protects you, and it is \
+              enough on its own. Taking the file out of the history as well means rewriting the \
+              history, which every copy of the repository then has to take up; only do that with \
+              someone experienced, and never instead of changing the credentials."
+            .into(),
     }
 }
 
@@ -857,6 +940,115 @@ mod tests {
             found.fix
         );
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_secrets_file_untracked_after_it_was_committed_is_still_found_in_the_history() {
+        // The gap analysis of 7 October 2026, 1.3: the finding's own fix (`git rm --cached`) turned
+        // the next check to "fine", with the key still in the history.
+        let Some(dir) = git_repo("untracked") else {
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        fs::write(dir.join("app.py"), "print(1)\n").unwrap();
+        fs::write(dir.join(".env"), "SESSION_SECRET=x\n").unwrap();
+        commit_all(&dir);
+        let d = dir.to_str().unwrap();
+        let untracked = Command::new("git")
+            .args(["-C", d, "rm", "-q", "--cached", ".env"])
+            .status()
+            .is_ok_and(|s| s.success());
+        assert!(untracked, "git rm --cached failed in the test's setup");
+        fs::write(dir.join(".gitignore"), ".env\n").unwrap();
+        commit_all(&dir);
+        // The setup did what the fix says: git no longer tracks the file.
+        let tracked = read_tracked(&dir).expect("git lists the repository");
+        assert!(!tracked.iter().any(|f| f == ".env"), "{tracked:?}");
+
+        let report = check_dir(&dir);
+        fs::remove_dir_all(&dir).ok();
+        let found = report
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "config.secrets-file-committed")
+            .unwrap_or_else(|| panic!("the file in the history was not found: {report:?}"));
+        assert_eq!(found.severity, Severity::Critical);
+        assert_eq!(found.location.file, ".env");
+        assert!(
+            found.title.contains("still in the history"),
+            "{}",
+            found.title
+        );
+        assert!(
+            found.fix.starts_with("Change every credential"),
+            "{}",
+            found.fix
+        );
+        assert!(
+            !report
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.secrets-file-committed"),
+            "V13.3.1 was credited with the key in the history"
+        );
+    }
+
+    #[test]
+    fn a_shallow_copy_of_the_history_is_not_assessed_rather_than_passed() {
+        let Some(origin) = git_repo("shallow-origin") else {
+            println!("git is not available here, so this cannot be exercised");
+            return;
+        };
+        fs::write(origin.join("app.py"), "print(1)\n").unwrap();
+        commit_all(&origin);
+        fs::write(origin.join("app.py"), "print(2)\n").unwrap();
+        commit_all(&origin);
+        let copy = scratch("shallow-copy");
+        fs::remove_dir_all(&copy).ok();
+        let cloned = Command::new("git")
+            .args(["clone", "-q", "--depth", "1"])
+            .arg(format!("file://{}", origin.display()))
+            .arg(&copy)
+            .status()
+            .is_ok_and(|s| s.success());
+        assert!(cloned, "git clone --depth 1 failed in the test's setup");
+        // The setup made a shallow copy, as git itself says.
+        assert_eq!(crate::git::is_shallow(&copy), Some(true));
+
+        let shallow = check_dir(&copy);
+        // The control: the whole history, with the same files, passes.
+        let whole = check_dir(&origin);
+        fs::remove_dir_all(&copy).ok();
+        fs::remove_dir_all(&origin).ok();
+        let (_, why) = shallow
+            .not_assessed
+            .iter()
+            .find(|(id, _)| id == "config.secrets-file-committed")
+            .unwrap_or_else(|| panic!("a shallow copy was not left unassessed: {shallow:?}"));
+        assert!(why.contains("shallow copy"), "{why}");
+        assert!(
+            whole
+                .passed
+                .iter()
+                .any(|p| p.check_id == "config.secrets-file-committed"),
+            "the whole history did not pass: {whole:?}"
+        );
+    }
+
+    #[test]
+    fn the_key_files_of_firebase_cloudflare_and_rails_are_secret_files() {
+        for name in [
+            "serviceAccountKey.json",
+            "my-app-firebase-adminsdk-ab1cd-0123456789.json",
+            ".dev.vars",
+            "master.key",
+            ".env.staging",
+        ] {
+            assert!(is_secret_file(name), "{name}");
+        }
+        for name in ["package.json", "firebase.json", ".env.example", "keys.md"] {
+            assert!(!is_secret_file(name), "{name}");
+        }
     }
 
     #[test]
