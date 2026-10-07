@@ -2124,6 +2124,14 @@ another session is not a claim.
   9; the AI prompt 0 of 9 pasted, and seldom delivered at all through the brief). Every builder reads the server's
   opening instructions and the specification before any code. A short line in either, naming the shown prompts and
   where to get them, or the shortest of them in full, is the next delivery to measure, with the same harm rule.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word, in branch
+  `claude/prompts-at-start`: the coding prompts shown to work, in full, at the end of the MCP server's opening
+  instructions and of the specification `sv init` prints, read from `data/prompts.json` so they cannot drift; then a
+  test of 40 builds, approved by the owner.
+  **With it, at the owner's asking: independent reviews of the prompt library from other sessions.** Each reviewing
+  session writes `docs/prompts/reviews/<its name>.md` in a pull request of its own: the wording of every prompt, and
+  suggestions for new ones, each tied to an `sv` check and the requirement's own text. Suggestions are tried the way
+  the library's prompts are before any is marked shown. Asked of the two cloud sessions that build `sv`.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
