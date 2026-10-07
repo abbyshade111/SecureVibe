@@ -132,6 +132,9 @@ pub(super) struct FakeApp {
     pub(super) notes_per_minute: Option<u32>,
     /// When each user created each note, by the clock.
     note_times: BTreeMap<String, Vec<u64>>,
+    /// Comments one user may post in a minute through `/comments`, answered 429 past it. `None`, the
+    /// default, is no limit: a second kind of record for `creates`.
+    pub(super) comments_per_minute: Option<u32>,
     /// Past `notes_per_minute`, lets every other note through rather than none: a limit that does
     /// not stay shut.
     pub(super) notes_limit_leaks: bool,
@@ -1978,6 +1981,29 @@ impl FakeApp {
                     Self::respond(404, vec![], "none")
                 }
             }
+            // A second kind of record, held to its own limit or none.
+            ("POST", "/comments") => {
+                let Some(owner) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                if let Some(limit) = self.comments_per_minute {
+                    let now = self.clock;
+                    let times = self
+                        .note_times
+                        .entry(format!("{owner}#comments"))
+                        .or_default();
+                    times.retain(|t| now.saturating_sub(*t) < 60);
+                    if times.len() >= limit as usize {
+                        return Some(Self::respond(
+                            429,
+                            vec![("Retry-After", "60".into())],
+                            "slow down",
+                        ));
+                    }
+                    times.push(now);
+                }
+                Self::respond(201, vec![], "posted")
+            }
             ("POST", "/notes") => {
                 let Some(owner) = user else {
                     return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
@@ -2245,6 +2271,7 @@ pub(super) fn users() -> UsersSection {
         token_field: None,
         private: vec!["/account".into()],
         redirects: Vec::new(),
+        creates: Vec::new(),
         admin: vec!["/admin".into()],
         admin_actions: vec![sv_manifest::AdminAction {
             method: "POST".into(),

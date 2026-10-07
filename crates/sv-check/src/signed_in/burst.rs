@@ -13,6 +13,9 @@
 
 use super::*;
 
+/// The requirement every burst is about.
+const IDS: &str = "V2.4.1";
+
 /// The most a burst sends: a stated limit above this is not tested.
 pub(super) const MOST_IN_A_BURST: u32 = 100;
 
@@ -43,15 +46,23 @@ pub(super) fn burst_check(
     policy: &sv_manifest::PolicySection,
     out: &mut Outcome,
 ) {
-    const IDS: &str = "V2.4.1";
-    let Some(owned) = &users.owned else {
+    // `owned`'s create first, then each request `creates` names (the owner's decision, 6 October
+    // 2026): each is its own action, judged on its own.
+    let creates: Vec<&RequestTemplate> = users
+        .owned
+        .iter()
+        .map(|o| &o.create)
+        .chain(users.creates.iter())
+        .collect();
+    if creates.is_empty() {
         out.not_assessed.push((
             IDS.to_owned(),
-            "Whether creating records is limited: securevibe.toml lists no `owned` record to create."
+            "Whether creating records is limited: securevibe.toml lists no `owned` record to \
+             create, and no request under `creates`."
                 .to_owned(),
         ));
         return;
-    };
+    }
     let n = match policy.requests_per_minute {
         None => {
             out.not_assessed.push((
@@ -89,6 +100,21 @@ pub(super) fn burst_check(
         ));
         return;
     };
+    for create in creates {
+        burst_one(http, users, &mut session, create, n, out);
+    }
+}
+
+/// One burst through `create`, signed in as `session`, against the `n` a minute securevibe.toml
+/// states: the finding, the credit, or why neither, for this action alone.
+fn burst_one(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    session: &mut Session,
+    create: &RequestTemplate,
+    n: u32,
+    out: &mut Outcome,
+) {
     // A minute's pause first, so the records the checks above created no longer count against a
     // limit per minute.
     http.wait(61);
@@ -97,9 +123,9 @@ pub(super) fn burst_check(
     let values = with_token(
         http,
         "burst-create",
-        &owned.create,
+        create,
         &Values::default(),
-        &mut session,
+        session,
         &users.private,
     );
     let markers: Vec<String> = (1..=n + 1)
@@ -114,16 +140,11 @@ pub(super) fn burst_check(
                 marker,
                 ..values.clone()
             };
-            http.send(&request(
-                &format!("burst-{}", i + 1),
-                &owned.create,
-                &v,
-                &session,
-            ))
+            http.send(&request(&format!("burst-{}", i + 1), create, &v, session))
         })
         .collect();
     let took = http.now().saturating_sub(began);
-    let still = still_in(http, users, "after", &session);
+    let still = still_in(http, users, "after", session);
     // The limit this set off, left to lapse before anything else is asked.
     http.wait(61);
     let through = answers.iter().filter(|a| accepted(a)).count();
@@ -137,7 +158,7 @@ pub(super) fn burst_check(
     out.steps.push(format!(
         "created {sent} records through {} in {took} second{}: {through} went through, {crashed} \
          crashed or did not answer",
-        owned.create.path,
+        create.path,
         if took == 1 { "" } else { "s" }
     ));
     let say = |why: String, out: &mut Outcome| out.not_assessed.push((IDS.to_owned(), why));
@@ -154,7 +175,7 @@ pub(super) fn burst_check(
             format!(
                 "Whether creating records is limited: the first of the burst through {} was \
                  refused ({}), so a refusal later on shows nothing.",
-                owned.create.path,
+                create.path,
                 status(&answers[0])
             ),
             out,
@@ -175,7 +196,7 @@ pub(super) fn burst_check(
             format!(
                 "securevibe.toml says one user should be able to create at most {n} records a \
                  minute. All {sent} sent through {} within {took} seconds went through.",
-                owned.create.path
+                create.path
             ),
         ));
     } else if crashed > 0 {
@@ -183,7 +204,7 @@ pub(super) fn burst_check(
             format!(
                 "Whether creating records is limited: {crashed} of the {sent} sent through {} \
                  crashed or got no answer rather than being refused, and a crash is not a limit.",
-                owned.create.path
+                create.path
             ),
             out,
         );
@@ -194,7 +215,7 @@ pub(super) fn burst_check(
                  refused with {}, which is not how a limit answers (429 Too Many Requests, or 503 \
                  with Retry-After). A value the app keeps unique, a token used up, or a quota \
                  reached is refused the same way.",
-                owned.create.path,
+                create.path,
                 status(answers.last().unwrap_or(&None))
             ),
             out,
@@ -215,7 +236,7 @@ pub(super) fn burst_check(
                 "{sent} records created through {} within {took} seconds by one user: the first \
                  went through and the last was refused, against the {n} a minute securevibe.toml \
                  states. One action, not every function V2.4.1 names",
-                owned.create.path
+                create.path
             ),
         ));
     }
@@ -525,6 +546,108 @@ mod tests {
             why_not(&o).contains("cannot hold the app"),
             "{}",
             why_not(&o)
+        );
+    }
+
+    /// The scripted app with notes held to `notes` a minute and comments to `comments`, against 10 a
+    /// minute stated, with `users` adjusted by `adjust`.
+    fn run_both(
+        notes: Option<u32>,
+        comments: Option<u32>,
+        adjust: impl FnOnce(&mut UsersSection),
+    ) -> Outcome {
+        let acc = accounts();
+        let mut app = FakeApp::new(Flaws::default());
+        app.notes_per_minute = notes;
+        app.comments_per_minute = comments;
+        app.users
+            .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
+        app.users
+            .insert(acc.b.user.clone(), (acc.b.password.clone(), false));
+        let policy = sv_manifest::PolicySection {
+            requests_per_minute: Some(10),
+            ..Default::default()
+        };
+        let mut u = users();
+        adjust(&mut u);
+        super::super::run(&mut app, &u, &acc, true, &policy)
+    }
+
+    fn comments() -> RequestTemplate {
+        RequestTemplate {
+            method: "POST".into(),
+            path: "/comments".into(),
+            form: [("text", "{marker}")]
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+            json: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn each_request_creates_names_is_held_to_the_stated_limit_on_its_own() {
+        // The owner's decision, 6 October 2026: functions other than `owned`, through `creates`.
+        // Notes are limited and comments are not: one credit for notes, one finding for comments.
+        let o = run_both(Some(10), None, |u| u.creates = vec![comments()]);
+        let findings: Vec<&Finding> = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == CREATE_UNLIMITED.rule_id)
+            .collect();
+        assert_eq!(findings.len(), 1, "{:?}", o.findings);
+        assert!(
+            findings[0].description.contains("/comments"),
+            "{}",
+            findings[0].description
+        );
+        let credits: Vec<&crate::Verified> = o
+            .verified
+            .iter()
+            .filter(|v| v.check_id == CREATE_UNLIMITED.rule_id)
+            .collect();
+        assert_eq!(credits.len(), 1, "{:?}", o.verified);
+        assert!(credits[0].scope.contains("/notes"), "{}", credits[0].scope);
+        // The control: comments limited too, and both are credited, each for itself.
+        let o = run_both(Some(10), Some(10), |u| u.creates = vec![comments()]);
+        assert!(
+            !rule_ids(&o).contains(&CREATE_UNLIMITED.rule_id),
+            "{:?}",
+            o.findings
+        );
+        let scopes: Vec<&str> = o
+            .verified
+            .iter()
+            .filter(|v| v.check_id == CREATE_UNLIMITED.rule_id)
+            .map(|v| v.scope.as_str())
+            .collect();
+        assert_eq!(scopes.len(), 2, "{scopes:?}");
+        assert!(scopes[1].contains("/comments"), "{scopes:?}");
+    }
+
+    #[test]
+    fn creates_alone_is_enough_and_neither_is_said() {
+        // With no `owned`, a request under `creates` is still asked.
+        let o = run_both(None, None, |u| {
+            u.owned = None;
+            u.creates = vec![comments()];
+        });
+        assert!(
+            o.findings
+                .iter()
+                .any(|f| f.rule_id == CREATE_UNLIMITED.rule_id
+                    && f.description.contains("/comments")),
+            "{:?}",
+            o.findings
+        );
+        // With neither, the report says what to list.
+        let o = run_both(None, None, |u| u.owned = None);
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(id, why)| id == "V2.4.1" && why.contains("no request under `creates`")),
+            "{:?}",
+            o.not_assessed
         );
     }
 }
