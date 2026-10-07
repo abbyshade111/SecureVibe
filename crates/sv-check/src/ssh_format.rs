@@ -507,6 +507,11 @@ mod tests {
             let at = bytes.windows(32).position(|w| w == seed).unwrap();
             bytes[at..at + 32].copy_from_slice(&b.to_bytes());
             assert!(read(&armor(PRIVATE_LABEL, &bytes)).is_err());
+            // A padding byte changed.
+            let mut bytes = unarmor(PRIVATE_LABEL, &text).unwrap();
+            let last = bytes.len() - 1;
+            bytes[last] ^= 0x40;
+            assert!(read(&armor(PRIVATE_LABEL, &bytes)).is_err());
             // The two check numbers made to differ.
             let mut bytes = unarmor(PRIVATE_LABEL, &text).unwrap();
             let at = bytes.windows(4).position(|w| w == [1, 2, 3, 4]).unwrap();

@@ -878,6 +878,52 @@ mod tests {
         assert!(SigningKey::make_in(&keys, None).is_err());
     }
 
+    #[test]
+    fn a_key_file_changed_by_hand_is_refused_not_used() {
+        // Each change leaves a file `sv` could misread as some key: its padding, its secret half
+        // swapped for another key's, or the public half kept beside the secret one changed.
+        let s = Scratch::new("doctored");
+        let keys = s.0.join("made");
+        let made = SigningKey::make_in(&keys, None).unwrap();
+        let other = ed25519_dalek::SigningKey::from_bytes(&[9u8; 32]);
+        let path = keys.join(SIGNING_KEY_FILE);
+        let text = std::fs::read_to_string(&path).unwrap();
+        let bytes = ssh_format::unarmor("OPENSSH PRIVATE KEY", &text).unwrap();
+        let public = PublicKey::of(&made.key).blob();
+        let public = &public[public.len() - 32..];
+        let seed = made.key.to_bytes();
+        let changes: Vec<(&str, Vec<u8>)> = vec![
+            ("padding", {
+                let mut b = bytes.clone();
+                let last = b.len() - 1;
+                b[last] ^= 0x40;
+                b
+            }),
+            ("secret half", {
+                let mut b = bytes.clone();
+                let at = b.windows(32).position(|w| w == seed).unwrap();
+                b[at..at + 32].copy_from_slice(&other.to_bytes());
+                b
+            }),
+            ("public half beside the secret one", {
+                let mut b = bytes.clone();
+                let at = b.windows(32).rposition(|w| w == public).unwrap();
+                b[at..at + 32].copy_from_slice(&other.verifying_key().to_bytes());
+                b
+            }),
+        ];
+        assert!(
+            matches!(SigningKey::load_from(&keys), Ok(Some(Stored::Ready(_)))),
+            "the setup: the file as made is read"
+        );
+        for (what, changed) in changes {
+            assert_ne!(changed, bytes, "the setup: {what} was changed");
+            std::fs::remove_file(&path).unwrap();
+            std::fs::write(&path, ssh_format::armor("OPENSSH PRIVATE KEY", &changed)).unwrap();
+            assert!(SigningKey::load_from(&keys).is_err(), "{what}");
+        }
+    }
+
     /// A seal is an SSH signature `ssh-keygen` checks on its own, with the same list: anyone can
     /// check it without `sv`.
     #[test]
