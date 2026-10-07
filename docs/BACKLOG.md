@@ -3572,6 +3572,10 @@ another session is not a claim.
      whatever you want to work on next from the backlog"), in branch `claude/securevibe-e2-league-grants`: its password
      and implicit grants switched on, read from its source, which can be fetched now. Read on `main` just before this
      claim: no other session had claimed it.
+     **Done the same day** (DESIGN, "The retired grants in league/oauth2-server and Laravel Passport"), with Laravel
+     Passport beside it, since most PHP apps reach league through Passport. `new PasswordGrant(` and `new
+     ImplicitGrant(` for league, and `Passport::enablePasswordGrant()` and `Passport::enableImplicitGrant()` for
+     Passport, each read from its own source. Not seen: Passport before 12, whose password grant had no switch.
   9. **V11.4.4: an encryption key made from a password with too little work.** From `docs/PARTIAL-CHECKS.md`: a
      code rule for PBKDF2 with a literal iteration count below OWASP's figure, and a single hash of a password used
      as a key. Only ever a finding; a count read from a setting is not judged.
