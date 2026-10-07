@@ -72,6 +72,7 @@ RUST_CHECKS = {
     "config.rich-text-without-sanitizer": ("static", ["V1.3.1"]),
     "config.retired-grant-enabled": ("static", ["V10.4.4"]),
     "config.model-file-can-run-code": ("static", ["C4.1.2"]),
+    "config.certificate-checks-off": ("static", ["V12.3.2", "V12.3.4"]),
     "probe.retired-grants-offered": ("running", ["V10.4.4"]),
     "probe.admin-opened-by-address": ("running", ["V8.4.2"]),
     "probe.private-files-served": ("running", ["V13.4.7"]),
@@ -295,6 +296,8 @@ RUST_FINDINGS_ONLY = {
     "probe.app-token-key-source-followed",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
+    # A setting made on the server itself is in no file.
+    "config.certificate-checks-off",
     "probe.retired-grants-offered",
     "probe.admin-opened-by-address",
     "probe.private-files-served",
@@ -360,6 +363,7 @@ def framework(path):
 # read it from: checks that only ever credit a requirement, and the configuration checks built
 # differently. Every other check's words are read from the code or data where the check is defined.
 DESCRIBED = {
+    "config.certificate-checks-off": "A setting that switches off certificate checking for every connection the app makes",
     "config.workflow-runs-fork-code": "A CI workflow that runs code from a pull request by someone outside the project with the repository's privileges",
     "config.workflow-checkout-keeps-token": "A CI workflow whose checkout step leaves the repository token where later steps can read it",
     "config.workflow-secrets-with-fork-code": "A CI workflow that hands secrets to a job running code from outside the project",
