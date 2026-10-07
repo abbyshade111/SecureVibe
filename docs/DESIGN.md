@@ -12316,3 +12316,9 @@ ADR-021, "Later, 7 October 2026: a request sent as another site carries no `Auth
 `token_login_sets_cookie` (not a flaw: the token sign-in also sets the session cookie), and `forgery.rs` three tests: a
 token-only API that takes any Origin in every form (no finding, no credit, both not assessed), the same with a cookie
 beside the token (both still found), and that cookie with an app refusing other origins (refused, not credited).
+
+Four guards broken in turn, each caught by its own test among the 388 signed-in tests:
+- the `Authorization` header kept, the behavior before;
+- a token-only session sent anyway, signing nobody in;
+- the request from another site, refused without the token, credited;
+- the requests sent without a preflight, refused without the token, credited.
