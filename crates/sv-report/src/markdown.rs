@@ -208,6 +208,10 @@ pub fn compliance(report: &Report) -> String {
         out.push_str(&format!("- **{n}** — {label}\n"));
     }
     out.push('\n');
+    out.push_str(&format!("{}\n\n", crate::bluf::held_to(report)));
+    if let Some(line) = crate::bluf::not_run_line(report) {
+        out.push_str(&format!("{line}\n\n"));
+    }
     let steps = crate::bluf::next_steps(report);
     if !steps.is_empty() {
         out.push_str("### What to do next\n\n");
@@ -967,6 +971,7 @@ mod tests {
             examined: Vec::new(),
             could_not_run: Vec::new(),
             partly_read: Vec::new(),
+            not_run_this_time: None,
         };
         let md = security(&report);
         // The setup: all three reached the page.
