@@ -2367,7 +2367,7 @@ fn value_names(node: tree_sitter::Node, source: &[u8]) -> Vec<String> {
     // The last part of a written target: `self.otp`, `$user->reset_token`, `@code`, `"otp"`.
     let last = |s: &str| -> Option<String> {
         s.rsplit(['.', ':', '>', '[', ']', '(', ')', ' '])
-            .map(|p| p.trim().trim_matches(['"', '\'', '$', '@']))
+            .map(|p| p.trim().trim_matches(['"', '\'', '$', '@', '*', '&']))
             .find(|p| !p.is_empty())
             .map(str::to_owned)
     };
@@ -2389,7 +2389,10 @@ fn value_names(node: tree_sitter::Node, source: &[u8]) -> Vec<String> {
             | "var_spec"
             | "public_field_definition"
             | "field_definition"
-            | "keyword_argument" => n.child_by_field_name("name"),
+            | "keyword_argument"
+            | "variable_assignment" => n.child_by_field_name("name"),
+            // C and C++: `int otp = …`, `char *code = …`.
+            "init_declarator" => n.child_by_field_name("declarator"),
             "pair" => n.child_by_field_name("key"),
             "let_declaration" => n.child_by_field_name("pattern"),
             // Kotlin's `val otp: Int = …`: the name is the declaration's first part, before its type.
@@ -6632,6 +6635,13 @@ mod tests {
         ("ast.insecure-random-for-code", "dart", "void sendOtp() { final otp = Random().nextInt(900000) + 100000; mail(otp); }", true),
         ("ast.insecure-random-for-code", "dart", "void sendOtp() { final otp = Random.secure().nextInt(900000) + 100000; mail(otp); }", false),
         ("ast.insecure-random-for-code", "dart", "void roll() { final face = Random().nextInt(6) + 1; show(face); }", false),
+        ("ast.insecure-random-for-code", "c", "void notify(struct user *u) { int otp = rand() % 1000000; mail(u, otp); }", true),
+        ("ast.insecure-random-for-code", "c", "int roll(void) { int face = rand() % 6 + 1; return face; }", false),
+        ("ast.insecure-random-for-code", "cpp", "void notify(User& u) { int otp = std::rand() % 1000000; mail(u, otp); }", true),
+        ("ast.insecure-random-for-code", "cpp", "int roll() { int face = std::rand() % 6 + 1; return face; }", false),
+        ("ast.insecure-random-for-code", "shell", "notify() {\n  otp=$RANDOM\n  mail \"$1\" \"$otp\"\n}\n", true),
+        ("ast.insecure-random-for-code", "shell", "make_reset_code() {\n  echo \"${RANDOM}${RANDOM}\"\n}\n", true),
+        ("ast.insecure-random-for-code", "shell", "backoff() {\n  delay=$RANDOM\n  sleep $((delay % 5))\n}\n", false),
         ("ast.check-passes-on-error", "python", "def verify_token(t):\n    try:\n        jwt.decode(t, KEY, algorithms=['HS256'])\n        return True\n    except Exception:\n        return True\n", true),
         ("ast.check-passes-on-error", "python", "class Perms:\n    @staticmethod\n    def has_permission(user, thing):\n        try:\n            return lookup(user, thing)\n        except KeyError:\n            log.warning('no entry')\n            return True\n", true),
         ("ast.check-passes-on-error", "python", "def verify_token(t):\n    try:\n        jwt.decode(t, KEY, algorithms=['HS256'])\n        return True\n    except Exception:\n        return False\n", false),

@@ -12147,10 +12147,13 @@ dice rolls and shuffles included, so a reader cannot tell the one that matters f
 nothing. `docs/PARTIAL-CHECKS.md` proposed the narrower case: an ordinary generator whose value is named as a code.
 
 **`ast.insecure-random-for-code`** (high, medium confidence, only ever a finding, citing V6.5.3 and V11.5.1) reads
-ten languages for the ordinary generators: Python's `random.randint` and its kin, JavaScript's and TypeScript's
-`Math.random`, Java's `new Random()` and `ThreadLocalRandom`, Kotlin's `Random.nextInt`, Go's `math/rand` functions
-(`rand.Intn` and the rest; `crypto/rand` has none of their names), PHP's `rand`, `mt_rand`, and `uniqid`, Ruby's
-`rand` and `Random.rand`, C#'s `new Random()` and `Random.Shared`, and Dart's `Random()`. The secure ones beside them
+thirteen languages for the ordinary generators: Python's `random.randint` and its kin, JavaScript's and
+TypeScript's `Math.random`, Java's `new Random()` and `ThreadLocalRandom`, Kotlin's `Random.nextInt`, Go's
+`math/rand` functions (`rand.Intn` and the rest; `crypto/rand` has none of their names), PHP's `rand`, `mt_rand`, and
+`uniqid`, Ruby's `rand` and `Random.rand`, C#'s `new Random()` and `Random.Shared`, Dart's `Random()`, C's and
+C++'s `rand()` and `random()`, and the shell's `$RANDOM`. Swift and Rust have nothing to find, and the rule says why:
+their usual ways of making a random number (`Int.random(in:)`, `rand::random`) already draw from a generator built
+for secrets; their exceptions (GameplayKit, `SmallRng`, `fastrand`) are not looked for. The secure ones beside them
 (`secrets`, `crypto.randomInt`, `SecureRandom`, `random_int`, `RandomNumberGenerator`, `Random.secure()`) are told
 apart by name: `secrets.choice` is not `random.choice`.
 
@@ -12168,9 +12171,9 @@ was not confirmed.
 **What it does not see.** A generator kept in a variable and used later (`rng = Random()`, then `rng.nextInt()`),
 whose type a query cannot know; Go's `math/rand` imported under another name; and a code given a name that says
 nothing. Finding none credits nothing.
-**Break and watch.** The rule has witnesses both ways in every language, and two cases guard the generator's own
+**Break and watch.** The rule has witnesses both ways in every language it reads, and two cases guard the generator's own
 name: `secrets.choice` in Python and `SecureRandom.rand` in Ruby, each using the same method name as the weak
-generator. **Eight guards were broken in turn, and each was caught:**
+generator. **Ten guards were broken in turn, and each was caught:**
 - the names not judged at all (a quiet case reported in every one of the ten languages);
 - variable and field names not read (six cases: JavaScript, PHP, Ruby, and three in Python);
 - the function's name not read (seven cases, in six languages);
@@ -12178,7 +12181,13 @@ generator. **Eight guards were broken in turn, and each was caught:**
 - Kotlin's declaration not read;
 - `code` matched inside other words (`color_code` reported, and the `code`-alone rule turned into a miss);
 - Python's module not judged (`secrets.choice` reported);
-- Ruby's receiver not judged (`SecureRandom.rand` reported).
+- Ruby's receiver not judged (`SecureRandom.rand` reported);
+- C's and C++'s declarations not read (both of their cases);
+- the shell's assignments not read (`otp=$RANDOM`).
+
+The C, C++, and shell queries, and the reasons for Swift and Rust, were added after the full suite's first run: a
+test (`every_real_rule_is_taught_every_language_it_meets_here`) holds every rule to saying something about every
+language `sv` reads, and four more tests failed with it.
 
 The Kotlin break was missed at first: its case was `fun sendOtp()`, whose name alone was enough. The case is now
 `fun notify(…)` with `val otp: Int = …`, so only the declaration can find it, and the break is caught.

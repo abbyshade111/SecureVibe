@@ -21,7 +21,7 @@ another session is not a claim.
   `claude/securevibe-e2-weak-random-codes`. A new rule that only ever raises findings changes no requirement's
   status, so no ADR is proposed.
   **Done the same day** (DESIGN, "A sign-in or reset code made with a random number generator that can be
-  predicted"): `ast.insecure-random-for-code`, in ten languages, with a new rule setting, `valueNamePatterns`, that
+  predicted"): `ast.insecure-random-for-code`, in thirteen languages (Swift and Rust have nothing to find, and say why), with a new rule setting, `valueNamePatterns`, that
   reads the names a value is given. Only ever a finding.
 
 - **V12.3.4 (and V12.3.2): a setting that switches off certificate checking for the whole app.** From
