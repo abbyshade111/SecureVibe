@@ -34,6 +34,7 @@ pub const FORK_CODE: &str = "config.workflow-runs-fork-code";
 pub const FORK_SECRETS: &str = "config.workflow-secrets-with-fork-code";
 pub const CHECKOUT_TOKEN: &str = "config.workflow-checkout-keeps-token";
 pub const TOKEN_PERMISSIONS: &str = "config.workflow-token-permissions";
+pub const ALL_SECRETS: &str = "config.workflow-hands-out-all-secrets";
 
 /// Pipelines of other kinds. While one of these is present, a clean set of GitHub workflows is not a
 /// clean pipeline, because part of it was never read.
@@ -124,6 +125,16 @@ impl Value {
             Value::Seq(items) => items.iter().find_map(Value::line),
             Value::Map(pairs) => pairs.iter().find_map(|(_, v)| v.line()),
             Value::Null => None,
+        }
+    }
+
+    /// Every scalar inside this value with its line, keys left out.
+    fn scalars_at<'a>(&'a self, out: &mut Vec<(&'a str, usize)>) {
+        match self {
+            Value::Scalar(s, line) => out.push((s, *line)),
+            Value::Seq(items) => items.iter().for_each(|v| v.scalars_at(out)),
+            Value::Map(pairs) => pairs.iter().for_each(|(_, v)| v.scalars_at(out)),
+            Value::Null => {}
         }
     }
 
@@ -352,22 +363,28 @@ fn untrusted_code_at(step: &Value) -> Option<usize> {
         .flatten()
 }
 
-/// Whether anything in a job reads a secret other than the job's own token.
-fn reads_secrets(job: &Value) -> bool {
-    if job
-        .get("secrets")
+/// Whether a job is a call to a reusable workflow that passes it every secret the caller has.
+fn inherits_secrets(job: &Value) -> bool {
+    job.get("secrets")
         .and_then(Value::text)
         .is_some_and(|s| s.trim() == "inherit")
-    {
+}
+
+/// Whether a value names a secret other than the job's own token.
+fn names_a_secret(text: &str) -> bool {
+    let s = squashed(text);
+    s.match_indices("secrets.")
+        .any(|(at, _)| !s[at..].starts_with("secrets.github_token"))
+}
+
+/// Whether anything in a job reads a secret other than the job's own token.
+fn reads_secrets(job: &Value) -> bool {
+    if inherits_secrets(job) {
         return true;
     }
     let mut all = Vec::new();
     job.scalars(false, &mut all);
-    all.iter().any(|s| {
-        let s = squashed(s);
-        s.match_indices("secrets.")
-            .any(|(at, _)| !s[at..].starts_with("secrets.github_token"))
-    })
+    all.iter().any(|s| names_a_secret(s))
 }
 
 fn steps(job: &Value) -> &[Value] {
@@ -589,6 +606,7 @@ pub fn check(app_dir: &Path) -> WorkflowReport {
             ));
         }
         token_permissions(&workflow, name, &mut report);
+        all_secrets(&workflow, name, &mut report);
     }
 
     let other: Vec<&str> = OTHER_PIPELINES
@@ -746,6 +764,94 @@ fn token_permissions(workflow: &Value, name: &str, report: &mut WorkflowReport) 
                 .into(),
             "Add `permissions: contents: read` at the top of the workflow, and give a job more only \
              where it needs it."
+                .into(),
+        ],
+    ));
+}
+
+/// A workflow that hands a job every secret, or more secrets than the one step that uses them (V13.3.2).
+///
+/// Only ever a finding: a workflow that hands out each secret where it is needed says nothing about
+/// who else can read them, in the repository's settings or anywhere else.
+fn all_secrets(workflow: &Value, name: &str, report: &mut WorkflowReport) {
+    let mut ways: Vec<(usize, String)> = Vec::new();
+    let mut all = Vec::new();
+    workflow.scalars_at(&mut all);
+    let dumped = all
+        .iter()
+        .find(|(s, _)| squashed(s).contains("tojson(secrets)"));
+    if let Some((_, line)) = dumped {
+        ways.push((
+            *line,
+            format!("line {line} turns every secret into one piece of text (`toJSON(secrets)`)"),
+        ));
+    }
+    for (id, job) in jobs(workflow) {
+        if inherits_secrets(job) {
+            let line = job.get("secrets").and_then(Value::line).unwrap_or(1);
+            ways.push((
+                line,
+                format!(
+                    "job `{id}` passes every secret to the workflow it calls (`secrets: inherit`, \
+                     line {line})"
+                ),
+            ));
+        }
+    }
+    // A secret in the workflow's own `env:` reaches every step of every job. With only one step in
+    // the whole file there is nobody else to reach, so that is not reported.
+    let step_count: usize = jobs(workflow).iter().map(|(_, job)| steps(job).len()).sum();
+    if let Some(Value::Map(env)) = workflow.get("env")
+        && step_count > 1
+    {
+        let named: Vec<(&str, usize)> = env
+            .iter()
+            .filter(|(_, v)| v.text().is_some_and(names_a_secret))
+            .map(|(k, v)| (k.as_str(), v.line().unwrap_or(1)))
+            .collect();
+        if let Some((_, line)) = named.first() {
+            ways.push((
+                *line,
+                format!(
+                    "the workflow-wide `env:` gives {} to all {step_count} steps (line {line})",
+                    named
+                        .iter()
+                        .map(|(k, _)| format!("`{k}`"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            ));
+        }
+    }
+    let Some(&(line, _)) = ways.iter().min_by_key(|(line, _)| *line) else {
+        return;
+    };
+    report.findings.push(finding(
+        ALL_SECRETS,
+        "A workflow hands out more of the repository's secrets than a step needs".into(),
+        if dumped.is_some() {
+            Severity::High
+        } else {
+            Severity::Medium
+        },
+        at(name, line),
+        &["V13.3.2"],
+        &["CWE-668"],
+        [
+            format!(
+                "In `{name}`, {}.",
+                ways.iter()
+                    .map(|(_, w)| w.as_str())
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+            "Every step that can see a secret can leak it, including actions written by other \
+             people and packages installed from outside. The more steps see each secret, the more \
+             places one mistake or one bad update can send it."
+                .into(),
+            "Give each secret only to the step that uses it, in that step's own `env:` or `with:`. \
+             Pass a reusable workflow the secrets it needs by name instead of `secrets: inherit`, \
+             and never pass `toJSON(secrets)`."
                 .into(),
         ],
     ));
@@ -1200,6 +1306,219 @@ jobs:
             report.findings.is_empty()
                 && report.passed.is_empty()
                 && report.not_assessed.is_empty()
+        );
+    }
+
+    /// The one finding a workflow gets for handing out its secrets, if it gets one. Not named for
+    /// secrets, since CodeQL takes whatever a function so named returns for one, and the finding
+    /// names variables, never a value.
+    fn the_finding_in(name: &str, workflow: &str) -> Option<Finding> {
+        let report = run(name, &[("ci.yml", workflow)], &[]);
+        assert!(
+            report.not_assessed.is_empty(),
+            "the fixture must be read: {:?}",
+            report.not_assessed
+        );
+        let mut found = report
+            .findings
+            .into_iter()
+            .filter(|f| f.rule_id == ALL_SECRETS);
+        let first = found.next();
+        assert!(found.next().is_none(), "one finding per file");
+        first
+    }
+
+    #[test]
+    fn each_way_of_handing_out_every_secret_is_found_where_it_is_written() {
+        let dumped = the_finding_in(
+            "tojson",
+            "\
+on: push
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy.sh
+        env:
+          ALL: ${{toJson( secrets )}}
+",
+        )
+        .expect("toJSON(secrets), however it is spaced or capitalized");
+        assert_eq!(dumped.location.line, 10);
+        assert_eq!(dumped.requirement_ids, vec!["V13.3.2"]);
+        assert_eq!(dumped.severity, Severity::High);
+        assert!(
+            dumped.description.contains("toJSON(secrets)"),
+            "{}",
+            dumped.description
+        );
+
+        let inherited = the_finding_in(
+            "inherit",
+            "\
+on: push
+permissions:
+  contents: read
+jobs:
+  release:
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+",
+        )
+        .expect("secrets: inherit");
+        assert_eq!(inherited.location.line, 7);
+        assert_eq!(inherited.severity, Severity::Medium);
+        assert!(
+            inherited.description.contains("`release`"),
+            "{}",
+            inherited.description
+        );
+
+        let wide = the_finding_in(
+            "env",
+            "\
+on: push
+permissions:
+  contents: read
+env:
+  NODE_ENV: test
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+      - run: npm test
+",
+        )
+        .expect("a secret in the workflow-wide env with two steps");
+        assert_eq!(wide.location.line, 6);
+        assert!(
+            wide.description.contains("`NPM_TOKEN`"),
+            "{}",
+            wide.description
+        );
+        assert!(
+            !wide.description.contains("NODE_ENV"),
+            "{}",
+            wide.description
+        );
+        assert!(
+            wide.description.contains("all 2 steps"),
+            "{}",
+            wide.description
+        );
+    }
+
+    #[test]
+    fn a_secret_handed_only_where_it_is_used_is_not_found() {
+        for (name, workflow) in [
+            // Each secret in the one step that uses it.
+            (
+                "step",
+                "\
+on: push
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: npm publish
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+",
+            ),
+            // A reusable workflow given its secret by name.
+            (
+                "named",
+                "\
+on: push
+permissions:
+  contents: read
+jobs:
+  release:
+    uses: ./.github/workflows/release.yml
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+",
+            ),
+            // The workflow-wide env holds only the job's own token and plain settings.
+            (
+                "token",
+                "\
+on: push
+permissions:
+  contents: read
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  NODE_ENV: test
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+      - run: npm test
+",
+            ),
+            // A secret in the workflow-wide env with one step in the whole file reaches nobody else.
+            (
+                "onestep",
+                "\
+on: push
+permissions:
+  contents: read
+env:
+  NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm publish
+",
+            ),
+            // Other contexts turned into text are not the secrets.
+            (
+                "github",
+                "\
+on: push
+permissions:
+  contents: read
+jobs:
+  show:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo '${{ toJSON(github.event) }}'
+",
+            ),
+        ] {
+            assert!(
+                the_finding_in(name, workflow).is_none(),
+                "{name} was reported"
+            );
+        }
+    }
+
+    #[test]
+    fn handing_out_secrets_carefully_is_never_credited() {
+        let report = run("safe-secrets", &[("ci.yml", SAFE)], &[]);
+        assert!(
+            report.passed.iter().all(|v| v.check_id != ALL_SECRETS),
+            "{:?}",
+            report.passed
+        );
+        assert!(
+            report
+                .passed
+                .iter()
+                .all(|v| !v.requirement_ids.iter().any(|r| r == "V13.3.2")),
+            "{:?}",
+            report.passed
         );
     }
 }
