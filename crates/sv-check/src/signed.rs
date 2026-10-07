@@ -4,13 +4,14 @@
 //! A seal made with `review-key` (`crate::seal`) is a keyed hash: checking it takes the key that
 //! made it, so it counts only on the computer holding that key, and giving CI the key would let CI
 //! make seals too. A signature splits the key in two. `sv review` makes a signing key of its own,
-//! `review-signing-key`, in OpenSSH's own format so `ssh-keygen` reads it, with a passphrase if the
+//! `review-signing-key`, in OpenSSH's own format so `ssh-keygen` reads it (`crate::ssh_format`, which
+//! writes and reads SSH's formats over `ed25519-dalek`), with a passphrase if the
 //! owner wants one, and signs each answer with it. Its public half goes on a list of trusted keys
 //! in OpenSSH's `allowed_signers` format, one line per app, the app's id as the principal:
 //! `allowed_signers` beside the key on the owner's computer, or the variable `SV_TRUSTED_SEALS`
 //! anywhere else (CI, the container), which the owner sets from a repository variable.
 //!
-//! A seal is written `v3:<app id>:<signature>`, the signature being an `SshSig` under the namespace
+//! A seal is written `v3:<app id>:<signature>`, the signature being an SSH signature under the namespace
 //! `securevibe-review`, in hex like every other part of a seal so a notes file's
 //! `Sealed by sv review:` line reads it as one.
 //!
@@ -21,10 +22,8 @@
 
 use std::path::{Path, PathBuf};
 
-use ssh_encoding::{Decode, Encode};
-use ssh_key::{Algorithm, HashAlg, LineEnding, PrivateKey, PublicKey, SshSig};
-
 use crate::seal::{App, Unrecorded};
+use crate::ssh_format::{self, Kept, LockedKey, PublicKey};
 
 /// The signing key's file, beside the review key.
 pub const SIGNING_KEY_FILE: &str = "review-signing-key";
@@ -47,7 +46,7 @@ const COMMENT: &str = "sv review";
 /// A signing key ready to sign. Never printed: `Debug` shows only its fingerprint.
 #[derive(Clone)]
 pub struct SigningKey {
-    key: PrivateKey,
+    key: ed25519_dalek::SigningKey,
 }
 
 impl std::fmt::Debug for SigningKey {
@@ -65,12 +64,12 @@ pub enum Stored {
 
 /// A signing key locked with a passphrase. Never printed: `Debug` shows only its fingerprint.
 pub struct Locked {
-    key: PrivateKey,
+    key: LockedKey,
 }
 
 impl std::fmt::Debug for Locked {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Locked({})", fingerprint(self.key.public_key()))
+        write!(f, "Locked({})", self.fingerprint())
     }
 }
 
@@ -78,14 +77,14 @@ impl Locked {
     /// The key, unlocked with `passphrase`. `Err` says why not, for the owner.
     pub fn unlock(&self, passphrase: &str) -> Result<SigningKey, String> {
         self.key
-            .decrypt(passphrase.as_bytes())
+            .unlock(passphrase)
             .map(|key| SigningKey { key })
             .map_err(|_| "that is not the passphrase of this computer's signing key".to_owned())
     }
 
     /// The key's fingerprint, as `SigningKey::fingerprint`.
     pub fn fingerprint(&self) -> String {
-        fingerprint(self.key.public_key())
+        self.key.public.fingerprint()
     }
 }
 
@@ -107,18 +106,15 @@ impl SigningKey {
         }
         let text = std::fs::read_to_string(&path)
             .map_err(|e| format!("{} could not be read ({e})", path.display()))?;
-        let key = PrivateKey::from_openssh(text.trim())
-            .map_err(|_| format!("{} does not hold a signing key", path.display()))?;
-        if key.algorithm() != Algorithm::Ed25519 {
-            return Err(format!(
-                "{} holds a key that is not Ed25519, the only kind `sv review` signs with",
+        let kept = ssh_format::private_from_openssh(&text).map_err(|why| {
+            format!(
+                "{} does not hold a signing key `sv review` can use: {why}",
                 path.display()
-            ));
-        }
-        Ok(Some(if key.is_encrypted() {
-            Stored::Locked(Locked { key })
-        } else {
-            Stored::Ready(SigningKey { key })
+            )
+        })?;
+        Ok(Some(match kept {
+            Kept::Plain(key) => Stored::Ready(SigningKey { key }),
+            Kept::Locked(key) => Stored::Locked(Locked { key }),
         }))
     }
 
@@ -126,26 +122,15 @@ impl SigningKey {
     /// there is one: the folder readable by its owner only, the file made with a call that fails
     /// on anything already there. Its public half is written beside it, as `ssh-keygen` does.
     pub fn make_in(folder: &Path, passphrase: Option<&str>) -> Result<SigningKey, String> {
-        let mut rng = ssh_key::rand_core::OsRng;
-        let mut key = PrivateKey::random(&mut rng, Algorithm::Ed25519)
-            .map_err(|e| format!("a signing key could not be made ({e})"))?;
-        key.set_comment(COMMENT);
-        let kept = match passphrase {
-            Some(p) => key
-                .encrypt(&mut rng, p.as_bytes())
-                .map_err(|e| format!("the signing key could not be locked ({e})"))?,
-            None => key.clone(),
-        };
-        let text = kept
-            .to_openssh(LineEnding::LF)
-            .map_err(|e| format!("the signing key could not be written out ({e})"))?;
+        let mut seed = [0u8; 32];
+        random(&mut seed)?;
+        let key = ed25519_dalek::SigningKey::from_bytes(&seed);
+        zeroize::Zeroize::zeroize(&mut seed);
+        let text = ssh_format::private_to_openssh(&key, COMMENT, passphrase, &random)?;
         make_folder(folder)?;
         let path = folder.join(SIGNING_KEY_FILE);
         write_new(&path, text.as_bytes(), 0o600)?;
-        let public = key
-            .public_key()
-            .to_openssh()
-            .map_err(|e| format!("the signing key's public half could not be written ({e})"))?;
+        let public = PublicKey::of(&key).to_openssh(COMMENT);
         let public_path = folder.join(format!("{SIGNING_KEY_FILE}.pub"));
         std::fs::write(&public_path, format!("{public}\n"))
             .map_err(|e| format!("{} could not be written ({e})", public_path.display()))?;
@@ -155,18 +140,17 @@ impl SigningKey {
     /// The key's SHA-256 fingerprint, as `ssh-keygen -l` shows it: safe to print, and what the
     /// report names the key by.
     pub fn fingerprint(&self) -> String {
-        fingerprint(self.key.public_key())
+        PublicKey::of(&self.key).fingerprint()
     }
 
     /// The line that trusts this key to seal for `app`, in OpenSSH's `allowed_signers` format.
     /// It holds the public half only, which is made to be shared.
     pub fn trusted_line(&self, app: &App) -> Result<String, String> {
-        let public = self
-            .key
-            .public_key()
-            .to_openssh()
-            .map_err(|e| format!("the signing key's public half could not be written ({e})"))?;
-        Ok(format!("{} namespaces=\"{NAMESPACE}\" {public}", app.id()))
+        Ok(format!(
+            "{} namespaces=\"{NAMESPACE}\" {}",
+            app.id(),
+            PublicKey::of(&self.key).to_openssh(COMMENT)
+        ))
     }
 
     /// This key, signing for one app only.
@@ -209,16 +193,7 @@ impl Signer {
 
     /// The seal for an entry of this app with these fields.
     pub fn seal(&self, fields: &[&str]) -> Result<String, String> {
-        let message = message(self.app.id(), fields);
-        let signature = self
-            .key
-            .key
-            .sign(NAMESPACE, HashAlg::Sha512, &message)
-            .map_err(|e| format!("the entry could not be signed ({e})"))?;
-        let mut bytes = Vec::new();
-        signature
-            .encode(&mut bytes)
-            .map_err(|e| format!("the signature could not be written out ({e})"))?;
+        let bytes = ssh_format::sign(&self.key.key, NAMESPACE, &message(self.app.id(), fields));
         Ok(format!("v3:{}:{}", self.app.id(), crate::seal::hex(&bytes)))
     }
 }
@@ -232,8 +207,16 @@ fn message(app_id: &str, fields: &[&str]) -> Vec<u8> {
     crate::seal::framed(DOMAIN, &all)
 }
 
-fn fingerprint(key: &PublicKey) -> String {
-    key.fingerprint(HashAlg::Sha256).to_string()
+/// Fills `buf` from the system's randomness.
+fn random(buf: &mut [u8]) -> Result<(), String> {
+    use std::io::Read;
+    std::fs::File::open("/dev/urandom")
+        .and_then(|mut f| f.read_exact(buf))
+        .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
+    if buf.len() >= 16 && buf.iter().all(|b| *b == 0) {
+        return Err("the system's randomness gave only zeros".to_owned());
+    }
+    Ok(())
 }
 
 /// Where a list of trusted keys came from, as the report says it.
@@ -297,21 +280,20 @@ impl TrustedList {
     }
 
     /// Whether it trusts this key to seal for this app.
-    pub fn trusts(&self, key: &PublicKey, app_id: &str) -> bool {
+    pub(crate) fn trusts(&self, key: &PublicKey, app_id: &str) -> bool {
         self.lines
             .iter()
-            .any(|t| t.key.key_data() == key.key_data() && t.principals.iter().any(|p| p == app_id))
+            .any(|t| t.key == *key && t.principals.iter().any(|p| p == app_id))
     }
 
     fn knows(&self, key: &PublicKey) -> bool {
-        self.lines
-            .iter()
-            .any(|t| t.key.key_data() == key.key_data())
+        self.lines.iter().any(|t| t.key == *key)
     }
 }
 
 /// One line, split as OpenSSH's `allowed_signers` is: principals, options, then the key. `None`
-/// for a line limited to other namespaces, which says nothing about `sv`'s seals.
+/// for a line limited to other namespaces, or trusting a key of a kind other than Ed25519, which
+/// never signs a seal `sv` accepts: either says nothing about `sv`'s seals.
 fn trusted(line: &str) -> Result<Option<Trusted>, String> {
     let (principals, rest) = line
         .split_once(char::is_whitespace)
@@ -348,7 +330,11 @@ fn trusted(line: &str) -> Result<Option<Trusted>, String> {
             ));
         }
     }
-    let key = PublicKey::from_openssh(key).map_err(|_| "its key cannot be read".to_owned())?;
+    let key = match PublicKey::from_openssh(key) {
+        Ok(Some(key)) => key,
+        Ok(None) => return Ok(None),
+        Err(why) => return Err(format!("its key cannot be read: {why}")),
+    };
     let principals: Vec<String> = principals
         .split(',')
         .map(|p| p.trim().to_owned())
@@ -455,9 +441,9 @@ impl Trust {
             Trust::Broken(why) => return Err(Unrecorded::TrustBroken(why.clone())),
             Trust::List(list) => list,
         };
-        let sig = SshSig::decode(&mut &signature[..]).map_err(|_| Unrecorded::Malformed)?;
-        let key = PublicKey::from(sig.public_key().clone());
-        let named = fingerprint(&key);
+        let sig = ssh_format::Signature::parse(signature).map_err(|_| Unrecorded::Malformed)?;
+        let key = sig.key;
+        let named = key.fingerprint();
         if list.from == ListFrom::ThisComputer {
             let here = here.map_err(|why| Unrecorded::TrustBroken(why.to_owned()))?;
             if here.id() != app_id {
@@ -471,8 +457,9 @@ impl Trust {
                 Unrecorded::NotTrusted(named, list.from)
             });
         }
-        key.verify(NAMESPACE, &message(app_id, fields), &sig)
-            .map_err(|_| Unrecorded::Mismatch)?;
+        if !sig.verifies(NAMESPACE, &message(app_id, fields)) {
+            return Err(Unrecorded::Mismatch);
+        }
         Ok((named, list.from))
     }
 }
@@ -480,7 +467,7 @@ impl Trust {
 /// Adds the line that trusts `key` for `app` to this computer's list in `folder`, unless it is
 /// there. `true` when it was added now.
 pub fn trust_here(folder: &Path, key: &SigningKey, app: &App) -> Result<bool, String> {
-    let public = key.key.public_key().clone();
+    let public = PublicKey::of(&key.key);
     if let Trust::List(list) = Trust::in_folder(folder)
         && list.trusts(&public, app.id())
     {
@@ -774,12 +761,7 @@ mod tests {
                 .is_ok()
         );
         // Signed by the trusted key under another namespace, over the same message: refused.
-        let other_namespace = key
-            .key
-            .sign("git", HashAlg::Sha512, &message(app.id(), FIELDS))
-            .unwrap();
-        let mut bytes = Vec::new();
-        other_namespace.encode(&mut bytes).unwrap();
+        let bytes = ssh_format::sign(&key.key, "git", &message(app.id(), FIELDS));
         let other_namespace = format!("v3:{}:{}", app.id(), crate::seal::hex(&bytes));
         assert_eq!(
             here.recorded(Some(&other_namespace), FIELDS),
@@ -858,11 +840,7 @@ mod tests {
             Some(Stored::Ready(k)) if k.fingerprint() == made.fingerprint()
         ));
         // Nothing printed about it shows the private half.
-        let private = made.key.to_openssh(LineEnding::LF).unwrap();
-        let body: String = private
-            .lines()
-            .filter(|l| !l.starts_with("-----"))
-            .collect();
+        let body: String = text.lines().filter(|l| !l.starts_with("-----")).collect();
         assert!(body.len() > 100, "the setup: the private half is findable");
         for shown in [
             format!("{made:?}"),
@@ -919,9 +897,12 @@ mod tests {
             .step_by(2)
             .map(|i| u8::from_str_radix(&hex[i..i + 2], 16).unwrap())
             .collect();
-        let sig = SshSig::decode(&mut &bytes[..]).unwrap();
         let sig_path = s.0.join("seal.sig");
-        std::fs::write(&sig_path, sig.to_pem(LineEnding::LF).unwrap()).unwrap();
+        std::fs::write(
+            &sig_path,
+            ssh_format::armor(ssh_format::SIGNATURE_LABEL, &bytes),
+        )
+        .unwrap();
         let verify = |fields: &[&str]| {
             use std::io::Write;
             let mut child = std::process::Command::new("ssh-keygen")
@@ -950,5 +931,165 @@ mod tests {
             String::from_utf8_lossy(&good.stderr)
         );
         assert!(!verify(&FIELDS[..3]).status.success());
+    }
+}
+
+#[cfg(test)]
+mod with_ssh_keygen {
+    //! The formats `crate::ssh_format` writes and reads, against `ssh-keygen` itself: it reads the
+    //! key `sv review` makes, plain or locked, and `sv` reads the keys it makes and checks the
+    //! signatures it makes. Where `ssh-keygen` is not on the computer, each says so and stops.
+    use super::*;
+    use std::process::Command;
+
+    fn found() -> bool {
+        let there = Command::new("ssh-keygen").arg("-?").output().is_ok();
+        if !there {
+            eprintln!("ssh-keygen is not on this computer; nothing was checked with it");
+        }
+        there
+    }
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-keygen-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        dir
+    }
+
+    /// The type and data of a public key line, without its comment.
+    fn key_of(line: &str) -> String {
+        line.split_whitespace()
+            .take(2)
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    #[test]
+    fn ssh_keygen_reads_the_key_sv_review_makes_plain_or_locked() {
+        if !found() {
+            return;
+        }
+        let dir = scratch("reads-ours");
+        for passphrase in [None, Some("correct horse")] {
+            let folder = dir.join(if passphrase.is_some() {
+                "locked"
+            } else {
+                "plain"
+            });
+            let key = SigningKey::make_in(&folder, passphrase).unwrap();
+            let ours =
+                std::fs::read_to_string(folder.join(format!("{SIGNING_KEY_FILE}.pub"))).unwrap();
+            let derived = Command::new("ssh-keygen")
+                .arg("-y")
+                .arg("-P")
+                .arg(passphrase.unwrap_or(""))
+                .arg("-f")
+                .arg(folder.join(SIGNING_KEY_FILE))
+                .output()
+                .unwrap();
+            assert!(
+                derived.status.success(),
+                "{passphrase:?}: {}",
+                String::from_utf8_lossy(&derived.stderr)
+            );
+            assert_eq!(
+                key_of(&String::from_utf8_lossy(&derived.stdout)),
+                key_of(&ours),
+                "{passphrase:?}"
+            );
+            let listed = Command::new("ssh-keygen")
+                .arg("-l")
+                .arg("-f")
+                .arg(folder.join(format!("{SIGNING_KEY_FILE}.pub")))
+                .output()
+                .unwrap();
+            assert!(
+                String::from_utf8_lossy(&listed.stdout).contains(&key.fingerprint()),
+                "{}",
+                String::from_utf8_lossy(&listed.stdout)
+            );
+            if passphrase.is_some() {
+                // The wrong passphrase does not open it for `ssh-keygen` either.
+                let wrong = Command::new("ssh-keygen")
+                    .args(["-y", "-P", "wrong horse", "-f"])
+                    .arg(folder.join(SIGNING_KEY_FILE))
+                    .output()
+                    .unwrap();
+                assert!(!wrong.status.success());
+            }
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn sv_reads_the_keys_ssh_keygen_makes_and_checks_its_signatures() {
+        if !found() {
+            return;
+        }
+        let dir = scratch("reads-theirs");
+        std::fs::create_dir_all(&dir).unwrap();
+        for passphrase in ["", "correct horse"] {
+            let folder = dir.join(if passphrase.is_empty() {
+                "plain"
+            } else {
+                "locked"
+            });
+            std::fs::create_dir_all(&folder).unwrap();
+            let made = Command::new("ssh-keygen")
+                .args([
+                    "-q", "-t", "ed25519", "-C", "theirs", "-N", passphrase, "-f",
+                ])
+                .arg(folder.join(SIGNING_KEY_FILE))
+                .output()
+                .unwrap();
+            assert!(
+                made.status.success(),
+                "{}",
+                String::from_utf8_lossy(&made.stderr)
+            );
+            let public =
+                std::fs::read_to_string(folder.join(format!("{SIGNING_KEY_FILE}.pub"))).unwrap();
+            let key = match SigningKey::load_from(&folder).unwrap() {
+                Some(Stored::Ready(key)) if passphrase.is_empty() => key,
+                Some(Stored::Locked(locked)) if !passphrase.is_empty() => {
+                    assert!(locked.unlock("wrong horse").is_err());
+                    locked.unlock(passphrase).unwrap()
+                }
+                other => panic!("{passphrase:?}: {other:?}"),
+            };
+            assert_eq!(
+                PublicKey::of(&key.key).to_openssh("theirs").trim(),
+                public.trim()
+            );
+            if !passphrase.is_empty() {
+                continue;
+            }
+            // A signature `ssh-keygen` makes with it, over a seal's message, checks here.
+            let app = App::named_for_tests("theirs");
+            let fields = ["finding-review", "ast.open-redirect", "app.py", "owner"];
+            let message_path = folder.join("message");
+            std::fs::write(&message_path, message(app.id(), &fields)).unwrap();
+            let signed = Command::new("ssh-keygen")
+                .args(["-Y", "sign", "-n", NAMESPACE, "-f"])
+                .arg(folder.join(SIGNING_KEY_FILE))
+                .arg(&message_path)
+                .output()
+                .unwrap();
+            assert!(
+                signed.status.success(),
+                "{}",
+                String::from_utf8_lossy(&signed.stderr)
+            );
+            let armored = std::fs::read_to_string(folder.join("message.sig")).unwrap();
+            let bytes = ssh_format::unarmor(ssh_format::SIGNATURE_LABEL, &armored).unwrap();
+            let seal = format!("v3:{}:{}", app.id(), crate::seal::hex(&bytes));
+            let checker = crate::seal::Checker::no_key().trusting(
+                Trust::load(None, Some(key.trusted_line(&app).unwrap().into())),
+                None,
+            );
+            assert!(checker.recorded(Some(&seal), &fields).is_ok());
+            assert!(checker.recorded(Some(&seal), &fields[..3]).is_err());
+        }
+        std::fs::remove_dir_all(&dir).ok();
     }
 }

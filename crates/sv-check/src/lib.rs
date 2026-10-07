@@ -46,6 +46,7 @@ pub mod seal;
 pub mod secrets;
 pub mod signed;
 pub mod signed_in;
+mod ssh_format;
 pub mod suite;
 pub mod test_report;
 pub mod totp;
