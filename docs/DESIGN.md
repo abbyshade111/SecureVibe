@@ -11976,3 +11976,17 @@ These files are read from every listed file, editor folders included: VS Code ke
     and Wales.
 - **What it is:** only ever a finding. It cites no requirement, as `config.security-contact` does not, since nothing
   in ASVS or AISVS asks this of a file in the project.
+
+Twelve guards broken in turn, each caught:
+- `bypassPermissions` noted;
+- editor folders skipped;
+- a flag emoji counted;
+- direction controls ignored;
+- any Markdown file taken for an instruction file;
+- Cursor's files read by a guess;
+- the pin not judged;
+- any `Bash(…)` rule taken for "any command";
+- every variable in `env` noted;
+- the hidden-character finding given a requirement;
+- the section shown when it is empty;
+- the notes not escaped in the HTML report.
