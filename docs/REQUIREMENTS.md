@@ -12,8 +12,9 @@ decided per app, from its `securevibe.toml` and its code.
   was satisfied, not proof the whole requirement is met.
 - **A check helps; a person decides**: a check speaks to it, but it asks for something no check can settle,
   such as a documented policy or a design decision.
-- **No check**: nothing in `sv` checks it. The app's own tests can still count for it when
-  a passing test names the requirement's id; otherwise it stays *not verified*.
+- **No check**: nothing in `sv` checks it. A passing test of the app's own that names the
+  requirement's id in code gives it *tested by the app's own tests*, below *checked* (ADR-050);
+  otherwise it stays *not verified*.
 - *found failing only*: that check can show the requirement is not met, and finding nothing does
   not show it is, so a clean run credits nothing.
 - *credited only*: that check can show the requirement is met, and never marks it *needs

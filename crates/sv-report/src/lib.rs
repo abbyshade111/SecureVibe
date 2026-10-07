@@ -46,6 +46,13 @@ pub enum Status {
     NeedsAttention,
     /// A check that names this requirement ran and was satisfied. One automated check, not a pass.
     Checked,
+    /// The app's own tests name this requirement, in code, and passed (ADR-050).
+    ///
+    /// Its own tier, below *checked* and above *documented*: a test ran, and the app did what it
+    /// asked, which is more than an answer; but the AI coding tool wrote both the test and the command
+    /// that runs it, and nothing here reads whether the test asks what the requirement asks. So never
+    /// *checked*, no threat settled, and still on the list before going live.
+    AppTested,
     /// The owner answered a design question about this requirement in securevibe.toml.
     ///
     /// The weakest tier there is, below *documented*, because the owner asserting a property is not
@@ -78,12 +85,14 @@ pub enum Status {
 }
 
 impl Status {
-    /// Every status, strongest evidence first: a problem found, a check, the owner's notes, the
-    /// owner's check by hand, the owner's answer, the AI coding tool's answer, nothing. The order
+    /// Every status, strongest evidence first: a problem found, a check, the app's own tests, the
+    /// owner's notes, the owner's check by hand, the owner's answer, the AI coding tool's answer,
+    /// nothing. The order
     /// the count tables are read in; `Ord` is the order the requirement lists show them in.
-    pub const ALL: [Status; 7] = [
+    pub const ALL: [Status; 8] = [
         Status::NeedsAttention,
         Status::Checked,
+        Status::AppTested,
         Status::Documented,
         Status::ByHand,
         Status::Attested,
@@ -95,6 +104,7 @@ impl Status {
         match self {
             Status::NeedsAttention => "needs attention",
             Status::Checked => "checked",
+            Status::AppTested => "tested by the app's own tests",
             Status::Documented => "documented by the owner",
             Status::Attested => "attested by the owner",
             Status::Stated => "stated by the AI coding tool",
@@ -111,6 +121,9 @@ impl Status {
         match self {
             Status::NeedsAttention => "Applies, needs attention",
             Status::Checked => "Applies, checked by an automated check",
+            Status::AppTested => {
+                "Applies, the app's own tests ran without failing: written by your AI coding tool, not a check of sv's"
+            }
             Status::Documented => "Applies, you answered it in the security notes",
             Status::ByHand => "Applies, rests on your word: you checked it by hand",
             Status::Attested => {
@@ -200,6 +213,9 @@ pub struct RequirementLine {
     /// "checked", it would claim the other two; dropped, it would hide the part that was examined.
     /// So it is shown here, and the requirement stays not verified until a person answers it.
     pub supported_by: Vec<CheckedBy>,
+    /// The app's own tests that name this requirement and passed (ADR-050): a test of the AI coding
+    /// tool's, not a check of `sv`'s, so never in `checked_by`.
+    pub tested_by: Vec<CheckedBy>,
     /// Where in the security notes the owner answered this requirement's question.
     pub documented_by: Vec<CheckedBy>,
     /// The owner's answer to a design question about this requirement.
@@ -387,6 +403,9 @@ pub struct Counts {
     pub applicable: usize,
     pub needs_attention: usize,
     pub checked: usize,
+    /// Requirements whose only evidence is the app's own tests (ADR-050). Never folded into
+    /// `checked`.
+    pub app_tested: usize,
     /// Requirements the owner answered in the security notes. Never folded into `checked`.
     pub documented: usize,
     /// Requirements the owner answered a design question about. Never folded into either.
@@ -406,15 +425,15 @@ pub struct Counts {
 
 impl Counts {
     /// Every status a requirement that applies can have, with how many have it, strongest evidence
-    /// first: a problem found, a check, the owner's notes, the owner's check by hand, the owner's
-    /// answer, the AI coding tool's answer, nothing.
+    /// first: a problem found, a check, the app's own tests, the owner's notes, the owner's check by
+    /// hand, the owner's answer, the AI coding tool's answer, nothing.
     ///
     /// The numbers add up to `applicable`, and every table and sentence that counts what applies is
     /// made from this list, so none of them can leave a status out (deep review R5: the tables and
     /// the opening sentence counted three or four of the seven, and on an app with an owner's
     /// answers did not add up). `Status::ALL` is checked against the enum by an exhaustive match
     /// in its test, so a status added later cannot be left out here either.
-    pub fn by_status(&self) -> [(Status, usize); 7] {
+    pub fn by_status(&self) -> [(Status, usize); 8] {
         Status::ALL.map(|s| (s, self.of(s)))
     }
 
@@ -423,6 +442,7 @@ impl Counts {
         match status {
             Status::NeedsAttention => self.needs_attention,
             Status::Checked => self.checked,
+            Status::AppTested => self.app_tested,
             Status::Documented => self.documented,
             Status::ByHand => self.by_hand,
             Status::Attested => self.attested,
@@ -466,14 +486,26 @@ pub fn lede(c: &Counts, open: &str, close: &str) -> String {
         c.not_verified,
         if c.not_verified == 1 { "has" } else { "have" }
     );
-    let middle = if word == 0 {
-        format!("{looked} and {nothing}")
-    } else {
-        format!(
-            "{looked}, {open}{word} {} only on somebody's word{close} (yours, or your AI coding \
-             tool's, which nothing here repeated), and {nothing}",
+    let mut parts = vec![looked];
+    if c.app_tested > 0 {
+        parts.push(format!(
+            "{open}{} {} been tested only by the app's own tests{close} (written by your AI \
+             coding tool, and not a check of `sv`'s)",
+            c.app_tested,
+            if c.app_tested == 1 { "has" } else { "have" }
+        ));
+    }
+    if word > 0 {
+        parts.push(format!(
+            "{open}{word} {} only on somebody's word{close} (yours, or your AI coding tool's, which \
+             nothing here repeated)",
             if word == 1 { "rests" } else { "rest" }
-        )
+        ));
+    }
+    let middle = if parts.len() == 1 {
+        format!("{} and {nothing}", parts[0])
+    } else {
+        format!("{}, and {nothing}", parts.join(", "))
     };
     format!(
         "{} requirement{} to this app. Of those, {middle}.",
@@ -1337,7 +1369,9 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         let mut information: Vec<String> = information.iter().map(|f| f.rule_id.clone()).collect();
         information.sort();
         information.dedup();
-        let satisfied: Vec<CheckedBy> = inputs
+        // The app's own tests are kept apart from `sv`'s checks (ADR-050): written by the AI coding
+        // tool, they are a tier of their own, never *checked*.
+        let (tested, satisfied): (Vec<CheckedBy>, Vec<CheckedBy>) = inputs
             .verified
             .iter()
             .filter(|v| v.requirement_ids.iter().any(|r| r == id))
@@ -1345,11 +1379,19 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 check_id: v.check_id.clone(),
                 scope: v.scope.clone(),
             })
-            .collect();
+            .partition(|c| c.check_id == sv_check::suite::CHECK_ID);
         let (checked_by, mut supported_by) = if inputs.manual_only.contains(id) {
             (Vec::new(), satisfied)
         } else {
             (satisfied, Vec::new())
+        };
+        // A requirement a test cannot show (documentation, a deployment setting, a process, or one
+        // only a person can settle) is never credited by a test that names it: supporting only.
+        let tested_by = if inputs.manual_only.contains(id) || inputs.not_for_tests.contains(id) {
+            supported_by.extend(tested);
+            Vec::new()
+        } else {
+            tested
         };
         // Evidence about a requirement the crosswalk says asks the same thing. Supporting only,
         // whatever this requirement's class: it is evidence about the counterpart, and at most part
@@ -1364,6 +1406,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 if v.requirement_ids.iter().any(|r| r == counterpart)
                     && !supported_by.iter().any(|c| c.check_id == v.check_id)
                     && !checked_by.iter().any(|c| c.check_id == v.check_id)
+                    && !tested_by.iter().any(|c| c.check_id == v.check_id)
                 {
                     supported_by.push(CheckedBy {
                         check_id: v.check_id.clone(),
@@ -1419,6 +1462,8 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             Status::NeedsAttention
         } else if !checked_by.is_empty() && !set_aside_here {
             Status::Checked
+        } else if !tested_by.is_empty() && !set_aside_here {
+            Status::AppTested
         } else if !documented_by.is_empty() {
             Status::Documented
         } else if !by_hand.is_empty() {
@@ -1447,6 +1492,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             findings,
             information,
             checked_by,
+            tested_by,
             supported_by,
             documented_by,
             attested_by,
@@ -1544,6 +1590,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         applicable: requirements.len(),
         needs_attention: count(&requirements, Status::NeedsAttention),
         checked: count(&requirements, Status::Checked),
+        app_tested: count(&requirements, Status::AppTested),
         documented: count(&requirements, Status::Documented),
         attested: count(&requirements, Status::Attested),
         stated: count(&requirements, Status::Stated),
@@ -1825,7 +1872,8 @@ impl Ord for Status {
                 Status::Attested => 3,
                 Status::ByHand => 4,
                 Status::Documented => 5,
-                Status::Checked => 6,
+                Status::AppTested => 6,
+                Status::Checked => 7,
             }
         }
         rank(*self).cmp(&rank(*other))
@@ -1902,19 +1950,21 @@ mod examined_tests {
         let place = |s: Status| match s {
             Status::NeedsAttention => 0,
             Status::Checked => 1,
-            Status::Documented => 2,
-            Status::ByHand => 3,
-            Status::Attested => 4,
-            Status::Stated => 5,
-            Status::NotVerified => 6,
+            Status::AppTested => 2,
+            Status::Documented => 3,
+            Status::ByHand => 4,
+            Status::Attested => 5,
+            Status::Stated => 6,
+            Status::NotVerified => 7,
         };
         for (i, s) in Status::ALL.iter().enumerate() {
             assert_eq!(place(*s), i, "{s:?}");
         }
         let c = Counts {
-            applicable: 28,
+            applicable: 36,
             needs_attention: 1,
             checked: 2,
+            app_tested: 8,
             documented: 3,
             by_hand: 4,
             attested: 5,
@@ -1924,10 +1974,18 @@ mod examined_tests {
         };
         let rows = c.by_status();
         assert_eq!(rows.iter().map(|(_, n)| n).sum::<usize>(), c.applicable);
-        assert_eq!(rows.map(|(_, n)| n), [1, 2, 3, 4, 5, 6, 7]);
+        assert_eq!(rows.map(|(_, n)| n), [1, 2, 8, 3, 4, 5, 6, 7]);
         assert_eq!(
-            c.looked_at_by_a_check() + c.on_somebodys_word() + c.not_verified,
-            28
+            c.looked_at_by_a_check() + c.app_tested + c.on_somebodys_word() + c.not_verified,
+            36
+        );
+        // The app's own tests are never read as a check of `sv`'s.
+        assert!(
+            Status::AppTested
+                .applies_row()
+                .contains("not a check of sv's"),
+            "{}",
+            Status::AppTested.applies_row()
         );
         // The rows that rest on somebody's word say so, and none of them reads as a check.
         for s in [Status::ByHand, Status::Attested, Status::Stated] {
@@ -1940,9 +1998,10 @@ mod examined_tests {
         let lede = lede(&c, "**", "**");
         assert_eq!(
             lede,
-            "28 requirements apply to this app. Of those, **3 have been looked at by something**, \
-             **18 rest only on somebody's word** (yours, or your AI coding tool's, which nothing \
-             here repeated), and **7 have not been looked at at all**."
+            "36 requirements apply to this app. Of those, **3 have been looked at by something**, \
+             **8 have been tested only by the app's own tests** (written by your AI coding tool, \
+             and not a check of `sv`'s), **18 rest only on somebody's word** (yours, or your AI \
+             coding tool's, which nothing here repeated), and **7 have not been looked at at all**."
         );
     }
 

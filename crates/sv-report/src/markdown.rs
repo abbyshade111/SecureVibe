@@ -110,6 +110,15 @@ fn status_cell(line: &crate::RequirementLine) -> String {
                 .collect::<Vec<_>>()
                 .join("; ")
         ),
+        Status::AppTested => format!(
+            "{} \u{2014} written by your AI coding tool, not a check of sv's: {}",
+            line.status.label(),
+            line.tested_by
+                .iter()
+                .map(|c| c.scope.clone())
+                .collect::<Vec<_>>()
+                .join("; ")
+        ),
         Status::ByHand => format!(
             "{} \u{2014} {}: {}",
             line.shown_label(),
@@ -628,6 +637,7 @@ pub fn compliance(report: &Report) -> String {
 fn requirements_by_chapter(out: &mut String, report: &Report) {
     let chapters = crate::chapters::by_chapter(report);
     let any = |f: &dyn Fn(&crate::chapters::Chapter) -> usize| chapters.iter().any(|c| f(c) > 0);
+    let app_tested = any(&|c| c.app_tested);
     let your_word = any(&|c| c.your_word);
     let tool_word = any(&|c| c.tool_word);
     out.push_str(
@@ -637,6 +647,10 @@ fn requirements_by_chapter(out: &mut String, report: &Report) {
     );
     let mut head = String::from("| chapter | apply | a problem found | checked");
     let mut rule = String::from("|---|---:|---:|---:");
+    if app_tested {
+        head.push_str(" | the app's own tests, not a check");
+        rule.push_str("|---:");
+    }
     if your_word {
         head.push_str(" | your word, not a check");
         rule.push_str("|---:");
@@ -657,6 +671,9 @@ fn requirements_by_chapter(out: &mut String, report: &Report) {
             c.needs_attention,
             c.checked
         );
+        if app_tested {
+            row.push_str(&format!(" | {}", c.app_tested));
+        }
         if your_word {
             row.push_str(&format!(" | {}", c.your_word));
         }

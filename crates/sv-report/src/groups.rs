@@ -74,6 +74,7 @@ mod tests {
             findings: Vec::new(),
             information: Vec::new(),
             checked_by: Vec::new(),
+            tested_by: Vec::new(),
             supported_by: Vec::new(),
             documented_by: Vec::new(),
             attested_by: Vec::new(),

@@ -37,6 +37,10 @@ pub const FAILING_OUTPUT_LINES: usize = 30;
 
 /// The rule that says a test named for a requirement shares no words with it. Information only: see
 /// `Finding::withholds_credit`.
+/// The check id every credit of the app's own tests carries. The report reads it to give these their
+/// own tier, below `sv`'s own checks (ADR-050).
+pub const CHECK_ID: &str = "app-tests";
+
 pub const NAME_MISMATCH: &str = "tests.name-does-not-match-requirement";
 
 /// The end of what a failing suite printed, as it read in a terminal.
@@ -151,12 +155,15 @@ pub fn tests_naming_requirements(app_dir: &Path, known: &BTreeSet<&str>) -> Vec<
 }
 
 /// `tests_naming_requirements`, over a listing already made.
+///
+/// Only code is read: a file in a language `sv` reads (ADR-050). A requirement id in a Markdown note
+/// or a text file under `tests/` is not a test, whatever folder it is in, and credits nothing.
 pub fn tests_naming_requirements_in(
     listing: &sv_scan::files::Listing,
     known: &BTreeSet<&str>,
 ) -> Vec<NamedTest> {
     let mut out = Vec::new();
-    for entry in listing.app_files() {
+    for entry in listing.code_files() {
         if !looks_like_a_test_path(&entry.relative) {
             continue;
         }
@@ -457,7 +464,7 @@ pub fn credit(
     for (test, ids) in per_line.into_values() {
         let borrowed: Vec<&str> = ids.iter().map(String::as_str).collect();
         verified.push(Verified::new(
-            "app-tests",
+            CHECK_ID,
             &borrowed,
             match outcome {
                 SuiteOutcome::Passed => format!(

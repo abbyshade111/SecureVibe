@@ -299,6 +299,10 @@ pub struct ThreatLine {
     pub found: Vec<String>,
     /// The answering requirements that were checked.
     pub checked: Vec<String>,
+    /// The answering requirements whose only evidence is the app's own tests (ADR-050). Shown, and
+    /// counted toward nothing: the AI coding tool wrote the tests, and nothing here reads whether
+    /// they ask what the requirement asks.
+    pub app_tested: Vec<String>,
     /// The answering requirements the owner answered in the security notes.
     ///
     /// Shown, and deliberately not counted toward *checked in part*: a written decision about how
@@ -383,6 +387,7 @@ pub fn evaluate(
             status: ThreatStatus::CannotPlace,
             found: Vec::new(),
             checked: Vec::new(),
+            app_tested: Vec::new(),
             documented: Vec::new(),
             attested: Vec::new(),
             stated: Vec::new(),
@@ -401,6 +406,7 @@ pub fn evaluate(
             match requirements.iter().find(|r| &r.id == id).map(|r| r.status) {
                 Some(Status::NeedsAttention) => line.found.push(id.clone()),
                 Some(Status::Checked) => line.checked.push(id.clone()),
+                Some(Status::AppTested) => line.app_tested.push(id.clone()),
                 Some(Status::Documented) => line.documented.push(id.clone()),
                 Some(Status::Attested) => line.attested.push(id.clone()),
                 Some(Status::Stated) => line.stated.push(id.clone()),
@@ -505,6 +511,10 @@ pub fn evidence_words(line: &ThreatLine) -> String {
     for (label, ids) in [
         ("needs attention", &line.found),
         ("checked", &line.checked),
+        (
+            "your app's own tests ran without failing, which is not evidence about this threat",
+            &line.app_tested,
+        ),
         (
             "you documented, which is not evidence about this threat",
             &line.documented,
