@@ -23,6 +23,15 @@ another session is not a claim.
   when ready", after asking for this item), in branch `claude/securevibe-e2-agentic-skills`, for the reading and the
   document; any proposal it makes is left here for the owner. Read on `main` just before this claim: no other session
   had claimed it.
+  **Done the same day** (`docs/AGENTIC-SKILLS-TOP-10.md`), read from the project's own repository at `d6f7d7d`, since
+  owasp.org is blocked here. The list is about the skills AI agents load, not the apps they build; it is in public
+  review, lists risks rather than requirements, and its ASVS links use ASVS 4.0's chapters. Where it meets `sv`: apps
+  that are agents (AISVS C9.3.1, C9.3.7, C10.4.8, C10.1.1, and V1.5.2, the last two already checked), and `sv` itself
+  as a tool an agent uses. **Four proposals, none built, each the owner's:** (1) do not load it as a framework until
+  version 1 is out; (2) look for invisible characters in the project's instruction files (`SKILL.md`, `AGENTS.md`,
+  `CLAUDE.md`, `.cursor/rules`); (3) say what a committed `.claude/settings.json` would run (hooks, a different
+  `ANTHROPIC_BASE_URL`), which `sv` leaves out today on purpose; (4) nothing new for C9.3.7 and C10.4.8 beyond the
+  usual coverage work.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
