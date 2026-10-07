@@ -184,9 +184,13 @@ another session is not a claim.
      templates and configuration files as well, is its own item below.
   4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
      V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
+     **Done the same day** (DESIGN, "A key file committed once is still in the history"; ADR-032, Later, 7 October
+     2026): `git log` reads every file ever added, with the programs it could run switched off; a shallow copy is
+     "not assessed"; four more key-file names.
   **All four claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, each in its own branch
   (`claude/securevibe-e2-app-tests-tier`, `claude/securevibe-e2-tests-required`,
   `claude/securevibe-e2-semgrep-scanned`, `claude/securevibe-e2-git-history-keys`).
+
 - **A deep gap analysis of SecureVibe, start to finish.** Asked for by the owner on 7 October 2026: "a deep gap
   analysis of SecureVibe - the process start to finish, etc. and let me know where there are blind spots or areas for
   improvement". The whole path a person takes, read against the code: installing `sv`, writing `securevibe.toml`,
