@@ -11543,5 +11543,11 @@ recommendation in the plan they were walked through.
   can add one.
 - **`ssh-keygen` checks a seal on its own**: a test writes a seal's signature out as OpenSSH's signature file and runs
   `ssh-keygen -Y verify` with the same list, the app id as the identity.
+- **OpenSSH's formats are written here, over `ed25519-dalek`** (`sv-check/src/ssh_format.rs`), not by the `ssh-key`
+  library: it put an RSA crate with an unfixed advisory (RUSTSEC-2023-0071) into `Cargo.lock`, which `sv`'s audit of
+  its own crates refuses, though `sv` never compiled it, and the owner chose this over accepting the advisory. Only
+  Ed25519, a key file plain or locked as `ssh-keygen` locks one, and `SSHSIG` signatures, each read strictly. Tests
+  have `ssh-keygen` read the key `sv` makes, plain and locked, and `sv` read the keys `ssh-keygen` makes and check its
+  signatures.
 
 Broken on purpose fourteen ways, one at a time: the signature not checked, the folder not checked on this computer's list, the list's app ids ignored, its keys ignored, its namespaces ignored, an option it does not read accepted, the app id left out of what is signed, older seals not offered for signing again, the app not put on the list, the passphrase not kept, the key file readable by others, SV_TRUSTED_SEALS not read by the report, the variable read only where there is no folder, and the report not saying what to do. Every one was caught. Eight were caught by one test only, so a second test was written for each, in another test, and each then went red in two. Not tested: that the terminal hides the passphrase as it is typed, which needs a person's terminal. Not tried on a real CI run with a repository variable.
