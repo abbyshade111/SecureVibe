@@ -6561,6 +6561,10 @@ the hold has ended (45 seconds from the held message, at most), so an app it hel
 slow service that does answer in the end is not asked separately: to the person waiting, a reply after the app's
 limit and no reply are the same.
 
+Seven guards broken in turn, each caught: the wait for the hold, an unanswered held message credited or made a
+finding, the plain message after it not judged, a trace ignored, the question never asked (four tests), and the test
+model answering at once instead of holding (the test that runs the real script).
+
 ## An AI agent with no limit on its tool calls (3 October 2026)
 
 C9.1.2 asks that each run of an agent has a budget the app enforces: how deep it may go, how many tokens it may
