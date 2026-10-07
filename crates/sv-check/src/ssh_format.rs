@@ -55,7 +55,7 @@ impl PublicKey {
     }
 
     /// The line `ssh-keygen` writes in a `.pub` file: `ssh-ed25519 <base64> <comment>`.
-    pub(crate) fn to_openssh(&self, comment: &str) -> String {
+    pub(crate) fn to_openssh(self, comment: &str) -> String {
         format!("{KEY_TYPE} {} {comment}", base64(&self.blob(), true))
     }
 
@@ -216,7 +216,7 @@ pub(crate) fn private_to_openssh(
     both.zeroize();
     put_string(&mut section, comment.as_bytes());
     let mut pad = 1u8;
-    while section.len() % block != 0 {
+    while !section.len().is_multiple_of(block) {
         section.push(pad);
         pad += 1;
     }
@@ -281,7 +281,7 @@ fn read_private(bytes: &[u8]) -> Result<Kept, &'static str> {
             let salt = o.string()?.to_vec();
             let rounds = o.u32()?;
             o.end()?;
-            if section.len() % 16 != 0 || salt.is_empty() || rounds == 0 {
+            if !section.len().is_multiple_of(16) || salt.is_empty() || rounds == 0 {
                 return Err("its locked part cannot be read");
             }
             Ok(Kept::Locked(LockedKey {
@@ -302,7 +302,7 @@ fn private_section(
     public: &PublicKey,
 ) -> Result<SigningKey, &'static str> {
     let mut r = Reader(section);
-    if section.len() % block != 0 || r.u32()? != r.u32()? {
+    if !section.len().is_multiple_of(block) || r.u32()? != r.u32()? {
         return Err("it does not unlock with that passphrase, or it is damaged");
     }
     if r.string()? != KEY_TYPE.as_bytes() || r.fixed::<32>()? != public.0 {
