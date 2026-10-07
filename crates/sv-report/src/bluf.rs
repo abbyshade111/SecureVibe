@@ -177,6 +177,56 @@ pub fn counted(report: &Report) -> Vec<(String, usize)> {
         .collect()
 }
 
+/// Which level the app was held to, and what is not in the numbers because of it (gap analysis
+/// 6.2): a level 1 app with a clean run can otherwise read as fully checked.
+pub fn held_to(report: &Report) -> String {
+    let level = report.target_level;
+    let mut left_out = Vec::new();
+    let above = report.counts.out_of_level;
+    if above > 0 {
+        left_out.push(format!(
+            "{above} more requirements at {}",
+            match level {
+                1 => "levels 2 and 3",
+                _ => "level 3",
+            }
+        ));
+    }
+    let unplaced = report.counts.not_assessed;
+    if unplaced > 0 {
+        left_out.push(format!(
+            "{unplaced} not yet placed because nobody has answered the question that decides them"
+        ));
+    }
+    match left_out.len() {
+        0 => format!("Held to ASVS level {level}."),
+        _ => format!(
+            "Held to ASVS level {level}. Not in these numbers: {}.",
+            left_out.join(", and ")
+        ),
+    }
+}
+
+/// What kind of run this was, said by what did not run (gap analysis 6.1), or `None` when every
+/// kind did or nobody recorded it.
+pub fn not_run_line(report: &Report) -> Option<String> {
+    let not_run = report.not_run_this_time.as_ref()?;
+    let kinds = match not_run.kinds.as_slice() {
+        [] => return None,
+        [one] => one.clone(),
+        [first, rest @ ..] => format!("{first}, and {}", rest.join(", and ")),
+    };
+    let n = not_run.only_they_reach;
+    Some(format!(
+        "Not run this time: {kinds}. {}",
+        match n {
+            0 => "None of the requirements that apply depends on them alone.".to_owned(),
+            1 => "1 of the requirements that apply can only be checked that way.".to_owned(),
+            _ => format!("{n} of the requirements that apply can only be checked that way."),
+        }
+    ))
+}
+
 /// How many applicable requirements no check can ever settle, so only a person can.
 pub fn only_a_person_can(report: &Report) -> usize {
     only_a_person_can_counts(report).0
@@ -323,6 +373,7 @@ mod tests {
             examined: Vec::new(),
             could_not_run: Vec::new(),
             partly_read: Vec::new(),
+            not_run_this_time: None,
         }
     }
 
