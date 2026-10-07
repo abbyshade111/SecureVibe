@@ -1585,6 +1585,13 @@ another session is not a claim.
       archive of each format first, then one just over each limit, sent after every other upload check. Read on `main`
       just before this claim: no other session had claimed it (securevibe-e9's claim of 5 October, #751, was closed
       unmerged). **Record, `Status: proposed`: ADR-046.**
+      **Done the same day** (DESIGN, "Compressed files past the stated limits"; ADR-046, accepted). For each format
+      listed, an ordinary small archive, then a zip and a gzip that unpack to a mebibyte past `max-unpacked-bytes` and a
+      zip holding one file more than `max-files`, each at most 1 GiB unpacked and under `max-bytes`; written by `sv`
+      itself, with no library, and checked against Python's own readers. `probe.archive-unchecked` (V5.2.3) is a
+      finding when one is accepted, and credited when it is refused and an ordinary file after it is not. Ten guards
+      broken in turn, each caught. Not done: tar, 7z, and rar; and an archive whose stated sizes are false (each file
+      here says truly what it unpacks to, so an app that trusts the stated sizes is credited).
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.

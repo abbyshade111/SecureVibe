@@ -57,6 +57,7 @@ use sv_manifest::{RequestTemplate, UploadSection, UsersSection};
 
 mod activation;
 mod admin;
+mod archives;
 mod burst;
 mod codes;
 mod flows;
@@ -1006,6 +1007,7 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     (UPLOAD_SVG_SCRIPT.rule_id, &["upload-svg"]),
     (UPLOAD_PATH_TRAVERSAL.rule_id, &["upload-traversal"]),
     (UPLOAD_NOT_SCANNED.rule_id, &["upload-eicar"]),
+    (ARCHIVE_UNCHECKED.rule_id, &["upload-archive-"]),
 ];
 
 /// The findings the signed-in checks raise because the app refused something, or answered two
@@ -1586,6 +1588,10 @@ fn run_checks(
     //     change B's password too (a reset); it sets out to be refused, so it waits the minute out
     //     afterwards before anything else is asked.
     burst_check(http, users, &accounts.b, policy, &mut out);
+    // 9g. Compressed files past the stated limits, with a sign-in of A's own: after every other
+    //     upload, since an app that unpacks one may fall over; before the password changes below,
+    //     which can change A's.
+    archives::archive_checks(http, users, accounts, confirm.as_deref(), &mut out);
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
@@ -3102,6 +3108,12 @@ mod crash_tests {
             form: [("csrf_token".to_owned(), "{csrf}".to_owned())].into(),
             serves_at: Some("/files/{name}".into()),
             max_bytes: Some(UPLOAD_LIMIT as u64),
+            unpacks_archives: Some(vec![
+                sv_manifest::ArchiveFormat::Zip,
+                sv_manifest::ArchiveFormat::Gzip,
+            ]),
+            max_unpacked_bytes: Some(ARCHIVE_UNPACK_LIMIT),
+            max_files: Some(ARCHIVE_FILE_LIMIT),
         });
         vec![
             Scenario::new(
@@ -3178,6 +3190,8 @@ mod crash_tests {
                     svg_scripts_kept: true,
                     no_malware_scan: true,
                     upload_path_traversal: true,
+                    archive_size_unchecked: true,
+                    archive_files_unchecked: true,
                     session_not_verified: true,
                     ..Default::default()
                 },
@@ -3312,6 +3326,12 @@ mod crash_tests {
             form: [("csrf_token".to_owned(), "{csrf}".to_owned())].into(),
             serves_at: Some("/files/{name}".into()),
             max_bytes: Some(UPLOAD_LIMIT as u64),
+            unpacks_archives: Some(vec![
+                sv_manifest::ArchiveFormat::Zip,
+                sv_manifest::ArchiveFormat::Gzip,
+            ]),
+            max_unpacked_bytes: Some(ARCHIVE_UNPACK_LIMIT),
+            max_files: Some(ARCHIVE_FILE_LIMIT),
         });
         let scenarios = [
             Scenario {
