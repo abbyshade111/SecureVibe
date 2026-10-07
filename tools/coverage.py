@@ -72,6 +72,7 @@ RUST_CHECKS = {
     "config.rich-text-without-sanitizer": ("static", ["V1.3.1"]),
     "config.retired-grant-enabled": ("static", ["V10.4.4"]),
     "config.model-file-can-run-code": ("static", ["C4.1.2"]),
+    "config.certificate-checks-off": ("static", ["V12.3.2", "V12.3.4"]),
     "probe.retired-grants-offered": ("running", ["V10.4.4"]),
     "probe.admin-opened-by-address": ("running", ["V8.4.2"]),
     "probe.private-files-served": ("running", ["V13.4.7"]),
@@ -295,6 +296,8 @@ RUST_FINDINGS_ONLY = {
     "probe.app-token-key-source-followed",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
+    # A setting made on the server itself is in no file.
+    "config.certificate-checks-off",
     "probe.retired-grants-offered",
     "probe.admin-opened-by-address",
     "probe.private-files-served",
