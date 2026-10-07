@@ -2161,6 +2161,13 @@ another session is not a claim.
   baseline had already fallen (with `git` allowed and the guidance's prompts), so its comparisons have no reading. No
   harm. This test and the delivery test used the loop protocol's owner-away sentence from before its Amendment 5,
   said in `start.md`.
+  **The reviews arrived the same day** (`docs/prompts/reviews/language-agnostic-variant.md`, `second-builder.md`), and
+  **were applied on 7 October 2026 at the owner's word**: wording fixes to four shown prompts and five others, three
+  checks moved to the running app, a fallback for every design prompt that asks the owner, and five new prompts
+  (`limits-without-asking`, `password-rules`, `production-server`, `isolate-the-window`, `security-contact`), all to be
+  tried in `docs/prompts/library-trial/revision-protocol.md` before any status changes. One finding is left for the
+  owner: `ast.weak-password-key-derivation` cites V11.4.4 (keys made from a password) where storing passwords is
+  V11.4.2, so `password-hashing` cannot cite V11.4.2 until the rule's citation is decided, which changes evidence.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
@@ -2183,6 +2190,9 @@ another session is not a claim.
   the token the app made for that page, the protection V3.5.1 asks for. A value that is a `{...}` or `{{...}}`
   placeholder, or a call (`html.escape(...)`), is not a written-in secret. A fixture of exactly this line, and the
   rule kept quiet on it, would hold the fix.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-csrf-placeholder`: a value that is wholly one `{...}` template
+  expression is a placeholder. Read on `main` just before this claim: no other session had claimed it.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -7320,3 +7330,7 @@ revisits that ruling. Whether one should is the owner's question.
 the decision that `sv` checks apps in many languages, with its own rules among the checks, is **claimed
 the same day by session securevibe-e8** and drafted as ADR-018. **Accepted by the owner the same day**, and
 done: `docs/adr/ADR-018.md`.
+
+- **`ast.weak-password-key-derivation` cites V11.4.4 only, where storing passwords is V11.4.2.** Found on 7 October 2026
+  by both independent reviews of the prompt library. **The owner's decision the same day: cite both. Claimed by session
+  paper-facts**, in branch `claude/kdf-citation`; the record, `Status: proposed`, is ADR-048.
