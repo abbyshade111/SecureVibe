@@ -3310,14 +3310,45 @@ and that is not a guarded flow. Then B, signed in afresh each time so nothing ca
 straight to the last step, and — when there is a middle to leave out — does the first step and then
 the last. Either ending in `completed` is a finding; both refused supports V2.3.1, which stays on
 `manualOnly` at the owner's word, since two skips refused is not every order refused. Doing a step
-twice, and the wrong order other than by leaving steps out, are not tried, and the hand check says
-they are still the owner's.
+twice, and the wrong order other than by leaving steps out, were not tried until 7 October 2026 (below).
 
 Only an answer the app accepted counts as finished, and only because of the owner's words. Both
 halves have a case of their own: an error page saying "an order is placed only after the steps before
 it" is a refusal, and so is a `303` back to the first step, which is an accepted status and the way
 many apps answer a skipped step. That second case was added after the first run of breaks: judging a
 skip by its status alone was caught by nothing until it existed.
+
+**Later, 7 October 2026: a step done twice, and the wrong order.** The owner's answer of 27 September,
+that "trying a repeated step is the way to strengthen it", is now built. With a middle to the flow, B
+tries two more orders, each in a fresh session, and each one leaves out no step by count or by name:
+
+- **The steps between the first and the last, then the first, then the last.** An app that asks only
+  whether each step was ever done, not in which order, finishes it.
+- **The first step once for each step before the last, then the last.** An app that counts the steps
+  taken rather than knowing which they were finishes it.
+
+Either ending in `completed` is the same finding as a skip, now titled "The flow can be finished
+without its steps in order"; all four tries refused is support for V2.3.1 and no more. A two-step flow
+has no middle, and each of these would be the steps in order, so it still gets the one skip.
+
+**The order of the tries is a guard.** An app may keep where each person is in the flow against the
+account rather than the session, and then a fresh session does not start B afresh. Every try with
+the first step in it can leave such an app holding B at the second step, after which the middle sent
+first is simply the next step. Built in the order first written, the correct fake app was reported:
+the skip past the middle left B at step two, and the wrong order then finished. So the wrong order now
+goes straight after the skip to the last step, which leaves a correct app where it found it.
+
+**Not tried, on purpose: the last step sent again after the flow finished.** An app's answer cannot
+tell an order placed again from the same order shown again, the false alarm `probe.action-done-twice`
+had before the owner's decision of 5 October 2026 ("Later, 5 October 2026: two users, not one"). B
+has finished no flow when it tries these, so a wrong order ending in `completed` cannot be that. The
+hand check now says the other orders, and the last step again, are still the owner's.
+
+Five guards broken in turn, each caught: either new order left out, a two-step flow given them too,
+and the wrong order moved after the skip past the middle (which turns 36 tests red, the correct app's
+among them). The fifth, the first step sent once too few times, was caught by nothing at first: the
+counting fake app keeps its count against the account, and a step left over from the try before made
+up the difference. A test now reads the app's own record of what each try sent.
 
 ### The admin page, as support for V8.3.1
 
