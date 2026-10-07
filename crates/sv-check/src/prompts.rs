@@ -22,8 +22,9 @@ use std::path::Path;
 
 /// The statuses in a report that no check and no document gave evidence for: a finding, nothing
 /// seen either way, or only the owner's or the AI coding tool's word (`sv_report::Status`). These
-/// are what a prompt can help with. `checked`, `by-hand`, and `documented` are left out: each is
-/// evidence of some kind already.
+/// are what a prompt can help with. `checked`, `app-tested`, `by-hand`, and `documented` are left
+/// out: each is evidence of some kind already (`app-tested`, a passing test of the app's own, since
+/// ADR-050).
 pub const UNPROVEN: [&str; 4] = ["needs-attention", "not-verified", "attested", "stated"];
 
 /// What a status means, in the words the offer uses.
