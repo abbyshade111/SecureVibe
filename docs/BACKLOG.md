@@ -221,6 +221,9 @@ another session is not a claim.
   29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
      (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
      V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
+     **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+     backlog"), in branch `claude/securevibe-e2-hand-instructions`: the ten ASVS requirements named, first; the AISVS
+     ones after, as far as they go.
   30. **The fence tests pass without testing the fence when there is no container backend.** (`docs/GAP-ANALYSIS.md`,
      7.2.) `SV_REQUIRE_BACKEND=1`, set in `rust.yml`, turns each test's "no container backend here" branch into a
      failure, so a broken Docker on the runner turns CI red.
