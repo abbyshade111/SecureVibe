@@ -485,6 +485,20 @@ pub(crate) fn get(id: &str, path: &str, session: &Session) -> ProbeRequest {
     }
 }
 
+/// Whether an answer is the app's page shell: a success with a body exactly the front page's, short
+/// enough to have been kept whole. Matching a cut body would set aside a server-rendered page that
+/// only begins as the front page does.
+fn is_page_shell(response: &Option<ProbeResponse>, front: &Option<ProbeResponse>) -> bool {
+    let (Some(page), Some(front)) = (response, front) else {
+        return false;
+    };
+    (200..300).contains(&page.status)
+        && (200..300).contains(&front.status)
+        && !page.body.trim().is_empty()
+        && page.body.chars().count() < crate::probes::KEPT_CHARS
+        && page.body == front.body
+}
+
 pub(crate) fn ok(response: &Option<ProbeResponse>) -> bool {
     response
         .as_ref()
@@ -1336,13 +1350,60 @@ fn run_checks(
     }
 
     // 1. Private pages, as nobody. This needs no account, so it runs whatever happens next.
+    //    A page that answers exactly as the front page does is the app's page shell: a single-page
+    //    app sends everybody the same page and draws it in the browser from what it fetches after.
+    //    That answer is neither the private page served nor refused, so the page is set aside here
+    //    and every check after this one is given the private pages that are left.
     let anonymous = Session::default();
+    let front = http.send(&get("front-anonymous", "/", &anonymous));
     let mut served_anonymously = Vec::new();
+    let mut shells = Vec::new();
     for path in &users.private {
         let response = http.send(&get("private-anonymous", path, &anonymous));
-        if ok(&response) {
+        if is_page_shell(&response, &front) {
+            shells.push(path.clone());
+        } else if ok(&response) {
             served_anonymously.push(path.clone());
         }
+    }
+    let judged;
+    let users = if shells.is_empty() {
+        users
+    } else {
+        out.steps.push(
+            format!(
+                "{} answered exactly as the front page does, so not judged: {}",
+                shells.join(", "),
+                if shells.len() == 1 {
+                    "it is"
+                } else {
+                    "they are"
+                }
+            ) + " the app's page shell",
+        );
+        judged = UsersSection {
+            private: users
+                .private
+                .iter()
+                .filter(|p| !shells.contains(p))
+                .cloned()
+                .collect(),
+            ..users.clone()
+        };
+        &judged
+    };
+    if !shells.is_empty() && users.private.is_empty() {
+        out.not_assessed.push((
+            PRIVATE_PAGE.requirement_ids.join(", "),
+            format!(
+                "Every private page ({}) answered somebody not signed in exactly as the front page \
+                 does: the app's page shell, which a single-page app sends everybody and fills in \
+                 the browser. Whether the page is private is decided by what the browser fetches \
+                 next. List those addresses (`/api/me`, for example) under `private` in \
+                 securevibe.toml, and they are asked instead.",
+                shells.join(", ")
+            ),
+        ));
     }
     if !served_anonymously.is_empty() {
         out.findings.push(finding(
@@ -1403,9 +1464,18 @@ fn run_checks(
             PRIVATE_PAGE.rule_id,
             PRIVATE_PAGE.requirement_ids,
             format!(
-                "{} private page{}, refused to somebody not signed in and opened by a signed-in user",
+                "{} private page{}, refused to somebody not signed in and opened by a signed-in user{}",
                 users.private.len(),
-                if users.private.len() == 1 { "" } else { "s" }
+                if users.private.len() == 1 { "" } else { "s" },
+                if shells.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        "; {} answered as the front page does and {} not judged",
+                        shells.join(", "),
+                        if shells.len() == 1 { "was" } else { "were" }
+                    )
+                }
             ),
         ));
     }
@@ -3439,5 +3509,135 @@ mod crash_tests {
             missed.is_empty(),
             "no scenario found these at fault: {missed:?}"
         );
+    }
+}
+
+/// A single-page app's page shell is not its private page (gap analysis 2.2). Such an app sends
+/// everybody the same page for every address and draws it in the browser from what it fetches
+/// next, so `/account` answering 200 to a stranger was reported as a private page served to anyone,
+/// and every check that needs the signed-in control then read "not assessed".
+#[cfg(test)]
+mod page_shell_tests {
+    use super::fake_app::*;
+    use super::*;
+
+    fn spa() -> Flaws {
+        Flaws {
+            page_shell: true,
+            ..Default::default()
+        }
+    }
+
+    fn with_private(private: &[&str]) -> UsersSection {
+        UsersSection {
+            private: private.iter().map(|p| (*p).to_owned()).collect(),
+            ..users()
+        }
+    }
+
+    fn answer(status: u16, body: &str) -> Option<ProbeResponse> {
+        Some(ProbeResponse {
+            id: String::new(),
+            status,
+            headers: Vec::new(),
+            body: body.to_owned(),
+        })
+    }
+
+    #[test]
+    fn a_private_page_that_is_only_the_page_shell_is_not_judged_and_says_what_to_list() {
+        let o = run_against(spa(), &with_private(&["/account"]));
+        assert!(
+            !rule_ids(&o).contains(&PRIVATE_PAGE.rule_id),
+            "the page shell was taken for the private page: {:#?}",
+            o.findings
+        );
+        assert!(
+            !verified_ids(&o).contains(&PRIVATE_PAGE.rule_id),
+            "nothing was judged, so nothing is credited"
+        );
+        let (_, why) = o
+            .not_assessed
+            .iter()
+            .find(|(ids, _)| ids.contains("V8.2.1"))
+            .expect("V8.2.1 says why it was not judged");
+        assert!(why.contains("/account") && why.contains("/api/me"), "{why}");
+        // The checks after it are given no shell to compare with either: a shell answered after
+        // signing out is not a session that still works.
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+    }
+
+    #[test]
+    fn the_address_the_page_fetches_is_judged_beside_the_shell() {
+        let o = run_against(spa(), &with_private(&["/account", "/api/me"]));
+        assert!(o.findings.is_empty(), "{:#?}", o.findings);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == PRIVATE_PAGE.rule_id)
+            .expect("/api/me refused a stranger and opened for A");
+        assert!(
+            credit.scope.starts_with("1 private page,"),
+            "{}",
+            credit.scope
+        );
+        assert!(
+            credit
+                .scope
+                .contains("/account answered as the front page does"),
+            "{}",
+            credit.scope
+        );
+        assert!(
+            o.steps.iter().any(|s| s.contains("page shell")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn an_open_address_behind_the_shell_is_still_found() {
+        let o = run_against(
+            Flaws {
+                private_open: true,
+                ..spa()
+            },
+            &with_private(&["/account", "/api/me"]),
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == PRIVATE_PAGE.rule_id)
+            .expect("/api/me opens for anybody");
+        assert!(
+            found.description.contains("/api/me"),
+            "{}",
+            found.description
+        );
+        assert!(
+            !found.description.contains("/account"),
+            "{}",
+            found.description
+        );
+    }
+
+    #[test]
+    fn only_a_whole_answer_exactly_the_front_pages_is_a_shell() {
+        let front = answer(200, PAGE_SHELL);
+        assert!(is_page_shell(&answer(200, PAGE_SHELL), &front));
+        // Another page, a refusal, an empty answer, or no front page to compare with.
+        assert!(!is_page_shell(&answer(200, "your account"), &front));
+        assert!(!is_page_shell(&answer(302, PAGE_SHELL), &front));
+        assert!(!is_page_shell(
+            &answer(200, PAGE_SHELL),
+            &answer(404, PAGE_SHELL)
+        ));
+        assert!(!is_page_shell(&answer(200, ""), &answer(200, "")));
+        assert!(!is_page_shell(&answer(200, PAGE_SHELL), &None));
+        // A server-rendered page as long as the kept part may differ from the front page only
+        // past the cut, so matching that far is not the same page.
+        let long = "<div>layout</div>".repeat(crate::probes::KEPT_CHARS);
+        let cut: String = long.chars().take(crate::probes::KEPT_CHARS).collect();
+        assert!(!is_page_shell(&answer(200, &cut), &answer(200, &cut)));
     }
 }

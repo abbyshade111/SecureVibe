@@ -18,12 +18,14 @@ what Amendment 5's wording would give. The script is up to date for every trial 
 |---|---|---|---|---|
 | `secrets-in-the-environment` | Sonnet | 9 of 10 | **0 of 10** | **works** |
 | `ai-feature-guard` | Sonnet | 8 of 8 | 9 of 10 | not shown |
-| `private-pages-no-store` | Haiku | 3 of 6 | 1 of 5 | not shown |
+| `private-pages-no-store` | Haiku | 3 of 8 | 1 of 6 | no reading |
 | `security-headers` | Haiku | 1 of 10 | 0 of 7 | no reading |
 | `secrets-in-the-environment` | Haiku | 1 of 10 | 4 of 10 | no reading |
 | `security-headers`, `private-pages-no-store` | Sonnet | 0 of 10 | 0 of 10 | no reading |
 
-Counts are builds with the problem, of those the prompt's check could be asked of.
+Counts are builds with the problem, of those the prompt's check could be asked of. Recounted on 7 October 2026
+(`revision-protocol.md`, Amendment 2): `private-pages-no-store` on Haiku was first scored 3 of 6 and 1 of 5, "not shown";
+counted by `sv` signing in, as `protocol.md` defines it, fewer than half of the builds without it had the problem.
 
 ## What lies under the verdicts
 

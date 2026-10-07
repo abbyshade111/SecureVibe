@@ -11,12 +11,12 @@ request, and one library prompt added in a prompt's arm; each checked with `sv r
 | Prompt | Model | Problem without it | With it | Rule's verdict | Library now |
 |---|---|---|---|---|---|
 | `ai-feature-guard` | Sonnet 5.5 | 10 of 10 | 0 of 9 | **shown**, no harm | **shown** |
-| `security-headers` | Haiku 4.5 | 6 of 6 | 0 of 6 | **shown**, harm flag | **shown** (owner) |
-| `private-pages-no-store` | Haiku 4.5 | 5 of 5 | 0 of 4 | **shown**, harm flag | **shown** (owner) |
+| `security-headers` | Haiku 4.5 | 6 of 6 | 0 of 7 | **shown**, harm flag | **shown** (owner) |
+| `private-pages-no-store` | Haiku 4.5 | 5 of 6 | 0 of 6 | **shown**, harm flag | **shown** (owner) |
 | `secrets-in-the-environment` | Haiku 4.5 | 6 of 6 | 1 of 4 | **shown**, harm flag | **shown** (owner) |
 | `password-hashing` | Haiku 4.5 | 4 of 6 | 2 of 8 | no reading | not shown |
-| `sessions-hard-to-steal` | Haiku 4.5 | 4 of 5 | 1 of 4 | no reading | not shown |
-| `design-limits` | Haiku 4.5 | 5 of 5 | 2 of 2 | not shown, harm | shown, with a warning (owner) |
+| `sessions-hard-to-steal` | Haiku 4.5 | 4 of 6 | 1 of 4 | no reading | not shown |
+| `design-limits` | Haiku 4.5 | 5 of 6 | 2 of 2 | not shown, harm | shown, with a warning (owner) |
 
 "Problem" counts the builds the prompt's check could be asked of: a readable `securevibe.toml`; for a running check,
 an app that started; for a signed-in or AI check, one whose sign-in or AI feature answered. "No reading": the builds

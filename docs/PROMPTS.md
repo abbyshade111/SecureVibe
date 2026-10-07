@@ -78,7 +78,7 @@ could not run.
 
 *Requirements:* ASVS V3.4.3, V3.4.4, V3.4.5, V3.4.6.
 
-*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 6. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 7. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
 
 ### Keep keys and passwords out of the code
 
@@ -94,7 +94,7 @@ could not run.
 
 *Requirement:* ASVS V14.3.2.
 
-*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt a private page was left cacheable in 5 of the 5 builds whose private pages sv could open; with it in 0 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 22, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt a private page was left cacheable in 5 of the 6 builds sv could sign in to; with it in 0 of 6. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 22, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
 
 ### Guard what goes into the AI feature and what comes out of it
 
@@ -106,11 +106,11 @@ could not run.
 
 ### Isolate the app's pages, and give the content policy somewhere to report
 
-> On every HTML page, send `Cross-Origin-Opener-Policy: same-origin` (or `same-origin-allow-popups` if the app opens a sign-in pop-up). Give the Content-Security-Policy somewhere to report what it blocks: add `report-uri` with a path of the app's own, such as `/csp-report`, that accepts the browser's report, writes one line to the log, and answers 204. Set both in the same place as the other security headers.
+> On every HTML page, send `Cross-Origin-Opener-Policy: same-origin` (or `same-origin-allow-popups` if the app opens a sign-in pop-up). Give the Content-Security-Policy somewhere to report what it blocks: add `report-uri` with a path of the app's own, such as `/csp-report`, that accepts the browser's report, writes one line to the log, and answers 204. Set both in the same place as the other security headers. Python's built-in server writes its own error pages (`send_error`) without the headers set elsewhere: write the error pages yourself, or override `send_error` so they carry the same headers.
 
 *Requirements:* ASVS V3.4.7, V3.4.8.
 
-*What it showed (7 October 2026, Sonnet 5.5 and Haiku 4.5, ten builds each with it and without):* Sonnet: without the prompt the window header or the report address was missing in 10 of the 10 builds, with it in 0 of 10. Haiku: 7 of 7 without, 4 of 10 with, because Python's own error pages skipped the helper that sets the headers. No harm. Shown by the owner's decision of 7 October 2026, with Haiku's result recorded here (`docs/prompts/library-trial/revision.md`). Suggested by the reviews in `docs/prompts/reviews/`.
+*What it showed (7 October 2026, Sonnet 5.5 and Haiku 4.5, ten builds each with it and without):* Sonnet: without the prompt the window header or the report address was missing in 10 of the 10 builds, with it in 0 of 10. Haiku: 7 of 7 without, 4 of 10 with, because Python's own error pages skipped the helper that sets the headers. No harm. Shown by the owner's decision of 7 October 2026, with Haiku's result recorded here (`docs/prompts/library-trial/revision.md`). Its last sentence, for Python's own error pages, was added afterwards from Haiku's misses and is not yet tried. Suggested by the reviews in `docs/prompts/reviews/`.
 
 ### Say how to report a security problem
 
@@ -204,7 +204,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V3.3.2, V3.3.4, V7.2.3, V7.4.1.
 
-*Not tested:* No reading by the trial's rule: without the prompt a session fault was there in 4 of the 5 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. Reading builds 1, 4 and 7, each did all the prompt asks.
+*Not tested:* No reading by the trial's rule: without the prompt a session fault was there in 4 of the 6 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) Reading builds 1, 4 and 7, each did all the prompt asks.
 
 ### Limit wrong passwords and new records, without waiting to be told the numbers
 
@@ -216,11 +216,11 @@ check the result with `sv` as you would anything else.
 
 ### Run under a production server, and say no version numbers
 
-> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON.
+> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both.
 
 *Requirements:* ASVS V4.1.1, V13.4.6.
 
-*Not tested:* Not shown (7 October 2026, Haiku 4.5): a problem in 7 of 7 builds without the prompt and 8 of 8 with it. The missing or wrong `Content-Type` went (3 of 7 without, 0 of 8 with); the server's version stayed in every build, because the brief asks for Python's standard library and its built-in server sends its version unless the request handler's `server_version` and `sys_version` are set, which the prompt does not yet say (`docs/prompts/library-trial/revision.md`).
+*Not tested:* Not shown (7 October 2026, Haiku 4.5): a problem in 7 of 7 builds without the prompt and 8 of 8 with it. The missing or wrong `Content-Type` went (3 of 7 without, 0 of 8 with); the server's version stayed in every build, because the brief asks for Python's standard library and its built-in server sends its version unless the request handler's `server_version` and `sys_version` are set, which the prompt did not say then; its last sentence, added on 7 October 2026, says it, and is not yet tried (`docs/prompts/library-trial/revision.md`).
 
 ## Not tried yet
 
