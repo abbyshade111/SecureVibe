@@ -20,6 +20,9 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please go ahead"), in branch
   `claude/securevibe-e2-weak-random-codes`. A new rule that only ever raises findings changes no requirement's
   status, so no ADR is proposed.
+  **Done the same day** (DESIGN, "A sign-in or reset code made with a random number generator that can be
+  predicted"): `ast.insecure-random-for-code`, in ten languages, with a new rule setting, `valueNamePatterns`, that
+  reads the names a value is given. Only ever a finding.
 
 - **V12.3.4 (and V12.3.2): a setting that switches off certificate checking for the whole app.** From
   `docs/PARTIAL-CHECKS.md` (V12.3.4, level 2, "reads the code, finding only"), which no check speaks to yet.
