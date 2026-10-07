@@ -1101,7 +1101,7 @@
     },
     {
       "id": "ast.weak-password-key-derivation",
-      "title": "A key is made from a password with too few rounds of work",
+      "title": "A password is stored, or a key made from one, with too few rounds of work",
       "severity": "medium",
       "confidence": "high",
       "requirementIds": [

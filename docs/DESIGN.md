@@ -11843,7 +11843,8 @@ missing header always has.
 
 **V11.4.2.** `ast.weak-password-key-derivation` (PBKDF2 with too few rounds) cited only V11.4.4, an encryption key made
 from a password. Code that stores passwords is held to V11.4.2. The same call does both, and nothing in the code says
-which, so the rule cites both and says why (ADR-018, Later, 7 October 2026). It is only ever a finding.
+which, so the rule cites both, its title and description say why, and it is only ever a finding. The record is ADR-048,
+whose claim by session paper-facts crossed this one unseen; it is accepted here for the rule.
 
 The test fixtures that stood for a correct app sent a policy without the two directives and were brought up to it,
 as was the example app `examples/notes-with-users`. **Eight guards broken in turn, each caught:** each of the three

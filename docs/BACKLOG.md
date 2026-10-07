@@ -20,10 +20,10 @@ another session is not a claim.
   policy without `object-src 'none'`, `base-uri 'none'`, or a `default-src` or `script-src`; the rule cites V11.4.2
   beside V11.4.4. **Record, `Status: proposed`: ADR-047** for the first, and a "Later" entry on ADR-018 for the second,
   in the pull request that builds them. Read on `main` just before this claim: no other session had claimed either.
-  **Done the same day** (DESIGN, "V3.4.3's directives, and V11.4.2 for stored passwords"; ADR-047, accepted; ADR-018,
-  Later). A policy without `object-src 'none'` (or `default-src 'none'` in its place), `base-uri 'none'`, or a
+  **Done the same day** (DESIGN, "V3.4.3's directives, and V11.4.2 for stored passwords"; ADR-047, accepted; ADR-048,
+  accepted for the rule). A policy without `object-src 'none'` (or `default-src 'none'` in its place), `base-uri 'none'`, or a
   `default-src` or `script-src` is named in both header checks' findings, on public and private pages; the PBKDF2 rule
-  cites V11.4.2 beside V11.4.4. Eight guards broken in turn, each caught. The shown `security-headers` prompt asks for
+  cites V11.4.2 beside V11.4.4, recorded in ADR-048 (session paper-facts claimed the same decision, unseen, in #888). Eight guards broken in turn, each caught. The shown `security-headers` prompt asks for
   neither directive, so a build made with it now gets this finding; whether to change its words is for a prompt trial.
 
 - **A review of the code merged on 1 to 4 October 2026, for faults.** Asked for by the owner on 6 October 2026, after
@@ -2188,6 +2188,9 @@ another session is not a claim.
   the token the app made for that page, the protection V3.5.1 asks for. A value that is a `{...}` or `{{...}}`
   placeholder, or a call (`html.escape(...)`), is not a written-in secret. A fixture of exactly this line, and the
   rule kept quiet on it, would hold the fix.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-csrf-placeholder`: a value that is wholly one `{...}` template
+  expression is a placeholder. Read on `main` just before this claim: no other session had claimed it.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -7317,3 +7320,11 @@ revisits that ruling. Whether one should is the owner's question.
 the decision that `sv` checks apps in many languages, with its own rules among the checks, is **claimed
 the same day by session securevibe-e8** and drafted as ADR-018. **Accepted by the owner the same day**, and
 done: `docs/adr/ADR-018.md`.
+
+- **`ast.weak-password-key-derivation` cites V11.4.4 only, where storing passwords is V11.4.2.** Found on 7 October 2026
+  by both independent reviews of the prompt library. **The owner's decision the same day: cite both. Claimed by session
+  paper-facts**, in branch `claude/kdf-citation`; the record, `Status: proposed`, is ADR-048.
+  **The rule's citation built on 7 October 2026 by session securevibe-e2** in #889, under its own claim of the same
+  decision (#886, the "two citations" item under "Next"), which reached `main` before this one; the two claims crossed
+  unseen. ADR-048 is accepted there for the rule, and the rule's title now says both. The prompt's citation
+  (`password-hashing`, V11.4.2) is still this item's, for session paper-facts.
