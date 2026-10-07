@@ -31,6 +31,9 @@ another session is not a claim.
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
      in the counts for checks that rest on one sample. The wording part changes how a report concludes: a record.
+     **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with items 7 and 4"), in
+     branch `claude/owned-depth`: all three parts. **`Status: proposed`: ADR-053.** Read on `main` just before this
+     claim: no other session had claimed it.
   5. **The coverage documents count requirements that can never be credited as "can settle".**
      (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
      tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
