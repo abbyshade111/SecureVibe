@@ -7144,8 +7144,8 @@ another session is not a claim.
   signature in hex, the passphrase asked once per run, no `review-key` made any more, and a list `sv` cannot read in
   full trusting nothing). Built first on `ssh-key`, which failed `sv`'s own audit (an RSA crate it never builds, with an
   unfixed advisory, in the lockfile), so at the owner's choice OpenSSH's formats are written over `ed25519-dalek`
-  instead (`ssh_format.rs`); `ssh-keygen` and `sv` read each other's keys and signatures in tests. Fourteen guards broken
-  in turn, each caught by two tests or more. Not tried on a real CI run with a repository variable, and the hidden
+  instead (`ssh_format.rs`); `ssh-keygen` and `sv` read each other's keys and signatures in tests. Nineteen guards broken
+  in turn: sixteen caught by two tests or more, and three second checks behind a stronger one, as ADR-043 says. Not tried on a real CI run with a repository variable, and the hidden
   passphrase is not tested, since that needs a person's terminal.
 
 ## Decided, not yet written down as ADRs
