@@ -1585,6 +1585,13 @@ another session is not a claim.
       archive of each format first, then one just over each limit, sent after every other upload check. Read on `main`
       just before this claim: no other session had claimed it (securevibe-e9's claim of 5 October, #751, was closed
       unmerged). **Record, `Status: proposed`: ADR-046.**
+      **Done the same day** (DESIGN, "Compressed files past the stated limits"; ADR-046, accepted). For each format
+      listed, an ordinary small archive, then a zip and a gzip that unpack to a mebibyte past `max-unpacked-bytes` and a
+      zip holding one file more than `max-files`, each at most 1 GiB unpacked and under `max-bytes`; written by `sv`
+      itself, with no library, and checked against Python's own readers. `probe.archive-unchecked` (V5.2.3) is a
+      finding when one is accepted, and credited when it is refused and an ordinary file after it is not. Ten guards
+      broken in turn, each caught. Not done: tar, 7z, and rar; and an archive whose stated sizes are false (each file
+      here says truly what it unpacks to, so an app that trusts the stated sizes is credited).
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
@@ -1762,6 +1769,12 @@ another session is not a claim.
   to work for the requirements a feature brings, which it did not (it gave only the design-time ones); and the
   specification's fix for unreadable settings files (the item below), re-tested on 20 Haiku builds. Then the delivery
   test: 40 builds with the full server, with the prompts in the brief and without, at the owner's approved size.
+  **Item 4 done the same day** (`docs/prompts/library-trial/delivery.md`; ADR-044, "Later"): sixty builds,
+  $19.36. The specification's fix removed both named mistakes (16 of 70 Haiku builds before, 0 of 20 after) and
+  roughly halved unreadable settings files (34% to 15%; "partly" by the rule). Delivery through `sv` is not shown to
+  work for any prompt: the feature briefs mostly never reached the builders, because `securevibe_before` refuses until
+  `securevibe.toml` exists and they asked first; the guidance did reach them, and halved Haiku's problems, less than
+  pasting the prompt did. Four items below follow.
 
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
@@ -2096,6 +2109,36 @@ another session is not a claim.
   measured the same way: how many such builds' files `sv` can read.
   **Claimed on 6 October 2026 by session paper-facts** with the item above (prompt delivery), for the
   specification's wording only, in branch `claude/prompt-delivery`.
+
+- **`securevibe_before` refuses until `securevibe.toml` exists, and builders ask for it first.** Found on 6 October
+  2026 by session paper-facts, in the delivery test: with the specification in the request, most builders asked for
+  the feature briefs before writing the file, were told to write it and check again, and few asked again; the AI
+  brief, which carries the AI-feature prompt, reached 2 of 10 Sonnet and 3 of 10 Haiku builds. A brief could answer
+  without the file: what a feature brings, its decisions, the prompts shown to work, and the settings `sv run` needs
+  are the same for every app, and only "which of them apply now" needs the file. Say that part is waiting, and give
+  the rest.
+
+- **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
+  the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
+  comparison (Haiku's security headers 0 of 6 pasted, 2 of 6 through the guidance; keys and `.env` 1 of 4 against 4 of
+  9; the AI prompt 0 of 9 pasted, and seldom delivered at all through the brief). Every builder reads the server's
+  opening instructions and the specification before any code. A short line in either, naming the shown prompts and
+  where to get them, or the shortest of them in full, is the next delivery to measure, with the same harm rule.
+
+- **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
+  October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
+  stopped with "SECRET_KEY environment variable must be set", as the prompt asks ("stop with a clear message if one is
+  missing"), and `sv run` gives an app none of its own keys, so it could not be tested. For a key the app makes for
+  itself, such as a session secret, the prompt could say to create a random one at first start and keep it in the
+  app's data folder, and stop only for keys from outside (an AI service's). A change to a shown prompt's text is a
+  new test of it.
+
+- **`ai = true` under `[capabilities]`: the specification's next sentence.** Found on 6 October 2026 by session
+  paper-facts, in the delivery test: after the two new sentences, the commonest unreadable settings file left was
+  `ai = true` written straight under `[capabilities]` (one Part A build and one Part B build), where `sv` wants
+  `enabled = true` under `[capabilities.ai]`. A line under `[capabilities]` saying the AI feature's answers go in
+  `[capabilities.ai]`, and the starter file's own `[capabilities.ai]` example saying `enabled`, would be measured as
+  Part A was. Two builds also wrote the same key twice; `sv`'s message for that already says which.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -6109,7 +6152,13 @@ another session is not a claim.
      a finding. (Asked again on 27 September 2026 whether two refused skips should settle it; the
      owner's answer: no, it stays a person's check. Trying a repeated step is the way to strengthen
      it, not a lower bar.) **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
-     and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
+     and other wrong orders are not tried. **A step done twice and the wrong order claimed on 7 October 2026 by session
+     securevibe-e9**, at the owner's word ("Trying a repeated step is the way to strengthen it"), in branch
+     `claude/securevibe-e9-flow-order`: as B in a fresh session, the first step sent as many times as there are steps
+     before the last and then the last, and the steps between first and last sent before the first and then the last.
+     Repeating the last step after the flow finished is left out on purpose: an app's answer cannot tell "done now"
+     from "already yours", the false alarm the owner settled for `probe.action-done-twice` on 5 October 2026.
+     **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
      password list's source is not recorded anywhere in the repository, and checking the chosen
@@ -7181,6 +7230,13 @@ another session is not a claim.
   list (`~/.config/securevibe/allowed_signers`, or `SV_TRUSTED_SEALS` on CI) says which key may seal for which app; the
   report names the key it trusted and where the list came from; today's `v2:` seals keep counting where they count
   now, and `sv review` asks one yes to sign them again. One new dependency, `ssh-key`. Report seals are unchanged.
+  **Done the same day** (DESIGN, "Seals become signatures"; ADR-043 accepted, with where the build differs: the
+  signature in hex, the passphrase asked once per run, no `review-key` made any more, and a list `sv` cannot read in
+  full trusting nothing). Built first on `ssh-key`, which failed `sv`'s own audit (an RSA crate it never builds, with an
+  unfixed advisory, in the lockfile), so at the owner's choice OpenSSH's formats are written over `ed25519-dalek`
+  instead (`ssh_format.rs`); `ssh-keygen` and `sv` read each other's keys and signatures in tests. Nineteen guards broken
+  in turn: sixteen caught by two tests or more, and three second checks behind a stronger one, as ADR-043 says. Not tried on a real CI run with a repository variable, and the hidden
+  passphrase is not tested, since that needs a person's terminal.
 
 ## Decided, not yet written down as ADRs
 

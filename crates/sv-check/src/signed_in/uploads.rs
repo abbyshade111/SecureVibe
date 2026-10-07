@@ -4,7 +4,7 @@ use super::*;
 ///
 /// A limit stated far above this is not tested: the point is to find an app that takes anything,
 /// not to become a denial-of-service attempt against somebody's own app.
-const MOST_UPLOAD_BYTES: u64 = 8 * 1024 * 1024;
+pub(super) const MOST_UPLOAD_BYTES: u64 = 8 * 1024 * 1024;
 
 /// A GIF's magic bytes, which are ASCII and so survive a body that must be valid text.
 ///
@@ -22,13 +22,15 @@ struct Upload<'a> {
     contents: String,
 }
 
-/// Builds a multipart body by hand, because there is no HTTP client here to do it.
+/// Builds a multipart body by hand, because there is no HTTP client here to do it. The file is
+/// bytes, so an archive goes as it is.
 fn multipart(
     boundary: &str,
     field: &str,
-    file: &Upload,
+    name: &str,
+    contents: &[u8],
     form: &BTreeMap<String, String>,
-) -> String {
+) -> Vec<u8> {
     let mut body = String::new();
     for (name, value) in form {
         body.push_str(&format!("--{boundary}\r\n"));
@@ -38,22 +40,22 @@ fn multipart(
     }
     body.push_str(&format!("--{boundary}\r\n"));
     body.push_str(&format!(
-        "Content-Disposition: form-data; name=\"{field}\"; filename=\"{}\"\r\n",
-        file.name
+        "Content-Disposition: form-data; name=\"{field}\"; filename=\"{name}\"\r\n"
     ));
     body.push_str("Content-Type: application/octet-stream\r\n\r\n");
-    body.push_str(&file.contents);
-    body.push_str(&format!("\r\n--{boundary}--\r\n"));
+    let mut body = body.into_bytes();
+    body.extend_from_slice(contents);
+    body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
     body
 }
 
 /// Where each upload's anti-forgery token comes from, when the form takes one: a page fetched just
 /// before, so every upload carries a fresh token. One token for every upload is what an app with
 /// single-use tokens refuses from the second on, which would read as the file being refused.
-struct Token<'a> {
-    page: Option<&'a str>,
-    session: &'a Session,
-    wanted: bool,
+pub(super) struct Token<'a> {
+    pub(super) page: Option<&'a str>,
+    pub(super) session: &'a Session,
+    pub(super) wanted: bool,
 }
 
 impl Token<'_> {
@@ -75,12 +77,29 @@ fn send_upload(
     session: &Session,
     token: &Token,
 ) -> Option<ProbeResponse> {
+    send_bytes(
+        http,
+        upload,
+        (file.id, file.name, file.contents.as_bytes()),
+        session,
+        token,
+    )
+}
+
+/// Sends a file given as its id, its name, and its bytes.
+pub(super) fn send_bytes(
+    http: &mut dyn Http,
+    upload: &UploadSection,
+    (id, name, contents): (&str, &str, &[u8]),
+    session: &Session,
+    token: &Token,
+) -> Option<ProbeResponse> {
     const BOUNDARY: &str = "----sv-probe-boundary-6f21a9";
     let values = Values {
         user: "",
         password: "",
-        csrf: token.fresh(http, file.id),
-        marker: file.id,
+        csrf: token.fresh(http, id),
+        marker: id,
         ..Default::default()
     };
     let form: BTreeMap<String, String> = upload
@@ -88,16 +107,16 @@ fn send_upload(
         .iter()
         .map(|(k, v)| (k.clone(), fill(v, &values)))
         .collect();
-    let body = multipart(BOUNDARY, &upload.field, file, &form);
+    let body = multipart(BOUNDARY, &upload.field, name, contents, &form);
     let mut request = ProbeRequest {
-        id: file.id.to_owned(),
+        id: id.to_owned(),
         method: "POST".into(),
         path: upload.path.clone(),
         headers: vec![(
             "Content-Type".into(),
             format!("multipart/form-data; boundary={BOUNDARY}"),
         )],
-        body: Some(body.into_bytes()),
+        body: Some(body),
     };
     for (name, value) in session.headers() {
         request.headers.push((name, value));
@@ -111,7 +130,7 @@ fn send_upload(
 /// After rather than before, because a quota the refused file would have reached is only shown by
 /// what comes next.
 #[allow(clippy::too_many_arguments)]
-fn refusal_stands(
+pub(super) fn refusal_stands(
     http: &mut dyn Http,
     upload: &UploadSection,
     session: &Session,
@@ -487,7 +506,7 @@ pub(super) fn eicar() -> String {
 
 /// Whether the app refused an upload: an error, or no answer at all. A crash reads the same way,
 /// which `RESTS_ON_A_REFUSAL` answers for the passes that rest on one.
-fn refused(answer: &Option<ProbeResponse>) -> bool {
+pub(super) fn refused(answer: &Option<ProbeResponse>) -> bool {
     answer.as_ref().is_none_or(|r| r.status >= 400)
 }
 
@@ -1310,6 +1329,7 @@ mod tests {
                 .collect(),
             serves_at: serves_at.map(str::to_owned),
             max_bytes,
+            ..Default::default()
         });
         u
     }

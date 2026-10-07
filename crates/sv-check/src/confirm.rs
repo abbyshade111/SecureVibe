@@ -229,6 +229,15 @@ pub fn credit(stated: &Verified, check_id: &str, holds: &Holds, sealed: &Sealed)
                 holds.on.show(),
                 holds.how
             ),
+            Sealed::Signed { key, from } => format!(
+                "{} Recorded through `sv review` and signed with key {key}, which {} trusts for \
+                 this app: {} confirmed it on {}, having looked: \"{}\"",
+                stated.scope.trim_end(),
+                from.named(),
+                holds.who,
+                holds.on.show(),
+                holds.how
+            ),
         },
     )
 }
@@ -517,7 +526,7 @@ mod tests {
                 _ => None,
             },
             day(TODAY),
-            &Checker::Key(key()),
+            &Checker::key(key()),
         );
         assert_eq!(out.confirmed.len(), 1);
         assert_eq!(out.confirmed[0].check_id, DESIGN_CONFIRMED);
@@ -575,7 +584,7 @@ mod tests {
         let good = sealed(plain.clone(), DESIGN_CONFIRMED, "V8.3.1");
         // Sealed as a check made by hand, then moved under [design]: it fails.
         let other_section = sealed(plain.clone(), HAND_CONFIRMED, "V8.3.1");
-        let here = Checker::Key(key());
+        let here = Checker::key(key());
         assert_eq!(run(&good, &here).confirmed.len(), 1);
         for (c, says) in [
             (&plain, "not recorded through `sv review`"),
@@ -588,12 +597,12 @@ mod tests {
         let app = crate::seal::App::named_for_tests("app");
         let elsewhere = run(
             &good,
-            &Checker::Key(crate::seal::Key::random().unwrap().for_app(&app)),
+            &Checker::key(crate::seal::Key::random().unwrap().for_app(&app)),
         );
         assert!(elsewhere.confirmed.is_empty());
         // No key here: it does not count, and says why and what to do (item 8 of the review of 1
         // to 4 October).
-        let unchecked = run(&good, &Checker::NoKey);
+        let unchecked = run(&good, &Checker::no_key());
         assert!(unchecked.confirmed.is_empty());
         assert!(
             unchecked.not_counted[0].1.contains("cannot check"),
@@ -602,13 +611,13 @@ mod tests {
         );
         // Nor in another app on this computer (item 11).
         let shop = crate::seal::App::named_for_tests("shop");
-        let copied = run(&good, &Checker::Key(computer_key().for_app(&shop)));
+        let copied = run(&good, &Checker::key(computer_key().for_app(&shop)));
         assert!(copied.confirmed.is_empty());
         assert!(
             copied.not_counted[0].1.contains("another folder"),
             "{:?}",
             copied.not_counted
         );
-        assert!(run(&plain, &Checker::NoKey).confirmed.is_empty());
+        assert!(run(&plain, &Checker::no_key()).confirmed.is_empty());
     }
 }

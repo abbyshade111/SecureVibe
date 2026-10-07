@@ -160,6 +160,17 @@ pub(super) const OVERSIZED_FILE: Rule = Rule {
           \u{2014} in the web server or the framework, not after the file is already in memory.",
 };
 
+pub(super) const ARCHIVE_UNCHECKED: Rule = Rule {
+    rule_id: "probe.archive-unchecked",
+    requirement_ids: &["V5.2.3"],
+    cwe: &["CWE-409"],
+    impact: "A small compressed file can unpack to a great deal. An app that unpacks one without \
+             counting can have its disk or memory filled by anybody who can upload.",
+    fix: "Before unpacking, add up the sizes the archive's entries will unpack to and count its \
+          files, and refuse it past your limits; while unpacking, stop as soon as either is passed, \
+          since the sizes an archive states can be false.",
+};
+
 pub(super) const CONTENT_MISMATCH: Rule = Rule {
     rule_id: "probe.file-contents-unchecked",
     requirement_ids: &["V5.2.2"],

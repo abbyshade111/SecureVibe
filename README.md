@@ -211,20 +211,40 @@ may hold a key), and asks for your name, or `owner`. What you record is written 
 
 Why the extra step: the tool rewrites code until a warning stops, and writing `by = "owner"` into the
 file is the easiest way to stop one. `sv review` runs only in a terminal someone is typing in, which an
-AI coding tool does not have, and seals each entry with a key kept in your own settings folder
-(`~/.config/securevibe/review-key`), outside the app. On your computer the report checks each seal: an
-entry that was changed afterwards, or was never sealed, is a proposal again. A seal also names the app's
-folder, so an entry copied into another app, or an app moved to another folder, is a proposal until you
-run `sv review` there. On a computer with no key, such as CI, the seal cannot be checked, so the entry
-does not count there either, and the report says how to make it count: run `sv review` once on that
-computer, or read the report on the computer where you recorded it. A seal shows how an entry was
-recorded, not who was at the keyboard, and a tool set on faking one could; it stops the easy way, not every
-way. Keep the key file private, and copy it to another computer of yours to record from there.
+AI coding tool does not have, and *signs* each entry with a key of its own, kept in your own settings
+folder (`~/.config/securevibe/review-signing-key`), outside the app. The first time, it makes the key and
+asks whether to protect it with a passphrase. With one, nothing can sign as you without it, your AI coding
+tool included, since the passphrase is only in your head; you type it each time you run `sv review`.
+
+A signature is checked with the key's *public half*, which can check a signature but never make one. `sv
+review` puts that public half, with the app it may sign for, on a list of trusted keys beside the key
+(`~/.config/securevibe/allowed_signers`), and shows you one line to give any other computer that should
+count what you record: CI, the container, or a second computer of yours. Give it as the variable
+`SV_TRUSTED_SEALS` (on GitHub: the repository's Settings, then Secrets and variables, then Actions, then
+Variables, and pass `SV_TRUSTED_SEALS: ${{ vars.SV_TRUSTED_SEALS }}` to the step that runs `sv`). The
+line is not a secret: anyone can read it, and nobody can sign with it.
+
+Wherever the report is made, it checks each signature against the list: an entry that was changed
+afterwards, never signed, or signed with a key the list does not name, is a proposal again, and the
+report names the key it trusted and where the list came from, so you can tell it is yours. A signature
+also names the app, so an entry copied into another app is a proposal there. On your own computer that
+means the app's folder: an app moved to another folder is a proposal until you run `sv review` in it. On
+a computer with no list at all the signature cannot be checked, so the entry does not count, and the
+report says how to make it count.
+
+What it cannot show: who was at the keyboard, unless your key has a passphrase; and that a trusted key is
+yours, since whoever can change the list, or the repository variable, can add one. A tool set on faking
+it, running as you, could do either; it stops the easy way, not every way. Keep the key file private.
+
+Entries recorded before 6 October 2026 were sealed another way, with `~/.config/securevibe/review-key`,
+and count only on the computer that holds that key. The next time you run `sv review` there, it offers to
+sign them all again at one yes, without asking each question again.
 
 With the container, give it a terminal and somewhere to keep the key, made first so that it is yours
 (`mkdir -p ~/.config/securevibe && chmod 700 ~/.config/securevibe`; on Linux, add `--user` as below):
 `docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/securevibe":/sv-config/securevibe -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .`
-Pass the same `-v` and `-e` to the container that writes your reports, or it has no key to check with.
+The container that writes your reports needs only the list: pass `-e SV_TRUSTED_SEALS="$(cat ~/.config/securevibe/allowed_signers)"`,
+or the same `-v` and `-e` as above.
 
 ## Signing in
 
