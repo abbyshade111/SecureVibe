@@ -3381,15 +3381,28 @@ mod tests {
             let is_shown = p.status == sv_check::prompts::Status::Shown;
             shown += usize::from(is_shown);
             for (place, said) in [("instructions", &instructions), ("spec", &spec)] {
-                assert_eq!(said.contains(&named), is_shown, "{place}: {} is {}", p.id, p.status.as_str());
+                assert_eq!(
+                    said.contains(&named),
+                    is_shown,
+                    "{place}: {} is {}",
+                    p.id,
+                    p.status.as_str()
+                );
                 if is_shown {
-                    assert!(said.contains(&p.prompt), "{place}: {} is named but not given in full", p.id);
+                    assert!(
+                        said.contains(&p.prompt),
+                        "{place}: {} is named but not given in full",
+                        p.id
+                    );
                 }
             }
         }
         assert!(shown >= 4, "{shown}");
         // After everything else the instructions say, so they still open with how to use the server.
-        assert!(instructions.starts_with("SecureVibe checks"), "{instructions}");
+        assert!(
+            instructions.starts_with("SecureVibe checks"),
+            "{instructions}"
+        );
     }
 
     #[test]
