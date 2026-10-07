@@ -211,6 +211,18 @@ const FAILURE_HANDLED: Rule = Rule {
           broken.",
 };
 
+const HANG_HANDLED: Rule = Rule {
+    rule_id: "probe.ai-service-hang-handled",
+    requirement_ids: &["V16.5.2"],
+    cwe: &["CWE-400"],
+    impact: "While the AI service is not answering, the app is not answering either: everyone \
+             asking waits on a service that may never reply, and whatever handles their requests \
+             is tied up until it does.",
+    fix: "Give every call to the AI service a time limit of a few seconds (the OpenAI and \
+          Anthropic libraries wait up to ten minutes unless told otherwise), answer that request \
+          with a plain message when it runs out, and keep other requests answered while one waits.",
+};
+
 const SHAPE_UNCHECKED: Rule = Rule {
     rule_id: "probe.ai-output-shape-unchecked",
     requirement_ids: &["C7.1.1"],
@@ -1324,6 +1336,8 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
     failure_questions(http, &mut ask, shows_replies, &mut out);
     record_tool_questions(http, section, &mut ask, records, &mut out);
     retrieval_questions(http, &mut ask, notes, &mut out);
+    // Last, because an app it holds may answer nothing until the test model lets go.
+    hang_questions(http, &mut ask, shows_replies, &mut out);
     (out, markers)
 }
 
@@ -2076,6 +2090,172 @@ where
             "the AI service failing on one message: the app answered it without the service's \
              error or a trace, and answered the plain message after it"
                 .to_owned(),
+        ));
+    }
+}
+
+/// How long the test model holds a HANG message before closing it unanswered, as `HANG_SECONDS`
+/// in `assets/model-provider.mjs`.
+const HANG_HOLD: u64 = 40;
+
+/// How long `sv` waits on any one request to the app before taking it as unanswered: the
+/// `timeout 15` in the exchange script of `sv_run`'s Docker backend.
+const ANSWER_WAIT: u64 = 15;
+
+/// V16.5.2: the AI service takes one message and answers nothing, and then a plain message follows.
+///
+/// The app answering the held message by itself, within the time `sv` waits on any request, is a
+/// time limit of its own, and credited once the plain message after it is answered too. The plain
+/// message going unanswered as well is the finding: the feature stopped while its service did not
+/// answer. Only the held message going unanswered says nothing either way, since an app whose own
+/// limit is longer than `ANSWER_WAIT` cannot be told from one with none. A trace in the app's
+/// answer is the same finding as for a service that fails (V16.5.1).
+///
+/// Asked last, and the hold waited out when the app may still be waiting on it, so an app it
+/// holds does not answer the checks after this one with nothing.
+fn hang_questions<F>(http: &mut dyn Http, ask: &mut F, shows_replies: bool, out: &mut Outcome)
+where
+    F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
+{
+    let started = http.now();
+    let (held, held_answer) = ask(
+        http,
+        51,
+        "HANG",
+        "Could you write me a long summary of it all?",
+    );
+    let held_seen = seen(http, &held).unwrap_or_default();
+    if !held_seen.received {
+        out.not_assessed.push((
+            HANG_HANDLED.requirement_ids.join(", "),
+            format!(
+                "What the app does when its AI service stops answering: the message the test model \
+                 was to hold did not reach it ({}).",
+                status(&held_answer)
+            ),
+        ));
+        return;
+    }
+    let traces: Vec<String> = held_answer
+        .as_ref()
+        .map(|r| {
+            crate::probes::trace_markers_in(&decoded(&r.body))
+                .into_iter()
+                .map(|m| format!("`{}`", m.trim()))
+                .collect()
+        })
+        .unwrap_or_default();
+    out.steps.push(format!(
+        "had the test model take a message and answer nothing for {HANG_HOLD} seconds: {}{}",
+        match &held_answer {
+            Some(_) => format!("the app answered it by itself ({})", status(&held_answer)),
+            None => format!("the app gave no answer within the {ANSWER_WAIT} seconds sv waits"),
+        },
+        if traces.is_empty() {
+            String::new()
+        } else {
+            format!(", carrying {}", traces.join(" and "))
+        }
+    ));
+    if !traces.is_empty() {
+        out.findings.push(finding(
+            &FAILURE_SHOWN,
+            "The AI service's error reaches the person using the app",
+            Severity::Low,
+            format!(
+                "When the AI service did not answer, the app's answer carried {}.",
+                traces.join(" and ")
+            ),
+        ));
+    }
+
+    const AFTER: &str = "Never mind. Can you help me with something short instead?";
+    let (mut after, mut after_answer) = ask(http, 52, "PLAIN", AFTER);
+    if let Some(secs) = after_answer
+        .as_ref()
+        .and_then(crate::signed_in::rate_limited)
+    {
+        out.steps.push(format!(
+            "the plain message after it was answered by a limiter ({}); waited {secs} second{} and \
+             sent it once more",
+            status(&after_answer),
+            if secs == 1 { "" } else { "s" }
+        ));
+        http.wait(secs);
+        (after, after_answer) = ask(http, 52, "PLAIN", AFTER);
+    }
+    let limited = after_answer
+        .as_ref()
+        .and_then(crate::signed_in::rate_limited)
+        .is_some();
+    let answered = after_answer.as_ref().is_some_and(|r| {
+        (200..300).contains(&r.status)
+            && (!shows_replies || decoded(&r.body).contains(&format!("SV-REPLY-{after}")))
+    });
+    out.steps.push(format!(
+        "then sent a plain message ({}): {}",
+        status(&after_answer),
+        if answered {
+            "answered"
+        } else if seen(http, &after).unwrap_or_default().received {
+            "it reached the model, and its reply did not come back"
+        } else {
+            "it did not reach the model"
+        }
+    ));
+    if held_answer.is_none() || !answered {
+        let left = (HANG_HOLD + 5).saturating_sub(http.now().saturating_sub(started));
+        if left > 0 {
+            http.wait(left);
+            out.steps.push(format!(
+                "waited {left} seconds more, until the test model had closed the message it held, \
+                 so an app still waiting on it is free for the checks after this one"
+            ));
+        }
+    }
+
+    if limited {
+        out.not_assessed.push((
+            "V16.5.2".to_owned(),
+            format!(
+                "Whether the AI feature keeps answering while its service does not: the message \
+                 sent afterwards was answered by a limit on how often it may be asked ({}), twice, \
+                 which says nothing either way.",
+                status(&after_answer)
+            ),
+        ));
+    } else if !answered {
+        out.findings.push(finding(
+            &HANG_HANDLED,
+            "The AI feature stops answering while its service does not answer",
+            Severity::Medium,
+            format!(
+                "While the AI service was not answering one message, a plain message sent after it \
+                 was answered {} and its reply did not come back, within the {ANSWER_WAIT} seconds \
+                 sv waits.",
+                status(&after_answer)
+            ),
+        ));
+    } else if held_answer.is_none() {
+        out.not_assessed.push((
+            "V16.5.2".to_owned(),
+            format!(
+                "Whether the app puts a time limit on its AI service: the message the test model held \
+                 got no answer within the {ANSWER_WAIT} seconds sv waits on any request, while a \
+                 plain message after it was answered. An app whose own limit is longer than that \
+                 cannot be told from one with none; the OpenAI and Anthropic libraries wait up to \
+                 ten minutes unless told otherwise."
+            ),
+        ));
+    } else if traces.is_empty() {
+        out.verified.push(crate::Verified::new(
+            HANG_HANDLED.rule_id,
+            HANG_HANDLED.requirement_ids,
+            format!(
+                "the AI service not answering one message: the app answered it by itself within \
+                 {ANSWER_WAIT} seconds ({}), without a trace, and answered a plain message after it",
+                status(&held_answer)
+            ),
         ));
     }
 }
@@ -2871,6 +3051,12 @@ mod tests {
         raw_response: bool,
         /// When the model service fails, it passes the service's error on to the person.
         passes_model_error: bool,
+        /// It sets no time limit on the model: a message the model never answers is never answered.
+        waits_on_model: bool,
+        /// As `waits_on_model`, with one worker: nothing else is answered until the model lets go.
+        blocks_on_model: bool,
+        /// Its own time limit runs out, and it answers with the library's traceback.
+        trace_on_timeout: bool,
         /// It runs the model's tool calls for as long as the model asks.
         unbounded_tool_loop: bool,
         /// Its tool loop fails after three rounds, and it catches the error and answers 200 with
@@ -2953,6 +3139,11 @@ mod tests {
         broken: bool,
         /// Until when, on the fake clock, the app is busy, for an app that is busy for a while.
         busy_until: u64,
+        /// Until when, on the fake clock, the app answers nothing at all, for one whose only worker
+        /// is waiting on the model.
+        stuck_until: u64,
+        /// Set by the chat when this request gets no answer, because the app is waiting on the model.
+        no_answer: bool,
         /// How many messages the model failed on.
         failures: u64,
         /// For each MCPLOOP tag, how many tool rounds the app ran.
@@ -3373,6 +3564,33 @@ mod tests {
                     }
                 }
             }
+            // A message the test model holds: answered by the app's own time limit, or not at all.
+            if self
+                .kinds
+                .get(&self.last_tag)
+                .and_then(|k| k.last())
+                .is_some_and(|k| k == "HANG")
+            {
+                if self.flaws.waits_on_model || self.flaws.blocks_on_model {
+                    self.no_answer = true;
+                    if self.flaws.blocks_on_model {
+                        self.stuck_until = self.clock + HANG_HOLD;
+                    }
+                    return answer(200, String::new());
+                }
+                if self.flaws.trace_on_timeout {
+                    return answer(
+                        500,
+                        "Traceback (most recent call last):\n  File \"/app/main.py\", line 42, in \
+                         chat\nopenai.APITimeoutError: Request timed out."
+                            .into(),
+                    );
+                }
+                return answer(
+                    504,
+                    "{\"error\":\"The assistant is taking too long. Please try again.\"}".into(),
+                );
+            }
             // A message the test model fails on: the service's error, handled or not.
             let failing = self.last_tag.clone();
             if self
@@ -3494,6 +3712,9 @@ mod tests {
 
         fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
             self.clock += self.flaws.seconds_per_request;
+            if self.clock < self.stuck_until && !r.path.starts_with("/_sv/") {
+                return None;
+            }
             if self.clock < self.throttled_until && r.path != "/api/chat" {
                 return Some(ProbeResponse {
                     id: r.id.clone(),
@@ -3561,7 +3782,8 @@ mod tests {
                     let body: serde_json::Value =
                         serde_json::from_slice(r.body.as_deref().unwrap_or(b"{}")).unwrap();
                     let message = body["message"].as_str().unwrap_or_default().to_owned();
-                    Some(self.chat(&message))
+                    let answer = self.chat(&message);
+                    (!std::mem::take(&mut self.no_answer)).then_some(answer)
                 }
                 ("POST", "/notes") => {
                     let body: serde_json::Value =
@@ -3744,7 +3966,7 @@ mod tests {
     }
 
     #[test]
-    fn a_careful_app_is_credited_for_six_and_the_image_is_said_as_unseen() {
+    fn a_careful_app_is_credited_for_seven_and_the_image_is_said_as_unseen() {
         let o = ask(Flaws::default());
         assert!(found(&o).is_empty(), "{:#?}", o.findings);
         assert_eq!(
@@ -3755,7 +3977,8 @@ mod tests {
                 UNSCREENED.rule_id,
                 HIDDEN.rule_id,
                 HARMFUL.rule_id,
-                FAILURE_HANDLED.rule_id
+                FAILURE_HANDLED.rule_id,
+                HANG_HANDLED.rule_id
             ],
             "{:?}",
             o.steps
@@ -4590,7 +4813,8 @@ mod tests {
                 UNSCREENED.rule_id,
                 HIDDEN.rule_id,
                 HARMFUL.rule_id,
-                FAILURE_HANDLED.rule_id
+                FAILURE_HANDLED.rule_id,
+                HANG_HANDLED.rule_id
             ],
             "{:?}",
             o.steps
@@ -4711,7 +4935,8 @@ mod tests {
                 UNSCREENED.rule_id,
                 HIDDEN.rule_id,
                 HARMFUL.rule_id,
-                FAILURE_HANDLED.rule_id
+                FAILURE_HANDLED.rule_id,
+                HANG_HANDLED.rule_id
             ],
             "{:?}",
             careful.steps
@@ -4822,6 +5047,77 @@ mod tests {
             "{:?}",
             plain.not_assessed
         );
+    }
+
+    #[test]
+    fn a_service_that_never_answers_is_judged_by_the_message_after_it() {
+        // The careful app's own time limit answers the held message, and is credited.
+        let careful = ask(Flaws::default());
+        assert!(
+            careful
+                .steps
+                .iter()
+                .any(|s| s.contains("answer nothing for 40 seconds")
+                    && s.contains("answered it by itself (504)")),
+            "{:?}",
+            careful.steps
+        );
+        assert!(
+            !careful
+                .steps
+                .iter()
+                .any(|s| s.contains("waited") && s.contains("closed the message")),
+            "an app that answered by itself is not waited for: {:?}",
+            careful.steps
+        );
+        // No limit of its own, and other requests still answered: not assessed, never a finding,
+        // since a limit longer than the wait cannot be told from none.
+        let waits = ask(Flaws {
+            waits_on_model: true,
+            ..Default::default()
+        });
+        assert!(found(&waits).is_empty(), "{:#?}", waits.findings);
+        assert!(!credited(&waits).contains(&HANG_HANDLED.rule_id));
+        assert!(
+            why(&waits, "V16.5.2")
+                .iter()
+                .any(|w| w.contains("no answer within the 15 seconds") && w.contains("longer")),
+            "{:?}",
+            waits.not_assessed
+        );
+        // Nothing else answered while it waits: the finding, and the hold waited out after it.
+        let mut app = FakeChat {
+            flaws: Flaws {
+                blocks_on_model: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let blocked = run(&mut app, &section(), &context(None, &NO_POLICY)).0;
+        assert_eq!(
+            found(&blocked),
+            vec![HANG_HANDLED.rule_id],
+            "{:?}",
+            blocked.steps
+        );
+        assert!(!credited(&blocked).contains(&HANG_HANDLED.rule_id));
+        assert!(
+            app.clock >= app.stuck_until,
+            "the run went on before the test model let go: {:?}",
+            blocked.steps
+        );
+        // A traceback when its own limit runs out is the error reaching the person, and no credit.
+        let traced = ask(Flaws {
+            trace_on_timeout: true,
+            ..Default::default()
+        });
+        assert_eq!(
+            found(&traced),
+            vec![FAILURE_SHOWN.rule_id],
+            "{:?}",
+            traced.steps
+        );
+        assert!(!credited(&traced).contains(&HANG_HANDLED.rule_id));
     }
 
     #[test]
