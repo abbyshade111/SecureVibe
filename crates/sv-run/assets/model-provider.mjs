@@ -6,7 +6,8 @@
 //
 // Built-in modules only: the fence has no route to a package registry.
 //
-// Environment: HOST (its own name, as the app reaches it) and PORT.
+// Environment: HOST (its own name, as the app reaches it) and PORT; HANG_SECONDS, how long a HANG
+// message is held (40 unless set, as `HANG_HOLD` in `sv_check::ai`; a test sets it shorter).
 //
 // What it answers depends on a marker in the latest user message, `SV-PROBE-<KIND>-<tag>`:
 //   PLAIN   an ordinary reply carrying `SV-REPLY-<tag>`
@@ -30,6 +31,9 @@
 //   FAIL    no reply: the service fails, answering 500 with an error in its own shape whose message
 //           carries `SVERR<tag>`, as a real outage would; `failures` in what was seen counts the
 //           attempts, since client libraries retry
+//   HANG    no reply at all: the service takes the message and says nothing, holding the connection
+//           for HANG_SECONDS and then closing it unanswered, as a service that has stopped
+//           responding does; `hangs` in what was seen counts the attempts
 //   MCPLOOP asks for `sv_lookup` again after every result, up to LOOP_CAP rounds, and only then
 //           answers; `rounds` in what was seen is how many results the app sent back before it
 //           stopped asking, so an app with no limit of its own reads as LOOP_CAP
@@ -77,6 +81,8 @@ const PORT = Number(process.env.PORT || 9100);
 const MODEL = 'sv-test-model';
 // How many tool rounds MCPLOOP keeps asking for before it stops by itself.
 const LOOP_CAP = 40;
+// How long a HANG message is held before the connection is closed unanswered.
+const HANG_SECONDS = Number(process.env.HANG_SECONDS || 40);
 const seen = new Map(); // tag -> { kind, system, bounded, fetched, api, model, input_tokens, output_tokens }
 // Tags a feature of the app fetched through `/_sv/fetch/` or `/_sv/redirect/` (V1.3.6, V15.3.2),
 // or that the app fetched as the key a sign-in token named, through `/_sv/keys/` (V9.1.3).
@@ -312,6 +318,10 @@ function reply(api, body, usage) {
     record.private_seen = found;
     return found.length ? `${marker} Your notes mention ${found.join(' ')}.` : `${marker} I found nothing.`;
   }
+  if (kind === 'HANG') {
+    record.hangs = (before.hangs || 0) + 1;
+    return { hang: tag };
+  }
   if (kind === 'FAIL') {
     record.failures = (before.failures || 0) + 1;
     return { fail: tag };
@@ -379,6 +389,12 @@ function answer(api, body, res) {
   const output = between(1000, 4000);
   let said = reply(api, body, { input, output });
   if (said && typeof said === 'object' && said.fail) return failure(api, res, said.fail);
+  if (said && typeof said === 'object' && said.hang) {
+    // Nothing is written, not even the status line: the app's library is left waiting on the
+    // service, as it would be on one that stopped answering, until the hold ends.
+    setTimeout(() => res.destroy(), HANG_SECONDS * 1000);
+    return undefined;
+  }
   const model = typeof body.model === 'string' ? body.model : MODEL;
   // The answer in the shape the app asked for, or, for BADSHAPE, in the wrong one.
   const shape = said && typeof said === 'object' && said.bad ? said.shape : shapeOf(api, body);

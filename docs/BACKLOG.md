@@ -1524,6 +1524,9 @@ another session is not a claim.
       the plain message after it was not answered either; not assessed when only the hanging message went unanswered,
       since an app whose own limit is longer than 15 seconds cannot be told from one with none. Asked last, and the
       hold waited out, so an app it blocks does not spoil the checks after it.
+      **Done the same day** (DESIGN, "Later, 7 October 2026: a service that answers nothing"). The test model's
+      `HANG` holds a message unanswered for 40 seconds; `probe.ai-service-hang-handled` judges the app as claimed. Run
+      with Node against the real test model script; not run end to end under Docker here.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.

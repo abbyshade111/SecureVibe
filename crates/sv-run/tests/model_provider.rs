@@ -37,6 +37,8 @@ fn start() -> Option<(Server, u16)> {
             .arg(script)
             .env("PORT", port.to_string())
             .env("HOST", "sv-model")
+            // A HANG message is held this long rather than the 40 seconds of a real run.
+            .env("HANG_SECONDS", "1")
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
@@ -283,6 +285,36 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
         assert_eq!(seen(port, "2a2b")["failures"], attempt);
     }
     assert_eq!(seen(port, "2a2b")["received"], true);
+
+    // V16.5.2: a HANG message gets no answer at all, not even a status line, for the hold, and the
+    // connection is then closed; the message is recorded as having arrived, and each attempt counted.
+    let body = serde_json::json!({
+        "model": "gpt-test",
+        "messages": [{"role": "user", "content": "Summarize SV-PROBE-HANG-4e4f"}],
+    })
+    .to_string();
+    let mut stream = TcpStream::connect(("127.0.0.1", port)).unwrap();
+    stream
+        .set_read_timeout(Some(Duration::from_secs(10)))
+        .unwrap();
+    write!(
+        stream,
+        "POST /v1/chat/completions HTTP/1.0\r\nHost: sv-model\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+        body.len()
+    )
+    .unwrap();
+    let started = Instant::now();
+    let mut got = Vec::new();
+    // A closed connection reads as its end, or as reset; either way nothing came.
+    let _ = stream.read_to_end(&mut got);
+    let held = started.elapsed();
+    assert!(got.is_empty(), "{}", String::from_utf8_lossy(&got));
+    assert!(
+        held >= Duration::from_millis(900) && held < Duration::from_secs(9),
+        "held for {held:?}, not the second it was set to"
+    );
+    assert_eq!(seen(port, "4e4f")["received"], true);
+    assert_eq!(seen(port, "4e4f")["hangs"], 1);
 
     // C9.1.2: MCPLOOP asks for the tool again after every result until 40 have come back, then
     // answers, and says how many came back.
