@@ -9,7 +9,7 @@ use sv_check::Verified;
 use sv_check::{Confidence, Finding, Location, Severity};
 use sv_frameworks::applicability::{Buckets, NotApplicable, NotAssessed};
 use sv_frameworks::{Condition, Frameworks, Source};
-use sv_report::{Gap, Inputs, Status, build};
+use sv_report::{Gap, Inputs, RunStatus, Status, build};
 
 fn data() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")
@@ -3279,4 +3279,141 @@ fn a_finding_about_requirements_the_app_is_not_held_to_is_listed_in_a_group_of_i
         .filter(|r| r["properties"]["notHeldTo"] == true)
         .count();
     assert_eq!(flagged, 1);
+}
+
+/// Gap analysis 6.1: the short version says what kind of run it was, by what did not run, and how
+/// many requirements only that could reach.
+#[test]
+fn the_short_version_says_what_did_not_run_and_what_only_it_reaches() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec![
+            "V1.2.1".into(),
+            "V1.3.1".into(),
+            "V3.3.1".into(),
+            "V8.2.1".into(),
+        ],
+        ..Default::default()
+    };
+    let reach: std::collections::BTreeMap<String, Vec<String>> = [
+        // Only the running app reaches it.
+        ("V1.2.1", vec!["running"]),
+        // Plain `sv check` reaches it too, so a run without the app is not what it waits on.
+        ("V1.3.1", vec!["static", "running"]),
+        // Only an outside tool.
+        ("V3.3.1", vec!["tools"]),
+        // Only signed in.
+        ("V8.2.1", vec!["signed-in"]),
+    ]
+    .into_iter()
+    .map(|(q, k)| (q.to_owned(), k.into_iter().map(str::to_owned).collect()))
+    .collect();
+    let report_with = |run_status: Option<RunStatus>, verified: &[Verified]| {
+        let mut i = inputs(&f, &buckets, vec![], verified);
+        i.run_status = run_status;
+        build(i)
+    };
+    let not_asked = || {
+        Some(RunStatus::NotAsked {
+            why: "not asked".to_owned(),
+        })
+    };
+
+    // Nothing but the files read: the running app, signed in or not, and the tools did not run.
+    let report = report_with(not_asked(), &[]);
+    let line = sv_report::not_run_this_time(&report, &reach, false).unwrap();
+    assert_eq!(line.kinds.len(), 2, "{line:?}");
+    assert_eq!(
+        line.only_they_reach, 3,
+        "V1.2.1, V3.3.1, and V8.2.1, not V1.3.1"
+    );
+
+    // The tools ran: only what needs the app is left.
+    let line = sv_report::not_run_this_time(&report, &reach, true).unwrap();
+    assert_eq!((line.kinds.len(), line.only_they_reach), (1, 2));
+
+    // A requirement already checked is not counted as waiting on anything.
+    let checked = vec![Verified::new(
+        "probe.something",
+        &["V1.2.1"],
+        "the running app".to_owned(),
+    )];
+    let report = report_with(not_asked(), &checked);
+    let line = sv_report::not_run_this_time(&report, &reach, true).unwrap();
+    assert_eq!(line.only_they_reach, 1, "only V8.2.1 now");
+
+    // Started, not signed in, tools run: only the signed-in checks are missing.
+    let started = |signed_in| {
+        Some(RunStatus::Started {
+            image: "app".to_owned(),
+            asked: 3,
+            answered: 3,
+            signed_in,
+            tests: "not-declared".to_owned(),
+        })
+    };
+    let report = report_with(started(false), &[]);
+    let line = sv_report::not_run_this_time(&report, &reach, true).unwrap();
+    assert_eq!((line.kinds.len(), line.only_they_reach), (1, 1), "{line:?}");
+    assert!(line.kinds[0].contains("signed-in"), "{line:?}");
+
+    // Everything ran, or nobody recorded whether the app ran: nothing to say.
+    let report = report_with(started(true), &[]);
+    assert!(sv_report::not_run_this_time(&report, &reach, true).is_none());
+    let report = report_with(None, &[]);
+    assert!(sv_report::not_run_this_time(&report, &reach, true).is_none());
+
+    // Shown in both short versions, after the counted list rather than inside it.
+    let mut report = report_with(not_asked(), &[]);
+    report.not_run_this_time = sv_report::not_run_this_time(&report, &reach, false);
+    let markdown = sv_report::markdown::compliance(&report);
+    let html = sv_report::html::page(&report);
+    for rendered in [&markdown, &html] {
+        assert!(
+            rendered.contains("Not run this time: the running app")
+                && rendered
+                    .contains("3 of the requirements that apply can only be checked that way."),
+            "{rendered}"
+        );
+        assert!(rendered.contains("Held to ASVS level 1"), "{rendered}");
+    }
+    assert!(
+        !markdown.contains("- Not run this time") && !markdown.contains("- Held to"),
+        "not a row of the counted list"
+    );
+}
+
+/// Gap analysis 6.2: the short version says which level the app was held to, and what that leaves
+/// out of its numbers.
+#[test]
+fn the_short_version_says_which_level_and_what_is_not_counted() {
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        out_of_level: vec!["V1.2.2".into(), "V1.2.3".into()],
+        ..Default::default()
+    };
+    let report = build(inputs(&f, &buckets, vec![], &[]));
+    assert_eq!(
+        report.counts.out_of_level, 2,
+        "the setup leaves two above level 1"
+    );
+    assert_eq!(
+        sv_report::bluf::held_to(&report),
+        "Held to ASVS level 1. Not in these numbers: 2 more requirements at levels 2 and 3."
+    );
+    let mut i = inputs(&f, &buckets, vec![], &[]);
+    i.target_level = 2;
+    assert!(
+        sv_report::bluf::held_to(&build(i)).contains("at level 3."),
+        "a level 2 app has only level 3 above it"
+    );
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    assert_eq!(
+        sv_report::bluf::held_to(&build(inputs(&f, &buckets, vec![], &[]))),
+        "Held to ASVS level 1."
+    );
 }

@@ -124,6 +124,13 @@ pub fn page(report: &Report) -> String {
         ));
     }
     b.push_str("</ul>\n");
+    b.push_str(&format!(
+        "<p class=\"note\">{}</p>\n",
+        escape(&crate::bluf::held_to(report))
+    ));
+    if let Some(line) = crate::bluf::not_run_line(report) {
+        b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&line)));
+    }
     let steps = crate::bluf::next_steps(report);
     if !steps.is_empty() {
         b.push_str("<h3>What to do next</h3>\n<ol class=\"next\">\n");
@@ -817,6 +824,7 @@ mod tests {
             examined: Vec::new(),
             could_not_run: Vec::new(),
             partly_read: Vec::new(),
+            not_run_this_time: None,
         }
     }
 
