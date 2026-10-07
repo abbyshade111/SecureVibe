@@ -11437,7 +11437,10 @@ the function around it sets that name to, and the pattern is tried again with th
 
 The first version only read a name followed by `.`, `[`, or `->`. Taking that out turned no test red. A bare alias,
 `const find = findOne`, read as `findOne` is a correct finding anyway, so the condition went rather than stay
-untested. A lookup inside a helper function is still not followed.
+untested. So did a step that took the `&` off PHP's reference, since the grammar keeps it out of the value already.
+Six guards broken in turn, each caught by the witnesses: the switch off in the rule, the name never read, a PHP
+copy counted, the whole file read instead of the function, and either part of the call-returning session pattern
+taken out. A lookup inside a helper function is still not followed.
 
 What is left alone:
 - the same lookups keyed on `sub`, `uid`, `googleId`, `getId()`, or `FindByLoginAsync`;

@@ -2354,9 +2354,8 @@ fn read_through_name(
             if let (Some(target), Some(value)) = (target, value)
                 && text(target).trim().trim_start_matches('$') == name
             {
-                // PHP's `$s = &$_SESSION` names the session by reference; the `&` is not part of it.
-                let value = text(value).trim().trim_start_matches('&').trim();
-                if pattern.is_match(&format!("{value}{rest}")) {
+                // PHP's `$s = &$_SESSION`: the grammar keeps the `&` out of the value.
+                if pattern.is_match(&format!("{}{rest}", text(value).trim())) {
                     return true;
                 }
             }
