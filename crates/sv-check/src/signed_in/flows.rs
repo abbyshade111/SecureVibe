@@ -43,10 +43,17 @@ fn take_steps(
 /// nothing can be told: a skip refused by an app whose flow does not work as described is not a
 /// skip refused. Then B, signed in afresh so nothing of A's carries over, goes straight to the last
 /// step, and — when there is a middle to leave out — signs in afresh again and does the first step
-/// and then the last. Either ending in `completed` is a finding. Both refused is support for V2.3.1
-/// and no more: it is on the manual-only list, because two skips refused is not every order refused.
+/// and then the last. With a middle, B also tries two wrong orders that leave nothing out by count
+/// or by name: the first step done once for every step before the last, and then the last (an app
+/// that counts steps rather than knowing which were done); and the steps between first and last,
+/// then the first, then the last (an app that asks only whether each step was ever done). Any of
+/// them ending in `completed` is a finding. All refused is support for V2.3.1 and no more: it is on
+/// the manual-only list, because a few orders refused is not every order refused.
 ///
-/// Doing a step twice, and doing steps out of order other than by leaving some out, are not tried.
+/// The last step sent again after the flow finished is not tried: an app's answer cannot tell an
+/// order placed again from the same order shown again, the false alarm `probe.action-done-twice`
+/// had (DESIGN, "Later, 5 October 2026: two users, not one"). B has finished no flow, so a wrong
+/// order ending in `completed` cannot be that.
 pub(super) fn flow_checks(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -120,7 +127,25 @@ pub(super) fn flow_checks(
         "straight to the last step, with none of the steps before it",
         vec![last],
     )];
-    if steps.len() >= 3 {
+    // Each of these is the steps in order when there is no middle, so a two-step flow has only the
+    // one skip. The order of the tries matters, because an app may keep where each person is in
+    // the flow against the account rather than the session, and then B's fresh session does not
+    // start B afresh. Every try with the first step in it can leave B at the second step, after
+    // which the steps between first and last, sent first, are no longer the wrong order. So that
+    // try goes straight after the one that sends only the last step, which leaves a correct app
+    // where it found it; the repeated first step and the skip past the middle follow.
+    let middle = &steps[1..steps.len() - 1];
+    if !middle.is_empty() {
+        tries.push((
+            "the steps between the first and the last, then the first, then the last",
+            middle.iter().copied().chain([steps[0], last]).collect(),
+        ));
+        tries.push((
+            "the first step once for each step before the last, and then the last",
+            std::iter::repeat_n(steps[0], steps.len() - 1)
+                .chain([last])
+                .collect(),
+        ));
         tries.push((
             "the first step and then the last, leaving out the ones between",
             vec![steps[0], last],
@@ -160,8 +185,8 @@ pub(super) fn flow_checks(
             STEP_SKIPPED.rule_id,
             STEP_SKIPPED.requirement_ids,
             format!(
-                "a {}-step flow skipped {} way{}, refused each time, where the steps in order \
-                 finished",
+                "a {}-step flow tried {} way{} out of order, refused each time, where the steps in \
+                 order finished",
                 steps.len(),
                 tries.len(),
                 if tries.len() == 1 { "" } else { "s" }
@@ -170,7 +195,7 @@ pub(super) fn flow_checks(
     } else {
         out.findings.push(finding(
             &STEP_SKIPPED,
-            "A step of the flow can be skipped",
+            "The flow can be finished without its steps in order",
             Severity::High,
             format!(
                 "The flow ended in \"{}\" for B, going {}. Only going through every step in order \
@@ -224,8 +249,8 @@ mod tests {
                 .iter()
                 .filter(|s| s.starts_with("as B,") && s.ends_with("refused"))
                 .count(),
-            2,
-            "both skips, straight to the end and past the middle: {:?}",
+            4,
+            "both skips, the repeated first step, and the middle first: {:?}",
             o.steps
         );
     }
@@ -255,6 +280,49 @@ mod tests {
                 .find(|f| f.rule_id == STEP_SKIPPED.rule_id)
                 .unwrap_or_else(|| panic!("{how}: not found: {:?}", o.steps));
             assert!(f.description.contains(how), "{how}: {}", f.description);
+            assert!(
+                !verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
+                "{how}: credited as well"
+            );
+        }
+    }
+
+    #[test]
+    fn a_flow_finished_in_the_wrong_order_is_found_by_the_order_that_does_it() {
+        // Neither app lets a step be left out, so neither skip finds anything: only the repeated
+        // first step finds the app that counts steps, and only the middle first finds the app that
+        // asks whether each step was ever done.
+        for (flaws, how, not) in [
+            (
+                Flaws {
+                    flow_counts_steps: true,
+                    ..Default::default()
+                },
+                "the first step once for each step before the last",
+                "the steps between the first and the last",
+            ),
+            (
+                Flaws {
+                    flow_any_order: true,
+                    ..Default::default()
+                },
+                "the steps between the first and the last",
+                "the first step once for each step before the last",
+            ),
+        ] {
+            let o = run_flow(flaws, &users());
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == STEP_SKIPPED.rule_id)
+                .unwrap_or_else(|| panic!("{how}: not found: {:?}", o.steps));
+            assert!(f.description.contains(how), "{how}: {}", f.description);
+            assert!(!f.description.contains(not), "{how}: {}", f.description);
+            assert!(
+                !f.description.contains("leaving out") && !f.description.contains("straight to"),
+                "{how}: a skip worked too, so this is not the order's own finding: {}",
+                f.description
+            );
             assert!(
                 !verified_ids(&o).contains(&STEP_SKIPPED.rule_id),
                 "{how}: credited as well"
@@ -342,7 +410,13 @@ mod tests {
             .iter()
             .find(|v| v.check_id == STEP_SKIPPED.rule_id)
             .unwrap_or_else(|| panic!("{:?}\n{:?}", o.steps, o.not_assessed));
-        assert!(v.scope.contains("1 way,"), "{}", v.scope);
+        assert!(v.scope.contains("1 way out of order"), "{}", v.scope);
+        assert_eq!(
+            o.steps.iter().filter(|s| s.starts_with("as B,")).count(),
+            1,
+            "with no middle, a repeated first step or the middle first is the flow in order: {:?}",
+            o.steps
+        );
     }
 
     #[test]
