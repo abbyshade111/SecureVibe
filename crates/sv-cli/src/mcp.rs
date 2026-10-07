@@ -1743,6 +1743,7 @@ fn output_schema(tool: &str) -> Option<Value> {
         "applicable",
         "needs_attention",
         "checked",
+        "checked_in_part",
         "app_tested",
         "documented",
         "attested",
@@ -2347,7 +2348,8 @@ fn check_sections(
     // somebody's word say whose, so the tool reading this cannot take them for checks.
     summary.lead = format!(
         "{}: {} requirements apply at ASVS level {}. {} need attention, {} were checked by an \
-         automated check, {} were tested only by the app's own tests (written by the AI coding tool, not a \
+         automated check, {} were checked in part (an automated check tried some of what each asks), \
+         {} were tested only by the app's own tests (written by the AI coding tool, not a \
          check of sv's), {} the owner answered in the security notes, {} the owner checked by \
          hand, {} the owner answered yes to in securevibe.toml, {} the AI coding tool answered yes \
          to (those four are somebody's word, not a check), {} were not verified by anything. {} \
@@ -2358,6 +2360,7 @@ fn check_sections(
         report.target_level,
         c.needs_attention,
         c.checked,
+        c.checked_in_part,
         c.app_tested,
         c.documented,
         c.by_hand,

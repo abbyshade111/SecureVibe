@@ -68,7 +68,7 @@
     {
       "id": "check-after-each-feature",
       "topic": "checking",
-      "rule": "After each feature, run `securevibe_check` (or `sv check` in a terminal). Read what it says it did not examine before what it found. Fix each finding, or tell the owner why you did not.",
+      "rule": "After each feature, run `securevibe_check` (or `sv report` in a terminal; `sv check` is a narrower scan that says nothing about requirements). Read what it says it did not examine before what it found. Fix each finding, or tell the owner why you did not.",
       "cites": {
         "AC.4.2": "a security check run on each feature's AI-generated code, as automated security testing"
       }

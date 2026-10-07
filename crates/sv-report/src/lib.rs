@@ -46,6 +46,10 @@ pub enum Status {
     NeedsAttention,
     /// A check that names this requirement ran and was satisfied. One automated check, not a pass.
     Checked,
+    /// Checks that name this requirement ran and were satisfied, and each tried only part of what it
+    /// asks (ADR-053): V8.2.2 with another user refused reading a record, and changing or deleting
+    /// it not tried. Below *checked*, above the app's own tests, and never a pass.
+    CheckedInPart,
     /// The app's own tests name this requirement, in code, and passed (ADR-050).
     ///
     /// Its own tier, below *checked* and above *documented*: a test ran, and the app did what it
@@ -89,9 +93,10 @@ impl Status {
     /// owner's notes, the owner's check by hand, the owner's answer, the AI coding tool's answer,
     /// nothing. The order
     /// the count tables are read in; `Ord` is the order the requirement lists show them in.
-    pub const ALL: [Status; 8] = [
+    pub const ALL: [Status; 9] = [
         Status::NeedsAttention,
         Status::Checked,
+        Status::CheckedInPart,
         Status::AppTested,
         Status::Documented,
         Status::ByHand,
@@ -104,6 +109,7 @@ impl Status {
         match self {
             Status::NeedsAttention => "needs attention",
             Status::Checked => "checked",
+            Status::CheckedInPart => "checked in part",
             Status::AppTested => "tested by the app's own tests",
             Status::Documented => "documented by the owner",
             Status::Attested => "attested by the owner",
@@ -121,6 +127,9 @@ impl Status {
         match self {
             Status::NeedsAttention => "Applies, needs attention",
             Status::Checked => "Applies, checked by an automated check",
+            Status::CheckedInPart => {
+                "Applies, checked in part: an automated check tried some of what it asks"
+            }
             Status::AppTested => {
                 "Applies, the app's own tests ran without failing: written by your AI coding tool, not a check of sv's"
             }
@@ -232,6 +241,10 @@ pub struct RequirementLine {
 pub struct CheckedBy {
     pub check_id: String,
     pub scope: String,
+    /// The check tried only part of what the requirement asks (ADR-053). A requirement whose every
+    /// check is in part is *checked in part*, never *checked*.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub in_part: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -403,6 +416,9 @@ pub struct Counts {
     pub applicable: usize,
     pub needs_attention: usize,
     pub checked: usize,
+    /// Checked only in part: each check tried some of what the requirement asks (ADR-053). Never
+    /// added to `checked`.
+    pub checked_in_part: usize,
     /// Requirements whose only evidence is the app's own tests (ADR-050). Never folded into
     /// `checked`.
     pub app_tested: usize,
@@ -433,7 +449,7 @@ impl Counts {
     /// the opening sentence counted three or four of the seven, and on an app with an owner's
     /// answers did not add up). `Status::ALL` is checked against the enum by an exhaustive match
     /// in its test, so a status added later cannot be left out here either.
-    pub fn by_status(&self) -> [(Status, usize); 8] {
+    pub fn by_status(&self) -> [(Status, usize); 9] {
         Status::ALL.map(|s| (s, self.of(s)))
     }
 
@@ -442,6 +458,7 @@ impl Counts {
         match status {
             Status::NeedsAttention => self.needs_attention,
             Status::Checked => self.checked,
+            Status::CheckedInPart => self.checked_in_part,
             Status::AppTested => self.app_tested,
             Status::Documented => self.documented,
             Status::ByHand => self.by_hand,
@@ -451,9 +468,9 @@ impl Counts {
         }
     }
 
-    /// How many a check looked at: a problem found, or a check satisfied.
+    /// How many a check looked at: a problem found, or a check satisfied, in whole or in part.
     pub fn looked_at_by_a_check(&self) -> usize {
-        self.needs_attention + self.checked
+        self.needs_attention + self.checked + self.checked_in_part
     }
 
     /// How many rest on somebody's word and nothing else: the owner's notes, the owner's check by
@@ -822,7 +839,12 @@ pub fn not_run_this_time(
     let only_they_reach = report
         .requirements
         .iter()
-        .filter(|r| !matches!(r.status, Status::NeedsAttention | Status::Checked))
+        .filter(|r| {
+            !matches!(
+                r.status,
+                Status::NeedsAttention | Status::Checked | Status::CheckedInPart
+            )
+        })
         .filter(|r| {
             reach
                 .get(&r.id)
@@ -1457,6 +1479,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .map(|v| CheckedBy {
                 check_id: v.check_id.clone(),
                 scope: v.scope.clone(),
+                in_part: v.in_part,
             })
             .partition(|c| c.check_id == sv_check::suite::CHECK_ID);
         let (checked_by, mut supported_by) = if inputs.manual_only.contains(id) {
@@ -1490,6 +1513,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                     supported_by.push(CheckedBy {
                         check_id: v.check_id.clone(),
                         scope: format!("{}, as evidence about {counterpart}", v.scope),
+                        in_part: false,
                     });
                 }
             }
@@ -1501,6 +1525,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .map(|v| CheckedBy {
                 check_id: v.check_id.clone(),
                 scope: v.scope.clone(),
+                in_part: false,
             })
             .collect();
         let attested_by: Vec<CheckedBy> = inputs
@@ -1511,6 +1536,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .map(|v| CheckedBy {
                 check_id: v.check_id.clone(),
                 scope: v.scope.clone(),
+                in_part: false,
             })
             .collect();
         let documented_by: Vec<CheckedBy> = inputs
@@ -1520,6 +1546,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .map(|v| CheckedBy {
                 check_id: v.check_id.clone(),
                 scope: v.scope.clone(),
+                in_part: false,
             })
             .collect();
         // A finding beats a satisfied check: one check being happy says nothing about what another
@@ -1540,7 +1567,13 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         let status = if !findings.is_empty() {
             Status::NeedsAttention
         } else if !checked_by.is_empty() && !set_aside_here {
-            Status::Checked
+            // Every check behind it tried only part of what it asks (ADR-053): said so, and below
+            // *checked*, so the counts do not read as more than was tried.
+            if checked_by.iter().all(|c| c.in_part) {
+                Status::CheckedInPart
+            } else {
+                Status::Checked
+            }
         } else if !tested_by.is_empty() && !set_aside_here {
             Status::AppTested
         } else if !documented_by.is_empty() {
@@ -1669,6 +1702,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         applicable: requirements.len(),
         needs_attention: count(&requirements, Status::NeedsAttention),
         checked: count(&requirements, Status::Checked),
+        checked_in_part: count(&requirements, Status::CheckedInPart),
         app_tested: count(&requirements, Status::AppTested),
         documented: count(&requirements, Status::Documented),
         attested: count(&requirements, Status::Attested),
@@ -1953,7 +1987,8 @@ impl Ord for Status {
                 Status::ByHand => 4,
                 Status::Documented => 5,
                 Status::AppTested => 6,
-                Status::Checked => 7,
+                Status::CheckedInPart => 7,
+                Status::Checked => 8,
             }
         }
         rank(*self).cmp(&rank(*other))
@@ -2030,20 +2065,22 @@ mod examined_tests {
         let place = |s: Status| match s {
             Status::NeedsAttention => 0,
             Status::Checked => 1,
-            Status::AppTested => 2,
-            Status::Documented => 3,
-            Status::ByHand => 4,
-            Status::Attested => 5,
-            Status::Stated => 6,
-            Status::NotVerified => 7,
+            Status::CheckedInPart => 2,
+            Status::AppTested => 3,
+            Status::Documented => 4,
+            Status::ByHand => 5,
+            Status::Attested => 6,
+            Status::Stated => 7,
+            Status::NotVerified => 8,
         };
         for (i, s) in Status::ALL.iter().enumerate() {
             assert_eq!(place(*s), i, "{s:?}");
         }
         let c = Counts {
-            applicable: 36,
+            applicable: 45,
             needs_attention: 1,
             checked: 2,
+            checked_in_part: 9,
             app_tested: 8,
             documented: 3,
             by_hand: 4,
@@ -2054,10 +2091,10 @@ mod examined_tests {
         };
         let rows = c.by_status();
         assert_eq!(rows.iter().map(|(_, n)| n).sum::<usize>(), c.applicable);
-        assert_eq!(rows.map(|(_, n)| n), [1, 2, 8, 3, 4, 5, 6, 7]);
+        assert_eq!(rows.map(|(_, n)| n), [1, 2, 9, 8, 3, 4, 5, 6, 7]);
         assert_eq!(
             c.looked_at_by_a_check() + c.app_tested + c.on_somebodys_word() + c.not_verified,
-            36
+            45
         );
         // The app's own tests are never read as a check of `sv`'s.
         assert!(
@@ -2078,7 +2115,7 @@ mod examined_tests {
         let lede = lede(&c, "**", "**");
         assert_eq!(
             lede,
-            "36 requirements apply to this app. Of those, **3 have been looked at by something**, \
+            "45 requirements apply to this app. Of those, **12 have been looked at by something**, \
              **8 have been tested only by the app's own tests** (written by your AI coding tool, \
              and not a check of `sv`'s), **18 rest only on somebody's word** (yours, or your AI \
              coding tool's, which nothing here repeated), and **7 have not been looked at at all**."

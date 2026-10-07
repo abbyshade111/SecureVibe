@@ -227,7 +227,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &[],
         valued: &["--fail-on"],
-        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know)\n",
+        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     securevibe_check), saying nothing about requirements; it reads\n                     securevibe.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     securevibe.toml it cannot read)\n",
     },
     Command {
         name: "sbom",
@@ -1937,6 +1937,13 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         .unwrap_or_else(|| PathBuf::from("."));
     if !app_dir.is_dir() {
         bail!("{} is not a folder", app_dir.display());
+    }
+    // securevibe.toml is not needed here, and is read when it is there: one the AI coding tool wrote
+    // and `sv` cannot read stops the run, as it stops `sv report`. Until 7 October 2026 it was not
+    // read at all, so a broken one finished with 0 at a terminal (gap analysis 5.1).
+    let manifest_path = app_dir.join("securevibe.toml");
+    if manifest_path.is_file() {
+        Manifest::load(&manifest_path)?;
     }
     // One walk of the folder, shared by every check below (DESIGN, "One walk of the app").
     let listing = sv_scan::files::Listing::of(&app_dir);
@@ -5088,6 +5095,13 @@ fn summary_counts(c: &sv_report::Counts) -> String {
                     "was checked by an automated check"
                 } else {
                     "were checked by an automated check"
+                }
+            }
+            Status::CheckedInPart => {
+                if n == 1 {
+                    "was checked in part: an automated check tried some of what it asks"
+                } else {
+                    "were checked in part: an automated check tried some of what each asks"
                 }
             }
             Status::AppTested => {

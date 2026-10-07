@@ -3647,6 +3647,20 @@ Tested with a real backend (`crates/sv-run/tests/install.rs`): a fixture that im
 shows the installed version, and reuses the download on a second run; without the step it fails, naming `six`. Six
 safeguards were broken in turn and each was caught, one of them only by the test with a real backend.
 
+## Another user's records: lists, changes, deletions, and "checked in part" (ADR-053)
+
+V8.2.2 was *checked* when the second test user was refused one read of one record the first user made (gap analysis
+1.7). The commonest leaks are elsewhere: one person's notes in another's list, and requests that change or delete a
+record by its id without asking whose it is. Now the second user also opens every `private` page and the record's
+`list`, and, when securevibe.toml gives `update` and `delete` under `owned`, sends each at the first user's record.
+The first user then reads it back, and that decides: the second user's marker there, or the record gone, is a
+finding; the record unchanged is a refusal; a crash decides nothing, and a crashed request of the second user's is
+never a refusal (the crash sweep found all five ways it could have been before the requests were listed).
+
+When only reading could be tried, the credit is *in part*, and a requirement whose every credit is in part is
+*checked in part*: its own status, below *checked*, with its own row in every count and its own words wherever counts
+are said. The report says why it is in part and what to add to make it whole.
+
 ## A pretend "Sign in with Google" inside the fence
 
 An app whose people sign in through Google, Microsoft, or any other OpenID Connect provider carries
@@ -12610,6 +12624,25 @@ cites a requirement; and Bandit's and gosec's injection and escaping rules, list
 map, citing something. The second is what catches a rule left out, which the first cannot see. Three guards broken in
 turn, each caught: B610 taken out of the map, B701 citing nothing, and every new mapping taken out (the state before).
 The citation guard caught four of the first descriptions sharing no words with V1.2.1; they now say "output encoding".
+
+## `sv check` reads securevibe.toml when it is there (7 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 5.1). `sv check` at a terminal never read securevibe.toml, so a file the
+AI coding tool wrote and `sv` could not read got no word and exit 0, while `sv report` and `securevibe_check` refused
+it. Between 15 and 34 percent of Haiku's builds in the loop trials wrote such a file.
+
+- **What changes.** When the file is there, `sv check` reads it before anything else and stops on one it cannot read,
+  with the reader's own message and exit 3 (ADR-029, "Later, 7 October 2026"). With no file it runs as before: the
+  credential scan, the code rules, and the configuration checks need none.
+- **What it is for.** Only that: nothing `sv check` reports depends on the file. Its help now says it is a narrower
+  scan than `sv report` or `securevibe_check`, saying nothing about requirements, and reads the file only to stop on
+  one it cannot read.
+- **The coding rule.** "After each feature, run `securevibe_check` (or `sv check` in a terminal)" pointed an AI tool at
+  the narrower scan as if it were the same thing. It now names `sv report` as the terminal's form, and says `sv check`
+  is a narrower scan.
+
+One guard broken, and caught: with the file not read, the test's two broken files (bad syntax, a misspelt section)
+finish with 0 and the scan runs.
 
 ## The coverage documents count what can be credited (7 October 2026)
 

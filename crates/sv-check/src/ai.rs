@@ -4360,6 +4360,9 @@ mod tests {
                 },
                 read: Some("/notes/{id}".into()),
                 id_field: None,
+                list: None,
+                update: None,
+                delete: None,
             }),
             ..Default::default()
         };

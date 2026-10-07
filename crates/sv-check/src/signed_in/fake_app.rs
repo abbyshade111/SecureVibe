@@ -72,6 +72,8 @@ pub(super) struct FakeApp {
     pub(super) users: BTreeMap<String, (String, bool)>, // user -> (password, is admin)
     sessions: BTreeMap<String, String>,                 // session id -> user ("" = not signed in)
     notes: Vec<(String, String)>,                       // (owner, text)
+    /// The notes deleted, by number: read back as not there.
+    deleted_notes: std::collections::BTreeSet<usize>,
     /// Announcements posted, newest last.
     announcements: Vec<String>,
     pub(super) next: u32,
@@ -204,6 +206,12 @@ pub(super) struct Flaws {
     pub(super) idor: bool,
     /// Anybody at all can read any record.
     pub(super) records_public: bool,
+    /// The list of one's notes (`/my-notes`) shows everybody's (ADR-053).
+    pub(super) list_shows_others: bool,
+    /// Any signed-in user can change any note (`/notes/{n}/edit`) (ADR-053).
+    pub(super) idor_update: bool,
+    /// Any signed-in user can delete any note (`/notes/{n}/delete`) (ADR-053).
+    pub(super) idor_delete: bool,
     pub(super) no_csrf_check: bool,
     /// The notes page sends `Referrer-Policy: no-referrer`. Not a flaw on its own.
     pub(super) no_referrer: bool,
@@ -2126,6 +2134,50 @@ impl FakeApp {
                 }
                 Self::respond(201, vec![], "posted")
             }
+            // One's own notes, listed; everybody's under the flaw.
+            ("GET", "/my-notes") => {
+                let Some(who) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                let items: Vec<String> = self
+                    .notes
+                    .iter()
+                    .enumerate()
+                    .filter(|(i, (owner, _))| {
+                        !self.deleted_notes.contains(&(i + 1))
+                            && (*owner == who || self.flaws.list_shows_others)
+                    })
+                    .map(|(_, (_, text))| format!("<li>{text}</li>"))
+                    .collect();
+                Self::respond(200, vec![], &format!("<ul>{}</ul>", items.concat()))
+            }
+            // Changing or deleting a note: its owner only, anybody signed in under the flaws.
+            ("POST", p)
+                if p.starts_with("/notes/") && (p.ends_with("/edit") || p.ends_with("/delete")) =>
+            {
+                let Some(who) = user else {
+                    return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
+                };
+                let rest = &p["/notes/".len()..];
+                let (number, action) = rest.split_once('/')?;
+                let n: usize = number.parse().ok()?;
+                let Some((owner, _)) = self.notes.get(n.checked_sub(1)?).cloned() else {
+                    return Some(Self::respond(404, vec![], "none"));
+                };
+                let allowed = owner == who
+                    || (action == "edit" && self.flaws.idor_update)
+                    || (action == "delete" && self.flaws.idor_delete);
+                if !allowed || self.deleted_notes.contains(&n) {
+                    return Some(Self::respond(404, vec![], "none"));
+                }
+                if action == "edit" {
+                    let text = form(r).get("text").cloned().unwrap_or_default();
+                    self.notes[n - 1].1 = text;
+                } else {
+                    self.deleted_notes.insert(n);
+                }
+                Self::respond(303, vec![("Location", format!("/notes/{n}"))], "")
+            }
             ("POST", "/notes") => {
                 let Some(owner) = user else {
                     return Some(Self::respond(302, vec![("Location", "/login".into())], ""));
@@ -2246,6 +2298,9 @@ impl FakeApp {
                 let Some((owner, text)) = self.notes.get(n.checked_sub(1)?) else {
                     return Some(Self::respond(404, vec![], "none"));
                 };
+                if self.deleted_notes.contains(&n) {
+                    return Some(Self::respond(404, vec![], "none"));
+                }
                 if user.as_ref() == Some(owner)
                     || (self.flaws.idor && user.is_some())
                     || self.flaws.records_public
@@ -2372,6 +2427,29 @@ impl FakeApp {
     }
 }
 
+/// `users()`, with the record's list and the requests to change and delete it given (ADR-053).
+pub(super) fn users_full() -> UsersSection {
+    let mut u = users();
+    let t = |path: &str, fields: &[(&str, &str)]| RequestTemplate {
+        method: "POST".into(),
+        path: path.into(),
+        form: fields
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect(),
+        json: BTreeMap::new(),
+    };
+    if let Some(owned) = u.owned.as_mut() {
+        owned.list = Some("/my-notes".into());
+        owned.update = Some(t(
+            "/notes/{id}/edit",
+            &[("text", "{marker}"), ("csrf_token", "{csrf}")],
+        ));
+        owned.delete = Some(t("/notes/{id}/delete", &[("csrf_token", "{csrf}")]));
+    }
+    u
+}
+
 pub(super) fn users() -> UsersSection {
     let t = |path: &str, fields: &[(&str, &str)]| RequestTemplate {
         method: "POST".into(),
@@ -2422,6 +2500,9 @@ pub(super) fn users() -> UsersSection {
             },
             read: None,
             id_field: None,
+            list: None,
+            update: None,
+            delete: None,
         }),
         change_password: Some(t(
             "/password",
