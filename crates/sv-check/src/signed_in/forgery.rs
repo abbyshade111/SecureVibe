@@ -1,5 +1,31 @@
 use super::*;
 
+/// What a browser carries on a request another site makes: the session's cookies, never the
+/// `Authorization` header the app's own page adds, which no other site can make a browser send.
+/// `None` when there is no cookie: such a request signs nobody in, so it can show nothing either way.
+fn as_another_site_sends(session: &Session) -> Option<Session> {
+    (!session.cookies.is_empty()).then(|| Session {
+        bearer: None,
+        ..session.clone()
+    })
+}
+
+/// Why neither request is judged for an app whose session is a token and no cookie.
+const TOKEN_ONLY: &str = "The signed-in session is a token sent in an `Authorization` header, with no \
+     cookie. A browser never adds that header to a request another site makes, so such a request \
+     signs nobody in and shows nothing either way. Whether the app also takes a cookie as a session \
+     is not something this run saw.";
+
+/// Why a refusal is not credited when the session's token was left off.
+fn refused_without_the_token(answer: &str) -> String {
+    format!(
+        "Sent as another site would send it, with the signed-in user's cookies but without the \
+         token in the `Authorization` header, which a browser does not send across sites, the \
+         create request was refused ({answer}). Without the token that may only mean the cookies \
+         alone sign nobody in, so it is not credited."
+    )
+}
+
 pub(super) fn forgery_check(
     http: &mut dyn Http,
     owned: &sv_manifest::OwnedSection,
@@ -9,13 +35,20 @@ pub(super) fn forgery_check(
 ) {
     // The same request A just made, as a page on another site would make it: A's cookies go with
     // it (that is what a browser does), the Origin is somebody else's, and there is no token,
-    // because another site cannot read one.
+    // because another site cannot read one. Nor does the `Authorization` header go: until 7 October
+    // 2026 it did, and an app signed in by a token was reported accepting a request no other site
+    // could have sent (gap analysis 2.1).
+    let Some(cross) = as_another_site_sends(session) else {
+        out.not_assessed
+            .push((FORGERY.requirement_ids.join(", "), TOKEN_ONLY.to_owned()));
+        return;
+    };
     let values = Values {
         marker: "sv-probe-forged-9b21",
         csrf: Some(String::new()),
         ..Default::default()
     };
-    let mut forged = request("forged-create", &owned.create, &values, session);
+    let mut forged = request("forged-create", &owned.create, &values, &cross);
     forged
         .headers
         .retain(|(n, _)| !n.to_lowercase().contains("csrf") && !n.to_lowercase().contains("xsrf"));
@@ -53,6 +86,11 @@ pub(super) fn forgery_check(
                     ""
                 }
             ),
+        ));
+    } else if session.bearer.is_some() {
+        out.not_assessed.push((
+            FORGERY.requirement_ids.join(", "),
+            refused_without_the_token(&status(&response)),
         ));
     } else {
         out.verified.push(crate::Verified::new(
@@ -211,7 +249,12 @@ pub(super) fn simple_request_check(
         csrf: Some(String::new()),
         ..Default::default()
     };
-    let base = request("simple-request", &owned.create, &values, session);
+    let Some(cross) = as_another_site_sends(session) else {
+        out.not_assessed
+            .push((ID.to_owned(), TOKEN_ONLY.to_owned()));
+        return;
+    };
+    let base = request("simple-request", &owned.create, &values, &cross);
     let fields: Vec<(String, String)> = owned
         .create
         .json
@@ -306,6 +349,11 @@ pub(super) fn simple_request_check(
                     ""
                 }
             ),
+        ));
+    } else if refused == 3 && session.bearer.is_some() {
+        out.not_assessed.push((
+            ID.to_owned(),
+            refused_without_the_token("in all three forms a browser sends without a preflight"),
         ));
     } else if refused == 3 {
         out.verified.push(crate::Verified::new(
@@ -771,5 +819,119 @@ mod tests {
             ..Default::default()
         });
         assert!(!origin_found(&o) && !origin_credited(&o), "{:?}", o.steps);
+    }
+
+    /// The JSON API, signed in to by a token in JSON that the app's page sends back in an
+    /// `Authorization` header (gap analysis 2.1).
+    fn with_token_api() -> UsersSection {
+        let mut u = with_json_api();
+        u.login = Some(RequestTemplate {
+            method: "POST".into(),
+            path: "/api/login".into(),
+            form: BTreeMap::new(),
+            json: [("email", "{user}"), ("password", "{password}")]
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+        });
+        u.token_field = Some("token".into());
+        u.logout = None;
+        u
+    }
+
+    fn why_not(o: &Outcome, id: &str) -> Vec<String> {
+        o.not_assessed
+            .iter()
+            .filter(|(ids, _)| ids.split(", ").any(|i| i == id))
+            .map(|(_, why)| why.clone())
+            .collect()
+    }
+
+    #[test]
+    fn an_app_signed_in_by_a_token_alone_is_not_said_to_take_requests_from_other_sites() {
+        // Accepts any Origin, with no token of its own, in every form: had the forged requests kept
+        // the `Authorization` header, both would be findings no other site could cause.
+        let o = run_against(
+            Flaws {
+                api_parses_any_type: true,
+                api_takes_forms: true,
+                ..Default::default()
+            },
+            &with_token_api(),
+        );
+        // The token really signed in and made a record, or nothing here means anything.
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("created a record at /api/notes/")),
+            "{:?}",
+            o.steps
+        );
+        for rule in [FORGERY.rule_id, SIMPLE_REQUEST.rule_id] {
+            assert!(!rule_ids(&o).contains(&rule), "{rule}: {:#?}", o.findings);
+            assert!(!verified_ids(&o).contains(&rule), "{rule} credited");
+        }
+        for id in ["V3.5.1", "V3.5.2"] {
+            assert!(
+                why_not(&o, id)
+                    .iter()
+                    .any(|w| w.contains("`Authorization` header, with no cookie")),
+                "{id}: {:?}",
+                o.not_assessed
+            );
+        }
+    }
+
+    #[test]
+    fn a_cookie_that_signs_in_beside_the_token_is_still_found_taking_them() {
+        let o = run_against(
+            Flaws {
+                api_parses_any_type: true,
+                token_login_sets_cookie: true,
+                ..Default::default()
+            },
+            &with_token_api(),
+        );
+        let forged = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == FORGERY.rule_id)
+            .expect("the cookie alone signed the forged request in");
+        assert!(
+            forged.description.contains("cookies"),
+            "{}",
+            forged.description
+        );
+        assert!(
+            rule_ids(&o).contains(&SIMPLE_REQUEST.rule_id),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_refusal_without_the_token_is_not_credited() {
+        // The cookie beside the token, and an app that refuses other origins: refused, but a
+        // refusal with the token left off may only mean the cookie signs nobody in.
+        let o = run_against(
+            Flaws {
+                api_checks_origin: true,
+                token_login_sets_cookie: true,
+                ..Default::default()
+            },
+            &with_token_api(),
+        );
+        for (rule, id) in [
+            (FORGERY.rule_id, "V3.5.1"),
+            (SIMPLE_REQUEST.rule_id, "V3.5.2"),
+        ] {
+            assert!(!rule_ids(&o).contains(&rule), "{rule}: {:#?}", o.findings);
+            assert!(!verified_ids(&o).contains(&rule), "{rule} credited");
+            assert!(
+                why_not(&o, id).iter().any(|w| w.contains("not credited")),
+                "{id}: {:?}",
+                o.not_assessed
+            );
+        }
     }
 }
