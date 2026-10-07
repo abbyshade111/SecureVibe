@@ -142,6 +142,11 @@ another session is not a claim.
   23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
      warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
      rule that the terminal command is the narrower scan.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-check-manifest`. A securevibe.toml that is there and
+     cannot be read stops `sv check` with exit 3, as it stops `sv report` (exit 3 is "a manifest it cannot read" in
+     `crates/sv-cli/src/exit.rs`, where the gap analysis proposed 2); its help says it is the narrower scan; and the
+     coding rule names `sv report` as the terminal's form of `securevibe_check`, which builds the whole report.
   24. **The known-vulnerability check is out of reach for the owner.** (`docs/GAP-ANALYSIS.md`, 5.2.) Give the exact
      OSV download address per ecosystem and the folder layout in `sv audit`'s message and the guide. A command that
      downloads them (`sv advisories fetch`) would change what `sv` connects to: only as a decision with its own
