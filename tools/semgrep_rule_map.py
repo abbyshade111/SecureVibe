@@ -5,6 +5,7 @@ Writes the `rules` of the `semgrep` entry in `data/adapters.json`. Run it agains
 https://github.com/semgrep/semgrep-rules when semgrep's rules change:
 
     python3 tools/semgrep_rule_map.py /path/to/semgrep-rules
+    python3 tools/semgrep_rule_map.py --targets /path/to/semgrep-rules   # only `targets` and `skips`
 
 A registry rule's id, and so the `ruleId` in semgrep's SARIF, is its file's path with dots for
 slashes, then its own id: `python/lang/security/audit/eval-detected.yaml` holding `eval-detected`
@@ -22,6 +23,13 @@ carry no requirement, which is a fair thing for them to be.
 two keys put in the wrong class, or in a class they do not belong to at all. Each carries its
 reason. Configuration rules (Terraform, GitHub Actions, Kubernetes, Dockerfiles) are left out: they
 are about deployment, not about the requirements an application's code is checked against.
+
+A rule's `paths` say which files it reads, and semgrep applies them to files named on its command
+line as well as to a folder: `nginx` rules read only `*.conf` and the like, Rails template rules
+only `*.erb`. They are kept as `targets` (`paths.include`) and `skips` (`paths.exclude`), and `sv`
+counts a clean run as evidence about a rule only when it handed semgrep a file the rule reads
+(ADR-018, Later, 7 October 2026). `--targets` writes those two onto the rules already mapped and
+changes nothing else, for a map that also holds rules added by hand.
 
 Every `what` is compared with the text of the requirement it cites by
 `crates/sv-check/tests/citations.rs`, like every other citation in the data.
@@ -330,14 +338,45 @@ def read_rules(root):
                                          for l in (r.get("languages") or [])}),
                     "category": meta.get("category"),
                     "cwe": sorted({int(n) for c in cwe for n in re.findall(r"CWE-(\d+)", str(c))}),
+                    "paths": r.get("paths") or {},
                 })
     return out
 
 
+def with_targets(entry, rule):
+    """`entry` with the files `rule` reads, when its `paths` narrow them."""
+    for key, name in (("include", "targets"), ("exclude", "skips")):
+        globs = rule["paths"].get(key) or []
+        if globs:
+            entry[name] = [str(g) for g in globs]
+    return entry
+
+
+def targets_only(root, adapters_path):
+    by_id = {r["id"]: r for r in read_rules(root)}
+    adapters = json.load(open(adapters_path))
+    entry = next(a for a in adapters["adapters"] if a["id"] == "semgrep")
+    unknown = []
+    for rule_id, mapped in entry["rules"].items():
+        mapped.pop("targets", None)
+        mapped.pop("skips", None)
+        if rule_id in by_id:
+            with_targets(mapped, by_id[rule_id])
+        else:
+            unknown.append(rule_id)
+    open(adapters_path, "w").write(json.dumps(adapters, indent=2, ensure_ascii=False) + "\n")
+    narrowed = sum(1 for m in entry["rules"].values() if "targets" in m or "skips" in m)
+    print(f"{narrowed} of {len(entry['rules'])} mapped rules read only some files; "
+          f"{len(unknown)} not in this checkout: {', '.join(unknown) or 'none'}")
+
+
 def main():
-    root = sys.argv[1]
     here = os.path.dirname(os.path.abspath(__file__))
     adapters_path = os.path.join(here, "..", "data", "adapters.json")
+    if sys.argv[1] == "--targets":
+        targets_only(sys.argv[2], adapters_path)
+        return
+    root = sys.argv[1]
     commit = subprocess.run(["git", "-C", root, "log", "-1", "--format=%h %cs"],
                             capture_output=True, text=True, check=True).stdout.strip()
     by_name = {name: (reqs, what) for name, _, _, _, reqs, what in C}
@@ -353,7 +392,7 @@ def main():
         if name is None:
             continue
         reqs, what = by_name[name]
-        mapped[r["id"]] = {"what": what, "requirements": reqs, "languages": r["languages"]}
+        mapped[r["id"]] = with_targets({"what": what, "requirements": reqs, "languages": r["languages"]}, r)
     for r in sorted(rules, key=lambda r: r["id"]):
         entry = aisvs_for(r["id"]) or asvs_against_for(r["id"])
         if entry is None:
@@ -363,8 +402,8 @@ def main():
             mapped[r["id"]]["what"] += "; " + what
             mapped[r["id"]]["findings_against"] = against
         else:
-            mapped[r["id"]] = {"what": what, "requirements": [], "findings_against": against,
-                               "languages": r["languages"]}
+            mapped[r["id"]] = with_targets({"what": what, "requirements": [], "findings_against": against,
+                                            "languages": r["languages"]}, r)
     families = {f for f in AISVS if not any(aisvs_for(i) and re.fullmatch(f, i.split(".")[2]) for i in ids)}
     families |= {p for p in ASVS_AGAINST if not any(re.fullmatch(p, i) for i in ids)}
     if families:

@@ -83,7 +83,12 @@ fn a_clean_run_of_every_ai_rule_credits_no_aisvs_requirement() {
         .iter()
         .map(|l| (*l).to_owned())
         .collect();
-    let evidence = adapters::clean_run_evidence(semgrep, &loaded, &languages);
+    let evidence = adapters::clean_run_evidence(
+        semgrep,
+        &loaded,
+        &languages,
+        &a_file_each_rule_reads(semgrep),
+    );
     let aisvs: Vec<&String> = evidence.iter().filter(|id| is_aisvs(id)).collect();
     assert!(aisvs.is_empty(), "{aisvs:?}");
     // And the ASVS half is still credited, so the line above is not passing on an empty list.
@@ -189,7 +194,12 @@ fn the_asvs_requirements_only_a_finding_can_speak_to_are_carried_and_never_credi
         .iter()
         .map(|l| (*l).to_owned())
         .collect();
-    let evidence = adapters::clean_run_evidence(semgrep, &loaded, &languages);
+    let evidence = adapters::clean_run_evidence(
+        semgrep,
+        &loaded,
+        &languages,
+        &a_file_each_rule_reads(semgrep),
+    );
     assert!(
         !evidence
             .iter()
@@ -216,4 +226,19 @@ fn a_real_innerhtml_finding_carries_both_requirements() {
                 "region": {"startLine": 4}}}]}]}]});
     let findings = adapters::parse_sarif(semgrep, &report.to_string()).unwrap();
     assert_eq!(findings[0].requirement_ids, ["V1.2.1", "V3.2.2"]);
+}
+
+/// A file each rule of `adapter` reads, for the widest clean run there could be: a rule that reads
+/// only some files counts only when the tool was handed one of them. Each is checked to be one the
+/// rule reads, so the run is as wide as it says.
+fn a_file_each_rule_reads(adapter: &Adapter) -> Vec<String> {
+    let mut files = vec!["app.py".to_owned()];
+    for (id, rule) in &adapter.rules {
+        for target in &rule.targets {
+            let file = target.replace("**/", "").replace(['*', '?'], "x");
+            assert!(rule.reads(&file), "{id} does not read {file}");
+            files.push(file);
+        }
+    }
+    files
 }

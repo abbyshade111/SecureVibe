@@ -133,7 +133,12 @@ fn a_clean_run_credits_none_of_them() {
     for tool_id in ["semgrep", "bandit", "gosec"] {
         let adapter = tool(&all, tool_id);
         let loaded = adapter.rules.keys().cloned().collect();
-        credited.extend(adapters::clean_run_evidence(adapter, &loaded, &languages));
+        credited.extend(adapters::clean_run_evidence(
+            adapter,
+            &loaded,
+            &languages,
+            &a_file_each_rule_reads(adapter),
+        ));
     }
     // The control: the same clean runs do credit what the map says they may.
     assert!(credited.iter().any(|q| q == "V1.2.4"), "{credited:?}");
@@ -143,4 +148,19 @@ fn a_clean_run_credits_none_of_them() {
             "a clean run credits {requirement}, which {rule} can only ever find failing"
         );
     }
+}
+
+/// A file each rule of `adapter` reads, for the widest clean run there could be: a rule that reads
+/// only some files counts only when the tool was handed one of them. Each is checked to be one the
+/// rule reads, so the run is as wide as it says.
+fn a_file_each_rule_reads(adapter: &Adapter) -> Vec<String> {
+    let mut files = vec!["app.py".to_owned()];
+    for (id, rule) in &adapter.rules {
+        for target in &rule.targets {
+            let file = target.replace("**/", "").replace(['*', '?'], "x");
+            assert!(rule.reads(&file), "{id} does not read {file}");
+            files.push(file);
+        }
+    }
+    files
 }

@@ -275,10 +275,10 @@ fn a_clean_run_is_credited_only_with_the_rules_its_suite_ran() {
 fn a_rule_the_map_knows_and_the_suite_did_not_run_is_not_credited() {
     let codeql = real("codeql-javascript");
     let loaded: BTreeSet<String> = ["js/sql-injection".to_owned()].into();
-    let evidence = adapters::clean_run_evidence(&codeql, &loaded, &["javascript".to_owned()]);
+    let evidence = adapters::clean_run_evidence(&codeql, &loaded, &["javascript".to_owned()], &[]);
     assert_eq!(evidence, vec!["V1.2.4".to_owned()]);
     let nothing =
-        adapters::clean_run_evidence(&codeql, &BTreeSet::new(), &["javascript".to_owned()]);
+        adapters::clean_run_evidence(&codeql, &BTreeSet::new(), &["javascript".to_owned()], &[]);
     assert!(nothing.is_empty(), "{nothing:?}");
 }
 

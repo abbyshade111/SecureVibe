@@ -153,6 +153,13 @@ another session is not a claim.
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
      on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
      deleted.
+  34. **Hand Semgrep the app's templates and configuration files too.** (`docs/GAP-ANALYSIS.md`, the rest of 1.2.)
+     Today 22 loaded rules read only files `sv` never hands Semgrep: templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`,
+     `*.mustache`), nginx's and Scala Play's `*.conf`, and `web.config`. They count for nothing, which is honest but
+     leaves template escaping and server TLS settings unread. Hand Semgrep those files as well, and teach the "did
+     not read every file it was given" check (`unread_files`) which of them a loaded rule reads, so a template no
+     rule reads is not called unread. Changes what `sv` gives an outside tool: ADR-018, Later. Added 7 October 2026
+     when the first half was built.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
@@ -164,6 +171,10 @@ another session is not a claim.
      one per commit so no run there is cancelled. **`Status: proposed`: ADR-051.**
   3. **Semgrep's any-language rules credited only for files Semgrep scanned** (1.2). Narrows what counts as evidence:
      ADR-018, Later.
+     **Done the same day** (DESIGN, "A Semgrep rule counts only when Semgrep was handed a file it reads"; ADR-018,
+     Later, 7 October 2026): each mapped rule carries the files it reads, from its own `paths`, and counts only when
+     Semgrep was handed one; for rules of one language too. The other half of the proposal, handing Semgrep the
+     templates and configuration files as well, is its own item below.
   4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
      V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
   **All four claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, each in its own branch

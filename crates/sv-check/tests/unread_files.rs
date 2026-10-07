@@ -212,6 +212,46 @@ fn a_list_left_by_an_earlier_run_does_not_vouch_for_this_one() {
 }
 
 #[test]
+fn a_rule_for_templates_counts_only_when_a_template_was_handed_over() {
+    // ADR-018, Later, 7 October 2026. The Django template rule reads only `*.html`. Over the app's
+    // Python alone it ran over nothing; with a template among the files `sv` hands semgrep, it
+    // read one, and its clean run is evidence.
+    const TEMPLATE_RULE: &str =
+        "python.django.security.audit.xss.template-autoescape-off.template-autoescape-off";
+    let credited = |with_template: bool| {
+        let dir = scratch(if with_template {
+            "template"
+        } else {
+            "no-template"
+        });
+        let app = app(&dir);
+        if with_template {
+            std::fs::create_dir_all(app.join("templates")).unwrap();
+            std::fs::write(app.join("templates/index.html"), "<p>{{ name }}</p>\n").unwrap();
+        }
+        let adapters = stand_in(&dir, &[("SV_FAKE_RULE", TEMPLATE_RULE)]);
+        let outcome = adapters::run_all(
+            &adapters,
+            &app,
+            &["python".to_owned(), "html".to_owned()],
+            &Default::default(),
+            &dir,
+            &secret_rules(),
+        );
+        std::fs::remove_dir_all(&dir).ok();
+        // The run itself was clean and read everything it was given, either way.
+        assert!(outcome.not_run.is_empty(), "{:?}", outcome.not_run);
+        outcome
+            .verified
+            .iter()
+            .flat_map(|v| v.requirement_ids.clone())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(credited(true), ["V1.2.1"]);
+    assert!(credited(false).is_empty(), "{:?}", credited(false));
+}
+
+#[test]
 fn unread_files_are_counted_and_the_first_few_named() {
     let given: Vec<String> = (0..8).map(|i| format!("src/m{i}.py")).collect();
     let scanned = r#"{"paths":{"scanned":["./src/m0.py","src/m1.py"]}}"#;

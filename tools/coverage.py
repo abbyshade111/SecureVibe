@@ -489,6 +489,31 @@ CREDITED_BY_TOOL = defaultdict(set)
 NOT_RUN = defaultdict(set)
 
 
+# Requirement id -> {rule}: semgrep rules a pack loads that read only files `sv` never hands semgrep.
+NEVER_HANDED = defaultdict(set)
+
+
+def code_extensions():
+    """The file extensions `sv` reads as code (`language_of` in sv-scan's ecosystems.rs): the only
+    files it hands semgrep."""
+    text = (ROOT / "crates/sv-scan/src/ecosystems.rs").read_text()
+    body = text[text.index("pub fn language_of"):]
+    body = body[: body.index("_ => return None")]
+    return {e for arm in re.findall(r'^\s*("[^\n]*?)\s*=>', body, re.M)
+            for e in re.findall(r'"([^"]+)"', arm)}
+
+
+def reads_code(rule, extensions):
+    """Whether a rule that names the files it reads (`targets`, its `paths.include`) can be handed
+    one by `sv`. A sample name is made from each pattern, as its test does: a rule for `*.erb` or
+    `*.conf` never is, one for `*.html` or `*session.php` can be."""
+    targets = rule.get("targets") or []
+    if not targets:
+        return True
+    samples = [g.replace("**/", "").replace("*", "x").replace("?", "x") for g in targets]
+    return any("." in s.rsplit("/", 1)[-1] and s.rsplit(".", 1)[-1] in extensions for s in samples)
+
+
 # How a condition reads in "run unless the app is known not to …".
 CONDITION_WORDS = {"ai": "call a model"}
 
@@ -540,6 +565,11 @@ def evidence():
             for q in rule["requirements"] + rule.get("findings_against", []):
                 NOT_RUN[q].add(rule_id)
         rules = {k: v for k, v in adapter["rules"].items() if loaded is None or k in loaded}
+        extensions = code_extensions()
+        for rule_id in [r for r, rule in rules.items() if not reads_code(rule, extensions)]:
+            for q in rules[rule_id]["requirements"] + rules[rule_id].get("findings_against", []):
+                NEVER_HANDED[q].add(rule_id)
+            del rules[rule_id]
         for rule_id, rule in rules.items():
             for q in rule["requirements"]:
                 if adapter["id"] not in ev[q]["tools"]:
@@ -811,6 +841,16 @@ def main():
       f" own report lists. {len(named_elsewhere)} requirements are named that way and by no semgrep rule"
       " that runs:\n")
     w(", ".join(sorted(named_elsewhere, key=lambda q: (q[0], order(q)))) + ".\n")
+    never = sorted({r for rules in NEVER_HANDED.values() for r in rules})
+    only_there = {q for q in NEVER_HANDED if "semgrep" not in ev[q]["tools"]}
+    w(f"{len(never)} rules that a pack loads read only files `sv` never hands semgrep: templates "
+      "(`*.erb`, `*.ejs`, `*.pug`, `*.jsp`), nginx's and Scala Play's `*.conf`, `web.config`, and the "
+      "like. `sv` hands it the app's code files, and a rule none of whose files it was handed ran over "
+      "nothing, so they are not counted, and a report does not credit them (ADR-018, Later, 7 October "
+      "2026). "
+      + (f"{len(only_there)} requirements are named only by them: "
+         + ", ".join(sorted(only_there, key=lambda q: (q[0], order(q)))) + ".\n" if only_there
+         else "No requirement is named only by them, so the counts above do not change with it.\n"))
 
     # ---- ASVS by chapter
     w("## ASVS 5.0 by chapter\n")
