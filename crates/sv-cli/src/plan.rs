@@ -175,7 +175,9 @@ pub(crate) fn run_needs(manifest: &Manifest) -> Vec<RunNeed> {
             "upload",
             "the upload form and the largest file the app accepts (`max-bytes`), so `sv` can send one \
              larger than that, and files that must not be run or shown as they are: a page, a \
-             script, an SVG with a script in it, a name that climbs out of its folder",
+             script, an SVG with a script in it, a name that climbs out of its folder; and, if it \
+             unpacks compressed files, which formats and its limits (`unpacks-archives`, \
+             `max-unpacked-bytes`, `max-files`), so `sv` can send one just over each",
             users.is_some_and(|u| u.upload.is_some()),
         );
     }

@@ -134,6 +134,9 @@ health = "/"              # a path that returns 200 once the app is up
 #   `field` is the form field the file goes in; `serves-at` is where an upload can be fetched back,
 #   with {name} standing for its file name — leave it out if uploads are never served over the web.
 #   `max-bytes` is the largest file you say the app accepts, which is what it is held to.
+#   If the app unpacks compressed files, add `unpacks-archives = ["zip", "gzip"]` (only those it
+#   unpacks), `max-unpacked-bytes` (the most one may unpack to), and `max-files` (the most files one
+#   zip may hold): `sv` sends one just over each, after its other uploads, at most 1 GiB unpacked.
 # reset = { request = { path = "/forgot", form = { email = "{user}", csrf_token = "{csrf}" } }, use = { path = "/reset", form = { token = "{code}", password = "{new_password}", csrf_token = "{csrf}" } } }
 #   A forgotten-password reset. The run gives the app a mail server that keeps what it is sent, at
 #   SMTP_HOST and SMTP_PORT (no encryption, any user name and password accepted); `{code}` is the

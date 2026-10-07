@@ -710,6 +710,38 @@ pub struct UploadSection {
     /// cannot be checked, a number can. Absent means V5.2.1 is not assessed.
     #[serde(default)]
     pub max_bytes: Option<u64>,
+    /// The compressed formats the owner says the app unpacks (V5.2.3; ADR-046). Absent means not
+    /// said, and no archive is sent; empty means none, and none is sent either. Only the formats
+    /// listed are sent, so an app that unpacks zip and not gzip is never judged on gzip.
+    #[serde(default)]
+    pub unpacks_archives: Option<Vec<ArchiveFormat>>,
+    /// The most, in bytes, the owner says one archive may unpack to. Absent means that half of
+    /// V5.2.3 is not assessed: `sv` sets no limit of its own.
+    #[serde(default)]
+    pub max_unpacked_bytes: Option<u64>,
+    /// The most files the owner says one archive may hold. Absent means that half is not assessed.
+    #[serde(default)]
+    pub max_files: Option<u64>,
+}
+
+/// A compressed format an app may unpack, as `unpacks-archives` names it.
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[serde(rename_all = "lowercase")]
+pub enum ArchiveFormat {
+    /// A `.zip`, which may hold many files.
+    Zip,
+    /// A `.gz`, which holds one.
+    Gzip,
+}
+
+impl ArchiveFormat {
+    /// The name it is written with in `securevibe.toml` and in the report.
+    pub fn name(self) -> &'static str {
+        match self {
+            ArchiveFormat::Zip => "zip",
+            ArchiveFormat::Gzip => "gzip",
+        }
+    }
 }
 
 impl UsersSection {
@@ -2225,6 +2257,33 @@ mod mcp_server_tests {
         assert_eq!(effective(m, Condition::McpServer), None);
         let m = "[capabilities.ai]\nenabled = false\n";
         assert_eq!(effective(m, Condition::McpServer), None);
+    }
+
+    #[test]
+    fn the_archive_formats_and_limits_are_read_and_an_unknown_format_is_refused() {
+        let base = "path = \"/upload\"\nfield = \"file\"\n";
+        let u: UploadSection = toml::from_str(&format!(
+            "{base}unpacks-archives = [\"gzip\", \"zip\"]\nmax-unpacked-bytes = 1048576\nmax-files = 10\n"
+        ))
+        .unwrap();
+        assert_eq!(
+            u.unpacks_archives,
+            Some(vec![ArchiveFormat::Gzip, ArchiveFormat::Zip])
+        );
+        assert_eq!(
+            (u.max_unpacked_bytes, u.max_files),
+            (Some(1_048_576), Some(10))
+        );
+        // Left out is not said, which is not the same as none.
+        let u: UploadSection = toml::from_str(base).unwrap();
+        assert_eq!(u.unpacks_archives, None);
+        let u: UploadSection = toml::from_str(&format!("{base}unpacks-archives = []\n")).unwrap();
+        assert_eq!(u.unpacks_archives, Some(vec![]));
+        // A format `sv` cannot send is refused by name, rather than quietly never sent.
+        let refused =
+            toml::from_str::<UploadSection>(&format!("{base}unpacks-archives = [\"rar\"]\n"))
+                .expect_err("rar was read");
+        assert!(refused.to_string().contains("rar"), "{refused}");
     }
 
     #[test]

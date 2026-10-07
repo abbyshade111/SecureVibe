@@ -79,7 +79,7 @@ pub(super) struct FakeApp {
     /// the correct value covering storage.
     pub(super) clear_site_data_value: Option<String>,
     /// Files the app has taken, by name.
-    uploads: BTreeMap<String, String>,
+    pub(super) uploads: BTreeMap<String, String>,
     /// Files saved outside the upload folder by a name starting `../`, by the rest of the name.
     /// Served at `/{name}`, one folder above `/files/`.
     escaped: BTreeMap<String, String>,
@@ -382,6 +382,14 @@ pub(super) struct Flaws {
     /// Refuses `.txt` uploads, whatever is in them. Not a fault, but it leaves a refusal of the
     /// antivirus test file saying nothing.
     pub(super) refuses_text: bool,
+    /// Unpacks a compressed file without adding up what it unpacks to (V5.2.3).
+    pub(super) archive_size_unchecked: bool,
+    /// Unpacks a zip without counting its files (V5.2.3).
+    pub(super) archive_files_unchecked: bool,
+    /// Falls over on a compressed file past its limits, rather than refusing it.
+    pub(super) archive_crashes: bool,
+    /// Takes no compressed file at all, ordinary or not.
+    pub(super) refuses_archives: bool,
     /// Keeps and serves the antivirus test file, as an app with no scanner does (V5.4.3).
     pub(super) no_malware_scan: bool,
     /// Keeps the antivirus test file, then sets it aside this many seconds after taking it, as
@@ -512,6 +520,41 @@ pub(super) enum LogStyle {
 
 /// The largest file this fake app takes, matching the max-bytes the tests state.
 pub(super) const UPLOAD_LIMIT: usize = 4096;
+/// The most a compressed file may unpack to here, matching the `max-unpacked-bytes` the tests state.
+pub(super) const ARCHIVE_UNPACK_LIMIT: u64 = 1 << 20;
+/// The most files a zip may hold here, matching the `max-files` the tests state.
+pub(super) const ARCHIVE_FILE_LIMIT: u64 = 10;
+
+/// What a compressed file says it unpacks to, and how many files it holds, read as an app that
+/// checks before unpacking reads them: a zip's central directory, and a gzip's last four bytes.
+/// `None` when it is not one.
+fn archive_says(name: &str, data: &[u8]) -> Option<(u64, u64)> {
+    let u16_at = |i: usize| {
+        Some(u64::from(u16::from_le_bytes(
+            data.get(i..i + 2)?.try_into().ok()?,
+        )))
+    };
+    let u32_at = |i: usize| {
+        Some(u64::from(u32::from_le_bytes(
+            data.get(i..i + 4)?.try_into().ok()?,
+        )))
+    };
+    if name.ends_with(".gz") {
+        return Some((u32_at(data.len().checked_sub(4)?)?, 1));
+    }
+    if !name.ends_with(".zip") {
+        return None;
+    }
+    let end = data.len().checked_sub(22)?;
+    let count = u16_at(end + 10)?;
+    let mut at = usize::try_from(u32_at(end + 16)?).ok()?;
+    let mut total = 0;
+    for _ in 0..count {
+        total += u32_at(at + 24)?;
+        at += 46 + (u16_at(at + 28)? + u16_at(at + 30)? + u16_at(at + 32)?) as usize;
+    }
+    Some((total, count))
+}
 
 impl FakeApp {
     pub(super) fn new(flaws: Flaws) -> Self {
@@ -1712,6 +1755,44 @@ impl FakeApp {
                     .is_some_and(|most| self.uploads.len() >= most)
                 {
                     return Some(Self::respond(403, vec![], "your storage is full"));
+                }
+                // A compressed file, read as bytes: judged by what it says it unpacks to.
+                let raw = r.body.as_deref().unwrap_or_default();
+                let head = String::from_utf8_lossy(&raw[..raw.len().min(2048)]).into_owned();
+                let file_name = head
+                    .split("filename=\"")
+                    .nth(1)
+                    .and_then(|rest| rest.split('"').next())
+                    .unwrap_or("");
+                let start = raw
+                    .windows(28)
+                    .position(|w| w == b"application/octet-stream\r\n\r\n")
+                    .map(|i| i + 28);
+                let end = raw.windows(4).rposition(|w| w == b"\r\n--");
+                if let (Some(start), Some(end)) = (start, end)
+                    && let Some((unpacked, files)) =
+                        archive_says(file_name, raw.get(start..end).unwrap_or_default())
+                {
+                    if self.flaws.refuses_archives {
+                        return Some(Self::respond(415, vec![], "no compressed files"));
+                    }
+                    if end - start > UPLOAD_LIMIT && !self.flaws.oversized_upload_ok {
+                        return Some(Self::respond(413, vec![], "too large"));
+                    }
+                    let too_big =
+                        unpacked > ARCHIVE_UNPACK_LIMIT && !self.flaws.archive_size_unchecked;
+                    let too_many =
+                        files > ARCHIVE_FILE_LIMIT && !self.flaws.archive_files_unchecked;
+                    if too_big || too_many {
+                        return Some(if self.flaws.archive_crashes {
+                            Self::respond(500, vec![], "out of memory")
+                        } else {
+                            Self::respond(422, vec![], "this archive unpacks past our limits")
+                        });
+                    }
+                    self.uploads
+                        .insert(file_name.to_owned(), "(unpacked)".to_owned());
+                    return Some(Self::respond(201, vec![], "stored"));
                 }
                 let body = r.body_text().into_owned();
                 if self.refuses_repeats
