@@ -545,6 +545,17 @@ fn named_after<'a>(args: &[&'a str], naming: &[&str], valued: &[&str]) -> Option
 }
 
 /// Every MCP server start in one file's text, with its line.
+/// The packages or images `text` starts an MCP server from with no exact version, as
+/// `config.mcp-server-unpinned` judges them: for the AI coding tool's own files (`ai_tool`), which
+/// that check leaves out.
+pub(crate) fn unpinned_in(text: &str) -> Vec<String> {
+    launches_in(text)
+        .into_iter()
+        .filter(|(_, launch)| !launch.pinned)
+        .map(|(_, launch)| launch.package)
+        .collect()
+}
+
 fn launches_in(text: &str) -> Vec<(usize, Launch)> {
     let mut out = Vec::new();
     for found in LAUNCHER.captures_iter(text) {
