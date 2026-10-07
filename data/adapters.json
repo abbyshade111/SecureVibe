@@ -143,6 +143,74 @@
           "findings_against": [
             "V15.4.2"
           ]
+        },
+        "B601": {
+          "what": "a shell command built from a value and run on another computer through Paramiko's exec_command",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.5"
+          ]
+        },
+        "B610": {
+          "what": "Django's QuerySet.extra given SQL, where a value can end up in the query text",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.4"
+          ]
+        },
+        "B611": {
+          "what": "Django's RawSQL given SQL, where a value can end up in the query text",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.4"
+          ]
+        },
+        "B701": {
+          "what": "a Jinja2 environment made with autoescape off, so values go into the HTML without output encoding",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.1"
+          ]
+        },
+        "B702": {
+          "what": "Mako templates, which put values into the HTML without output encoding unless each one is filtered",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.1"
+          ]
+        },
+        "B703": {
+          "what": "Django's mark_safe, which puts a value into the HTML without output encoding",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.1"
+          ]
+        },
+        "B704": {
+          "what": "markupsafe.Markup given text that is not fixed, which then goes into the HTML without output encoding",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.1"
+          ]
+        },
+        "B614": {
+          "what": "a model file loaded with torch.load, which can run code stored in the file",
+          "requirements": [],
+          "findings_against": [
+            "C4.1.2"
+          ]
+        },
+        "B615": {
+          "what": "a model or dataset downloaded from Hugging Face without pinning it to a commit, so it can change under the app",
+          "requirements": [],
+          "findings_against": [
+            "C6.1.3"
+          ]
+        },
+        "B310": {
+          "what": "urllib's urlopen, reported wherever it is called: a file:// or other unexpected scheme lets it read local files. It is reported for fixed addresses too, so it cites no requirement",
+          "requirements": [],
+          "findings_against": []
         }
       },
       "working_directory": "{dir}",
@@ -261,6 +329,25 @@
           "findings_against": [
             "V11.3.4"
           ]
+        },
+        "G203": {
+          "what": "a value that is not fixed text marked as safe for a Go template (template.HTML, JS, URL, and their relatives), so it is put into the page without escaping",
+          "requirements": [],
+          "findings_against": [
+            "V1.2.1"
+          ]
+        },
+        "G108": {
+          "what": "Go's net/http/pprof imported, which serves profiling pages under /debug/pprof/ on the default server",
+          "requirements": [],
+          "findings_against": [
+            "V13.4.2"
+          ]
+        },
+        "G106": {
+          "what": "an SSH client that accepts any host key (ssh.InsecureIgnoreHostKey), so it cannot tell the real server from another. The TLS requirements do not cover SSH, so it cites none",
+          "requirements": [],
+          "findings_against": []
         }
       },
       "finished_exits": [
