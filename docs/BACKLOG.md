@@ -7458,6 +7458,16 @@ another session is not a claim.
   in turn: sixteen caught by two tests or more, and three second checks behind a stronger one, as ADR-043 says. Not tried on a real CI run with a repository variable, and the hidden
   passphrase is not tested, since that needs a person's terminal.
 
+- **V13.3.2: a CI workflow that hands every repository secret to a job.** From `docs/PARTIAL-CHECKS.md` (V13.3.2,
+  level 2, "reads the code, finding only"), which no check speaks to yet. In `.github/workflows`, `${{ toJSON(secrets) }}`
+  anywhere, `secrets: inherit` on a call to a reusable workflow, and secrets placed in the workflow-level `env:`, where
+  every step of every job can read them, rather than in the one step's that needs them. The proposal's cloud permission
+  files (IAM and Kubernetes roles that read all secrets) are left for later. Only ever a finding, citing V13.3.2:
+  finding none says nothing about how secrets are handed out elsewhere.
+  **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick your next backlog
+  item whenever you're ready"), in branch `claude/securevibe-e9-workflow-all-secrets`. A new check that only ever
+  raises findings changes no requirement's status, so no ADR is proposed.
+
 ## Decided, not yet written down as ADRs
 
 **All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
