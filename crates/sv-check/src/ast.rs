@@ -135,8 +135,8 @@ pub struct AstRule {
     ///
     /// `email = userinfo["email"]` and then `User.query.filter_by(email=email)` is the same lookup as
     /// `filter_by(email=userinfo["email"])`, and the usual way it is written. Read in the function
-    /// around the call (or the whole file outside any function), in every language, since a name
-    /// set in another function is another variable.
+    /// around the call (or the whole file outside any function), since a name set in another
+    /// function is another variable; in shell, the whole script, where variables are global.
     #[serde(default)]
     pub argument_names_read: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
@@ -2040,7 +2040,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     Some(_)
                         if compiled.rule.argument_names_read
                             && arg_node.is_some_and(|arg| {
-                                name_set_to(arg, source.as_bytes(), pattern)
+                                name_set_to(arg, source.as_bytes(), pattern, language == "shell")
                             }) => {}
                     _ => continue,
                 }
@@ -2186,13 +2186,15 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
 }
 
 /// The nodes that set a name to a value, in the grammars `sv` reads: an assignment (`x = v`,
-/// `$x = v`, `x := v`) or a declaration with a value (`let x = v`, `String x = v`, `var x = v`).
+/// `$x = v`, `x := v`, and the shell's `x=v`) or a declaration with a value (`let x = v`,
+/// `String x = v`, `var x = v`).
 const SETTERS: &[&str] = &[
     "assignment",
     "assignment_expression",
     "assignment_statement",
     "short_var_declaration",
     "var_spec",
+    "variable_assignment",
     "variable_declarator",
 ];
 
@@ -2219,8 +2221,15 @@ const FUNCTIONS: &[&str] = &[
     "closure_expression",
 ];
 
-/// Whether a name in `arg` is set, in the function around it, to text `pattern` matches.
-fn name_set_to(arg: tree_sitter::Node, source: &[u8], pattern: &regex::Regex) -> bool {
+/// Whether a name in `arg` is set, in the function around it, to text `pattern` matches. With
+/// `whole_file`, anywhere in the file: a shell variable is global unless declared `local`, so one set
+/// in another function is the same variable.
+fn name_set_to(
+    arg: tree_sitter::Node,
+    source: &[u8],
+    pattern: &regex::Regex,
+    whole_file: bool,
+) -> bool {
     let text = |n: tree_sitter::Node| n.utf8_text(source).unwrap_or("");
     // The names in the argument, `$` left off PHP's.
     let mut names = BTreeSet::new();
@@ -2251,7 +2260,7 @@ fn name_set_to(arg: tree_sitter::Node, source: &[u8], pattern: &regex::Regex) ->
     let mut scope = arg;
     while let Some(parent) = scope.parent() {
         scope = parent;
-        if FUNCTIONS.contains(&scope.kind()) {
+        if !whole_file && FUNCTIONS.contains(&scope.kind()) {
             break;
         }
     }
@@ -5493,6 +5502,12 @@ mod tests {
         ("ast.file-path-from-value", "shell", "rm -f /tmp/upload${PATH_INFO}", true),
         ("ast.file-path-from-value", "shell", "cat \"$CONFIG_FILE\"", false),
         ("ast.file-path-from-value", "shell", "echo \"$QUERY_STRING\"", false),
+        ("ast.file-path-from-value", "shell", "file=\"${QUERY_STRING#name=}\"\ncat \"/srv/files/$file\"\n", true),
+        ("ast.file-path-from-value", "shell", "serve() {\n  local name\n  name=$(printf '%s' \"$PATH_INFO\" | tr -d '.')\n  rm -f \"/tmp/uploads/$name\"\n}\n", true),
+        ("ast.file-path-from-value", "shell", "parse() {\n  target=\"$QUERY_STRING\"\n}\nserve() {\n  cat \"$target\"\n}\n", true),
+        ("ast.file-path-from-value", "shell", "file=\"$CONFIG_DIR/app.conf\"\ncat \"$file\"\n", false),
+        ("ast.file-path-from-value", "shell", "name=\"$QUERY_STRING\"\necho \"$name\"\n", false),
+        ("ast.file-path-from-value", "shell", "log=\"/var/log/QUERY_STRING.log\"\ncat \"$log\"\n", false),
         ("ast.weak-hash-function", "shell", "md5sum release.tar.gz", true),
         ("ast.weak-hash-function", "shell", "openssl dgst -sha1 release.tar.gz", true),
         ("ast.weak-hash-function", "shell", "sha256sum -c release.sha256", false),
