@@ -3563,6 +3563,12 @@ another session is not a claim.
      when written in place or through a name the same function sets. It is only ever a finding. Not done: a lookup
      inside a helper function, and a session reached through another name (`examples/oidc-notes` writes
      `s.user = claims.email`, which the running check finds and this rule does not).
+     **A session reached through another name claimed on 7 October 2026 by session securevibe-e9**, at the owner's word
+     ("please go ahead"), in branch `claude/securevibe-e9-session-alias`: a new `functionNamesRead` switch, the
+     other side of `argumentNamesRead`, so `s.user = claims.email` is read as the session's user entry when the
+     function around it sets `s` to the session (`s = req.session`, `s = session`, or a call that returns one, such as
+     `getIronSession(...)`). `examples/oidc-notes` is the witness. Read on `main` just before this claim: no other
+     session had claimed it. A lookup inside a helper function stays unclaimed.
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
