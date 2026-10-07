@@ -3896,6 +3896,11 @@ another session is not a claim.
       any folder, and was narrowed. Still not seen: Rack's `Static` with no `root:` (its default is the folder the app
       was started in, but only below the `urls:` it is given), Spark Java, Kotlin's Ktor, PHP code itself, and any
       folder named in settings or built at run time.
+      **Rack's `Static` with no `root:`, Spark Java, and Kotlin's Ktor claimed on 7 October 2026 by session
+      securevibe-e9**, at the owner's word ("feel free to pick your next backlog item"), in branch
+      `claude/securevibe-e9-static-more`: each handler read from its framework's own source, with a found and a
+      not-found witness each. PHP code itself, and a folder named in settings or built at run time, stay unclaimed.
+      Read on `main` just before this claim: no other session had claimed them.
   11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
       whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
       (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
