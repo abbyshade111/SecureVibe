@@ -4275,6 +4275,9 @@ another session is not a claim.
   new alert; alerts on `main` were not readable from the session, and any that appear in
   `crates/sv-run/assets/`, whose stand-in services misbehave on purpose, are each to be read and dismissed
   with its reason, or fixed.
+  **Closed on 7 October 2026:** the owner looked at the Security tab's code scanning page for `main`: 0 open alerts,
+  65 closed, and every tool working. Nothing in `crates/sv-run/assets/` was waiting to be read or dismissed, and the
+  recent pull requests' CodeQL checks each said "No new alerts in code changed by this pull request".
 
 - **Let the owner confirm what the AI coding tool said, and count it for more.** Asked for by the owner on
   27 September 2026, after trying the interview in VS Code: "give an option for a human to validate
