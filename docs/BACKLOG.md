@@ -143,6 +143,12 @@ another session is not a claim.
      third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
      compose files, and charts at any depth, and add `compose.yaml`, `Containerfile`, `cdk.json`, `.travis.yml`,
      `cloudbuild.yaml`, `.buildkite/`.
+     **The workflows half claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next
+     backlog item whenever you're ready"), in branch `claude/securevibe-e9-workflow-injection`: a pull request's or
+     issue's title, body, or branch name pasted into a `run:` line (citing AC.12.1 only in a workflow a privileged
+     trigger starts, and nothing elsewhere), and a third-party action pinned to a tag or branch rather than a commit
+     (citing nothing, as `config.workflow-token-permissions` does). Both only ever findings, so no ADR is proposed. The
+     corroborators half is not claimed.
   17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
      (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
      (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
