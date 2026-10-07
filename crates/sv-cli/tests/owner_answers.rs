@@ -122,3 +122,80 @@ fn an_owners_answer_is_theirs_only_as_recorded_and_not_changed_since() {
         );
     }
 }
+
+/// ADR-043: a signed answer counts on a computer given the owner's list as SV_TRUSTED_SEALS, even
+/// where a list of its own trusts another key, and the report names the key and the list.
+#[test]
+fn an_owners_signed_answer_counts_where_sv_trusted_seals_names_its_key() {
+    let dir: PathBuf = std::env::temp_dir().join(format!("sv-owner-signed-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
+    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../examples/tested-notes/securevibe.toml");
+    let mut manifest = std::fs::read_to_string(example).unwrap();
+    let app = sv_check::seal::App::of(&dir).unwrap();
+    // The owner's key, on the owner's computer, and the line they would give CI.
+    let owners = dir.join("owners-computer");
+    let key = sv_check::signed::SigningKey::make_in(&owners, None).unwrap();
+    let line = key.trusted_line(&app).unwrap();
+    // This computer's own list trusts another key for the app.
+    let config = dir.join("config");
+    let other = sv_check::signed::SigningKey::make_in(&config.join("securevibe"), None).unwrap();
+    sv_check::signed::trust_here(&config.join("securevibe"), &other, &app).unwrap();
+    let answer = sv_manifest::DesignAnswer {
+        answer: "yes".into(),
+        r#where: Some("app.py".into()),
+        by: Some("owner".into()),
+        ..Default::default()
+    };
+    let seal = key
+        .for_app(&app)
+        .seal(&sv_check::seal::as_strs(
+            &sv_check::seal::design_answer_fields("V8.3.1", &answer),
+        ))
+        .unwrap();
+    manifest.push_str(&format!(
+        "\n[design]\n\"V8.3.1\" = {{ answer = \"yes\", where = \"app.py\", by = \"owner\", seal = \"{seal}\" }}\n"
+    ));
+    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+
+    let report = |list: Option<&str>| {
+        let out_dir = dir.join("report");
+        let mut sv = Command::new(env!("CARGO_BIN_EXE_sv"));
+        sv.env("XDG_CONFIG_HOME", &config)
+            .env_remove(sv_check::signed::TRUSTED_VARIABLE);
+        if let Some(list) = list {
+            sv.env(sv_check::signed::TRUSTED_VARIABLE, list);
+        }
+        let out = sv
+            .arg("report")
+            .arg(&dir)
+            .arg("--out")
+            .arg(&out_dir)
+            .output()
+            .expect("sv runs");
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let compliance = std::fs::read_to_string(out_dir.join("compliance.md")).unwrap();
+        status_of(&compliance, "V8.3.1").to_owned()
+    };
+    let given = report(Some(&line));
+    let mine = report(None);
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(
+        given.starts_with("attested by the owner")
+            && given.contains(&format!("signed with key {}", key.fingerprint()))
+            && given.contains("the list of trusted keys in SV_TRUSTED_SEALS trusts for this app"),
+        "{given}"
+    );
+    assert!(
+        mine.starts_with("stated by the AI coding tool")
+            && mine.contains(&key.fingerprint())
+            && mine.contains("this computer's list of trusted keys does not name"),
+        "{mine}"
+    );
+}

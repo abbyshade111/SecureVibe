@@ -1026,7 +1026,7 @@ mod tests {
             &sealed,
             findings,
             today,
-            &Checker::Key(key()),
+            &Checker::key(key()),
             &|_, _| Looked::Ran,
         )
     }
@@ -1227,7 +1227,7 @@ mod tests {
             std::slice::from_ref(&good),
             finding(),
             today(),
-            &Checker::Key(key()),
+            &Checker::key(key()),
             &|_, _| Looked::Ran,
         );
         assert!(here.findings.is_empty(), "{:?}", here.not_counted);
@@ -1269,7 +1269,7 @@ mod tests {
                 std::slice::from_ref(e),
                 finding(),
                 today(),
-                &Checker::Key(key()),
+                &Checker::key(key()),
                 &|_, _| Looked::Ran,
             );
             assert_eq!(out.findings.len(), 1, "{says}");
@@ -1286,9 +1286,9 @@ mod tests {
         // Where there is no key to check with, a sealed entry does not count either, and says
         // what to do (item 8 of the review of 1 to 4 October); nor does one sealed for another
         // app on this computer (item 11).
-        let shop = Checker::Key(computer_key().for_app(&crate::seal::App::named_for_tests("shop")));
+        let shop = Checker::key(computer_key().for_app(&crate::seal::App::named_for_tests("shop")));
         for (checker, says) in [
-            (&Checker::NoKey, "run `sv review` once on this computer"),
+            (&Checker::no_key(), "run `sv review` once on this computer"),
             (&shop, "another folder"),
         ] {
             let out = super::apply(
@@ -1308,7 +1308,7 @@ mod tests {
             &[unsealed],
             finding(),
             today(),
-            &Checker::NoKey,
+            &Checker::no_key(),
             &|_, _| Looked::Ran,
         );
         assert_eq!(no_key.findings.len(), 1);
@@ -1577,7 +1577,7 @@ mod tests {
             &sealed,
             findings,
             today(),
-            &Checker::Key(key()),
+            &Checker::key(key()),
             &move |_, _| looked.clone(),
         )
     }

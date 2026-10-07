@@ -1241,7 +1241,7 @@ mod tests {
             sealed.sections.push((id.clone(), body));
         }
         sealed.not_read = answers.not_read.clone();
-        super::evidence(catalog, &sealed, file, &crate::seal::Checker::Key(key()))
+        super::evidence(catalog, &sealed, file, &crate::seal::Checker::key(key()))
     }
 
     #[test]
@@ -1332,7 +1332,7 @@ mod tests {
             sections: vec![("V6.1.1".into(), body.into())],
             ..Default::default()
         };
-        let here = crate::seal::Checker::Key(key());
+        let here = crate::seal::Checker::key(key());
         // As written into the file, by anyone: the tool's word.
         let out = super::evidence(&catalog(), &answers, "security-notes.md", &here);
         assert!(out.documented.is_empty());

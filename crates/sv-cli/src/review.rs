@@ -18,7 +18,8 @@ use anyhow::{Context, Result, bail};
 use std::io::{BufRead, IsTerminal, Write};
 use std::path::{Path, PathBuf};
 use sv_check::advisories::Day;
-use sv_check::seal::{App, AppKey, Checker, Key};
+use sv_check::seal::{App, Checker, Key, Sealed};
+use sv_check::signed::{Signer, SigningKey, Stored};
 
 /// One entry waiting for a person.
 enum Waiting {
@@ -52,7 +53,129 @@ pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
         Key::folder(),
         &mut input,
         &mut out,
+        &mut hidden,
     )
+}
+
+/// Reads one line from the terminal without showing what is typed: a passphrase.
+fn hidden(input: &mut dyn BufRead, out: &mut dyn Write, prompt: &str) -> Result<Option<String>> {
+    // What the terminal shows is put back however this returns.
+    struct Shown(Option<libc::termios>);
+    impl Drop for Shown {
+        fn drop(&mut self) {
+            if let Some(was) = self.0 {
+                // SAFETY: `was` is the terminal's own settings, read below from the same descriptor.
+                unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &was) };
+            }
+        }
+    }
+    let mut shown = Shown(None);
+    // SAFETY: a zeroed termios is only written into by `tcgetattr`, and used only if that succeeds.
+    let mut was: libc::termios = unsafe { std::mem::zeroed() };
+    if unsafe { libc::tcgetattr(libc::STDIN_FILENO, &mut was) } == 0 {
+        let mut quiet = was;
+        quiet.c_lflag &= !libc::ECHO;
+        // SAFETY: as above; `quiet` is the terminal's settings with echo turned off.
+        if unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &quiet) } == 0 {
+            shown.0 = Some(was);
+        }
+    }
+    let line = ask(input, out, prompt)?;
+    drop(shown);
+    writeln!(out)?;
+    Ok(line)
+}
+
+/// How `review` reads a passphrase: hidden in a terminal, as typed in a test.
+type Secret<'a> =
+    &'a mut dyn FnMut(&mut dyn BufRead, &mut dyn Write, &str) -> Result<Option<String>>;
+
+/// This computer's signing key (ADR-043): made now if there is none, with a passphrase if the
+/// person wants one, or unlocked with its passphrase. `None` when the person stopped.
+fn signing_key(
+    folder: &Path,
+    input: &mut dyn BufRead,
+    out: &mut dyn Write,
+    secret: Secret<'_>,
+) -> Result<Option<SigningKey>> {
+    match SigningKey::load_from(folder).map_err(anyhow::Error::msg)? {
+        Some(Stored::Ready(key)) => Ok(Some(key)),
+        Some(Stored::Locked(locked)) => {
+            for _ in 0..3 {
+                let Some(typed) = secret(
+                    input,
+                    out,
+                    &format!(
+                        "The passphrase of this computer's signing key ({}): ",
+                        locked.fingerprint()
+                    ),
+                )?
+                else {
+                    return Ok(None);
+                };
+                match locked.unlock(&typed) {
+                    Ok(key) => return Ok(Some(key)),
+                    Err(why) => writeln!(out, "  {why}.")?,
+                }
+            }
+            bail!("Three passphrases did not unlock the signing key, so nothing was recorded.")
+        }
+        None => {
+            writeln!(
+                out,
+                "`sv review` signs what you record with a key of its own, which it makes now, in \
+                 {}. A passphrase on it means nothing can sign as you without it, your AI coding \
+                 tool included, since the passphrase is only in your head; you then type it each \
+                 time you run `sv review`.",
+                folder.display()
+            )?;
+            let Some(wanted) = ask(
+                input,
+                out,
+                "Protect the key with a passphrase? Type `yes`, or press Enter for none.\n> ",
+            )?
+            else {
+                return Ok(None);
+            };
+            let passphrase = if wanted.eq_ignore_ascii_case("yes") {
+                loop {
+                    let Some(first) = secret(input, out, "Passphrase: ")? else {
+                        return Ok(None);
+                    };
+                    if first.is_empty() {
+                        writeln!(out, "  A passphrase cannot be empty.")?;
+                        continue;
+                    }
+                    let Some(again) = secret(input, out, "The same passphrase again: ")? else {
+                        return Ok(None);
+                    };
+                    if first == again {
+                        break Some(first);
+                    }
+                    writeln!(out, "  The two were not the same. Try again.")?;
+                }
+            } else {
+                None
+            };
+            let key =
+                SigningKey::make_in(folder, passphrase.as_deref()).map_err(anyhow::Error::msg)?;
+            writeln!(
+                out,
+                "Made this computer's signing key, in {}, with its public half beside it. Its \
+                 fingerprint is {}: the report names the key it trusted by it, so you can tell it \
+                 is this one. Keep the key file private: anyone who can read it{} can sign \
+                 entries as you.\n",
+                folder.join(sv_check::signed::SIGNING_KEY_FILE).display(),
+                key.fingerprint(),
+                if passphrase.is_some() {
+                    " and knows the passphrase"
+                } else {
+                    ""
+                }
+            )?;
+            Ok(Some(key))
+        }
+    }
 }
 
 /// A terminal written through `sv_report::visible`, as everything `sv` prints is: `sv review` shows
@@ -79,6 +202,7 @@ fn review(
     key_folder: Option<PathBuf>,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
+    secret: Secret<'_>,
 ) -> Result<()> {
     let manifest_path = app_dir.join("securevibe.toml");
     let text = std::fs::read_to_string(&manifest_path)
@@ -89,37 +213,52 @@ fn review(
         .with_context(|| format!("reading {}", manifest_path.display()))?;
     let Some(folder) = key_folder else {
         bail!(
-            "`sv review` keeps this computer's review key in your home folder, and neither HOME nor \
+            "`sv review` keeps this computer's signing key in your home folder, and neither HOME nor \
              XDG_CONFIG_HOME says where that is."
         );
     };
-    let (key, made) = Key::load_or_make_in(&folder).map_err(anyhow::Error::msg)?;
-    if made {
+    // What is recorded is signed (ADR-043). The review key, if this computer has one, is only
+    // read, to check the seals made with it before signing began.
+    let app = App::of(app_dir).map_err(anyhow::Error::msg)?;
+    let Some(signing) = signing_key(&folder, input, out, secret)? else {
+        writeln!(out, "\nNothing was recorded.")?;
+        return Ok(());
+    };
+    if sv_check::signed::trust_here(&folder, &signing, &app).map_err(anyhow::Error::msg)? {
         writeln!(
             out,
-            "Made this computer's review key, in {}. It seals what you record here. Keep it \
-             private: anyone who can read it can seal entries as you. Seals made with it count on \
-             this computer only, and only in the app they were recorded for; on a computer with no \
-             review key, such as CI, they cannot be checked and do not count, and the report says \
-             so.\n",
-            folder.join(sv_check::seal::KEY_FILE).display()
+            "This app is now on this computer's list of trusted keys, {}, so what you record here \
+             counts here. For CI, the container, or another computer to count it too, give it \
+             this line as the variable {} (on GitHub: the repository's Settings, then Secrets and \
+             variables, then Actions, then Variables). It is the public half of the key, made to \
+             be shared: it lets a computer check a seal, never make one.\n\n{}\n",
+            folder.join(sv_check::signed::TRUSTED_FILE).display(),
+            sv_check::signed::TRUSTED_VARIABLE,
+            signing.trusted_line(&app).map_err(anyhow::Error::msg)?
         )?;
     }
     let today = Day::today().context("this computer's clock is before 1970")?;
-    // Sealed for this app alone, so an answer copied into another app does not count there.
-    let key = key.for_app(&App::of(app_dir).map_err(anyhow::Error::msg)?);
-    let checker = Checker::Key(key.clone());
+    // Signed for this app alone, so an answer copied into another app does not count there.
+    let key = signing.for_app(&app);
+    let checker = Checker::in_folder(Some(&folder), app_dir);
     let rules = sv_check::secrets::SecretRules::load(&super::secret_rules_path())?;
 
     let mut waiting = Vec::new();
+    // Entries whose seal was made with the review key and holds here: signed again at one yes.
+    let mut older = Vec::new();
+    let mut sort = |state: Result<Sealed, ()>, which: Waiting| match state {
+        Err(()) => waiting.push(which),
+        Ok(Sealed::Here) => older.push(which),
+        Ok(Sealed::Signed { .. }) => {}
+    };
     for (i, entry) in manifest.finding_review.iter().enumerate() {
         let fields = sv_check::seal::finding_review_fields(entry);
-        if checker
-            .check(entry.seal.as_deref(), &sv_check::seal::as_strs(&fields))
-            .is_err()
-        {
-            waiting.push(Waiting::Finding(i));
-        }
+        sort(
+            checker
+                .recorded(entry.seal.as_deref(), &sv_check::seal::as_strs(&fields))
+                .map_err(drop),
+            Waiting::Finding(i),
+        );
     }
     let confirmations = manifest
         .design
@@ -133,39 +272,41 @@ fn review(
         );
     for (section, id, c) in confirmations {
         let fields = sv_check::seal::manifest_confirmation_fields(section, id, c);
-        if checker
-            .check(c.seal.as_deref(), &sv_check::seal::as_strs(&fields))
-            .is_err()
-        {
-            waiting.push(Waiting::Confirmation {
+        sort(
+            checker
+                .recorded(c.seal.as_deref(), &sv_check::seal::as_strs(&fields))
+                .map_err(drop),
+            Waiting::Confirmation {
                 section,
                 id: id.clone(),
-            });
-        }
+            },
+        );
     }
     // The owner's own answers: each counts as theirs only once recorded here.
     for (id, a) in &manifest.design {
-        if a.by.as_deref() == Some(sv_check::design::OWNER)
-            && sv_check::seal::owner_recorded(
-                &checker,
-                a.seal.as_deref(),
-                &sv_check::seal::design_answer_fields(id, a),
-            )
-            .is_err()
-        {
-            waiting.push(Waiting::DesignAnswer(id.clone()));
+        if a.by.as_deref() == Some(sv_check::design::OWNER) {
+            sort(
+                sv_check::seal::owner_recorded(
+                    &checker,
+                    a.seal.as_deref(),
+                    &sv_check::seal::design_answer_fields(id, a),
+                )
+                .map_err(drop),
+                Waiting::DesignAnswer(id.clone()),
+            );
         }
     }
     for (id, h) in &manifest.checked_by_hand {
-        if h.by.as_deref() == Some(sv_check::design::OWNER)
-            && sv_check::seal::owner_recorded(
-                &checker,
-                h.seal.as_deref(),
-                &sv_check::seal::hand_check_fields(id, h),
-            )
-            .is_err()
-        {
-            waiting.push(Waiting::HandAnswer(id.clone()));
+        if h.by.as_deref() == Some(sv_check::design::OWNER) {
+            sort(
+                sv_check::seal::owner_recorded(
+                    &checker,
+                    h.seal.as_deref(),
+                    &sv_check::seal::hand_check_fields(id, h),
+                )
+                .map_err(drop),
+                Waiting::HandAnswer(id.clone()),
+            );
         }
     }
     // The files whose sections say who wrote them: the security notes, and the decisions the
@@ -185,12 +326,27 @@ fn review(
         if let Some(text) = notes_text(path)? {
             let answers = sv_check::notes::read_answers(catalog, &text);
             for (id, who) in answers.answered() {
-                if who == sv_check::notes::Writer::Owner && answers.recorded(&id, &checker).is_err()
-                {
-                    waiting.push(Waiting::Notes(which, id));
+                if who == sv_check::notes::Writer::Owner {
+                    sort(
+                        answers.recorded(&id, &checker).map_err(drop),
+                        Waiting::Notes(which, id),
+                    );
                 }
             }
         }
+    }
+    if !older.is_empty() {
+        sign_again(
+            &older,
+            &manifest,
+            &mut doc,
+            &manifest_path,
+            &files,
+            &key,
+            &checker,
+            input,
+            out,
+        )?;
     }
     if waiting.is_empty() {
         writeln!(
@@ -349,6 +505,137 @@ fn review(
     Ok(())
 }
 
+/// Signs again, at one yes, the entries whose seal was made with this computer's review key and
+/// holds here (ADR-043): such a seal already shows the entry was recorded here, so nothing is asked
+/// again. Each is signed over what it says now, which is what its seal holds for.
+#[allow(clippy::too_many_arguments)]
+fn sign_again(
+    older: &[Waiting],
+    manifest: &sv_manifest::Manifest,
+    doc: &mut toml_edit::DocumentMut,
+    manifest_path: &Path,
+    files: &[(sv_check::notes::Catalog, PathBuf)],
+    key: &Signer,
+    checker: &Checker,
+    input: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> Result<()> {
+    writeln!(
+        out,
+        "{} recorded through `sv review` on this computer before it signed what it records. \
+         {} here, and only here. Signed again with this computer's signing key, {} any computer \
+         given your list of trusted keys, CI included. Nothing in {} changes but the seal.",
+        if older.len() == 1 {
+            "1 entry was".to_owned()
+        } else {
+            format!("{} entries were", older.len())
+        },
+        if older.len() == 1 {
+            "Its seal holds"
+        } else {
+            "Their seals hold"
+        },
+        if older.len() == 1 {
+            "it would count on"
+        } else {
+            "they would count on"
+        },
+        if older.len() == 1 { "it" } else { "them" }
+    )?;
+    let Some(yes) = ask(
+        input,
+        out,
+        "Sign them again? Type `yes`, or press Enter to leave them as they are.\n> ",
+    )?
+    else {
+        return Ok(());
+    };
+    if !yes.eq_ignore_ascii_case("yes") {
+        writeln!(out, "  Left as they are.\n")?;
+        return Ok(());
+    }
+    let sign = |fields: &[String]| -> Result<String> {
+        key.seal(&sv_check::seal::as_strs(fields))
+            .map_err(anyhow::Error::msg)
+    };
+    let mut signed = 0;
+    let mut in_manifest = Vec::new();
+    for which in older {
+        match which {
+            Waiting::Finding(i) => {
+                let seal = sign(&sv_check::seal::finding_review_fields(
+                    &manifest.finding_review[*i],
+                ))?;
+                finding_table(doc, *i)?.insert("seal", toml_edit::value(seal));
+                in_manifest.push(which);
+            }
+            Waiting::Confirmation { section, id } => {
+                let c = match *section {
+                    "design" => manifest.design[id].confirmed.as_ref(),
+                    _ => manifest.checked_by_hand[id].confirmed.as_ref(),
+                }
+                .context("the confirmation is not where it was")?;
+                let seal = sign(&sv_check::seal::manifest_confirmation_fields(
+                    section, id, c,
+                ))?;
+                doc.get_mut(section)
+                    .and_then(toml_edit::Item::as_table_like_mut)
+                    .and_then(|t| t.get_mut(id))
+                    .and_then(toml_edit::Item::as_table_like_mut)
+                    .and_then(|t| t.get_mut("confirmed"))
+                    .and_then(toml_edit::Item::as_table_like_mut)
+                    .with_context(|| format!("{section} {id} is not where it was"))?
+                    .insert("seal", toml_edit::value(seal));
+                in_manifest.push(which);
+            }
+            Waiting::DesignAnswer(id) => {
+                let seal = sign(&sv_check::seal::design_answer_fields(
+                    id,
+                    &manifest.design[id],
+                ))?;
+                set_seal(doc, "design", id, &seal)?;
+                in_manifest.push(which);
+            }
+            Waiting::HandAnswer(id) => {
+                let seal = sign(&sv_check::seal::hand_check_fields(
+                    id,
+                    &manifest.checked_by_hand[id],
+                ))?;
+                set_seal(doc, "checked-by-hand", id, &seal)?;
+                in_manifest.push(which);
+            }
+            Waiting::Notes(file, id) => {
+                let (catalog, path) = &files[*file];
+                let text =
+                    notes_text(path)?.with_context(|| format!("{} is gone", catalog.file))?;
+                let prose = sv_check::notes::read_answers(catalog, &text)
+                    .prose_of(id)
+                    .unwrap_or_default();
+                let seal = sign(&sv_check::seal::notes_fields(id, &prose))?;
+                let resealed = sv_check::notes::with_seal_in(catalog, &text, id, &seal)
+                    .context("the section is not where it was")?;
+                save_text(path, &resealed, &|| {
+                    notes_text(path).ok().flatten().is_some_and(|t| {
+                        matches!(
+                            sv_check::notes::read_answers(catalog, &t).recorded(id, checker),
+                            Ok(Sealed::Signed { .. })
+                        )
+                    })
+                })?;
+                signed += 1;
+            }
+        }
+    }
+    if !in_manifest.is_empty() {
+        save(manifest_path, doc, &|m| {
+            in_manifest.iter().all(|which| counts(m, which, checker))
+        })?;
+        signed += in_manifest.len();
+    }
+    writeln!(out, "  Signed {signed} again.\n")?;
+    Ok(())
+}
+
 /// The answer or result a confirmation is of, as the manifest says it now.
 enum Current {
     Design {
@@ -399,7 +686,7 @@ fn record_finding(
     entry: &sv_manifest::FindingReview,
     rules: &sv_check::secrets::SecretRules,
     today: Day,
-    key: &AppKey,
+    key: &Signer,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
 ) -> Result<Option<Recorded>> {
@@ -542,7 +829,9 @@ fn record_finding(
             ..entry.clone()
         };
         let fields = sv_check::seal::finding_review_fields(&recorded);
-        let seal = key.seal(&sv_check::seal::as_strs(&fields));
+        let seal = key
+            .seal(&sv_check::seal::as_strs(&fields))
+            .map_err(anyhow::Error::msg)?;
         writeln!(out, "  Recorded as {answer}'s decision, dated {on}.")?;
         return Ok(Some(Recorded {
             fingerprint,
@@ -562,7 +851,7 @@ fn record_confirmation(
     proposed: &sv_manifest::Confirmed,
     current: &Current,
     today: Day,
-    key: &AppKey,
+    key: &Signer,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
 ) -> Result<Option<sv_manifest::Confirmed>> {
@@ -642,7 +931,10 @@ fn record_confirmation(
             Current::Hand { result } => c.result = Some(result.clone()),
         }
         let fields = sv_check::seal::manifest_confirmation_fields(section, id, &c);
-        c.seal = Some(key.seal(&sv_check::seal::as_strs(&fields)));
+        c.seal = Some(
+            key.seal(&sv_check::seal::as_strs(&fields))
+                .map_err(anyhow::Error::msg)?,
+        );
         writeln!(
             out,
             "  Recorded as confirmed by {answer}, dated {}.",
@@ -665,7 +957,7 @@ fn notes_text(path: &Path) -> Result<Option<String>> {
 fn record_own(
     what: &str,
     fields: &[String],
-    key: &AppKey,
+    key: &Signer,
     input: &mut dyn BufRead,
     out: &mut dyn Write,
 ) -> Result<Option<String>> {
@@ -697,7 +989,10 @@ fn record_own(
             continue;
         }
         writeln!(out, "  Recorded as your own answer.")?;
-        return Ok(Some(key.seal(&sv_check::seal::as_strs(fields))));
+        return Ok(Some(
+            key.seal(&sv_check::seal::as_strs(fields))
+                .map_err(anyhow::Error::msg)?,
+        ));
     }
 }
 
@@ -713,6 +1008,22 @@ fn set_seal(doc: &mut toml_edit::DocumentMut, section: &str, id: &str, seal: &st
 }
 
 fn set_finding(doc: &mut toml_edit::DocumentMut, i: usize, recorded: &Recorded) -> Result<()> {
+    let table = finding_table(doc, i)?;
+    if table.get("fingerprint").and_then(|f| f.as_str()) != Some(recorded.fingerprint.as_str()) {
+        table.insert("fingerprint", toml_edit::value(&recorded.fingerprint));
+    }
+    table.insert("why", toml_edit::value(&recorded.why));
+    table.insert("by", toml_edit::value(&recorded.by));
+    table.insert("on", toml_edit::value(&recorded.on));
+    table.insert("seal", toml_edit::value(&recorded.seal));
+    Ok(())
+}
+
+/// The `i`th `[[finding-review]]` entry, written either way TOML allows.
+fn finding_table(
+    doc: &mut toml_edit::DocumentMut,
+    i: usize,
+) -> Result<&mut dyn toml_edit::TableLike> {
     let table: Option<&mut dyn toml_edit::TableLike> = match doc.get_mut("finding-review") {
         Some(toml_edit::Item::ArrayOfTables(tables)) => tables
             .get_mut(i)
@@ -723,15 +1034,7 @@ fn set_finding(doc: &mut toml_edit::DocumentMut, i: usize, recorded: &Recorded) 
             .map(|t| t as &mut dyn toml_edit::TableLike),
         _ => None,
     };
-    let table = table.context("the entry is not where it was")?;
-    if table.get("fingerprint").and_then(|f| f.as_str()) != Some(recorded.fingerprint.as_str()) {
-        table.insert("fingerprint", toml_edit::value(&recorded.fingerprint));
-    }
-    table.insert("why", toml_edit::value(&recorded.why));
-    table.insert("by", toml_edit::value(&recorded.by));
-    table.insert("on", toml_edit::value(&recorded.on));
-    table.insert("seal", toml_edit::value(&recorded.seal));
-    Ok(())
+    table.context("the entry is not where it was")
 }
 
 /// Whether what was just recorded counts, as the report will read it.
@@ -859,23 +1162,28 @@ mod tests {
         fn manifest(&self) -> String {
             std::fs::read_to_string(self.app().join("securevibe.toml")).unwrap()
         }
+        /// `sv review`, with `typed` as what the person types. The first run is asked whether the
+        /// signing key it makes should have a passphrase, and the answer is no.
         fn run(&self, typed: &str) -> (Result<()>, String) {
+            let first = !self
+                .keys()
+                .join(sv_check::signed::SIGNING_KEY_FILE)
+                .exists();
+            self.run_as_typed(&format!("{}{typed}", if first { "\n" } else { "" }))
+        }
+        fn run_as_typed(&self, typed: &str) -> (Result<()>, String) {
             let mut out = Vec::new();
             let result = review(
                 &self.app(),
                 Some(self.keys()),
                 &mut std::io::Cursor::new(typed.as_bytes().to_vec()),
                 &mut out,
+                &mut ask,
             );
             (result, String::from_utf8(out).unwrap())
         }
         fn checker(&self) -> Checker {
-            Checker::Key(
-                Key::load_from(&self.keys())
-                    .unwrap()
-                    .expect("a key was made")
-                    .for_app(&App::of(&self.app()).unwrap()),
-            )
+            Checker::in_folder(Some(&self.keys()), &self.app())
         }
     }
 
@@ -1081,6 +1389,278 @@ mod tests {
     }
 
     #[test]
+    fn seals_made_with_the_review_key_are_signed_again_at_one_yes() {
+        // ADR-043: an entry sealed with this computer's review key before signing began counts
+        // here only. `sv review` signs each again at one yes, asking nothing else, and then it
+        // counts on a computer given only the public list.
+        let s = Scratch::new("again");
+        let fp = sv_check::review::named("ast.open-redirect", "app.py", LINE);
+        with_app(
+            &s,
+            &format!(
+                "{HEAD}\n[[finding-review]]\nrule = \"ast.open-redirect\"\nfile = \"app.py\"\n\
+                 fingerprint = \"{fp}\"\nverdict = \"false-alarm\"\nwhy = \"{WHY}\"\nby = \"owner\"\n\
+                 on = \"2026-10-05\"\n\n[design]\n\"V8.3.1\" = {{ answer = \"yes\", where = \"app.py\", \
+                 by = \"owner\" }}\n\"V2.2.2\" = {{ answer = \"yes\", by = \"ai-tool\", confirmed = {{ \
+                 by = \"Sam Lee\", on = \"2026-10-05\", answer = \"yes\", how = \"Read the handler and \
+                 the route list.\" }} }}\n\n[checked-by-hand.'V12.2.2']\nresult = \"done\"\n\
+                 on = \"2026-10-01\"\nby = \"owner\"\nhow = \"Opened the live site; the padlock shows a \
+                 trusted certificate.\"\n"
+            ),
+        );
+        let notes = "# Security notes\n\n## V6.1.1 — Sign-in\n\n> How is sign-in protected?\n\n\
+                     Written by: owner\n\nFive failed sign-ins in fifteen minutes lock the account for \
+                     an hour.\n";
+        // Sealed as `sv review` sealed before 6 October 2026's signing: with the review key.
+        let (old, _) = Key::load_or_make_in(&s.keys()).unwrap();
+        let old = old.for_app(&App::of(&s.app()).unwrap());
+        let seal = |fields: &[String]| old.seal(&sv_check::seal::as_strs(fields));
+        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let mut doc: toml_edit::DocumentMut = s.manifest().parse().unwrap();
+        finding_table(&mut doc, 0).unwrap().insert(
+            "seal",
+            toml_edit::value(seal(&sv_check::seal::finding_review_fields(
+                &m.finding_review[0],
+            ))),
+        );
+        set_seal(
+            &mut doc,
+            "design",
+            "V8.3.1",
+            &seal(&sv_check::seal::design_answer_fields(
+                "V8.3.1",
+                &m.design["V8.3.1"],
+            )),
+        )
+        .unwrap();
+        set_seal(
+            &mut doc,
+            "checked-by-hand",
+            "V12.2.2",
+            &seal(&sv_check::seal::hand_check_fields(
+                "V12.2.2",
+                &m.checked_by_hand["V12.2.2"],
+            )),
+        )
+        .unwrap();
+        let mut c = m.design["V2.2.2"].confirmed.clone().unwrap();
+        c.seal = Some(seal(&sv_check::seal::manifest_confirmation_fields(
+            "design", "V2.2.2", &c,
+        )));
+        set_confirmation(&mut doc, "design", "V2.2.2", &c).unwrap();
+        std::fs::write(s.app().join("securevibe.toml"), doc.to_string()).unwrap();
+        let catalog = sv_check::notes::Catalog::load(&crate::notes_path()).unwrap();
+        let prose = sv_check::notes::read_answers(&catalog, notes)
+            .prose_of("V6.1.1")
+            .unwrap();
+        let notes = sv_check::notes::with_seal_in(
+            &catalog,
+            notes,
+            "V6.1.1",
+            &seal(&sv_check::seal::notes_fields("V6.1.1", &prose)),
+        )
+        .unwrap();
+        std::fs::write(s.app().join("security-notes.md"), &notes).unwrap();
+        let sealed = s.manifest();
+        assert_eq!(
+            sealed.matches("seal = \"v2:").count(),
+            4,
+            "the setup: {sealed}"
+        );
+
+        // Left as they are: each still counts here, on the review key.
+        let (result, out) = s.run("\n");
+        result.unwrap();
+        assert!(out.contains("5 entries were recorded"), "{out}");
+        assert!(out.contains("Left as they are"), "{out}");
+        assert!(out.contains("Nothing in"), "{out}");
+        assert_eq!(s.manifest(), sealed);
+        // Signed again at one yes.
+        let (result, out) = s.run("yes\n");
+        result.unwrap();
+        assert!(out.contains("Signed 5 again"), "{out}");
+        let after = s.manifest();
+        assert!(!after.contains("v2:"), "{after}");
+        assert_eq!(after.matches("seal = \"v3:").count(), 4, "{after}");
+        // Only the seals changed.
+        let changed: Vec<&str> = after
+            .lines()
+            .filter(|l| !sealed.lines().any(|n| n == *l))
+            .collect();
+        assert!(
+            changed.iter().all(|l| l.contains("seal = \"v3:")),
+            "{changed:?}"
+        );
+        let notes_after = std::fs::read_to_string(s.app().join("security-notes.md")).unwrap();
+        assert_eq!(
+            notes_after.replace(
+                notes_after
+                    .lines()
+                    .find(|l| l.starts_with(sv_check::notes::SEALED_BY))
+                    .unwrap(),
+                ""
+            ),
+            notes.replace(
+                notes
+                    .lines()
+                    .find(|l| l.starts_with(sv_check::notes::SEALED_BY))
+                    .unwrap(),
+                ""
+            )
+        );
+        // Each now counts on a computer given only the public list, with no review key and the
+        // app in another folder.
+        let list = std::fs::read_to_string(s.keys().join(sv_check::signed::TRUSTED_FILE)).unwrap();
+        let elsewhere = s.0.join("elsewhere");
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        let ci = Checker::no_key().trusting(
+            sv_check::signed::Trust::load(None, Some(list.into())),
+            Some(App::of(&elsewhere).unwrap()),
+        );
+        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        for which in [
+            Waiting::Finding(0),
+            Waiting::DesignAnswer("V8.3.1".into()),
+            Waiting::HandAnswer("V12.2.2".into()),
+            Waiting::Confirmation {
+                section: "design",
+                id: "V2.2.2".into(),
+            },
+        ] {
+            assert!(counts(&m, &which, &ci));
+            assert!(counts(&m, &which, &s.checker()));
+        }
+        let answers = sv_check::notes::read_answers(&catalog, &notes_after);
+        assert!(matches!(
+            answers.recorded("V6.1.1", &ci),
+            Ok(Sealed::Signed { .. })
+        ));
+        // Nothing is asked the third time.
+        let (result, out) = s.run("");
+        result.unwrap();
+        assert!(!out.contains("Sign them again"), "{out}");
+        assert!(out.contains("Nothing in"), "{out}");
+    }
+
+    #[test]
+    fn only_an_older_seal_that_holds_here_is_signed_again_without_asking() {
+        // One entry sealed with this computer's review key, and one with another computer's: the
+        // first is offered to be signed again at one yes, the second is asked about, since this
+        // computer cannot tell it from one the AI coding tool made up.
+        let s = Scratch::new("older");
+        let fp = sv_check::review::named("ast.open-redirect", "app.py", LINE);
+        let entry = |why: &str| {
+            format!(
+                "\n[[finding-review]]\nrule = \"ast.open-redirect\"\nfile = \"app.py\"\n\
+                 fingerprint = \"{fp}\"\nverdict = \"false-alarm\"\nwhy = \"{why}\"\n\
+                 by = \"owner\"\non = \"2026-10-05\"\n"
+            )
+        };
+        let theirs_why = "Another reason, on another computer, and long enough to be one.";
+        with_app(&s, &format!("{HEAD}{}{}", entry(WHY), entry(theirs_why)));
+        let (here, _) = Key::load_or_make_in(&s.keys()).unwrap();
+        let (there, _) = Key::load_or_make_in(&s.0.join("there")).unwrap();
+        let app = App::of(&s.app()).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let mut doc: toml_edit::DocumentMut = s.manifest().parse().unwrap();
+        for (i, key) in [(0, &here), (1, &there)] {
+            let seal = key.for_app(&app).seal(&sv_check::seal::as_strs(
+                &sv_check::seal::finding_review_fields(&m.finding_review[i]),
+            ));
+            finding_table(&mut doc, i)
+                .unwrap()
+                .insert("seal", toml_edit::value(seal));
+        }
+        std::fs::write(s.app().join("securevibe.toml"), doc.to_string()).unwrap();
+        // Yes to signing again; then Enter for the other, which is asked about.
+        let (result, out) = s.run("yes\n\n");
+        result.unwrap();
+        assert!(out.contains("1 entry was recorded"), "{out}");
+        assert!(out.contains("Signed 1 again"), "{out}");
+        assert!(out.contains("[1 of 1]"), "{out}");
+        assert!(out.contains(theirs_why), "{out}");
+        assert!(out.contains("Recorded 0 of 1"), "{out}");
+        assert!(finding_counts(&s, 0));
+        assert!(!finding_counts(&s, 1));
+        let after = s.manifest();
+        assert_eq!(after.matches("seal = \"v3:").count(), 1, "{after}");
+        assert_eq!(after.matches("seal = \"v2:").count(), 1, "{after}");
+        // The signing key `sv review` made is its owner's alone.
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(s.keys().join(sv_check::signed::SIGNING_KEY_FILE))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
+    }
+
+    #[test]
+    fn a_list_of_trusted_keys_sv_cannot_read_in_full_is_never_added_to() {
+        let s = Scratch::new("bad-list");
+        with_app(&s, &format!("{HEAD}{}", proposal(WHY)));
+        let manifest = s.manifest();
+        std::fs::create_dir_all(s.keys()).unwrap();
+        let theirs = sv_check::signed::SigningKey::make_in(&s.0.join("theirs"), None).unwrap();
+        let line = theirs
+            .trusted_line(&App::of(&s.app()).unwrap())
+            .unwrap()
+            .replace("namespaces=", "cert-authority,namespaces=");
+        std::fs::write(
+            s.keys().join(sv_check::signed::TRUSTED_FILE),
+            format!("{line}\n"),
+        )
+        .unwrap();
+        let (result, _) = s.run("owner\n");
+        let err = format!("{}", result.unwrap_err());
+        assert!(err.contains("cert-authority"), "{err}");
+        assert_eq!(s.manifest(), manifest);
+        assert_eq!(
+            std::fs::read_to_string(s.keys().join(sv_check::signed::TRUSTED_FILE)).unwrap(),
+            format!("{line}\n")
+        );
+    }
+
+    #[test]
+    fn a_passphrase_is_asked_for_when_chosen_and_nothing_signs_without_it() {
+        let s = Scratch::new("passphrase");
+        with_app(&s, &format!("{HEAD}{}", proposal(WHY)));
+        let (result, out) = s.run_as_typed(
+            "yes\nhorse one\nhorse two\nhorse battery staple\nhorse battery staple\nowner\n",
+        );
+        result.unwrap();
+        assert!(out.contains("The two were not the same"), "{out}");
+        assert!(out.contains("Recorded 1 of 1"), "{out}");
+        assert!(!out.contains("horse"), "{out}");
+        assert!(matches!(
+            sv_check::signed::SigningKey::load_from(&s.keys()).unwrap(),
+            Some(Stored::Locked(_))
+        ));
+        assert!(finding_counts(&s, 0));
+        // Three wrong passphrases: nothing is recorded, and nothing is asked.
+        let manifest = s.manifest();
+        std::fs::write(
+            s.app().join("securevibe.toml"),
+            format!(
+                "{manifest}{}",
+                proposal("A second reason, long enough to be a reason.")
+            ),
+        )
+        .unwrap();
+        let before = s.manifest();
+        let (result, out) = s.run_as_typed("wrong\nwrong\nwrong\nowner\n");
+        assert!(format!("{}", result.unwrap_err()).contains("Three passphrases"));
+        assert!(!out.contains("[1 of 1]"), "{out}");
+        assert_eq!(s.manifest(), before);
+        // The right one unlocks it.
+        let (result, out) = s.run_as_typed("horse battery staple\nowner\n");
+        result.unwrap();
+        assert!(out.contains("Recorded 1 of 1"), "{out}");
+    }
+
+    #[test]
     fn the_owners_own_answers_are_recorded_only_as_the_owners() {
         let s = Scratch::new("own");
         with_app(
@@ -1209,6 +1789,7 @@ mod tests {
             None,
             &mut std::io::Cursor::new(b"owner\n".to_vec()),
             &mut out,
+            &mut ask,
         );
         assert!(result.is_err());
         assert!(!s.manifest().contains("seal"));
