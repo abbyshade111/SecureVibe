@@ -47,6 +47,11 @@ another session is not a claim.
      counts as served (`signed_in/mod.rs`), so a React or Vite app's page shell for `/dashboard` is reported high.
      Treat an answer identical to the root page's as a shell, not judged; tell builders in the spec to list API
      addresses (`/api/me`) as private pages for such apps.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item -
+     there are new backlog items from a gap analysis to choose from"), in branch `claude/securevibe-e9-spa-shell`.
+     An answer that is only the app's page shell is neither the private page served nor refused, which is ADR-021's
+     question (which answers count as the app's): **`Status: proposed`**, a Later entry on ADR-021, made accepted in
+     the pull request that builds it.
   9. **Apps that install packages cannot be run by `sv run`.** (`docs/GAP-ANALYSIS.md`, 3.1.) Now: fix
      `examples/flask-booking/securevibe.toml` (its `pip install` build cannot run read-only, and it listens on
      127.0.0.1) and the starter's `build` example; have the preflight warn about `pip`/`npm`/`yarn`/`pnpm install` in
@@ -169,6 +174,8 @@ another session is not a claim.
   2. **The tests required before merging, and every commit on `main` tested** (7.1). `test` made a required check
      (a repository setting the owner makes, since a session cannot), and `rust.yml`'s concurrency group on `main` made
      one per commit so no run there is cancelled. **`Status: proposed`: ADR-051.**
+     **Done the same day** (ADR-051, accepted, "As built"): `rust.yml` tests every commit on `main`, and `latest` is
+     moved only by the newest. **Waiting on the owner:** adding `test` to the ruleset, which a session may not do.
   3. **Semgrep's any-language rules credited only for files Semgrep scanned** (1.2). Narrows what counts as evidence:
      ADR-018, Later.
      **Done the same day** (DESIGN, "A Semgrep rule counts only when Semgrep was handed a file it reads"; ADR-018,
@@ -7655,6 +7662,8 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick your next backlog
   item whenever you're ready"), in branch `claude/securevibe-e9-workflow-all-secrets`. A new check that only ever
   raises findings changes no requirement's status, so no ADR is proposed.
+  **Done the same day** (DESIGN, "A CI workflow that hands every secret to a job"):
+  `config.workflow-hands-out-all-secrets`, citing V13.3.2. Only ever a finding.
 
 ## Decided, not yet written down as ADRs
 

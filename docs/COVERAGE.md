@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 168 (49%) | 10 | 167 |
+| OWASP ASVS 5.0 | 345 | 169 (49%) | 10 | 166 |
 | OWASP AISVS 1.0 | 191 | 38 (20%) | 0 | 153 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
@@ -44,10 +44,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 57 | 11 | 1 | 6 | 37 | 21 | 3 |
-| L2 | 183 | 90 | 17 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 91 | 18 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 31 ASVS requirements can be settled. 26 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 32 ASVS requirements can be settled. 26 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -73,7 +73,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V10 OAuth and OIDC | 36 | 8 | 0 | 28 |
 | V11 Cryptography | 24 | 11 | 1 | 12 |
 | V12 Secure Communication | 12 | 9 | 1 | 2 |
-| V13 Configuration | 21 | 9 | 1 | 11 |
+| V13 Configuration | 21 | 10 | 1 | 10 |
 | V14 Data Protection | 13 | 4 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 12 | 0 | 9 |
 | V16 Security Logging and Error Handling | 17 | 11 | 0 | 6 |
@@ -81,7 +81,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (31)
+### Settled by reading the code (32)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -110,6 +110,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V12.3.2 | L2 | Reads the code: `config.certificate-checks-off`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `config.certificate-checks-off`) |
 | V12.3.4 | L2 | Reads the code: `config.certificate-checks-off` (sv only ever as a finding: `config.certificate-checks-off`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
+| V13.3.2 | L2 | Reads the code: `config.workflow-hands-out-all-secrets` (sv only ever as a finding: `config.workflow-hands-out-all-secrets`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
 | V14.3.3 | L2 | Reads the code: `ast.password-in-browser-storage`; Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `ast.password-in-browser-storage`, `probe.password-in-browser-storage`) |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
@@ -383,5 +384,5 @@ control as supporting evidence.
 - SBD-AC-01: through V12.3.1, V12.3.3, V12.3.4
 - SBD-AC-03: through V8.2.1
 - SBD-AC-04: through V8.3.1
-- SBD-AC-05: through V13.3.1
+- SBD-AC-05: through V13.3.1, V13.3.2
 - SBD-MT-01: through V16.2.1
