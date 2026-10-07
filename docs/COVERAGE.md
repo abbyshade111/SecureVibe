@@ -111,7 +111,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V12.3.4 | L2 | Reads the code: `config.certificate-checks-off` (sv only ever as a finding: `config.certificate-checks-off`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
 | V13.3.2 | L2 | Reads the code: `config.workflow-hands-out-all-secrets` (sv only ever as a finding: `config.workflow-hands-out-all-secrets`) |
-| V13.4.2 | L2 | Reads the code: `ast.debug-mode-on`; The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `semgrep`, `codeql-python` (sv only ever as a finding: `ast.debug-mode-on`, `probe.development-console-open`) |
+| V13.4.2 | L2 | Reads the code: `ast.debug-mode-on`; The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `gosec`, `semgrep`, `codeql-python` (gosec only ever as a finding: `G108`; sv only ever as a finding: `ast.debug-mode-on`, `probe.development-console-open`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
 | V14.3.3 | L2 | Reads the code: `ast.password-in-browser-storage`; Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `ast.password-in-browser-storage`, `probe.password-in-browser-storage`) |
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
@@ -212,9 +212,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.2.4 | L2 | The running app: `probe.fetch-goes-anywhere` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
-| V13.4.2 | L2 | Reads the code: `ast.debug-mode-on`; The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `semgrep`, `codeql-python` (sv only ever as a finding: `ast.debug-mode-on`, `probe.development-console-open`) |
-
-| V13.4.2 | L2 | The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `gosec`, `semgrep`, `codeql-python` (gosec only ever as a finding: `G108`; sv only ever as a finding: `probe.development-console-open`) |
+| V13.4.2 | L2 | Reads the code: `ast.debug-mode-on`; The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `gosec`, `semgrep`, `codeql-python` (gosec only ever as a finding: `G108`; sv only ever as a finding: `ast.debug-mode-on`, `probe.development-console-open`) |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` (sv only ever as a finding: `probe.directory-listing`) |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` (sv only ever as a finding: `probe.docs-or-monitoring-exposed`) |
