@@ -20,6 +20,25 @@ fn plan() -> RunPlan {
     RunPlan::from_manifest(&manifest, &dir).expect("fixture declares how to run")
 }
 
+/// Where CI says a container backend must be here (`SV_REQUIRE_BACKEND=1`, set in
+/// `.github/workflows/rust.yml`), its absence is a failure. Every other test here takes the
+/// honest-absence path when there is no backend, and passes: right on a computer without Docker,
+/// and wrong on a CI runner whose Docker broke, where all of them would stay green while testing
+/// nothing (gap analysis 7.2).
+#[test]
+fn a_container_backend_is_here_where_ci_says_it_must_be() {
+    if std::env::var("SV_REQUIRE_BACKEND").as_deref() != Ok("1") {
+        println!("SV_REQUIRE_BACKEND is not set; a backend is not required here");
+        return;
+    }
+    if let Err(why) = DockerBackend::new().available() {
+        panic!(
+            "SV_REQUIRE_BACKEND=1 and no container backend answered, so every fence test here took \
+             the no-backend path: {why:?}"
+        );
+    }
+}
+
 #[test]
 fn an_app_runs_inside_the_fence_or_sv_says_it_was_not_assessed() {
     let backend = DockerBackend::new();

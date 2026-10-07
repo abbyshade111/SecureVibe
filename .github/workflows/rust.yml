@@ -60,8 +60,12 @@ jobs:
         # where there is none they assert the honest-absence path instead and say which branch they took.
         # Every credit a check gives is written to this file (a debug build only; `Verified::new`), so
         # the next step can hold the findings-only lists in tools/coverage.py to what really happened.
+        # SV_REQUIRE_BACKEND makes Docker's absence a failure here (crates/sv-run/tests/fence.rs), so a
+        # runner whose Docker broke turns this red rather than every fence test passing on the
+        # no-backend path.
         env:
           SV_CREDIT_LOG: ${{ runner.temp }}/credits.log
+          SV_REQUIRE_BACKEND: "1"
         run: cargo test --workspace
 
       - name: What the suite saw credited

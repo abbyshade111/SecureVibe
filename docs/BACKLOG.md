@@ -234,6 +234,7 @@ another session is not a claim.
      the backlog whenever you're ready"), in branch `claude/securevibe-e9-require-backend`: one test that, with
      `SV_REQUIRE_BACKEND=1`, fails when no container backend answers, and `rust.yml` setting it for the test job, so the
      38 "no container backend here" branches can no longer all pass on a runner whose Docker broke.
+     **Done the same day** (DESIGN, "CI requires a container backend"; ADR-051, Later, 7 October 2026).
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
