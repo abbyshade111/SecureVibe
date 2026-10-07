@@ -138,6 +138,12 @@ another session is not a claim.
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
      OpenRouter, Mistral, and Pinecone; keys inside a notebook's escaped JSON.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-secret-formats`: a password in a web address's user part,
+     placeholders skipped and the password redacted like every other secret; and each provider's published key format,
+     taken from gitleaks' rules rather than recalled, for those whose keys carry a prefix of their own (a provider whose
+     keys are plain letters and digits is named as not looked for, since a pattern for it would match ordinary text).
+     A notebook's escaped JSON is not part of this. More formats find more and credit nothing new, so no ADR is proposed.
   16. **Smaller static gaps: workflows, and where infrastructure and CI files are looked for.**
      (`docs/GAP-ANALYSIS.md`, 3.8.) Workflows: a pull request's title or branch pasted into a `run:` line, and
      third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
