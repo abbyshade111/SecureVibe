@@ -9,6 +9,18 @@ another session is not a claim.
 
 ## Next
 
+- **V6.5.3: a sign-in, reset, or two-factor code made with an ordinary random number generator.** From
+  `docs/PARTIAL-CHECKS.md` (V6.5.3, level 2, "reads the code, finding only"), which no check of `sv`'s own speaks to.
+  Python's `random.randint` and its kin, JavaScript's `Math.random`, Java's `java.util.Random` and
+  `RandomStringUtils`, Go's `math/rand`, PHP's `rand` and `mt_rand`, Ruby's `rand`, C#'s `System.Random`, and Dart's
+  `Random()`, where the value is given a name that says it is such a code (`otp`, `verification_code`, `reset_token`,
+  `backup_codes`), or made inside a function so named (`generate_otp`). Only ever a finding, citing V6.5.3 and
+  V11.5.1: finding none says nothing about codes made elsewhere or named otherwise. The outside tools already report
+  weak random numbers in general under V11.5.1; this is the narrower case a reader can be sure matters.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please go ahead"), in branch
+  `claude/securevibe-e2-weak-random-codes`. A new rule that only ever raises findings changes no requirement's
+  status, so no ADR is proposed.
+
 - **V12.3.4 (and V12.3.2): a setting that switches off certificate checking for the whole app.** From
   `docs/PARTIAL-CHECKS.md` (V12.3.4, level 2, "reads the code, finding only"), which no check speaks to yet.
   `NODE_TLS_REJECT_UNAUTHORIZED=0` or `PYTHONHTTPSVERIFY=0` set in a Dockerfile, a compose file, a Kubernetes manifest,
