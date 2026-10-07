@@ -66,6 +66,10 @@ another session is not a claim.
   **Proposals 1 and 2 claimed the same day by session securevibe-e9**, at the owner's word, in branch
   `claude/securevibe-e9-ai-tool-files`. **Record, `Status: proposed`: ADR-049**, which writes down all three answers.
   Read on `main` just before this claim: no other session had claimed them.
+  **Done the same day** (DESIGN, "The AI coding tool's own files, apart from the app"; ADR-049, accepted). The report's
+  new section, "What your AI coding tool's files let it do", reads Claude Code's settings, `.mcp.json`, and
+  `.vscode/mcp.json`. `config.instructions-hidden-characters` finds tag characters and direction overrides in the
+  instruction files. Cursor's files are named and not read: its documentation could not be reached here.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
