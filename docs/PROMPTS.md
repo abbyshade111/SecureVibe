@@ -134,7 +134,7 @@ check the result with `sv` as you would anything else.
 
 > Store passwords only as hashes made by a password-hashing function from a well-known library: Argon2id first, or bcrypt or scrypt, with the library's recommended settings. Never use MD5, SHA-1, or SHA-256 on their own for passwords, never encrypt them so they can be read back, and never store them as they were typed. If you use PBKDF2, use at least 600,000 rounds with SHA-256 (210,000 with SHA-512), and keep the count where it can be raised later.
 
-*Requirements:* ASVS V11.4.1, V11.4.4.
+*Requirements:* ASVS V11.4.1, V11.4.2.
 
 *Not tested:* The build without the prompt already used a proper password hash. Tried again on 6 October 2026 with Haiku 4.5: no reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8.
 
