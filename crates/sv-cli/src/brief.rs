@@ -175,6 +175,9 @@ pub(crate) struct SettingBlock {
 /// One feature's brief, for one app.
 #[derive(Debug, Clone)]
 pub(crate) struct Brief {
+    /// There is no `securevibe.toml` yet, so which requirements apply, at which level, and the
+    /// tests they need cannot be said: `pending` then holds everything the feature can bring.
+    pub waiting: bool,
     pub app: String,
     pub level: u8,
     pub feature: String,
@@ -288,28 +291,7 @@ pub(crate) fn from_report(
             description: r.description.clone(),
         })
         .collect();
-    // The report's order for its tests to write: by level, ASVS before AISVS, then by number, so
-    // C2.1.1 comes before C11.1.1.
-    let order = |r: &Applies| {
-        let numbers: Vec<u32> =
-            r.id.trim_start_matches(|c: char| c.is_ascii_alphabetic())
-                .split('.')
-                .filter_map(|n| n.parse().ok())
-                .collect();
-        (r.level, !r.id.starts_with('V'), numbers)
-    };
     pending.sort_by_key(order);
-    let prompts = feature
-        .prompts
-        .iter()
-        .filter_map(|id| design_prompts.prompts.iter().find(|p| &p.id == id))
-        .map(|p| PromptText {
-            id: p.id.clone(),
-            title: p.title.clone(),
-            status: p.status.as_str(),
-            text: p.prompt.clone(),
-        })
-        .collect();
     // A coding prompt is offered when it has been shown to work and one of its requirements is one
     // this feature brings to the app, now or once securevibe.toml says the app has it.
     let brings: BTreeSet<&str> = requirements
@@ -317,48 +299,21 @@ pub(crate) fn from_report(
         .chain(pending.iter())
         .map(|r| r.id.as_str())
         .collect();
-    let coding = coding_prompts
-        .prompts
-        .iter()
-        .filter(|p| p.status == sv_check::prompts::Status::Shown)
-        .filter(|p| p.requirements.iter().any(|r| brings.contains(r.as_str())))
-        .map(|p| PromptText {
-            id: p.id.clone(),
-            title: p.title.clone(),
-            status: p.status.as_str(),
-            text: p.prompt.clone(),
-        })
-        .collect();
-    // The coding rules cite AISVS Appendix C, how the AI coding tool works, never a requirement of
-    // the app; so a feature names the topics that bear on building it, and the brief gives those.
-    let rules = coding_rules
-        .rules
-        .iter()
-        .filter(|r| feature.guidance.contains(&r.topic))
-        .map(|r| RuleRef {
-            id: r.id.clone(),
-            topic: r.topic.clone(),
-            rule: r.rule.clone(),
-        })
-        .collect();
+    let shared = Shared::of(
+        feature,
+        &brings,
+        design_prompts,
+        coding_prompts,
+        coding_rules,
+    );
     let tests = report
         .tests_to_write
         .iter()
         .filter(|t| applying.contains(t.id.as_str()))
         .cloned()
         .collect();
-    let settings = feature
-        .settings
-        .iter()
-        .filter_map(|s| {
-            setting_lines(&s.table, &s.key).map(|lines| SettingBlock {
-                table: s.table.clone(),
-                key: s.key.clone(),
-                lines,
-            })
-        })
-        .collect();
     Brief {
+        waiting: false,
         app: report.app_name.clone(),
         level: report.target_level,
         feature: feature.id.clone(),
@@ -371,17 +326,153 @@ pub(crate) fn from_report(
             .collect(),
         requirements,
         pending,
-        prompts,
-        coding_prompts: coding,
-        rules,
+        prompts: shared.prompts,
+        coding_prompts: shared.coding_prompts,
+        rules: shared.rules,
         tests,
-        settings,
+        settings: shared.settings,
+    }
+}
+
+/// The brief for one feature before the app has a `securevibe.toml`: what the feature brings is
+/// the same for every app, so it is given whole, at every level, and what only the file can
+/// decide (which of it applies, and the tests that needs) is said to be waiting for it.
+pub(crate) fn without_manifest(
+    feature: &Feature,
+    brought: &Brought,
+    frameworks: &Frameworks,
+    design_prompts: &sv_check::prompts::Prompts,
+    coding_prompts: &sv_check::prompts::Prompts,
+    coding_rules: &sv_check::coding_rules::CodingRules,
+) -> Brief {
+    let mut pending: Vec<Applies> = brought
+        .all
+        .iter()
+        .filter_map(|id| frameworks.requirements.get(id))
+        .map(|r| Applies {
+            id: r.id.clone(),
+            level: r.level,
+            description: r.description.clone(),
+        })
+        .collect();
+    pending.sort_by_key(order);
+    let brings: BTreeSet<&str> = pending.iter().map(|r| r.id.as_str()).collect();
+    let shared = Shared::of(
+        feature,
+        &brings,
+        design_prompts,
+        coding_prompts,
+        coding_rules,
+    );
+    Brief {
+        waiting: true,
+        app: String::new(),
+        level: 0,
+        feature: feature.id.clone(),
+        name: feature.name.clone(),
+        not_applying: 0,
+        conditions: feature
+            .conditions
+            .iter()
+            .map(|c| c.name().to_owned())
+            .collect(),
+        requirements: Vec::new(),
+        pending,
+        prompts: shared.prompts,
+        coding_prompts: shared.coding_prompts,
+        rules: shared.rules,
+        tests: Vec::new(),
+        settings: shared.settings,
+    }
+}
+
+/// The report's order for its tests to write: by level, ASVS before AISVS, then by number, so
+/// C2.1.1 comes before C11.1.1.
+fn order(r: &Applies) -> (u8, bool, Vec<u32>) {
+    let numbers: Vec<u32> =
+        r.id.trim_start_matches(|c: char| c.is_ascii_alphabetic())
+            .split('.')
+            .filter_map(|n| n.parse().ok())
+            .collect();
+    (r.level, !r.id.starts_with('V'), numbers)
+}
+
+/// What a brief gives whether or not the app has a `securevibe.toml`: the feature's decisions, the
+/// coding prompts shown to work for what it brings, its coding rules, and its settings.
+struct Shared {
+    prompts: Vec<PromptText>,
+    coding_prompts: Vec<PromptText>,
+    rules: Vec<RuleRef>,
+    settings: Vec<SettingBlock>,
+}
+
+impl Shared {
+    fn of(
+        feature: &Feature,
+        brings: &BTreeSet<&str>,
+        design_prompts: &sv_check::prompts::Prompts,
+        coding_prompts: &sv_check::prompts::Prompts,
+        coding_rules: &sv_check::coding_rules::CodingRules,
+    ) -> Shared {
+        let prompts = feature
+            .prompts
+            .iter()
+            .filter_map(|id| design_prompts.prompts.iter().find(|p| &p.id == id))
+            .map(|p| PromptText {
+                id: p.id.clone(),
+                title: p.title.clone(),
+                status: p.status.as_str(),
+                text: p.prompt.clone(),
+            })
+            .collect();
+        let coding = coding_prompts
+            .prompts
+            .iter()
+            .filter(|p| p.status == sv_check::prompts::Status::Shown)
+            .filter(|p| p.requirements.iter().any(|r| brings.contains(r.as_str())))
+            .map(|p| PromptText {
+                id: p.id.clone(),
+                title: p.title.clone(),
+                status: p.status.as_str(),
+                text: p.prompt.clone(),
+            })
+            .collect();
+        // The coding rules cite AISVS Appendix C, how the AI coding tool works, never a requirement of
+        // the app; so a feature names the topics that bear on building it, and the brief gives those.
+        let rules = coding_rules
+            .rules
+            .iter()
+            .filter(|r| feature.guidance.contains(&r.topic))
+            .map(|r| RuleRef {
+                id: r.id.clone(),
+                topic: r.topic.clone(),
+                rule: r.rule.clone(),
+            })
+            .collect();
+        let settings = feature
+            .settings
+            .iter()
+            .filter_map(|s| {
+                setting_lines(&s.table, &s.key).map(|lines| SettingBlock {
+                    table: s.table.clone(),
+                    key: s.key.clone(),
+                    lines,
+                })
+            })
+            .collect();
+        Shared {
+            prompts,
+            coding_prompts: coding,
+            rules,
+            settings,
+        }
     }
 }
 
 /// The brief as data, for the MCP tool's structured result.
 pub(crate) fn to_json(brief: &Brief) -> Value {
     json!({
+        "waiting": brief.waiting,
         "app": brief.app,
         "level": brief.level,
         "feature": brief.feature,
@@ -421,17 +512,38 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     } else {
         fence.wrap(&brief.app)
     };
-    out.push_str(&format!(
-        "# Before building: {} ({app}, level {})\n\n",
-        brief.name, brief.level
-    ));
+    if brief.waiting {
+        out.push_str(&format!(
+            "# Before building: {} (no securevibe.toml yet)\n\n",
+            brief.name
+        ));
+    } else {
+        out.push_str(&format!(
+            "# Before building: {} ({app}, level {})\n\n",
+            brief.name, brief.level
+        ));
+    }
     out.push_str(
         "What this feature will be held to, and what to decide, write, and give `sv run` while \
          building it. A brief credits nothing: it says what will be checked, not what was built.\n\n",
     );
 
     out.push_str("## 1. The requirements it brings\n\n");
-    if brief.requirements.is_empty() {
+    if brief.waiting {
+        out.push_str(
+            "There is no securevibe.toml yet, so which of these apply to this app, and at which \
+             level, cannot be said: below is everything this feature can bring, at every level. \
+             Write securevibe.toml (`securevibe_spec`, or `sv init`), then ask for this brief again: \
+             it will say which apply, and the tests to write for them. Everything after this \
+             section is the same for every app, and does not wait.\n\n",
+        );
+        for r in &brief.pending {
+            out.push_str(&format!(
+                "- **{}** (level {}): {}\n",
+                r.id, r.level, r.description
+            ));
+        }
+    } else if brief.requirements.is_empty() {
         out.push_str("None of this feature's requirements applies to this app as it stands.\n");
     } else {
         out.push_str("These apply to the app now:\n\n");
@@ -442,7 +554,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
             r.id, r.level, r.description
         ));
     }
-    if !brief.pending.is_empty() {
+    if !brief.waiting && !brief.pending.is_empty() {
         out.push_str(&format!(
             "\n### Once securevibe.toml says the app has it ({})\n\nsecurevibe.toml does not say \
              yet that the app has this feature, so these do not apply now. They will as soon as it \
@@ -510,7 +622,12 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     }
 
     out.push_str("\n## 4. Tests to write\n\n");
-    if brief.tests.is_empty() {
+    if brief.waiting {
+        out.push_str(
+            "Waiting for securevibe.toml: the tests to write are those for the requirements that \
+             apply, which it decides.\n",
+        );
+    } else if brief.tests.is_empty() {
         out.push_str("None: no requirement of this feature waits on a test.\n");
     }
     for t in &brief.tests {

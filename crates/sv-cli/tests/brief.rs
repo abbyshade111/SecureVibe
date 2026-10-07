@@ -61,3 +61,22 @@ fn a_feature_with_no_brief_is_refused_naming_those_with_one() {
     assert!(said.contains("no brief for `bookings`"), "{said}");
     assert!(said.contains("payments"), "{said}");
 }
+
+#[test]
+fn a_brief_before_securevibe_toml_says_what_waits_for_it_and_gives_the_rest() {
+    // A builder asks for the brief before writing the settings file (the delivery test of 6
+    // October 2026). An empty folder: no securevibe.toml, no code.
+    let dir = std::env::temp_dir().join(format!("sv-brief-none-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    let out = sv(&["brief", dir.to_str().unwrap(), "--feature", "ai"]);
+    std::fs::remove_dir_all(&dir).ok();
+    let said = text(&out);
+    assert!(out.status.success(), "{said}");
+    assert!(said.contains("(no securevibe.toml yet)"), "{said}");
+    assert!(said.contains("Waiting for securevibe.toml"), "{said}");
+    // What does not wait: a requirement it can bring, the prompt shown to work, and a setting.
+    assert!(said.contains("**C2.1.3**"), "{said}");
+    assert!(said.contains("(`ai-feature-guard`)"), "{said}");
+    assert!(said.contains("## 5. What `sv run` needs in `securevibe.toml`"), "{said}");
+}
