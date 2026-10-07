@@ -34,6 +34,10 @@ another session is not a claim.
      **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with items 7 and 4"), in
      branch `claude/owned-depth`: all three parts. **`Status: proposed`: ADR-053.** Read on `main` just before this
      claim: no other session had claimed it.
+     **Done the same day** (ADR-053, accepted; DESIGN, "Another user's records: lists, changes, deletions, and
+     'checked in part'"): lists and private pages, `update` and `delete` judged by the owner's read-back, and
+     *checked in part* as a status of its own. Not done: "checked in part" for checks other than V8.2.2 that rest on one
+     sample, each to be read on its own.
   5. **The coverage documents count requirements that can never be credited as "can settle".**
      (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
      tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
