@@ -60,6 +60,9 @@ another session is not a claim.
      (`probe.cross-site-request-accepted`, V3.5.1, and `probe.preflight-skipped`, V3.5.2) lose the `Authorization` header a browser
      would not send; a refusal then credits nothing, since without the token it may only mean "not signed in".
      **`Status: proposed`**: a Later entry on ADR-021, made accepted in the pull request that builds it.
+     **Done the same day** (DESIGN, "A request from another site carries no `Authorization` header"; ADR-021, Later,
+     7 October 2026, accepted): both requests go with the session's cookies only; with no cookie neither is sent and
+     both are not assessed; a refusal with the token left off is not credited.
   8. **Single-page apps get a false "private page open to anyone".** (`docs/GAP-ANALYSIS.md`, 2.2.) An anonymous 2xx
      counts as served (`signed_in/mod.rs`), so a React or Vite app's page shell for `/dashboard` is reported high.
      Treat an answer identical to the root page's as a shell, not judged; tell builders in the spec to list API
@@ -110,6 +113,8 @@ another session is not a claim.
      `sv`'s own rule or Semgrep's equivalent cites it. B310 and G106 are named with no requirement, saying why: B310
      fires on every `urlopen`, fixed addresses included, and G106 is about SSH, which the TLS requirements do not
      cover. No credit changes, so no ADR is proposed.
+     **Done the same day** (DESIGN, "Bandit's and gosec's findings for injection and unescaped output name their
+     requirement"), with two tests in `crates/sv-check/tests/citations.rs`.
   13. **Running checks an attacker would try first.** (`docs/GAP-ANALYSIS.md`, 3.5.) Each claimable on its own: (a)
      mass assignment beyond sign-up: B sends `owner`/`user_id`/`role` on `owned.create`, `creates`, and
      `change-email`; (b) stored cross-site scripting: a second `owned` record with `<sv-x>` in its marker, and a

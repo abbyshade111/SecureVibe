@@ -187,6 +187,9 @@ pub(super) struct Flaws {
     /// shell, and what the account page shows comes from `/api/me`, guarded as `/account` is
     /// otherwise (and open under `private_open`).
     pub(super) page_shell: bool,
+    /// Not a flaw: `/api/login` sets the session cookie as well as answering with the token, so a
+    /// browser carries the session on requests from other sites even though the page sends the token.
+    pub(super) token_login_sets_cookie: bool,
     pub(super) private_open: bool,
     pub(super) admin_open: bool,
     /// Any signed-in user can post an announcement, which only an admin should.
@@ -1671,7 +1674,12 @@ impl FakeApp {
                         id
                     }
                 };
-                Self::respond(200, vec![], &format!("{{\"token\": \"{id}\"}}"))
+                let headers = if self.flaws.token_login_sets_cookie {
+                    vec![("Set-Cookie", format!("sid={id}; Path=/; HttpOnly"))]
+                } else {
+                    vec![]
+                };
+                Self::respond(200, headers, &format!("{{\"token\": \"{id}\"}}"))
             }
             ("POST", "/logout") => {
                 // Like the real app this was first run against: sign-out needs the token, and

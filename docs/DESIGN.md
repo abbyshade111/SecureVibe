@@ -12504,6 +12504,37 @@ this rule, found and not found), the two in the start-command check by its tests
 - `flask --debug` not looked for;
 - the start-command check saying nothing of the app's own file;
 - a flag before the file name (`python -u app.py`) stopping the file being named.
+
+## A request from another site carries no `Authorization` header (7 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 2.1). Two of the signed-in checks send a request as a page on another site
+would: `probe.cross-site-request-accepted` (V3.5.1), the create request with another site's Origin and no anti-forgery
+token, and `probe.preflight-skipped` (V3.5.2), the same request in the three forms a browser sends without asking the app
+first. Both were built from the signed-in session, which for an app signed in by a token carried
+`Authorization: Bearer …`. No browser adds that header to a request another site makes. An API that keeps its token in
+the page and checks no Origin, which another site cannot use at all, was reported high on both.
+
+- **What is sent now.** The session's cookies, and never the `Authorization` header (`as_another_site_sends` in
+  `crates/sv-check/src/signed_in/forgery.rs`).
+- **A token and no cookie.** Neither request is sent: both requirements are not assessed, saying that a browser cannot
+  carry this session from another site, and that whether the app also takes a cookie was not seen.
+- **A token and a cookie.** Taken with the cookies alone is still a finding. Refused is not credited, since without the
+  token a refusal may only mean the cookies sign nobody in; it is not assessed, saying so.
+- **A cookie and no token.** Unchanged.
+- **Not changed here.** The WebSocket handshake from another site (V4.4.2) still carries the session as the run holds
+  it. A browser's WebSocket cannot send an `Authorization` header from any page, the app's own included, so an app that
+  signs its socket in that way is not one a browser can reach from any page; that check is left as it was.
+
+ADR-021, "Later, 7 October 2026: a request sent as another site carries no `Authorization` header". The fake app gained
+`token_login_sets_cookie` (not a flaw: the token sign-in also sets the session cookie), and `forgery.rs` three tests: a
+token-only API that takes any Origin in every form (no finding, no credit, both not assessed), the same with a cookie
+beside the token (both still found), and that cookie with an app refusing other origins (refused, not credited).
+
+Four guards broken in turn, each caught by its own test among the 388 signed-in tests:
+- the `Authorization` header kept, the behavior before;
+- a token-only session sent anyway, signing nobody in;
+- the request from another site, refused without the token, credited;
+- the requests sent without a preflight, refused without the token, credited.
 ## The short version says what kind of run it was, and which level (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.1 and 6.2) found that the short version gave "N not verified" without
@@ -12547,6 +12578,38 @@ The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
   documents said so. The specification and the MCP server's instructions now tell the tool that a workflow step
   running `sv` must pass `--fail-on attention:high`. A test checks both texts name it, and that every value they
   name is one `sv` accepts. A misspelled value turned it red, and so did the flag taken out of the instructions.
+
+## Bandit's and gosec's findings for injection and unescaped output name their requirement (7 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.4). A tool rule missing from `data/adapters.json` is still shown when it
+fires, but cites nothing, so a Bandit finding for SQL built through Django's `extra` could sit in a report beside
+"V1.2.4 checked". Each rule below was read in the tool's own source (Bandit's `plugins/`, gosec's `rules/`, 7 October
+2026) and is now mapped, citing what `sv`'s own rule or Semgrep's equivalent cites:
+
+| Rule | What it finds | Cites |
+|---|---|---|
+| Bandit B601 | a shell command built from a value and run through Paramiko | V1.2.5 |
+| Bandit B610, B611 | SQL given to Django's `extra` and `RawSQL` | V1.2.4 |
+| Bandit B701, B702, B703, B704 | Jinja2 with autoescape off, Mako, `mark_safe`, and `Markup` of text that is not fixed | V1.2.1 |
+| gosec G203 | text that is not fixed marked as safe for a Go template | V1.2.1 |
+| gosec G108 | `net/http/pprof` imported, serving profiling pages | V13.4.2 |
+| Bandit B614 | a model loaded with `torch.load` | C4.1.2 |
+| Bandit B615 | a Hugging Face download not pinned to a commit | C6.1.3 |
+
+**Only ever as a finding.** All of them sit under `findings_against`, so a finding names the requirement it shows
+failing and a clean run credits nothing new. Semgrep's equivalents credit, but Bandit's rules are narrower than the
+requirements: B701 reads one Jinja2 setting, which is not output encoding everywhere. The counts of what can be checked
+do not move.
+
+**Named, citing nothing, and why.** B310 (`urlopen`) fires on every call, fixed addresses included, so citing V1.3.6
+would mark safe code as failing. G106 (an SSH client accepting any host key) is about SSH, which the TLS requirements do
+not cover. Both are in the map with a description, so a person reading the finding knows what it is.
+
+**Two tests** in `crates/sv-check/tests/citations.rs`: every tool rule whose description is about injection or escaping
+cites a requirement; and Bandit's and gosec's injection and escaping rules, listed from their sources, are all in the
+map, citing something. The second is what catches a rule left out, which the first cannot see. Three guards broken in
+turn, each caught: B610 taken out of the map, B701 citing nothing, and every new mapping taken out (the state before).
+The citation guard caught four of the first descriptions sharing no words with V1.2.1; they now say "output encoding".
 
 ## `sv check` reads securevibe.toml when it is there (7 October 2026)
 
