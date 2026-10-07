@@ -2183,6 +2183,9 @@ another session is not a claim.
   the token the app made for that page, the protection V3.5.1 asks for. A value that is a `{...}` or `{{...}}`
   placeholder, or a call (`html.escape(...)`), is not a written-in secret. A fixture of exactly this line, and the
   rule kept quiet on it, would hold the fix.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-csrf-placeholder`: a value that is wholly one `{...}` template
+  expression is a placeholder. Read on `main` just before this claim: no other session had claimed it.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
