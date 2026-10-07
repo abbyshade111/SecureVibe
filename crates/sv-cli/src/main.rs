@@ -5555,6 +5555,7 @@ mod tests {
             earlier_fingerprints: Vec::new(),
             marked_test_code: false,
             bundled_library: None,
+            outranked: None,
             also_on_this_line: Vec::new(),
             rule_id: decided[0].switch.rule_id.to_owned(),
             title: "open".to_owned(),
@@ -5619,6 +5620,7 @@ mod tests {
                 earlier_fingerprints: Vec::new(),
                 marked_test_code: false,
                 bundled_library: None,
+                outranked: None,
                 also_on_this_line: Vec::new(),
             };
             f.fingerprint = format!("fp-{rule}");

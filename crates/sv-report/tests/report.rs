@@ -26,6 +26,7 @@ fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        outranked: None,
         also_on_this_line: Vec::new(),
         rule_id: rule_id.into(),
         title: "something".into(),
@@ -3035,4 +3036,153 @@ fn every_requirement_sv_probe_answers_is_listed() {
         .map(|l| l.id.to_owned())
         .collect();
     assert_eq!(asked, cited);
+}
+
+#[test]
+fn an_outside_tools_finding_on_what_sv_saw_the_running_app_do_right_is_only_worth_a_look() {
+    // The owner's decision, 6 October 2026: a Django rule fired 43 times on a Flask app and kept
+    // V3.5.1 from being credited though `sv`'s own running-app check verified it in the same run.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec![
+            "V3.5.1".into(),
+            "V1.2.1".into(),
+            "V1.3.1".into(),
+            "V6.1.1".into(),
+        ],
+        ..Default::default()
+    };
+    let verified = [
+        Verified::new(
+            "probe.cross-site-request-accepted",
+            &["V3.5.1"],
+            "the forms".into(),
+        ),
+        Verified::new("config.something", &["V1.2.1"], "the settings".into()),
+        Verified::new("probe.other", &["V6.1.1"], "a page".into()),
+    ];
+    let csrf = "semgrep.python.django.security.audit.csrf-exempt.no-csrf-exempt";
+    let mut outside = finding(csrf, &["V3.5.1"]);
+    outside.title = "The outside tool".into();
+    // Controls, one each: `sv`'s own rule; a requirement only a check that did not watch the
+    // running app satisfied; a finding about two requirements, one the run did not verify; and a
+    // requirement no check can settle (V6.1.1 is listed manual-only below).
+    let mut own = finding("ast.something", &["V3.5.1"]);
+    own.title = "sv's own".into();
+    own.location.line = 2;
+    let mut not_by_the_run = finding(csrf, &["V1.2.1"]);
+    not_by_the_run.title = "Not by the run".into();
+    not_by_the_run.location.line = 3;
+    let mut half = finding(csrf, &["V3.5.1", "V1.3.1"]);
+    half.title = "Half verified".into();
+    half.location.line = 4;
+    let mut manual = finding(csrf, &["V6.1.1"]);
+    manual.title = "Manual only".into();
+    manual.location.line = 5;
+    // And `sv` never overrules itself: not when its own rule reported the same thing, nor when its
+    // own finding shares the line.
+    let mut merged = finding(csrf, &["V3.5.1"]);
+    merged.title = "Also reported by sv".into();
+    merged.location.line = 6;
+    merged.also_reported_by = vec!["ast.something".into()];
+    let mut shared = finding(csrf, &["V3.5.1"]);
+    shared.title = "Sharing a line with sv's own".into();
+    shared.location.line = 7;
+    shared.also_on_this_line = vec![finding("ast.other", &["V3.5.1"])];
+
+    let report = |findings: Vec<Finding>| {
+        let mut i = inputs(&f, &buckets, findings, &verified);
+        i.manual_only = ["V6.1.1".to_owned()].into();
+        build(i)
+    };
+    let status = |r: &sv_report::Report, id: &str| {
+        r.requirements.iter().find(|q| q.id == id).unwrap().status
+    };
+
+    let alone = report(vec![outside.clone()]);
+    assert_eq!(
+        status(&alone, "V3.5.1"),
+        Status::Checked,
+        "the run's evidence stands"
+    );
+    let (app, apart) = sv_report::app_then_tests(&alone);
+    assert!(app.is_empty() && apart.len() == 1);
+    assert_eq!(sv_report::apart_named(&apart), "only worth a look");
+    let md = sv_report::markdown::security(&alone);
+    assert!(
+        md.contains("probe.cross-site-request-accepted) verified in this run"),
+        "{md}"
+    );
+    let sarif: serde_json::Value = serde_json::from_str(&sv_report::sarif::render(&alone)).unwrap();
+    assert_eq!(
+        sarif["runs"][0]["results"][0]["properties"]["outrankedBy"],
+        "probe.cross-site-request-accepted"
+    );
+
+    let mixed = report(vec![
+        outside,
+        own,
+        not_by_the_run,
+        half,
+        manual,
+        merged,
+        shared,
+    ]);
+    assert_eq!(
+        status(&mixed, "V3.5.1"),
+        Status::NeedsAttention,
+        "sv's own finding counts"
+    );
+    assert_eq!(status(&mixed, "V1.2.1"), Status::NeedsAttention);
+    assert_eq!(status(&mixed, "V1.3.1"), Status::NeedsAttention);
+    assert_eq!(status(&mixed, "V6.1.1"), Status::NeedsAttention);
+    let (app, apart) = sv_report::app_then_tests(&mixed);
+    let titles = |v: &[&Finding]| v.iter().map(|f| f.title.clone()).collect::<Vec<_>>();
+    assert_eq!(titles(&apart), ["The outside tool"], "{:?}", titles(&app));
+}
+
+#[test]
+fn a_finding_about_requirements_the_app_is_not_held_to_is_listed_in_a_group_of_its_own() {
+    // The owner's decision, 6 October 2026: a finding citing V1.3.12, above an app's level, was listed
+    // among the findings that count, and the AI tool rewrote working code for it.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let mut above = finding("semgrep.some-rule", &["V1.3.12"]);
+    above.title = "Above the level".into();
+    // Controls: one about an applicable requirement too, and one about no requirement at all.
+    let mut both = finding("semgrep.some-rule", &["V1.3.12", "V1.2.1"]);
+    both.title = "Also about the app's own".into();
+    both.location.line = 2;
+    let mut none = finding("config.security-contact", &[]);
+    none.title = "About no requirement".into();
+    none.location.line = 3;
+    let report = build(inputs(&f, &buckets, vec![above, both, none], &[]));
+    let (app, apart) = sv_report::app_then_tests(&report);
+    let titles = |v: &[&Finding]| v.iter().map(|f| f.title.clone()).collect::<Vec<_>>();
+    assert_eq!(titles(&apart), ["Above the level"], "{:?}", titles(&app));
+    assert_eq!(
+        sv_report::apart_named(&apart),
+        "about requirements this app is not held to"
+    );
+    let md = sv_report::markdown::security(&report);
+    assert!(
+        md.contains("## 1 about requirements this app is not held to"),
+        "{md}"
+    );
+    assert!(
+        md.contains("About a requirement this app is not held to"),
+        "{md}"
+    );
+    let sarif: serde_json::Value =
+        serde_json::from_str(&sv_report::sarif::render(&report)).unwrap();
+    let flagged = sarif["runs"][0]["results"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|r| r["properties"]["notHeldTo"] == true)
+        .count();
+    assert_eq!(flagged, 1);
 }

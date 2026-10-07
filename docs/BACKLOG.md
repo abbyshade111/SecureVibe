@@ -6803,6 +6803,9 @@ another session is not a claim.
   `claude/securevibe-e9-outranked`. **Record, `Status: proposed`** (a "Later" entry on ADR-023): both are listed in
   full, still named in the report, and still seen in SARIF; the first no longer keeps a requirement `sv` checked from
   being credited, the second never decided an applicable requirement's status in the first place.
+  **Done the same day** (DESIGN, "A finding outranked by `sv`'s own run, and one about a requirement the app is not
+  held to"; ADR-023, Later): `Finding::outranked`, set by the report; both kinds listed apart, in full, and marked in
+  SARIF, `report.json`, and the MCP server's schema.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters
