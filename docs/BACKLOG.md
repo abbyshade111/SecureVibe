@@ -45,6 +45,8 @@ another session is not a claim.
      `FLASK_DEBUG=1` or `flask --debug` in shell scripts; other languages' debug switches are named as not looked for.
      And the start-command check no longer says a command that runs a script starts no development server. A rule
      that only raises findings changes no requirement's status, so no ADR is proposed.
+     **Done the same day** (DESIGN, "A web framework's debug mode switched on in the code"): `ast.debug-mode-on`,
+     findings only, citing V13.4.2, and the start-command check naming the file a command runs.
   7. **Token-based apps get false "request from another site accepted" findings.** (`docs/GAP-ANALYSIS.md`, 2.1.) The
      forged requests in `signed_in/forgery.rs` keep the session's `Authorization: Bearer` header, which another
      website cannot send. When the session's token is not a cookie, send them without it; a refusal then means
@@ -183,6 +185,8 @@ another session is not a claim.
   28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
      banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
      attention:high` for a CI workflow.
+     **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("feel free to pick something
+     else from the backlog"), in branch `claude/securevibe-e2-report-points`.
   29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
      (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
      V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
