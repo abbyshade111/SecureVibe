@@ -174,6 +174,8 @@ another session is not a claim.
   28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
      banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
      attention:high` for a CI workflow.
+     **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("feel free to pick something
+     else from the backlog"), in branch `claude/securevibe-e2-report-points`.
   29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
      (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
      V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
