@@ -1460,6 +1460,8 @@ another session is not a claim.
      your next backlog item"), in branch `claude/securevibe-e9-redirects`: `redirects` under [stack.run.users], the
      app's own addresses that send the browser on, each given the same outside address in the same nine parameters,
      signed in as A; only ever a finding.
+     **Done on 7 October 2026** (DESIGN, "Open redirects outside the sign-in flow, on the pages `redirects` names"):
+     `page_redirect_check`, the same outside address and nine parameters, one finding under `probe.open-redirect`.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch

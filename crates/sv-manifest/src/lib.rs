@@ -547,6 +547,12 @@ pub struct UsersSection {
     /// Pages only a signed-in user should see.
     #[serde(default)]
     pub private: Vec<String>,
+    /// The app's own addresses that send the browser on to an address they are given, outside the
+    /// sign-in flow (a "continue to" link, a language switch that returns where it came from): each is
+    /// asked by the first user, signed in, with an address outside the app in the parameters a return
+    /// address is usually read from (V3.7.2). Only ever a finding.
+    #[serde(default)]
+    pub redirects: Vec<String>,
     /// Pages only an admin should see. Needs `seed`, which is the only way to make an admin.
     #[serde(default)]
     pub admin: Vec<String>,
