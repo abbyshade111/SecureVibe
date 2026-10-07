@@ -74,6 +74,17 @@ pub struct AstRule {
     /// (req, res, next) => …`). A match with no named function around it is not reported.
     #[serde(default)]
     pub enclosing_function_patterns: BTreeMap<String, String>,
+    /// Per language, what one of the names given to the value at `@hit` must match, written as
+    /// words as `enclosingFunctionPatterns` writes them: the variable, field, or keyword argument
+    /// it is assigned to on its way out of the function (`otp = str(random.randint(…))`,
+    /// `user.reset_token = Math.random()`, `send(code=random.choice(…))`), or the function itself
+    /// (`def generate_otp(): …`).
+    ///
+    /// `random.randint(100000, 999999)` is a fault in a sign-in code and ordinary in a dice game,
+    /// and what the code is for is said only by the names around it. A match none of whose names
+    /// matches is not reported.
+    #[serde(default)]
+    pub value_name_patterns: BTreeMap<String, String>,
     /// Per language, what the `@arg` capture's text must match for the call to be reported at all.
     ///
     /// For the rules whose danger is in *which* value is passed rather than whether it was built:
@@ -236,6 +247,7 @@ struct Compiled {
     function: BTreeMap<String, regex::Regex>,
     module: BTreeMap<String, regex::Regex>,
     enclosing: BTreeMap<String, regex::Regex>,
+    value_name: BTreeMap<String, regex::Regex>,
     argument: BTreeMap<String, regex::Regex>,
     safe_argument: BTreeMap<String, regex::Regex>,
     keyword: BTreeMap<String, regex::Regex>,
@@ -848,6 +860,7 @@ impl AstRules {
                 &rule.enclosing_function_patterns,
                 "enclosingFunctionPattern",
             )?;
+            let value_name = compile_patterns(&rule.value_name_patterns, "valueNamePattern")?;
             let argument = compile_patterns(&rule.argument_patterns, "argumentPattern")?;
             let safe_argument =
                 compile_patterns(&rule.safe_argument_patterns, "safeArgumentPattern")?;
@@ -922,6 +935,7 @@ impl AstRules {
                     "enclosingFunctionPattern",
                     &rule.enclosing_function_patterns,
                 ),
+                ("valueNamePattern", &rule.value_name_patterns),
                 ("argumentPattern", &rule.argument_patterns),
                 ("safeArgumentPattern", &rule.safe_argument_patterns),
                 ("keywordPattern", &rule.keyword_patterns),
@@ -969,6 +983,7 @@ impl AstRules {
                 function,
                 module,
                 enclosing,
+                value_name,
                 argument,
                 safe_argument,
                 keyword,
@@ -2018,6 +2033,18 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     _ => continue,
                 }
             }
+            if let Some(pattern) = compiled.value_name.get(language) {
+                let named = hit_index
+                    .and_then(|index| m.captures().iter().find(|c| c.index == index))
+                    .is_some_and(|c| {
+                        value_names(c.node, source.as_bytes())
+                            .iter()
+                            .any(|name| pattern.is_match(&words_of(name)))
+                    });
+                if !named {
+                    continue;
+                }
+            }
             // The argument to judge: the `@arg` capture, or for a call named in `argumentPositions`,
             // the argument at that position in the same call.
             let mut arg_node = arg_index
@@ -2329,6 +2356,61 @@ fn enclosing_function_name(node: tree_sitter::Node, source: &[u8]) -> Option<Str
         }
     }
     None
+}
+
+/// The names a value is given on its way out of the function it is made in: each variable, field,
+/// or keyword argument it is assigned to (`otp = str(random.randint(…))` gives `otp`;
+/// `user.reset_token = …` gives `reset_token`; `code, err := …` gives `code` and `err`), then the
+/// name of the function around it.
+fn value_names(node: tree_sitter::Node, source: &[u8]) -> Vec<String> {
+    let text = |n: tree_sitter::Node| n.utf8_text(source).unwrap_or("").to_owned();
+    // The last part of a written target: `self.otp`, `$user->reset_token`, `@code`, `"otp"`.
+    let last = |s: &str| -> Option<String> {
+        s.rsplit(['.', ':', '>', '[', ']', '(', ')', ' '])
+            .map(|p| p.trim().trim_matches(['"', '\'', '$', '@', '*', '&']))
+            .find(|p| !p.is_empty())
+            .map(str::to_owned)
+    };
+    let mut out = Vec::new();
+    let mut current = node.parent();
+    while let Some(n) = current {
+        if FUNCTIONS.contains(&n.kind()) {
+            break;
+        }
+        let target = match n.kind() {
+            "assignment"
+            | "assignment_expression"
+            | "augmented_assignment"
+            | "augmented_assignment_expression"
+            | "short_var_declaration"
+            | "assignment_statement" => n.child_by_field_name("left"),
+            "variable_declarator"
+            | "initialized_variable_definition"
+            | "var_spec"
+            | "public_field_definition"
+            | "field_definition"
+            | "keyword_argument"
+            | "variable_assignment" => n.child_by_field_name("name"),
+            // C and C++: `int otp = …`, `char *code = …`.
+            "init_declarator" => n.child_by_field_name("declarator"),
+            "pair" => n.child_by_field_name("key"),
+            "let_declaration" => n.child_by_field_name("pattern"),
+            // Kotlin's `val otp: Int = …`: the name is the declaration's first part, before its type.
+            "property_declaration" => {
+                let mut cursor = n.walk();
+                n.named_children(&mut cursor)
+                    .find(|c| c.kind() == "variable_declaration")
+                    .and_then(|v| v.named_child(0))
+            }
+            _ => None,
+        };
+        if let Some(target) = target {
+            out.extend(text(target).split(',').filter_map(last));
+        }
+        current = n.parent();
+    }
+    out.extend(enclosing_function_name(node, source));
+    out
 }
 
 /// A function's name as lower-case words joined by `_`: `verifyToken`, `VerifyToken`,
@@ -6535,6 +6617,53 @@ mod tests {
         ("ast.token-key-source-from-token", "cpp", "void f(CURL* curl, jwt_t* jwt) { curl_easy_setopt(curl, CURLOPT_URL, jwt_get_header(jwt, \"x5u\")); }", true),
         ("ast.token-key-source-from-token", "cpp", "void f() { auto r = cpr::Get(cpr::Url{JWKS_URL}); }", false),
         ("ast.token-key-source-from-token", "cpp", "bool f(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& d) { return trusted.count(d.get_header_claim(\"jku\").as_string()) > 0; }", false),
+        ("ast.insecure-random-for-code", "python", "def send_login_email(user):\n    otp = str(random.randint(100000, 999999))\n    mail(user, otp)\n", true),
+        ("ast.insecure-random-for-code", "python", "def generate_backup_codes():\n    return [''.join(random.choices(ALPHABET, k=10)) for _ in range(8)]\n", true),
+        ("ast.insecure-random-for-code", "python", "def forgot(user):\n    user.reset_token = '%032x' % random.getrandbits(128)\n", true),
+        ("ast.insecure-random-for-code", "python", "def forgot(user):\n    send(user, verification_code=random.randint(0, 999999))\n", true),
+        ("ast.insecure-random-for-code", "python", "def send_login_email(user):\n    otp = str(secrets.randbelow(900000) + 100000)\n    mail(user, otp)\n", false),
+        ("ast.insecure-random-for-code", "python", "def send_login_email(user):\n    otp = ''.join(secrets.choice(DIGITS) for _ in range(6))\n    mail(user, otp)\n", false),
+        ("ast.insecure-random-for-code", "python", "def roll():\n    color_code = random.choice(COLORS)\n    return random.randint(1, 6)\n", false),
+        ("ast.insecure-random-for-code", "javascript", "function sendCode(user) { const otpCode = Math.floor(100000 + Math.random() * 900000); mail(user, otpCode); }", true),
+        ("ast.insecure-random-for-code", "javascript", "async function forgot(user) { user.resetToken = Math.random().toString(36).slice(2); await user.save(); }", true),
+        ("ast.insecure-random-for-code", "javascript", "const generateOtp = () => String(Math.floor(Math.random() * 1e6)).padStart(6, '0');", true),
+        ("ast.insecure-random-for-code", "javascript", "function sendCode(user) { const otpCode = crypto.randomInt(100000, 1000000); mail(user, otpCode); }", false),
+        ("ast.insecure-random-for-code", "javascript", "function shuffle(cards) { const pick = Math.floor(Math.random() * cards.length); return cards[pick]; }", false),
+        ("ast.insecure-random-for-code", "typescript", "export function makeVerificationCode(): string { return String(Math.floor(Math.random() * 1_000_000)); }", true),
+        ("ast.insecure-random-for-code", "typescript", "export function jitter(ms: number): number { return ms + Math.random() * 100; }", false),
+        ("ast.insecure-random-for-code", "java", "class A { String sendOtp() { String otp = String.valueOf(new Random().nextInt(900000) + 100000); return otp; } }", true),
+        ("ast.insecure-random-for-code", "java", "class A { int resetCode() { return ThreadLocalRandom.current().nextInt(1000000); } }", true),
+        ("ast.insecure-random-for-code", "java", "class A { String sendOtp() { String otp = String.valueOf(new SecureRandom().nextInt(900000) + 100000); return otp; } }", false),
+        ("ast.insecure-random-for-code", "java", "class A { int roll() { int face = new Random().nextInt(6) + 1; return face; } }", false),
+        ("ast.insecure-random-for-code", "kotlin", "fun notify(user: User) { val otp: Int = Random.nextInt(100000, 999999); mail(user, otp) }", true),
+        ("ast.insecure-random-for-code", "kotlin", "fun roll() { val face = Random.nextInt(1, 7); show(face) }", false),
+        ("ast.insecure-random-for-code", "go", "package m\nfunc sendOtp() { code := rand.Intn(900000) + 100000; mail(code) }", true),
+        ("ast.insecure-random-for-code", "go", "package m\nfunc newResetToken() string { return fmt.Sprintf(\"%x\", rand.Int63()) }", true),
+        ("ast.insecure-random-for-code", "go", "package m\nfunc newResetToken() string { b := make([]byte, 32); rand.Read(b); return hex.EncodeToString(b) }", false),
+        ("ast.insecure-random-for-code", "go", "package m\nfunc backoff() time.Duration { return time.Duration(rand.Intn(1000)) * time.Millisecond }", false),
+        ("ast.insecure-random-for-code", "php", "<?php function sendOtp($user) { $otp = rand(100000, 999999); mail($user, $otp); }", true),
+        ("ast.insecure-random-for-code", "php", "<?php function forgot($user) { $user->reset_token = uniqid('', true); }", true),
+        ("ast.insecure-random-for-code", "php", "<?php function sendOtp($user) { $otp = random_int(100000, 999999); mail($user, $otp); }", false),
+        ("ast.insecure-random-for-code", "php", "<?php function pickColor() { $color = array_rand($colors); return $color; }", false),
+        ("ast.insecure-random-for-code", "ruby", "def send_otp(user)\n  otp = rand(100_000..999_999)\n  mail(user, otp)\nend\n", true),
+        ("ast.insecure-random-for-code", "ruby", "def forgot(user)\n  user.reset_token = Random.new.rand(10**20).to_s\nend\n", true),
+        ("ast.insecure-random-for-code", "ruby", "def send_otp(user)\n  otp = SecureRandom.random_number(1_000_000)\n  mail(user, otp)\nend\n", false),
+        ("ast.insecure-random-for-code", "ruby", "def send_otp(user)\n  otp = SecureRandom.rand(1_000_000)\n  mail(user, otp)\nend\n", false),
+        ("ast.insecure-random-for-code", "ruby", "def roll\n  face = rand(1..6)\n  face\nend\n", false),
+        ("ast.insecure-random-for-code", "csharp", "class A { void SendOtp() { var otp = new Random().Next(100000, 999999); Mail(otp); } }", true),
+        ("ast.insecure-random-for-code", "csharp", "class A { int MakeRecoveryCode() { return Random.Shared.Next(1000000); } }", true),
+        ("ast.insecure-random-for-code", "csharp", "class A { void SendOtp() { var otp = RandomNumberGenerator.GetInt32(100000, 999999); Mail(otp); } }", false),
+        ("ast.insecure-random-for-code", "csharp", "class A { int Roll() { var face = new Random().Next(1, 7); return face; } }", false),
+        ("ast.insecure-random-for-code", "dart", "void sendOtp() { final otp = Random().nextInt(900000) + 100000; mail(otp); }", true),
+        ("ast.insecure-random-for-code", "dart", "void sendOtp() { final otp = Random.secure().nextInt(900000) + 100000; mail(otp); }", false),
+        ("ast.insecure-random-for-code", "dart", "void roll() { final face = Random().nextInt(6) + 1; show(face); }", false),
+        ("ast.insecure-random-for-code", "c", "void notify(struct user *u) { int otp = rand() % 1000000; mail(u, otp); }", true),
+        ("ast.insecure-random-for-code", "c", "int roll(void) { int face = rand() % 6 + 1; return face; }", false),
+        ("ast.insecure-random-for-code", "cpp", "void notify(User& u) { int otp = std::rand() % 1000000; mail(u, otp); }", true),
+        ("ast.insecure-random-for-code", "cpp", "int roll() { int face = std::rand() % 6 + 1; return face; }", false),
+        ("ast.insecure-random-for-code", "shell", "notify() {\n  otp=$RANDOM\n  mail \"$1\" \"$otp\"\n}\n", true),
+        ("ast.insecure-random-for-code", "shell", "make_reset_code() {\n  echo \"${RANDOM}${RANDOM}\"\n}\n", true),
+        ("ast.insecure-random-for-code", "shell", "backoff() {\n  delay=$RANDOM\n  sleep $((delay % 5))\n}\n", false),
         ("ast.check-passes-on-error", "python", "def verify_token(t):\n    try:\n        jwt.decode(t, KEY, algorithms=['HS256'])\n        return True\n    except Exception:\n        return True\n", true),
         ("ast.check-passes-on-error", "python", "class Perms:\n    @staticmethod\n    def has_permission(user, thing):\n        try:\n            return lookup(user, thing)\n        except KeyError:\n            log.warning('no entry')\n            return True\n", true),
         ("ast.check-passes-on-error", "python", "def verify_token(t):\n    try:\n        jwt.decode(t, KEY, algorithms=['HS256'])\n        return True\n    except Exception:\n        return False\n", false),
@@ -6754,6 +6883,7 @@ mod tests {
             "ast.token-key-source-from-token",
             "ast.account-found-by-provider-email",
             "ast.check-passes-on-error",
+            "ast.insecure-random-for-code",
         ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {
