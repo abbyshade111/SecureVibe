@@ -46,10 +46,20 @@ another session is not a claim.
   3. **Adopting the list as a framework `sv` cites:** this session recommends not now, and looking again at its v1.0
      release (planned for the fourth quarter of 2026). **The owner agreed.**
 
+  **securevibe-e2's reading, done the same day** (#901, merged before the owner's decision below reached it; its
+  document was then replaced by securevibe-e9's, as the owner decided, keeping its extra point), read from the project's own repository at `d6f7d7d`, since
+  owasp.org is blocked here. The list is about the skills AI agents load, not the apps they build; it is in public
+  review, lists risks rather than requirements, and its ASVS links use ASVS 4.0's chapters. Where it meets `sv`: apps
+  that are agents (AISVS C9.3.1, C9.3.7, C10.4.8, C10.1.1, and V1.5.2, the last two already checked), and `sv` itself
+  as a tool an agent uses. **Four proposals, none built, each the owner's:** (1) do not load it as a framework until
+  version 1 is out; (2) look for invisible characters in the project's instruction files (`SKILL.md`, `AGENTS.md`,
+  `CLAUDE.md`, `.cursor/rules`); (3) say what a committed `.claude/settings.json` would run (hooks, a different
+  `ANTHROPIC_BASE_URL`), which `sv` leaves out today on purpose; (4) nothing new for C9.3.7 and C10.4.8 beyond the
+  usual coverage work.
   **Two sessions claimed this item, eight minutes apart** (securevibe-e9 at 12:42 UTC in #898, securevibe-e2 at 12:50
   UTC in #900, before #898 reached `main`), and both wrote the document. **The owner's decision, 7 October 2026:** keep
   securevibe-e9's (#899), on whose proposals the owner had already answered, and add the one point securevibe-e2's
-  (#901) had that it lacked: the AISVS requirements nearest the list that no check credits (C10.4.8, and C9.3.7, which
+  (#901) had that it lacked. #901 reached `main` first; its document is replaced by this one: the AISVS requirements nearest the list that no check credits (C10.4.8, and C9.3.7, which
   is only ever found failing).
   **The owner's answers to the three proposals, 7 October 2026:** "yes to 1 and 2, agree on 3". Proposals 1 and 2 are to
   be built; the list is not adopted for now.
@@ -68,6 +78,13 @@ another session is not a claim.
   policy without `object-src 'none'`, `base-uri 'none'`, or a `default-src` or `script-src`; the rule cites V11.4.2
   beside V11.4.4. **Record, `Status: proposed`: ADR-047** for the first, and a "Later" entry on ADR-018 for the second,
   in the pull request that builds them. Read on `main` just before this claim: no other session had claimed either.
+  **Done the same day** (DESIGN, "V3.4.3's directives, and V11.4.2 for stored passwords"; ADR-047, accepted). A policy
+  without `object-src 'none'` (or `default-src 'none'` in its place), `base-uri 'none'`, or a `default-src` or
+  `script-src` is named in both header checks' findings, on public and private pages. Eight guards broken in turn, each
+  caught. The V11.4.2 half was built by session paper-facts in #896 (ADR-048), which claimed the same decision unseen
+  (#888) and merged first; this item's pull request (#889) keeps that version. The shown `security-headers` prompt asks
+  for neither directive, so a build made with it now gets this finding; whether to change its words is for a prompt
+  trial.
 
 - **A review of the code merged on 1 to 4 October 2026, for faults.** Asked for by the owner on 6 October 2026, after
   the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read

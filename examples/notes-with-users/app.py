@@ -68,7 +68,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         if not any(name == "Content-Type" for name, _ in headers):
             self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Content-Security-Policy", "default-src 'self'")
+        self.send_header("Content-Security-Policy", "default-src 'self'; object-src 'none'; base-uri 'none'")
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         # `same-origin`, not `no-referrer`: both keep this app's addresses from other sites, but

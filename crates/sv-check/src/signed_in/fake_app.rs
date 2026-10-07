@@ -436,6 +436,8 @@ pub(super) struct Flaws {
     /// Private pages come back without the headers a browser relies on (Content-Security-Policy,
     /// X-Content-Type-Options, a framing rule, Referrer-Policy).
     pub(super) private_page_no_headers: bool,
+    /// Its private pages send a Content-Security-Policy without `base-uri 'none'` (V3.4.3; ADR-047).
+    pub(super) private_page_policy_without_base_uri: bool,
     /// Private pages carry no link or form pointing at the sign-out address — but do name it
     /// in a script, which is what a page built by JavaScript looks like and what a check
     /// searching the whole page for the text would wrongly credit.
@@ -1693,7 +1695,12 @@ impl FakeApp {
                         headers.extend([
                             (
                                 "Content-Security-Policy",
-                                "default-src 'self'; frame-ancestors 'none'".to_string(),
+                                if self.flaws.private_page_policy_without_base_uri {
+                                    "default-src 'self'; object-src 'none'; frame-ancestors 'none'"
+                                } else {
+                                    "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+                                }
+                                .to_string(),
                             ),
                             ("X-Content-Type-Options", "nosniff".to_string()),
                             ("Referrer-Policy", "no-referrer".to_string()),
