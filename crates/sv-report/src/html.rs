@@ -58,6 +58,7 @@ fn status_class(status: Status) -> &'static str {
     match status {
         Status::NeedsAttention => "needs-attention",
         Status::Checked => "checked",
+        Status::CheckedInPart => "checked-in-part",
         Status::AppTested => "app-tested",
         Status::Documented => "documented",
         Status::Attested => "attested",
@@ -312,7 +313,7 @@ pub fn page(report: &Report) -> String {
             let class = status_class(line.status);
             let detail = match line.status {
                 Status::NeedsAttention => format!(" ({})", line.findings.join(", ")),
-                Status::Checked => format!(
+                Status::Checked | Status::CheckedInPart => format!(
                     " ({})",
                     line.checked_by
                         .iter()

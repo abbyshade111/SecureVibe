@@ -5090,6 +5090,13 @@ fn summary_counts(c: &sv_report::Counts) -> String {
                     "were checked by an automated check"
                 }
             }
+            Status::CheckedInPart => {
+                if n == 1 {
+                    "was checked in part: an automated check tried some of what it asks"
+                } else {
+                    "were checked in part: an automated check tried some of what each asks"
+                }
+            }
             Status::AppTested => {
                 if n == 1 {
                     "was tested only by your app's own tests: your AI coding tool's, not sv's"

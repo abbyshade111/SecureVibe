@@ -142,6 +142,14 @@ health = "/"              # a path that returns 200 once the app is up
 #   one of the thing to take, which either user could take (set it up in `seed`), and nothing else in
 #   the run may take it. A `private` page is needed, to show both users were signed in.
 # owned = { create = { path = "/notes", form = { text = "{marker}", csrf_token = "{csrf}" } }, read = "/notes/{id}" }
+#   `owned`: a record one user creates that nobody else may see. The second test user is refused
+#   reading it, and also looks for it on every `private` page and at `list`, the page that lists a
+#   user's own records. Add `update` and `delete`, the requests that change and delete a record
+#   (`{id}` for which one, `{marker}` for the new text), and the second user tries each on the first
+#   user's record: V8.2.2 is checked only when changing or deleting was refused too, and checked in
+#   part when only reading was tried. For example, inside the braces above:
+#   list = "/my-notes", update = { path = "/notes/{id}/edit", form = { text = "{marker}", csrf_token = "{csrf}" } },
+#   delete = { path = "/notes/{id}/delete", form = { csrf_token = "{csrf}" } }
 # creates = [{ path = "/comments", form = { text = "{marker}", csrf_token = "{csrf}" } }]
 #   Other requests that each create a record, held to `requests-per-minute` under [policy] as
 #   `owned`'s create is; `{marker}` where a value must differ from one record to the next.

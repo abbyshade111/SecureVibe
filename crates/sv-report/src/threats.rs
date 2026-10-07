@@ -405,7 +405,9 @@ pub fn evaluate(
         for id in t.requirements.iter().map(|c| &c.id) {
             match requirements.iter().find(|r| &r.id == id).map(|r| r.status) {
                 Some(Status::NeedsAttention) => line.found.push(id.clone()),
-                Some(Status::Checked) => line.checked.push(id.clone()),
+                // Checked in part counts toward the threat as checked does: a threat is only ever
+                // *checked in part* by its requirements' checks, and says so.
+                Some(Status::Checked | Status::CheckedInPart) => line.checked.push(id.clone()),
                 Some(Status::AppTested) => line.app_tested.push(id.clone()),
                 Some(Status::Documented) => line.documented.push(id.clone()),
                 Some(Status::Attested) => line.attested.push(id.clone()),

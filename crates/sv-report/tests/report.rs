@@ -359,6 +359,75 @@ fn the_app_s_own_tests_are_a_tier_below_a_check_of_sv_s() {
 }
 
 #[test]
+fn checked_in_part_is_its_own_row_in_every_format_and_never_checked() {
+    // ADR-053. A requirement whose only credit tried part of what it asks is *checked in part*,
+    // counted apart and never as *checked*. The control: the same requirement with a whole check
+    // satisfied as well is *checked*, the partial one still shown beside it.
+    let f = frameworks();
+    let buckets = Buckets {
+        applicable: vec!["V1.2.1".into()],
+        ..Default::default()
+    };
+    let part = vec![
+        Verified::new(
+            "probe.other-users-data",
+            &["V1.2.1"],
+            "a record refused to a second test user".to_owned(),
+        )
+        .in_part(),
+    ];
+    let report = build(inputs(&f, &buckets, vec![], &part));
+    let line = &report.requirements[0];
+    assert_eq!(line.status, Status::CheckedInPart, "{line:?}");
+    assert!(line.checked_by.iter().all(|c| c.in_part), "{line:?}");
+    assert_eq!(
+        (report.counts.checked, report.counts.checked_in_part),
+        (0, 1)
+    );
+    assert_eq!(report.counts.looked_at_by_a_check(), 1, "a check did look");
+    let markdown = sv_report::markdown::compliance(&report);
+    let html = sv_report::html::page(&report);
+    let md_row = markdown
+        .lines()
+        .find(|l| l.starts_with("| Applies, checked in part"))
+        .unwrap_or_else(|| panic!("no row for it in:\n{markdown}"));
+    assert!(md_row.trim_end().ends_with("| 1 |"), "{md_row}");
+    assert!(html.contains("Applies, checked in part"), "{html}");
+    assert!(
+        markdown.contains("tried part of what each asks"),
+        "the short version lists it:\n{markdown}"
+    );
+    assert!(
+        markdown.contains("| checked in part"),
+        "the chapter table has its column when any chapter has one:\n{markdown}"
+    );
+    assert_eq!(
+        report
+            .counts
+            .by_status()
+            .iter()
+            .map(|(_, n)| n)
+            .sum::<usize>(),
+        report.counts.applicable
+    );
+
+    let mut both = part.clone();
+    both.push(Verified::new(
+        "ast.sql",
+        &["V1.2.1"],
+        "the files this rule reads".to_owned(),
+    ));
+    let report = build(inputs(&f, &buckets, vec![], &both));
+    let line = &report.requirements[0];
+    assert_eq!(line.status, Status::Checked);
+    assert_eq!(line.checked_by.len(), 2, "both shown: {line:?}");
+    assert_eq!(
+        (report.counts.checked, report.counts.checked_in_part),
+        (1, 0)
+    );
+}
+
+#[test]
 fn a_test_naming_a_requirement_tests_cannot_show_only_supports_it() {
     // ADR-050. A requirement asking for documentation, a deployment setting, or a process is left
     // off the tests to write because a test cannot show it, so a test naming one is supporting
