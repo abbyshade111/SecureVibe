@@ -20,6 +20,11 @@ another session is not a claim.
   policy without `object-src 'none'`, `base-uri 'none'`, or a `default-src` or `script-src`; the rule cites V11.4.2
   beside V11.4.4. **Record, `Status: proposed`: ADR-047** for the first, and a "Later" entry on ADR-018 for the second,
   in the pull request that builds them. Read on `main` just before this claim: no other session had claimed either.
+  **Done the same day** (DESIGN, "V3.4.3's directives, and V11.4.2 for stored passwords"; ADR-047, accepted; ADR-018,
+  Later). A policy without `object-src 'none'` (or `default-src 'none'` in its place), `base-uri 'none'`, or a
+  `default-src` or `script-src` is named in both header checks' findings, on public and private pages; the PBKDF2 rule
+  cites V11.4.2 beside V11.4.4. Eight guards broken in turn, each caught. The shown `security-headers` prompt asks for
+  neither directive, so a build made with it now gets this finding; whether to change its words is for a prompt trial.
 
 - **A review of the code merged on 1 to 4 October 2026, for faults.** Asked for by the owner on 6 October 2026, after
   the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read

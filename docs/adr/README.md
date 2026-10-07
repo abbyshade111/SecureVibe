@@ -90,7 +90,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-044](ADR-044.md) | The coding prompts shown to work reach the AI tool when it builds what they are for |
 | [ADR-045](ADR-045.md) | The app's own tools are called in a loop only when the owner marks them read-only |
 | [ADR-046](ADR-046.md) | Compressed archives sent to the upload, to the limits the owner states |
-| [ADR-047](ADR-047.md) | V3.4.3 is credited only for a Content-Security-Policy with the directives it names (proposed) |
+| [ADR-047](ADR-047.md) | V3.4.3 is credited only for a Content-Security-Policy with the directives it names |
 
 ## Where v1's records disagree with what v1 built
 
