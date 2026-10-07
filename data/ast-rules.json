@@ -434,14 +434,15 @@
       },
       "argumentPatterns": {
         "swift": "^(atPath|contentsOfFile|contentsOf|forReadingAtPath|forWritingAtPath|forUpdatingAtPath|at|toFile)\\s*:",
-        "shell": "^(QUERY_STRING|PATH_INFO|PATH_TRANSLATED|REQUEST_URI|HTTP_[A-Z_]+)$"
+        "shell": "^(QUERY_STRING|PATH_INFO|PATH_TRANSLATED|REQUEST_URI|HTTP_[A-Z_]+)$|\\$\\{?(QUERY_STRING|PATH_INFO|PATH_TRANSLATED|REQUEST_URI|HTTP_[A-Z_]+)\\b"
       },
       "looksFor": "a file opened, written, or deleted at a path built from a value rather than written out",
       "looksForIn": {
-        "shell": "only commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not looked at",
+        "shell": "only commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar), or from a variable the same function (or the script, outside any function) sets from one; a path from any other variable is not looked at",
         "javascript": "a file opened, written, or deleted at a path built from a value, through Node's file calls (`readFile`, `writeFile`, `appendFile`, `createReadStream`, `createWriteStream`, `unlink`, `rm`, and their `Sync` forms) on `fs`, `fs.promises`, or `fsp`, the same calls imported on their own from `fs/promises`, and Express's `res.sendFile` and `res.download`",
         "typescript": "a file opened, written, or deleted at a path built from a value, through Node's file calls (`readFile`, `writeFile`, `appendFile`, `createReadStream`, `createWriteStream`, `unlink`, `rm`, and their `Sync` forms) on `fs`, `fs.promises`, or `fsp`, the same calls imported on their own from `fs/promises`, and Express's `res.sendFile` and `res.download`"
-      }
+      },
+      "argumentNamesRead": true
     },
     {
       "id": "ast.weak-hash-function",
