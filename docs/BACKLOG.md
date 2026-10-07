@@ -3901,6 +3901,10 @@ another session is not a claim.
       `claude/securevibe-e9-static-more`: each handler read from its framework's own source, with a found and a
       not-found witness each. PHP code itself, and a folder named in settings or built at run time, stay unclaimed.
       Read on `main` just before this claim: no other session had claimed them.
+      **Done the same day** (DESIGN, "Static files from the app's folder: Rack's `Static` with no root, Spark, and
+      Ktor"). Each handler is read from its framework's own source, with found and not-found witnesses in Ruby, Java,
+      and Kotlin. Ktor's older `static { files(".") }` is left out, since `staticRootFolder` can make `.` a folder of
+      the app's own.
   11. **The file half of C4.1.2: model files committed in a format that runs code when loaded.** Left from item 3,
       whose code rule (`ast.model-loaded-with-pickle`) reads the loading calls. Model files in the app's folder
       (`.pt`, `.pth`, `.ckpt`, `.bin`, `.pkl`, `.pickle`, `.joblib`) judged by their own bytes: a pickle's opening
