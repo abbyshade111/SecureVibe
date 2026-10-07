@@ -792,6 +792,14 @@ def main():
     def supports_only(q):
         return bool(tiers(q)) and not settles(q)
 
+    def credited(q):
+        """A check can mark q *checked*, not only *needs attention* (gap analysis 1.8): one of `sv`'s
+        own that is not only ever a finding, or a tool with some rule a clean run credits to q."""
+        sv_only = {r for tool, r in FINDINGS_ONLY.get(q, ()) if tool == "sv"}
+        return settles(q) and any(
+            c in CREDITED_BY_TOOL[q] if tier == "tools" else c not in sv_only
+            for tier, checks in ev[q].items() for c in checks)
+
     out = []
     w = out.append
 
@@ -802,6 +810,9 @@ def main():
     w("- **Can settle**: at least one check can mark the requirement *checked* or *needs attention*.")
     w("  A check is almost always about part of a requirement: a clean result is one automated check")
     w("  that was satisfied, not a pass.")
+    w("- **Can be credited**: of those, the ones a check can mark *checked*. The rest can only ever be")
+    w("  found failing: a check can show the control missing, and finding nothing does not show it")
+    w("  present, so a clean run credits nothing for them.")
     w("- **Supporting only**: a check speaks to it, but the requirement asks something no check can")
     w("  answer, such as a documented policy or a design decision. The check is shown beside it and")
     w("  a person still has to answer it. No Secure by Design control is ever settled by a check: each")
@@ -826,13 +837,14 @@ def main():
         n = len(reqs)
         s = sum(settles(q) for q in reqs)
         p = sum(supports_only(q) or (q.startswith("SBD-") and sbd_supported(q)) for q in reqs)
-        pct = f"{100 * s / n:.0f}%" if n else "–"
-        return f"| {name} | {n} | {s} ({pct}) | {p} | {n - s - p} |"
+        c = sum(credited(q) for q in reqs)
+        pct = lambda k: f"{100 * k / n:.0f}%" if n else "–"
+        return f"| {name} | {n} | {s} ({pct(s)}) | {c} ({pct(c)}) | {p} | {n - s - p} |"
 
     sbd_ids = [f"SBD-{c['id']}" for d in sbd["checklistDomains"] for c in d["controls"]]
     w("## Summary\n")
-    w("| Framework | Requirements | Can settle | Supporting only | Nothing |")
-    w("|---|---|---|---|---|")
+    w("| Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |")
+    w("|---|---|---|---|---|---|")
     w(summary_row("OWASP ASVS 5.0", list(asvs)))
     w(summary_row("OWASP AISVS 1.0", list(aisvs)))
     w(summary_row("AISVS Appendix C", list(appendix)))
@@ -843,15 +855,23 @@ def main():
     w("## ASVS 5.0 by level\n")
     w("A requirement reached by more than one kind of check is counted under each.\n")
     head = " | ".join(name for _, name, _ in TIERS)
-    w(f"| Level | Requirements | Can settle | {head} |")
-    w("|---|---|---|" + "---|" * len(TIERS))
+    w(f"| Level | Requirements | Can settle | Can be credited | {head} |")
+    w("|---|---|---|---|" + "---|" * len(TIERS))
     for level in sorted({v["level"] for v in asvs.values()}):
         reqs = [q for q, v in asvs.items() if v["level"] == level]
         cells = " | ".join(
             str(sum(1 for q in reqs if settles(q) and t in tiers(q))) for t, _, _ in TIERS
         )
-        w(f"| L{level} | {len(reqs)} | {sum(settles(q) for q in reqs)} | {cells} |")
+        w(f"| L{level} | {len(reqs)} | {sum(settles(q) for q in reqs)} | "
+          f"{sum(credited(q) for q in reqs)} | {cells} |")
     w("")
+    settled_asvs = [q for q in asvs if settles(q)]
+    found_only = [q for q in settled_asvs if not credited(q)]
+    w(f"{len(found_only)} of the {len(settled_asvs)} ASVS requirements that can be settled can only ever be "
+      "marked *needs attention*: a check can show the control missing, and finding nothing does not show "
+      "it present, so a clean run credits none of them. They are counted under *Can settle* and not under "
+      "*Can be credited*, and the kinds of check above count every requirement a check can settle either "
+      "way.\n")
     plain = [q for q in asvs if settles(q) and tiers(q) == ["static"]]
     only_tools = [q for q in asvs if settles(q) and tiers(q) == ["tools"]]
     w(f"With nothing beyond plain `sv check`, {sum(settles(q) and 'static' in tiers(q) for q in asvs)} "
@@ -889,15 +909,16 @@ def main():
 
     # ---- ASVS by chapter
     w("## ASVS 5.0 by chapter\n")
-    w("| Chapter | Requirements | Can settle | Supporting only | Nothing |")
-    w("|---|---|---|---|---|")
+    w("| Chapter | Requirements | Can settle | Can be credited | Supporting only | Nothing |")
+    w("|---|---|---|---|---|---|")
     chapters = defaultdict(list)
     for q, v in asvs.items():
         chapters[(v["chapter"], v["chapter_name"])].append(q)
     for (cid, name), reqs in sorted(chapters.items(), key=lambda x: int(x[0][0][1:])):
         s = sum(settles(q) for q in reqs)
+        c = sum(credited(q) for q in reqs)
         p = sum(supports_only(q) for q in reqs)
-        w(f"| {cid} {name} | {len(reqs)} | {s} | {p} | {len(reqs) - s - p} |")
+        w(f"| {cid} {name} | {len(reqs)} | {s} | {c} | {p} | {len(reqs) - s - p} |")
     w("")
 
     # ---- ASVS lists
@@ -944,15 +965,16 @@ def main():
     w("Whether these apply at all is decided from what the app says and what its code shows about AI;")
     w("most of AISVS is about how models are trained and run, which reading an application's code")
     w("does not reach.\n")
-    w("| Chapter | Requirements | Can settle | Supporting only | Nothing |")
-    w("|---|---|---|---|---|")
+    w("| Chapter | Requirements | Can settle | Can be credited | Supporting only | Nothing |")
+    w("|---|---|---|---|---|---|")
     chapters = defaultdict(list)
     for q, v in aisvs.items():
         chapters[(v["chapter"], v["chapter_name"])].append(q)
     for (cid, name), reqs in sorted(chapters.items(), key=lambda x: int(x[0][0][1:])):
         s = sum(settles(q) for q in reqs)
+        c = sum(credited(q) for q in reqs)
         p = sum(supports_only(q) for q in reqs)
-        w(f"| {cid} {name} | {len(reqs)} | {s} | {p} | {len(reqs) - s - p} |")
+        w(f"| {cid} {name} | {len(reqs)} | {s} | {c} | {p} | {len(reqs) - s - p} |")
     w("")
     settled_ai = sorted((q for q in list(aisvs) + list(appendix) if settles(q)),
                         key=lambda q: [int(x) for x in re.findall(r"\d+", q)])
@@ -1017,7 +1039,14 @@ def main():
 
     text = "\n".join(out).rstrip() + "\n"
     reach_text = reach_json(asvs, aisvs, ev, tiers, settles)
-    rows = requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only)
+    # Two readings of "a check can credit it", made separately: the count in the tables above and
+    # the kinds of run in data/reach.json. They must name the same requirements.
+    reached = set(json.loads(reach_text)["requirements"])
+    counted = {q for q in list(asvs) + list(aisvs) if credited(q)}
+    if reached != counted:
+        sys.exit("the tables and data/reach.json disagree about what a check can credit: "
+                 + ", ".join(sorted(reached ^ counted)))
+    rows = requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only, credited)
     listing_text = requirements_markdown(rows)
     if "--json" in sys.argv[1:]:
         path = Path(sys.argv[sys.argv.index("--json") + 1])
@@ -1040,19 +1069,21 @@ def main():
 # How each coverage status reads in the list, in words a person who is not a programmer reads easily.
 STATUS = {
     "settle": "Can be checked",
+    "found": "Can only be found failing",
     "support": "A check helps; a person decides",
     "none": "No check",
 }
 
 
-def requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only):
+def requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only, credited):
     """One row per ASVS and AISVS requirement: where it sits, what it asks, and what speaks to it."""
     words = check_words()
     tier_name = {t: n for t, n, _ in TIERS}
     rows = []
     for name, reqs in (("ASVS 5.0", asvs), ("AISVS 1.0", aisvs)):
         for q, v in reqs.items():
-            status = "settle" if settles(q) else "support" if supports_only(q) else "none"
+            status = ("settle" if credited(q) else "found") if settles(q) else \
+                "support" if supports_only(q) else "none"
             only = {r for _, r in FINDINGS_ONLY.get(q, ())}
             checks = []
             for t in tiers(q):
@@ -1099,6 +1130,8 @@ def requirements_markdown(rows):
     w(f"- **{STATUS['settle']}**: at least one check can mark it *checked* or *needs attention*. A check")
     w("  is almost always about part of a requirement, so a clean result is one automated check that")
     w("  was satisfied, not proof the whole requirement is met.")
+    w(f"- **{STATUS['found']}**: every check that speaks to it can show it is not met, and none can show")
+    w("  it is, so it can be marked *needs attention* and never *checked*.")
     w(f"- **{STATUS['support']}**: a check speaks to it, but it asks for something no check can settle,")
     w("  such as a documented policy or a design decision.")
     w(f"- **{STATUS['none']}**: nothing in `sv` checks it. A passing test of the app's own that names the")
@@ -1118,12 +1151,14 @@ def requirements_markdown(rows):
         mine = [r for r in rows if r["framework"] == framework]
         w(f"## OWASP {framework}\n")
         counts = Counter(r["status"] for r in mine)
-        w(f"{len(mine)} requirements: {counts['settle']} can be checked, {counts['support']} where a check "
+        w(f"{len(mine)} requirements: {counts['settle']} can be checked, {counts['found']} can only be found "
+          f"failing, {counts['support']} where a check "
           f"helps but a person decides, and {counts['none']} with no check.\n")
         for level in sorted({r["level"] for r in mine}):
             at = [r for r in mine if r["level"] == level]
             c = Counter(r["status"] for r in at)
-            w(f"### Level {level} ({len(at)} requirements, {c['settle']} can be checked)\n")
+            w(f"### Level {level} ({len(at)} requirements, {c['settle']} can be checked, {c['found']} can only "
+              "be found failing)\n")
             families = defaultdict(list)
             for r in at:
                 families[(r["family"], r["family_name"])].append(r)
