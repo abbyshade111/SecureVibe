@@ -421,4 +421,11 @@ switches off a requirement the code says applies.
   Name only what the test really covers. Nothing here can check that the test does what it says,
   and a test pointed at the wrong requirement leaves that requirement looking examined when nothing
   examined it.
+
+  Running `sv` in a CI workflow
+
+  By default a check that finds something still exits 0; only a check that could not run fails. So a
+  workflow step that runs `sv` must ask it to fail: `sv check . --fail-on attention:high` stops on
+  anything high or critical (`attention` alone on any finding), and the same flag works for
+  `sv report`. A step without it passes whatever was found.
 "#;
