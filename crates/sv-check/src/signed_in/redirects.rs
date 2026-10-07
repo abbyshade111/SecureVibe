@@ -182,6 +182,91 @@ pub(super) fn open_redirect_check(
     }
 }
 
+/// The pages `redirects` names, outside the sign-in flow: A signs in once, then asks each with the
+/// outside address in every return parameter, and each answer's `Location` is read. Only ever a
+/// finding, like the sign-in's: a page that sends the browser home has shown nothing about the
+/// pages nobody named.
+pub(super) fn page_redirect_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    account: &Account,
+    out: &mut Outcome,
+) {
+    let Some(login) = &users.login else {
+        return;
+    };
+    if users.redirects.is_empty() {
+        return;
+    }
+    let mut session = Session::default();
+    let mut csrf = None;
+    if let Some(form) = http.send(&get("redirect-pages-login-page", &login.path, &session)) {
+        session.absorb(&form);
+        csrf = csrf_token(&form, &session);
+    }
+    let values = Values {
+        user: &account.user,
+        password: &account.password,
+        csrf,
+        ..Default::default()
+    };
+    let (signed_in, _) = send_template_as(
+        http,
+        "redirect-pages-login",
+        login,
+        &values,
+        &mut session,
+        &[],
+        |_| {},
+    );
+    if !accepted(&signed_in) {
+        out.steps.push(
+            "could not sign in to give the pages `redirects` names an address outside the app, so \
+             they were not asked"
+                .to_owned(),
+        );
+        return;
+    }
+    let mut seen: Vec<String> = Vec::new();
+    for page in &users.redirects {
+        for (kind, target) in TARGETS {
+            let answer = http.send(&get(
+                &format!("redirect-page-{kind}"),
+                &with_query(page, target),
+                &session,
+            ));
+            if let Some(to) = redirect_of(&answer) {
+                seen.push(format!(
+                    "{page}, with `next` and eight other return parameters set to {}, sent the browser \
+                     to {to}",
+                    decoded(target)
+                ));
+            }
+        }
+    }
+    out.steps.push(format!(
+        "gave {} an address outside the app as `next` and eight other return parameters: {}",
+        users.redirects.join(", "),
+        if seen.is_empty() {
+            "never sent there"
+        } else {
+            "sent there"
+        }
+    ));
+    if !seen.is_empty() {
+        out.findings.push(finding(
+            &OPEN_REDIRECT,
+            "A page of the app sends the browser to any address it is given",
+            Severity::Medium,
+            format!(
+                "Given {ELSEWHERE}, a site outside the app, as the address to go on to (in `next` and \
+                 eight other parameters a return address is often read from), signed in: {}.",
+                seen.join("; ")
+            ),
+        ));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::fake_app::*;
@@ -301,5 +386,91 @@ mod tests {
             "{}",
             o.findings[0].description
         );
+    }
+
+    #[test]
+    fn a_page_named_in_redirects_that_goes_anywhere_is_found_and_one_that_stays_home_is_not() {
+        // The owner's decision, 6 October 2026: redirects outside the sign-in flow, through the pages
+        // `redirects` names.
+        let mut named = users();
+        named.redirects = vec!["/go".into()];
+        let o = run_against(
+            Flaws {
+                go_anywhere: true,
+                ..Default::default()
+            },
+            &named,
+        );
+        let page = o
+            .findings
+            .iter()
+            .find(|f| f.title == "A page of the app sends the browser to any address it is given")
+            .unwrap_or_else(|| panic!("{:?}", o.findings));
+        assert_eq!(page.rule_id, OPEN_REDIRECT.rule_id);
+        // Both forms of the outside address got through, each said.
+        assert_eq!(
+            page.description.matches("/go, with `next`").count(),
+            2,
+            "{}",
+            page.description
+        );
+        // The control: the same page sending the browser home is not a finding, and was asked.
+        let o = run_against(Flaws::default(), &named);
+        assert!(
+            !o.findings
+                .iter()
+                .any(|f| f.title.starts_with("A page of the app")),
+            "{:?}",
+            o.findings
+        );
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.starts_with("gave /go an address outside the app")
+                    && s.ends_with("never sent there")),
+            "{:?}",
+            o.steps
+        );
+        // With nothing named, nothing is asked, even of an app whose `/go` goes anywhere.
+        let o = run_against(
+            Flaws {
+                go_anywhere: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert_eq!(
+            o.steps
+                .iter()
+                .filter(|s| s.contains("an address outside the app as `next`"))
+                .count(),
+            1,
+            "only the sign-in's: {:?}",
+            o.steps
+        );
+        assert!(
+            !o.findings
+                .iter()
+                .any(|f| f.title.starts_with("A page of the app"))
+        );
+    }
+
+    #[test]
+    fn a_sign_in_that_fails_says_the_named_pages_were_not_asked() {
+        let mut named = users();
+        named.redirects = vec!["/go".into()];
+        let mut out = Outcome::default();
+        // An app with no accounts at all: the sign-in is refused.
+        let mut app = FakeApp::new(Flaws {
+            go_anywhere: true,
+            ..Default::default()
+        });
+        page_redirect_check(&mut app, &named, &accounts().a, &mut out);
+        assert!(
+            out.steps.iter().any(|s| s.contains("could not sign in")),
+            "{:?}",
+            out.steps
+        );
+        assert!(out.findings.is_empty());
     }
 }
