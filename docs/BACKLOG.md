@@ -2140,6 +2140,11 @@ another session is not a claim.
   without the file: what a feature brings, its decisions, the prompts shown to work, and the settings `sv run` needs
   are the same for every app, and only "which of them apply now" needs the file. Say that part is waiting, and give
   the rest.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-brief-before-toml`: with no `securevibe.toml`, the brief
+  (`securevibe_before` and `sv brief`) gives what the feature can bring at every level, its decisions, the prompts shown
+  to work, its coding rules, and the settings, and says that which requirements apply, and the tests to write, wait
+  for the file. Read on `main` just before this claim: no other session had claimed it.
 
 - **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
   the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
