@@ -830,11 +830,56 @@ fn page_name(response: &ProbeResponse) -> &'static str {
     }
 }
 
+/// What a Content-Security-Policy lacks of the minimum V3.4.3 names: `object-src 'none'`,
+/// `base-uri 'none'`, and an allowlist (ADR-047). `object-src` left out falls back to
+/// `default-src`, so `default-src 'none'` stands in for it; nothing stands in for `base-uri`.
+fn policy_short_of_v3_4_3(policy: &str) -> Vec<&'static str> {
+    let directives: Vec<(String, Vec<String>)> = policy
+        .split(';')
+        .filter_map(|d| {
+            let mut words = d.split_whitespace().map(str::to_lowercase);
+            Some((words.next()?, words.collect()))
+        })
+        .collect();
+    let values = |name: &str| {
+        directives
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, v)| v.as_slice())
+    };
+    let only_none = |v: Option<&[String]>| v.is_some_and(|v| v == ["'none'"]);
+    let mut short = Vec::new();
+    let object_none = match values("object-src") {
+        Some(v) => only_none(Some(v)),
+        None => only_none(values("default-src")),
+    };
+    if !object_none {
+        short.push(
+            "`object-src 'none'` in its Content-Security-Policy, which stops plug-in content \
+             running",
+        );
+    }
+    if !only_none(values("base-uri")) {
+        short.push(
+            "`base-uri 'none'` in its Content-Security-Policy, which stops an injected `<base>` \
+             tag moving where the page's scripts load from",
+        );
+    }
+    if values("default-src").is_none() && values("script-src").is_none() {
+        short.push(
+            "a `default-src` or `script-src` in its Content-Security-Policy, the list of where \
+             scripts may come from",
+        );
+    }
+    short
+}
+
 /// The headers one answer lacks.
 pub(crate) fn missing_headers(response: &ProbeResponse) -> Vec<&'static str> {
     let mut missing = Vec::new();
-    if response.header("content-security-policy").is_none() {
-        missing.push("Content-Security-Policy, which limits what a page may load and run");
+    match response.header("content-security-policy") {
+        None => missing.push("Content-Security-Policy, which limits what a page may load and run"),
+        Some(policy) => missing.extend(policy_short_of_v3_4_3(policy)),
     }
     if response.header("x-content-type-options").is_none() {
         missing.push("X-Content-Type-Options, which stops a browser guessing a file's type");
@@ -1768,7 +1813,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "default-src 'self'; frame-ancestors 'none'; report-uri /csp-reports",
+                    "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; report-uri /csp-reports",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "strict-origin-when-cross-origin"),
@@ -1787,6 +1832,62 @@ mod tests {
         // act on, because every app looks equally bad.
         let findings = evaluate(&[good_home()]);
         assert!(findings.is_empty(), "{findings:?}");
+    }
+
+    #[test]
+    fn a_policy_short_of_what_v3_4_3_names_is_found_for_what_it_lacks() {
+        // V3.4.3's minimum: `object-src 'none'`, `base-uri 'none'`, and an allowlist (ADR-047).
+        let with = |policy: &str| {
+            let mut home = good_home();
+            home.headers.retain(|(k, _)| k != "content-security-policy");
+            home.headers
+                .push(("content-security-policy".into(), policy.into()));
+            evaluate(&[home])
+                .into_iter()
+                .find(|f| f.rule_id == SECURITY_HEADERS.rule_id)
+                .map(|f| f.description)
+        };
+        // The setup: the full policy passes, so each case below differs by what it leaves out.
+        let full = "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; report-uri /r";
+        assert_eq!(with(full), None);
+        for (policy, lacks) in [
+            (
+                "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+                "`object-src 'none'`",
+            ),
+            (
+                "default-src 'self'; object-src 'self'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+                "`object-src 'none'`",
+            ),
+            (
+                "default-src 'self'; object-src 'none' 'self'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+                "`object-src 'none'`",
+            ),
+            (
+                "default-src 'self'; object-src 'none'; frame-ancestors 'none'; report-uri /r",
+                "`base-uri 'none'`",
+            ),
+            (
+                "default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; report-uri /r",
+                "`base-uri 'none'`",
+            ),
+            (
+                "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+                "`default-src` or `script-src`",
+            ),
+        ] {
+            let said = with(policy).unwrap_or_else(|| panic!("{policy} was not found"));
+            assert!(said.contains(lacks), "{policy}: {said}");
+        }
+        // `default-src 'none'` is what a browser falls back to for `object-src`, and `script-src`
+        // is an allowlist as `default-src` is; capitals are read as a browser reads them.
+        for fine in [
+            "default-src 'none'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+            "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+            "DEFAULT-SRC 'self'; Object-Src 'NONE'; base-uri 'none'; frame-ancestors 'none'; report-uri /r",
+        ] {
+            assert_eq!(with(fine), None, "{fine}");
+        }
     }
 
     #[test]
@@ -1813,7 +1914,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "frame-ancestors 'none'; report-to csp",
+                    "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; report-to csp",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "no-referrer"),
@@ -1834,7 +1935,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "default-src 'self'; frame-ancestors 'none'; report-to csp",
+                    "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; report-to csp",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
             ],
@@ -1858,7 +1959,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "default-src 'self'; frame-ancestors 'none'",
+                    "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "no-referrer"),
@@ -1894,7 +1995,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "default-src 'self'; frame-ancestors 'none'",
+                    "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "no-referrer"),
@@ -3474,8 +3575,8 @@ mod tests {
     #[test]
     fn a_policy_that_reports_nowhere_is_found_and_one_that_reports_credited() {
         for policy in [
-            "default-src 'self'; frame-ancestors 'none'",
-            "frame-ancestors 'none'",
+            "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+            "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         ] {
             let mut home = good_home();
             home.headers.retain(|(k, _)| k != "content-security-policy");
@@ -3609,7 +3710,7 @@ mod tests {
             &[
                 (
                     "Content-Security-Policy",
-                    "script-src 'self'; frame-ancestors 'self'",
+                    "script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'self'",
                 ),
                 ("X-Content-Type-Options", "nosniff"),
                 ("Referrer-Policy", "no-referrer"),

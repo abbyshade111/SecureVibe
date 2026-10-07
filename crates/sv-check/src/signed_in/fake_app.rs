@@ -1693,7 +1693,7 @@ impl FakeApp {
                         headers.extend([
                             (
                                 "Content-Security-Policy",
-                                "default-src 'self'; frame-ancestors 'none'".to_string(),
+                                "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'".to_string(),
                             ),
                             ("X-Content-Type-Options", "nosniff".to_string()),
                             ("Referrer-Policy", "no-referrer".to_string()),
