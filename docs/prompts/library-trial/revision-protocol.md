@@ -72,7 +72,9 @@ the size before the run; the run stops if the first ten average more than $0.60.
    AI feature answered; the scorer now says so (`score_revision.py`). Found because Sonnet's `isolate-the-window` came
    out "0 of 0": its rules only ever report a finding, so the builds it fixed were counted as not asked. A build with
    the problem always has a finding, so no count of builds with the problem and no verdict changed, only the totals.
-   The earlier trials' totals for such rules were too small in the same way, and their verdicts stand for the same
-   reason.
+   The earlier trials' totals for such rules were too small in the same way. Recounted the same day: the prompt-library
+   trial's verdicts stand (its rule counts builds, as this one's does), but the delivery and at-start tests judge by
+   shares, and in each the verdict for `private-pages-no-store` on Haiku moves from "not shown" to "no reading" (3 of
+   7 and 3 of 8 builds without it had the problem, under half). Corrected in `delivery.md` and `start.md`.
 3. **7 October 2026, while scoring: `security-contact`'s check.** The library lists no rule for it, since it credits
    nothing; as this protocol's table says, it is scored by `config.security-contact`, as a check of the code.

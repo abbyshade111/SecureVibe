@@ -7716,6 +7716,7 @@ done: `docs/adr/ADR-018.md`.
 - **The earlier trials' totals for running checks that only report findings were too small.** Found on 7 October 2026
   by session paper-facts (the revision protocol's Amendment 2): the scorers of the prompt-library, delivery and at-start
   tests counted a running check as asked only when one of its rules said something, where `protocol.md` says when the
-  app started, so a build the prompt had fixed was left out of the total. No verdict changes, since a build with the
-  problem always has a finding; the "of N" figures in `README.md`, `delivery.md` and `start.md` for such rules should be
-  recounted and corrected.
+  app started, so a build the prompt had fixed was left out of the total. Recounted the same day: the prompt-library
+  trial's verdicts stand (its rule counts builds), but the delivery and at-start tests judge by shares, and in each
+  `private-pages-no-store` on Haiku moves from "not shown" to "no reading". The "of N" figures in `README.md`,
+  `delivery.md` and `start.md`, and those two verdicts, are to be corrected.

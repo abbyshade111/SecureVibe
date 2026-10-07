@@ -16,7 +16,8 @@ builds. No transcript holds the key.
    something.** The protocol says a running check could be asked when the app started. For a rule that only ever
    reports a finding, the old count left out every build the prompt had fixed: Sonnet's `isolate-the-window` came
    out as "0 of 0". Scored now by the protocol's words. A build with the problem always has a finding, so this
-   changes no count of builds with the problem and no verdict, only the totals they are counted against.
+   changes no count of builds with the problem and no verdict here, only the totals. The delivery and at-start tests
+   judge by shares, so there it moves one verdict each (Amendment 2).
 
 ## Results, by the protocol's rule
 
