@@ -26,6 +26,8 @@ pub struct Chapter<'a> {
     pub name: String,
     pub needs_attention: usize,
     pub checked: usize,
+    /// Checked only in part (ADR-053): never counted as checked.
+    pub checked_in_part: usize,
     /// Passed the app's own tests and nothing more (ADR-050): never counted as checked.
     pub app_tested: usize,
     /// Documented, attested, or checked by hand: the owner's word, or a confirmer's, never a check.
@@ -110,6 +112,7 @@ pub fn by_chapter(report: &Report) -> Vec<Chapter<'_>> {
             name: name.to_owned(),
             needs_attention: 0,
             checked: 0,
+            checked_in_part: 0,
             app_tested: 0,
             your_word: 0,
             tool_word: 0,
@@ -139,6 +142,7 @@ pub fn by_chapter(report: &Report) -> Vec<Chapter<'_>> {
         match line.status {
             Status::NeedsAttention => c.needs_attention += 1,
             Status::Checked => c.checked += 1,
+            Status::CheckedInPart => c.checked_in_part += 1,
             Status::AppTested => c.app_tested += 1,
             Status::Documented | Status::Attested | Status::ByHand => c.your_word += 1,
             Status::Stated => c.tool_word += 1,

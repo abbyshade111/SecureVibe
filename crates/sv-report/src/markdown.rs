@@ -101,7 +101,7 @@ fn status_cell(line: &crate::RequirementLine) -> String {
         Status::NeedsAttention => {
             format!("**{}** ({})", line.status.label(), line.findings.join(", "))
         }
-        Status::Checked => format!(
+        Status::Checked | Status::CheckedInPart => format!(
             "{} ({})",
             line.status.label(),
             line.checked_by
@@ -642,6 +642,7 @@ fn requirements_by_chapter(out: &mut String, report: &Report) {
     let chapters = crate::chapters::by_chapter(report);
     let any = |f: &dyn Fn(&crate::chapters::Chapter) -> usize| chapters.iter().any(|c| f(c) > 0);
     let app_tested = any(&|c| c.app_tested);
+    let in_part = any(&|c| c.checked_in_part);
     let your_word = any(&|c| c.your_word);
     let tool_word = any(&|c| c.tool_word);
     out.push_str(
@@ -651,6 +652,10 @@ fn requirements_by_chapter(out: &mut String, report: &Report) {
     );
     let mut head = String::from("| chapter | apply | a problem found | checked");
     let mut rule = String::from("|---|---:|---:|---:");
+    if in_part {
+        head.push_str(" | checked in part");
+        rule.push_str("|---:");
+    }
     if app_tested {
         head.push_str(" | the app's own tests, not a check");
         rule.push_str("|---:");
@@ -675,6 +680,9 @@ fn requirements_by_chapter(out: &mut String, report: &Report) {
             c.needs_attention,
             c.checked
         );
+        if in_part {
+            row.push_str(&format!(" | {}", c.checked_in_part));
+        }
         if app_tested {
             row.push_str(&format!(" | {}", c.app_tested));
         }

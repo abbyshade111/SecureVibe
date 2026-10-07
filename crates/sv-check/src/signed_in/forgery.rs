@@ -570,6 +570,9 @@ mod tests {
             },
             read: Some("/api/notes/{id}".into()),
             id_field: None,
+            list: None,
+            update: None,
+            delete: None,
         });
         u
     }

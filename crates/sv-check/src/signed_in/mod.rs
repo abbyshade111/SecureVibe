@@ -921,7 +921,17 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     (ROLE_FIELD.rule_id, &["role-admin-"]),
     (
         OTHER_USERS_DATA.rule_id,
-        &["login-b", "owned-b", "owned-anonymous"],
+        &[
+            "login-b",
+            "owned-b",
+            "owned-anonymous",
+            // ADR-053: the lists the second user opens, the change and delete they send, and the
+            // first user's read-back after each. A crashed change or delete is not one refused.
+            "owned-b-list-",
+            "owned-b-update",
+            "owned-b-delete",
+            "owned-a-after-",
+        ],
     ),
     (FORGERY.rule_id, &["forged-create"]),
     (STEP_SKIPPED.rule_id, &["flow-flow-b"]),
@@ -3186,6 +3196,35 @@ mod crash_tests {
             max_files: Some(ARCHIVE_FILE_LIMIT),
         });
         vec![
+            // Each of ADR-053's three on its own, so that crashing any one request is tried
+            // against a run where that finding is the only one standing between it and a pass.
+            Scenario::new(
+                "another user's record listed",
+                Flaws {
+                    list_shows_others: true,
+                    ..Default::default()
+                },
+                users_full(),
+                true,
+            ),
+            Scenario::new(
+                "another user's record changed",
+                Flaws {
+                    idor_update: true,
+                    ..Default::default()
+                },
+                users_full(),
+                true,
+            ),
+            Scenario::new(
+                "another user's record deleted",
+                Flaws {
+                    idor_delete: true,
+                    ..Default::default()
+                },
+                users_full(),
+                true,
+            ),
             Scenario::new(
                 "seeded",
                 Flaws {

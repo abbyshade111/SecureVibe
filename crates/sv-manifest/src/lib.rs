@@ -531,6 +531,21 @@ pub struct OwnedSection {
     /// The field of a JSON create response holding the new id. Defaults to `id`.
     #[serde(default)]
     pub id_field: Option<String>,
+    /// Where a signed-in user's records are listed (`/notes`, `/api/notes`). The second user opens it,
+    /// as they open every `private` page, and the first user's record shown there is a finding
+    /// (V8.2.2, ADR-053).
+    #[serde(default)]
+    pub list: Option<String>,
+    /// Changes a record, with `{id}` for which and `{marker}` where the new text goes. Sent by the
+    /// second user at the first user's record; the first user then reads it back, and the change
+    /// showing there is a finding (V8.2.2, ADR-053).
+    #[serde(default)]
+    pub update: Option<RequestTemplate>,
+    /// Deletes a record, with `{id}` for which. Sent by the second user at the first user's record,
+    /// last of all; the first user then reads it back, and the record gone is a finding (V8.2.2,
+    /// ADR-053).
+    #[serde(default)]
+    pub delete: Option<RequestTemplate>,
 }
 
 /// `[stack.run.users]`: how the probes get two ordinary users (and optionally an admin), sign in as

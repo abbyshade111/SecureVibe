@@ -718,6 +718,80 @@ pub(super) fn owned_checks(
     if holds_marker(&as_nobody) {
         leaked_to.push("somebody not signed in");
     }
+
+    // Where apps most often show one person's data to another: their lists. The second user opens
+    // every private page and the record's list, and the first user's marker in any of them is the
+    // record shown to somebody else (ADR-053).
+    let mut listed = Vec::new();
+    let mut looked = Vec::new();
+    if let Some(b) = &b {
+        let mut places = users.private.clone();
+        if let Some(list) = owned.list.as_ref().filter(|l| !places.contains(l)) {
+            places.push(list.clone());
+        }
+        for (i, place) in places.iter().enumerate() {
+            let seen = http.send(&get(&format!("owned-b-list-{i}"), place, &b.session));
+            if ok(&seen) {
+                looked.push(place.clone());
+            }
+            if holds_marker(&seen) {
+                listed.push(place.clone());
+            }
+        }
+    }
+
+    // Changing and deleting it, as the second user, when securevibe.toml says how. What decides is
+    // what the first user then reads back, not what the second was told: `Some(true)` the change or
+    // the deletion took, `Some(false)` it did not, `None` the read-back said neither (ADR-053).
+    let id = created.as_ref().and_then(|c| record_id(owned, c));
+    let changed_marker = "sv-probe-changed-9d2a";
+    let mut changed = None;
+    let mut deleted = None;
+    if let (Some(b), Some(id)) = (&b, id.as_deref()) {
+        let mut b_session = b.session.clone();
+        if let Some(update) = &owned.update {
+            let values = Values {
+                marker: changed_marker,
+                id,
+                ..Default::default()
+            };
+            send_template(
+                http,
+                "owned-b-update",
+                update,
+                &values,
+                &mut b_session,
+                &users.private,
+            );
+            let after = http.send(&get("owned-a-after-update", &read_path, &session));
+            changed = ok(&after).then(|| {
+                after
+                    .as_ref()
+                    .is_some_and(|r| r.body.contains(changed_marker) || !r.body.contains(marker))
+            });
+        }
+        if let Some(delete) = &owned.delete {
+            let values = Values {
+                id,
+                ..Default::default()
+            };
+            send_template(
+                http,
+                "owned-b-delete",
+                delete,
+                &values,
+                &mut b_session,
+                &users.private,
+            );
+            let after = http.send(&get("owned-a-after-delete", &read_path, &session));
+            deleted = match after.as_ref().map(|r| r.status) {
+                Some(404 | 410) => Some(true),
+                _ if holds_marker(&after) => Some(false),
+                _ => None,
+            };
+        }
+    }
+
     if !leaked_to.is_empty() {
         out.findings.push(finding(
             &OTHER_USERS_DATA,
@@ -729,16 +803,90 @@ pub(super) fn owned_checks(
                 leaked_to.join(" and to ")
             ),
         ));
-    } else if b.is_some() {
-        out.verified.push(crate::Verified::new(
-            OTHER_USERS_DATA.rule_id,
-            OTHER_USERS_DATA.requirement_ids,
+    }
+    if !listed.is_empty() {
+        out.findings.push(finding(
+            &OTHER_USERS_DATA,
+            "One user's records show on another user's pages",
+            Severity::Critical,
             format!(
-                "a record one test user created at {read_path}, refused to a second test user and to \
-                 somebody not signed in, and read back by its owner"
+                "What the first test user wrote in a record was on {} when the second test user \
+                 opened {}.",
+                listed.join(", "),
+                if listed.len() == 1 { "it" } else { "them" }
             ),
         ));
-    } else {
+    }
+    if changed == Some(true) {
+        out.findings.push(finding(
+            &OTHER_USERS_DATA,
+            "One user can change another user's records",
+            Severity::Critical,
+            format!(
+                "The second test user sent the change request for the first user's record at \
+                 {read_path}, and when the first user read it back, it had changed."
+            ),
+        ));
+    }
+    if deleted == Some(true) {
+        out.findings.push(finding(
+            &OTHER_USERS_DATA,
+            "One user can delete another user's records",
+            Severity::Critical,
+            format!(
+                "The second test user sent the delete request for the first user's record at \
+                 {read_path}, and afterwards the first user was told it was not there."
+            ),
+        ));
+    }
+    let found = !leaked_to.is_empty()
+        || !listed.is_empty()
+        || changed == Some(true)
+        || deleted == Some(true);
+    if !found && b.is_some() {
+        let mut tried = vec![format!(
+            "a record one test user created at {read_path}, refused to a second test user and to \
+             somebody not signed in, and read back by its owner"
+        )];
+        if !looked.is_empty() {
+            tried.push(format!(
+                "not shown to the second user on {}",
+                looked.join(", ")
+            ));
+        }
+        if changed == Some(false) {
+            tried.push("not changed by the second user's change request".to_owned());
+        }
+        if deleted == Some(false) {
+            tried.push("not deleted by the second user's delete request".to_owned());
+        }
+        let writes_refused = changed == Some(false) || deleted == Some(false);
+        let credit = crate::Verified::new(
+            OTHER_USERS_DATA.rule_id,
+            OTHER_USERS_DATA.requirement_ids,
+            tried.join("; "),
+        );
+        if writes_refused {
+            out.verified.push(credit);
+        } else {
+            // Reading alone is one of the ways one user reaches another's data, not all of them.
+            out.verified.push(credit.in_part());
+            out.not_assessed.push((
+                "V8.2.2".to_owned(),
+                if owned.update.is_none() && owned.delete.is_none() {
+                    "Whether one user can change or delete another user's records: securevibe.toml \
+                     gives no `update` or `delete` under `owned`, so only reading was tried, and V8.2.2 \
+                     is checked in part."
+                        .to_owned()
+                } else {
+                    "Whether one user can change or delete another user's records: the first user's \
+                     read-back after the second user's request said neither, so only reading is \
+                     known, and V8.2.2 is checked in part."
+                        .to_owned()
+                },
+            ));
+        }
+    } else if b.is_none() {
         out.not_assessed.push((
             "V8.2.2".to_owned(),
             "The second test user could not sign in, so whether they can read the first user's \
@@ -1028,6 +1176,100 @@ mod tests {
         );
     }
 
+    /// The credit for V8.2.2 from a run, and the findings about it (ADR-053).
+    fn other_users(flaws: Flaws, users: &UsersSection) -> (Option<crate::Verified>, Vec<String>) {
+        let o = run_against(flaws, users);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == OTHER_USERS_DATA.rule_id)
+            .cloned();
+        let titles = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == OTHER_USERS_DATA.rule_id)
+            .map(|f| f.title.clone())
+            .collect();
+        (credit, titles)
+    }
+
+    #[test]
+    fn refused_reading_listing_changing_and_deleting_is_checked_and_reading_alone_is_checked_in_part()
+     {
+        // All four tried and refused: checked, and the line says what was tried.
+        let (full, found) = other_users(Flaws::default(), &users_full());
+        assert!(found.is_empty(), "{found:?}");
+        let full = full.expect("credited");
+        assert!(!full.in_part, "{full:?}");
+        for said in [
+            "refused to a second test user",
+            "not shown to the second user on /account, /my-notes",
+            "not changed by the second user's change request",
+            "not deleted by the second user's delete request",
+        ] {
+            assert!(full.scope.contains(said), "{said}: {}", full.scope);
+        }
+        // Reading alone, as securevibe.toml gives no change or delete request: in part, and the
+        // report says why and how to make it whole.
+        let o = run_against(Flaws::default(), &users());
+        let part = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == OTHER_USERS_DATA.rule_id)
+            .expect("credited in part");
+        assert!(part.in_part, "{part:?}");
+        assert!(
+            o.not_assessed
+                .iter()
+                .any(|(r, why)| r == "V8.2.2" && why.contains("no `update` or `delete`")),
+            "{:?}",
+            o.not_assessed
+        );
+    }
+
+    #[test]
+    fn another_users_record_in_a_list_changed_or_deleted_is_found_by_what_its_owner_then_sees() {
+        for (flaws, title) in [
+            (
+                Flaws {
+                    list_shows_others: true,
+                    ..Default::default()
+                },
+                "One user's records show on another user's pages",
+            ),
+            (
+                Flaws {
+                    idor_update: true,
+                    ..Default::default()
+                },
+                "One user can change another user's records",
+            ),
+            (
+                Flaws {
+                    idor_delete: true,
+                    ..Default::default()
+                },
+                "One user can delete another user's records",
+            ),
+        ] {
+            let (credit, found) = other_users(flaws, &users_full());
+            assert_eq!(found, vec![title.to_owned()], "{title}");
+            assert!(credit.is_none(), "{title}: no credit beside a finding");
+        }
+        // Each is found by itself: with only the read guarded wrongly, nothing else is reported.
+        let (_, found) = other_users(
+            Flaws {
+                idor: true,
+                ..Default::default()
+            },
+            &users_full(),
+        );
+        assert_eq!(
+            found,
+            vec!["One user can read another user's records".to_owned()]
+        );
+    }
+
     #[test]
     fn a_record_without_the_marker_cannot_be_recognized_so_is_not_assessed() {
         // Second shape of the read-back check: the owner reads the record, but nothing in it says
@@ -1107,6 +1349,9 @@ mod tests {
             create: RequestTemplate::default(),
             read: read.map(str::to_owned),
             id_field: None,
+            list: None,
+            update: None,
+            delete: None,
         };
         assert_eq!(
             record_path(

@@ -29,6 +29,12 @@ pub struct Verified {
     /// What was examined, in a person's words: "12 Python files", "48 files, against 8 known
     /// credential formats". Printed beside the claim.
     pub scope: String,
+    /// The check tried only part of what its requirements ask, so it is evidence *in part*: a
+    /// requirement whose only credit is in part is *checked in part*, never *checked* (ADR-053).
+    /// V8.2.2 is the first: another user refused reading a record, with changing and deleting it
+    /// not tried. Left out of the JSON when false, so nothing else's output changes.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub in_part: bool,
 }
 
 impl Verified {
@@ -40,7 +46,14 @@ impl Verified {
             check_id: check_id.to_owned(),
             requirement_ids: requirement_ids.iter().map(|s| (*s).to_owned()).collect(),
             scope,
+            in_part: false,
         }
+    }
+
+    /// The same credit, marked as resting on part of what its requirements ask (ADR-053).
+    pub fn in_part(mut self) -> Self {
+        self.in_part = true;
+        self
     }
 }
 

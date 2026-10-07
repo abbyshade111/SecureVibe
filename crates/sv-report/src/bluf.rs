@@ -163,6 +163,9 @@ pub fn counted(report: &Report) -> Vec<(String, usize)> {
             let label = match status {
                 Status::NeedsAttention => "something found a problem",
                 Status::Checked => "an automated check looked and found nothing wrong",
+                Status::CheckedInPart => {
+                    "an automated check tried part of what each asks and found nothing wrong there"
+                }
                 Status::AppTested => {
                     "your app's own tests, written by your AI coding tool, ran without failing (not a check of sv's)"
                 }
