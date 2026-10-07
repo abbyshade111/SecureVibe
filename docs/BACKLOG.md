@@ -20,6 +20,9 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please go ahead"), in branch
   `claude/securevibe-e2-weak-random-codes`. A new rule that only ever raises findings changes no requirement's
   status, so no ADR is proposed.
+  **Done the same day** (DESIGN, "A sign-in or reset code made with a random number generator that can be
+  predicted"): `ast.insecure-random-for-code`, in thirteen languages (Swift and Rust have nothing to find, and say why), with a new rule setting, `valueNamePatterns`, that
+  reads the names a value is given. Only ever a finding.
 
 - **V12.3.4 (and V12.3.2): a setting that switches off certificate checking for the whole app.** From
   `docs/PARTIAL-CHECKS.md` (V12.3.4, level 2, "reads the code, finding only"), which no check speaks to yet.
@@ -1851,6 +1854,13 @@ another session is not a claim.
   `securevibe_prompts` give the library, the prompts shown to work first, each marked shown or not tested where the
   person reads it; `tools/coverage.py` holds each prompt's requirements to its rules' citations. Not done: offering
   the prompts for the requirements an app still has no evidence for, which needs a report first.
+  **Offering the prompts for the requirements an app still has no evidence for claimed on 7 October 2026 by session
+  securevibe-e9**, at the owner's word ("go ahead with the prompt item"), in branch
+  `claude/securevibe-e9-prompts-for-gaps`: `sv prompts --app <folder>` and `securevibe_prompts` with a `path` read the
+  app's last report (`securevibe-report/report.json`), and offer the prompts whose requirements it shows unproven or
+  failing, those shown to work first, each saying which of the app's requirements it is for. With no report, they say
+  to make one first. The feature brief and the guidance (ADR-044) are not touched. Read on `main` just before this
+  claim: no other session had claimed it.
   **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
   in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds
