@@ -222,10 +222,16 @@ fn looks_like_placeholder(value: &str) -> bool {
     // `{new_password}`, `{code}`: the single-brace blanks `sv`'s own securevibe.toml fills in, whole.
     // `sv init`'s template raised a HIGH finding at its own commented example until 29 September
     // 2026 (found by the owner's comparison study). `{new_password}x9Q2vL` has text of its own.
-    if let Some(name) = v.strip_prefix('{').and_then(|r| r.strip_suffix('}'))
-        && !name.is_empty()
-        && name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    // `{html.escape(csrf_token)}`, `{session.csrf}`, `{tokens[0]}`: the whole value is one expression
+    // a template or an f-string fills in, the way a page writes the anti-forgery token it made for
+    // that request. One Haiku app drew eight high findings at such lines until 7 October 2026 (the
+    // start-of-build test). Names, dots, calls, and indexes only: a quote inside the braces could
+    // hold a literal, and text outside them is text of its own, so both are still judged.
+    if let Some(expression) = v.strip_prefix('{').and_then(|r| r.strip_suffix('}'))
+        && expression.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+        && expression.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '(' | ')' | '[' | ']' | ',' | ' ')
+        })
     {
         return true;
     }
@@ -1027,6 +1033,39 @@ mod tests {
             judged(&format!(r#"password = "{with_text}""#)),
             "a value around a blank was passed over"
         );
+    }
+
+    #[test]
+    fn a_template_filling_in_its_own_token_is_not_a_credential() {
+        // The line from the start-of-build test, in a Python f-string, and its relatives.
+        let judged = |file: &str, line: &str| {
+            !assignment_findings(file, line, 1, &(0..usize::MAX)).is_empty()
+        };
+        // The setup: the rule reads each name in this shape, so silence below is the expression.
+        let real = ["Qv7rT2mX", "9kLp4WzN", "c8Ha"].concat();
+        for name in ["csrf_token", "api_token"] {
+            assert!(judged(
+                "app.py",
+                &format!(r#"f'<input type=hidden name={name} value="{real}">'"#)
+            ));
+        }
+        for line in [
+            r#"f'<input type=hidden name=csrf_token value="{html.escape(csrf_token)}">'"#,
+            r#"f'<input name=csrf_token value="{session.csrf_token}">'"#,
+            r#"f'<input name=api_token value="{tokens[0]}">'"#,
+            r#"f'<input name=csrf_token value="{escape(make_token(request, 32))}">'"#,
+        ] {
+            assert!(!judged("app.py", line), "{line}");
+        }
+        // Text of its own beside the braces, or a quoted literal inside them, is still judged.
+        for line in [
+            format!(r#"f'<input name=csrf_token value="{{html.escape(t)}}{real}">'"#),
+            format!(r#"<input name=csrf_token value="{{str('{real}')}}">"#),
+            // And a key in braces is not a name: it starts with a digit.
+            format!(r#"<input name=csrf_token value="{{7{real}}}">"#),
+        ] {
+            assert!(judged("app.py", &line), "{line}");
+        }
     }
 
     #[test]

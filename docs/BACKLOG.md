@@ -2145,6 +2145,11 @@ another session is not a claim.
   without the file: what a feature brings, its decisions, the prompts shown to work, and the settings `sv run` needs
   are the same for every app, and only "which of them apply now" needs the file. Say that part is waiting, and give
   the rest.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-brief-before-toml`: with no `securevibe.toml`, the brief
+  (`securevibe_before` and `sv brief`) gives what the feature can bring at every level, its decisions, the prompts shown
+  to work, its coding rules, and the settings, and says that which requirements apply, and the tests to write, wait
+  for the file. Read on `main` just before this claim: no other session had claimed it.
 
 - **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
   the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
@@ -2166,6 +2171,13 @@ another session is not a claim.
   baseline had already fallen (with `git` allowed and the guidance's prompts), so its comparisons have no reading. No
   harm. This test and the delivery test used the loop protocol's owner-away sentence from before its Amendment 5,
   said in `start.md`.
+  **The reviews arrived the same day** (`docs/prompts/reviews/language-agnostic-variant.md`, `second-builder.md`), and
+  **were applied on 7 October 2026 at the owner's word**: wording fixes to four shown prompts and five others, three
+  checks moved to the running app, a fallback for every design prompt that asks the owner, and five new prompts
+  (`limits-without-asking`, `password-rules`, `production-server`, `isolate-the-window`, `security-contact`), all to be
+  tried in `docs/prompts/library-trial/revision-protocol.md` before any status changes. One finding is left for the
+  owner: `ast.weak-password-key-derivation` cites V11.4.4 (keys made from a password) where storing passwords is
+  V11.4.2, so `password-hashing` cannot cite V11.4.2 until the rule's citation is decided, which changes evidence.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
@@ -2191,6 +2203,10 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
   backlog when ready"), in branch `claude/securevibe-e2-csrf-placeholder`: a value that is wholly one `{...}` template
   expression is a placeholder. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A template filling in its own token is not a credential"): a value that is wholly
+  one `{...}` holding names, dots, calls, and indexes is a placeholder, as `{name}` already was. A quote inside the
+  braces, text outside them, or a first character that is not a letter keeps it judged. The line from the report is a
+  fixture, with three relatives; four guards broken in turn, each caught.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
@@ -3568,6 +3584,12 @@ another session is not a claim.
      when written in place or through a name the same function sets. It is only ever a finding. Not done: a lookup
      inside a helper function, and a session reached through another name (`examples/oidc-notes` writes
      `s.user = claims.email`, which the running check finds and this rule does not).
+     **A session reached through another name claimed on 7 October 2026 by session securevibe-e9**, at the owner's word
+     ("please go ahead"), in branch `claude/securevibe-e9-session-alias`: a new `functionNamesRead` switch, the
+     other side of `argumentNamesRead`, so `s.user = claims.email` is read as the session's user entry when the
+     function around it sets `s` to the session (`s = req.session`, `s = session`, or a call that returns one, such as
+     `getIronSession(...)`). `examples/oidc-notes` is the witness. Read on `main` just before this claim: no other
+     session had claimed it. A lookup inside a helper function stays unclaimed.
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").

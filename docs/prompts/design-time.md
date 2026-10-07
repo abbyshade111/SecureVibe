@@ -47,6 +47,8 @@ builds without them were already safe on what `sv` checks. One tool, two models:
 >    address). Once a limit is passed, answer with 429 Too Many Requests, say when to try again, and keep
 >    refusing until then.
 > 4. Write a test that goes one past each limit and shows the app pushes back.
+>
+> If I am not here to answer, use 5 wrong passwords in 15 minutes and 10 new records a minute, write them down marked "default, to confirm", and carry on. Count wrong passwords in a row for each account, and start again after a right one. If you also limit by address, set that limit well above what one person does (at least 100 an hour).
 
 *Helps you answer:* Secure by Design RR-07. *Checked through:* ASVS V2.4.1, V6.3.1.
 
@@ -86,7 +88,7 @@ builds without them were already safe on what `sv` checks. One tool, two models:
 >
 > - Use a proven library or sign-in provider for passwords and sessions where the platform allows one,
 >   rather than inventing your own. Store passwords only with a hashing function made for passwords
->   (Argon2, bcrypt, scrypt, or PBKDF2 with many iterations).
+>   (Argon2, bcrypt, scrypt, or PBKDF2 with at least 600,000 rounds of SHA-256).
 > - How long a session may sit unused before the password is asked for again, and the longest a session
 >   may last however busy it is. Ask me; suggest 30 minutes unused and 12 hours at most if I am not
 >   sure. If securevibe.toml already has them under [policy], use those. Put both numbers in
@@ -99,6 +101,8 @@ builds without them were already safe on what `sv` checks. One tool, two models:
 >
 > Write a test for each: a session unused past the limit is refused, one older than the lifetime is
 > refused, and an expired or altered token is refused.
+>
+> If admins sign in with a second step, enroll the admin in the seed with the secret in `SV_ADMIN_TOTP_SECRET`, and fill in the `totp` entry under [stack.run.users] in securevibe.toml, so SecureVibe can sign in as the admin. If I am not here to answer, use 30 minutes unused and 12 hours at most, write them down marked "default, to confirm", and carry on.
 
 *Helps you answer:* Secure by Design AC-02. *Checked through:* ASVS V7.3.1.
 
@@ -126,6 +130,8 @@ and check the result with `sv` as you would anything else.
 >    that they are.
 >
 > If something I ask for later does not fit the table, stop and ask me to update the table first.
+>
+> If I am not here to answer, use the suggested values, write them down marked "default, to confirm", and carry on; do not stop to wait for me.
 
 *Helps you answer:* Secure by Design AC-03. *Checked through:* ASVS V8.2.1, V8.2.2, V8.3.1.
 
@@ -159,7 +165,7 @@ and check the result with `sv` as you would anything else.
 >
 > Then build it this way:
 >
-> - Every outside call has a time limit of a few seconds. None waits forever.
+> - Every outside call has a time limit: a few seconds for most services, and up to a minute for an AI service, whose replies can take that long. None waits forever.
 > - When a call fails, the person sees a short, plain message, such as "The assistant is unavailable
 >   right now. Please try again later." Never show them the error text, a stack trace, the other
 >   service's status code, or anything the service sent back.
@@ -197,7 +203,7 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 >    told you: what the app is for, who will use it (just me, my team, customers, or the public),
 >    whether it faces the internet, how people sign in, what it keeps about people, whether it takes
 >    payments, whether it uses an AI service, and whether it fetches web addresses or accepts uploads.
-> 2. If I am not sure whether the app will have something, write true: a capability planned and never
+> 2. If I am not sure whether the app will have something, write true (this is the design-time answer; once there is code and it is still unsure, leave the line out, as `settings-file-first` says): a capability planned and never
 >    built costs a requirement that did not need meeting, and one left out is how a real requirement
 >    gets switched off.
 > 3. Ask me for the limits now, and write them under [policy]: how many wrong passwords in a row, how
@@ -209,6 +215,8 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 >
 > Do not start on the code until I have agreed the brief. When I later ask for something the brief
 > does not have, update securevibe.toml first.
+>
+> If I am not here, write the brief from what I have said, mark each guess as a guess, and go on.
 
 *Helps you answer:* Secure by Design MT-03. *Not tried:* No check in sv shows this prompt working. securevibe.toml is checked against the code once there is code, and a claim the code contradicts is reported, but that checks the file, not whether it was written first.
 
@@ -243,9 +251,11 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 > - how it is protected: who can see it, and whether it is encrypted where it is stored.
 >
 > Leave out anything the app does not need. Write the list in security-notes.md, under "How each kind
-> of sensitive data is protected", and write the categories into securevibe.toml under [data]. Then
+> of sensitive data is protected", and write the categories into securevibe.toml under [data], using only the names the specification lists (contact, financial, payment-card, health, government-id, credentials, children, location, files, business-confidential, other-personal). Then
 > build the app to match the list: if I later ask for something that keeps a new kind of data, add it
 > to the list first.
+>
+> If I am not here to answer, use the suggested values, write them down marked "default, to confirm", and carry on; do not stop to wait for me.
 
 *Helps you answer:* Secure by Design DM-01, DM-05. *Not tried:* No check in sv shows this prompt working. The notes section it fills is read as the person's or the AI tool's word, at its tier, never as a check.
 
@@ -264,6 +274,8 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 >
 > Write the list in security-notes.md, under "Everything the app talks to". If something I ask for
 > later adds a connection, add it to the list first.
+>
+> If I am not here to answer, use the suggested values, write them down marked "default, to confirm", and carry on; do not stop to wait for me.
 
 *Helps you answer:* Secure by Design AS-01, AC-01. *Not tried:* No check in sv shows this prompt working. The notes section it fills is read at its writer's tier, never as a check; AS-01 is about trust zones in a larger system and is answered here only scaled down to one app.
 
@@ -287,6 +299,8 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 > - default accounts: none
 >
 > Do not add headings to security-notes.md for this.
+>
+> If I am not here to answer, use the suggested values, write them down marked "default, to confirm", and carry on; do not stop to wait for me.
 
 *Helps you answer:* no single control. *Not tried:* No check in sv shows this prompt working, though its debug-mode, cross-site access, and header checks reach parts of it. It draws on the checklist's principles rather than one control, so it names none. sv reads the section's three fixed lines and holds each, when the app is run, to the check that sees it: a switch decided the safe way that the check finds otherwise is a finding, decided, not held to. Nothing is credited for a decision kept.
 
@@ -304,6 +318,8 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 >
 > Write it in design-decisions.md, under "What we do if something goes wrong", and remind me once
 > a year to read it again. Do not add headings to security-notes.md for this.
+>
+> If I am not here to answer, use the suggested values, write them down marked "default, to confirm", and carry on; do not stop to wait for me.
 
 *Helps you answer:* Secure by Design MT-06. *Not tried:* No check in sv shows this prompt working; whether a plan exists, is right, and has been rehearsed is for a person to answer. sv reads the section as a written answer toward SBD-MT-06: documented, or stated by the AI coding tool, never checked. That shows a plan is written, not that it works.
 
@@ -322,6 +338,8 @@ server's prompts, where the tool shows them (for example as a slash command); `s
 > usually mean for the design, and that I should check with someone qualified. Write what you found
 > in design-decisions.md, under "Rules that might apply". Do not add headings to security-notes.md
 > for this.
+>
+> If I am not here to answer, use the suggested values, write them down marked "default, to confirm", and carry on; do not stop to wait for me.
 
 *Helps you answer:* Secure by Design AC-06. *Not tried:* No check in sv shows this prompt working; which rules apply is a question for a person, and a qualified one. sv reads the section as a written answer toward SBD-AC-06: documented, or stated by the AI coding tool, never checked. That shows the rules were written down, not that the design follows them.
 
