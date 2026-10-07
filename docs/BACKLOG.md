@@ -21,6 +21,8 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
   backlog when ready"), in branch `claude/securevibe-e2-cert-checks-off`. A new check that only ever raises findings
   changes no requirement's status, so no ADR is proposed.
+  **Done the same day** (DESIGN, "One setting that switches off certificate checking for the whole app"):
+  `config.certificate-checks-off`, citing V12.3.2 and V12.3.4. Only ever a finding.
 
 - **V16.5.3: a check that treats its own error as a pass, read from the code.** From `docs/PARTIAL-CHECKS.md`
   (V16.5.3, level 2, "reads the code, finding only"), which no check speaks to yet. A function that decides whether

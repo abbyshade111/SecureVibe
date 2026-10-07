@@ -32,7 +32,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Supporting only | Nothing |
 |---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 166 (48%) | 10 | 169 |
+| OWASP ASVS 5.0 | 345 | 167 (48%) | 10 | 168 |
 | OWASP AISVS 1.0 | 191 | 38 (20%) | 0 | 153 |
 | AISVS Appendix C | 68 | 3 (4%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 11 | 25 |
@@ -44,10 +44,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 57 | 11 | 1 | 6 | 37 | 21 | 3 |
-| L2 | 183 | 88 | 13 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 89 | 15 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 27 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 29 ASVS requirements can be settled. 27 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -70,7 +70,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V9 Self-contained Tokens | 7 | 5 | 0 | 2 |
 | V10 OAuth and OIDC | 36 | 8 | 0 | 28 |
 | V11 Cryptography | 24 | 11 | 1 | 12 |
-| V12 Secure Communication | 12 | 8 | 1 | 3 |
+| V12 Secure Communication | 12 | 9 | 1 | 2 |
 | V13 Configuration | 21 | 9 | 1 | 11 |
 | V14 Data Protection | 13 | 4 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 12 | 0 | 9 |
@@ -79,7 +79,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (27)
+### Settled by reading the code (29)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -103,6 +103,8 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
 | V11.4.2 | L2 | Reads the code: `ast.weak-password-key-derivation`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
 | V11.4.4 | L2 | Reads the code: `ast.weak-password-key-derivation` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
+| V12.3.2 | L2 | Reads the code: `config.certificate-checks-off`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `config.certificate-checks-off`) |
+| V12.3.4 | L2 | Reads the code: `config.certificate-checks-off` (sv only ever as a finding: `config.certificate-checks-off`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
 | V14.3.3 | L2 | Reads the code: `ast.password-in-browser-storage`; Signed in: `probe.password-in-browser-storage` (sv only ever as a finding: `ast.password-in-browser-storage`, `probe.password-in-browser-storage`) |
@@ -234,7 +236,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (28)
+### Settled only by an outside tool (27)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -258,7 +260,6 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.5.1 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript` |
 | V12.1.2 | L2 | Outside tools: `semgrep` |
 | V12.3.1 | L2 | Outside tools: `semgrep` |
-| V12.3.2 | L2 | Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more |
 | V12.3.3 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `grpc-client-insecure-connection`, `grpc-nodejs-insecure-connection`, `grpc-server-insecure-connection`) |
 | V15.3.5 | L2 | Outside tools: `codeql-javascript` |
 | V15.3.6 | L2 | Outside tools: `codeql-javascript` |
@@ -376,7 +377,7 @@ control as supporting evidence.
 - SBD-RR-02: through V16.5.2
 - SBD-RR-05: through V2.3.4
 - SBD-RR-07: through V2.4.1
-- SBD-AC-01: through V12.3.1, V12.3.3
+- SBD-AC-01: through V12.3.1, V12.3.3, V12.3.4
 - SBD-AC-03: through V8.2.1
 - SBD-AC-04: through V8.3.1
 - SBD-AC-05: through V13.3.1

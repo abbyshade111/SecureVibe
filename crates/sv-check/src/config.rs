@@ -82,6 +82,7 @@ pub fn check_dir_in(
         versions_pinned(listing, bill_of_materials),
     );
     crate::launch::check(listing, &mut report);
+    crate::cert_checks::check(listing, &mut report);
     crate::ai_tool::hidden_characters(listing, &mut report);
     crate::rich_text::check(listing, bill_of_materials, &mut report);
     crate::grants::check(listing, bill_of_materials, &mut report);
@@ -1773,6 +1774,7 @@ mod passed_evidence_tests {
             crate::rich_text::RICH_TEXT,
             crate::grants::RETIRED_GRANT,
             crate::model_files::PICKLE_MODEL,
+            crate::cert_checks::CHECKS_OFF,
         ];
         let silent: Vec<&str> = report
             .passed

@@ -117,7 +117,7 @@ static RUNS_SCRIPT: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Words in a file or folder name that say the file is for development, not production.
-fn for_development(relative: &str) -> bool {
+pub(crate) fn for_development(relative: &str) -> bool {
     let lower = relative.to_lowercase();
     let (dirs, name) = lower.rsplit_once('/').unwrap_or(("", lower.as_str()));
     let named = ["dev", "develop", "development", "local", "test", "debug"]
@@ -385,7 +385,7 @@ fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Fin
 
 /// Files and folders that configure a developer's own AI tools, not the app. What they start runs
 /// on the developer's computer, which C10.1.1 is not about.
-fn developer_tool_config(relative: &str) -> bool {
+pub(crate) fn developer_tool_config(relative: &str) -> bool {
     let first = relative.split('/').next().unwrap_or("");
     matches!(
         first,
