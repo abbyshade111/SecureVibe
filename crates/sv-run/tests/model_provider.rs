@@ -358,6 +358,43 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     // The control: with no such tool offered, nothing is asked for.
     chat(port, "Look it up. SV-PROBE-FETCH-3a3b SV-CALL-7b7d");
     assert_ne!(seen(port, "3a3b")["tool_requested"], true);
+
+    // FETCHLOOP (ADR-045): the same tool asked for again after every result, the rounds counted,
+    // until the cap, when it stops by itself.
+    let looped = "Look it up. SV-PROBE-FETCHLOOP-4a4b ".to_owned()
+        + &message[message.find("SV-CALL-").unwrap()..];
+    let mut history = vec![serde_json::json!({"role": "user", "content": looped})];
+    let mut asked = 0;
+    loop {
+        let answer: serde_json::Value = serde_json::from_str(&call_json(
+            port,
+            serde_json::json!({"model": "m", "tools": tools, "messages": history}),
+        ))
+        .unwrap();
+        let msg = &answer["choices"][0]["message"];
+        if msg["tool_calls"].is_null() {
+            assert!(
+                msg["content"].as_str().unwrap().contains("SV-REPLY-4a4b"),
+                "{answer}"
+            );
+            break;
+        }
+        assert_eq!(
+            msg["tool_calls"][0]["function"]["name"], "get_note",
+            "{answer}"
+        );
+        asked += 1;
+        assert!(asked <= 40, "the loop never stopped");
+        history.push(serde_json::json!({"role": "assistant", "content": null, "tool_calls": msg["tool_calls"]}));
+        history.push(serde_json::json!({"role": "tool", "tool_call_id": "call_sv", "content": format!("result {asked}")}));
+        assert_eq!(
+            seen(port, "4a4b")["rounds"],
+            asked - 1,
+            "after {asked} calls"
+        );
+    }
+    assert_eq!(asked, 40);
+    assert_eq!(seen(port, "4a4b")["rounds"], 40);
 }
 
 fn call_json(port: u16, body: serde_json::Value) -> String {

@@ -334,6 +334,11 @@ pub struct RecordTool {
     /// Its arguments, with `{id}` where the record's id goes, such as `{ id = "{id}" }`.
     #[serde(default)]
     pub args: std::collections::BTreeMap<String, String>,
+    /// The owner's word that the tool only reads, changing nothing. Only then does the run call it
+    /// again after every result, up to the test model's cap, to see whether the app limits how
+    /// many tools one message may run (C9.1.2; ADR-045). Not evidence of anything itself.
+    #[serde(default)]
+    pub read_only: bool,
 }
 
 impl AiSection {
@@ -1535,6 +1540,28 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn a_record_tool_is_read_only_only_when_it_says_so() {
+        // ADR-045: the loop question calls the app's own tool only on the owner's word.
+        let marked: AiSection = toml::from_str(
+            "chat = { path = \"/chat\" }\nrecord-tool = { name = \"get_note\", args = { id = \"{id}\" }, read-only = true }",
+        )
+        .expect("parses");
+        assert!(marked.record_tool.as_ref().expect("read").read_only);
+        let unmarked: AiSection = toml::from_str(
+            "chat = { path = \"/chat\" }\nrecord-tool = { name = \"get_note\", args = { id = \"{id}\" } }",
+        )
+        .expect("parses");
+        assert!(!unmarked.record_tool.as_ref().expect("read").read_only);
+        // Spelled as Rust names it, it is refused rather than read as unmarked.
+        assert!(
+            toml::from_str::<AiSection>(
+                "chat = { path = \"/chat\" }\nrecord-tool = { name = \"get_note\", read_only = true }",
+            )
+            .is_err()
+        );
+    }
 
     #[test]
     fn a_once_action_is_read_and_held_to_its_completed_text() {

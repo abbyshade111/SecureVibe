@@ -1478,6 +1478,9 @@ another session is not a claim.
      through it when marked, as the MCP loop is. C9.1.1's quotas and timeouts stay unclaimed. **Record, `Status:
      proposed`: ADR-045**, which writes down the owner's decision. Read on `main` just before this claim: no other
      session had claimed it.
+     **Done the same day** (DESIGN, "An AI agent's limit, asked through the app's own read-only tool"; ADR-045,
+     accepted). With `read-only = true` on the record tool, the test model asks for it again after every result, and the
+     rounds are judged as the MCP loop's are; without it the tool is never called in a loop.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
@@ -1528,7 +1531,10 @@ another session is not a claim.
       one record more than a new `[policy] requests-per-minute`, created through `owned` by B. Nothing is judged without
       a stated number. Not done: functions other than `owned`, and a limit kept by a proxy in production.
       **The owner's decision, 6 October 2026: yes** to functions other than `owned`, through a new optional
-      `securevibe.toml` field naming them ("I agree with all your recommendations", 6 October 2026). Not claimed.
+      `securevibe.toml` field naming them ("I agree with all your recommendations", 6 October 2026).
+      **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("go ahead"), in branch
+      `claude/securevibe-e9-create-rate`: an optional `creates` list under [stack.run.users], each a request that
+      makes a record, held to the same `[policy] requests-per-minute` as `owned`'s create.
   14. **Changing the email address without the password again (V7.5.1).** The shape of
       `probe.password-change-without-current`. Proposed in `docs/PARTIAL-CHECKS.md`.
       **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
