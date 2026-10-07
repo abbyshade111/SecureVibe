@@ -1851,6 +1851,13 @@ another session is not a claim.
   `securevibe_prompts` give the library, the prompts shown to work first, each marked shown or not tested where the
   person reads it; `tools/coverage.py` holds each prompt's requirements to its rules' citations. Not done: offering
   the prompts for the requirements an app still has no evidence for, which needs a report first.
+  **Offering the prompts for the requirements an app still has no evidence for claimed on 7 October 2026 by session
+  securevibe-e9**, at the owner's word ("go ahead with the prompt item"), in branch
+  `claude/securevibe-e9-prompts-for-gaps`: `sv prompts --app <folder>` and `securevibe_prompts` with a `path` read the
+  app's last report (`securevibe-report/report.json`), and offer the prompts whose requirements it shows unproven or
+  failing, those shown to work first, each saying which of the app's requirements it is for. With no report, they say
+  to make one first. The feature brief and the guidance (ADR-044) are not touched. Read on `main` just before this
+  claim: no other session had claimed it.
   **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
   in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds
