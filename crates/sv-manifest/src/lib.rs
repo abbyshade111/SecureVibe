@@ -1937,6 +1937,46 @@ mod tests {
         );
     }
 
+    /// After the spec's two sentences of 6 October 2026, the commonest file `sv` could not read in
+    /// the delivery test had `ai = true` straight under [capabilities] (BACKLOG, "`ai = true` under
+    /// `[capabilities]`"). The spec says, among the [capabilities] answers, where that answer goes;
+    /// and a builder who writes it there anyway is told the same.
+    #[test]
+    fn the_spec_says_the_ai_answer_is_not_under_capabilities() {
+        let spec = crate::spec::STARTER_MANIFEST;
+        let capabilities = spec
+            .split_once("\n[capabilities]\n")
+            .and_then(|(_, rest)| rest.split_once("\n[").map(|(section, _)| section))
+            .expect("the starter file has a [capabilities] section");
+        assert!(
+            capabilities.contains(
+                "No `ai` here: whether the app has an AI feature is `enabled` under \
+                 [capabilities.ai], below."
+            ),
+            "{capabilities}"
+        );
+        assert!(
+            spec.contains("[capabilities.ai]\n# enabled = ?"),
+            "the section it points to starts with `enabled`"
+        );
+        // The same mistake, written into the starter file itself, whose [capabilities.ai] header
+        // further down makes toml call it a duplicate key.
+        let careless = spec.replacen("\n[capabilities]\n", "\n[capabilities]\nai = true\n", 1);
+        assert_ne!(careless, spec, "the line was put in");
+        let message = format!(
+            "{:#}",
+            Manifest::parse(&careless, Path::new("securevibe.toml"))
+                .expect_err("ai = true under [capabilities] is not read")
+        );
+        assert!(
+            message.contains(
+                "[capabilities.ai] starts a section here, but `ai` was already given a value \
+                 under [capabilities]"
+            ) && message.contains("as `enabled = true` or `enabled = false`"),
+            "{message}"
+        );
+    }
+
     #[test]
     fn the_scanner_answers_conditions_the_manifest_never_claims() {
         // The `derived` conditions are not claims, so they never appear in `claims()`. Without
