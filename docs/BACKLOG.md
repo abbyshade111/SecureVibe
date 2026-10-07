@@ -45,6 +45,8 @@ another session is not a claim.
      `FLASK_DEBUG=1` or `flask --debug` in shell scripts; other languages' debug switches are named as not looked for.
      And the start-command check no longer says a command that runs a script starts no development server. A rule
      that only raises findings changes no requirement's status, so no ADR is proposed.
+     **Done the same day** (DESIGN, "A web framework's debug mode switched on in the code"): `ast.debug-mode-on`,
+     findings only, citing V13.4.2, and the start-command check naming the file a command runs.
   7. **Token-based apps get false "request from another site accepted" findings.** (`docs/GAP-ANALYSIS.md`, 2.1.) The
      forged requests in `signed_in/forgery.rs` keep the session's `Authorization: Bearer` header, which another
      website cannot send. When the session's token is not a cookie, send them without it; a refusal then means
@@ -81,6 +83,11 @@ another session is not a claim.
      network is open, and the result mounted read-only into the fenced run. **`Status: proposed`: ADR-052.** Nothing
      is built until the owner has read the record. The "Now" part stays unclaimed. Read on `main` just before this
      claim: no other session had claimed either.
+     **The "Later" part done the same day** (ADR-052, accepted; DESIGN, "Packages installed before the run, outside
+     the fence"): `install = true` installs Python and Node packages before the run as the record says, tested with a
+     real backend. The starter's `build` example no longer suggests `pip install`, and an app whose build step tries
+     one is told about `install = true`. Still open from the "Now" part: `examples/flask-booking`, the preflight
+     warning, and the guide's page on building your own image.
   10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
      (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
      Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
@@ -96,6 +103,13 @@ another session is not a claim.
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-tool-citations`. Mapped under `findings_against`, so a
+     finding names the requirement it shows failing and a clean run credits nothing new: B610 and B611 (V1.2.4), B701,
+     B702, B703, B704, and G203 (V1.2.1), B601 (V1.2.5), G108 (V13.4.2), B614 (C4.1.2), and B615 (C6.1.3), each as
+     `sv`'s own rule or Semgrep's equivalent cites it. B310 and G106 are named with no requirement, saying why: B310
+     fires on every `urlopen`, fixed addresses included, and G106 is about SSH, which the TLS requirements do not
+     cover. No credit changes, so no ADR is proposed.
   13. **Running checks an attacker would try first.** (`docs/GAP-ANALYSIS.md`, 3.5.) Each claimable on its own: (a)
      mass assignment beyond sign-up: B sends `owner`/`user_id`/`role` on `owned.create`, `creates`, and
      `change-email`; (b) stored cross-site scripting: a second `owned` record with `<sv-x>` in its marker, and a
@@ -172,6 +186,8 @@ another session is not a claim.
   28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
      banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
      attention:high` for a CI workflow.
+     **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("feel free to pick something
+     else from the backlog"), in branch `claude/securevibe-e2-report-points`.
   29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
      (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
      V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
