@@ -222,6 +222,39 @@ fn check_exits_3_when_sv_itself_fails() {
 }
 
 #[test]
+fn check_reads_securevibe_toml_when_it_is_there_and_stops_on_one_it_cannot_read() {
+    // Gap analysis 5.1: a broken securevibe.toml finished with 0 at a terminal, while `sv report`
+    // and securevibe_check refused it. Both of the gap analysis's own examples: bad syntax, and a
+    // section misspelt.
+    let root = root("check-manifest");
+    let app = app(&root, &[("tool.py", "x = 1\n")]);
+    let (good, good_said) = sv(&["check", s(&app)]);
+    std::fs::remove_file(app.join("securevibe.toml")).unwrap();
+    let (none, none_said) = sv(&["check", s(&app)]);
+    std::fs::write(app.join("securevibe.toml"), "auth = = true\n").unwrap();
+    let (syntax, syntax_said) = sv(&["check", s(&app)]);
+    std::fs::write(
+        app.join("securevibe.toml"),
+        format!("{MANIFEST}\n[capabilitys]\nauth = true\n"),
+    )
+    .unwrap();
+    let (misspelt, misspelt_said) = sv(&["check", s(&app)]);
+    std::fs::remove_dir_all(&root).ok();
+
+    assert_eq!(good, Some(0), "{good_said}");
+    assert_eq!(
+        none,
+        Some(0),
+        "no securevibe.toml is fine here: {none_said}"
+    );
+    for (code, said) in [(syntax, &syntax_said), (misspelt, &misspelt_said)] {
+        assert_eq!(code, Some(3), "{said}");
+        assert!(said.contains("securevibe.toml"), "{said}");
+        assert!(!said.contains("Read 1 file"), "the scan ran anyway: {said}");
+    }
+}
+
+#[test]
 fn report_exits_0_1_and_2_as_check_does() {
     let root = root("report");
     let app = app(&root, &[("tool.py", HIGH_FINDINGS)]);
