@@ -1675,6 +1675,88 @@
       "nothingToFind": {
         "c": "C has no exceptions, and a C function says it failed through a value whose meaning only its own code knows (0 is success to some functions and failure to others), so an error path that answers \"yes\" cannot be told from one that answers \"no\" by reading it."
       }
+    },
+    {
+      "id": "ast.insecure-random-for-code",
+      "title": "A sign-in or reset code is made with a random number generator that can be predicted",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V6.5.3",
+        "V11.5.1"
+      ],
+      "cwe": [
+        "CWE-330",
+        "CWE-338"
+      ],
+      "description": "A value made by an ordinary random number generator (Python's `random`, JavaScript's `Math.random`, Java's `java.util.Random`, Go's `math/rand`, PHP's `rand` and `mt_rand`, Ruby's `rand`, C#'s `System.Random`, Dart's `Random()`) is given a name that says it is a one-time code, a reset or verification code, or a backup code, or is made inside a function so named.",
+      "impact": "These generators are built to look random, not to be unguessable: from a few values someone has seen (their own codes, say), the next ones can often be worked out. A sign-in, reset, or verification code that can be worked out lets someone into an account that is not theirs.",
+      "fix": "Make the code with the generator meant for secrets: Python's `secrets` (`secrets.randbelow(10**6)`, `secrets.token_urlsafe()`), Node's `crypto.randomInt` or `crypto.randomBytes`, Java's `SecureRandom`, Go's `crypto/rand`, PHP's `random_int`, Ruby's `SecureRandom`, C#'s `RandomNumberGenerator`, Dart's `Random.secure()`.",
+      "findingsOnly": true,
+      "functionPatterns": {
+        "python": "^(randint|randrange|choice|choices|random|sample|getrandbits|uniform|shuffle)$",
+        "javascript": "^random$",
+        "typescript": "^random$",
+        "java": "^(random|nextInt|nextLong|nextDouble|nextFloat|nextBytes|ints|longs)$",
+        "kotlin": "^(random|nextInt|nextLong|nextDouble|nextFloat|nextBytes)$",
+        "go": "^(Intn|Int31|Int31n|Int63|Int63n|Uint32|Uint64|Float32|Float64|Perm|N|IntN|Int32N|Int64N|UintN|Uint32N|Uint64N)$",
+        "php": "^(rand|mt_rand|uniqid|str_shuffle|array_rand|lcg_value)$",
+        "ruby": "^rand$",
+        "csharp": "^(Next|NextInt64|NextDouble|NextSingle|NextBytes|GetItems)$",
+        "dart": "^(nextInt|nextDouble|nextBool)$",
+        "c": "^(rand|random|drand48|lrand48|mrand48)$",
+        "cpp": "^(rand|random|drand48|lrand48|mrand48)$",
+        "shell": "^RANDOM$"
+      },
+      "modulePatterns": {
+        "python": "^random$",
+        "javascript": "^Math$",
+        "typescript": "^Math$",
+        "java": "^(Math|Random|ThreadLocalRandom)$",
+        "kotlin": "^(Math|Random)$",
+        "go": "^rand$",
+        "ruby": "^(rand|Random)$",
+        "csharp": "^Random$",
+        "dart": "^Random$"
+      },
+      "valueNamePatterns": {
+        "python": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "javascript": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "typescript": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "java": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "kotlin": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "go": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "php": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "ruby": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "csharp": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "dart": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "c": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "cpp": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$",
+        "shell": "(^|_)(otps?|totp|hotp|passcodes?|pins?)(_|$)|(^|_)(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)_(\\w+_)?(codes?|tokens?|secrets?)(_|$)|(^|_)(codes?|tokens?|secrets?)_(\\w+_)?(verification|verify|reset|recovery|backup|activation|magic|login|signin|sign_in|auth|confirmation|confirm|one_time|lookup|mfa|2fa|two_factor|email|sms|phone|password|unlock)(_|$)|^((generate|gen|make|create|new|send|get|random|rand)_)?codes?$"
+      },
+      "looksFor": "a call to an ordinary random number generator whose value is assigned to a name that says it is a sign-in, reset, verification, or backup code, or made in a function so named; a generator kept in a variable (`rng = Random()` and later `rng.nextInt()`), Go's `math/rand` imported under another name, and a code named otherwise are not seen, so finding none credits nothing",
+      "queries": {
+        "python": "(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)) @hit",
+        "java": "[(method_invocation object: (identifier) @mod name: (identifier) @fn) @hit\n (method_invocation object: (object_creation_expression type: (type_identifier) @mod) name: (identifier) @fn) @hit\n (method_invocation object: (method_invocation object: (identifier) @mod name: (identifier)) name: (identifier) @fn) @hit]",
+        "kotlin": "(call_expression (navigation_expression (identifier) @mod (identifier) @fn)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)) @hit",
+        "php": "(function_call_expression function: (name) @fn) @hit",
+        "ruby": "[(call !receiver method: (identifier) @fn @mod) @hit\n (call receiver: (constant) @mod method: (identifier) @fn) @hit\n (call receiver: (call receiver: (constant) @mod method: (identifier)) method: (identifier) @fn) @hit]",
+        "csharp": "[(invocation_expression function: (member_access_expression expression: (object_creation_expression type: (identifier) @mod) name: (identifier) @fn)) @hit\n (invocation_expression function: (member_access_expression expression: (member_access_expression expression: (identifier) @mod name: (identifier)) name: (identifier) @fn)) @hit]",
+        "dart": "(call_expression function: (member_expression object: (call_expression function: (identifier) @mod) property: (identifier) @fn)) @hit",
+        "c": "(call_expression function: (identifier) @fn) @hit",
+        "cpp": "[(call_expression function: (identifier) @fn) @hit\n (call_expression function: (qualified_identifier name: (identifier) @fn)) @hit]",
+        "shell": "[(simple_expansion (variable_name) @fn) @hit\n (expansion (variable_name) @fn) @hit]"
+      },
+      "looksForIn": {
+        "shell": "`$RANDOM` (a number from 0 to 32767, which the shell makes predictably) assigned to a variable that says it is a code, or used in a function so named"
+      },
+      "nothingToFind": {
+        "swift": "Swift's own ways of making a random number (`Int.random(in:)`, `randomElement()`, `SystemRandomNumberGenerator`) draw from the system's secure source, so the usual code is already the safe kind. GameplayKit's game generators, the exception, are not looked for.",
+        "rust": "Rust's usual random numbers (`rand::random`, `rand::rng()`, `thread_rng()`) come from a generator built for secrets. `SmallRng` and the `fastrand` crate, the exceptions, are not looked for."
+      }
     }
   ]
 }
