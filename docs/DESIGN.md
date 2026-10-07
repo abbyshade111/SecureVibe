@@ -12319,4 +12319,11 @@ them, and nothing here reads whether a test asks what its requirement asks. Its 
   the app in, so it accepts zero for this one status and says why. `sv-report`'s
   `the_app_s_own_tests_are_a_tier_below_a_check_of_sv_s` holds the tables, the short version, and the sum to it
   instead.
-- **Guards, each broken on purpose.** The results are in the pull request that built this.
+- **Guards, each broken on purpose.** Each was put back.
+  - Letting the app's tests into `checked_by` again: four tests red.
+  - Dropping the new status from the order a status is chosen in: four red.
+  - Crediting a requirement on `not_for_tests` through a test: one red,
+    `a_test_naming_a_requirement_tests_cannot_show_only_supports_it`.
+  - Reading every file under `tests/` rather than code: one red, `a_note_or_a_text_file_among_the_tests_is_not_a_test`.
+  - Putting these requirements in a threat's checked list: one red, `the_app_s_own_tests_do_not_settle_a_threat`.
+  - Leaving them out of the opening sentence: one red, `every_status_has_a_row_and_the_rows_add_up`.
