@@ -43,6 +43,7 @@ use sv_manifest::Manifest;
 
 pub mod cleanup;
 pub mod docker;
+pub mod install;
 
 /// Why the app could not be run. Every one of these produces `not assessed`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,6 +68,11 @@ pub enum CannotRun {
     /// container backend cannot see it. Colima shares only the home folder by default, and Docker
     /// mounts a folder it cannot see as a new, empty one without complaint.
     AppFolderUnseen { folder: String },
+    /// `install = true`, and the app's dependency files do not allow an install of exact versions:
+    /// nothing was downloaded, and the app was not started.
+    InstallRefused { why: String },
+    /// The install step ran and did not finish. `detail` is the end of its output.
+    InstallFailed { registry: &'static str, detail: String },
 }
 
 impl CannotRun {
@@ -125,6 +131,18 @@ impl CannotRun {
                  {folder}:w`, or `mounts` in ~/.colima/default/colima.yaml). With Docker Desktop, \
                  add it under Settings, Resources, File sharing. This is reported as not assessed: \
                  nothing about the app was seen."
+            ),
+            CannotRun::InstallRefused { why } => format!(
+                "securevibe.toml asks for the app's packages to be installed before the run, and \
+                 they were not: {why} Nothing was downloaded and the app was not started, so \
+                 everything that needs it running is reported as not assessed."
+            ),
+            CannotRun::InstallFailed { registry, detail } => format!(
+                "Installing the app's packages from {registry} before the run did not finish: \
+                 {detail} The install takes only ready-made packages and runs none of their own \
+                 install code, so a package that needs either cannot be installed this way: build \
+                 an image with the packages in it and name it with `image` instead. The app was \
+                 not started, so everything that needs it running is reported as not assessed."
             ),
         }
     }
@@ -373,6 +391,8 @@ pub struct RunPlan {
     pub slow: bool,
     /// The longest the test command may take: `TEST_LIMIT`, and shorter only in `sv`'s own tests.
     pub test_limit: Duration,
+    /// Install the app's packages before the run (ADR-052). Off unless securevibe.toml says so.
+    pub install: bool,
 }
 
 /// The port the app is told to listen on. Fixed rather than chosen: nothing is published to the
@@ -440,6 +460,7 @@ impl RunPlan {
                 Some(seconds) if seconds > 0 => Duration::from_secs(seconds),
                 _ => TEST_LIMIT,
             },
+            install: run.install.unwrap_or(false),
         })
     }
 }
@@ -486,6 +507,9 @@ pub struct RunOutcome {
     /// Whether the app was still running and answering after the anonymous questions, and again
     /// after the signed-in, sign-in-provider, and AI questions when any of those were asked (V16.5.4).
     pub liveness: Vec<sv_check::running::Liveness>,
+    /// The packages installed before the run (ADR-052), and whether each came from an earlier
+    /// run's download. Empty when `install` was not asked for.
+    pub installed: Vec<(install::Ecosystem, bool)>,
 }
 
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
