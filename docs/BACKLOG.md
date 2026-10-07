@@ -2224,6 +2224,9 @@ another session is not a claim.
   `enabled = true` under `[capabilities.ai]`. A line under `[capabilities]` saying the AI feature's answers go in
   `[capabilities.ai]`, and the starter file's own `[capabilities.ai]` example saying `enabled`, would be measured as
   Part A was. Two builds also wrote the same key twice; `sv`'s message for that already says which.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and pick the next backlog
+  item"), in branch `claude/securevibe-e2-capabilities-ai`. Not a decision by CLAUDE.md's list (the spec's wording,
+  and a clearer refusal message; nothing counted changes), so no ADR is proposed; ADR-028 gets a Later line.
 
 - **`sv`'s credential rule reads a form's anti-forgery token placeholder as a credential.** Found on 7 October 2026 by
   session paper-facts, in the start-of-build test: one Haiku app drew eight `secrets.credential-assignment` findings
