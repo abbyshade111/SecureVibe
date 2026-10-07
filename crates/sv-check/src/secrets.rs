@@ -222,13 +222,6 @@ fn looks_like_placeholder(value: &str) -> bool {
     // `{new_password}`, `{code}`: the single-brace blanks `sv`'s own securevibe.toml fills in, whole.
     // `sv init`'s template raised a HIGH finding at its own commented example until 29 September
     // 2026 (found by the owner's comparison study). `{new_password}x9Q2vL` has text of its own.
-    if let Some(name) = v.strip_prefix('{').and_then(|r| r.strip_suffix('}'))
-        && !name.is_empty()
-        && name.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
-        return true;
-    }
     // `{html.escape(csrf_token)}`, `{session.csrf}`, `{tokens[0]}`: the whole value is one expression
     // a template or an f-string fills in, the way a page writes the anti-forgery token it made for
     // that request. One Haiku app drew eight high findings at such lines until 7 October 2026 (the
@@ -239,7 +232,6 @@ fn looks_like_placeholder(value: &str) -> bool {
         && expression.chars().all(|c| {
             c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '(' | ')' | '[' | ']' | ',' | ' ')
         })
-        && expression.chars().any(|c| matches!(c, '.' | '(' | '['))
     {
         return true;
     }
@@ -1069,8 +1061,8 @@ mod tests {
         for line in [
             format!(r#"f'<input name=csrf_token value="{{html.escape(t)}}{real}">'"#),
             format!(r#"<input name=csrf_token value="{{str('{real}')}}">"#),
-            // Words in braces with no dot, call, or index are not an expression: a passphrase.
-            r#"<input name=csrf_token value="{Qv7r T2mX 9kLp}">"#.to_owned(),
+            // And a key in braces is not a name: it starts with a digit.
+            format!(r#"<input name=csrf_token value="{{7{real}}}">"#),
         ] {
             assert!(judged("app.py", &line), "{line}");
         }
