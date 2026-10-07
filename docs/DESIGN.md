@@ -12163,3 +12163,13 @@ Three of the leftovers of `ast.static-files-from-app-folder` (V13.4.7), each rea
     set, and `.` may then be a folder of the app's own.
 
 PHP code itself, and any folder named in settings or built at run time, are still not seen.
+
+Eight guards broken in turn, each caught by the witnesses:
+- the rule without its Rack part;
+- a `root:` let into it;
+- any `urls:` taken for every path;
+- Spark left out of Java;
+- the disk's root taken for the app's folder;
+- Kotlin not read;
+- Ktor given any folder;
+- `staticPaths` left out.
