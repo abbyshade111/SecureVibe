@@ -2156,6 +2156,11 @@ another session is not a claim.
   (`securevibe_before` and `sv brief`) gives what the feature can bring at every level, its decisions, the prompts shown
   to work, its coding rules, and the settings, and says that which requirements apply, and the tests to write, wait
   for the file. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A feature brief before securevibe.toml"): with no `securevibe.toml`, `securevibe_before`
+  and `sv brief` give every requirement the feature can bring at every level, its decisions, the prompts shown to work
+  for those requirements, its coding rules, and its settings, and say that which apply, and the tests, wait for the
+  file; the structured result says so in `waiting`. No check is started for it. Seven guards broken in turn, each
+  caught. Whether more builders then get the AI prompt is for the next delivery trial to measure.
 
 - **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
   the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
