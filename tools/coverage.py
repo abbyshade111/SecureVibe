@@ -363,6 +363,7 @@ def framework(path):
 # read it from: checks that only ever credit a requirement, and the configuration checks built
 # differently. Every other check's words are read from the code or data where the check is defined.
 DESCRIBED = {
+    "config.certificate-checks-off": "A setting that switches off certificate checking for every connection the app makes",
     "config.workflow-runs-fork-code": "A CI workflow that runs code from a pull request by someone outside the project with the repository's privileges",
     "config.workflow-checkout-keeps-token": "A CI workflow whose checkout step leaves the repository token where later steps can read it",
     "config.workflow-secrets-with-fork-code": "A CI workflow that hands secrets to a job running code from outside the project",
