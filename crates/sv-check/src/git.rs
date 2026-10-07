@@ -55,6 +55,64 @@ pub fn ls_files(app_dir: &Path) -> Option<Vec<String>> {
     )
 }
 
+/// Settings given on `git log`'s command line, over the repository's own, besides `OVERRIDES`. With
+/// `log.showSignature` on, `git log` checks each signed commit's signature by running `gpg.program`,
+/// which the repository can name; `diff.external` and a `textconv` driver are programs too, though
+/// `--name-only` shows no diff. Each is switched off here, and `log_runs_nothing_the_repository_names`
+/// plants all three and the file-system monitor and watches for their mark.
+const LOG_OVERRIDES: [&str; 4] = ["-c", "log.showSignature=false", "-c", "gpg.program=false"];
+
+/// Every file ever added to the repository in any commit on any branch, under `app_dir` and named
+/// from it, as `ls_files` names them: `None` when git could not say. A file committed once and
+/// untracked since is in this list, and in no `ls_files` list after.
+pub fn ever_added(app_dir: &Path) -> Option<Vec<String>> {
+    let out = git(app_dir)
+        .args(LOG_OVERRIDES)
+        .args([
+            "log",
+            "--all",
+            "--no-show-signature",
+            "--no-ext-diff",
+            "--no-textconv",
+            "--diff-filter=A",
+            "--name-only",
+            "--format=",
+            "--relative",
+            "-z",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let mut names: Vec<String> = out
+        .stdout
+        .split(|b| *b == 0 || *b == b'\n')
+        .filter(|name| !name.is_empty())
+        .map(|name| String::from_utf8_lossy(name).into_owned())
+        .collect();
+    names.sort();
+    names.dedup();
+    Some(names)
+}
+
+/// Whether the repository holds only its most recent commits (a shallow copy), so the history
+/// `ever_added` reads is not all of it: `None` when git could not say.
+pub fn is_shallow(app_dir: &Path) -> Option<bool> {
+    let out = git(app_dir)
+        .args(["rev-parse", "--is-shallow-repository"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    match String::from_utf8_lossy(&out.stdout).trim() {
+        "true" => Some(true),
+        "false" => Some(false),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -121,6 +179,123 @@ mod tests {
             "git ran the program the app's repository named"
         );
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// A repository whose history holds a `.env` committed and then untracked, a commit with a
+    /// signature on it, and a config naming a program three ways `git log` can run one: as the
+    /// signature checker, with signatures shown by default, and as the external diff.
+    fn planted_for_log(name: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let (dir, mark) = planted(name);
+        let git_ok = |args: &[&str]| -> String {
+            let out = Command::new("git")
+                .args(["-c", "user.email=t@t", "-c", "user.name=t"])
+                .arg("-C")
+                .arg(&dir)
+                .args(args)
+                .output()
+                .unwrap();
+            assert!(
+                out.status.success(),
+                "git {args:?} failed in the test's setup"
+            );
+            String::from_utf8_lossy(&out.stdout).trim().to_owned()
+        };
+        // The fsmonitor `planted` set would run during these setup commands; take it off first.
+        git_ok(&["config", "--unset", "core.fsmonitor"]);
+        std::fs::write(dir.join(".env"), "PORT=1\n").unwrap();
+        git_ok(&["add", ".env"]);
+        git_ok(&["commit", "-qm", "two"]);
+        git_ok(&["rm", "-q", "--cached", ".env"]);
+        git_ok(&["commit", "-qm", "three"]);
+        // A commit carrying a signature and adding a file, so a `git log` that lists added files
+        // shows it, and one that shows signatures runs the checker. A signed commit adding nothing
+        // is not shown by `--diff-filter=A`, and proved nothing: the first version of this test.
+        std::fs::write(dir.join("signed.txt"), "x\n").unwrap();
+        git_ok(&["add", "signed.txt"]);
+        let tree = git_ok(&["write-tree"]);
+        git_ok(&["rm", "-q", "--cached", "signed.txt"]);
+        std::fs::remove_file(dir.join("signed.txt")).ok();
+        let parent = git_ok(&["rev-parse", "HEAD"]);
+        let body = format!(
+            "tree {tree}\nparent {parent}\nauthor t <t@t> 1700000000 +0000\n\
+             committer t <t@t> 1700000000 +0000\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n \
+             iQEzBAABCAAdFiEE\n -----END PGP SIGNATURE-----\n\nsigned\n"
+        );
+        let object =
+            std::env::temp_dir().join(format!("sv-git-commit-{name}-{}", std::process::id()));
+        std::fs::write(&object, body).unwrap();
+        let signed = git_ok(&[
+            "hash-object",
+            "-t",
+            "commit",
+            "-w",
+            object.to_str().unwrap(),
+        ]);
+        std::fs::remove_file(&object).ok();
+        git_ok(&["update-ref", "refs/heads/signed", &signed]);
+        // The program, as a script, since `gpg.program` is run without a shell.
+        let script = dir.join("leave-a-mark.sh");
+        std::fs::write(
+            &script,
+            format!("#!/bin/sh\ntouch '{}'\nexit 1\n", mark.display()),
+        )
+        .unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let program = script.display().to_string();
+        git_ok(&["config", "log.showSignature", "true"]);
+        git_ok(&["config", "gpg.program", &program]);
+        git_ok(&["config", "diff.external", &program]);
+        git_ok(&["config", "core.fsmonitor", &program]);
+        std::fs::remove_file(&mark).ok();
+        (dir, mark)
+    }
+
+    #[test]
+    fn log_runs_nothing_the_repository_names_and_finds_a_file_untracked_since() {
+        if Command::new("git").arg("--version").output().is_err() {
+            println!("no git here; this needs it");
+            return;
+        }
+        // The control: the same `git log` `ever_added` runs, without its overrides, runs the planted
+        // program, so the setup is the attack and the overrides are what stop it.
+        let (dir, mark) = planted_for_log("log-control");
+        let plain = Command::new("git")
+            .arg("-C")
+            .arg(&dir)
+            .args([
+                "log",
+                "--all",
+                "--diff-filter=A",
+                "--name-only",
+                "--format=",
+                "--relative",
+                "-z",
+            ])
+            .output()
+            .unwrap();
+        assert!(plain.status.success());
+        assert!(
+            mark.exists(),
+            "plain git log did not run the planted program, so this proves nothing"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+
+        let (dir, mark) = planted_for_log("log-guarded");
+        let added = ever_added(&dir).expect("git answers");
+        let tracked = ls_files(&dir).expect("git answers");
+        let shallow = is_shallow(&dir);
+        let ran = mark.exists();
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(!ran, "git log ran the program the app's repository named");
+        assert!(added.iter().any(|n| n == ".env"), "{added:?}");
+        assert!(added.iter().any(|n| n == "app.py"), "{added:?}");
+        // The point of reading history: the file is no longer tracked, and is still found.
+        assert!(!tracked.iter().any(|n| n == ".env"), "{tracked:?}");
+        assert_eq!(shallow, Some(false));
     }
 
     #[test]
