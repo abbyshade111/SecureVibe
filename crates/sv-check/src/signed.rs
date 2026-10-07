@@ -122,9 +122,10 @@ impl SigningKey {
     /// there is one: the folder readable by its owner only, the file made with a call that fails
     /// on anything already there. Its public half is written beside it, as `ssh-keygen` does.
     pub fn make_in(folder: &Path, passphrase: Option<&str>) -> Result<SigningKey, String> {
-        let mut seed = [0u8; 32];
-        random(&mut seed)?;
-        let key = ed25519_dalek::SigningKey::from_bytes(&seed);
+        let mut seed = random(32)?;
+        let key = ed25519_dalek::SigningKey::from_bytes(
+            &<[u8; 32]>::try_from(seed.as_slice()).expect("32 bytes"),
+        );
         zeroize::Zeroize::zeroize(&mut seed);
         let text = ssh_format::private_to_openssh(&key, COMMENT, passphrase, &random)?;
         make_folder(folder)?;
@@ -207,16 +208,20 @@ fn message(app_id: &str, fields: &[&str]) -> Vec<u8> {
     crate::seal::framed(DOMAIN, &all)
 }
 
-/// Fills `buf` from the system's randomness.
-fn random(buf: &mut [u8]) -> Result<(), String> {
+/// `n` bytes of the system's randomness.
+pub(crate) fn random(n: usize) -> Result<Vec<u8>, String> {
     use std::io::Read;
+    let mut buf = Vec::with_capacity(n);
     std::fs::File::open("/dev/urandom")
-        .and_then(|mut f| f.read_exact(buf))
+        .and_then(|f| f.take(n as u64).read_to_end(&mut buf))
         .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
-    if buf.len() >= 16 && buf.iter().all(|b| *b == 0) {
+    if buf.len() != n {
+        return Err("the system's randomness gave too little".to_owned());
+    }
+    if n >= 16 && buf.iter().all(|b| *b == 0) {
         return Err("the system's randomness gave only zeros".to_owned());
     }
-    Ok(())
+    Ok(buf)
 }
 
 /// Where a list of trusted keys came from, as the report says it.
@@ -1041,13 +1046,15 @@ mod with_ssh_keygen {
                 .unwrap();
             assert!(
                 derived.status.success(),
-                "{passphrase:?}: {}",
+                "locked: {}: {}",
+                passphrase.is_some(),
                 String::from_utf8_lossy(&derived.stderr)
             );
             assert_eq!(
                 key_of(&String::from_utf8_lossy(&derived.stdout)),
                 key_of(&ours),
-                "{passphrase:?}"
+                "locked: {}",
+                passphrase.is_some()
             );
             let listed = Command::new("ssh-keygen")
                 .arg("-l")
@@ -1107,7 +1114,7 @@ mod with_ssh_keygen {
                     assert!(locked.unlock("wrong horse").is_err());
                     locked.unlock(passphrase).unwrap()
                 }
-                other => panic!("{passphrase:?}: {other:?}"),
+                other => panic!("locked: {}: {other:?}", !passphrase.is_empty()),
             };
             assert_eq!(
                 PublicKey::of(&key.key).to_openssh("theirs").trim(),

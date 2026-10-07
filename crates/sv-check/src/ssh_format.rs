@@ -195,17 +195,16 @@ impl LockedKey {
 }
 
 /// `key` in OpenSSH's private key file, locked with `passphrase` when there is one. `random`
-/// fills a buffer from the system's randomness.
+/// gives that many bytes of the system's randomness.
 pub(crate) fn private_to_openssh(
     key: &SigningKey,
     comment: &str,
     passphrase: Option<&str>,
-    random: &dyn Fn(&mut [u8]) -> Result<(), String>,
+    random: &dyn Fn(usize) -> Result<Vec<u8>, String>,
 ) -> Result<String, String> {
     let public = PublicKey::of(key);
     let block = if passphrase.is_some() { 16 } else { 8 };
-    let mut check = [0u8; 4];
-    random(&mut check)?;
+    let check = random(4)?;
     let mut section = Vec::new();
     section.extend_from_slice(&check);
     section.extend_from_slice(&check);
@@ -223,8 +222,7 @@ pub(crate) fn private_to_openssh(
     let mut out = KEY_MAGIC.to_vec();
     match passphrase {
         Some(p) => {
-            let mut salt = [0u8; 16];
-            random(&mut salt)?;
+            let salt = random(16)?;
             aes_ctr(p, &salt, ROUNDS, &mut section)
                 .map_err(|why| format!("the signing key could not be locked ({why})"))?;
             put_string(&mut out, b"aes256-ctr");
@@ -462,19 +460,12 @@ impl<'a> Reader<'a> {
 mod tests {
     use super::*;
 
-    fn no_randomness_needed(buf: &mut [u8]) -> Result<(), String> {
-        buf.iter_mut()
-            .enumerate()
-            .for_each(|(i, b)| *b = i as u8 + 1);
-        Ok(())
-    }
-
     #[test]
     fn a_key_file_whose_parts_are_not_one_key_is_refused() {
         let a = SigningKey::from_bytes(&[7u8; 32]);
         let b = SigningKey::from_bytes(&[9u8; 32]);
         for passphrase in [None, Some("correct horse")] {
-            let text = private_to_openssh(&a, "c", passphrase, &no_randomness_needed).unwrap();
+            let text = private_to_openssh(&a, "c", passphrase, &crate::signed::random).unwrap();
             let read = |text: &str| match private_from_openssh(text) {
                 Ok(Kept::Plain(key)) => Ok(key),
                 Ok(Kept::Locked(locked)) => locked.unlock("correct horse"),
@@ -492,7 +483,8 @@ mod tests {
             bytes[at..at + 32].copy_from_slice(&pb);
             assert!(
                 read(&armor(PRIVATE_LABEL, &bytes)).is_err(),
-                "{passphrase:?}"
+                "locked: {}",
+                passphrase.is_some()
             );
             if passphrase.is_some() {
                 assert!(
@@ -513,8 +505,15 @@ mod tests {
             bytes[last] ^= 0x40;
             assert!(read(&armor(PRIVATE_LABEL, &bytes)).is_err());
             // The two check numbers made to differ.
+            // A plain key's private part starts after the magic, "none" twice, the empty
+            // options, the count, the public key, and the part's own length.
             let mut bytes = unarmor(PRIVATE_LABEL, &text).unwrap();
-            let at = bytes.windows(4).position(|w| w == [1, 2, 3, 4]).unwrap();
+            let at = KEY_MAGIC.len() + 8 + 8 + 4 + 4 + (4 + 51) + 4;
+            assert_eq!(
+                bytes[at..at + 4],
+                bytes[at + 4..at + 8],
+                "the setup: the check numbers"
+            );
             bytes[at] ^= 0xff;
             assert!(read(&armor(PRIVATE_LABEL, &bytes)).is_err());
         }
