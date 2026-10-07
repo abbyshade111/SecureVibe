@@ -78,5 +78,8 @@ fn a_brief_before_securevibe_toml_says_what_waits_for_it_and_gives_the_rest() {
     // What does not wait: a requirement it can bring, the prompt shown to work, and a setting.
     assert!(said.contains("**C2.1.3**"), "{said}");
     assert!(said.contains("(`ai-feature-guard`)"), "{said}");
-    assert!(said.contains("## 5. What `sv run` needs in `securevibe.toml`"), "{said}");
+    assert!(
+        said.contains("## 5. What `sv run` needs in `securevibe.toml`"),
+        "{said}"
+    );
 }
