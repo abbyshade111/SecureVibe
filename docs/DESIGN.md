@@ -11508,6 +11508,86 @@ Broken on purpose 10 ways, each caught:
 The footer's words, and the changed path, went uncaught at first. Two cases were added for them: a page
 showing LiveDashboard's script, and the six paths pinned as their sources serve them.
 
+## A finding outranked by `sv`'s own run, and one about a requirement the app is not held to (6 October 2026)
+
+Decided by the owner on 6 October 2026 (ADR-023, Later). Two of the owner's builds showed what `sv` let decide a
+report: a Django rule's 43 findings on a Flask app outweighed `sv`'s own check of the running app, which had verified
+V3.5.1 in the same run; and a finding about V1.3.12, above an Express app's level, was listed among those that count,
+so the AI coding tool rewrote working code for it.
+
+`sv_report::mark_outranked`, at the start of `build`, sets `Finding::outranked`:
+- **`CheckedWhileRunning { check }`** for an outside tool's finding whose every applicable requirement a `probe.`
+  check verified in this run, unless the requirement is one no check can settle. `Finding::withholds_credit` is then
+  false, so the requirement is credited, and the finding is listed under "only worth a look", beside Semgrep's five
+  usually wrong rules. A finding of `sv`'s own, one `sv`'s rule also reported, and one sharing its line with `sv`'s
+  own are never outranked.
+- **`NotHeldTo`** for a finding whose every requirement is outside the applicable set. It is listed in a group of its
+  own, "about requirements this app is not held to", with a note to change the code for it only to meet that
+  requirement too. A finding about no requirement stays with the app's own.
+
+Each is listed apart (`Finding::apart`), shown in full, and marked in SARIF (`outrankedBy`, `notHeldTo`), `report.json`,
+and the MCP server's schema. The exit status counts them as it did.
+
+How it is held: two report tests with seven controls between them (`sv`'s own rule, a requirement only a check that
+did not watch the app satisfied, two requirements of which the run verified one, a requirement no check can settle,
+`sv`'s rule merged in, `sv`'s finding on the same line, a finding about an applicable requirement too, and one about
+none), and a schema test for both kinds. Sixteen guards were undone in turn, each caught, and the schema entry's
+removal was caught too.
+
+## The retired grants in league/oauth2-server and Laravel Passport (7 October 2026)
+
+`config.retired-grant-enabled` (V10.4.4) reads an app's own sign-in server code for the password and implicit
+grants switched on. It knew four libraries. league/oauth2-server, the one PHP library the proposal named, was left
+out because its source could not be fetched then. It was read on 7 October 2026, with Laravel Passport 13, which most
+PHP apps reach it through:
+
+- **league/oauth2-server:** a grant is switched on by handing an instance to
+  `AuthorizationServer::enableGrantType`, and the two retired ones are `Grant\PasswordGrant` and
+  `Grant\ImplicitGrant`. So `new PasswordGrant(` and `new ImplicitGrant(` are what is looked for, imported or
+  written in full with or without a leading backslash.
+- **Laravel Passport:** it builds league's server itself and switches the two on only after
+  `Passport::enablePasswordGrant()` or `Passport::enableImplicitGrant()`, the calls its documentation puts in a
+  service provider's `boot`.
+
+As for the others:
+- A file is read when it names the library (`League\OAuth2\Server`, `Laravel\Passport`) or when the library is
+  among the app's packages. So a Passport call made through Laravel's short alias is found where `composer.lock` lists
+  Passport.
+- A line that is only a comment is not read.
+- It is only ever a finding.
+
+Not seen: Passport before version 12, which had the password grant on with no switch to find.
+
+Broken on purpose 9 ways, each caught:
+- either switch never matched;
+- the leading backslash not allowed;
+- the namespace written in full not allowed;
+- league's marker wrong, and made to match anything (which an app's own class named `PasswordGrant` then catches);
+- Passport's marker, package name, and package ecosystem each wrong.
+
+## Open redirects outside the sign-in flow, on the pages `redirects` names (7 October 2026)
+
+Decided by the owner on 6 October 2026 (BACKLOG, the running-app review's item 8). `probe.open-redirect` gave an address
+outside the app only to the sign-in and sign-out, since a redirect anywhere else is at an address only the app knows.
+The owner chose a new optional field to name them.
+
+- **`redirects = ["/go", …]`** under [stack.run.users]: the app's own pages that send the browser on to an address
+  they are given (a "continue to" link, a language switch that returns where it came from). The spec says what to
+  list.
+- **`page_redirect_check`** (`crates/sv-check/src/signed_in/redirects.rs`) signs A in once, then asks each page with
+  the same outside address as the sign-in check (`sv-redirect.invalid`, full and beginning with `//`) in the same
+  nine return parameters, and reads each answer's `Location`. A page that sends the browser there is a finding,
+  "A page of the app sends the browser to any address it is given", under the same rule (V3.7.2), medium, and only
+  ever a finding: a page that sends the browser home says nothing about pages nobody named. A sign-in that fails
+  says the pages were not asked. Nothing is asked when nothing is named.
+
+How it is held: `a_page_named_in_redirects_that_goes_anywhere_is_found_and_one_that_stays_home_is_not`, against the fake
+app's new `/go` (which follows `next` to its own pages, and anywhere with `go_anywhere`), with a page that stays home
+and an app that names nothing as its controls; and `a_sign_in_that_fails_says_the_named_pages_were_not_asked`. Six
+guards were undone in turn, each caught. A condition copied from the sign-in check (no asking when sign-in answers
+with a token) was left out, since a session reached through a token works here too; the spec's line for the field
+is documentation, not held by a test.
+
 ## Seals become signatures (6 October 2026)
 
 The owner chose SSH signing for `sv review` (ADR-043, after the Kaspa research in BACKLOG), and took every

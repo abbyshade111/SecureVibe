@@ -284,6 +284,8 @@ pub(super) struct Flaws {
     pub(super) redirect_anywhere: bool,
     /// Sign-in and sign-out follow `next` when it begins with `/`, which `//elsewhere` does.
     pub(super) redirect_checks_slash_only: bool,
+    /// `/go`, a page that sends a signed-in user on to `next`, follows it wherever it points.
+    pub(super) go_anywhere: bool,
     /// An email change does not check the password.
     pub(super) email_change_without_password: bool,
     /// An email change answers as if it worked and changes nothing.
@@ -1065,6 +1067,20 @@ impl FakeApp {
             });
         }
         Some(match (r.method.as_str(), path.as_str()) {
+            // A page outside the sign-in flow that sends the browser on: to `next` when it is one of
+            // the app's own pages, or anywhere with the flaw, and home otherwise.
+            ("GET", "/go") => match (&user, query.get("next")) {
+                (None, _) => Self::respond(302, vec![("Location", "/login".into())], ""),
+                (Some(_), Some(next))
+                    if self.flaws.go_anywhere
+                        || (next.starts_with('/')
+                            && !next.starts_with("//")
+                            && !next.starts_with("/\\")) =>
+                {
+                    Self::respond(302, vec![("Location", next.clone())], "")
+                }
+                (Some(_), _) => Self::respond(302, vec![("Location", "/account".into())], ""),
+            },
             ("GET", "/login") if user.is_some() && query.contains_key("next") => {
                 Self::respond(303, vec![("Location", "/account".into())], "")
             }
@@ -2228,6 +2244,7 @@ pub(super) fn users() -> UsersSection {
         logout: Some(t("/logout", &[("csrf_token", "{csrf}")])),
         token_field: None,
         private: vec!["/account".into()],
+        redirects: Vec::new(),
         admin: vec!["/admin".into()],
         admin_actions: vec![sv_manifest::AdminAction {
             method: "POST".into(),

@@ -350,6 +350,7 @@ fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Fin
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        outranked: None,
         also_on_this_line: Vec::new(),
         rule_id: "config.development-server-started".into(),
         title: "The app is started with a development server".into(),
@@ -697,6 +698,7 @@ fn mcp_finding(file: &str, line: usize, launch: &Launch) -> Finding {
         earlier_fingerprints: Vec::new(),
         marked_test_code: false,
         bundled_library: None,
+        outranked: None,
         also_on_this_line: Vec::new(),
         rule_id: "config.mcp-server-unpinned".into(),
         title:

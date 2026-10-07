@@ -1456,7 +1456,12 @@ another session is not a claim.
      broken in turn, each caught. Not done: redirects outside the sign-in flow, which the app's own addresses would
      have to name, and a run against a real app.
      **The owner's decision, 6 October 2026: yes** to redirects outside the sign-in flow, through a new optional
-     `securevibe.toml` field naming the app's own addresses that take a destination ("I agree with all your recommendations", 6 October 2026). Not claimed.
+     `securevibe.toml` field naming the app's own addresses that take a destination ("I agree with all your recommendations", 6 October 2026). **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick
+     your next backlog item"), in branch `claude/securevibe-e9-redirects`: `redirects` under [stack.run.users], the
+     app's own addresses that send the browser on, each given the same outside address in the same nine parameters,
+     signed in as A; only ever a finding.
+     **Done on 7 October 2026** (DESIGN, "Open redirects outside the sign-in flow, on the pages `redirects` names"):
+     `page_redirect_check`, the same outside address and nine parameters, one finding under `probe.open-redirect`.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -3572,6 +3577,10 @@ another session is not a claim.
      whatever you want to work on next from the backlog"), in branch `claude/securevibe-e2-league-grants`: its password
      and implicit grants switched on, read from its source, which can be fetched now. Read on `main` just before this
      claim: no other session had claimed it.
+     **Done the same day** (DESIGN, "The retired grants in league/oauth2-server and Laravel Passport"), with Laravel
+     Passport beside it, since most PHP apps reach league through Passport. `new PasswordGrant(` and `new
+     ImplicitGrant(` for league, and `Passport::enablePasswordGrant()` and `Passport::enableImplicitGrant()` for
+     Passport, each read from its own source. Not seen: Passport before 12, whose password grant had no switch.
   9. **V11.4.4: an encryption key made from a password with too little work.** From `docs/PARTIAL-CHECKS.md`: a
      code rule for PBKDF2 with a literal iteration count below OWASP's figure, and a single hash of a password used
      as a key. Only ever a finding; a count read from a setting is not judged.
@@ -4275,6 +4284,9 @@ another session is not a claim.
   new alert; alerts on `main` were not readable from the session, and any that appear in
   `crates/sv-run/assets/`, whose stand-in services misbehave on purpose, are each to be read and dismissed
   with its reason, or fixed.
+  **Closed on 7 October 2026:** the owner looked at the Security tab's code scanning page for `main`: 0 open alerts,
+  65 closed, and every tool working. Nothing in `crates/sv-run/assets/` was waiting to be read or dismissed, and the
+  recent pull requests' CodeQL checks each said "No new alerts in code changed by this pull request".
 
 - **Let the owner confirm what the AI coding tool said, and count it for more.** Asked for by the owner on
   27 September 2026, after trying the interview in VS Code: "give an option for a human to validate
@@ -6232,6 +6244,11 @@ another session is not a claim.
   `ast.download-piped-to-shell` (V15.2.4), finds `curl … | sh` and its relatives. See DESIGN, "Shell
   scripts". Left over: unquoted variables are ShellCheck's, which cannot write SARIF; a request value
   copied into another variable before it reaches a path or a redirect is not followed.
+  **A request value copied into another variable claimed on 7 October 2026 by session securevibe-e2**, at the owner's
+  word ("please continue to work off the backlog when ready"), in branch `claude/securevibe-e2-shell-copied`: the
+  path rule follows a variable the script set from `QUERY_STRING` and the like, with the `argumentNamesRead` switch
+  #846 added. The redirect rule needs nothing: in shell it already reports a `Location` header printed from any
+  variable. Read on `main` just before this claim: no other session had claimed it.
 
 - ~~**Signed-in checks in one container.**~~ Done on 25 September 2026 by session securevibe-e8. Every
   request is now an `exec` into one sidecar started per run, not a container of its own: a signed-in run
@@ -6803,6 +6820,9 @@ another session is not a claim.
   `claude/securevibe-e9-outranked`. **Record, `Status: proposed`** (a "Later" entry on ADR-023): both are listed in
   full, still named in the report, and still seen in SARIF; the first no longer keeps a requirement `sv` checked from
   being credited, the second never decided an applicable requirement's status in the first place.
+  **Done the same day** (DESIGN, "A finding outranked by `sv`'s own run, and one about a requirement the app is not
+  held to"; ADR-023, Later): `Finding::outranked`, set by the report; both kinds listed apart, in full, and marked in
+  SARIF, `report.json`, and the MCP server's schema.
 
 - **Grammars for C++, and for HTML's embedded scripts.** C++ is the last language the scanner counts and
   cannot parse. Assessed on 25 September 2026 against what AI coding tools actually produce: C++ matters

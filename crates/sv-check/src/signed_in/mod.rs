@@ -1567,6 +1567,7 @@ fn run_checks(
     // 9b'. Where the sign-in and sign-out send the browser when given an address outside the app:
     //     sessions of their own, and nothing changed.
     open_redirect_check(http, users, &accounts.a, &mut out);
+    page_redirect_check(http, users, &accounts.a, &mut out);
     // 9b''. The app's own sign-in token, waited out until it expires: a sign-in of its own, and
     //      before the password changes below, which can change A's.
     app_token_expiry_check(http, users, &accounts.a, confirm.as_deref(), slow, &mut out);

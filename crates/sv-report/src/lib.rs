@@ -922,9 +922,18 @@ pub const TEST_CODE_SECTION: &str = "Listed apart because they are in code that 
 pub fn apart_named(apart: &[&sv_check::Finding]) -> String {
     let tests = apart.iter().any(|f| f.in_test_code());
     let libraries = apart.iter().any(|f| f.bundled_library.is_some());
-    let look = apart.iter().any(|f| f.worth_a_look());
+    let look = apart.iter().any(|f| {
+        f.worth_a_look()
+            || matches!(
+                f.outranked,
+                Some(sv_check::finding::Outranked::CheckedWhileRunning { .. })
+            )
+    });
+    let not_held_to = apart
+        .iter()
+        .any(|f| f.outranked == Some(sv_check::finding::Outranked::NotHeldTo));
     let mut kinds: Vec<&str> = Vec::new();
-    if tests || !(libraries || look) {
+    if tests || !(libraries || look || not_held_to) {
         kinds.push("in test or sample code");
     }
     if libraries {
@@ -937,11 +946,15 @@ pub fn apart_named(apart: &[&sv_check::Finding]) -> String {
     if look {
         kinds.push("only worth a look");
     }
+    if not_held_to {
+        kinds.push("about requirements this app is not held to");
+    }
     match kinds.as_slice() {
         [one] => (*one).to_owned(),
         [first, second] => format!("{first}, or {second}"),
         [first, second, third] => format!("{first}, {second}, or {third}"),
-        _ => unreachable!("one to three kinds"),
+        [first, second, third, fourth] => format!("{first}, {second}, {third}, or {fourth}"),
+        _ => unreachable!("one to four kinds"),
     }
 }
 
@@ -972,6 +985,20 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
              real key, and sample code gets copied."
                 .to_owned(),
         );
+    }
+    match &f.outranked {
+        Some(sv_check::finding::Outranked::CheckedWhileRunning { check }) => notes.push(format!(
+            "Worth a look: an outside tool's finding about what `sv`'s own check of the running app \
+             ({check}) verified in this run, so it is listed apart and does not count against it. Read \
+             the code before changing anything; if it is not a problem, it is a false alarm."
+        )),
+        Some(sv_check::finding::Outranked::NotHeldTo) => notes.push(
+            "About a requirement this app is not held to (above its level, or not applying to it), \
+             so it is listed apart and decides nothing in the tables. Change the code for it only \
+             if you mean to meet that requirement too."
+                .to_owned(),
+        ),
+        None => {}
     }
     if f.worth_a_look() {
         notes.push(
@@ -1229,7 +1256,59 @@ pub struct Inputs<'a> {
     )>,
 }
 
+/// Marks each finding the report lists apart for what it outranks or is outranked by (the owner's
+/// decision of 6 October 2026; ADR-023, Later): one about requirements the app is not held to, and an
+/// outside tool's finding whose applicable requirements `sv`'s own check of the running app verified in
+/// the same run. A finding `sv` itself made, or that shares its line or its report with one, is never
+/// outranked by `sv`'s run: `sv` does not overrule itself.
+pub fn mark_outranked(
+    findings: &mut [Finding],
+    applicable: &[String],
+    verified: &[sv_check::Verified],
+    manual_only: &BTreeSet<String>,
+) {
+    use sv_check::finding::{Outranked, is_svs_own};
+    for f in findings.iter_mut() {
+        f.outranked = None;
+        let applies: Vec<&String> = f
+            .requirement_ids
+            .iter()
+            .filter(|r| applicable.contains(r))
+            .collect();
+        if !f.requirement_ids.is_empty() && applies.is_empty() {
+            f.outranked = Some(Outranked::NotHeldTo);
+            continue;
+        }
+        let outside = !is_svs_own(&f.rule_id)
+            && f.also_reported_by.iter().all(|r| !is_svs_own(r))
+            && f.also_on_this_line.iter().all(|o| !is_svs_own(&o.rule_id));
+        if !outside || applies.is_empty() {
+            continue;
+        }
+        let run_check = |r: &String| {
+            verified.iter().find(|v| {
+                v.check_id.starts_with("probe.")
+                    && !manual_only.contains(r.as_str())
+                    && v.requirement_ids.iter().any(|id| id == r)
+            })
+        };
+        if applies.iter().all(|r| run_check(r).is_some()) {
+            let check = run_check(applies[0])
+                .map(|v| v.check_id.clone())
+                .unwrap_or_default();
+            f.outranked = Some(Outranked::CheckedWhileRunning { check });
+        }
+    }
+}
+
 pub fn build(inputs: Inputs<'_>) -> Report {
+    let mut inputs = inputs;
+    mark_outranked(
+        &mut inputs.findings,
+        &inputs.buckets.applicable,
+        inputs.verified,
+        &inputs.manual_only,
+    );
     let describe = |id: &str| {
         inputs
             .frameworks
