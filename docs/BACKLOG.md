@@ -3596,6 +3596,8 @@ another session is not a claim.
      function around it sets `s` to the session (`s = req.session`, `s = session`, or a call that returns one, such as
      `getIronSession(...)`). `examples/oidc-notes` is the witness. Read on `main` just before this claim: no other
      session had claimed it. A lookup inside a helper function stays unclaimed.
+     **Done the same day** (DESIGN, "Later, 7 October 2026: the session under another name"). `sv report` on
+     `examples/oidc-notes` now reports its line 120. In PHP only `$s = &$_SESSION` counts, since an assignment copies.
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
