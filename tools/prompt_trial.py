@@ -87,9 +87,15 @@ def summary(report):
     return '\n'.join(lines)
 
 if __name__ == '__main__':
-    for arg in sys.argv[2:]:
+    import time
+    builds = sys.argv[2:]
+    for i, arg in enumerate(builds, 1):
         build, _, flag = arg.partition(':')
+        began = time.time()
         code, report = run(build, flag == 'slow')
+        # One line a build on stderr, so a run whose summaries go elsewhere still shows how far it has got.
+        state = (report.get('run_status') or {}).get('state', 'not run') if report else 'no report'
+        print(f'[{i}/{len(builds)}] {build}: {state}, {time.time() - began:.0f}s', file=sys.stderr, flush=True)
         if report is None:
             said = open(os.path.join(HERE, 'runs', build + '.log')).read().strip().splitlines()[-3:]
             text = f'== {build} (exit {code}, no report: ' + ' / '.join(said) + ')'
