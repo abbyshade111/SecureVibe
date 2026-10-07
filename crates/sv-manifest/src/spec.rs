@@ -31,6 +31,9 @@ test-report = ""          # where `test` writes its report (JUnit XML, TAP, or J
 health = "/"              # a path that returns 200 once the app is up
 # graphql = "/graphql"      # where it answers GraphQL, if it does
 # websocket = "/ws"         # where it accepts WebSocket connections, if it does
+#   `seed`, `admin`, and the other keys about signing in go under [stack.run.users], further down,
+#   never here: uncomment that table's own header line too, or they land in this table and `sv`
+#   refuses the file.
 
 # [stack.run.oidc]
 # Only if people sign in through another service ("Sign in with Google" and the like). For the run,

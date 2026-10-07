@@ -505,7 +505,7 @@
   "harm": [
    "checks answered, median 13.5 against 19"
   ],
-  "fisher_p": 0.0022,
+  "fisher_p": 0.0006,
   "without": {
    "builds": [
     {
@@ -724,7 +724,7 @@
      "started": true,
      "signed_in": true,
      "answered": 16,
-     "asked": false,
+     "asked": true,
      "problem": false,
      "other": 4
     },
@@ -741,7 +741,7 @@
     }
    ],
    "usable": 10,
-   "asked": 6,
+   "asked": 7,
    "problem": 0,
    "started": 7,
    "signed_in": 6,
@@ -799,7 +799,7 @@
      "started": true,
      "signed_in": true,
      "answered": 7,
-     "asked": false,
+     "asked": true,
      "problem": false,
      "other": 4
     },
@@ -871,7 +871,7 @@
     }
    ],
    "usable": 9,
-   "asked": 5,
+   "asked": 6,
    "problem": 5,
    "started": 6,
    "signed_in": 6,
@@ -1006,7 +1006,7 @@
   "harm": [
    "checks answered, median 7 against 19"
   ],
-  "fisher_p": 0.2063,
+  "fisher_p": 0.5238,
   "without": {
    "builds": [
     {
@@ -1049,7 +1049,7 @@
      "started": true,
      "signed_in": true,
      "answered": 7,
-     "asked": false,
+     "asked": true,
      "problem": false,
      "other": 4
     },
@@ -1121,7 +1121,7 @@
     }
    ],
    "usable": 9,
-   "asked": 5,
+   "asked": 6,
    "problem": 4,
    "started": 6,
    "signed_in": 6,
@@ -1256,7 +1256,7 @@
   "harm": [
    "checks answered, median 6.5 against 19"
   ],
-  "fisher_p": 0.0079,
+  "fisher_p": 0.0152,
   "without": {
    "builds": [
     {
@@ -1299,7 +1299,7 @@
      "started": true,
      "signed_in": true,
      "answered": 7,
-     "asked": false,
+     "asked": true,
      "problem": false,
      "other": 4
     },
@@ -1371,7 +1371,7 @@
     }
    ],
    "usable": 9,
-   "asked": 5,
+   "asked": 6,
    "problem": 5,
    "started": 6,
    "signed_in": 6,
@@ -1387,7 +1387,7 @@
      "started": true,
      "signed_in": true,
      "answered": 7,
-     "asked": false,
+     "asked": true,
      "problem": false,
      "other": 4
     },
@@ -1453,7 +1453,7 @@
      "started": true,
      "signed_in": true,
      "answered": 6,
-     "asked": false,
+     "asked": true,
      "problem": false,
      "other": 2
     },
@@ -1492,7 +1492,7 @@
     }
    ],
    "usable": 10,
-   "asked": 4,
+   "asked": 6,
    "problem": 0,
    "started": 6,
    "signed_in": 6,

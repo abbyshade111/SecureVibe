@@ -27,13 +27,15 @@ Every MCP tool attached, no prompt in the request: today's `sv` (`a9d6fea4`) aga
 | Prompt (how ADR-044 delivers it) | Model | Today | Delivering | Pasted (prompt-library trial) |
 |---|---|---|---|---|
 | `ai-feature-guard` (AI brief) | Sonnet | 10 of 10 | 10 of 10 | 0 of 9 |
-| `security-headers` (guidance) | Haiku | 9 of 9 | **2 of 6** | 0 of 6 |
+| `security-headers` (guidance) | Haiku | 9 of 9 | **2 of 6** | 0 of 7 |
 | `secrets-in-the-environment` (guidance) | Haiku | 8 of 9 | **4 of 9** | 1 of 4 |
 | `secrets-in-the-environment` (guidance) | Sonnet | 10 of 10 | 9 of 10 | (not tried) |
-| `private-pages-no-store` (sign-in brief) | Haiku | 3 of 6 | 2 of 4 | 0 of 4 |
+| `private-pages-no-store` (sign-in brief) | Haiku | 3 of 7 | 2 of 5 | 0 of 6 |
 | `security-headers`, `private-pages-no-store` | Sonnet | 0 of 10 | 0 of 10 | (no problem to fix) |
 
-Counts are builds with the problem, of those its check could be asked of. **By the rule, delivery is not shown to
+Counts are builds with the problem, of those its check could be asked of (recounted on 7 October 2026,
+`revision-protocol.md`, Amendment 2: `private-pages-no-store` on Haiku, first 3 of 6 and 2 of 4, moves from "not
+shown" to "no reading", since fewer than half the builds without it had the problem). **By the rule, delivery is not shown to
 work for any prompt.** Why, from the transcripts:
 
 1. **The briefs mostly never reached the builders.** `securevibe_before` refuses until `securevibe.toml` exists, and
