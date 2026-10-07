@@ -82,6 +82,7 @@ RUST_CHECKS = {
     "config.workflow-runs-fork-code": ("static", ["AC.12.1"]),
     "config.workflow-checkout-keeps-token": ("static", ["AC.12.2"]),
     "config.workflow-secrets-with-fork-code": ("static", ["AC.12.3"]),
+    "config.workflow-hands-out-all-secrets": ("static", ["V13.3.2"]),
     "sbom": ("static", ["V15.1.2"]),
     "secrets.credential-assignment": ("static", ["V13.3.1", "V13.2.3", "SBD-AC-05"]),
     "advisories": ("advisories", ["V15.2.1"]),
@@ -298,6 +299,8 @@ RUST_FINDINGS_ONLY = {
     "config.model-file-can-run-code",
     # A setting made on the server itself is in no file.
     "config.certificate-checks-off",
+    # Secrets handed out with care in the workflows say nothing of who else can read them.
+    "config.workflow-hands-out-all-secrets",
     "probe.retired-grants-offered",
     "probe.admin-opened-by-address",
     "probe.private-files-served",
@@ -367,6 +370,7 @@ DESCRIBED = {
     "config.workflow-runs-fork-code": "A CI workflow that runs code from a pull request by someone outside the project with the repository's privileges",
     "config.workflow-checkout-keeps-token": "A CI workflow whose checkout step leaves the repository token where later steps can read it",
     "config.workflow-secrets-with-fork-code": "A CI workflow that hands secrets to a job running code from outside the project",
+    "config.workflow-hands-out-all-secrets": "A CI workflow that hands every secret to a job (`toJSON(secrets)`, `secrets: inherit`), or puts secrets in the workflow-wide `env:` where every step reads them",
     "sbom": "Whether the list of what the app ships (its bill of materials) could be read completely from its lockfiles",
     "advisories": "Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities",
     "probe.ai-injection-logged": "Whether the app writes down that it caught the textbook prompt injection the run sent",
