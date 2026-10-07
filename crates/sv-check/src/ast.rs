@@ -63,6 +63,17 @@ pub struct AstRule {
     /// The same, per language, for the `@mod` capture — the object or module the call is on.
     #[serde(default)]
     pub module_patterns: BTreeMap<String, String>,
+    /// Per language, what the name of the function around `@hit` must match, written as lower-case
+    /// words joined by `_` whatever the code's own style (`verifyToken`, `VerifyToken`, and
+    /// `verify_token` are all `verify_token`).
+    ///
+    /// `except: return True` is a fault in `verify_token` and ordinary in `is_cached`, and how far
+    /// the handler sits inside the function is not something a query can say, since a pattern
+    /// matches only children it names. A function with no name of its own (a lambda, a callback)
+    /// is passed over for the one around it, or the name it is assigned to (`const requireAuth =
+    /// (req, res, next) => …`). A match with no named function around it is not reported.
+    #[serde(default)]
+    pub enclosing_function_patterns: BTreeMap<String, String>,
     /// Per language, what the `@arg` capture's text must match for the call to be reported at all.
     ///
     /// For the rules whose danger is in *which* value is passed rather than whether it was built:
@@ -224,6 +235,7 @@ struct Compiled {
     tsx: Option<LazyQuery>,
     function: BTreeMap<String, regex::Regex>,
     module: BTreeMap<String, regex::Regex>,
+    enclosing: BTreeMap<String, regex::Regex>,
     argument: BTreeMap<String, regex::Regex>,
     safe_argument: BTreeMap<String, regex::Regex>,
     keyword: BTreeMap<String, regex::Regex>,
@@ -832,6 +844,10 @@ impl AstRules {
             };
             let function = compile_patterns(&rule.function_patterns, "functionPattern")?;
             let module = compile_patterns(&rule.module_patterns, "modulePattern")?;
+            let enclosing = compile_patterns(
+                &rule.enclosing_function_patterns,
+                "enclosingFunctionPattern",
+            )?;
             let argument = compile_patterns(&rule.argument_patterns, "argumentPattern")?;
             let safe_argument =
                 compile_patterns(&rule.safe_argument_patterns, "safeArgumentPattern")?;
@@ -902,6 +918,10 @@ impl AstRules {
             for (what, patterns) in [
                 ("functionPattern", &rule.function_patterns),
                 ("modulePattern", &rule.module_patterns),
+                (
+                    "enclosingFunctionPattern",
+                    &rule.enclosing_function_patterns,
+                ),
                 ("argumentPattern", &rule.argument_patterns),
                 ("safeArgumentPattern", &rule.safe_argument_patterns),
                 ("keywordPattern", &rule.keyword_patterns),
@@ -948,6 +968,7 @@ impl AstRules {
                 tsx,
                 function,
                 module,
+                enclosing,
                 argument,
                 safe_argument,
                 keyword,
@@ -1988,6 +2009,15 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     _ => continue,
                 }
             }
+            if let Some(pattern) = compiled.enclosing.get(language) {
+                let named = hit_index
+                    .and_then(|index| m.captures().iter().find(|c| c.index == index))
+                    .and_then(|c| enclosing_function_name(c.node, source.as_bytes()));
+                match named {
+                    Some(name) if pattern.is_match(&words_of(&name)) => {}
+                    _ => continue,
+                }
+            }
             // The argument to judge: the `@arg` capture, or for a call named in `argumentPositions`,
             // the argument at that position in the same call.
             let mut arg_node = arg_index
@@ -2242,6 +2272,96 @@ const FUNCTIONS: &[&str] = &[
     "function_item",
     "closure_expression",
 ];
+
+/// The name of the nearest function around `node` that has one: its own (`def verify_token`,
+/// `bool VerifyToken(…)`, C++'s `Auth::check` as `check`, Dart's through its signature), or, for
+/// one with none, the name it is assigned to or stored under (`const requireAuth = (…) => …`,
+/// `exports.verify = …`, `{ isAllowed: function … }`). A function with neither is passed over for
+/// the one around it.
+fn enclosing_function_name(node: tree_sitter::Node, source: &[u8]) -> Option<String> {
+    let text = |n: tree_sitter::Node| n.utf8_text(source).ok().map(str::to_owned);
+    // The last part of a qualified or dotted name: `Auth::check`, `exports.verify`.
+    let last = |s: String| {
+        s.rsplit(['.', ':'])
+            .next()
+            .map(|p| p.trim().trim_start_matches('$').to_owned())
+            .filter(|p| !p.is_empty())
+    };
+    let mut current = node.parent();
+    while let Some(f) = current {
+        current = f.parent();
+        if !FUNCTIONS.contains(&f.kind()) {
+            continue;
+        }
+        if let Some(name) = f.child_by_field_name("name") {
+            return text(name).and_then(last);
+        }
+        // Dart: the name is in the signature, one or two levels down.
+        if let Some(signature) = f.child_by_field_name("signature") {
+            let mut look = Some(signature);
+            while let Some(s) = look {
+                if let Some(name) = s.child_by_field_name("name") {
+                    return text(name).and_then(last);
+                }
+                look = s.named_child(0);
+            }
+        }
+        // C and C++: through the declarators to the name, `Auth::check(int)` read as `check`.
+        if let Some(mut declarator) = f.child_by_field_name("declarator") {
+            while let Some(inner) = declarator.child_by_field_name("declarator") {
+                declarator = inner;
+            }
+            return text(declarator).and_then(last);
+        }
+        // A function with no name of its own, named by what it is assigned to.
+        if let Some(parent) = f.parent() {
+            let named = match parent.kind() {
+                "variable_declarator" | "public_field_definition" | "field_definition" => {
+                    parent.child_by_field_name("name")
+                }
+                "assignment_expression" | "assignment" => parent.child_by_field_name("left"),
+                "pair" => parent.child_by_field_name("key"),
+                _ => None,
+            };
+            if let Some(name) = named.and_then(text).and_then(last) {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
+/// A function's name as lower-case words joined by `_`: `verifyToken`, `VerifyToken`,
+/// `verify_token`, and `verify-token` are all `verify_token`, `isJWTValid` is `is_jwt_valid`, and
+/// `authorized?` is `authorized`.
+fn words_of(name: &str) -> String {
+    let chars: Vec<char> = name.chars().collect();
+    let mut out = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        // `_`, `-`, and anything else that is not a letter or a digit (Ruby's `authorized?`).
+        if !c.is_alphanumeric() {
+            if !out.is_empty() && !out.ends_with('_') {
+                out.push('_');
+            }
+            continue;
+        }
+        if c.is_uppercase() && i > 0 {
+            let previous = chars[i - 1];
+            let next_lower = chars.get(i + 1).is_some_and(|n| n.is_lowercase());
+            // A new word starts at a capital after a small letter or a digit (`verifyToken`), or
+            // at the last capital of a run followed by a small letter (`JWTValid`).
+            if (previous.is_lowercase() || previous.is_ascii_digit())
+                || (previous.is_uppercase() && next_lower)
+            {
+                if !out.is_empty() && !out.ends_with('_') {
+                    out.push('_');
+                }
+            }
+        }
+        out.extend(c.to_lowercase());
+    }
+    out.trim_end_matches('_').to_owned()
+}
 
 /// Whether a name in `arg` is set, in the function around it, to text `pattern` matches. With
 /// `whole_file`, anywhere in the file: a shell variable is global unless declared `local`, so one set
@@ -6394,6 +6514,51 @@ mod tests {
         ("ast.token-key-source-from-token", "cpp", "void f(CURL* curl, jwt_t* jwt) { curl_easy_setopt(curl, CURLOPT_URL, jwt_get_header(jwt, \"x5u\")); }", true),
         ("ast.token-key-source-from-token", "cpp", "void f() { auto r = cpr::Get(cpr::Url{JWKS_URL}); }", false),
         ("ast.token-key-source-from-token", "cpp", "bool f(const jwt::decoded_jwt<jwt::traits::kazuho_picojson>& d) { return trusted.count(d.get_header_claim(\"jku\").as_string()) > 0; }", false),
+        ("ast.check-passes-on-error", "python", "def verify_token(t):\n    try:\n        jwt.decode(t, KEY, algorithms=['HS256'])\n        return True\n    except Exception:\n        return True\n", true),
+        ("ast.check-passes-on-error", "python", "class Perms:\n    @staticmethod\n    def has_permission(user, thing):\n        try:\n            return lookup(user, thing)\n        except KeyError:\n            log.warning('no entry')\n            return True\n", true),
+        ("ast.check-passes-on-error", "python", "def verify_token(t):\n    try:\n        jwt.decode(t, KEY, algorithms=['HS256'])\n        return True\n    except Exception:\n        return False\n", false),
+        ("ast.check-passes-on-error", "python", "def is_cached(key):\n    try:\n        return key in CACHE\n    except Exception:\n        return True\n", false),
+        ("ast.check-passes-on-error", "python", "def invalidate_session(s):\n    try:\n        s.clear()\n    except Exception:\n        return True\n", false),
+        ("ast.check-passes-on-error", "javascript", "function verifyToken(t) { try { jwt.verify(t, KEY); return true; } catch (e) { return true; } }", true),
+        ("ast.check-passes-on-error", "javascript", "const requireAuth = (req, res, next) => { try { req.user = jwt.verify(req.cookies.t, KEY); next(); } catch (e) { next(); } };", true),
+        ("ast.check-passes-on-error", "javascript", "exports.isAllowed = async (u, r) => { try { return await acl.check(u, r); } catch (e) { return true; } };", true),
+        ("ast.check-passes-on-error", "javascript", "const requireAuth = (req, res, next) => { try { req.user = jwt.verify(req.cookies.t, KEY); next(); } catch (e) { next(e); } };", false),
+        ("ast.check-passes-on-error", "javascript", "function verifyToken(t) { try { jwt.verify(t, KEY); return true; } catch (e) { return false; } }", false),
+        ("ast.check-passes-on-error", "javascript", "function loadPrefs() { try { return JSON.parse(s); } catch (e) { return true; } }", false),
+        ("ast.check-passes-on-error", "typescript", "class AuthGuard { canActivate(ctx: ExecutionContext): boolean { try { return this.check(ctx); } catch (e) { return true; } } }", true),
+        ("ast.check-passes-on-error", "typescript", "class AuthGuard { canActivate(ctx: ExecutionContext): boolean { try { return this.check(ctx); } catch (e) { throw new UnauthorizedException(); } } }", false),
+        ("ast.check-passes-on-error", "ruby", "def authorized?(user)\n  policy.check!(user)\nrescue StandardError => e\n  Rails.logger.warn(e)\n  true\nend\n", true),
+        ("ast.check-passes-on-error", "ruby", "def verify_signature(sig)\n  begin\n    webhook.verify!(body, sig)\n  rescue\n    return true\n  end\nend\n", true),
+        ("ast.check-passes-on-error", "ruby", "def authorized?(user)\n  policy.check!(user)\nrescue StandardError\n  false\nend\n", false),
+        ("ast.check-passes-on-error", "ruby", "def warm_cache\n  load_all\nrescue StandardError\n  true\nend\n", false),
+        ("ast.check-passes-on-error", "php", "<?php function verifyToken($t) { try { JWT::decode($t, $k); return true; } catch (Exception $e) { return TRUE; } }", true),
+        ("ast.check-passes-on-error", "php", "<?php function verifyToken($t) { try { JWT::decode($t, $k); return true; } catch (Exception $e) { return false; } }", false),
+        ("ast.check-passes-on-error", "java", "class A { boolean isAuthorized(User u) { try { return acl.check(u); } catch (Exception e) { return true; } } }", true),
+        ("ast.check-passes-on-error", "java", "class A { boolean isAuthorized(User u) { try { return acl.check(u); } catch (Exception e) { return false; } } }", false),
+        ("ast.check-passes-on-error", "csharp", "class A { bool ValidateToken(string t) { try { handler.ValidateToken(t, p, out _); return true; } catch (Exception) { return true; } } }", true),
+        ("ast.check-passes-on-error", "csharp", "class A { bool ValidateToken(string t) { try { handler.ValidateToken(t, p, out _); return true; } catch (Exception) { return false; } } }", false),
+        ("ast.check-passes-on-error", "kotlin", "fun verifyToken(t: String): Boolean { try { verifier.verify(t) } catch (e: Exception) { return true }; return true }", true),
+        ("ast.check-passes-on-error", "kotlin", "fun verifyToken(t: String): Boolean = try { verifier.verify(t); true } catch (e: Exception) { true }", true),
+        ("ast.check-passes-on-error", "kotlin", "fun verifyToken(t: String): Boolean = try { verifier.verify(t); true } catch (e: Exception) { false }", false),
+        ("ast.check-passes-on-error", "swift", "func verifyToken(_ t: String) -> Bool { do { try verifier.verify(t) } catch { return true }; return true }", true),
+        ("ast.check-passes-on-error", "swift", "func verifyToken(_ t: String) -> Bool { do { try verifier.verify(t) } catch { return false }; return true }", false),
+        ("ast.check-passes-on-error", "dart", "bool verifyToken(String t) { try { verifier.verify(t); } catch (e) { return true; } return true; }", true),
+        ("ast.check-passes-on-error", "dart", "class A { bool isAllowed(String u) { try { return acl.check(u); } on FormatException { return true; } } }", true),
+        ("ast.check-passes-on-error", "dart", "bool verifyToken(String t) { try { verifier.verify(t); } catch (e) { return false; } return true; }", false),
+        ("ast.check-passes-on-error", "go", "package m\nfunc verifyToken(t string) bool { _, err := jwt.Parse(t, keyFunc); if err != nil { return true }; return true }", true),
+        ("ast.check-passes-on-error", "go", "package m\nfunc (a *Auth) CheckAccess(u string) (bool, error) { ok, err := a.acl.Allowed(u); if err != nil { return true, nil }; return ok, nil }", true),
+        ("ast.check-passes-on-error", "go", "package m\nfunc verifyToken(t string) bool { _, err := jwt.Parse(t, keyFunc); if err != nil { return false }; return true }", false),
+        ("ast.check-passes-on-error", "go", "package m\nfunc isAllowed(u string) bool { r := roles[u]; if r != nil { return true }; return false }", false),
+        ("ast.check-passes-on-error", "go", "package m\nfunc loadConfig(p string) bool { _, err := os.Stat(p); if err != nil { return true }; return false }", false),
+        ("ast.check-passes-on-error", "rust", "fn verify_token(t: &str) -> bool { decode::<Claims>(t, &KEY, &V).map(|_| true).unwrap_or(true) }", true),
+        ("ast.check-passes-on-error", "rust", "fn is_allowed(u: &User) -> bool { match acl.check(u) { Ok(ok) => ok, Err(_) => true } }", true),
+        ("ast.check-passes-on-error", "rust", "fn verify_token(t: &str) -> bool { decode::<Claims>(t, &KEY, &V).map(|_| true).unwrap_or(false) }", false),
+        ("ast.check-passes-on-error", "rust", "fn is_allowed(u: &User) -> bool { match acl.check(u) { Ok(_) => true, Err(_) => false } }", false),
+        ("ast.check-passes-on-error", "cpp", "bool Auth::verifyToken(const std::string& t) { try { verifier.verify(t); return true; } catch (...) { return true; } }", true),
+        ("ast.check-passes-on-error", "cpp", "bool Auth::verifyToken(const std::string& t) { try { verifier.verify(t); return true; } catch (...) { return false; } }", false),
+        ("ast.check-passes-on-error", "shell", "verify_checksum() {\n  sha256sum -c \"$1.sha256\" || return 0\n  return 0\n}\n", true),
+        ("ast.check-passes-on-error", "shell", "verify_checksum() {\n  sha256sum -c \"$1.sha256\" || return 1\n  return 0\n}\n", false),
+        ("ast.check-passes-on-error", "shell", "cleanup() {\n  rm -f \"$TMP\" || return 0\n}\n", false),
     ];
 
     #[test]
@@ -6506,6 +6671,22 @@ mod tests {
     }
 
     #[test]
+    fn a_functions_name_is_read_as_its_words_whatever_its_style() {
+        for (name, words) in [
+            ("verifyToken", "verify_token"),
+            ("VerifyToken", "verify_token"),
+            ("verify_token", "verify_token"),
+            ("verify-token", "verify_token"),
+            ("isJWTValid", "is_jwt_valid"),
+            ("authorized?", "authorized"),
+            ("check2FA", "check2_fa"),
+            ("__init__", "init"),
+        ] {
+            assert_eq!(words_of(name), words, "{name}");
+        }
+    }
+
+    #[test]
     fn the_newer_rules_find_the_unsafe_form_and_leave_the_safe_one() {
         let rules = rules();
         let mut wrong = Vec::new();
@@ -6551,6 +6732,7 @@ mod tests {
             "ast.token-audience-not-checked",
             "ast.token-key-source-from-token",
             "ast.account-found-by-provider-email",
+            "ast.check-passes-on-error",
         ];
         let mut unwitnessed = Vec::new();
         for (rule_id, languages, _) in rules.coverage() {

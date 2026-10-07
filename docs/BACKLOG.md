@@ -17,6 +17,9 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
   backlog when ready"), in branch `claude/securevibe-e2-fail-open`. A new rule that only ever raises findings changes
   no requirement's status, so no ADR is proposed.
+  **Done the same day** (DESIGN, "A check that answers "yes" when it fails"): `ast.check-passes-on-error`, in
+  fourteen languages (C has nothing to find, and says why), with a new rule setting, `enclosingFunctionPatterns`, that
+  reads the name of the function around a match as words. Only ever a finding.
 
 - **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
   2026. A reading, not a build: what the list is (its version, date, status, and license, and whether it

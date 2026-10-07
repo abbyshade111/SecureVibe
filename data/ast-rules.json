@@ -1602,6 +1602,73 @@
         "cpp": "No sign-in provider library in common use for C++ is looked for here. An account looked up by the email address a provider sent is not found.",
         "shell": "A shell script does not handle a sign-in provider's answer, so there is no account lookup to look for."
       }
+    },
+    {
+      "id": "ast.check-passes-on-error",
+      "title": "A check answers \"yes\" when it fails",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V16.5.3"
+      ],
+      "cwe": [
+        "CWE-636"
+      ],
+      "description": "A function whose name says it checks something (verify, validate, authorize, check, allow, permission, guard, and the like) answers \"yes\" from its error handler: `except: return True`, `catch (e) { return true; }`, `rescue … true`, an Express check that calls `next()` from its `catch`, Go's `if err != nil { return true }`, Rust's `.unwrap_or(true)` or `Err(_) => true`, or a shell function's `|| return 0`.",
+      "impact": "When the check itself breaks (a token it cannot read, a database that is down, a signature it cannot work out), the app goes ahead as if the check had passed. Whoever can make the check throw, often just by sending something malformed, gets past it.",
+      "fix": "Make the error handler answer \"no\": return false, raise the error, or pass it on (`next(err)` in Express), and log what went wrong. If an error really should let the person through, write down why next to the code, and say so to whoever reads this finding.",
+      "findingsOnly": true,
+      "argumentPatterns": {
+        "javascript": "^(true|next\\(\\s*\\))$",
+        "typescript": "^(true|next\\(\\s*\\))$",
+        "php": "(?i)^true$",
+        "csharp": "^true$",
+        "kotlin": "^true$",
+        "swift": "^true$",
+        "rust": "^true$",
+        "shell": "^0$"
+      },
+      "modulePatterns": {
+        "go": "^err\\w*$",
+        "rust": "^(unwrap_or|Err)$",
+        "shell": "^return$"
+      },
+      "enclosingFunctionPatterns": {
+        "python": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "javascript": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "typescript": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "ruby": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "php": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "java": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "csharp": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "kotlin": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "swift": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "dart": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "go": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "rust": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "cpp": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)",
+        "shell": "(^|_)(auth|authn|authz|authenticate[ds]?|authenticating|authentication|authori[sz]e[ds]?|authori[sz]ing|authori[sz]ation|verify|verifie[ds]|verifying|verification|validate[ds]?|validating|validation|valid|validator|check|checks|checked|checker|checking|allow|allows|allowed|permit|permits|permitted|permission|permissions|guard|can_activate|has_access|has_role|has_permission|is_admin|login_required|require_login|require_auth)($|_)"
+      },
+      "looksFor": "an error handler that answers \"yes\" directly (returns true, or calls `next()` with nothing), inside a function whose name says it checks something; a handler that swallows the error and lets the function go on to a \"yes\" further down is not looked for, so finding none credits nothing",
+      "queries": {
+        "python": "(except_clause (block (return_statement (true) @arg) @hit))",
+        "javascript": "[(catch_clause body: (statement_block (return_statement (true) @arg) @hit))\n (catch_clause body: (statement_block (expression_statement (call_expression function: (identifier) arguments: (arguments)) @arg) @hit))]",
+        "typescript": "[(catch_clause body: (statement_block (return_statement (true) @arg) @hit))\n (catch_clause body: (statement_block (expression_statement (call_expression function: (identifier) arguments: (arguments)) @arg) @hit))]",
+        "ruby": "[(rescue body: (then (true) @arg @hit .))\n (rescue body: (then (return (argument_list (true) @arg)) @hit))]",
+        "php": "(catch_clause body: (compound_statement (return_statement (boolean) @arg) @hit))",
+        "java": "(catch_clause body: (block (return_statement (true) @arg) @hit))",
+        "csharp": "(catch_clause body: (block (return_statement (boolean_literal) @arg) @hit))",
+        "kotlin": "[(catch_block (block (return_expression (_) @arg) @hit))\n (catch_block (block (_) @arg @hit .))]",
+        "swift": "(catch_block (statements (control_transfer_statement result: (boolean_literal) @arg) @hit))",
+        "dart": "[(try_statement (catch_clause) . (block (return_statement (true) @arg) @hit))\n (try_statement (type) . (block (return_statement (true) @arg) @hit))]",
+        "go": "(if_statement condition: (binary_expression left: (identifier) @mod operator: \"!=\" right: (nil))\n consequence: (block (statement_list (return_statement (expression_list . (true) @arg)) @hit)))",
+        "rust": "[(call_expression function: (field_expression field: (field_identifier) @mod) arguments: (arguments . (boolean_literal) @arg .)) @hit\n (match_arm pattern: (match_pattern (tuple_struct_pattern type: (identifier) @mod)) value: (boolean_literal) @arg) @hit\n (match_arm pattern: (match_pattern (tuple_struct_pattern type: (identifier) @mod)) value: (return_expression (boolean_literal) @arg)) @hit]",
+        "cpp": "(catch_clause body: (compound_statement (return_statement (true) @arg) @hit))",
+        "shell": "(list (_) \"||\" (command name: (command_name) @mod argument: (number) @arg) @hit)"
+      },
+      "nothingToFind": {
+        "c": "C has no exceptions, and a C function says it failed through a value whose meaning only its own code knows (0 is success to some functions and failure to others), so an error path that answers \"yes\" cannot be told from one that answers \"no\" by reading it."
+      }
     }
   ]
 }
