@@ -1424,32 +1424,75 @@ mod tests {
         }
         // Not reported: a reference to a setting, a placeholder, a stock password, the user name
         // again, an address with no password, and the same address in a .env file.
-        for (pw_or_text, file) in [
-            (address("postgresql", "app", "${DB_PASSWORD}"), "src/db.py"),
-            (address("postgresql", "app", "<password>"), "src/db.py"),
-            (address("postgresql", "app", "%(password)s"), "src/db.py"),
+        for (case, pw_or_text, file) in [
             (
+                "a reference to a setting",
+                address("postgresql", "app", "${DB_PASSWORD}"),
+                "src/db.py",
+            ),
+            (
+                "a placeholder",
+                address("postgresql", "app", "<password>"),
+                "src/db.py",
+            ),
+            (
+                "a format blank",
+                address("postgresql", "app", "%(password)s"),
+                "src/db.py",
+            ),
+            (
+                "the user name again, a stock one",
                 address("postgresql", "postgres", "postgres"),
                 "docker-compose.yml",
             ),
-            (address("postgresql", "app", "changeme"), "src/db.py"),
-            (address("postgresql", "myuser", "mypassword"), "README.md"),
-            (address("postgresql", "appuser", "appuser"), "src/db.py"),
-            (address("mysql", "app", "root"), "src/db.py"),
-            (address("postgresql", "app", "xxxxxxxx"), "src/db.py"),
             (
+                "a stock placeholder",
+                address("postgresql", "app", "changeme"),
+                "src/db.py",
+            ),
+            (
+                "an example password",
+                address("postgresql", "myuser", "mypassword"),
+                "README.md",
+            ),
+            (
+                "the user name again",
+                address("postgresql", "appuser", "appuser"),
+                "src/db.py",
+            ),
+            (
+                "a stock password",
+                address("mysql", "app", "root"),
+                "src/db.py",
+            ),
+            (
+                "a row of x's",
+                address("postgresql", "app", "xxxxxxxx"),
+                "src/db.py",
+            ),
+            (
+                "no password",
                 "postgresql://app@db.internal.example:5432/app".to_owned(),
                 "src/db.py",
             ),
-            ("https://example.com/a:b@c".to_owned(), "src/db.py"),
-            (address("postgresql", "app_owner", &password), ".env"),
+            (
+                "a path with a colon",
+                "https://example.com/a:b@c".to_owned(),
+                "src/db.py",
+            ),
+            (
+                "a .env file",
+                address("postgresql", "app_owner", &password),
+                ".env",
+            ),
         ] {
             let text = format!("url = \"{pw_or_text}\"\n");
+            // The case's name only: the text may hold the test's password, and a message is output.
             assert!(
                 scan_text(&rules, file, &text)
                     .iter()
                     .all(|f| f.rule_id != URL_PASSWORD_RULE),
-                "reported: {pw_or_text} in {file}"
+                "reported: {case} in {file}"
             );
         }
     }
