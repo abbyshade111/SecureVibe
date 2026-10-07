@@ -572,7 +572,7 @@
         ]
       },
       "install": "pip install semgrep",
-      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is run with its usage reporting off (`--metrics=off`) and its check for a newer version off (`SEMGREP_ENABLE_VERSION_CHECK=0`), so the one place it connects to is semgrep.dev, for the rules: measured on 3 October 2026, usage reporting was a second connection, to an Amazon server in Oregon, on every run where it was on. When semgrep is not installed, Opengrep runs in its place (`stand_in`): the open-source fork of its engine, which loaded the same rules, found the same things, and gave `sv` the same report on 29 September 2026, and which has no usage reporting and refuses `--metrics`. The report says when it did. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those. So do 7 others for ASVS requirements a pattern can show missing and not present (V3.2.2, V4.4.1, V9.2.1). It runs `p/security-audit`, which holds the pattern rules, and `p/default`, which holds the rules that follow data from a request to where it is used; the first alone missed every injection fault planted in its fixture app. The registry pack `p/ai-best-practices`, where most of those AI rules live, is added for an app that may call a model (`conditional_args`), and left out only when the app is known not to: its rules can only ever find something, so running it where nobody has said costs almost nothing and credits nothing. Which rules each pack loads is measured in data/semgrep-packs.json. Its exit codes 0 and 1 are a finished run; 2 and above are its failures.",
+      "note": "The only entry that reads more than one language, and the only one that fetches its rules from the network the first time it runs. `sv` itself opens no connection; this tool does, which is why it is listed with that said rather than left to be discovered. It is run with its usage reporting off (`--metrics=off`) and its check for a newer version off (`SEMGREP_ENABLE_VERSION_CHECK=0`), so the one place it connects to is semgrep.dev, for the rules: measured on 3 October 2026, usage reporting was a second connection, to an Amazon server in Oregon, on every run where it was on. When semgrep is not installed, Opengrep runs in its place (`stand_in`): the open-source fork of its engine, which loaded the same rules, found the same things, and gave `sv` the same report on 29 September 2026, and which has no usage reporting and refuses `--metrics`. The report says when it did. It is handed the app's code files by name rather than the folder: given a folder, semgrep leaves out `tests/`, `build/`, `vendor/` and others by default, anything in `.gitignore`, and anything the app's own `.semgrepignore` names, and its SARIF says nothing about any of it. Named files are read whatever those say, and the list of files it writes beside its report (`--json-output`) is checked against the list it was given. A rule that names the files it reads (`targets`, its own `paths.include`; `skips`, its `paths.exclude`) counts toward a clean run only when one of the files it was handed is one it reads: most template and server-configuration rules read files `sv` does not hand it, and so count for nothing (ADR-018, Later, 7 October 2026). Its rule ids are mapped by tools/semgrep_rule_map.py, from semgrep-rules a84ff9c 2026-09-22: 998 of the 1321 security rules there to ASVS, each only where its CWE and its id agree on what it detects. A run that finds nothing is evidence only about the rules its report says were loaded, and only those written for a language in the app. 24 rules about applications that call a model also name the AISVS requirement a finding is evidence against (`findings_against`); a run that finds nothing credits none of those. So do 7 others for ASVS requirements a pattern can show missing and not present (V3.2.2, V4.4.1, V9.2.1). It runs `p/security-audit`, which holds the pattern rules, and `p/default`, which holds the rules that follow data from a request to where it is used; the first alone missed every injection fault planted in its fixture app. The registry pack `p/ai-best-practices`, where most of those AI rules live, is added for an app that may call a model (`conditional_args`), and left out only when the app is known not to: its rules can only ever find something, so running it where nobody has said costs almost nothing and credits nothing. Which rules each pack loads is measured in data/semgrep-packs.json. Its exit codes 0 and 1 are a finished run; 2 and above are its failures.",
       "network": true,
       "env": {
         "SEMGREP_ENABLE_VERSION_CHECK": "0"
@@ -826,6 +826,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*mcp*.json",
+            "claude_desktop_config.json"
           ]
         },
         "ai.ai-best-practices.mcp-ssrf.mcp-ssrf.mcp-ssrf-python": {
@@ -981,6 +985,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.cshtml"
           ]
         },
         "csharp.dotnet.security.audit.xpath-injection.xpath-injection": {
@@ -1008,6 +1015,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*web.config*"
           ]
         },
         "csharp.dotnet.security.razor-template-injection.razor-template-injection": {
@@ -1044,6 +1054,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*web.config"
           ]
         },
         "csharp.lang.security.cryptography.x509-subject-name-validation.X509-subject-name-validation": {
@@ -1251,6 +1264,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.cshtml"
           ]
         },
         "generic.gradle.security.build-gradle-password-hardcoded.build-gradle-password-hardcoded": {
@@ -1260,6 +1276,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*build.gradle"
           ]
         },
         "generic.html-templates.security.unquoted-attribute-var.unquoted-attribute-var": {
@@ -1269,6 +1288,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html",
+            "*.mustache",
+            "*.hbs",
+            "*.twig"
           ]
         },
         "generic.html-templates.security.var-in-href.var-in-href": {
@@ -1278,6 +1303,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html",
+            "*.mustache",
+            "*.hbs",
+            "*.twig"
           ]
         },
         "generic.html-templates.security.var-in-script-src.var-in-script-src": {
@@ -1287,6 +1318,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.mustache",
+            "*.hbs",
+            "*.html",
+            "*.twig"
           ]
         },
         "generic.html-templates.security.var-in-script-tag.var-in-script-tag": {
@@ -1296,6 +1333,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.mustache",
+            "*.hbs",
+            "*.html",
+            "*.twig"
           ]
         },
         "generic.nginx.security.alias-path-traversal.alias-path-traversal": {
@@ -1305,6 +1348,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.conf",
+            "*.vhost",
+            "**/sites-available/*",
+            "**/sites-enabled/*"
           ]
         },
         "generic.nginx.security.insecure-redirect.insecure-redirect": {
@@ -1314,6 +1363,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.conf",
+            "*.vhost",
+            "**/sites-available/*",
+            "**/sites-enabled/*"
           ]
         },
         "generic.nginx.security.insecure-ssl-version.insecure-ssl-version": {
@@ -1323,6 +1378,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.conf",
+            "*.vhost",
+            "**/sites-available/*",
+            "**/sites-enabled/*"
           ]
         },
         "generic.nginx.security.missing-ssl-version.missing-ssl-version": {
@@ -1332,6 +1393,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.conf",
+            "*.vhost",
+            "**/sites-available/*",
+            "**/sites-enabled/*"
           ]
         },
         "generic.secrets.gitleaks.adafruit-api-key.adafruit-api-key": {
@@ -1890,6 +1957,18 @@
           ],
           "languages": [
             "*"
+          ],
+          "skips": [
+            "*.svg",
+            "*go.sum",
+            "*cargo.lock",
+            "*package.json",
+            "*package-lock.json",
+            "*bundle.js",
+            "*pnpm-lock*",
+            "*Podfile.lock",
+            "**/*/openssl/*.h",
+            "*.xcscmblueprint"
           ]
         },
         "generic.secrets.gitleaks.github-app-token.github-app-token": {
@@ -2034,6 +2113,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.tf",
+            "*.hcl"
           ]
         },
         "generic.secrets.gitleaks.heroku-api-key.heroku-api-key": {
@@ -2925,6 +3008,18 @@
           ],
           "languages": [
             "*"
+          ],
+          "skips": [
+            "*.svg",
+            "*go.sum",
+            "*package.json",
+            "*cargo.lock",
+            "*package-lock.json",
+            "*bundle.js",
+            "*pnpm-lock*",
+            "*Podfile.lock",
+            "**/*/openssl/*.h",
+            "*.xcscmblueprint"
           ]
         },
         "generic.secrets.security.detected-artifactory-token.detected-artifactory-token": {
@@ -2934,6 +3029,18 @@
           ],
           "languages": [
             "*"
+          ],
+          "skips": [
+            "*.svg",
+            "*go.sum",
+            "*package.json",
+            "*package-lock.json",
+            "*bundle.js",
+            "*pnpm-lock*",
+            "*Podfile.lock",
+            "**/*/openssl/*.h",
+            "*.xcscmblueprint",
+            "*cargo.lock"
           ]
         },
         "generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value": {
@@ -3159,6 +3266,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*npmrc*"
           ]
         },
         "generic.secrets.security.detected-onfido-live-api-token.detected-onfido-live-api-token": {
@@ -3276,6 +3386,19 @@
           ],
           "languages": [
             "*"
+          ],
+          "skips": [
+            "*.svg",
+            "*go.sum",
+            "*cargo.lock",
+            "*package.json",
+            "*yarn.lock",
+            "*package-lock.json",
+            "*bundle.js",
+            "*pnpm-lock*",
+            "*Podfile.lock",
+            "**/*/openssl/*.h",
+            "*.xcscmblueprint"
           ]
         },
         "generic.secrets.security.detected-square-access-token.detected-square-access-token": {
@@ -3726,6 +3849,13 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html",
+            "*.thtml",
+            "*.gohtml",
+            "*.tmpl",
+            "*.tpl"
           ]
         },
         "go.lang.security.audit.xss.no-interpolation-js-template-string.no-interpolation-js-template-string": {
@@ -3735,6 +3865,13 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html",
+            "*.thtml",
+            "*.gohtml",
+            "*.tmpl",
+            "*.tpl"
           ]
         },
         "go.lang.security.audit.xss.no-io-writestring-to-responsewriter.no-io-writestring-to-responsewriter": {
@@ -4434,6 +4571,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.jsp"
           ]
         },
         "java.lang.security.audit.xss.jsp.use-escapexml.use-escapexml": {
@@ -4443,6 +4583,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.jsp"
           ]
         },
         "java.lang.security.audit.xss.jsp.use-jstl-escaping.use-jstl-escaping": {
@@ -4452,6 +4595,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.jsp"
           ]
         },
         "java.lang.security.audit.xss.no-direct-response-writer.no-direct-response-writer": {
@@ -4641,6 +4787,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.jsp"
           ]
         },
         "java.spring.security.audit.spring-sqli.spring-sqli": {
@@ -5098,6 +5247,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.ejs",
+            "*.html"
           ]
         },
         "javascript.express.security.audit.xss.ejs.var-in-href.var-in-href": {
@@ -5107,6 +5260,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.ejs",
+            "*.html"
           ]
         },
         "javascript.express.security.audit.xss.ejs.var-in-script-src.var-in-script-src": {
@@ -5116,6 +5273,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.ejs",
+            "*.html"
           ]
         },
         "javascript.express.security.audit.xss.ejs.var-in-script-tag.var-in-script-tag": {
@@ -5125,6 +5286,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.ejs",
+            "*.html"
           ]
         },
         "javascript.express.security.audit.xss.mustache.escape-function-overwrite.escape-function-overwrite": {
@@ -5144,6 +5309,11 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.mustache",
+            "*.hbs",
+            "*.html"
           ]
         },
         "javascript.express.security.audit.xss.mustache.var-in-script-tag.var-in-script-tag": {
@@ -5153,6 +5323,12 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.mustache",
+            "*.hbs",
+            "*.html",
+            "*.twig"
           ]
         },
         "javascript.express.security.audit.xss.pug.and-attributes.template-and-attributes": {
@@ -5162,6 +5338,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.pug"
           ]
         },
         "javascript.express.security.audit.xss.pug.explicit-unescape.template-explicit-unescape": {
@@ -5171,6 +5350,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.pug"
           ]
         },
         "javascript.express.security.audit.xss.pug.var-in-href.var-in-href": {
@@ -5180,6 +5362,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.pug"
           ]
         },
         "javascript.express.security.audit.xss.pug.var-in-script-tag.var-in-script-tag": {
@@ -5189,6 +5374,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.pug"
           ]
         },
         "javascript.express.security.cors-misconfiguration.cors-misconfiguration": {
@@ -5912,6 +6100,9 @@
           ],
           "findings_against": [
             "V3.2.2"
+          ],
+          "targets": [
+            "*.vue"
           ]
         },
         "javascript.wkhtmltoimage.security.audit.wkhtmltoimage-injection.wkhtmltoimage-injection": {
@@ -5951,6 +6142,9 @@
           ],
           "languages": [
             "kotlin"
+          ],
+          "targets": [
+            "*build.gradle.kts"
           ]
         },
         "kotlin.lang.security.command-injection-formatted-runtime-call.command-injection-formatted-runtime-call": {
@@ -6303,6 +6497,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.blade.php"
           ]
         },
         "php.laravel.security.laravel-cookie-http-only.laravel-cookie-http-only": {
@@ -6312,6 +6509,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "*session.php"
           ]
         },
         "php.laravel.security.laravel-cookie-same-site.laravel-cookie-same-site": {
@@ -6321,6 +6521,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "*session.php"
           ]
         },
         "php.laravel.security.laravel-cookie-secure-set.laravel-cookie-secure-set": {
@@ -6330,6 +6533,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "*session.php"
           ]
         },
         "php.laravel.security.laravel-dangerous-model-construction.laravel-dangerous-model-construction": {
@@ -6384,6 +6590,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-command-execution-audit.wp-command-execution-audit": {
@@ -6393,6 +6602,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-csrf-audit.wp-csrf-audit": {
@@ -6402,6 +6614,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-file-download-audit.wp-file-download-audit": {
@@ -6411,6 +6626,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-file-inclusion-audit.wp-file-inclusion-audit": {
@@ -6420,6 +6638,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "'**/wp-content/plugins/**/*.php'"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-file-manipulation-audit.wp-file-manipulation-audit": {
@@ -6429,6 +6650,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-open-redirect-audit.wp-open-redirect-audit": {
@@ -6438,6 +6662,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-php-object-injection-audit.wp-php-object-injection-audit": {
@@ -6447,6 +6674,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-sql-injection-audit.wp-sql-injection-audit": {
@@ -6456,6 +6686,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "php.wordpress-plugins.security.audit.wp-ssrf-audit.wp-ssrf-audit": {
@@ -6465,6 +6698,9 @@
           ],
           "languages": [
             "php"
+          ],
+          "targets": [
+            "**/wp-content/plugins/**/*.php"
           ]
         },
         "problem-based-packs.insecure-transport.go-stdlib.bypass-tls-verification.bypass-tls-verification": {
@@ -7117,6 +7353,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "python.django.security.audit.xss.class-extends-safestring.class-extends-safestring": {
@@ -7198,6 +7437,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "python.django.security.audit.xss.template-blocktranslate-no-escape.template-blocktranslate-no-escape": {
@@ -7225,6 +7467,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "python.django.security.django-no-csrf-token.django-no-csrf-token": {
@@ -7234,6 +7479,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "python.django.security.injection.code.globals-misuse-code-execution.globals-misuse-code-execution": {
@@ -7684,6 +7932,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "python.flask.security.xss.audit.template-unescaped-with-safe.template-unescaped-with-safe": {
@@ -7693,6 +7944,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "python.flask.security.xss.audit.template-unquoted-attribute-var.template-unquoted-attribute-var": {
@@ -7702,6 +7956,10 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html",
+            "*.py"
           ]
         },
         "python.jinja2.security.audit.autoescape-disabled-false.incorrect-autoescape-disabled": {
@@ -9169,6 +9427,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.avoid-content-tag.avoid-content-tag": {
@@ -9178,6 +9439,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.avoid-html-safe.avoid-html-safe": {
@@ -9187,6 +9451,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.avoid-raw.avoid-raw": {
@@ -9196,6 +9463,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.dangerous-link-to.dangerous-link-to": {
@@ -9205,6 +9475,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.unquoted-attribute.unquoted-attribute": {
@@ -9214,6 +9487,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.var-in-href.var-in-href": {
@@ -9223,6 +9499,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xss.templates.var-in-script-tag.var-in-script-tag": {
@@ -9232,6 +9511,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.audit.xxe.libxml-backend.libxml-backend": {
@@ -9268,6 +9550,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.erb"
           ]
         },
         "ruby.rails.security.brakeman.check-permit-attributes-high.check-permit-attributes-high": {
@@ -9466,6 +9751,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.sbt*"
           ]
         },
         "scala.lang.security.audit.scalaj-http-ssrf.scalaj-http-ssrf": {
@@ -9511,6 +9799,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.conf"
           ]
         },
         "scala.play.security.conf-insecure-cookie-settings.conf-insecure-cookie-settings": {
@@ -9520,6 +9811,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.conf"
           ]
         },
         "scala.play.security.tainted-html-response.tainted-html-response": {
@@ -9556,6 +9850,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "scala.play.security.webservice-ssrf.webservice-ssrf": {
@@ -9864,6 +10161,9 @@
           ],
           "languages": [
             "*"
+          ],
+          "targets": [
+            "*.py"
           ]
         },
         "ai.ai-best-practices.mcp-unsanitized-return.mcp-unsanitized-return.mcp-unsanitized-return-python": {
@@ -9987,6 +10287,9 @@
           ],
           "languages": [
             "html"
+          ],
+          "targets": [
+            "*.html"
           ]
         },
         "c.lang.security.insecure-use-gets-fn.insecure-use-gets-fn": {
