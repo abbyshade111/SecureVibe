@@ -1,0 +1,1255 @@
+{
+ "sonnet:ai-feature-guard": {
+  "verdict": "not shown",
+  "today": {
+   "asked": 10,
+   "problem": 10,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 10,
+   "problem": 10,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 37
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  }
+ },
+ "sonnet:security-headers": {
+  "verdict": "no reading",
+  "today": {
+   "asked": 10,
+   "problem": 0,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 10,
+   "problem": 0,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 37
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  }
+ },
+ "sonnet:private-pages-no-store": {
+  "verdict": "no reading",
+  "today": {
+   "asked": 10,
+   "problem": 0,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 10,
+   "problem": 0,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 37
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  }
+ },
+ "sonnet:secrets-in-the-environment": {
+  "verdict": "not shown",
+  "today": {
+   "asked": 10,
+   "problem": 10,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 10,
+   "problem": 9,
+   "started": 10,
+   "signed_in": 10,
+   "builds": [
+    {
+     "build": "sonnet-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-2",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 34
+    },
+    {
+     "build": "sonnet-loop-4",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 37
+    },
+    {
+     "build": "sonnet-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-6",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    },
+    {
+     "build": "sonnet-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 32
+    },
+    {
+     "build": "sonnet-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-9",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 35
+    },
+    {
+     "build": "sonnet-loop-10",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 33
+    }
+   ]
+  }
+ },
+ "haiku:security-headers": {
+  "verdict": "not shown",
+  "today": {
+   "asked": 9,
+   "problem": 9,
+   "started": 9,
+   "signed_in": 7,
+   "builds": [
+    {
+     "build": "haiku-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 21
+    },
+    {
+     "build": "haiku-loop-2",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": false,
+     "answered": 6
+    },
+    {
+     "build": "haiku-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 30
+    },
+    {
+     "build": "haiku-loop-4",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 25
+    },
+    {
+     "build": "haiku-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-6",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 23
+    },
+    {
+     "build": "haiku-loop-9",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": false,
+     "answered": 6
+    },
+    {
+     "build": "haiku-loop-10",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 7
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 6,
+   "problem": 2,
+   "started": 6,
+   "signed_in": 5,
+   "builds": [
+    {
+     "build": "haiku-loop-1",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-3",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-4",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 23
+    },
+    {
+     "build": "haiku-loop-6",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 8
+    },
+    {
+     "build": "haiku-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": false,
+     "answered": 7
+    },
+    {
+     "build": "haiku-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 26
+    },
+    {
+     "build": "haiku-loop-10",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    }
+   ]
+  }
+ },
+ "haiku:private-pages-no-store": {
+  "verdict": "not shown",
+  "today": {
+   "asked": 6,
+   "problem": 3,
+   "started": 9,
+   "signed_in": 7,
+   "builds": [
+    {
+     "build": "haiku-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 21
+    },
+    {
+     "build": "haiku-loop-2",
+     "asked": false,
+     "problem": false,
+     "started": true,
+     "signed_in": false,
+     "answered": 6
+    },
+    {
+     "build": "haiku-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 30
+    },
+    {
+     "build": "haiku-loop-4",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 25
+    },
+    {
+     "build": "haiku-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-6",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-7",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 23
+    },
+    {
+     "build": "haiku-loop-9",
+     "asked": false,
+     "problem": false,
+     "started": true,
+     "signed_in": false,
+     "answered": 6
+    },
+    {
+     "build": "haiku-loop-10",
+     "asked": false,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 7
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 4,
+   "problem": 2,
+   "started": 6,
+   "signed_in": 5,
+   "builds": [
+    {
+     "build": "haiku-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-3",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-4",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 23
+    },
+    {
+     "build": "haiku-loop-6",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-7",
+     "asked": false,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 8
+    },
+    {
+     "build": "haiku-loop-8",
+     "asked": false,
+     "problem": false,
+     "started": true,
+     "signed_in": false,
+     "answered": 7
+    },
+    {
+     "build": "haiku-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 26
+    },
+    {
+     "build": "haiku-loop-10",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    }
+   ]
+  }
+ },
+ "haiku:secrets-in-the-environment": {
+  "verdict": "not shown",
+  "today": {
+   "asked": 9,
+   "problem": 8,
+   "started": 9,
+   "signed_in": 7,
+   "builds": [
+    {
+     "build": "haiku-loop-1",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 21
+    },
+    {
+     "build": "haiku-loop-2",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": false,
+     "answered": 6
+    },
+    {
+     "build": "haiku-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 30
+    },
+    {
+     "build": "haiku-loop-4",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 25
+    },
+    {
+     "build": "haiku-loop-5",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-6",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-8",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 23
+    },
+    {
+     "build": "haiku-loop-9",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": false,
+     "answered": 6
+    },
+    {
+     "build": "haiku-loop-10",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 7
+    }
+   ]
+  },
+  "delivering": {
+   "asked": 9,
+   "problem": 4,
+   "started": 6,
+   "signed_in": 5,
+   "builds": [
+    {
+     "build": "haiku-loop-1",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-2",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 24
+    },
+    {
+     "build": "haiku-loop-3",
+     "asked": true,
+     "problem": true,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-4",
+     "asked": true,
+     "problem": true,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-5",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 23
+    },
+    {
+     "build": "haiku-loop-6",
+     "asked": false,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    },
+    {
+     "build": "haiku-loop-7",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": true,
+     "answered": 8
+    },
+    {
+     "build": "haiku-loop-8",
+     "asked": true,
+     "problem": true,
+     "started": true,
+     "signed_in": false,
+     "answered": 7
+    },
+    {
+     "build": "haiku-loop-9",
+     "asked": true,
+     "problem": false,
+     "started": true,
+     "signed_in": true,
+     "answered": 26
+    },
+    {
+     "build": "haiku-loop-10",
+     "asked": true,
+     "problem": false,
+     "started": false,
+     "signed_in": false,
+     "answered": 0
+    }
+   ]
+  }
+ }
+}

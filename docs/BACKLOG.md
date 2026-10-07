@@ -1760,6 +1760,12 @@ another session is not a claim.
   to work for the requirements a feature brings, which it did not (it gave only the design-time ones); and the
   specification's fix for unreadable settings files (the item below), re-tested on 20 Haiku builds. Then the delivery
   test: 40 builds with the full server, with the prompts in the brief and without, at the owner's approved size.
+  **Item 4 done the same day** (`docs/prompts/library-trial/delivery.md`; ADR-044, "Later"): sixty builds,
+  $19.36. The specification's fix removed both named mistakes (16 of 70 Haiku builds before, 0 of 20 after) and
+  roughly halved unreadable settings files (34% to 15%; "partly" by the rule). Delivery through `sv` is not shown to
+  work for any prompt: the feature briefs mostly never reached the builders, because `securevibe_before` refuses until
+  `securevibe.toml` exists and they asked first; the guidance did reach them, and halved Haiku's problems, less than
+  pasting the prompt did. Four items below follow.
 
 
 - **Design-time prompts from the Secure by Design checklist.** Proposed on 4 October 2026 by session securevibe-e2,
@@ -2094,6 +2100,36 @@ another session is not a claim.
   measured the same way: how many such builds' files `sv` can read.
   **Claimed on 6 October 2026 by session paper-facts** with the item above (prompt delivery), for the
   specification's wording only, in branch `claude/prompt-delivery`.
+
+- **`securevibe_before` refuses until `securevibe.toml` exists, and builders ask for it first.** Found on 6 October
+  2026 by session paper-facts, in the delivery test: with the specification in the request, most builders asked for
+  the feature briefs before writing the file, were told to write it and check again, and few asked again; the AI
+  brief, which carries the AI-feature prompt, reached 2 of 10 Sonnet and 3 of 10 Haiku builds. A brief could answer
+  without the file: what a feature brings, its decisions, the prompts shown to work, and the settings `sv run` needs
+  are the same for every app, and only "which of them apply now" needs the file. Say that part is waiting, and give
+  the rest.
+
+- **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
+  the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
+  comparison (Haiku's security headers 0 of 6 pasted, 2 of 6 through the guidance; keys and `.env` 1 of 4 against 4 of
+  9; the AI prompt 0 of 9 pasted, and seldom delivered at all through the brief). Every builder reads the server's
+  opening instructions and the specification before any code. A short line in either, naming the shown prompts and
+  where to get them, or the shortest of them in full, is the next delivery to measure, with the same harm rule.
+
+- **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
+  October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
+  stopped with "SECRET_KEY environment variable must be set", as the prompt asks ("stop with a clear message if one is
+  missing"), and `sv run` gives an app none of its own keys, so it could not be tested. For a key the app makes for
+  itself, such as a session secret, the prompt could say to create a random one at first start and keep it in the
+  app's data folder, and stop only for keys from outside (an AI service's). A change to a shown prompt's text is a
+  new test of it.
+
+- **`ai = true` under `[capabilities]`: the specification's next sentence.** Found on 6 October 2026 by session
+  paper-facts, in the delivery test: after the two new sentences, the commonest unreadable settings file left was
+  `ai = true` written straight under `[capabilities]` (one Part A build and one Part B build), where `sv` wants
+  `enabled = true` under `[capabilities.ai]`. A line under `[capabilities]` saying the AI feature's answers go in
+  `[capabilities.ai]`, and the starter file's own `[capabilities.ai]` example saying `enabled`, would be measured as
+  Part A was. Two builds also wrote the same key twice; `sv`'s message for that already says which.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
