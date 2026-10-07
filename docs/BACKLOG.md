@@ -178,6 +178,11 @@ another session is not a claim.
   changes with it.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, in branch
   `claude/securevibe-e2-gap-analysis`.
+  **Done the same day** (`docs/GAP-ANALYSIS.md`): five reviewers, one stage each, read-only, with the most serious
+  claims checked again in the code. Findings in seven parts (credit stronger than the evidence, false alarms, what is
+  never looked at, whose word counts in the build loop, getting started, the reports, the project's own health), the
+  coverage numbers by kind of run, and ten places to start. Nothing is built from it until the owner chooses; the
+  ones that change evidence, what `sv` runs, or the repository's settings are marked as decisions.
 
 - **V6.5.3: a sign-in, reset, or two-factor code made with an ordinary random number generator.** From
   `docs/PARTIAL-CHECKS.md` (V6.5.3, level 2, "reads the code, finding only"), which no check of `sv`'s own speaks to.
