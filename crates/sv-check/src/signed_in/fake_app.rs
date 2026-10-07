@@ -173,11 +173,20 @@ pub(super) const FAKE_MODEL: &str = "http://sv-1-model:9100";
 /// The key the fake app signs its tokens with. Not a secret: the fake app runs only in tests.
 const JWT_KEY: &[u8] = b"the fake app signs its tokens with this";
 
+/// The one page a single-page app sends for every address it draws in the browser.
+pub(super) const PAGE_SHELL: &str = "<!doctype html><html><head><title>Notes</title>\
+<script type=\"module\" src=\"/assets/index-4f2a.js\"></script></head>\
+<body><div id=\"root\"></div></body></html>";
+
 /// The fake app's own context-specific word, as an owner would list it in `context-words`.
 pub(super) const CONTEXT_WORD: &str = "acmenotes";
 
 #[derive(Default, Clone, Copy)]
 pub(super) struct Flaws {
+    /// Not a flaw: the app is a single-page app. `/` and `/account` send everybody the same page
+    /// shell, and what the account page shows comes from `/api/me`, guarded as `/account` is
+    /// otherwise (and open under `private_open`).
+    pub(super) page_shell: bool,
     pub(super) private_open: bool,
     pub(super) admin_open: bool,
     /// Any signed-in user can post an announcement, which only an admin should.
@@ -1094,6 +1103,15 @@ impl FakeApp {
         let (path, query) = match r.path.split_once('?') {
             Some((p, q)) => (p.to_owned(), pairs(q)),
             None => (r.path.clone(), BTreeMap::new()),
+        };
+        let path = if self.flaws.page_shell && r.method == "GET" {
+            match path.as_str() {
+                "/" | "/account" => return Some(Self::respond(200, vec![], PAGE_SHELL)),
+                "/api/me" => "/account".to_owned(),
+                _ => path,
+            }
+        } else {
+            path
         };
         if self.flaws.password_in_url
             && r.method == "GET"
