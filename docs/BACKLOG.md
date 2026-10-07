@@ -38,6 +38,13 @@ another session is not a claim.
   6. **The development-server check passes `python app.py` that starts Flask's debugger.** (`docs/GAP-ANALYSIS.md`,
      1.9.) A code rule for `app.run(debug=True)`, `app.debug = True`, and Django's `DEBUG = True` (finding only), or
      have `config.development-server-started` say the script it runs decides, instead of passing.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-debug-mode`. Both halves: a code rule, findings only,
+     citing V13.4.2, for Python's debug switches (Flask's and Werkzeug's debugger, FastAPI's and Starlette's
+     `debug=True`, `app.debug`, `app.config["DEBUG"]`, and Django's `DEBUG = True` at the top of a module) and for
+     `FLASK_DEBUG=1` or `flask --debug` in shell scripts; other languages' debug switches are named as not looked for.
+     And the start-command check no longer says a command that runs a script starts no development server. A rule
+     that only raises findings changes no requirement's status, so no ADR is proposed.
   7. **Token-based apps get false "request from another site accepted" findings.** (`docs/GAP-ANALYSIS.md`, 2.1.) The
      forged requests in `signed_in/forgery.rs` keep the session's `Authorization: Bearer` header, which another
      website cannot send. When the session's token is not a cookie, send them without it; a refusal then means
