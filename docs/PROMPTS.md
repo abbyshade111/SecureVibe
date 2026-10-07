@@ -45,8 +45,9 @@ of those builds had each fault put back, and every one was caught. So these four
 **Four of these were revised on 7 October 2026** after the reviews in `docs/prompts/reviews/`: `git-from-the-start`
 (the `.gitignore` lines written out), `secrets-in-the-environment` (start anyway when an outside key is missing),
 `security-headers` (`object-src` and `base-uri`, never `no-referrer`), and `ai-feature-guard` (a screen that works with
-no network). The revised text is tried again in `docs/prompts/library-trial/revision-protocol.md`, and each keeps its
-status only if that trial agrees.
+no network). All four revisions were kept by the revision trial (`docs/prompts/library-trial/revision.md`): with the
+prompts shown to work already at the start of every build, the problems were rare without them pasted, and pasted
+each left its problem in at most one build of ten. Two new prompts joined them that day, at the end of this list.
 
 ### Describe the app to SecureVibe before writing code
 
@@ -102,6 +103,22 @@ could not run.
 *Requirements:* AISVS C2.1.3, C7.3.2, C7.3.4.
 
 *What it showed (6 October 2026, Sonnet 5.5, ten builds with it and ten without):* Without the prompt, all ten builds passed the textbook prompt injection to the model, passed on a reply repeating their instructions, and let a reply's hidden characters or misleading link reach the page. With it, none of the nine whose AI feature answered did any of the three. As many apps started and could be signed in to (10 and 9), with the same median of running-app checks answered (32 and 32): no harm by the trial's rule.
+
+### Isolate the app's pages, and give the content policy somewhere to report
+
+> On every HTML page, send `Cross-Origin-Opener-Policy: same-origin` (or `same-origin-allow-popups` if the app opens a sign-in pop-up). Give the Content-Security-Policy somewhere to report what it blocks: add `report-uri` with a path of the app's own, such as `/csp-report`, that accepts the browser's report, writes one line to the log, and answers 204. Set both in the same place as the other security headers.
+
+*Requirements:* ASVS V3.4.7, V3.4.8.
+
+*What it showed (7 October 2026, Sonnet 5.5 and Haiku 4.5, ten builds each with it and without):* Sonnet: without the prompt the window header or the report address was missing in 10 of the 10 builds, with it in 0 of 10. Haiku: 7 of 7 without, 4 of 10 with, because Python's own error pages skipped the helper that sets the headers. No harm. Shown by the owner's decision of 7 October 2026, with Haiku's result recorded here (`docs/prompts/library-trial/revision.md`). Suggested by the reviews in `docs/prompts/reviews/`.
+
+### Say how to report a security problem
+
+> Add a SECURITY.md at the top of the project that says how to report a security problem: an email address or a form, what to include, and how soon you will answer. If the app is a website, serve the same contact at `/.well-known/security.txt` too, with a `Contact:` line and an `Expires:` line a year ahead.
+
+*Requirements:* none: no requirement asks for this, and `sv` credits nothing for it.
+
+*What it showed (7 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt no security contact in 8 of the 8 builds `sv` could read; with it in 0 of 9. A security contact says how to report a problem, nothing about how secure the app is, and `sv` credits no requirement for it. No harm. Shown by the owner's decision of 7 October 2026 (`docs/prompts/library-trial/revision.md`). Suggested by the reviews in `docs/prompts/reviews/`.
 
 ## Not yet shown to work
 
@@ -189,6 +206,22 @@ check the result with `sv` as you would anything else.
 
 *Not tested:* No reading by the trial's rule: without the prompt a session fault was there in 4 of the 5 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. Reading builds 1, 4 and 7, each did all the prompt asks.
 
+### Limit wrong passwords and new records, without waiting to be told the numbers
+
+> Limit how often each person can try a wrong password and how fast they can create things, without waiting for me to choose the numbers. Use these unless securevibe.toml already has them under [policy]: 5 wrong passwords within 15 minutes per account, then refuse further attempts on that account until the 15 minutes pass; and 10 new records a minute per signed-in person. Write the numbers into securevibe.toml under [policy] as `failed-sign-ins`, `within-minutes`, and `requests-per-minute`, and into security-notes.md under "Business limits" and "How sign-in is protected against guessing", saying they are defaults for me to confirm. Count wrong passwords in a row for each account, and start the count again after a right one. If you also limit by address, set that limit well above what one person does (at least 100 an hour), since a checker signs in many times from one address. Past a limit, answer 429 Too Many Requests with a Retry-After header, and keep refusing until then. Write a test that goes one past each limit.
+
+*Requirements:* ASVS V2.4.1, V6.3.1.
+
+*Not tested:* No reading by the trial's rule (7 October 2026, Haiku 4.5): without the prompt the problem was there in 4 of the 5 builds `sv` could sign in to, one short of the five the rule needs; with it in 1 of 6. Builds 1, 4 and 7 each wrote the limits into `security-notes.md` (`docs/prompts/library-trial/revision.md`).
+
+### Run under a production server, and say no version numbers
+
+> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON.
+
+*Requirements:* ASVS V4.1.1, V13.4.6.
+
+*Not tested:* Not shown (7 October 2026, Haiku 4.5): a problem in 7 of 7 builds without the prompt and 8 of 8 with it. The missing or wrong `Content-Type` went (3 of 7 without, 0 of 8 with); the server's version stayed in every build, because the brief asks for Python's standard library and its built-in server sends its version unless the request handler's `server_version` and `sys_version` are set, which the prompt does not yet say (`docs/prompts/library-trial/revision.md`).
+
 ## Not tried yet
 
 Written on 6 October 2026, with three others now above, for the commonest problems the loop trials found that no prompt covered (`docs/prompts/loop-scale/README.md`, "Findings by group"). It was left out of the prompt-library trial (`docs/prompts/library-trial/`): the trial's app seldom tempted this shortcut (in 2 of 8 Haiku builds and none of 10 Sonnet builds without any prompt), so it could not have shown anything. It needs an app that does.
@@ -201,43 +234,11 @@ Written on 6 October 2026, with three others now above, for the commonest proble
 
 *Not tested:* not tried yet.
 
-### Limit wrong passwords and new records, without waiting to be told the numbers
-
-> Limit how often each person can try a wrong password and how fast they can create things, without waiting for me to choose the numbers. Use these unless securevibe.toml already has them under [policy]: 5 wrong passwords within 15 minutes per account, then refuse further attempts on that account until the 15 minutes pass; and 10 new records a minute per signed-in person. Write the numbers into securevibe.toml under [policy] as `failed-sign-ins`, `within-minutes`, and `requests-per-minute`, and into security-notes.md under "Business limits" and "How sign-in is protected against guessing", saying they are defaults for me to confirm. Count wrong passwords in a row for each account, and start the count again after a right one. If you also limit by address, set that limit well above what one person does (at least 100 an hour), since a checker signs in many times from one address. Past a limit, answer 429 Too Many Requests with a Retry-After header, and keep refusing until then. Write a test that goes one past each limit.
-
-*Requirements:* ASVS V2.4.1, V6.3.1.
-
-*Not tested:* not tried yet. Suggested by the reviews in `docs/prompts/reviews/` (7 October 2026).
-
 ### Refuse short and common passwords, and keep each one exactly as typed
 
 > When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each.
 
 *Requirements:* ASVS V6.2.1, V6.2.4, V6.2.8.
-
-*Not tested:* not tried yet. Suggested by the reviews in `docs/prompts/reviews/` (7 October 2026).
-
-### Run under a production server, and say no version numbers
-
-> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON.
-
-*Requirements:* ASVS V4.1.1, V13.4.6.
-
-*Not tested:* not tried yet. Suggested by the reviews in `docs/prompts/reviews/` (7 October 2026).
-
-### Isolate the app's pages, and give the content policy somewhere to report
-
-> On every HTML page, send `Cross-Origin-Opener-Policy: same-origin` (or `same-origin-allow-popups` if the app opens a sign-in pop-up). Give the Content-Security-Policy somewhere to report what it blocks: add `report-uri` with a path of the app's own, such as `/csp-report`, that accepts the browser's report, writes one line to the log, and answers 204. Set both in the same place as the other security headers.
-
-*Requirements:* ASVS V3.4.7, V3.4.8.
-
-*Not tested:* not tried yet. Suggested by the reviews in `docs/prompts/reviews/` (7 October 2026).
-
-### Say how to report a security problem
-
-> Add a SECURITY.md at the top of the project that says how to report a security problem: an email address or a form, what to include, and how soon you will answer. If the app is a website, serve the same contact at `/.well-known/security.txt` too, with a `Contact:` line and an `Expires:` line a year ahead.
-
-*Requirements:* none: no requirement asks for this, and `sv` credits nothing for it.
 
 *Not tested:* not tried yet. Suggested by the reviews in `docs/prompts/reviews/` (7 October 2026).
 

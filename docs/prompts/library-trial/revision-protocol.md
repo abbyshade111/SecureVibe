@@ -60,4 +60,21 @@ the size before the run; the run stops if the first ten average more than $0.60.
 
 ## Amendments
 
-None yet.
+1. **7 October 2026, after the builds and before any result was read: 38 builds run again after the credit ran out.**
+   The owner's API credit ran out during the eighth arm; the last 8 builds of `git-from-the-start` and all 30 Sonnet
+   builds ended at once with "Credit balance is too low", before reaching the model. After the owner topped up, the
+   same 38 were built again with the same script, `sv` and settings (`run_revision_rest.sh`), a few hours after the
+   others. Builds were picked by the error in their transcripts, so the two of `git-from-the-start` that had finished
+   stay. The stopped attempts are kept in the trial folder's `no-credit/`.
+2. **7 October 2026, while scoring: "could be asked" as `protocol.md` defines it.** The scorer reused from the
+   earlier trials counted a running check as asked only when one of its rules gave an answer. `protocol.md` says a
+   running check could be asked when the app started, a signed-in one when `sv` signed in, and the AI checks when the
+   AI feature answered; the scorer now says so (`score_revision.py`). Found because Sonnet's `isolate-the-window` came
+   out "0 of 0": its rules only ever report a finding, so the builds it fixed were counted as not asked. A build with
+   the problem always has a finding, so no count of builds with the problem and no verdict changed, only the totals.
+   The earlier trials' totals for such rules were too small in the same way. Recounted the same day: the prompt-library
+   trial's verdicts stand (its rule counts builds, as this one's does), but the delivery and at-start tests judge by
+   shares, and in each the verdict for `private-pages-no-store` on Haiku moves from "not shown" to "no reading" (3 of
+   7 and 3 of 8 builds without it had the problem, under half). Corrected in `delivery.md` and `start.md`.
+3. **7 October 2026, while scoring: `security-contact`'s check.** The library lists no rule for it, since it credits
+   nothing; as this protocol's table says, it is scored by `config.security-contact`, as a check of the code.

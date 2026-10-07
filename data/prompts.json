@@ -44,7 +44,7 @@
         "date": "2026-10-03",
         "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
         "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "With the prompt the build was a git repository with a .gitignore and two commits, and the committed-secrets check ran; without, `sv` said the folder is not a git repository and that check could not run. Measured with both builds copied outside any other repository: inside this one, the build without read as part of it. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (the .gitignore lines written out: `.env` stayed committable in most loop builds); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "With the prompt the build was a git repository with a .gitignore and two commits, and the committed-secrets check ran; without, `sv` said the folder is not a git repository and that check could not run. Measured with both builds copied outside any other repository: inside this one, the build without read as part of it. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (the .gitignore lines written out: `.env` stayed committable in most loop builds); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/, and the revision kept by the revision trial's rule (docs/prompts/library-trial/revision.md): Haiku 4.5: 0 of 8 without the prompt pasted, 0 of 10 with it, with the prompts shown to work at the start of every build."
       },
       "status": "shown"
     },
@@ -70,7 +70,7 @@
         "date": "2026-10-06",
         "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
         "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
-        "result": "Without the prompt the check found a key in the code or a .env the .gitignore left committable in 6 of the 6 builds with a readable securevibe.toml; with it in 1 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 25, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. To be checked again: six of the ten builds with this prompt wrote a securevibe.toml sv could not read, against three of ten without it, which may be chance at this size or the prompt crowding out the specification. Before this, on 2026-10-03: The build without already read the API key from the environment, and the secrets scan found nothing in either: on this brief, with this model, the prompt changed nothing a check can see. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again read the key from the environment with a .gitignore leaving .env out, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (start anyway when an outside key is missing: the old wording made an app refuse to start under sv run); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "Without the prompt the check found a key in the code or a .env the .gitignore left committable in 6 of the 6 builds with a readable securevibe.toml; with it in 1 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 25, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. To be checked again: six of the ten builds with this prompt wrote a securevibe.toml sv could not read, against three of ten without it, which may be chance at this size or the prompt crowding out the specification. Before this, on 2026-10-03: The build without already read the API key from the environment, and the secrets scan found nothing in either: on this brief, with this model, the prompt changed nothing a check can see. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again read the key from the environment with a .gitignore leaving .env out, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (start anyway when an outside key is missing: the old wording made an app refuse to start under sv run); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/, and the revision kept by the revision trial's rule (docs/prompts/library-trial/revision.md): Haiku 4.5: 4 of 8 without the prompt pasted (all made-up sample passwords in seed and test files), 1 of 7 with it, with the prompts shown to work at the start of every build."
       },
       "status": "shown"
     },
@@ -253,7 +253,7 @@
         "date": "2026-10-06",
         "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
         "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
-        "result": "Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 6. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. Before this, on 2026-10-04: Both builds without the prompt already sent a Content-Security-Policy with frame-ancestors, X-Content-Type-Options, and a Referrer-Policy from the one function every answer passes through, and probe.security-headers credited all six builds. The same build with those headers taken out was caught, so the check can see them missing on this app. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (object-src and base-uri, which V3.4.3 names; never no-referrer; signed-in pages checked too); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 6. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. Before this, on 2026-10-04: Both builds without the prompt already sent a Content-Security-Policy with frame-ancestors, X-Content-Type-Options, and a Referrer-Policy from the one function every answer passes through, and probe.security-headers credited all six builds. The same build with those headers taken out was caught, so the check can see them missing on this app. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (object-src and base-uri, which V3.4.3 names; never no-referrer; signed-in pages checked too); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/, and the revision kept by the revision trial's rule (docs/prompts/library-trial/revision.md): Haiku 4.5: 0 of 7 without the prompt pasted, 0 of 7 with it, with the prompts shown to work at the start of every build."
       },
       "status": "shown"
     },
@@ -364,7 +364,7 @@
         "date": "2026-10-06",
         "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
         "builder": "headless Claude Code 2.1.286 with Claude Sonnet 5.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
-        "result": "Without the prompt, all ten builds passed the textbook prompt injection to the model, passed on a reply repeating their instructions, and let a reply's hidden characters or misleading link reach the page. With it, none of the nine whose AI feature answered did any of the three. As many apps started and could be signed in to (10 and 9), with the same median of running-app checks answered (32 and 32): no harm by the trial's rule. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (the screen works with no network, and matches phrases, not single words); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "Without the prompt, all ten builds passed the textbook prompt injection to the model, passed on a reply repeating their instructions, and let a reply's hidden characters or misleading link reach the page. With it, none of the nine whose AI feature answered did any of the three. As many apps started and could be signed in to (10 and 9), with the same median of running-app checks answered (32 and 32): no harm by the trial's rule. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (the screen works with no network, and matches phrases, not single words); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/, and the revision kept by the revision trial's rule (docs/prompts/library-trial/revision.md): Sonnet 5.5: 3 of 10 without the prompt pasted, 0 of 10 with it, with the prompts shown to work at the start of every build."
       }
     },
     {
@@ -460,7 +460,13 @@
         "fails_when": "either is a finding"
       },
       "inspired_by": "the reviews in docs/prompts/reviews/ (7 October 2026): the coding-time version of design-limits, which never stops to ask",
-      "status": "untested"
+      "status": "not-shown",
+      "tested": {
+        "date": "2026-10-07",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, and the prompts shown to work at the start of the specification in both; `sv report --run` from sv eebb24d9 behind the network fence (docs/prompts/library-trial/revision.md)",
+        "result": "No reading by the trial's rule: without the prompt the problem was there in 4 of the 5 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 6 (Fisher's exact test, p = 0.08). Builds 1, 4 and 7 each wrote the limits into security-notes.md. No harm."
+      }
     },
     {
       "id": "password-rules",
@@ -504,7 +510,13 @@
         "fails_when": "either is a finding"
       },
       "inspired_by": "the reviews in docs/prompts/reviews/ (7 October 2026): version numbers were in 29 of 34 Haiku loop builds' answers",
-      "status": "untested"
+      "status": "not-shown",
+      "tested": {
+        "date": "2026-10-07",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, and the prompts shown to work at the start of the specification in both; `sv report --run` from sv eebb24d9 behind the network fence (docs/prompts/library-trial/revision.md)",
+        "result": "Not shown by the trial's rule: without the prompt 7 of 7 builds that started had a problem, with it 8 of 8. The missing or wrong Content-Type went (3 of 7 without, 0 of 8 with); the server version did not, in any build of any arm, because the brief asks for Python's standard library and its built-in server sends its version unless the request handler's server_version and sys_version are set, which the prompt does not say. No harm."
+      }
     },
     {
       "id": "isolate-the-window",
@@ -525,7 +537,13 @@
         "fails_when": "either is a finding"
       },
       "inspired_by": "the reviews in docs/prompts/reviews/ (7 October 2026): the window header was missing in 63 of 69 loop builds",
-      "status": "untested"
+      "status": "shown",
+      "tested": {
+        "date": "2026-10-07",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Sonnet 5.5 and Claude Haiku 4.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, and the prompts shown to work at the start of the specification in both; `sv report --run` from sv eebb24d9 behind the network fence (docs/prompts/library-trial/revision.md)",
+        "result": "Sonnet: without the prompt the window header or the report address was missing in 10 of the 10 builds, with it in 0 of 10: shown by the trial's rule. Haiku: 7 of 7 without, 4 of 10 with: not shown, because Python's own error pages (send_error) skipped the helper that sets the headers. No harm. Shown by the owner's decision of 7 October 2026, with Haiku's result recorded here."
+      }
     },
     {
       "id": "security-contact",
@@ -540,7 +558,13 @@
         "fails_when": "config.security-contact is a finding"
       },
       "inspired_by": "the reviews in docs/prompts/reviews/ (7 October 2026): the second commonest finding of the loop builds",
-      "status": "untested"
+      "status": "shown",
+      "tested": {
+        "date": "2026-10-07",
+        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
+        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, and the prompts shown to work at the start of the specification in both; `sv report --run` from sv eebb24d9 behind the network fence (docs/prompts/library-trial/revision.md)",
+        "result": "Without the prompt no security contact in 8 of the 8 builds sv could read; with it in 0 of 9: shown by the trial's rule, counting config.security-contact, which credits no requirement. A SECURITY.md and a security.txt page say how to report a problem, nothing about how secure the app is. No harm. Shown by the owner's decision of 7 October 2026."
+      }
     }
   ]
 }

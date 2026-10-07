@@ -5074,6 +5074,13 @@ fn summary_counts(c: &sv_report::Counts) -> String {
                     "were checked by an automated check"
                 }
             }
+            Status::AppTested => {
+                if n == 1 {
+                    "was tested only by your app's own tests: your AI coding tool's, not sv's"
+                } else {
+                    "were tested only by your app's own tests: your AI coding tool's, not sv's"
+                }
+            }
             Status::Documented => "you answered in security-notes.md: your word, not a check",
             Status::ByHand => "you checked by hand: your word, not an automated check",
             Status::Attested => {
@@ -5180,6 +5187,15 @@ fn cmd_report(args: &[String]) -> Result<i32> {
             "A further {} about how the app is built with an AI coding tool (OWASP AISVS Appendix \
              C) are counted apart; the reports list them in a section of their own.",
             c.ai_process
+        );
+    }
+    if c.app_tested > 0 {
+        println!(
+            "The {} tested only by your app's own tests {} tested, not checked: your AI coding tool \
+             wrote those tests, and nothing here reads whether each asks what its requirement \
+             asks. They settle no threat, and stay on the list before going live.",
+            c.app_tested,
+            if c.app_tested == 1 { "is" } else { "are" }
         );
     }
     if c.documented > 0 {
