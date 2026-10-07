@@ -93,6 +93,8 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-047](ADR-047.md) | V3.4.3 is credited only for a Content-Security-Policy with the directives it names |
 | [ADR-048](ADR-048.md) | The weak password-derivation rule cites storing passwords as well as making keys |
 | [ADR-049](ADR-049.md) | `sv` reads the AI coding tool's own files in the project folder, apart from the app's grade |
+| [ADR-050](ADR-050.md) | The app's own tests are a tier of their own, below an automated check |
+| [ADR-051](ADR-051.md) | The tests must pass before a pull request merges into main, and every commit on main is tested |
 
 ## Where v1's records disagree with what v1 built
 

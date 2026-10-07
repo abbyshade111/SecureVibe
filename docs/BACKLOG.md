@@ -9,6 +9,166 @@ another session is not a claim.
 
 ## Next
 
+- **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
+  October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
+  numbered item is one finding of `docs/GAP-ANALYSIS.md`, by its section number there, where the evidence is;
+  **each can be claimed on its own**, in this file, before it is started. The four the owner chose to do first are
+  listed apart, below this item.
+  1. **V1.2.4 is credited for apps that build queries through an ORM.** (`docs/GAP-ANALYSIS.md`, 1.4.) Read each
+     ORM's raw-query calls (GORM `Raw`/`Where` with built text, TypeORM, knex `whereRaw`, Laravel
+     `DB::select`/`whereRaw` as static calls, Django `.extra`/`RawSQL`, Supabase filter strings, MongoDB `$where`),
+     and do not credit V1.2.4 while the bill of materials shows an ORM whose raw calls the rule does not read. The
+     second half changes what counts as evidence: a record (ADR-018, Later).
+  2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
+     (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
+     `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
+     back V15.2.1's credit and the "No package manifest" message stops being wrong.
+  3. **"Debug mode off" and "generic error messages" are credited from a 404 alone.** (`docs/GAP-ANALYSIS.md`, 1.6.)
+     `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
+     (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
+     clean. Changes what counts as evidence: a record.
+  4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
+     user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
+     `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
+     in the counts for checks that rest on one sample. The wording part changes how a report concludes: a record.
+  5. **The coverage documents count requirements that can never be credited as "can settle".**
+     (`docs/GAP-ANALYSIS.md`, 1.8.) Add a "can be credited" column to COVERAGE.md's summary, level, and chapter
+     tables; label finding-only requirements "can only be found failing" in REQUIREMENTS.md; repeat the AISVS
+     section's sentence about them for ASVS (`tools/coverage.py`).
+  6. **The development-server check passes `python app.py` that starts Flask's debugger.** (`docs/GAP-ANALYSIS.md`,
+     1.9.) A code rule for `app.run(debug=True)`, `app.debug = True`, and Django's `DEBUG = True` (finding only), or
+     have `config.development-server-started` say the script it runs decides, instead of passing.
+  7. **Token-based apps get false "request from another site accepted" findings.** (`docs/GAP-ANALYSIS.md`, 2.1.) The
+     forged requests in `signed_in/forgery.rs` keep the session's `Authorization: Bearer` header, which another
+     website cannot send. When the session's token is not a cookie, send them without it; a refusal then means
+     another site cannot send the token (not a finding). Add a fixture: a token-based JSON API that accepts any
+     Origin.
+  8. **Single-page apps get a false "private page open to anyone".** (`docs/GAP-ANALYSIS.md`, 2.2.) An anonymous 2xx
+     counts as served (`signed_in/mod.rs`), so a React or Vite app's page shell for `/dashboard` is reported high.
+     Treat an answer identical to the root page's as a shell, not judged; tell builders in the spec to list API
+     addresses (`/api/me`) as private pages for such apps.
+  9. **Apps that install packages cannot be run by `sv run`.** (`docs/GAP-ANALYSIS.md`, 3.1.) Now: fix
+     `examples/flask-booking/securevibe.toml` (its `pip install` build cannot run read-only, and it listens on
+     127.0.0.1) and the starter's `build` example; have the preflight warn about `pip`/`npm`/`yarn`/`pnpm install` in
+     `build`; document building your own image and setting `image`. Later, as a decision with its own record (what
+     `sv` runs): an `image-build` option, or an install step outside the fence before the app starts inside it.
+  10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
+     (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
+     Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
+     admin key under a `NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`, or `REACT_APP_` name; and, when the dependencies show
+     such a service, a line in the run summary that its sign-in and data are outside what the fence can test. Each
+     part can be claimed on its own.
+  11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
+     finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
+     `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
+     (`render_template_string`); request data flowing into an outgoing request (`requests.get`, `fetch`, `http.Get`);
+     a token decoded without verification, or with `none` allowed; cross-origin settings that reflect any origin with
+     credentials; CSRF protection switched off; the request body passed whole to an update or create.
+  12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
+     Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
+     and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
+  13. **Running checks an attacker would try first.** (`docs/GAP-ANALYSIS.md`, 3.5.) Each claimable on its own: (a)
+     mass assignment beyond sign-up: B sends `owner`/`user_id`/`role` on `owned.create`, `creates`, and
+     `change-email`; (b) stored cross-site scripting: a second `owned` record with `<sv-x>` in its marker, and a
+     test-model reply carrying an `<img onerror>`; (c) which accounts exist, through sign-in and sign-up (V6.3.8);
+     (d) a reset code returned in the reset request's own answer; (e) prompt injection through a stored note with
+     `reads-owned`; (f) a sign-in token signed with a placeholder secret (`secret`, `changeme`), offline; (g) the
+     Gemini request shape in the test model.
+  14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
+     `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
+     `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
+  15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
+     3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
+     `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
+     OpenRouter, Mistral, and Pinecone; keys inside a notebook's escaped JSON.
+  16. **Smaller static gaps: workflows, and where infrastructure and CI files are looked for.**
+     (`docs/GAP-ANALYSIS.md`, 3.8.) Workflows: a pull request's title or branch pasted into a `run:` line, and
+     third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
+     compose files, and charts at any depth, and add `compose.yaml`, `Containerfile`, `cdk.json`, `.travis.yml`,
+     `cloudbuild.yaml`, `.buildkite/`.
+  17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
+     (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
+     (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
+     public sign-up page, and a health-like app with `categories = []`. Changes what a report concludes: a record
+     (ADR-024, Later, or a new one).
+  18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
+     `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
+     design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
+     keep the standing line that no tool can make this judgment.
+  19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
+     condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
+     start command's file. A change to ADR-031: a Later entry.
+  20. **Two lessons from the owner's first build never reached the AI tool.** (`docs/GAP-ANALYSIS.md`, 4.4.) "Never
+     rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
+     both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
+     section.
+  21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
+     how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
+     `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
+  22. **Smaller trust gaps in the build loop.** (`docs/GAP-ANALYSIS.md`, 4.6.) Each claimable on its own: (a) the
+     seal key's passphrase on by default, and the report saying when a seal's key has none (a change to ADR-043); (b)
+     reports read back as MCP resources fenced as app text; (c) a "drafted by your AI tool, adopted by you" label for
+     security notes; (d) a record of the MCP calls made while building, or the report saying nothing shows the loop
+     happened (a decision); (e) instruction-file lines that mention `sv`'s own marks (`Written by:`, `by = "owner"`,
+     `finding-review`, `not-the-app`) noticed (a change to ADR-049); (f) feature briefs for owned or shared records,
+     API keys, background jobs, and several customer organizations; (g) "shown to work" giving each prompt's sample
+     size, and saying when delivery through `sv` was not shown.
+  23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
+     warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
+     rule that the terminal command is the narrower scan.
+  24. **The known-vulnerability check is out of reach for the owner.** (`docs/GAP-ANALYSIS.md`, 5.2.) Give the exact
+     OSV download address per ecosystem and the folder layout in `sv audit`'s message and the guide. A command that
+     downloads them (`sv advisories fetch`) would change what `sv` connects to: only as a decision with its own
+     record (ADR-027's rule).
+  25. **Silent failures while setting up.** (`docs/GAP-ANALYSIS.md`, 5.3.) Each claimable on its own: (a) a "did it
+     connect" step for every tool in the guide, and a coding rule telling the AI tool to stop and say so when the
+     `securevibe_` tools are missing; (b) the container form of `sv review` in the guide, and an `.mcp.json` example
+     with the key folder mounted; (c) `sv report --tools` saying on screen which tools did not run, per-platform
+     install hints, and the CodeQL hint's grammar; (d) MCP errors keeping `sv`'s own remedy outside the app-text
+     fence, and naming the MCP tool, not `sv init`; (e) how to update the container image; (f) `sv init`'s prose kept
+     out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
+     pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
+     folder can be deleted.
+  26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
+     was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
+     could reach (`sv-report`'s short version).
+  27. **The short version does not say which level the app was held to.** (`docs/GAP-ANALYSIS.md`, 6.2.) "Held to
+     ASVS level 1: N more at levels 2 and 3, and M not yet placed, are not in these numbers."
+  28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
+     banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
+     attention:high` for a CI workflow.
+  29. **Requirements nobody is told how to check by hand.** (`docs/GAP-ANALYSIS.md`, 6.4.) Add hand instructions
+     (`data/human-checks.json`) for V2.2.1, V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1, V11.6.1, V13.3.2,
+     V16.3.4, and the AISVS level 1 requirements no check settles, starting with C2, C7, C9, and C10.
+  30. **The fence tests pass without testing the fence when there is no container backend.** (`docs/GAP-ANALYSIS.md`,
+     7.2.) `SV_REQUIRE_BACKEND=1`, set in `rust.yml`, turns each test's "no container backend here" branch into a
+     failure, so a broken Docker on the runner turns CI red.
+  31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
+     `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
+     to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
+  32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
+     7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
+     be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
+  33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
+     their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
+     on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
+     deleted.
+
+- **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
+  the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
+  start in `docs/GAP-ANALYSIS.md`.
+  1. **The app's own tests in a tier of their own** (1.1). A new status, below *checked*; ids read only from code;
+     requirements a test cannot show never credited by tests. **`Status: proposed`: ADR-050.**
+  2. **The tests required before merging, and every commit on `main` tested** (7.1). `test` made a required check
+     (a repository setting the owner makes, since a session cannot), and `rust.yml`'s concurrency group on `main` made
+     one per commit so no run there is cancelled. **`Status: proposed`: ADR-051.**
+  3. **Semgrep's any-language rules credited only for files Semgrep scanned** (1.2). Narrows what counts as evidence:
+     ADR-018, Later.
+  4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
+     V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
+  **All four claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, each in its own branch
+  (`claude/securevibe-e2-app-tests-tier`, `claude/securevibe-e2-tests-required`,
+  `claude/securevibe-e2-semgrep-scanned`, `claude/securevibe-e2-git-history-keys`).
 - **A deep gap analysis of SecureVibe, start to finish.** Asked for by the owner on 7 October 2026: "a deep gap
   analysis of SecureVibe - the process start to finish, etc. and let me know where there are blind spots or areas for
   improvement". The whole path a person takes, read against the code: installing `sv`, writing `securevibe.toml`,
