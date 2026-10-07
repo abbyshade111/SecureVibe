@@ -614,7 +614,14 @@ fn semgrep_clean_run_evidence(languages: &[&str]) -> Vec<String> {
     let adapters = adapters();
     let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
     let languages: Vec<String> = languages.iter().map(|l| (*l).to_owned()).collect();
-    adapters::clean_run_evidence(semgrep, &adapters::loaded_rules(&sarif), &languages)
+    // What sv hands semgrep for the fixture app: its two code files.
+    let handed = ["app.py".to_owned(), "main.go".to_owned()];
+    adapters::clean_run_evidence(
+        semgrep,
+        &adapters::loaded_rules(&sarif),
+        &languages,
+        &handed,
+    )
 }
 
 #[test]
@@ -651,8 +658,155 @@ fn a_semgrep_report_that_lists_no_rules_credits_nothing() {
         semgrep,
         &std::collections::BTreeSet::new(),
         &["python".to_owned()],
+        &["app.py".to_owned()],
     );
     assert!(evidence.is_empty(), "{evidence:?}");
+}
+
+/// The semgrep entry with only the rules whose id starts with one of `prefixes`, every one of them
+/// counted as loaded: what a clean run of exactly those rules would credit.
+fn semgrep_rules_credit(prefixes: &[&str], languages: &[&str], handed: &[&str]) -> Vec<String> {
+    let adapters = adapters();
+    let mut semgrep = adapters
+        .all()
+        .iter()
+        .find(|a| a.id == "semgrep")
+        .unwrap()
+        .clone();
+    semgrep
+        .rules
+        .retain(|id, _| prefixes.iter().any(|p| id.starts_with(p)));
+    assert!(
+        !semgrep.rules.is_empty(),
+        "no rule starts with {prefixes:?}"
+    );
+    let loaded = semgrep.rules.keys().cloned().collect();
+    let languages: Vec<String> = languages.iter().map(|l| (*l).to_owned()).collect();
+    let handed: Vec<String> = handed.iter().map(|f| (*f).to_owned()).collect();
+    adapters::clean_run_evidence(&semgrep, &loaded, &languages, &handed)
+}
+
+#[test]
+fn a_rule_for_files_semgrep_was_not_handed_credits_nothing() {
+    // Gap analysis 1.2, each case it named. `sv` hands semgrep code files; these rules read
+    // `web.config`, Scala Play's `.conf`, Django templates, and nginx's configuration, so over an
+    // app handed only its code they ran over nothing.
+    let cases: [(&[&str], &str, &[&str], &str); 4] = [
+        (
+            &[
+                "csharp.dotnet.security.web-config-insecure-cookie-settings",
+                "scala.play.security.conf-insecure-cookie-settings",
+            ],
+            "javascript",
+            &["server.js", "routes/login.js"],
+            "V3.3.1",
+        ),
+        (
+            &["python.django.security.django-no-csrf-token"],
+            "go",
+            &["main.go"],
+            "V3.5.1",
+        ),
+        (&["generic.nginx."], "ruby", &["app.rb"], "V12.1.1"),
+        (&["generic.nginx."], "php", &["index.php"], "V12.1.1"),
+    ];
+    for (rules, language, handed, requirement) in cases {
+        let credited = semgrep_rules_credit(rules, &[language], handed);
+        assert!(
+            !credited.iter().any(|q| q == requirement),
+            "{rules:?} credited {requirement} to a {language} app: {credited:?}"
+        );
+        // The control: the same rules, handed a file they read, do credit it.
+        let theirs = match requirement {
+            "V3.5.1" => "templates/form.html",
+            "V3.3.1" => "web.config",
+            _ => "nginx/site.conf",
+        };
+        let mut with_theirs = handed.to_vec();
+        with_theirs.push(theirs);
+        let credited = semgrep_rules_credit(rules, &[language], &with_theirs);
+        assert!(
+            credited.iter().any(|q| q == requirement),
+            "{rules:?} handed {theirs} did not credit {requirement}: {credited:?}"
+        );
+    }
+}
+
+#[test]
+fn a_rails_template_rule_counts_only_with_a_template() {
+    let rules = ["ruby.rails.security.audit.xss.templates."];
+    assert!(semgrep_rules_credit(&rules, &["ruby"], &["app/models/user.rb"]).is_empty());
+    assert_eq!(
+        semgrep_rules_credit(&rules, &["ruby"], &["app/views/users/show.html.erb"]),
+        ["V1.2.1"]
+    );
+}
+
+#[test]
+fn a_wordpress_plugin_rule_counts_only_inside_a_plugin() {
+    // Rules for one language narrow their files too: a PHP app that is not a WordPress plugin has
+    // not had its anti-forgery protection read by the plugin audit.
+    let rules = ["php.wordpress-plugins.security.audit.wp-csrf-audit"];
+    assert!(semgrep_rules_credit(&rules, &["php"], &["src/index.php"]).is_empty());
+    assert_eq!(
+        semgrep_rules_credit(&rules, &["php"], &["wp-content/plugins/shop/shop.php"]),
+        ["V3.5.1"]
+    );
+}
+
+#[test]
+fn a_rule_that_reads_every_file_still_counts_over_code() {
+    // The text patterns for keys read every file but a few kinds, so code handed to semgrep is
+    // read by them, and a clean run over it is evidence about them.
+    let rules = ["generic.secrets.security.detected-aws-access-key-id-value"];
+    assert_eq!(
+        semgrep_rules_credit(&rules, &["python"], &["app.py"]),
+        ["V13.3.1"]
+    );
+}
+
+#[test]
+fn a_rule_handed_only_files_it_skips_counts_for_nothing() {
+    // Semgrep's generic key pattern skips bundled JavaScript, among other files. Handed nothing
+    // else, it read nothing; handed a file of the app's own as well, it read that.
+    let rules = ["generic.secrets.gitleaks.generic-api-key."];
+    assert!(semgrep_rules_credit(&rules, &["javascript"], &["dist/app.bundle.js"]).is_empty());
+    assert_eq!(
+        semgrep_rules_credit(
+            &rules,
+            &["javascript"],
+            &["dist/app.bundle.js", "server.js"]
+        ),
+        ["V13.3.1"]
+    );
+}
+
+#[test]
+fn paths_are_matched_the_way_semgrep_reads_them() {
+    use adapters::path_matches as m;
+    // No `/`: the name of the file, or of a folder it is in, at any depth.
+    assert!(m("*.erb", "app/views/show.html.erb"));
+    assert!(m("*web.config*", "site/web.config.release"));
+    assert!(m("*.svg", "logo.svg"));
+    assert!(!m("*.erb", "app/views/show.html"));
+    // A `/`: the whole path. `**/` is any number of folders, none included; `*` stays in a name.
+    assert!(m(
+        "**/sites-available/*",
+        "etc/nginx/sites-available/default"
+    ));
+    assert!(m("**/sites-available/*", "sites-available/default"));
+    assert!(!m("**/sites-available/*", "sites-available/old/default"));
+    assert!(m(
+        "**/wp-content/plugins/**/*.php",
+        "wp-content/plugins/shop/shop.php"
+    ));
+    assert!(m(
+        "**/wp-content/plugins/**/*.php",
+        "site/wp-content/plugins/a.php"
+    ));
+    assert!(!m("**/wp-content/plugins/**/*.php", "src/plugins/a.php"));
+    assert!(m("a/?.py", "a/b.py"));
+    assert!(!m("a/?.py", "a/bc.py"));
 }
 
 #[test]
@@ -675,6 +829,7 @@ fn one_language_tools_keep_their_whole_map(ids: &[&str]) {
             tool,
             &std::collections::BTreeSet::new(),
             std::slice::from_ref(&tool.language),
+            &[],
         );
         let mut mapped: Vec<String> = tool
             .rules

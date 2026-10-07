@@ -166,6 +166,13 @@ another session is not a claim.
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
      on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
      deleted.
+  34. **Hand Semgrep the app's templates and configuration files too.** (`docs/GAP-ANALYSIS.md`, the rest of 1.2.)
+     Today 22 loaded rules read only files `sv` never hands Semgrep: templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`,
+     `*.mustache`), nginx's and Scala Play's `*.conf`, and `web.config`. They count for nothing, which is honest but
+     leaves template escaping and server TLS settings unread. Hand Semgrep those files as well, and teach the "did
+     not read every file it was given" check (`unread_files`) which of them a loaded rule reads, so a template no
+     rule reads is not called unread. Changes what `sv` gives an outside tool: ADR-018, Later. Added 7 October 2026
+     when the first half was built.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
@@ -179,6 +186,10 @@ another session is not a claim.
      moved only by the newest. **Waiting on the owner:** adding `test` to the ruleset, which a session may not do.
   3. **Semgrep's any-language rules credited only for files Semgrep scanned** (1.2). Narrows what counts as evidence:
      ADR-018, Later.
+     **Done the same day** (DESIGN, "A Semgrep rule counts only when Semgrep was handed a file it reads"; ADR-018,
+     Later, 7 October 2026): each mapped rule carries the files it reads, from its own `paths`, and counts only when
+     Semgrep was handed one; for rules of one language too. The other half of the proposal, handing Semgrep the
+     templates and configuration files as well, is its own item below.
   4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
      V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
      **Done the same day** (DESIGN, "A key file committed once is still in the history"; ADR-032, Later, 7 October
@@ -2492,6 +2503,11 @@ another session is not a claim.
   tried in `docs/prompts/library-trial/revision-protocol.md` before any status changes. One finding is left for the
   owner: `ast.weak-password-key-derivation` cites V11.4.4 (keys made from a password) where storing passwords is
   V11.4.2, so `password-hashing` cannot cite V11.4.2 until the rule's citation is decided, which changes evidence.
+  **The revision trial, done on 7 October 2026** (`docs/prompts/library-trial/revision.md`): 110 builds, $35.28, 38 of
+  them built again after the credit ran out. All four revisions kept. `isolate-the-window` shown on Sonnet (10 of 10,
+  then 0 of 10) and `security-contact` on Haiku (8 of 8, then 0 of 9), both marked shown by the owner the same day;
+  `production-server` and `limits-without-asking` not shown. No harm. With the shown prompts at the start, Haiku's
+  missing headers and committable `.env` were already gone without anything pasted.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
@@ -7709,3 +7725,26 @@ done: `docs/adr/ADR-018.md`.
   The standing rule is in `CLAUDE.md` ("Keep the disk tidy").
   - Session securevibe-e2 (7 October 2026): a cloud session, so nothing of its own is on the Mac. Its build folder
     and scratch files are in its own cloud container, which is removed when the session ends.
+
+- **Two prompts assume a framework that a standard-library app does not have.** Found on 7 October 2026 by session
+  paper-facts, in the revision trial (`docs/prompts/library-trial/revision.md`). Told to use only Python's standard
+  library, Haiku kept the built-in server, which (1) sends its version in a `Server` header on every answer unless the
+  request handler's `server_version` and `sys_version` are set, so `production-server` left the version in every build;
+  and (2) writes its own error pages through `send_error`, outside the helper that sets the security headers, so
+  `isolate-the-window` missed the window header on 403 and 404 pages in Haiku's builds. One sentence for each prompt,
+  then a trial on a brief whose baseline has the problem. `security-headers` and `private-pages-no-store` say "every
+  response" and may miss the same pages.
+- **Two more mistakes in the settings files Haiku writes.** Found on 7 October 2026 by session paper-facts, in the
+  revision trial: of the 12 files of 80 `sv` could not read, six put `admin` or `seed` under `[stack.run]` (they belong
+  under `[stack.run.users]`) and three wrote `ai = true` under `[capabilities]` (it is `enabled = true` under
+  `[capabilities.ai]`, already an item above). A sentence in the specification for each, as the two of 6 October did.
+- **The trial runner prints nothing while it checks.** Found on 7 October 2026 by the owner, watching the revision
+  trial: the Terminal tab said "to check: 104" for three hours, and only counting `report.json` files showed progress.
+  `tools/prompt_trial.py` and the trial scripts should print one line as each build's check finishes.
+- **The earlier trials' totals for running checks that only report findings were too small.** Found on 7 October 2026
+  by session paper-facts (the revision protocol's Amendment 2): the scorers of the prompt-library, delivery and at-start
+  tests counted a running check as asked only when one of its rules said something, where `protocol.md` says when the
+  app started, so a build the prompt had fixed was left out of the total. Recounted the same day: the prompt-library
+  trial's verdicts stand (its rule counts builds), but the delivery and at-start tests judge by shares, and in each
+  `private-pages-no-store` on Haiku moves from "not shown" to "no reading". The "of N" figures in `README.md`,
+  `delivery.md` and `start.md`, and those two verdicts, are to be corrected.

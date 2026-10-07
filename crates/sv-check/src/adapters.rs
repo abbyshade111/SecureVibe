@@ -190,6 +190,57 @@ pub struct MappedRule {
     /// about rules that were written for a language this app is in.
     #[serde(default)]
     pub languages: Vec<String>,
+    /// The files the rule reads, from its own `paths.include`, when it reads only some: Rails
+    /// template rules read `*.erb`, nginx rules `*.conf`. Semgrep applies these to files named on
+    /// its command line as well as to a folder, so a rule none of whose files it was handed ran over
+    /// nothing, and a clean run is no evidence about it (ADR-018, Later, 7 October 2026). Empty: any
+    /// file of its language.
+    #[serde(default)]
+    pub targets: Vec<String>,
+    /// The files it never reads, from its `paths.exclude`.
+    #[serde(default)]
+    pub skips: Vec<String>,
+}
+
+impl MappedRule {
+    /// Whether the rule reads this file, a path relative to the app's folder, as its `targets` and
+    /// `skips` say.
+    pub fn reads(&self, file: &str) -> bool {
+        let any = |globs: &[String]| globs.iter().any(|g| path_matches(g, file));
+        (self.targets.is_empty() || any(&self.targets)) && !any(&self.skips)
+    }
+}
+
+/// A semgrep `paths` pattern against a path relative to the app's folder, as gitignore reads one: a
+/// pattern with no `/` in it matches the name of the file or of any folder it is in; one with a `/`
+/// matches the whole path. `*` and `?` stay within a name, and `**` crosses folders.
+pub fn path_matches(pattern: &str, path: &str) -> bool {
+    let pattern = pattern.trim_start_matches('/').trim_end_matches('/');
+    if pattern.contains('/') {
+        glob(pattern.as_bytes(), path.as_bytes())
+    } else {
+        path.split('/')
+            .any(|name| glob(pattern.as_bytes(), name.as_bytes()))
+    }
+}
+
+fn glob(p: &[u8], s: &[u8]) -> bool {
+    match p {
+        [] => s.is_empty(),
+        [b'*', b'*', b'/', rest @ ..] => {
+            // No folders, or any number of whole ones.
+            glob(rest, s)
+                || s.iter()
+                    .enumerate()
+                    .any(|(i, &c)| c == b'/' && glob(rest, &s[i + 1..]))
+        }
+        [b'*', b'*', rest @ ..] => (0..=s.len()).any(|i| glob(rest, &s[i..])),
+        [b'*', rest @ ..] => (0..=s.len())
+            .take_while(|&i| i == 0 || s[i - 1] != b'/')
+            .any(|i| glob(rest, &s[i..])),
+        [b'?', rest @ ..] => s.first().is_some_and(|&c| c != b'/') && glob(rest, &s[1..]),
+        [c, rest @ ..] => s.first() == Some(c) && glob(rest, &s[1..]),
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -410,6 +461,9 @@ pub enum Outcome {
         looked_away: Vec<String>,
         /// The program that ran, when it was the adapter's stand-in rather than its own.
         stood_in: Option<StoodIn>,
+        /// The files it was handed by name, relative to the app's folder; empty when it was given
+        /// the folder. A rule that reads only some files is evidence only when one of these is one.
+        handed: Vec<String>,
     },
     /// It did not run, and this is why, in words somebody can act on.
     NotRun { why: String },
@@ -951,6 +1005,7 @@ pub fn run_one_in(
                 reasons
             },
             stood_in,
+            handed: files,
         },
         Err(e) => Outcome::NotRun {
             why: format!("{}'s report could not be read: {e}", adapter.name),
@@ -1063,6 +1118,7 @@ pub fn run_all_in(
                 loaded,
                 looked_away,
                 stood_in,
+                handed,
             } => {
                 // The program that ran, in what the report says about it.
                 let name = match &stood_in {
@@ -1095,7 +1151,7 @@ pub fn run_all_in(
                         ),
                     ));
                 } else if findings.is_empty() {
-                    let ids = clean_run_evidence(adapter, &loaded, languages);
+                    let ids = clean_run_evidence(adapter, &loaded, languages, &handed);
                     let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
                     if !ids.is_empty() {
                         run.verified.push(Verified::new(
@@ -1188,11 +1244,14 @@ pub fn looked_away(adapter: &Adapter, sarif: &str, app_dir: &Path) -> Vec<String
 /// rules on it, that is every mapped rule. For one that covers several, it is narrower, twice over:
 /// a rule counts only if the report says it was loaded, because the pack that ran is not every rule
 /// the map knows, and only if it is written for a language in this app, because a Go rule for
-/// zip slip that ran over a Python app has said nothing about the Python.
+/// zip slip that ran over a Python app has said nothing about the Python. And a rule that reads only
+/// some files counts only if the tool was handed one of them (`handed`): a Rails template rule that
+/// was loaded over an app with no `.erb` file in what semgrep was given ran over nothing.
 pub fn clean_run_evidence(
     adapter: &Adapter,
     loaded: &BTreeSet<String>,
     app_languages: &[String],
+    handed: &[String],
 ) -> Vec<String> {
     let counts = |rule_id: &str, rule: &MappedRule| {
         let ran =
@@ -1202,7 +1261,9 @@ pub fn clean_run_evidence(
                 .languages
                 .iter()
                 .any(|l| l == "*" || app_languages.iter().any(|a| a == l));
-        ran && for_this_app
+        let over_its_files = (rule.targets.is_empty() && rule.skips.is_empty())
+            || handed.iter().any(|f| rule.reads(f));
+        ran && for_this_app && over_its_files
     };
     let ids: BTreeSet<String> = adapter
         .rules
