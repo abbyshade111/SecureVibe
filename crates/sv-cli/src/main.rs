@@ -4973,6 +4973,13 @@ fn assemble_report_saying(
         threats: Some((threat_rules, &ctx)),
     });
     report.examined = examined;
+    // What kind of run this was, by what did not run (gap analysis 6.1).
+    let reach_path = sv_frameworks::data::file("reach.json");
+    let reach = std::fs::read_to_string(&reach_path)
+        .map_err(anyhow::Error::from)
+        .and_then(|text| sv_report::read_reach(&text))
+        .with_context(|| format!("reading {}", reach_path.display()))?;
+    report.not_run_this_time = sv_report::not_run_this_time(&report, &reach, options.run_tools);
     let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);
     report.could_not_run = file_gaps.could_not_run;
     report.partly_read = file_gaps.partly;

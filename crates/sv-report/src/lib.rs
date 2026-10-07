@@ -32,7 +32,7 @@ pub mod sarif;
 pub mod threats;
 
 use serde::Serialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use sv_check::Finding;
 use sv_frameworks::applicability::Buckets;
 use sv_frameworks::{Condition, Frameworks, Source};
@@ -763,6 +763,85 @@ pub struct Report {
     /// `--fail-on not-assessed`.
     #[serde(skip)]
     pub partly_read: Vec<String>,
+    /// The kinds of run that did not happen this time, and how many applicable requirements only
+    /// they could have checked (gap analysis 6.1). Filled by `sv report` (`not_run_this_time`);
+    /// `None` when a report is built without it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub not_run_this_time: Option<NotRunThisTime>,
+}
+
+/// What kind of run a report came from, said by what it was not: the short version's line about
+/// the kinds of run that did not happen. Plain `sv check` can credit a handful of requirements; most
+/// need the app running, signed in, or an outside tool, and a reader seeing only "not verified"
+/// could not tell which.
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct NotRunThisTime {
+    /// Each kind of run that did not happen, in words with how to run it.
+    pub kinds: Vec<String>,
+    /// Applicable requirements not already found failing or checked that only those kinds of run
+    /// have a check able to credit.
+    pub only_they_reach: usize,
+}
+
+/// The kinds of run this report did not have, and how many requirements only they reach.
+///
+/// `reach` is `data/reach.json`: for each requirement, the kinds of run with a check that can
+/// credit it (written by `tools/coverage.py`). `tools_run` is whether `--tools` was given. Whether
+/// the app ran, and signed in, is read from `run_status`; with none recorded, nothing is said about
+/// it. `None` when every kind of run happened.
+pub fn not_run_this_time(
+    report: &Report,
+    reach: &BTreeMap<String, Vec<String>>,
+    tools_run: bool,
+) -> Option<NotRunThisTime> {
+    let mut not_run: Vec<&str> = Vec::new();
+    let mut kinds = Vec::new();
+    match &report.run_status {
+        Some(RunStatus::NotAsked { .. }) | Some(RunStatus::CouldNotStart { .. }) => {
+            not_run.extend(["running", "signed-in"]);
+            kinds.push("the running app, signed in or not (`sv report --run`)".to_owned());
+        }
+        Some(RunStatus::Started {
+            signed_in: false, ..
+        }) => {
+            not_run.push("signed-in");
+            kinds.push(
+                "signed-in checks (a `users` section in securevibe.toml with test accounts)"
+                    .to_owned(),
+            );
+        }
+        _ => {}
+    }
+    if !tools_run {
+        not_run.push("tools");
+        kinds.push("outside tools such as Semgrep (`--tools`)".to_owned());
+    }
+    if kinds.is_empty() {
+        return None;
+    }
+    let only_they_reach = report
+        .requirements
+        .iter()
+        .filter(|r| !matches!(r.status, Status::NeedsAttention | Status::Checked))
+        .filter(|r| {
+            reach
+                .get(&r.id)
+                .is_some_and(|k| !k.is_empty() && k.iter().all(|k| not_run.contains(&k.as_str())))
+        })
+        .count();
+    Some(NotRunThisTime {
+        kinds,
+        only_they_reach,
+    })
+}
+
+/// `data/reach.json`, read: requirement id to the kinds of run that can credit it.
+pub fn read_reach(text: &str) -> anyhow::Result<BTreeMap<String, Vec<String>>> {
+    #[derive(serde::Deserialize)]
+    struct File {
+        requirements: BTreeMap<String, Vec<String>>,
+    }
+    Ok(serde_json::from_str::<File>(text)?.requirements)
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1820,6 +1899,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         examined: Vec::new(),
         could_not_run: Vec::new(),
         partly_read: Vec::new(),
+        not_run_this_time: None,
     }
 }
 

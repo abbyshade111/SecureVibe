@@ -166,6 +166,9 @@ another session is not a claim.
      **Items 26 and 27 claimed together on 7 October 2026 by session securevibe-e2**, at the owner's word ("please
      continue to work off the backlog"), in branch `claude/securevibe-e2-short-version-scope`. Wording in the short
      version only; what counts as evidence does not change.
+     **Done the same day** (DESIGN, "The short version says what kind of run it was, and which level"): after the
+     counted list, "Held to ASVS level L" with what that leaves out, and "Not run this time" with how many
+     requirements only those runs could check, from `data/reach.json`.
   28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
      banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
      attention:high` for a CI workflow.
