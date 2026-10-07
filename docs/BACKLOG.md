@@ -2475,6 +2475,11 @@ another session is not a claim.
   tried in `docs/prompts/library-trial/revision-protocol.md` before any status changes. One finding is left for the
   owner: `ast.weak-password-key-derivation` cites V11.4.4 (keys made from a password) where storing passwords is
   V11.4.2, so `password-hashing` cannot cite V11.4.2 until the rule's citation is decided, which changes evidence.
+  **The revision trial, done on 7 October 2026** (`docs/prompts/library-trial/revision.md`): 110 builds, $35.28, 38 of
+  them built again after the credit ran out. All four revisions kept. `isolate-the-window` shown on Sonnet (10 of 10,
+  then 0 of 10) and `security-contact` on Haiku (8 of 8, then 0 of 9), both marked shown by the owner the same day;
+  `production-server` and `limits-without-asking` not shown. No harm. With the shown prompts at the start, Haiku's
+  missing headers and committable `.env` were already gone without anything pasted.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
@@ -7692,3 +7697,25 @@ done: `docs/adr/ADR-018.md`.
   The standing rule is in `CLAUDE.md` ("Keep the disk tidy").
   - Session securevibe-e2 (7 October 2026): a cloud session, so nothing of its own is on the Mac. Its build folder
     and scratch files are in its own cloud container, which is removed when the session ends.
+
+- **Two prompts assume a framework that a standard-library app does not have.** Found on 7 October 2026 by session
+  paper-facts, in the revision trial (`docs/prompts/library-trial/revision.md`). Told to use only Python's standard
+  library, Haiku kept the built-in server, which (1) sends its version in a `Server` header on every answer unless the
+  request handler's `server_version` and `sys_version` are set, so `production-server` left the version in every build;
+  and (2) writes its own error pages through `send_error`, outside the helper that sets the security headers, so
+  `isolate-the-window` missed the window header on 403 and 404 pages in Haiku's builds. One sentence for each prompt,
+  then a trial on a brief whose baseline has the problem. `security-headers` and `private-pages-no-store` say "every
+  response" and may miss the same pages.
+- **Two more mistakes in the settings files Haiku writes.** Found on 7 October 2026 by session paper-facts, in the
+  revision trial: of the 12 files of 80 `sv` could not read, six put `admin` or `seed` under `[stack.run]` (they belong
+  under `[stack.run.users]`) and three wrote `ai = true` under `[capabilities]` (it is `enabled = true` under
+  `[capabilities.ai]`, already an item above). A sentence in the specification for each, as the two of 6 October did.
+- **The trial runner prints nothing while it checks.** Found on 7 October 2026 by the owner, watching the revision
+  trial: the Terminal tab said "to check: 104" for three hours, and only counting `report.json` files showed progress.
+  `tools/prompt_trial.py` and the trial scripts should print one line as each build's check finishes.
+- **The earlier trials' totals for running checks that only report findings were too small.** Found on 7 October 2026
+  by session paper-facts (the revision protocol's Amendment 2): the scorers of the prompt-library, delivery and at-start
+  tests counted a running check as asked only when one of its rules said something, where `protocol.md` says when the
+  app started, so a build the prompt had fixed was left out of the total. No verdict changes, since a build with the
+  problem always has a finding; the "of N" figures in `README.md`, `delivery.md` and `start.md` for such rules should be
+  recounted and corrected.
