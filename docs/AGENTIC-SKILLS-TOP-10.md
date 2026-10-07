@@ -53,7 +53,14 @@ A skill can sit in two places that matter here:
    - **C10.1** asks for MCP components from trusted sources, cryptographically verified (C10.1.1), allow-listed
      (C10.1.2), and sandboxed when run locally (C10.1.3).
 
-   The list adds no requirement here that AISVS lacks. Its value is the incidents and attack scenarios.
+   The list adds no requirement here that AISVS lacks. Its value is the incidents and attack scenarios. Two of the
+   AISVS requirements nearest it get no credit from any check `sv` has (`docs/COVERAGE.md`), a point from session
+   securevibe-e2's reading of the same list:
+   - **C10.4.8** (level 3) asks that an MCP client keeps a snapshot of its tools' definitions and asks again before a
+     changed tool is used. It is AST07's update drift for MCP tools. No check speaks to it.
+   - **C9.3.7** (level 2) asks that resources a model names are checked against an allow-list before an agent installs
+     or invokes them. `probe.ai-output-fetched` can only ever find it failing.
+   The list is evidence that both matter, not a new requirement.
 
 ## Each item
 
@@ -103,7 +110,10 @@ Where it does reach an app built with an AI tool, AISVS C9.3 and C10.1 already a
 them. Worth reading again when v1.0 is released (planned for the fourth quarter of 2026). Adopting it is the owner's
 decision, with a record of its own.
 
-## Proposals, for the owner to decide
+## Proposals, and the owner's answers
+
+**The owner's answers, 7 October 2026:** "yes to 1 and 2, agree on 3". Proposals 1 and 2 are to be built, under a
+record of their own; the list is not adopted for now.
 
 These are also put in `docs/BACKLOG.md`, under this item.
 

@@ -948,8 +948,14 @@ impl Server {
             .and_then(Value::as_str)
             .context("securevibe_before needs `feature`")?;
         crate::brief::Features::load(&crate::feature_briefs_path())?.get(feature)?;
-        let report = self.report_for(&app_dir, progress)?;
-        let brief = crate::brief_for(&report, feature, &self.loaded)?;
+        // Before securevibe.toml is written, the brief gives what does not wait for it, rather
+        // than refusing: builders ask for it first (the backlog, the delivery test of 6 October).
+        let brief = if app_dir.join("securevibe.toml").exists() {
+            let report = self.report_for(&app_dir, progress)?;
+            crate::brief_for(&report, feature, &self.loaded)?
+        } else {
+            crate::brief_without_manifest(feature, &self.loaded)?
+        };
         Ok(json!({
             "content": [{
                 "type": "text",
@@ -1820,6 +1826,7 @@ fn output_schema(tool: &str) -> Option<Value> {
             };
             object(
                 json!({
+                    "waiting": { "type": "boolean" },
                     "app": string, "level": count, "feature": string, "name": string,
                     "requirements": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
                     "pending": item(&[("id", string.clone()), ("level", count.clone()), ("description", string.clone())]),
@@ -1833,6 +1840,7 @@ fn output_schema(tool: &str) -> Option<Value> {
                     "creditsNothing": { "type": "boolean" },
                 }),
                 &[
+                    "waiting",
                     "app",
                     "level",
                     "feature",
@@ -2129,7 +2137,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_before",
             "title": "Before building one feature",
-            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules that cite its requirements, the tests to write named by requirement id, and the settings `sv run` needs in securevibe.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. A brief credits nothing. Reads files only; never starts the app.",
+            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules that cite its requirements, the tests to write named by requirement id, and the settings `sv run` needs in securevibe.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. Asked before securevibe.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -3319,6 +3327,96 @@ mod tests {
         assert!(rules.iter().all(|r| r["topic"] == "secrets"), "{rules:?}");
         // The example has sign-in, so nothing of sign-in's waits on securevibe.toml.
         assert!(ids(&sign_in, "pending").is_empty(), "{}", text(&sign_in));
+    }
+
+    #[test]
+    fn a_feature_brief_before_securevibe_toml_gives_what_does_not_wait_for_it() {
+        // The same app, with its settings file and without: what the feature brings, decides, and
+        // needs is the same for both, and only which of it applies, and the tests, wait for the file.
+        let root = scratch_app("before-no-toml", "flask-booking");
+        let with_file = Server::new(&root).unwrap();
+        let ids = |v: &Value, part: &str| -> std::collections::BTreeSet<String> {
+            v["structuredContent"][part]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|r| r["id"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        let features = crate::brief::Features::load(&crate::feature_briefs_path()).unwrap();
+        let mut answered = Vec::new();
+        for f in &features.features {
+            let brief = call(
+                &with_file,
+                "securevibe_before",
+                json!({ "path": "app", "feature": f.id }),
+            );
+            assert_eq!(brief["structuredContent"]["waiting"], false, "{}", f.id);
+            answered.push((f.id.clone(), brief));
+        }
+        std::fs::remove_file(root.join("app/securevibe.toml")).unwrap();
+        // No time at all for a check: the brief before the file starts none, so it still answers.
+        let without = Server::new(&root)
+            .unwrap()
+            .with_time_limit(std::time::Duration::from_nanos(1));
+        let schema = tools()
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["name"] == "securevibe_before")
+            .unwrap()["outputSchema"]
+            .clone();
+        let mut ai_prompts = std::collections::BTreeSet::new();
+        for (feature, before) in &answered {
+            let waiting = call(
+                &without,
+                "securevibe_before",
+                json!({ "path": "app", "feature": feature }),
+            );
+            assert_eq!(waiting["isError"], false, "{feature}: {waiting}");
+            let said = text(&waiting);
+            assert!(said.contains("(no securevibe.toml yet)"), "{said}");
+            assert!(said.contains("Waiting for securevibe.toml"), "{said}");
+            if let Err(why) = conforms(&waiting["structuredContent"], &schema, "securevibe_before")
+            {
+                panic!("{feature}: {why}");
+            }
+            let content = &waiting["structuredContent"];
+            assert_eq!(content["waiting"], true, "{feature}");
+            assert!(ids(&waiting, "requirements").is_empty(), "{feature}");
+            assert!(ids(&waiting, "tests").is_empty(), "{feature}");
+            // Everything the app with the file is told applies, or will, is in the list.
+            let told: std::collections::BTreeSet<String> = ids(before, "requirements")
+                .union(&ids(before, "pending"))
+                .cloned()
+                .collect();
+            assert!(
+                !told.is_empty() || ids(&waiting, "pending").is_empty(),
+                "{feature}"
+            );
+            assert!(
+                told.is_subset(&ids(&waiting, "pending")),
+                "{feature}: {:?}",
+                told.difference(&ids(&waiting, "pending"))
+            );
+            // And it is told the same decisions, rules, and settings, and the prompts shown to work.
+            for part in ["prompts", "rules", "conditions", "settings"] {
+                assert_eq!(
+                    content[part], before["structuredContent"][part],
+                    "{feature}: {part}"
+                );
+            }
+            assert!(
+                ids(before, "codingPrompts").is_subset(&ids(&waiting, "codingPrompts")),
+                "{feature}"
+            );
+            if feature == "ai" {
+                ai_prompts = ids(&waiting, "codingPrompts");
+            }
+        }
+        std::fs::remove_dir_all(&root).ok();
+        // The AI feature's prompt, which brought this about, reaches a builder before the file.
+        assert!(ai_prompts.contains("ai-feature-guard"), "{ai_prompts:?}");
     }
 
     #[test]

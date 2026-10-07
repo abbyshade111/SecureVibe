@@ -10,7 +10,7 @@ another session is not a claim.
 ## Next
 
 - **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
-  2026. Not claimed. A reading, not a build: what the list is (its version, date, status, and license, and whether it
+  2026. A reading, not a build: what the list is (its version, date, status, and license, and whether it
   is a numbered list of risks like the other Top 10s or a set of requirements `sv` could cite), where it overlaps what
   `sv` already reads (AISVS 1.0, its Appendix C, and the AI-feature, MCP, and agent checks), and what it adds. For each
   item: whether an app built with an AI coding tool could have the problem, whether `sv` could check for it (reading
@@ -19,6 +19,10 @@ another session is not a claim.
   proposals put here, each for the owner to decide; adding it as a framework `sv` cites, like ASVS and AISVS, is a
   decision with a record of its own, as the frameworks it already loads were. Read the list's own text before saying
   what any item asks, as with every citation.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the backlog
+  when ready", after asking for this item), in branch `claude/securevibe-e2-agentic-skills`, for the reading and the
+  document; any proposal it makes is left here for the owner. Read on `main` just before this claim: no other session
+  had claimed it.
   **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick your next backlog
   item"), in branch `claude/securevibe-e9-agentic-skills`. Read on `main` just before this claim: no other session had
   claimed it.
@@ -35,12 +39,20 @@ another session is not a claim.
   1. **Read the AI coding tool's own files in the project folder** (hooks that run commands, permission settings that
      allow everything, MCP servers started unpinned, base-address overrides), and report them in a section of their
      own, apart from the app's grade, as notices. AST02, AST03, AST07. No ASVS or AISVS requirement fits, so it cites
-     none. Small to medium. **Not claimed; waiting on the owner.**
+     none. Small to medium. **The owner said yes; not claimed.**
   2. **Hidden characters in the instruction files committed in the folder** (`AGENTS.md`, `CLAUDE.md`, `SKILL.md`,
      `.cursor/rules/`, and their like): Unicode tag characters and right-to-left overrides, only ever a finding. AST04.
-     Cites none. Small. **Not claimed; waiting on the owner.**
+     Cites none. Small. **The owner said yes; not claimed.**
   3. **Adopting the list as a framework `sv` cites:** this session recommends not now, and looking again at its v1.0
-     release (planned for the fourth quarter of 2026). **Waiting on the owner.**
+     release (planned for the fourth quarter of 2026). **The owner agreed.**
+
+  **Two sessions claimed this item, eight minutes apart** (securevibe-e9 at 12:42 UTC in #898, securevibe-e2 at 12:50
+  UTC in #900, before #898 reached `main`), and both wrote the document. **The owner's decision, 7 October 2026:** keep
+  securevibe-e9's (#899), on whose proposals the owner had already answered, and add the one point securevibe-e2's
+  (#901) had that it lacked: the AISVS requirements nearest the list that no check credits (C10.4.8, and C9.3.7, which
+  is only ever found failing).
+  **The owner's answers to the three proposals, 7 October 2026:** "yes to 1 and 2, agree on 3". Proposals 1 and 2 are to
+  be built; the list is not adopted for now.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
@@ -2178,6 +2190,11 @@ another session is not a claim.
   (`securevibe_before` and `sv brief`) gives what the feature can bring at every level, its decisions, the prompts shown
   to work, its coding rules, and the settings, and says that which requirements apply, and the tests to write, wait
   for the file. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A feature brief before securevibe.toml"): with no `securevibe.toml`, `securevibe_before`
+  and `sv brief` give every requirement the feature can bring at every level, its decisions, the prompts shown to work
+  for those requirements, its coding rules, and its settings, and say that which apply, and the tests, wait for the
+  file; the structured result says so in `waiting`. No check is started for it. Seven guards broken in turn, each
+  caught. Whether more builders then get the AI prompt is for the next delivery trial to measure.
 
 - **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
   the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
@@ -7376,3 +7393,5 @@ done: `docs/adr/ADR-018.md`.
 - **`ast.weak-password-key-derivation` cites V11.4.4 only, where storing passwords is V11.4.2.** Found on 7 October 2026
   by both independent reviews of the prompt library. **The owner's decision the same day: cite both. Claimed by session
   paper-facts**, in branch `claude/kdf-citation`; the record, `Status: proposed`, is ADR-048.
+  **Done the same day** (ADR-048, accepted): the rule cites V11.4.2 and V11.4.4, and `password-hashing` cites V11.4.1
+  and V11.4.2. Nothing more is credited; the rule reports findings only.

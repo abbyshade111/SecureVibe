@@ -590,6 +590,23 @@ pub(crate) fn brief_for(
     ))
 }
 
+/// One feature's brief for an app with no `securevibe.toml` yet: what the feature brings, whole,
+/// with what only the file can decide said to be waiting for it.
+pub(crate) fn brief_without_manifest(feature: &str, loaded: &Loaded) -> Result<brief::Brief> {
+    let features = brief::Features::load(&feature_briefs_path())?;
+    let feature = features.get(feature)?;
+    let brought = brief::brought(feature, &loaded.frameworks, &loaded.config_rules);
+    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    Ok(brief::without_manifest(
+        feature,
+        &brought,
+        &loaded.frameworks,
+        &design_prompts()?,
+        &coding_prompts()?,
+        &rules,
+    ))
+}
+
 /// Prints one feature's brief, or the features there are when none is named. Like the plan, it
 /// is not a check, so it ends clean whatever the app holds.
 fn cmd_brief(args: &[String]) -> Result<()> {
@@ -614,13 +631,16 @@ fn cmd_brief(args: &[String]) -> Result<()> {
     let loaded = Loaded::load()?;
     // The feature is checked before the report is built, so a misspelt name is said at once.
     brief::Features::load(&feature_briefs_path())?.get(feature)?;
-    let report = assemble_report(&app_dir, &plan_options(), &loaded)?;
+    // Before securevibe.toml is written, the brief gives what does not wait for it.
+    let brief = if app_dir.join("securevibe.toml").exists() {
+        let report = assemble_report(&app_dir, &plan_options(), &loaded)?;
+        brief_for(&report, feature, &loaded)?
+    } else {
+        brief_without_manifest(feature, &loaded)?
+    };
     print!(
         "{}",
-        brief::markdown_with(
-            &brief_for(&report, feature, &loaded)?,
-            &sv_report::fence::Fence::none()
-        )
+        brief::markdown_with(&brief, &sv_report::fence::Fence::none())
     );
     Ok(())
 }
