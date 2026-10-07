@@ -1612,8 +1612,9 @@ fn a_clean_result_says_what_the_rule_looked_for_and_where_it_looked_for_less() {
         scope_of(&scan, "ast.file-path-from-value"),
         "a file opened, written, or deleted at a path built from a value rather than written out, \
          in 1 python file (the calls it reads: `open`, `send_file`, and `FileResponse`); only \
-         commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, PATH_INFO, and similar); a path from any other variable is not \
-         looked at, in 1 shell file"
+         commands such as cat, rm, or cp given a path from a web request variable (QUERY_STRING, \
+         PATH_INFO, and similar), or from a variable the same function (or the script, outside any \
+         function) sets from one; a path from any other variable is not looked at, in 1 shell file"
     );
     // A rule whose shell reach is the same kind of thing still names it in shell's own terms.
     assert!(
