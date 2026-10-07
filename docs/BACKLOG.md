@@ -1456,7 +1456,10 @@ another session is not a claim.
      broken in turn, each caught. Not done: redirects outside the sign-in flow, which the app's own addresses would
      have to name, and a run against a real app.
      **The owner's decision, 6 October 2026: yes** to redirects outside the sign-in flow, through a new optional
-     `securevibe.toml` field naming the app's own addresses that take a destination ("I agree with all your recommendations", 6 October 2026). Not claimed.
+     `securevibe.toml` field naming the app's own addresses that take a destination ("I agree with all your recommendations", 6 October 2026). **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick
+     your next backlog item"), in branch `claude/securevibe-e9-redirects`: `redirects` under [stack.run.users], the
+     app's own addresses that send the browser on, each given the same outside address in the same nine parameters,
+     signed in as A; only ever a finding.
   9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
      credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
      **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
