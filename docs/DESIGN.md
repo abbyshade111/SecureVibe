@@ -11419,6 +11419,29 @@ What it does not look for, as its `looksFor` says:
 name. The rule does not find it, and the running check does. Kotlin, Rust, Swift, Dart, C, and C++ each say no sign-in
 library of theirs is looked for. Shell says a script does not handle a provider's answer.
 
+**Later, 7 October 2026: the session under another name.** A second switch, `functionNamesRead`, is the other side
+of `argumentNamesRead`. When a rule's `@fn` does not match as written, the name it begins with is read as each value
+the function around it sets that name to, and the pattern is tried again with the value in its place. With
+`s = req.session`, `s.user = claims.email` is tried as `req.session.user`, and found.
+
+- **The witness.** `examples/oidc-notes` gets its session from a helper of its own, `const s = session(req, res)`. So
+  the JavaScript and TypeScript patterns now also take a session that a call returns, such as `session(...)`,
+  `getSession(...)`, or iron-session's `await getIronSession(cookies(), options)`. `sv report` on the example now
+  reports line 120 (`s.user = … claims.email …`), which the running check had found alone.
+- **Python and Ruby.** `s = session` is the same session object, so `s["user"]` counts. `s = dict(session)` is a copy,
+  and does not.
+- **PHP.** Only a reference counts. `$s = &$_SESSION` is the session under another name. `$s = $_SESSION` copies the
+  array, and writing to the copy changes nothing in the session, so reading it as the session would be a false alarm.
+- **Where the name is read.** Only in the function around the line, as `argumentNamesRead` reads it. A name set in
+  another function is another variable.
+
+The first version only read a name followed by `.`, `[`, or `->`. Taking that out turned no test red. A bare alias,
+`const find = findOne`, read as `findOne` is a correct finding anyway, so the condition went rather than stay
+untested. So did a step that took the `&` off PHP's reference, since the grammar keeps it out of the value already.
+Six guards broken in turn, each caught by the witnesses: the switch off in the rule, the name never read, a PHP
+copy counted, the whole file read instead of the function, and either part of the call-returning session pattern
+taken out. A lookup inside a helper function is still not followed.
+
 What is left alone:
 - the same lookups keyed on `sub`, `uid`, `googleId`, `getId()`, or `FindByLoginAsync`;
 - a sign-in form's own email address;
@@ -11839,6 +11862,37 @@ braces are one now, since the new one takes in everything the old one did.
 **Four guards broken in turn, each caught:** the brace expression not a placeholder (three tests, `sv init`'s own
 template among them), a quote allowed inside, text after the braces allowed (two), and the first character not held.
 That last was caught by nothing at first, so a case of a key in braces starting with a digit was added.
+
+## A feature brief before securevibe.toml (7 October 2026)
+
+Found by session paper-facts in the delivery test of 6 October 2026: with the specification in the request, most
+builders asked for a feature's brief (`securevibe_before`) before writing `securevibe.toml`, were told to write the file
+and ask again, and few asked again. So the brief for the AI feature, which carries the AI-feature prompt shown to work,
+reached 2 of 10 Sonnet builds and 3 of 10 Haiku builds.
+
+Most of a brief does not depend on the app: what a feature can bring, the decisions to make first, the prompts shown to
+work, the coding rules on its topics, and the settings `sv run` needs. Only which requirements apply, at the app's level,
+and so which tests to write, need the file. Now, with no `securevibe.toml`, the brief (`securevibe_before`, and `sv brief`
+at the command line) gives:
+
+- **every requirement the feature can bring, at every level**, under a sentence saying that which of them apply, and at
+  which level, cannot be said until the file is written, and to ask again then;
+- the feature's design-time prompts, coding rules, and settings, exactly as an app with the file is given them;
+- the coding prompts shown to work for any of those requirements: as many as an app with the file is given, or more,
+  since no level narrows them;
+- for the tests, that they wait for the file.
+
+Its structured result carries `waiting: true` (and `false` in a brief built from a report), declared in the tool's
+output schema. The heading says "no securevibe.toml yet". No report is built and no check started for it. A brief still
+credits nothing.
+
+**Tested** on every feature, against the same example app with its settings file and without it: everything the app
+with the file is told applies, or will, is in the list; the decisions, rules, conditions, and settings are the same; and
+the AI feature's brief carries `ai-feature-guard`. Also at the command line, on an empty folder. **Seven guards broken in
+turn, each caught:** the server refusing without the file, the command doing so, only level-1 requirements listed, the
+brief not marked as waiting, no prompts shown to work, the tests not said to wait, and `waiting` left out of the schema.
+
+Whether more builders then get the prompt is for the next delivery trial to measure.
 
 ## V3.4.3's directives, and V11.4.2 for stored passwords (7 October 2026)
 

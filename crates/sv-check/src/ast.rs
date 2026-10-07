@@ -139,6 +139,15 @@ pub struct AstRule {
     /// function is another variable; in shell, the whole script, where variables are global.
     #[serde(default)]
     pub argument_names_read: bool,
+    /// When true, `functionPatterns` also matches through a name: the name a `@fn` begins with
+    /// (`s` in `s.user` or `s["user"]`) read as what the function around it sets it to.
+    ///
+    /// `s = req.session` and then `s.user = claims.email` records the provider's address as who is
+    /// signed in, as `req.session.user = claims.email` does. The name is read where
+    /// `argumentNamesRead` reads one, and each value it is set to is put in its place, so the
+    /// pattern is matched against `req.session.user`.
+    #[serde(default)]
+    pub function_names_read: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
@@ -1957,6 +1966,19 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             if let Some(pattern) = compiled.function.get(language) {
                 match text_of(m, fn_index) {
                     Some(name) if pattern.is_match(&name) => {}
+                    Some(name)
+                        if compiled.rule.function_names_read
+                            && fn_index
+                                .and_then(|index| m.captures().iter().find(|c| c.index == index))
+                                .is_some_and(|c| {
+                                    read_through_name(
+                                        c.node,
+                                        &name,
+                                        source.as_bytes(),
+                                        pattern,
+                                        language,
+                                    )
+                                }) => {}
                     _ => continue,
                 }
             }
@@ -2288,6 +2310,58 @@ fn name_set_to(
         }
         let mut cursor = node.walk();
         stack.extend(node.named_children(&mut cursor));
+    }
+    false
+}
+
+/// Whether `written` (the text of `node`, such as `s.user`) matches `pattern` once the name it begins
+/// with is read as a value the function around it sets that name to: `s = req.session` makes it
+/// `req.session.user`. In PHP only a reference counts (`$s = &$_SESSION`): `$s = $_SESSION` is a copy, and
+/// writing to it changes nothing in the session.
+fn read_through_name(
+    node: tree_sitter::Node,
+    written: &str,
+    source: &[u8],
+    pattern: &regex::Regex,
+    language: &str,
+) -> bool {
+    static HEAD: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"^\$?[A-Za-z_][A-Za-z0-9_]*").expect("a fixed pattern")
+    });
+    let text = |n: tree_sitter::Node| n.utf8_text(source).unwrap_or("");
+    let Some(head) = HEAD.find(written) else {
+        return false;
+    };
+    let rest = &written[head.end()..];
+    let name = head.as_str().trim_start_matches('$');
+    let mut scope = node;
+    while let Some(parent) = scope.parent() {
+        scope = parent;
+        if FUNCTIONS.contains(&scope.kind()) {
+            break;
+        }
+    }
+    let mut stack = vec![scope];
+    while let Some(setter) = stack.pop() {
+        let by_reference = setter.kind() == "reference_assignment_expression";
+        if (SETTERS.contains(&setter.kind()) && language != "php") || by_reference {
+            let target = ["left", "name", "pattern"]
+                .iter()
+                .find_map(|f| setter.child_by_field_name(f));
+            let value = ["right", "value"]
+                .iter()
+                .find_map(|f| setter.child_by_field_name(f));
+            if let (Some(target), Some(value)) = (target, value)
+                && text(target).trim().trim_start_matches('$') == name
+            {
+                // PHP's `$s = &$_SESSION`: the grammar keeps the `&` out of the value.
+                if pattern.is_match(&format!("{}{rest}", text(value).trim())) {
+                    return true;
+                }
+            }
+        }
+        let mut cursor = setter.walk();
+        stack.extend(setter.named_children(&mut cursor));
     }
     false
 }
@@ -6224,6 +6298,22 @@ mod tests {
         ("ast.account-found-by-provider-email", "ruby", "def create\n  session[:user_id] = request.env['omniauth.auth']['uid']\nend\n", false),
         ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $_SESSION['user_id'] = $googleUser->getEmail(); }", true),
         ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $googleUser = Socialite::driver('google')->user();\n $_SESSION['user_id'] = $googleUser->getId(); }", false),
+        // The session under another name (`functionNamesRead`): `examples/oidc-notes`' own shape, a
+        // helper that returns the session; `req.session` held in a name; and iron-session's call.
+        ("ast.account-found-by-provider-email", "javascript", "function session(req, res) { return sessions.get(req.headers.cookie); }\nhttp.createServer(async (req, res) => {\n  const s = session(req, res);\n  s.user = claims.email;\n});", true),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/cb', async (req, res) => {\n  const sess = req.session;\n  sess.userId = userinfo.email;\n});", true),
+        ("ast.account-found-by-provider-email", "typescript", "export async function GET(req: Request) {\n  const s = await getIronSession(cookies(), options);\n  s.user = claims.email;\n  await s.save();\n}", true),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/cb', async (req, res) => {\n  const s = cache;\n  s.user = claims.email;\n});", false),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/cb', async (req, res) => {\n  const s = req.session;\n  s.email = claims.email;\n});", false),
+        ("ast.account-found-by-provider-email", "javascript", "app.get('/cb', async (req, res) => {\n  const s = req.session;\n  s.user = claims.sub;\n});", false),
+        ("ast.account-found-by-provider-email", "javascript", "function other(req) { const s = req.session; }\napp.get('/cb', async (req, res) => {\n  s.user = claims.email;\n});", false),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    s = session\n    s[\"user\"] = userinfo[\"email\"]\n", true),
+        ("ast.account-found-by-provider-email", "python", "def callback():\n    s = dict(session)\n    s[\"user\"] = userinfo[\"email\"]\n", false),
+        ("ast.account-found-by-provider-email", "ruby", "def callback\n  s = session\n  s[:user_id] = auth.info.email\nend", true),
+        ("ast.account-found-by-provider-email", "ruby", "def callback\n  s = {}\n  s[:user_id] = auth.info.email\nend", false),
+        // PHP copies an array on assignment, so only a reference is the session under another name.
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $s = &$_SESSION; $googleUser = Socialite::driver('google')->user();\n $s['user_id'] = $googleUser->getEmail(); }", true),
+        ("ast.account-found-by-provider-email", "php", "<?php\nfunction callback() { $s = $_SESSION; $googleUser = Socialite::driver('google')->user();\n $s['user_id'] = $googleUser->getEmail(); }", false),
         // A token's own `jku`, `x5u`, or `jwk` handed to what fetches or makes its key (V9.1.3). The
         // quiet cases: a fixed address, a check against a list, a log line, an address parsed for
         // its host, and a token being made with a `jku` of the app's own.

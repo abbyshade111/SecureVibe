@@ -1561,6 +1561,7 @@
       "fix": "Store the provider's `sub` (with the provider's name, if there is more than one) when the account is made, and find the account by that pair on every sign-in. Keep the email address only for writing to people. If you link a provider's sign-in to an account that already exists with the same email address on purpose, ask the person to sign in the old way first and confirm the link.",
       "findingsOnly": true,
       "argumentNamesRead": true,
+      "functionNamesRead": true,
       "queries": {
         "python": "[(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list) @arg) (assignment left: (subscript) @fn right: (_) @arg)] @hit",
         "javascript": "[(call_expression function: [(identifier) @fn (member_expression property: (property_identifier) @fn)] arguments: (arguments) @arg) (assignment_expression left: (member_expression) @fn right: (_) @arg)] @hit",
@@ -1573,8 +1574,8 @@
       },
       "functionPatterns": {
         "python": "^(filter_by|filter|get|get_or_create|update_or_create|find_one|find|where|execute|select|get_by_email|get_user_by_email|find_by_email|find_user_by_email|user_by_email)$|^session\\s*\\[\\s*['\"](user|user_?id|uid|account|account_?id|current_user|username|id)['\"]\\s*\\]$",
-        "javascript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$|^(req\\s*\\.\\s*)?session\\s*\\.\\s*(user|userId|user_id|uid|account|accountId|account_id|currentUser|username|id)$",
-        "typescript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$|^(req\\s*\\.\\s*)?session\\s*\\.\\s*(user|userId|user_id|uid|account|accountId|account_id|currentUser|username|id)$",
+        "javascript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$|^(req\\s*\\.\\s*)?(session|(await\\s+)?(get)?(Iron)?[sS]ession\\s*\\(([^()]|\\([^()]*\\))*\\))\\s*\\.\\s*(user|userId|user_id|uid|account|accountId|account_id|currentUser|username|id)$",
+        "typescript": "^(findOne|findFirst|findFirstOrThrow|findUnique|findUniqueOrThrow|find|findBy|findOneBy|findOneAndUpdate|findOrCreate|upsert|where|query|execute|getUserByEmail|findUserByEmail|findByEmail|getByEmail|userByEmail)$|^(req\\s*\\.\\s*)?(session|(await\\s+)?(get)?(Iron)?[sS]ession\\s*\\(([^()]|\\([^()]*\\))*\\))\\s*\\.\\s*(user|userId|user_id|uid|account|accountId|account_id|currentUser|username|id)$",
         "ruby": "^(find_by!?|where|find_or_create_by!?|find_or_initialize_by|find_by_email|first_or_create)$|^session\\s*\\[\\s*:?['\"]?(user|user_id|uid|account_id|current_user|username)['\"]?\\s*\\]$",
         "go": "^(Where|First|Find|FindOne|Take|QueryRow|QueryRowContext|Query|QueryContext|Get|GetUserByEmail|FindUserByEmail|FindByEmail|UserByEmail|GetByEmail)$",
         "php": "^(where|firstWhere|firstOrCreate|firstOrNew|updateOrCreate|findOneBy|findBy|execute|query|whereEmail)$|^\\$_SESSION\\s*\\[\\s*['\"](user|user_?id|uid|account_?id|username|id)['\"]\\s*\\]$",
@@ -1591,7 +1592,7 @@
         "java": "(?i)\\b(get)?(oidc_?user|oauth2_?user|principal|id_?token|claims|user_?info)(\\s*\\(\\s*\\))?\\s*\\.\\s*(getemail\\s*\\(\\s*\\)|getattribute\\s*\\(\\s*\"email\"\\s*\\)|getclaim(asstring)?\\s*\\(\\s*\"email\"\\s*\\))",
         "csharp": "(?i)\\bprincipal\\s*\\??\\.\\s*(findfirstvalue|findfirst)\\s*\\(\\s*(claimtypes\\s*\\.\\s*email|\"email\")"
       },
-      "looksFor": "a lookup of an account (`filter_by`, `findUnique`, `find_by`, `Where`, `FindByEmailAsync`, `findByEmail`, and their like) given the email address a sign-in provider sent, and, in Python, JavaScript, TypeScript, Ruby, and PHP, that address stored as the session's user (`session[\"user\"]`, `req.session.userId`, `$_SESSION['user_id']`); either written in place or through a name the same function sets to it. Finding none credits nothing: a lookup through a helper, a session reached through another name, or a value set in another function is not followed",
+      "looksFor": "a lookup of an account (`filter_by`, `findUnique`, `find_by`, `Where`, `FindByEmailAsync`, `findByEmail`, and their like) given the email address a sign-in provider sent, and, in Python, JavaScript, TypeScript, Ruby, and PHP, that address stored as the session's user (`session[\"user\"]`, `req.session.userId`, `$_SESSION['user_id']`); either written in place or through a name the same function sets to it, the session included (`s = req.session`, then `s.user`). Finding none credits nothing: a lookup through a helper, or a value set in another function, is not followed",
       "nothingToFind": {
         "kotlin": "No sign-in provider library in common use for Kotlin is looked for here. An account looked up by the email address a provider sent is not found.",
         "rust": "No sign-in provider library in common use for Rust is looked for here. An account looked up by the email address a provider sent is not found.",

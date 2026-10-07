@@ -9,6 +9,17 @@ another session is not a claim.
 
 ## Next
 
+- **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
+  2026. Not claimed. A reading, not a build: what the list is (its version, date, status, and license, and whether it
+  is a numbered list of risks like the other Top 10s or a set of requirements `sv` could cite), where it overlaps what
+  `sv` already reads (AISVS 1.0, its Appendix C, and the AI-feature, MCP, and agent checks), and what it adds. For each
+  item: whether an app built with an AI coding tool could have the problem, whether `sv` could check for it (reading
+  the code, the running app, or neither), and what that would take. Also whether it bears on how `sv` itself is used
+  by an AI coding tool (the MCP server, the prompts, the coding rules). The result is a document in `docs/` and
+  proposals put here, each for the owner to decide; adding it as a framework `sv` cites, like ASVS and AISVS, is a
+  decision with a record of its own, as the frameworks it already loads were. Read the list's own text before saying
+  what any item asks, as with every citation.
+
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
   and `probe.private-page-headers` credit V3.4.3 for any Content-Security-Policy, where V3.4.3 asks for a policy that
@@ -2150,6 +2161,11 @@ another session is not a claim.
   (`securevibe_before` and `sv brief`) gives what the feature can bring at every level, its decisions, the prompts shown
   to work, its coding rules, and the settings, and says that which requirements apply, and the tests to write, wait
   for the file. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A feature brief before securevibe.toml"): with no `securevibe.toml`, `securevibe_before`
+  and `sv brief` give every requirement the feature can bring at every level, its decisions, the prompts shown to work
+  for those requirements, its coding rules, and its settings, and say that which apply, and the tests, wait for the
+  file; the structured result says so in `waiting`. No check is started for it. Seven guards broken in turn, each
+  caught. Whether more builders then get the AI prompt is for the next delivery trial to measure.
 
 - **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
   the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
@@ -3590,6 +3606,8 @@ another session is not a claim.
      function around it sets `s` to the session (`s = req.session`, `s = session`, or a call that returns one, such as
      `getIronSession(...)`). `examples/oidc-notes` is the witness. Read on `main` just before this claim: no other
      session had claimed it. A lookup inside a helper function stays unclaimed.
+     **Done the same day** (DESIGN, "Later, 7 October 2026: the session under another name"). `sv report` on
+     `examples/oidc-notes` now reports its line 120. In PHP only `$s = &$_SESSION` counts, since an assignment copies.
      **C9.5.3 claimed on 29 September 2026 by session securevibe-e9**, at the owner's asking to continue with the
      backlog: the test model asks the app's own record tool for another user's record.
      **C9.5.3 done the same day** (DESIGN, "Another user's record, through the model's tool").
