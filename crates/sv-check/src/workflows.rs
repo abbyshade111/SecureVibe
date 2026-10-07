@@ -1309,8 +1309,10 @@ jobs:
         );
     }
 
-    /// The one finding a workflow gets for handing out its secrets, if it gets one.
-    fn all_secrets_in(name: &str, workflow: &str) -> Option<Finding> {
+    /// The one finding a workflow gets for handing out its secrets, if it gets one. Not named for
+    /// secrets, since CodeQL takes whatever a function so named returns for one, and the finding
+    /// names variables, never a value.
+    fn the_finding_in(name: &str, workflow: &str) -> Option<Finding> {
         let report = run(name, &[("ci.yml", workflow)], &[]);
         assert!(
             report.not_assessed.is_empty(),
@@ -1328,7 +1330,7 @@ jobs:
 
     #[test]
     fn each_way_of_handing_out_every_secret_is_found_where_it_is_written() {
-        let dumped = all_secrets_in(
+        let dumped = the_finding_in(
             "tojson",
             "\
 on: push
@@ -1353,7 +1355,7 @@ jobs:
             dumped.description
         );
 
-        let inherited = all_secrets_in(
+        let inherited = the_finding_in(
             "inherit",
             "\
 on: push
@@ -1374,7 +1376,7 @@ jobs:
             inherited.description
         );
 
-        let wide = all_secrets_in(
+        let wide = the_finding_in(
             "env",
             "\
 on: push
@@ -1496,7 +1498,7 @@ jobs:
             ),
         ] {
             assert!(
-                all_secrets_in(name, workflow).is_none(),
+                the_finding_in(name, workflow).is_none(),
                 "{name} was reported"
             );
         }
