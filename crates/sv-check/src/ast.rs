@@ -6417,6 +6417,28 @@ mod tests {
         ("ast.static-files-from-app-folder", "java", "class A { void f(JavalinConfig config) { config.staticFiles.add(\"/public\", Location.CLASSPATH); } }", false),
         ("ast.static-files-from-app-folder", "java", "class A { void f(List<String> xs) { xs.add(\".\"); } }", false),
         ("ast.static-files-from-app-folder", "java", "class W { void f(ResourceHandlerRegistry r, String uploads) { r.addResourceHandler(\"/files/**\").addResourceLocations(\"file:\" + uploads); } }", false),
+        // Rack's `Static` with no `root:` serves the folder the app was started in (`Dir.pwd`, read from
+        // rack's lib/rack/static.rb), but only below its `urls:`; a `urls:` of "" or "/" is every path.
+        ("ast.static-files-from-app-folder", "ruby", "use Rack::Static, urls: [\"\"]", true),
+        ("ast.static-files-from-app-folder", "ruby", "use Rack::Static, :urls => [\"/\"], :index => \"index.html\"", true),
+        ("ast.static-files-from-app-folder", "ruby", "use Rack::Static, urls: [\"/media\"]", false),
+        ("ast.static-files-from-app-folder", "ruby", "use Rack::Static, urls: [\"/css\", \"/images\"]", false),
+        ("ast.static-files-from-app-folder", "ruby", "use Rack::Static, urls: [\"\"], root: \"public\"", false),
+        // Spark's external folder is a `File` of the path as given, so "." is the folder the app was
+        // started from (spark's resource/ExternalResource.java).
+        ("ast.static-files-from-app-folder", "java", "class A { void f() { staticFiles.externalLocation(\".\"); } }", true),
+        ("ast.static-files-from-app-folder", "java", "class A { void f() { Spark.externalStaticFileLocation(System.getProperty(\"user.dir\")); } }", true),
+        ("ast.static-files-from-app-folder", "java", "class A { void f() { staticFiles.externalLocation(\"/var/www/public\"); } }", false),
+        ("ast.static-files-from-app-folder", "java", "class A { void f() { staticFiles.externalLocation(\"/\"); } }", false),
+        ("ast.static-files-from-app-folder", "java", "class A { void f() { staticFiles.location(\"/public\"); } }", false),
+        // Ktor's `staticFiles(remotePath, dir: File)` and `staticPaths(remotePath, dir: Path)` (ktor's
+        // http/content/StaticContent.kt), and Spark from Kotlin.
+        ("ast.static-files-from-app-folder", "kotlin", "fun Application.module() {\n    routing {\n        staticFiles(\"/\", File(\".\"))\n    }\n}", true),
+        ("ast.static-files-from-app-folder", "kotlin", "fun Application.module() {\n    routing { staticPaths(\"/files\", Path(\".\")) }\n}", true),
+        ("ast.static-files-from-app-folder", "kotlin", "fun main() {\n    staticFiles.externalLocation(System.getProperty(\"user.dir\"))\n}", true),
+        ("ast.static-files-from-app-folder", "kotlin", "fun Application.module() {\n    routing { staticFiles(\"/static\", File(\"public\")) }\n}", false),
+        ("ast.static-files-from-app-folder", "kotlin", "fun Application.module() {\n    routing { staticResources(\"/\", \"static\") }\n}", false),
+        ("ast.static-files-from-app-folder", "kotlin", "fun Application.module(uploads: String) {\n    routing { staticFiles(\"/uploads\", File(uploads)) }\n}", false),
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app) { app.UseStaticFiles(new StaticFileOptions { FileProvider = new PhysicalFileProvider(Directory.GetCurrentDirectory()) }); } }", true),
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app, IWebHostEnvironment env) { app.UseFileServer(new FileServerOptions { FileProvider = new PhysicalFileProvider(env.ContentRootPath) }); } }", true),
         ("ast.static-files-from-app-folder", "csharp", "class P { void M(WebApplication app) { app.UseStaticFiles(); } }", false),
