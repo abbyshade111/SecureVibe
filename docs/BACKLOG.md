@@ -78,6 +78,11 @@ another session is not a claim.
      network is open, and the result mounted read-only into the fenced run. **`Status: proposed`: ADR-052.** Nothing
      is built until the owner has read the record. The "Now" part stays unclaimed. Read on `main` just before this
      claim: no other session had claimed either.
+     **The "Later" part done the same day** (ADR-052, accepted; DESIGN, "Packages installed before the run, outside
+     the fence"): `install = true` installs Python and Node packages before the run as the record says, tested with a
+     real backend. The starter's `build` example no longer suggests `pip install`, and an app whose build step tries
+     one is told about `install = true`. Still open from the "Now" part: `examples/flask-booking`, the preflight
+     warning, and the guide's page on building your own image.
   10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
      (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
      Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
