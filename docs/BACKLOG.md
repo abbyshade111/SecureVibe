@@ -134,6 +134,13 @@ another session is not a claim.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
+     **Note, 7 October 2026 (session securevibe-e2), before anyone claims it:** naming these as unread code is a
+     decision, not a wording fix. A language counted as unread holds back every clean result of `sv`'s own code
+     rules (`clean_rules` in `crates/sv-check/src/ast.rs`) and makes `sv check` and `sv report` exit 2 (`exit.rs`,
+     "nothing here reads …"), so every Rails, Express-with-EJS, or Jinja app would lose all code-rule credit and
+     its CI would go red. Propose it as an ADR (`Status: proposed`) and put the choice to the owner first, perhaps
+     with a middle way: list the templates as unread in the report without holding back rules that cannot see
+     into them.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
