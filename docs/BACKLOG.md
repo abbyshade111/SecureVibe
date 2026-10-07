@@ -44,6 +44,9 @@ another session is not a claim.
      section's sentence about them for ASVS (`tools/coverage.py`).
      **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
      backlog"), in branch `claude/securevibe-e2-can-be-credited`.
+     **Done the same day** (DESIGN, "The coverage documents count what can be credited"): a **Can be credited**
+     column (ASVS 119 of 345, 34%; level 1, 43 of 70), the sentence for ASVS, and the label "Can only be found
+     failing". Left for whoever next updates the paper's `figure-security.html`: it quotes "can settle" only.
   6. **The development-server check passes `python app.py` that starts Flask's debugger.** (`docs/GAP-ANALYSIS.md`,
      1.9.) A code rule for `app.run(debug=True)`, `app.debug = True`, and Django's `DEBUG = True` (finding only), or
      have `config.development-server-started` say the script it runs decides, instead of passing.
