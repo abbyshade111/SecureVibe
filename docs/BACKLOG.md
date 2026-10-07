@@ -47,6 +47,11 @@ another session is not a claim.
      counts as served (`signed_in/mod.rs`), so a React or Vite app's page shell for `/dashboard` is reported high.
      Treat an answer identical to the root page's as a shell, not judged; tell builders in the spec to list API
      addresses (`/api/me`) as private pages for such apps.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item -
+     there are new backlog items from a gap analysis to choose from"), in branch `claude/securevibe-e9-spa-shell`.
+     An answer that is only the app's page shell is neither the private page served nor refused, which is ADR-021's
+     question (which answers count as the app's): **`Status: proposed`**, a Later entry on ADR-021, made accepted in
+     the pull request that builds it.
   9. **Apps that install packages cannot be run by `sv run`.** (`docs/GAP-ANALYSIS.md`, 3.1.) Now: fix
      `examples/flask-booking/securevibe.toml` (its `pip install` build cannot run read-only, and it listens on
      127.0.0.1) and the starter's `build` example; have the preflight warn about `pip`/`npm`/`yarn`/`pnpm install` in
