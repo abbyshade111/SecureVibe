@@ -42,6 +42,10 @@ impl ProbeRequest {
     }
 }
 
+/// How much of an answer's body the run keeps: enough to recognize a stack trace, not enough to copy
+/// a page out of somebody's app. The running app's answers are cut to this in `sv-run`.
+pub const KEPT_CHARS: usize = 4000;
+
 /// What came back.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ProbeResponse {

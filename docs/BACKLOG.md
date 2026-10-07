@@ -64,6 +64,9 @@ another session is not a claim.
      An answer that is only the app's page shell is neither the private page served nor refused, which is ADR-021's
      question (which answers count as the app's): **`Status: proposed`**, a Later entry on ADR-021, made accepted in
      the pull request that builds it.
+     **Done the same day** (DESIGN, "A single-page app's page shell is not its private page"; ADR-021, Later, 7
+     October 2026, accepted): a private page answering nobody exactly as the front page does is set aside, not
+     judged, and every later check is given the pages that are left; the spec says to list `/api/me`-style addresses.
   9. **Apps that install packages cannot be run by `sv run`.** (`docs/GAP-ANALYSIS.md`, 3.1.) Now: fix
      `examples/flask-booking/securevibe.toml` (its `pip install` build cannot run read-only, and it listens on
      127.0.0.1) and the starter's `build` example; have the preflight warn about `pip`/`npm`/`yarn`/`pnpm install` in

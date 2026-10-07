@@ -110,6 +110,9 @@ health = "/"              # a path that returns 200 once the app is up
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
 # private = ["/account"]    # pages only a signed-in user should see
+#                           # A single-page app (React, Vite, and the like) sends every visitor the
+#                           # same page and fetches the data after: list the addresses it fetches
+#                           # from (`"/api/me"`) too, or that page alone cannot show anything is private.
 # redirects = ["/go"]      # the app's own pages that send the browser on to an address they are given
 #                           # (a "continue to" link); each is given an address outside the app
 # admin = ["/admin"]        # pages only an admin should see (needs `seed`); the admin account is
