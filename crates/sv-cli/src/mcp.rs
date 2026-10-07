@@ -1073,7 +1073,12 @@ impl Server {
                     "securevibe-report/report.json is a link to somewhere else, so it is not read"
                 );
             }
-            let (prompts, offered, gaps, _) = crate::prompts_for_report(&report)?;
+            let crate::ReportPrompts {
+                prompts,
+                offered,
+                gaps,
+                ..
+            } = crate::prompts_for_report(&report)?;
             let chosen: Vec<Value> = offered
                 .iter()
                 .filter_map(|(id, for_ids)| {

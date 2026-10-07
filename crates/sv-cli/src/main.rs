@@ -1303,15 +1303,7 @@ pub(crate) fn prompts_for(
 /// evidence"). Read from the report, so it says what the report said when it was written: a new
 /// report is the only way to see what changed since.
 ///
-/// Gives the library, the ids offered with the requirements each is for, the gaps, and the text.
-pub(crate) fn prompts_for_report(
-    report: &Path,
-) -> Result<(
-    sv_check::prompts::Prompts,
-    Vec<(String, Vec<String>)>,
-    std::collections::BTreeMap<String, String>,
-    String,
-)> {
+pub(crate) fn prompts_for_report(report: &Path) -> Result<ReportPrompts> {
     let text = std::fs::read_to_string(report).map_err(|e| {
         anyhow::anyhow!(
             "there is no report to read at {} ({e}). Make one first: `sv report`, or \
@@ -1327,11 +1319,25 @@ pub(crate) fn prompts_for_report(
     let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
     let offered = prompts.for_gaps(&gaps);
     let markdown = prompts.gaps_markdown(&offered, &gaps, &format!("`{}`", report.display()));
-    let ids = offered
+    let offered = offered
         .iter()
         .map(|(p, ids)| (p.id.clone(), ids.clone()))
         .collect();
-    Ok((prompts, ids, gaps, markdown))
+    Ok(ReportPrompts {
+        prompts,
+        offered,
+        gaps,
+        text: markdown,
+    })
+}
+
+/// What `prompts_for_report` found: the library, the ids offered with the requirements each is
+/// for, the requirements the report shows unproven with their status, and the offer as text.
+pub(crate) struct ReportPrompts {
+    pub prompts: sv_check::prompts::Prompts,
+    pub offered: Vec<(String, Vec<String>)>,
+    pub gaps: std::collections::BTreeMap<String, String>,
+    pub text: String,
 }
 
 /// Prints the prompts for the AI coding tool: for one requirement, for what an app's last report
@@ -1354,8 +1360,7 @@ fn cmd_prompts(args: &[String]) -> Result<()> {
             requirement.is_none(),
             "give either --requirement or --app (or --report), not both"
         );
-        let (_, _, _, text) = prompts_for_report(&report)?;
-        print!("{text}");
+        print!("{}", prompts_for_report(&report)?.text);
         return Ok(());
     }
     let frameworks = load_frameworks(&data_dir()?)?;
