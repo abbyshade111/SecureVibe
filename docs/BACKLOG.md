@@ -166,6 +166,9 @@ another session is not a claim.
      ADR-018, Later.
   4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
      V13.3.1 is no longer credited from the current file list alone. Changes what git is asked: ADR-032, Later.
+     **Done the same day** (DESIGN, "A key file committed once is still in the history"; ADR-032, Later, 7 October
+     2026): `git log` reads every file ever added, with the programs it could run switched off; a shallow copy is
+     "not assessed"; four more key-file names.
   **All four claimed on 7 October 2026 by session securevibe-e2**, at the owner's word, each in its own branch
   (`claude/securevibe-e2-app-tests-tier`, `claude/securevibe-e2-tests-required`,
   `claude/securevibe-e2-semgrep-scanned`, `claude/securevibe-e2-git-history-keys`).
