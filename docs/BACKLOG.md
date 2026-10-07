@@ -100,6 +100,13 @@ another session is not a claim.
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-tool-citations`. Mapped under `findings_against`, so a
+     finding names the requirement it shows failing and a clean run credits nothing new: B610 and B611 (V1.2.4), B701,
+     B702, B703, B704, and G203 (V1.2.1), B601 (V1.2.5), G108 (V13.4.2), B614 (C4.1.2), and B615 (C6.1.3), each as
+     `sv`'s own rule or Semgrep's equivalent cites it. B310 and G106 are named with no requirement, saying why: B310
+     fires on every `urlopen`, fixed addresses included, and G106 is about SSH, which the TLS requirements do not
+     cover. No credit changes, so no ADR is proposed.
   13. **Running checks an attacker would try first.** (`docs/GAP-ANALYSIS.md`, 3.5.) Each claimable on its own: (a)
      mass assignment beyond sign-up: B sends `owner`/`user_id`/`role` on `owned.create`, `creates`, and
      `change-email`; (b) stored cross-site scripting: a second `owned` record with `<sv-x>` in its marker, and a
