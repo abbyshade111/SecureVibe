@@ -44,10 +44,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 57 | 11 | 1 | 6 | 37 | 21 | 3 |
-| L2 | 183 | 87 | 11 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 87 | 12 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-With nothing beyond plain `sv check`, 25 ASVS requirements can be settled. 29 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 26 ASVS requirements can be settled. 28 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -79,7 +79,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (25)
+### Settled by reading the code (26)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -101,6 +101,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V11.3.2 | L1 | Reads the code: `ast.weak-cipher`; Outside tools: `gosec`, `semgrep` |
 | V11.3.3 | L2 | Reads the code: `ast.unauthenticated-encryption` (sv only ever as a finding: `ast.unauthenticated-encryption`) |
 | V11.4.1 | L1 | Reads the code: `ast.weak-hash-function`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 1 more |
+| V11.4.2 | L2 | Reads the code: `ast.weak-password-key-derivation`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
 | V11.4.4 | L2 | Reads the code: `ast.weak-password-key-derivation` (sv only ever as a finding: `ast.weak-password-key-derivation`) |
 | V13.2.3 | L2 | Reads the code: `secrets.credential-assignment` (sv only ever as a finding: `secrets.credential-assignment`) |
 | V13.4.7 | L3 | Reads the code: `ast.static-files-from-app-folder`; The running app: `probe.private-files-served` (sv only ever as a finding: `ast.static-files-from-app-folder`, `probe.private-files-served`) |
@@ -232,7 +233,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (29)
+### Settled only by an outside tool (28)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -252,7 +253,6 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V5.3.3 | L3 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V11.2.3 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V11.3.4 | L3 | Outside tools: `gosec`, `semgrep` (gosec only ever as a finding: `G407`; semgrep only ever as a finding: `gcm-nonce-reuse`, `openssl-cbc-static-iv`) |
-| V11.4.2 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V11.4.3 | L2 | Outside tools: `semgrep` |
 | V11.5.1 | L2 | Outside tools: `gosec`, `semgrep`, `codeql-javascript` |
 | V12.1.2 | L2 | Outside tools: `semgrep` |

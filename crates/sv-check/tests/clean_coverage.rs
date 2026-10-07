@@ -919,7 +919,7 @@ fn careful_home() -> probes::ProbeResponse {
         &[
             (
                 "Content-Security-Policy",
-                "default-src 'self'; frame-ancestors 'none'",
+                "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
             ),
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),
@@ -958,7 +958,7 @@ fn an_app_that_sets_no_cookie_is_not_credited_with_setting_good_ones() {
         &[
             (
                 "Content-Security-Policy",
-                "default-src 'self'; frame-ancestors 'none'",
+                "default-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
             ),
             ("X-Content-Type-Options", "nosniff"),
             ("Referrer-Policy", "no-referrer"),

@@ -157,7 +157,7 @@
       "prompt": "Store passwords only as hashes made by a password-hashing function from a well-known library: Argon2id first, or bcrypt or scrypt, with the library's recommended settings. Never use MD5, SHA-1, or SHA-256 on their own for passwords, never encrypt them so they can be read back, and never store them as they were typed. If you use PBKDF2, use at least 600,000 rounds with SHA-256 (210,000 with SHA-512), and keep the count where it can be raised later.",
       "requirements": [
         "V11.4.1",
-        "V11.4.4"
+        "V11.4.2"
       ],
       "check": {
         "kind": "static",

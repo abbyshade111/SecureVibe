@@ -11862,3 +11862,71 @@ braces are one now, since the new one takes in everything the old one did.
 **Four guards broken in turn, each caught:** the brace expression not a placeholder (three tests, `sv init`'s own
 template among them), a quote allowed inside, text after the braces allowed (two), and the first character not held.
 That last was caught by nothing at first, so a case of a key in braces starting with a digit was added.
+
+## A feature brief before securevibe.toml (7 October 2026)
+
+Found by session paper-facts in the delivery test of 6 October 2026: with the specification in the request, most
+builders asked for a feature's brief (`securevibe_before`) before writing `securevibe.toml`, were told to write the file
+and ask again, and few asked again. So the brief for the AI feature, which carries the AI-feature prompt shown to work,
+reached 2 of 10 Sonnet builds and 3 of 10 Haiku builds.
+
+Most of a brief does not depend on the app: what a feature can bring, the decisions to make first, the prompts shown to
+work, the coding rules on its topics, and the settings `sv run` needs. Only which requirements apply, at the app's level,
+and so which tests to write, need the file. Now, with no `securevibe.toml`, the brief (`securevibe_before`, and `sv brief`
+at the command line) gives:
+
+- **every requirement the feature can bring, at every level**, under a sentence saying that which of them apply, and at
+  which level, cannot be said until the file is written, and to ask again then;
+- the feature's design-time prompts, coding rules, and settings, exactly as an app with the file is given them;
+- the coding prompts shown to work for any of those requirements: as many as an app with the file is given, or more,
+  since no level narrows them;
+- for the tests, that they wait for the file.
+
+Its structured result carries `waiting: true` (and `false` in a brief built from a report), declared in the tool's
+output schema. The heading says "no securevibe.toml yet". No report is built and no check started for it. A brief still
+credits nothing.
+
+**Tested** on every feature, against the same example app with its settings file and without it: everything the app
+with the file is told applies, or will, is in the list; the decisions, rules, conditions, and settings are the same; and
+the AI feature's brief carries `ai-feature-guard`. Also at the command line, on an empty folder. **Seven guards broken in
+turn, each caught:** the server refusing without the file, the command doing so, only level-1 requirements listed, the
+brief not marked as waiting, no prompts shown to work, the tests not said to wait, and `waiting` left out of the schema.
+
+Whether more builders then get the prompt is for the next delivery trial to measure.
+
+## V3.4.3's directives, and V11.4.2 for stored passwords (7 October 2026)
+
+Two citations the prompt-library review found (`docs/prompts/reviews/language-agnostic-variant.md`), settled by the
+owner the same day.
+
+**V3.4.3** (ASVS, level 2) asks for a Content-Security-Policy that "includes the directives object-src 'none' and
+base-uri 'none' and defines either an allowlist or uses nonces or hashes". `probe.security-headers` and
+`probe.private-page-headers` credited it for any policy at all, `frame-ancestors 'none'` alone included. The owner's
+decision: "The check should look for them" (ADR-047). Both checks read one list of what a page lacks
+(`missing_headers` in `crates/sv-check/src/probes.rs`), and a policy now adds to it what it is short of:
+
+- `object-src 'none'`, or no `object-src` and `default-src 'none'`, which a browser reads the same way. A list with
+  `'none'` and anything else is not `'none'`.
+- `base-uri 'none'`. Nothing stands in for it: `base-uri` does not fall back to `default-src`.
+- a `default-src` or a `script-src`, the allowlist. Nonces and hashes are written inside one of the two, so they need
+  no case of their own.
+
+Directive names and values are read without regard to capitals, as a browser reads them. A shortfall is named in the
+finding with the other missing headers, and holds back the checks' credit for all four requirements together, as a
+missing header always has.
+
+**V11.4.2.** `ast.weak-password-key-derivation` (PBKDF2 with too few rounds) cited only V11.4.4, an encryption key made
+from a password. Code that stores passwords is held to V11.4.2. The same call does both, and nothing in the code says
+which, so the rule cites both and it is only ever a finding. Session paper-facts claimed the same decision unseen and
+built it first (#896, ADR-048, with the `password-hashing` prompt's citation), so this change keeps that version and
+adds nothing to it.
+
+The test fixtures that stood for a correct app sent a policy without the two directives and were brought up to it,
+as was the example app `examples/notes-with-users`. **Eight guards broken in turn, each caught:** each of the three
+shortfalls not looked for, `default-src 'none'` not standing in, `'none'` among other values counted, capitals not read
+through (each by the new probe test), the policy not judged at all (that test and the private-page test, whose fake app
+now has a policy without `base-uri`), and the V11.4.2 citation removed (the coverage document's test, before the
+citation was taken from #896).
+
+The `security-headers` prompt (shown) asks for neither directive, so an app built with it now gets this finding; its
+words are for a prompt trial to change, not this change.

@@ -1802,6 +1802,26 @@ mod tests {
         );
         assert!(!verified_ids(&bare).contains(&PRIVATE_PAGE_HEADERS.rule_id));
 
+        // A policy short of what V3.4.3 names is found on a private page too (ADR-047).
+        let short = run_against(
+            Flaws {
+                private_page_policy_without_base_uri: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let found = short
+            .findings
+            .iter()
+            .find(|f| f.rule_id == PRIVATE_PAGE_HEADERS.rule_id)
+            .unwrap_or_else(|| panic!("{:?}", rule_ids(&short)));
+        assert!(
+            found.description.contains("without `base-uri 'none'`"),
+            "{}",
+            found.description
+        );
+        assert!(!verified_ids(&short).contains(&PRIVATE_PAGE_HEADERS.rule_id));
+
         // The control: the same app with the headers, where the page really opened.
         let correct = run_against(Flaws::default(), &users());
         assert!(!rule_ids(&correct).contains(&PRIVATE_PAGE_HEADERS.rule_id));

@@ -10,7 +10,7 @@ another session is not a claim.
 ## Next
 
 - **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
-  2026. Not claimed. A reading, not a build: what the list is (its version, date, status, and license, and whether it
+  2026. A reading, not a build: what the list is (its version, date, status, and license, and whether it
   is a numbered list of risks like the other Top 10s or a set of requirements `sv` could cite), where it overlaps what
   `sv` already reads (AISVS 1.0, its Appendix C, and the AI-feature, MCP, and agent checks), and what it adds. For each
   item: whether an app built with an AI coding tool could have the problem, whether `sv` could check for it (reading
@@ -19,6 +19,19 @@ another session is not a claim.
   proposals put here, each for the owner to decide; adding it as a framework `sv` cites, like ASVS and AISVS, is a
   decision with a record of its own, as the frameworks it already loads were. Read the list's own text before saying
   what any item asks, as with every citation.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the backlog
+  when ready", after asking for this item), in branch `claude/securevibe-e2-agentic-skills`, for the reading and the
+  document; any proposal it makes is left here for the owner. Read on `main` just before this claim: no other session
+  had claimed it.
+  **Done the same day** (`docs/AGENTIC-SKILLS-TOP-10.md`), read from the project's own repository at `d6f7d7d`, since
+  owasp.org is blocked here. The list is about the skills AI agents load, not the apps they build; it is in public
+  review, lists risks rather than requirements, and its ASVS links use ASVS 4.0's chapters. Where it meets `sv`: apps
+  that are agents (AISVS C9.3.1, C9.3.7, C10.4.8, C10.1.1, and V1.5.2, the last two already checked), and `sv` itself
+  as a tool an agent uses. **Four proposals, none built, each the owner's:** (1) do not load it as a framework until
+  version 1 is out; (2) look for invisible characters in the project's instruction files (`SKILL.md`, `AGENTS.md`,
+  `CLAUDE.md`, `.cursor/rules`); (3) say what a committed `.claude/settings.json` would run (hooks, a different
+  `ANTHROPIC_BASE_URL`), which `sv` leaves out today on purpose; (4) nothing new for C9.3.7 and C10.4.8 beyond the
+  usual coverage work.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
@@ -31,6 +44,13 @@ another session is not a claim.
   policy without `object-src 'none'`, `base-uri 'none'`, or a `default-src` or `script-src`; the rule cites V11.4.2
   beside V11.4.4. **Record, `Status: proposed`: ADR-047** for the first, and a "Later" entry on ADR-018 for the second,
   in the pull request that builds them. Read on `main` just before this claim: no other session had claimed either.
+  **Done the same day** (DESIGN, "V3.4.3's directives, and V11.4.2 for stored passwords"; ADR-047, accepted). A policy
+  without `object-src 'none'` (or `default-src 'none'` in its place), `base-uri 'none'`, or a `default-src` or
+  `script-src` is named in both header checks' findings, on public and private pages. Eight guards broken in turn, each
+  caught. The V11.4.2 half was built by session paper-facts in #896 (ADR-048), which claimed the same decision unseen
+  (#888) and merged first; this item's pull request (#889) keeps that version. The shown `security-headers` prompt asks
+  for neither directive, so a build made with it now gets this finding; whether to change its words is for a prompt
+  trial.
 
 - **A review of the code merged on 1 to 4 October 2026, for faults.** Asked for by the owner on 6 October 2026, after
   the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read
@@ -2156,6 +2176,11 @@ another session is not a claim.
   (`securevibe_before` and `sv brief`) gives what the feature can bring at every level, its decisions, the prompts shown
   to work, its coding rules, and the settings, and says that which requirements apply, and the tests to write, wait
   for the file. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A feature brief before securevibe.toml"): with no `securevibe.toml`, `securevibe_before`
+  and `sv brief` give every requirement the feature can bring at every level, its decisions, the prompts shown to work
+  for those requirements, its coding rules, and its settings, and say that which apply, and the tests, wait for the
+  file; the structured result says so in `waiting`. No check is started for it. Seven guards broken in turn, each
+  caught. Whether more builders then get the AI prompt is for the next delivery trial to measure.
 
 - **Put the prompts shown to work where every builder starts.** Found on 6 October 2026 by session paper-facts, in
   the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
@@ -7354,6 +7379,8 @@ done: `docs/adr/ADR-018.md`.
 - **`ast.weak-password-key-derivation` cites V11.4.4 only, where storing passwords is V11.4.2.** Found on 7 October 2026
   by both independent reviews of the prompt library. **The owner's decision the same day: cite both. Claimed by session
   paper-facts**, in branch `claude/kdf-citation`; the record, `Status: proposed`, is ADR-048.
+  **Done the same day** (ADR-048, accepted): the rule cites V11.4.2 and V11.4.4, and `password-hashing` cites V11.4.1
+  and V11.4.2. Nothing more is credited; the rule reports findings only.
 
 - **Every session: list what you have made that could be deleted, and ask the owner.** Asked by the owner on
   7 October 2026, after the disk reached 152 MB free during the revision trial (17 GB was freed by deleting one session's
