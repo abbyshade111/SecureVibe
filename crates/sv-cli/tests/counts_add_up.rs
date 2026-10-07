@@ -17,9 +17,10 @@ use sv_check::advisories::Day;
 const PLACEHOLDER: &str = "_Nobody has written this yet._";
 
 /// Every status an applicable requirement can have, as `report.json` spells it.
-const STATUSES: [&str; 7] = [
+const STATUSES: [&str; 8] = [
     "needs-attention",
     "checked",
+    "app-tested",
     "documented",
     "by-hand",
     "attested",
@@ -28,9 +29,10 @@ const STATUSES: [&str; 7] = [
 ];
 
 /// The `report.json` count field for each status, in `STATUSES`' order.
-const COUNT_FIELDS: [&str; 7] = [
+const COUNT_FIELDS: [&str; 8] = [
     "needs_attention",
     "checked",
+    "app_tested",
     "documented",
     "by_hand",
     "attested",
@@ -145,14 +147,18 @@ fn app_with_every_status(name: &str) -> PathBuf {
 
 /// Each count in `report.json`, with the setup asserted first: every status occurs, and each
 /// count is the number of requirement rows with that status.
-fn counts_from_json(report: &Value) -> (usize, [usize; 7]) {
+fn counts_from_json(report: &Value) -> (usize, [usize; 8]) {
     let rows = report["requirements"].as_array().expect("requirements");
     let counts = &report["counts"];
-    let mut by_status = [0; 7];
+    let mut by_status = [0; 8];
     for (i, (status, field)) in STATUSES.iter().zip(COUNT_FIELDS).enumerate() {
         let in_rows = rows.iter().filter(|r| r["status"] == *status).count();
+        // The one status this fixture cannot give: a requirement tested by the app's own tests
+        // needs the app started under `sv run`, which needs a container backend. Its count is
+        // still held to its rows here, and every format is held to the sum with it present in
+        // `sv-report`'s `the_app_s_own_tests_are_a_tier_below_a_check_of_sv_s`.
         assert!(
-            in_rows > 0,
+            in_rows > 0 || *status == "app-tested",
             "the fixture must give some requirement the status {status}; it gave none. \
              Statuses: {:?}",
             rows.iter().map(|r| &r["status"]).collect::<Vec<_>>()
@@ -167,7 +173,7 @@ fn counts_from_json(report: &Value) -> (usize, [usize; 7]) {
     assert_eq!(rows.len(), applicable, "counts.applicable against the rows");
     // Two of the tool's answers and one of each of the owner's, so a table that showed one tier's
     // count in another's row would not add up by chance.
-    assert_eq!((by_status[4], by_status[5]), (1, 2), "attested, stated");
+    assert_eq!((by_status[5], by_status[6]), (1, 2), "attested, stated");
     (applicable, by_status)
 }
 
@@ -259,7 +265,7 @@ fn the_counts_add_up_to_what_applies_in_every_format() {
         .filter(|l| l.starts_with("| Applies, "))
         .map(|l| *numbers(l.rsplit('|').nth(1).unwrap()).last().unwrap())
         .collect();
-    assert_eq!(table.len(), 7, "a row per status in compliance.md's table");
+    assert_eq!(table.len(), 8, "a row per status in compliance.md's table");
     assert_eq!(
         table.iter().sum::<usize>(),
         applicable,
@@ -313,7 +319,7 @@ fn the_counts_add_up_to_what_applies_in_every_format() {
         .filter(|l| l.contains(">Applies, "))
         .map(|l| numbers(between(l, "<td class=\"n\">", "</td>"))[0])
         .collect();
-    assert_eq!(table.len(), 7, "a row per status in report.html's table");
+    assert_eq!(table.len(), 8, "a row per status in report.html's table");
     assert_eq!(
         table.iter().sum::<usize>(),
         applicable,
@@ -343,9 +349,9 @@ fn the_counts_add_up_to_what_applies_in_every_format() {
     );
     // After the total: the level, then a number per status, then how many could not be placed.
     let n = numbers(line);
-    assert_eq!(n.len(), 1 + 7 + 1, "{line}");
+    assert_eq!(n.len(), 1 + 8 + 1, "{line}");
     assert_eq!(
-        n[1..8].iter().sum::<usize>(),
+        n[1..9].iter().sum::<usize>(),
         applicable,
         "the MCP summary: {line}"
     );

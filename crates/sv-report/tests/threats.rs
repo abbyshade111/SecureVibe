@@ -25,6 +25,7 @@ fn line(id: &str, status: Status) -> RequirementLine {
         findings: Vec::new(),
         information: Vec::new(),
         checked_by: Vec::new(),
+        tested_by: Vec::new(),
         supported_by: Vec::new(),
         documented_by: Vec::new(),
         attested_by: Vec::new(),
@@ -236,6 +237,29 @@ fn an_answer_in_the_security_notes_does_not_settle_a_threat() {
         status_of(&checked, "T-01"),
         Some(ThreatStatus::CheckedInPart)
     );
+}
+
+#[test]
+fn the_app_s_own_tests_do_not_settle_a_threat() {
+    // ADR-050. The AI coding tool wrote the tests and the command that runs them, and nothing here
+    // reads whether a test asks what its requirement asks, so a requirement tested only by them is
+    // shown against the threat and counted toward nothing. The control is the checked case above.
+    let tested = evaluate(
+        &rules(),
+        &context(&[("auth", true)]),
+        &[line("V6.2.1", Status::AppTested)],
+    );
+    assert_eq!(
+        status_of(&tested, "T-01"),
+        Some(ThreatStatus::NotVerified),
+        "the app's own tests are not evidence about the threat"
+    );
+    let t = tested.iter().find(|t| t.id == "T-01").unwrap();
+    assert!(
+        t.app_tested.contains(&"V6.2.1".to_owned()),
+        "still shown: {t:?}"
+    );
+    assert!(t.checked.is_empty(), "{t:?}");
 }
 
 #[test]

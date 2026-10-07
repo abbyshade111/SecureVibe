@@ -176,6 +176,10 @@ another session is not a claim.
   start in `docs/GAP-ANALYSIS.md`.
   1. **The app's own tests in a tier of their own** (1.1). A new status, below *checked*; ids read only from code;
      requirements a test cannot show never credited by tests. **`Status: proposed`: ADR-050.**
+     **Done the same day** (ADR-050, accepted, "As built"; DESIGN, "The app's own tests are a tier of their own"):
+     *tested by the app's own tests*, counted apart in every table and summary, settling no threat. Still open, from
+     ADR-050's consequences: reading the test report even when the suite passes, and showing that a test fails when
+     the protection it names is removed.
   2. **The tests required before merging, and every commit on `main` tested** (7.1). `test` made a required check
      (a repository setting the owner makes, since a session cannot), and `rust.yml`'s concurrency group on `main` made
      one per commit so no run there is cancelled. **`Status: proposed`: ADR-051.**
