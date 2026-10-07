@@ -1101,7 +1101,7 @@
     },
     {
       "id": "ast.weak-password-key-derivation",
-      "title": "A password is stored, or a key made from one, with too few rounds of work",
+      "title": "A password is stored, or a key made from it, with too few rounds of work",
       "severity": "medium",
       "confidence": "high",
       "requirementIds": [
@@ -1111,7 +1111,7 @@
       "cwe": [
         "CWE-916"
       ],
-      "description": "A key is derived from a password with PBKDF2, and the number of rounds written into the code is below what OWASP recommends: 600,000 for SHA-256 and 210,000 for SHA-512 (SHA-1 needs 1,300,000). A count below 210,000 is reported whatever the hash; one below 600,000 where the call itself names SHA-256, and one below 1,300,000 where it names SHA-1. The same call serves two purposes the code cannot tell apart: storing a password (V11.4.2) and making an encryption key from one (V11.4.4), so both are cited.",
+      "description": "A password is hashed for storage, or a key derived from it, with PBKDF2, and the number of rounds written into the code is below what OWASP recommends: 600,000 for SHA-256 and 210,000 for SHA-512 (SHA-1 needs 1,300,000). A count below 210,000 is reported whatever the hash; one below 600,000 where the call itself names SHA-256, and one below 1,300,000 where it names SHA-1.",
       "impact": "Anyone who gets hold of what the key protects, such as an encrypted backup, an export, or a stored hash, can try guesses at the password quickly on ordinary hardware, and most people's passwords fall to a fast guesser.",
       "fix": "Raise the number of rounds to at least 600,000 for PBKDF2 with SHA-256 (210,000 with SHA-512, and 1,300,000 with SHA-1, which is better replaced), or use a password hashing function made for this, such as Argon2id or scrypt. Keep the count where it can be raised later without breaking what was already stored.",
       "findingsOnly": true,
