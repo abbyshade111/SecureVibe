@@ -144,6 +144,9 @@ another session is not a claim.
      could reach (`sv-report`'s short version).
   27. **The short version does not say which level the app was held to.** (`docs/GAP-ANALYSIS.md`, 6.2.) "Held to
      ASVS level 1: N more at levels 2 and 3, and M not yet placed, are not in these numbers."
+     **Items 26 and 27 claimed together on 7 October 2026 by session securevibe-e2**, at the owner's word ("please
+     continue to work off the backlog"), in branch `claude/securevibe-e2-short-version-scope`. Wording in the short
+     version only; what counts as evidence does not change.
   28. **Smaller report points.** (`docs/GAP-ANALYSIS.md`, 6.3.) "passed" in the short version's next steps, and the
      banned-word test extended past the headline; the spec and the MCP instructions recommending `--fail-on
      attention:high` for a CI workflow.
