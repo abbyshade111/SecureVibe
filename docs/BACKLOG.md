@@ -1473,6 +1473,11 @@ another session is not a claim.
      be read-only, and C9.1.1's per-tool quotas and timeouts.
      **The owner's decision, 6 October 2026:** call the app's own tools to test their limits only when
      `securevibe.toml` marks them read-only ("I agree with all your recommendations", 6 October 2026). Not claimed.
+     **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("go ahead when you're ready"), in
+     branch `claude/securevibe-e2-own-tool-loop`: a `read-only = true` on the record tool, and the C9.1.2 loop asked
+     through it when marked, as the MCP loop is. C9.1.1's quotas and timeouts stay unclaimed. **Record, `Status:
+     proposed`: ADR-045**, which writes down the owner's decision. Read on `main` just before this claim: no other
+     session had claimed it.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
@@ -1571,6 +1576,12 @@ another session is not a claim.
       `crates/sv-check/src/signed_in/uploads.rs`, its rule in `rules.rs` and `RESTS_ON_A_REFUSAL`; the fake app's upload
       handler reads text today; and a place just before step 10 of `run_checks`, with a fresh sign-in, fits "takes no
       other check with it" better than step 6b.
+      **V5.2.3 (compressed bombs) claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("go ahead
+      when you're ready"), in branch `claude/securevibe-e2-archive-bombs`, to the owner's decisions above, with the
+      list of formats: `max-unpacked-bytes`, `max-files`, and `unpacks-archives` on the `upload` entry; an ordinary small
+      archive of each format first, then one just over each limit, sent after every other upload check. Read on `main`
+      just before this claim: no other session had claimed it (securevibe-e9's claim of 5 October, #751, was closed
+      unmerged). **Record, `Status: proposed`: ADR-046.**
       **Claimed on 3 October 2026 by session securevibe-e10**, at the owner's asking, in branch
       `claude/upload-names`.
   16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
