@@ -2203,6 +2203,10 @@ another session is not a claim.
   **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
   backlog when ready"), in branch `claude/securevibe-e2-csrf-placeholder`: a value that is wholly one `{...}` template
   expression is a placeholder. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "A template filling in its own token is not a credential"): a value that is wholly
+  one `{...}` holding names, dots, calls, and indexes is a placeholder, as `{name}` already was. A quote inside the
+  braces, text outside them, or a first character that is not a letter keeps it judged. The line from the report is a
+  fixture, with three relatives; four guards broken in turn, each caught.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last
