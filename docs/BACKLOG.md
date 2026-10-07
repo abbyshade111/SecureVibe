@@ -1516,6 +1516,14 @@ another session is not a claim.
       when the app uses an answer that does not fit. It is credited only when the app showed a reply in the right shape
       and refused the wrong one without failing. Shown with the OpenAI and Anthropic SDKs and zod against the real test
       model; not run end to end under Docker here. A service that answers slowly or not at all is still not done.
+      **A service that answers slowly or not at all claimed on 7 October 2026 by session securevibe-e9**, at the
+      owner's word ("Please continue to work off the backlog when ready"), in branch `claude/securevibe-e9-ai-hang`.
+      Read on `main` just before this claim: no other session had claimed it. The test model takes one message and
+      answers nothing for 40 seconds. Credited (V16.5.2) when the app answered that message itself within the 15
+      seconds `sv` waits on any request, without the service's error, and then answered a plain message; a finding when
+      the plain message after it was not answered either; not assessed when only the hanging message went unanswered,
+      since an app whose own limit is longer than 15 seconds cannot be told from one with none. Asked last, and the
+      hold waited out, so an app it blocks does not spoil the checks after it.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
