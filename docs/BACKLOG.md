@@ -2132,6 +2132,12 @@ another session is not a claim.
   session writes `docs/prompts/reviews/<its name>.md` in a pull request of its own: the wording of every prompt, and
   suggestions for new ones, each tied to an `sv` check and the requirement's own text. Suggestions are tried the way
   the library's prompts are before any is marked shown. Asked of the two cloud sessions that build `sv`.
+  **The prompts at the start, done on 7 October 2026** (`docs/prompts/library-trial/start.md`): forty builds, $18.11.
+  For Sonnet, the keys-and-`.env` prompt works given at the start (9 of 10 builds without, 0 of 10 with), the first
+  delivery through `sv` the rule calls working; the AI prompt removed two of its three problems, not the third. Haiku's
+  baseline had already fallen (with `git` allowed and the guidance's prompts), so its comparisons have no reading. No
+  harm. This test and the delivery test used the loop protocol's owner-away sentence from before its Amendment 5,
+  said in `start.md`.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
@@ -2147,6 +2153,13 @@ another session is not a claim.
   `enabled = true` under `[capabilities.ai]`. A line under `[capabilities]` saying the AI feature's answers go in
   `[capabilities.ai]`, and the starter file's own `[capabilities.ai]` example saying `enabled`, would be measured as
   Part A was. Two builds also wrote the same key twice; `sv`'s message for that already says which.
+
+- **`sv`'s credential rule reads a form's anti-forgery token placeholder as a credential.** Found on 7 October 2026 by
+  session paper-facts, in the start-of-build test: one Haiku app drew eight `secrets.credential-assignment` findings
+  (high) at lines like `<input type=hidden name=csrf_token value="{html.escape(csrf_token)}">`: a template filling in
+  the token the app made for that page, the protection V3.5.1 asks for. A value that is a `{...}` or `{{...}}`
+  placeholder, or a call (`html.escape(...)`), is not a written-in secret. A fixture of exactly this line, and the
+  rule kept quiet on it, would hold the fix.
 
 - **When an app crashes at start, `sv` quotes the first line of the error, not the last.** Found on 6 October 2026
   by session paper-facts, in the loop's item 6: three Haiku apps crashed when they started, and each run said "Its last

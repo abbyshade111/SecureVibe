@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds the club app with a headless AI coding tool, one build per call, for the loop trials.
 
-    python3 loop_trial.py OUT ARM MODEL N [--budget USD] [--api] [--with-spec] [--prompt ID]
+    python3 loop_trial.py OUT ARM MODEL N [--budget USD] [--api] [--with-spec] [--prompt ID] [--allow-git]
 
 Follows docs/prompts/loop-protocol.md. OUT is a folder under the home folder (Colima shares only that). Each build
 gets a fresh folder OUT/<model>-<arm>-<n>, the request (docs/prompts/trial-3/plain-brief.md) as its prompt, and,
@@ -80,7 +80,8 @@ def build(out, arm, model, n, budget, api):
                    + instructions(folder) + '\n\n---\n\n' + request)
     cmd = [CLAUDE, '-p', request, '--model', model, '--restricted', '--strict-mcp-config',
            '--tools', ','.join(FILE_TOOLS + ['Bash']),
-           '--allowedTools', ' '.join(FILE_TOOLS + [SHELL] + sv_tools),
+           '--allowedTools', ' '.join(FILE_TOOLS + [SHELL] + (['Bash(git:*)'] if '--allow-git' in sys.argv else [])
+                                      + sv_tools),
            '--permission-mode', 'dontAsk', '--no-session-persistence',
            '--output-format', 'stream-json', '--verbose', '--max-budget-usd', str(budget)]
     if api:
