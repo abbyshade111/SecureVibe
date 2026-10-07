@@ -12397,3 +12397,14 @@ B201 finds Flask's case, but only when the outside tools run.
 **The start-command check.** Its clean reading credits nothing, as before, and now names the files a command runs
 (`python app.py`, `node server.js`, flags before the name allowed): "`app.py` runs the app's own code, which decides
 for itself whether it starts a development server or a debug mode (`ast.debug-mode-on` reads Python's)".
+
+Eight guards broken in turn, each caught: the six in the rule by the witnesses in `crates/sv-check/src/ast.rs` (29 for
+this rule, found and not found), the two in the start-command check by its tests in `launch.rs`:
+- `asyncio.run` and `self.debug` not set aside;
+- any keyword taken for `debug`;
+- Django's `DEBUG` not looked for;
+- `DEBUG = True` read anywhere, not only at the top of a module;
+- `FLASK_DEBUG=0` taken as on;
+- `flask --debug` not looked for;
+- the start-command check saying nothing of the app's own file;
+- a flag before the file name (`python -u app.py`) stopping the file being named.
