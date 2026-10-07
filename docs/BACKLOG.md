@@ -6116,7 +6116,13 @@ another session is not a claim.
      a finding. (Asked again on 27 September 2026 whether two refused skips should settle it; the
      owner's answer: no, it stays a person's check. Trying a repeated step is the way to strengthen
      it, not a lower bar.) **Done the same day**: see DESIGN, "Skipping a step (V2.3.1)". Doing a step twice
-     and other wrong orders are not tried. **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
+     and other wrong orders are not tried. **A step done twice and the wrong order claimed on 7 October 2026 by session
+     securevibe-e9**, at the owner's word ("Trying a repeated step is the way to strengthen it"), in branch
+     `claude/securevibe-e9-flow-order`: as B in a fresh session, the first step sent as many times as there are steps
+     before the last and then the last, and the steps between first and last sent before the first and then the last.
+     Repeating the last step after the flow finished is left out on purpose: an app's answer cannot tell "done now"
+     from "already yours", the false alarm the owner settled for `probe.action-done-twice` on 5 October 2026.
+     **V6.2.11 and V6.2.12 done on 26 September 2026.** Level 2 goes
      from 49 to 50 of 183: V6.2.11 can be settled; V6.2.12 is *supporting only*, because it is on
      the shared `manualOnly` list and one refused password is not the whole breached set. The
      password list's source is not recorded anywhere in the repository, and checking the chosen
