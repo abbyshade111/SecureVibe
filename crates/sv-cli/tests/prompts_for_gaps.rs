@@ -32,6 +32,11 @@ fn the_prompts_offered_are_for_requirements_the_real_report_shows_unproven() {
         .arg(&app)
         .output()
         .expect("sv runs");
+    let both = Command::new(sv)
+        .args(["prompts", "--requirement", "V3.4.3", "--app"])
+        .arg(&app)
+        .output()
+        .expect("sv runs");
     let json: serde_json::Value = serde_json::from_str(
         &std::fs::read_to_string(app.join("securevibe-report/report.json")).unwrap_or_default(),
     )
@@ -48,6 +53,11 @@ fn the_prompts_offered_are_for_requirements_the_real_report_shows_unproven() {
         "{}",
         String::from_utf8_lossy(&report.stderr)
     );
+    // A single requirement and an app at once is refused, not quietly answered with one of them.
+    assert!(!both.status.success());
+    let said = String::from_utf8_lossy(&both.stderr);
+    assert!(said.contains("not both"), "{said}");
+
     let text = String::from_utf8_lossy(&after.stdout);
     assert!(
         after.status.success(),

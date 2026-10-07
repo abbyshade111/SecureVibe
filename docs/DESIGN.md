@@ -12196,3 +12196,7 @@ requirement that still has no evidence", left undone because it needs a report f
 - **The app's file is not repeated.** `report.json` is a file in the app's folder, so the MCP tool reads it only when
   it is not a link out of the folder. Only requirement ids the library itself names reach the text, each followed by
   fixed words for its status.
+- **Guards, each broken on purpose.** Counting a `checked` requirement as unproven, not putting the prompts shown to
+  work first, offering every prompt, swapping the words for a status, allowing one requirement and an app at once
+  (once in the MCP tool and once in `sv prompts`), and reading a `report.json` that is a link: each turned a test red
+  (`crates/sv-cli/tests/prompts_for_gaps.rs`, and the two `securevibe_prompts` tests in `mcp.rs`), and was put back.
