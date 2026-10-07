@@ -3621,6 +3621,32 @@ And one in the terminal output: with nothing reachable, it printed "Nothing it a
 wrong", which reads as a pass for a site it never touched. It now says it could not reach the address
 and has nothing to say either way.
 
+## Packages installed before the run, outside the fence (ADR-052)
+
+The app's folder is read-only and its network has no way out, so `build` cannot install anything, and an app that needs
+Flask or Express never started: every running check read "not assessed". The gap analysis (3.1) counted every trial
+build ever made as standard-library only for this reason. With `install = true` under `[stack.run]`, a container runs
+first, in `crates/sv-run/src/install.rs`:
+
+- **Given only the dependency files**, each mounted read-only on its own: `requirements.txt`, or `package.json` with
+  `package-lock.json`. Never the app's code or its `.env`: the one container of a run that can reach the internet holds
+  nothing worth sending.
+- **Exact versions only**: every line of `requirements.txt` names one version (`name==1.2.3`, with extras, markers
+  and `--hash` allowed); `-r`, `-e`, other indexes, addresses and ranges are refused in plain words. Node needs its
+  lockfile. pip still chooses the versions of what those packages need at the first install, unless the file pins them.
+- **No package's own code runs** while it is online: `--only-binary=:all:` (no `setup.py`) and `npm ci
+  --ignore-scripts`. A package that needs either is refused by the tool itself, and the report says to build an image.
+- **Into a Docker volume** named from a fingerprint of the image and the files, so a second run downloads nothing; a
+  finished install writes a mark last, and a half-filled volume is filled again.
+
+The app then runs as before, fenced, with the volume mounted read-only (`/sv-deps` on `PYTHONPATH` for Python,
+`/node_modules` for Node) and the packages' commands first on its `PATH`. The report adds one sentence saying the
+packages were downloaded, from where, and that the container was given only the dependency files.
+
+Tested with a real backend (`crates/sv-run/tests/install.rs`): a fixture that imports `six` starts only with the step,
+shows the installed version, and reuses the download on a second run; without the step it fails, naming `six`. Six
+safeguards were broken in turn and each was caught, one of them only by the test with a real backend.
+
 ## A pretend "Sign in with Google" inside the fence
 
 An app whose people sign in through Google, Microsoft, or any other OpenID Connect provider carries
