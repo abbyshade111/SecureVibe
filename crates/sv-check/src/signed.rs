@@ -782,14 +782,19 @@ mod tests {
             ),
             format!("{} valid-before=\"20300101\",{}", s.app().id(), &good[17..]),
             format!("{}\n", good.replace("namespaces=\"", "namespaces=")),
-        ] {
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            // Named by its place in the list: the line itself holds a key, and is never printed.
+            let (which, bad) = bad;
             let checker = given(&bad, &s.0.join("app"));
             assert!(
                 matches!(
                     checker.recorded(Some(&seal), FIELDS),
                     Err(Unrecorded::TrustBroken(_))
                 ),
-                "{bad}"
+                "list {which}"
             );
         }
         // The list on this computer, made unreadable as one: nothing counts, and `sv review`
@@ -842,14 +847,15 @@ mod tests {
         // Nothing printed about it shows the private half.
         let body: String = text.lines().filter(|l| !l.starts_with("-----")).collect();
         assert!(body.len() > 100, "the setup: the private half is findable");
-        for shown in [
-            format!("{made:?}"),
-            format!("{:?}", made.for_app(&s.app())),
-            made.trusted_line(&s.app()).unwrap(),
-            made.fingerprint(),
+        // Named, not printed, when one fails: what it holds may be the key.
+        for (what, shown) in [
+            ("Debug", format!("{made:?}")),
+            ("Debug for an app", format!("{:?}", made.for_app(&s.app()))),
+            ("the trusted line", made.trusted_line(&s.app()).unwrap()),
+            ("the fingerprint", made.fingerprint()),
         ] {
-            assert!(!shown.contains(&body[..40]), "{shown}");
-            assert!(!shown.contains(&body[body.len() - 40..]), "{shown}");
+            assert!(!shown.contains(&body[..40]), "{what}");
+            assert!(!shown.contains(&body[body.len() - 40..]), "{what}");
         }
         assert!(made.fingerprint().starts_with("SHA256:"));
 
