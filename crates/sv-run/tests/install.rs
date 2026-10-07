@@ -38,7 +38,9 @@ fn an_app_that_needs_a_package_starts_with_it_installed_and_a_second_run_reuses_
     }
     println!("container backend present; installing and running the fixture app for real");
 
-    let first = backend.run(&plan, &[home()]).expect("the fixture app should come up");
+    let first = backend
+        .run(&plan, &[home()])
+        .expect("the fixture app should come up");
     assert!(first.healthy);
     assert_eq!(first.installed.len(), 1, "{:?}", first.installed);
     assert_eq!(first.installed[0].0, Ecosystem::Python);
@@ -55,7 +57,9 @@ fn an_app_that_needs_a_package_starts_with_it_installed_and_a_second_run_reuses_
     // The app itself is still fenced.
     assert_eq!(first.fence, sv_run::Fence::DockerInternalNetwork);
 
-    let second = backend.run(&plan, &[home()]).expect("the fixture app should come up again");
+    let second = backend
+        .run(&plan, &[home()])
+        .expect("the fixture app should come up again");
     assert_eq!(
         second.installed,
         vec![(Ecosystem::Python, true)],
@@ -72,7 +76,10 @@ fn without_install_the_same_app_cannot_start_because_its_package_is_missing() {
         println!("no container backend here; nothing to compare");
         return;
     }
-    match backend.run(&plan, &[home()]).map_err(|failed| failed.reason) {
+    match backend
+        .run(&plan, &[home()])
+        .map_err(|failed| failed.reason)
+    {
         Err(CannotRun::NeverReady { detail, .. }) => {
             assert!(detail.contains("six"), "{detail}")
         }

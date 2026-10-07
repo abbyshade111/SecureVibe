@@ -1516,21 +1516,33 @@ impl DockerBackend {
     /// The image's own `PATH`, so the installed packages' commands can go in front of it. The
     /// usual one when the image does not say.
     fn image_path(&self, image: &str) -> String {
-        self.docker(&["image", "inspect", "--format", "{{json .Config.Env}}", image])
-            .ok()
-            .filter(|(code, _)| *code == 0)
-            .and_then(|(_, out)| serde_json::from_str::<Vec<String>>(out.trim()).ok())
-            .and_then(|env| {
-                env.into_iter()
-                    .find_map(|pair| pair.strip_prefix("PATH=").map(str::to_owned))
-            })
-            .unwrap_or_else(|| "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_owned())
+        self.docker(&[
+            "image",
+            "inspect",
+            "--format",
+            "{{json .Config.Env}}",
+            image,
+        ])
+        .ok()
+        .filter(|(code, _)| *code == 0)
+        .and_then(|(_, out)| serde_json::from_str::<Vec<String>>(out.trim()).ok())
+        .and_then(|env| {
+            env.into_iter()
+                .find_map(|pair| pair.strip_prefix("PATH=").map(str::to_owned))
+        })
+        .unwrap_or_else(|| {
+            "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin".to_owned()
+        })
     }
 }
 
 /// What an install that did not finish said, shortly: its last few lines that are not blank.
 fn install_failure(out: &str) -> String {
-    let lines: Vec<&str> = out.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    let lines: Vec<&str> = out
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .collect();
     let tail = lines[lines.len().saturating_sub(3)..].join(" / ");
     let tail: String = tail.chars().take(400).collect();
     if tail.is_empty() {

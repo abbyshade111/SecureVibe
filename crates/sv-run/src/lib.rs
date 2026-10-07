@@ -72,7 +72,10 @@ pub enum CannotRun {
     /// nothing was downloaded, and the app was not started.
     InstallRefused { why: String },
     /// The install step ran and did not finish. `detail` is the end of its output.
-    InstallFailed { registry: &'static str, detail: String },
+    InstallFailed {
+        registry: &'static str,
+        detail: String,
+    },
 }
 
 impl CannotRun {

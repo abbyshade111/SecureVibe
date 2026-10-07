@@ -172,7 +172,11 @@ pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
                 "every line of requirements.txt must name one exact version (`name==1.2.3`), and \
                  {} do{} not: {}. Only exact versions are installed, so what is downloaded is what \
                  the app names.",
-                if loose.len() == 1 { "this one" } else { "these" },
+                if loose.len() == 1 {
+                    "this one"
+                } else {
+                    "these"
+                },
                 if loose.len() == 1 { "es" } else { "" },
                 loose
                     .iter()
@@ -186,16 +190,20 @@ pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
     }
     if app_dir.join("package.json").is_file() {
         if !app_dir.join("package-lock.json").is_file() {
-            return Err("package.json has no package-lock.json beside it. Only the exact versions \
+            return Err(
+                "package.json has no package-lock.json beside it. Only the exact versions \
                         a lockfile names are installed: run `npm install` once to write it."
-                .to_owned());
+                    .to_owned(),
+            );
         }
         installs.push(Ecosystem::Node);
     }
     if installs.is_empty() {
-        return Err("`install = true` is set, but the app's folder has neither a requirements.txt \
+        return Err(
+            "`install = true` is set, but the app's folder has neither a requirements.txt \
                     nor a package.json at its top, so there is nothing to install."
-            .to_owned());
+                .to_owned(),
+        );
     }
     installs
         .into_iter()
@@ -247,10 +255,7 @@ pub fn unpinned(text: &str) -> Vec<String> {
     if !current.trim().is_empty() {
         logical.push(current.trim().to_owned());
     }
-    logical
-        .into_iter()
-        .filter(|line| !pinned(line))
-        .collect()
+    logical.into_iter().filter(|line| !pinned(line)).collect()
 }
 
 fn pinned(line: &str) -> bool {
@@ -258,10 +263,7 @@ fn pinned(line: &str) -> bool {
         Some(at) => (&line[..at], &line[at..]),
         None => (line, ""),
     };
-    if !options
-        .split_whitespace()
-        .all(|o| o.starts_with("--hash="))
-    {
+    if !options.split_whitespace().all(|o| o.starts_with("--hash=")) {
         return false;
     }
     let spec = spec.split(';').next().unwrap_or("").trim();
@@ -279,7 +281,10 @@ fn pinned(line: &str) -> bool {
         && name
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.'))
-        && name.chars().next().is_some_and(|c| c.is_ascii_alphanumeric())
+        && name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_ascii_alphanumeric())
         && !version.is_empty()
         && !version.starts_with('=')
         && version
@@ -385,7 +390,11 @@ gunicorn==23.0.0 \\
             "flask==3.0.3 --no-binary=:all:",
             "flask[async==3.0.3",
         ] {
-            assert_eq!(unpinned(bad), vec![bad.to_owned()], "{bad:?} must be refused");
+            assert_eq!(
+                unpinned(bad),
+                vec![bad.to_owned()],
+                "{bad:?} must be refused"
+            );
         }
     }
 
@@ -413,8 +422,15 @@ gunicorn==23.0.0 \\
             mounts[1].ends_with("requirements.txt:/in/requirements.txt:ro"),
             "{mounts:?}"
         );
-        assert!(!joined.contains(".env") && !joined.contains("app.py"), "{joined}");
-        assert!(!mounts.iter().any(|m| m.starts_with(&format!("{}:", dir.display()))));
+        assert!(
+            !joined.contains(".env") && !joined.contains("app.py"),
+            "{joined}"
+        );
+        assert!(
+            !mounts
+                .iter()
+                .any(|m| m.starts_with(&format!("{}:", dir.display())))
+        );
         // Hardened, and no package code run.
         for needed in [
             "--read-only",
@@ -428,7 +444,10 @@ gunicorn==23.0.0 \\
         assert!(Ecosystem::Node.command().contains("--ignore-scripts"));
         assert!(Ecosystem::Node.command().contains("npm ci "));
         // Not on any fenced network, and nothing published.
-        assert!(!joined.contains("--network") && !joined.contains(" -p "), "{joined}");
+        assert!(
+            !joined.contains("--network") && !joined.contains(" -p "),
+            "{joined}"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -437,33 +456,58 @@ gunicorn==23.0.0 \\
         let dir = std::env::temp_dir().join(format!("sv-install-refuse-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let none = plan(&dir, "python:3.12-slim").unwrap_err();
-        assert!(none.contains("neither a requirements.txt nor a package.json"), "{none}");
+        assert!(
+            none.contains("neither a requirements.txt nor a package.json"),
+            "{none}"
+        );
         std::fs::write(dir.join("package.json"), "{}").unwrap();
         let no_lock = plan(&dir, "node:22-alpine").unwrap_err();
         assert!(no_lock.contains("package-lock.json"), "{no_lock}");
         std::fs::remove_file(dir.join("package.json")).unwrap();
         std::fs::write(dir.join("requirements.txt"), "flask\nrequests>=2\n").unwrap();
         let loose = plan(&dir, "python:3.12-slim").unwrap_err();
-        assert!(loose.contains("`flask`") && loose.contains("`requests>=2`"), "{loose}");
+        assert!(
+            loose.contains("`flask`") && loose.contains("`requests>=2`"),
+            "{loose}"
+        );
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
     #[test]
     fn the_same_files_in_the_same_image_reuse_one_volume_and_any_change_makes_a_new_one() {
-        let a = volume_name(Ecosystem::Python, "python:3.12-slim", &[b"six==1.16.0\n".to_vec()]);
+        let a = volume_name(
+            Ecosystem::Python,
+            "python:3.12-slim",
+            &[b"six==1.16.0\n".to_vec()],
+        );
         assert_eq!(
             a,
-            volume_name(Ecosystem::Python, "python:3.12-slim", &[b"six==1.16.0\n".to_vec()])
+            volume_name(
+                Ecosystem::Python,
+                "python:3.12-slim",
+                &[b"six==1.16.0\n".to_vec()]
+            )
         );
         assert_ne!(
             a,
-            volume_name(Ecosystem::Python, "python:3.12-slim", &[b"six==1.17.0\n".to_vec()])
+            volume_name(
+                Ecosystem::Python,
+                "python:3.12-slim",
+                &[b"six==1.17.0\n".to_vec()]
+            )
         );
         assert_ne!(
             a,
-            volume_name(Ecosystem::Python, "python:3.13-slim", &[b"six==1.16.0\n".to_vec()])
+            volume_name(
+                Ecosystem::Python,
+                "python:3.13-slim",
+                &[b"six==1.16.0\n".to_vec()]
+            )
         );
-        assert!(a.starts_with("sv-deps-py-") && a.len() == "sv-deps-py-".len() + 32, "{a}");
+        assert!(
+            a.starts_with("sv-deps-py-") && a.len() == "sv-deps-py-".len() + 32,
+            "{a}"
+        );
     }
 
     #[test]
@@ -475,7 +519,10 @@ gunicorn==23.0.0 \\
         };
         assert_eq!(install.app_mount(), "sv-deps-py-x:/sv-deps:ro");
         assert_eq!(
-            app_path(std::slice::from_ref(&install), "/usr/local/bin:/usr/bin:/bin"),
+            app_path(
+                std::slice::from_ref(&install),
+                "/usr/local/bin:/usr/bin:/bin"
+            ),
             "/sv-deps/bin:/usr/local/bin:/usr/bin:/bin"
         );
         let node = Install {
@@ -490,8 +537,14 @@ gunicorn==23.0.0 \\
     fn the_report_says_where_packages_came_from_and_that_the_app_stayed_fenced() {
         assert_eq!(sentence(&[]), None);
         let s = sentence(&[(Ecosystem::Python, false)]).unwrap();
-        assert!(s.contains("were downloaded from PyPI") && s.contains("`requirements.txt`"), "{s}");
-        assert!(s.contains("never the app's code") && s.contains("no way out"), "{s}");
+        assert!(
+            s.contains("were downloaded from PyPI") && s.contains("`requirements.txt`"),
+            "{s}"
+        );
+        assert!(
+            s.contains("never the app's code") && s.contains("no way out"),
+            "{s}"
+        );
         let again = sentence(&[(Ecosystem::Python, true)]).unwrap();
         assert!(again.contains("earlier run's download"), "{again}");
     }
