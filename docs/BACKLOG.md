@@ -69,6 +69,12 @@ another session is not a claim.
      127.0.0.1) and the starter's `build` example; have the preflight warn about `pip`/`npm`/`yarn`/`pnpm install` in
      `build`; document building your own image and setting `image`. Later, as a decision with its own record (what
      `sv` runs): an `image-build` option, or an install step outside the fence before the app starts inside it.
+     **The "Later" part claimed on 7 October 2026 by session paper-facts**, at the owner's word ("I agree with your
+     recommendation, please go ahead and write it up as proposed"), in branch `claude/install-step`: an install step
+     before the run, in its own container that sees only the dependency files, with no package code run while the
+     network is open, and the result mounted read-only into the fenced run. **`Status: proposed`: ADR-052.** Nothing
+     is built until the owner has read the record. The "Now" part stays unclaimed. Read on `main` just before this
+     claim: no other session had claimed either.
   10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
      (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
      Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
