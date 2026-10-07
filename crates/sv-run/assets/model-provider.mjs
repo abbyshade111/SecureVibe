@@ -24,6 +24,9 @@
 //   FETCH   asks for the app's own tool named in the message's `SV-CALL-<hex>` (a JSON object of
 //           `tool` and `args`, hex-encoded), when the app offered it, and records what the app then
 //           sends back as the tool's result
+//   FETCHLOOP
+//           as FETCH, and then asks for the same tool again after every result, up to LOOP_CAP
+//           rounds, as MCPLOOP does for `sv_lookup`; asked only of a tool the owner marked read-only
 //   FAIL    no reply: the service fails, answering 500 with an error in its own shape whose message
 //           carries `SVERR<tag>`, as a real outage would; `failures` in what was seen counts the
 //           attempts, since client libraries retry
@@ -265,11 +268,12 @@ function reply(api, body, usage) {
   };
   seen.set(tag, record);
   const marker = `SV-REPLY-${tag}`;
-  if (kind === 'FETCH') {
+  if (kind === 'FETCH' || kind === 'FETCHLOOP') {
     record.tools_offered = tools;
-    if (results.length) {
+    if (kind === 'FETCHLOOP') record.rounds = results.length;
+    if (results.length && (kind === 'FETCH' || results.length >= LOOP_CAP)) {
       record.tool_result = results.join('\n');
-      return `${marker} Here it is.`;
+      return kind === 'FETCH' ? `${marker} Here it is.` : `${marker} I will stop here.`;
     }
     const call = /SV-CALL-([0-9a-f]+)/.exec(user);
     let wanted = null;

@@ -1222,6 +1222,7 @@ mod tests {
                 probe_tool: Some(sv_manifest::RecordTool {
                     name: "echo".into(),
                     args: [("text".to_owned(), "hello".to_owned())].into(),
+                    read_only: false,
                 }),
             },
             Some(&token),

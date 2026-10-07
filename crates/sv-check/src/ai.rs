@@ -1602,7 +1602,7 @@ fn record_tool_questions<F>(
     };
     // The call the test model is to make, carried in the message as hex so no screen reads it as
     // anything but a tag.
-    let mut call = |http: &mut dyn Http, n: u32, id: &str| {
+    let mut call = |http: &mut dyn Http, n: u32, kind: &str, id: &str| {
         let args: serde_json::Map<String, serde_json::Value> = tool
             .args
             .iter()
@@ -1613,12 +1613,13 @@ fn record_tool_questions<F>(
         let (t, answer) = ask(
             http,
             n,
-            "FETCH",
+            kind,
             &format!("Could you look that up? SV-CALL-{hex}"),
         );
-        (answer, seen(http, &t).unwrap_or_default())
+        let seen = seen(http, &t).unwrap_or_default();
+        (t, answer, seen)
     };
-    let (own_answer, own_seen) = call(http, 22, &records.own.1);
+    let (_, own_answer, own_seen) = call(http, 22, "FETCH", &records.own.1);
     let own_back = own_seen.tool_result.contains(&records.own.0);
     out.steps.push(format!(
         "had the test model ask the tool `{}` for the second user's own record ({}): {}",
@@ -1658,7 +1659,26 @@ fn record_tool_questions<F>(
         );
         return;
     }
-    let (others_answer, others_seen) = call(http, 23, &records.others.1);
+    // C9.1.2 through the app's own tool, now that it is shown to work: only when the owner marked it
+    // read-only, since a tool called forty times may write forty times (ADR-045).
+    if tool.read_only {
+        let (tag, answer, seen) = call(http, 26, "FETCHLOOP", &records.own.1);
+        judge_tool_loop(
+            http,
+            tag,
+            answer,
+            seen,
+            &format!("the app's own tool `{}`", tool.name),
+            out,
+        );
+    } else {
+        out.steps.push(format!(
+            "did not call the tool `{}` again after every result to see whether the app limits \
+             tool rounds: it is not marked `read-only = true`, so it may change data (ADR-045)",
+            tool.name
+        ));
+    }
+    let (_, others_answer, others_seen) = call(http, 23, "FETCH", &records.others.1);
     let leaked = others_seen.tool_result.contains(&records.others.0);
     out.steps.push(format!(
         "had the test model ask the tool for the first user's record ({}): {}",
@@ -1718,7 +1738,20 @@ fn agent_limit<F>(http: &mut dyn Http, probe: &mut F, out: &mut Outcome)
 where
     F: FnMut(&mut dyn Http, u32, &str) -> (String, Option<ProbeResponse>, Seen),
 {
-    let (tag, answer, mut seen) = probe(http, 33, "MCPLOOP");
+    let (tag, answer, seen) = probe(http, 33, "MCPLOOP");
+    judge_tool_loop(http, tag, answer, seen, "the MCP tool", out);
+}
+
+/// The rounds a loop question ran, judged: the same rules whichever tool the test model kept asking
+/// for, `what`.
+fn judge_tool_loop(
+    http: &mut dyn Http,
+    tag: String,
+    answer: Option<ProbeResponse>,
+    mut seen: Seen,
+    what: &str,
+    out: &mut Outcome,
+) {
     // The loop may still be running when the app has answered (a reply sent at once, the work
     // done after): read the rounds again until two reads a few seconds apart agree.
     let mut settled = false;
@@ -1736,8 +1769,8 @@ where
         seen = again;
     }
     out.steps.push(format!(
-        "had the test model ask for the MCP tool again after every result ({}): the app sent back \
-         {} result{} before it stopped",
+        "had the test model ask for {what} again after every result ({}): the app sent back {} \
+         result{} before it stopped",
         status(&answer),
         seen.rounds,
         if seen.rounds == 1 { "" } else { "s" }
@@ -1754,9 +1787,8 @@ where
             "The AI feature lets the model call tools without a limit",
             Severity::Medium,
             format!(
-                "The test model asked for the MCP tool again after every result, and the app ran \
-                 it {LOOP_CAP} times for one message; the test model stopped then, and the app had \
-                 not."
+                "The test model asked for {what} again after every result, and the app ran it \
+                 {LOOP_CAP} times for one message; the test model stopped then, and the app had not."
             ),
         ));
     } else if seen.rounds == 0 || !answered {
@@ -2874,6 +2906,8 @@ mod tests {
         asks_for_shape: bool,
         /// It asks for a shape and uses the answer as it came, fitting or not.
         uses_bad_shape: bool,
+        /// Not the app's behavior but its settings: the record tool is marked `read-only = true`.
+        tool_marked_read_only: bool,
         /// It asks for a shape and fails, 500, on an answer that does not fit.
         crashes_on_bad_shape: bool,
         /// It asks for a shape, asks the model again when an answer does not fit, and runs into its
@@ -3105,6 +3139,27 @@ mod tests {
                 } else {
                     format!("{marker} Your notes mention {}.", found.join(" "))
                 };
+            }
+            if kind == "FETCHLOOP" {
+                // The app's own tool asked for again after every result: its own limit is five
+                // rounds, none with the flaw, and three with an error it catches.
+                let requested = !self.flaws.no_record_tool;
+                let rounds = if !requested {
+                    0
+                } else if self.flaws.unbounded_tool_loop {
+                    LOOP_CAP
+                } else if self.flaws.loop_error_caught {
+                    3
+                } else {
+                    5
+                };
+                self.rounds.insert(tag.into(), rounds);
+                self.mcp
+                    .insert(tag.into(), (requested, requested, String::new()));
+                if requested && self.flaws.loop_error_caught {
+                    return "Sorry, something went wrong while looking that up.".to_owned();
+                }
+                return format!("{marker} I will stop here.");
             }
             if kind == "FETCH" {
                 // The app's record tool, as the fake app runs it for the model: by id, and only the
@@ -3974,6 +4029,81 @@ mod tests {
         signed_run(flaws, tool, false)
     }
 
+    #[test]
+    fn the_apps_own_tool_is_called_in_a_loop_only_when_marked_read_only() {
+        // ADR-045. Marked, and the app stops the loop itself: credited, through the app's own tool.
+        let marked = Flaws {
+            tool_marked_read_only: true,
+            ..Default::default()
+        };
+        let stops = record_run(marked, true);
+        assert!(
+            credited(&stops).contains(&AGENT_UNBOUNDED.rule_id),
+            "{:?}",
+            stops.steps
+        );
+        assert!(
+            stops.steps.iter().any(|s| s
+                .contains("the app's own tool `get_note` again after every result")
+                && s.contains("5 results")),
+            "{:?}",
+            stops.steps
+        );
+        // Marked, and the app runs it for as long as the model asks: a finding naming the tool.
+        let endless = record_run(
+            Flaws {
+                unbounded_tool_loop: true,
+                ..marked
+            },
+            true,
+        );
+        let finding = endless
+            .findings
+            .iter()
+            .find(|f| f.rule_id == AGENT_UNBOUNDED.rule_id)
+            .unwrap_or_else(|| panic!("{:#?}", endless.findings));
+        assert!(
+            finding.description.contains("`get_note`"),
+            "{}",
+            finding.description
+        );
+        // Marked, and the app stops on an error it caught: neither.
+        let caught = record_run(
+            Flaws {
+                loop_error_caught: true,
+                ..marked
+            },
+            true,
+        );
+        assert!(!credited(&caught).contains(&AGENT_UNBOUNDED.rule_id));
+        assert!(!found(&caught).contains(&AGENT_UNBOUNDED.rule_id));
+        // Not marked: never called in a loop, and the run says so.
+        let unmarked = record_run(Flaws::default(), true);
+        assert!(!credited(&unmarked).contains(&AGENT_UNBOUNDED.rule_id));
+        assert!(
+            unmarked
+                .steps
+                .iter()
+                .any(|s| s.contains("not marked `read-only = true`")),
+            "{:?}",
+            unmarked.steps
+        );
+        assert!(
+            !unmarked
+                .steps
+                .iter()
+                .any(|s| s.contains("the app's own tool `get_note` again")),
+            "{:?}",
+            unmarked.steps
+        );
+        // The record tool's own question still runs after the loop.
+        assert!(
+            credited(&stops).contains(&RECORD_TOOL.rule_id),
+            "{:?}",
+            stops.steps
+        );
+    }
+
     /// A run as the second of two signed-in test users, with the record tool (C9.5.3) and the
     /// private notes (C5.2.2) asked about when told to.
     fn signed_run(flaws: Flaws, tool: bool, reads_owned: bool) -> Outcome {
@@ -3984,6 +4114,7 @@ mod tests {
             s.record_tool = Some(sv_manifest::RecordTool {
                 name: "get_note".into(),
                 args: [("id".to_owned(), "{id}".to_owned())].into(),
+                read_only: flaws.tool_marked_read_only,
             });
         }
         let users = UsersSection {
@@ -4257,6 +4388,7 @@ mod tests {
         s.record_tool = Some(sv_manifest::RecordTool {
             name: "get_note".into(),
             args: [("id".to_owned(), "{id}".to_owned())].into(),
+            read_only: false,
         });
         let o = run(&mut FakeChat::default(), &s, &context(None, &NO_POLICY)).0;
         assert!(
