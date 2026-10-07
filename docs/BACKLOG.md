@@ -2132,6 +2132,13 @@ another session is not a claim.
   session writes `docs/prompts/reviews/<its name>.md` in a pull request of its own: the wording of every prompt, and
   suggestions for new ones, each tied to an `sv` check and the requirement's own text. Suggestions are tried the way
   the library's prompts are before any is marked shown. Asked of the two cloud sessions that build `sv`.
+  **The reviews arrived the same day** (`docs/prompts/reviews/language-agnostic-variant.md`, `second-builder.md`), and
+  **were applied on 7 October 2026 at the owner's word**: wording fixes to four shown prompts and five others, three
+  checks moved to the running app, a fallback for every design prompt that asks the owner, and five new prompts
+  (`limits-without-asking`, `password-rules`, `production-server`, `isolate-the-window`, `security-contact`), all to be
+  tried in `docs/prompts/library-trial/revision-protocol.md` before any status changes. One finding is left for the
+  owner: `ast.weak-password-key-derivation` cites V11.4.4 (keys made from a password) where storing passwords is
+  V11.4.2, so `password-hashing` cannot cite V11.4.2 until the rule's citation is decided, which changes evidence.
 
 - **`secrets-in-the-environment` makes an app refuse to start without a key `sv run` cannot give it.** Found on 6
   October 2026 by session paper-facts, in the delivery test: a Haiku app given the prompt through the guidance
