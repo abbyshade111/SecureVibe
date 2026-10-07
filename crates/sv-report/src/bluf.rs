@@ -323,7 +323,7 @@ pub fn next_steps(report: &Report) -> Vec<NextStep> {
         steps.push(NextStep {
             what: format!(
                 "Answer the questions in securevibe.toml that would place {} more requirements, \
-                 which are neither excluded nor passed today.",
+                 which are in none of the numbers above until then.",
                 c.not_assessed
             ),
             where_to_look: "\"Requirements nobody has placed\" names the question for each"
@@ -398,6 +398,68 @@ mod tests {
         let lowered = line.to_lowercase();
         for word in ["pass", "secure", "compliant", "safe"] {
             assert!(!lowered.contains(word), "{word:?} must not appear: {line}");
+        }
+    }
+
+    #[test]
+    fn no_part_of_the_short_version_says_pass_or_secure() {
+        // Gap analysis 6.3: the banned words were held to the headline alone, and the next steps
+        // said "neither excluded nor passed". Every sentence the short version can print, on a
+        // report where each of them is printed: a finding, every count, questions not answered,
+        // requirements above the level, and kinds of run that did not happen.
+        let mut r = report(Counts {
+            applicable: 200,
+            needs_attention: 2,
+            checked: 10,
+            app_tested: 3,
+            documented: 4,
+            by_hand: 5,
+            attested: 6,
+            stated: 7,
+            not_verified: 163,
+            not_assessed: 12,
+            out_of_level: 30,
+            ..Counts::default()
+        });
+        r.findings = vec![a_finding("ast.sql")];
+        r.not_run_this_time = Some(crate::NotRunThisTime {
+            kinds: vec!["the running app".into(), "outside tools".into()],
+            only_they_reach: 40,
+        });
+        let mut said = vec![headline(&r), held_to(&r)];
+        said.extend(not_run_line(&r));
+        said.extend(counted(&r).into_iter().map(|(label, _)| label));
+        let steps = next_steps(&r);
+        assert!(
+            steps
+                .iter()
+                .any(|s| s.what.contains("12 more requirements")),
+            "the setup must print the step about questions not answered"
+        );
+        said.extend(steps.into_iter().flat_map(|s| [s.what, s.where_to_look]));
+        assert!(said.len() > 10, "{said:?}");
+        let banned = [
+            "pass",
+            "passed",
+            "passes",
+            "passing",
+            "secure",
+            "secured",
+            "compliant",
+            "safe",
+        ];
+        for sentence in &said {
+            let words = sentence
+                .to_lowercase()
+                .split(|c: char| !c.is_alphanumeric())
+                .map(str::to_owned)
+                .collect::<Vec<_>>();
+            for word in banned {
+                assert!(
+                    !words.iter().any(|w| w == word),
+                    "{word:?} must not appear: {sentence}"
+                );
+            }
         }
     }
 
