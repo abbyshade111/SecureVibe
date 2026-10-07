@@ -1,0 +1,17 @@
+manifest-version = 1
+
+[app]
+name = "Install fixture"
+audience = "just-me"
+deployment = "local-only"
+
+[stack]
+languages = ["python"]
+
+[stack.run]
+# The install step's fixture (ADR-052). `six` is not in the standard library, so the app starts only
+# if `sv` installed it first and gave it to the app.
+image = "python:3.12-slim"
+install = true
+start = "python app.py"
+health = "/"

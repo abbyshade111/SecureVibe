@@ -21,7 +21,8 @@ languages = []            # e.g. ["python", "typescript"]
 # How to run the app, so `sv` can test it rather than only read it.
 # Leave blank and every check that needs a running app reports "not assessed".
 image = ""                # container image, e.g. "python:3.12-slim"
-build = ""                # e.g. "pip install -r requirements.txt"
+build = ""                # a step that needs no network, e.g. "python manage.py collectstatic --noinput"
+# install = true            # install the app's packages before the run: see below
 start = ""                # e.g. "uvicorn app:app --host 0.0.0.0 --port $PORT"
 #   Listen on 0.0.0.0, not 127.0.0.1 or localhost: `sv` runs the app in a container and asks it
 #   from a second one, and an app listening on 127.0.0.1 answers only from inside its own.
@@ -31,6 +32,13 @@ test-report = ""          # where `test` writes its report (JUnit XML, TAP, or J
 health = "/"              # a path that returns 200 once the app is up
 # graphql = "/graphql"      # where it answers GraphQL, if it does
 # websocket = "/ws"         # where it accepts WebSocket connections, if it does
+#   `install = true`: the app runs with no network and a read-only folder, so `build` cannot install
+#   packages. With `install = true`, `sv` installs them first, in a separate container that is
+#   given only requirements.txt (every line pinned, `name==1.2.3`), or package.json with
+#   package-lock.json, never the app's code, and that runs none of the packages' own install
+#   code; then the fenced app gets them read-only. A package that has no ready-made download, or
+#   needs its install script, cannot be installed this way: build an image with it and name it
+#   with `image`. Leave it out and nothing is downloaded.
 #   `seed`, `admin`, and the other keys about signing in go under [stack.run.users], further down,
 #   never here: uncomment that table's own header line too, or they land in this table and `sv`
 #   refuses the file.

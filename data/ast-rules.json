@@ -1757,6 +1757,60 @@
         "swift": "Swift's own ways of making a random number (`Int.random(in:)`, `randomElement()`, `SystemRandomNumberGenerator`) draw from the system's secure source, so the usual code is already the safe kind. GameplayKit's game generators, the exception, are not looked for.",
         "rust": "Rust's usual random numbers (`rand::random`, `rand::rng()`, `thread_rng()`) come from a generator built for secrets. `SmallRng` and the `fastrand` crate, the exceptions, are not looked for."
       }
+    },
+    {
+      "id": "ast.debug-mode-on",
+      "title": "A web framework's debug mode is switched on in the code",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V13.4.2"
+      ],
+      "cwe": [
+        "CWE-489",
+        "CWE-215"
+      ],
+      "description": "The code switches on a web framework's debug mode: Flask's or Werkzeug's debugger (`app.run(debug=True)`, `run_simple(..., use_debugger=True)`, `app.debug = True`, `app.config[\"DEBUG\"] = True`), FastAPI's or Starlette's `debug=True`, Django's `DEBUG = True` in a settings module, or `FLASK_DEBUG=1` and `flask --debug` in a shell script.",
+      "impact": "In debug mode an error shows whoever caused it the code around it, the app's settings, and often its keys. Flask's and Werkzeug's debugger goes further: its error page has a console that runs any Python it is sent on the server, guarded only by a PIN that is printed where the app logs.",
+      "fix": "Take debug mode out of the code and switch it on only on your own computer, from a setting the deployed app does not have: `app.run(debug=os.environ.get(\"FLASK_DEBUG\") == \"1\")`, or Django's `DEBUG = os.environ.get(\"DJANGO_DEBUG\") == \"1\"`. Deployed, start the app with a production server (`gunicorn`, or `uvicorn` without `--reload`).",
+      "findingsOnly": true,
+      "functionPatterns": {
+        "python": "^(run|run_simple|FastAPI|Starlette|debug|config|DEBUG)$",
+        "shell": "^(FLASK_DEBUG|flask)$"
+      },
+      "keywordPatterns": {
+        "python": "^(debug|use_debugger|DEBUG|[\"']DEBUG[\"'])$"
+      },
+      "argumentPatterns": {
+        "shell": "^([\"']?(1|[Tt]rue|TRUE)[\"']?|--debug)$"
+      },
+      "safeArgumentPatterns": {
+        "python": "^(asyncio|self)$"
+      },
+      "looksFor": "a Python web framework's debug mode switched on with `True` written in the code, or `FLASK_DEBUG` set to 1 or `flask --debug` in a shell script; debug mode taken from a setting, and a settings file meant only for development, are not told apart from the rest, so finding none credits nothing",
+      "queries": {
+        "python": "(call function: (identifier) @fn arguments: (argument_list (keyword_argument name: (identifier) @kw value: (true)))) @hit\n(call function: (attribute object: (_) @arg attribute: (identifier) @fn) arguments: (argument_list (keyword_argument name: (identifier) @kw value: (true)))) @hit\n(call function: (attribute object: (attribute attribute: (identifier) @fn)) arguments: (argument_list (keyword_argument name: (identifier) @kw value: (true)))) @hit\n(assignment left: (attribute object: (_) @arg attribute: (identifier) @fn @kw) right: (true)) @hit\n(assignment left: (subscript value: (attribute attribute: (identifier) @fn) subscript: (string) @kw) right: (true)) @hit\n(module (expression_statement (assignment left: (identifier) @fn @kw right: (true)) @hit))",
+        "shell": "(variable_assignment name: (variable_name) @fn value: (_) @arg) @hit\n(command name: (command_name) @fn argument: (word) @arg) @hit"
+      },
+      "looksForIn": {
+        "python": "`app.run(debug=True)` (but not `asyncio.run`), Werkzeug's `run_simple(..., use_debugger=True)`, `FastAPI(debug=True)` and `Starlette(debug=True)`, `app.debug = True`, `app.config[\"DEBUG\"] = True` and `app.config.update(DEBUG=True)`, and `DEBUG = True` at the top of a module, as Django's settings write it (not inside a class, where Flask's configuration classes keep theirs)",
+        "shell": "`FLASK_DEBUG` set to 1 or true, exported or not, and `flask --debug`"
+      },
+      "nothingToFind": {
+        "javascript": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in JavaScript code, such as Express's `errorhandler` middleware, which shows stack traces, is not looked for.",
+        "typescript": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in TypeScript code, such as Express's `errorhandler` middleware, which shows stack traces, is not looked for.",
+        "php": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in PHP code, such as `ini_set('display_errors', '1')`, is not looked for.",
+        "ruby": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Ruby code, such as Rails' `consider_all_requests_local` or Sinatra's `show_exceptions`, is not looked for.",
+        "java": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Java code, such as Spring Boot's stack traces on error pages, which are set in its properties files, is not looked for.",
+        "kotlin": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Kotlin code, such as Spring Boot's stack traces on error pages, which are set in its properties files, is not looked for.",
+        "csharp": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in C# code, such as ASP.NET Core's `UseDeveloperExceptionPage()` outside a development-only branch, is not looked for.",
+        "go": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Go code, such as Gin's `gin.SetMode(gin.DebugMode)`, is not looked for.",
+        "rust": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Rust code, if its framework has one, is not looked for.",
+        "dart": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Dart code, if its framework has one, is not looked for.",
+        "swift": "This rule reads only Python's debug switches (Flask, Werkzeug, FastAPI, Starlette, and Django). A debug or development mode switched on in Swift code, if its framework has one, is not looked for.",
+        "c": "C web programs have no common framework with a debug mode switched on in code; a debug build is the compiler's setting, not the code's.",
+        "cpp": "C++ web programs have no common framework with a debug mode switched on in code; a debug build is the compiler's setting, not the code's."
+      }
     }
   ]
 }
