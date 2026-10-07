@@ -10,7 +10,7 @@ another session is not a claim.
 ## Next
 
 - **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
-  2026. Not claimed. A reading, not a build: what the list is (its version, date, status, and license, and whether it
+  2026. A reading, not a build: what the list is (its version, date, status, and license, and whether it
   is a numbered list of risks like the other Top 10s or a set of requirements `sv` could cite), where it overlaps what
   `sv` already reads (AISVS 1.0, its Appendix C, and the AI-feature, MCP, and agent checks), and what it adds. For each
   item: whether an app built with an AI coding tool could have the problem, whether `sv` could check for it (reading
@@ -19,6 +19,10 @@ another session is not a claim.
   proposals put here, each for the owner to decide; adding it as a framework `sv` cites, like ASVS and AISVS, is a
   decision with a record of its own, as the frameworks it already loads were. Read the list's own text before saying
   what any item asks, as with every citation.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the backlog
+  when ready", after asking for this item), in branch `claude/securevibe-e2-agentic-skills`, for the reading and the
+  document; any proposal it makes is left here for the owner. Read on `main` just before this claim: no other session
+  had claimed it.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
