@@ -56,6 +56,31 @@ fn a_requirement_named_in_the_application_code_is_not_a_test() {
 }
 
 #[test]
+fn a_note_or_a_text_file_among_the_tests_is_not_a_test() {
+    // ADR-050: only code is read. A Markdown note under `tests/` that lists the requirements the
+    // tests are meant to cover, or a text file of them, ran nothing. The control beside them, a
+    // test in Python naming another id, is read, so the walk reached the folder.
+    let root = scratch("notes");
+    write(
+        &root,
+        "tests/README.md",
+        "These tests cover V1.2.1 and V13.3.1.\n",
+    );
+    write(&root, "tests/covered.txt", "V1.2.4\n");
+    write(
+        &root,
+        "tests/test_search.py",
+        "def test_V1_2_2_no_shell_is_spawned():\n    pass\n",
+    );
+    let found = tests_naming_requirements(&root, &known());
+    let ids: Vec<&str> = found
+        .iter()
+        .flat_map(|t| t.requirement_ids.iter().map(String::as_str))
+        .collect();
+    assert_eq!(ids, vec!["V1.2.2"], "{found:?}");
+}
+
+#[test]
 fn every_language_the_spec_tells_people_to_use_is_actually_read() {
     // Written as one test on purpose. Each of these is a naming convention some ecosystem insists
     // on, and a walk that misses one reads nothing in that language while reporting nothing wrong.
