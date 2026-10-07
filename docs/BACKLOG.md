@@ -162,6 +162,8 @@ another session is not a claim.
   2. **The tests required before merging, and every commit on `main` tested** (7.1). `test` made a required check
      (a repository setting the owner makes, since a session cannot), and `rust.yml`'s concurrency group on `main` made
      one per commit so no run there is cancelled. **`Status: proposed`: ADR-051.**
+     **Done the same day** (ADR-051, accepted, "As built"): `rust.yml` tests every commit on `main`, and `latest` is
+     moved only by the newest. **Waiting on the owner:** adding `test` to the ruleset, which a session may not do.
   3. **Semgrep's any-language rules credited only for files Semgrep scanned** (1.2). Narrows what counts as evidence:
      ADR-018, Later.
   4. **Git history read for committed key files** (1.3). A key file committed and then untracked is still found, and
