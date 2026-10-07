@@ -58,6 +58,9 @@ health = "/"              # a path that returns 200 once the app is up
 # record-tool = { name = "get_note", args = { id = "{id}" } }   # a tool of the app's own the model
 #                                 # calls to read one record; the test model asks it, as the second
 #                                 # user, for the first user's `owned` record (needs signed-in)
+#                                 # add `read-only = true` only if the tool changes nothing: the
+#                                 # run then also calls it again after every result, up to 40
+#                                 # times, to see whether the app stops the model
 # reads-owned = true              # the feature searches people's own `owned` records to answer; the
 #                                 # second user asks about a private note the first one saved
 
