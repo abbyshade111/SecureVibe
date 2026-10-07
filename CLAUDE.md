@@ -99,4 +99,11 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
   `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different identity, so git
   calls the branch unmerged while every line of it is already there.
+- **Keep the disk tidy, and look before a long run.** Run `df -h ~` before a paid trial, an evaluation, or a fresh
+  `cargo` target folder. The Mac's disk is the owner's and nearly full of their own work: on 7 October 2026 it reached
+  152 MB free in the middle of a 110-build trial, and a `cargo test` then printed no failures because nothing compiled at
+  all (count the `test result` lines, not only the failures). Reuse one target folder rather than making one per branch;
+  each is 1 to 7 GB. When your work is finished, list what you made that can go: build folders, scratch worktrees,
+  trial apps already scored and written up, logs. Then ask the owner before deleting any of it, saying what each is,
+  its size, and whether it can be made again. Deleting still needs the owner's yes, every time; listing it does not.
 - Never edit a user's own data or an app someone gave you to check by hand, except to repair data, and say so.
