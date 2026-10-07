@@ -7735,13 +7735,19 @@ done: `docs/adr/ADR-018.md`.
   `isolate-the-window` missed the window header on 403 and 404 pages in Haiku's builds. One sentence for each prompt,
   then a trial on a brief whose baseline has the problem. `security-headers` and `private-pages-no-store` say "every
   response" and may miss the same pages.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
+  `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
 - **Two more mistakes in the settings files Haiku writes.** Found on 7 October 2026 by session paper-facts, in the
   revision trial: of the 12 files of 80 `sv` could not read, six put `admin` or `seed` under `[stack.run]` (they belong
   under `[stack.run.users]`) and three wrote `ai = true` under `[capabilities]` (it is `enabled = true` under
   `[capabilities.ai]`, already an item above). A sentence in the specification for each, as the two of 6 October did.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
+  `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
 - **The trial runner prints nothing while it checks.** Found on 7 October 2026 by the owner, watching the revision
   trial: the Terminal tab said "to check: 104" for three hours, and only counting `report.json` files showed progress.
   `tools/prompt_trial.py` and the trial scripts should print one line as each build's check finishes.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
+  `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
 - **The earlier trials' totals for running checks that only report findings were too small.** Found on 7 October 2026
   by session paper-facts (the revision protocol's Amendment 2): the scorers of the prompt-library, delivery and at-start
   tests counted a running check as asked only when one of its rules said something, where `protocol.md` says when the
@@ -7749,3 +7755,5 @@ done: `docs/adr/ADR-018.md`.
   trial's verdicts stand (its rule counts builds), but the delivery and at-start tests judge by shares, and in each
   `private-pages-no-store` on Haiku moves from "not shown" to "no reading". The "of N" figures in `README.md`,
   `delivery.md` and `start.md`, and those two verdicts, are to be corrected.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with step 1"), in branch
+  `claude/step1-fixes`. Read on `main` just before this claim: no other session had claimed it.
