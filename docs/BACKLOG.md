@@ -9,6 +9,31 @@ another session is not a claim.
 
 ## Next
 
+- **V12.3.4 (and V12.3.2): a setting that switches off certificate checking for the whole app.** From
+  `docs/PARTIAL-CHECKS.md` (V12.3.4, level 2, "reads the code, finding only"), which no check speaks to yet.
+  `NODE_TLS_REJECT_UNAUTHORIZED=0` or `PYTHONHTTPSVERIFY=0` set in a Dockerfile, a compose file, a Kubernetes manifest,
+  a `.env` file, a workflow, a script, or the code, and the code-level switches that do the same for every
+  connection (Python's `ssl._create_default_https_context = ssl._create_unverified_context`, Node's
+  `https.globalAgent.options.rejectUnauthorized = false`, Deno's `--unsafely-ignore-certificate-errors`). One such
+  line turns off every certificate check the code-level rules look for. Only ever a finding: finding none credits
+  nothing. The proposal's `CURL_CA_BUNDLE=` is left out unless what it does in today's `requests` can be confirmed,
+  and its supporting list of trusted internal CAs is not part of this.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-cert-checks-off`. A new check that only ever raises findings
+  changes no requirement's status, so no ADR is proposed.
+
+- **V16.5.3: a check that treats its own error as a pass, read from the code.** From `docs/PARTIAL-CHECKS.md`
+  (V16.5.3, level 2, "reads the code, finding only"), which no check speaks to yet. A function that decides whether
+  someone may go on (its name says verify, check, authorize, allow, and the like) and that answers "yes" when the
+  check throws: `except: return True`, `catch { return true; }`, `.unwrap_or(true)`. Only ever a finding: finding none
+  says nothing about the app's other error handling, so it credits nothing.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+  backlog when ready"), in branch `claude/securevibe-e2-fail-open`. A new rule that only ever raises findings changes
+  no requirement's status, so no ADR is proposed.
+  **Done the same day** (DESIGN, "A check that answers "yes" when it fails"): `ast.check-passes-on-error`, in
+  fourteen languages (C has nothing to find, and says why), with a new rule setting, `enclosingFunctionPatterns`, that
+  reads the name of the function around a match as words. Only ever a finding.
+
 - **Research OWASP's Agentic Skills Top 10, and what it would mean for `sv`.** Asked for by the owner on 7 October
   2026. A reading, not a build: what the list is (its version, date, status, and license, and whether it
   is a numbered list of risks like the other Top 10s or a set of requirements `sv` could cite), where it overlaps what
@@ -2255,6 +2280,11 @@ another session is not a claim.
   itself, such as a session secret, the prompt could say to create a random one at first start and keep it in the
   app's data folder, and stop only for keys from outside (an AI service's). A change to a shown prompt's text is a
   new test of it.
+  **Done on 7 October 2026**, found by session securevibe-e2 when it came to claim this: the prompt library's revision
+  after the independent reviews (`f78f5ea`) changed the prompt to say this. A missing key for an outside service
+  starts the app with that feature off, and a missing session key is made at random when the app starts. The revised
+  text is tried again in `docs/prompts/library-trial/revision-protocol.md` (the `secrets-in-the-environment` arm), and
+  its status as shown stands only once that trial agrees.
 
 - **`ai = true` under `[capabilities]`: the specification's next sentence.** Found on 6 October 2026 by session
   paper-facts, in the delivery test: after the two new sentences, the commonest unreadable settings file left was
@@ -2262,6 +2292,14 @@ another session is not a claim.
   `enabled = true` under `[capabilities.ai]`. A line under `[capabilities]` saying the AI feature's answers go in
   `[capabilities.ai]`, and the starter file's own `[capabilities.ai]` example saying `enabled`, would be measured as
   Part A was. Two builds also wrote the same key twice; `sv`'s message for that already says which.
+  **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and pick the next backlog
+  item"), in branch `claude/securevibe-e2-capabilities-ai`. Not a decision by CLAUDE.md's list (the spec's wording,
+  and a clearer refusal message; nothing counted changes), so no ADR is proposed; ADR-028 gets a Later line.
+  **Done the same day** (DESIGN, "`ai = true` under `[capabilities]`, said in the spec and in the refusal"): the spec
+  says among the `[capabilities]` answers that whether the app has an AI feature is `enabled` under
+  `[capabilities.ai]`, and `sv`'s refusal says the same in plain words, for `ai = true` alone and for `ai = true` with a
+  `[capabilities.ai]` header below it (toml's "duplicate key"). Whether the sentence works is for the next trial that
+  counts unreadable files.
 
 - **`sv`'s credential rule reads a form's anti-forgery token placeholder as a credential.** Found on 7 October 2026 by
   session paper-facts, in the start-of-build test: one Haiku app drew eight `secrets.credential-assignment` findings
@@ -7419,3 +7457,14 @@ done: `docs/adr/ADR-018.md`.
   paper-facts**, in branch `claude/kdf-citation`; the record, `Status: proposed`, is ADR-048.
   **Done the same day** (ADR-048, accepted): the rule cites V11.4.2 and V11.4.4, and `password-hashing` cites V11.4.1
   and V11.4.2. Nothing more is credited; the rule reports findings only.
+
+- **Every session: list what you have made that could be deleted, and ask the owner.** Asked by the owner on
+  7 October 2026, after the disk reached 152 MB free during the revision trial (17 GB was freed by deleting one session's
+  own `cargo` build folders, with the owner's yes). Each session, the cloud ones included where they keep files on this
+  Mac, looks through what it made: `cargo` target folders, worktrees under `/tmp/claude-502` and elsewhere, trial
+  folders under `~` (such as `~/sv-loop`, `~/sv-prompts`) whose results are committed, and logs. It writes the list
+  under this item, one line each, with the size, whether it can be made again, and which session made it, then asks
+  the owner. Nothing is deleted without the owner's yes; a folder another session made is that session's to list.
+  The standing rule is in `CLAUDE.md` ("Keep the disk tidy").
+  - Session securevibe-e2 (7 October 2026): a cloud session, so nothing of its own is on the Mac. Its build folder
+    and scratch files are in its own cloud container, which is removed when the session ends.
