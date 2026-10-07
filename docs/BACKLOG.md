@@ -1876,6 +1876,8 @@ another session is not a claim.
   failing, those shown to work first, each saying which of the app's requirements it is for. With no report, they say
   to make one first. The feature brief and the guidance (ADR-044) are not touched. Read on `main` just before this
   claim: no other session had claimed it.
+  **Done the same day** (DESIGN, "Prompts for what an app's last report shows unproven"). A real `sv report` and
+  then `sv prompts --app` hold the report's shape to what is read. Every part of the 3 October decisions is now built.
   **Claimed on 4 October 2026 by session securevibe-e10**, at the owner's asking, in branch
   `claude/prompts-design-and-brief-2`: (a) `sv prompts` and `securevibe_prompts` also give the design-time prompts
   in `data/design-prompts.json`, with the Secure by Design controls each helps answer, and `tools/coverage.py` holds

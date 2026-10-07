@@ -17,7 +17,39 @@
 
 use anyhow::{Context, Result};
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::path::Path;
+
+/// The statuses in a report that no check and no document gave evidence for: a finding, nothing
+/// seen either way, or only the owner's or the AI coding tool's word (`sv_report::Status`). These
+/// are what a prompt can help with. `checked`, `by-hand`, and `documented` are left out: each is
+/// evidence of some kind already.
+pub const UNPROVEN: [&str; 4] = ["needs-attention", "not-verified", "attested", "stated"];
+
+/// What a status means, in the words the offer uses.
+fn status_words(status: &str) -> &'static str {
+    match status {
+        "needs-attention" => "a finding",
+        "not-verified" => "nothing shown yet",
+        "attested" => "only your word",
+        "stated" => "only the AI tool's word",
+        _ => "not shown",
+    }
+}
+
+/// The requirements an app's report (`report.json`) shows with no evidence: each id with its
+/// status. A report with no `requirements` list is refused, since nothing could be read from it.
+pub fn gaps_in_report(report: &serde_json::Value) -> Result<BTreeMap<String, String>> {
+    let requirements = report["requirements"]
+        .as_array()
+        .context("the report has no list of requirements")?;
+    Ok(requirements
+        .iter()
+        .filter_map(|r| Some((r["id"].as_str()?, r["status"].as_str()?)))
+        .filter(|(_, status)| UNPROVEN.contains(status))
+        .map(|(id, status)| (id.to_owned(), status.to_owned()))
+        .collect())
+}
 
 /// Whether a prompt has been shown to work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -203,6 +235,75 @@ impl Prompts {
                     "\nSecure by Design controls it helps you answer (you still answer each): {}.\n",
                     p.sbd_controls.join(", ")
                 ));
+            }
+        }
+        out.push_str(&format!("\n{}\n", self.credit));
+        out
+    }
+
+    /// The prompts for the requirements an app's report shows with no evidence, those shown to work
+    /// first, each with the gaps it is for. A prompt for none of them is not offered.
+    pub fn for_gaps<'a>(
+        &'a self,
+        gaps: &BTreeMap<String, String>,
+    ) -> Vec<(&'a Prompt, Vec<String>)> {
+        self.select(None)
+            .into_iter()
+            .filter_map(|p| {
+                let mut ids: Vec<String> = p
+                    .requirements
+                    .iter()
+                    .chain(&p.sbd_controls)
+                    .filter(|r| gaps.contains_key(*r))
+                    .cloned()
+                    .collect();
+                ids.dedup();
+                (!ids.is_empty()).then_some((p, ids))
+            })
+            .collect()
+    }
+
+    /// The offer as Markdown: which report it was read from, then each prompt with the requirements
+    /// it is for and what the report says of each.
+    pub fn gaps_markdown(
+        &self,
+        offered: &[(&Prompt, Vec<String>)],
+        gaps: &BTreeMap<String, String>,
+        report: &str,
+    ) -> String {
+        let mut out = String::from("## Prompts for what the app has not yet shown\n\n");
+        out.push_str(&format!(
+            "Read from {report}: {} of the app's requirements have no evidence yet (a finding, \
+             nothing shown, or only someone's word). Each prompt below asks the AI coding tool for \
+             one or more of them. A prompt is an instruction, not evidence: make a new report \
+             afterwards, and only what it then shows counts.\n",
+            gaps.len()
+        ));
+        if offered.is_empty() {
+            out.push_str(
+                "\nNo prompt in the library targets any of them yet. `sv prompts` lists every prompt.\n",
+            );
+            return out;
+        }
+        for (p, ids) in offered {
+            out.push_str(&format!("\n### {}\n\n", p.title));
+            out.push_str(match p.status {
+                Status::Shown => "**Shown to work.**\n\n",
+                Status::NotShown => "**Not tested:** tried, and not shown to work.\n\n",
+                Status::Untested => "**Not tested:** not tried yet.\n\n",
+            });
+            out.push_str(&format!(
+                "For: {}.\n\n",
+                ids.iter()
+                    .map(|id| format!(
+                        "{id} ({})",
+                        status_words(gaps.get(id).map(String::as_str).unwrap_or(""))
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+            for line in p.prompt.lines() {
+                out.push_str(&format!("> {line}\n"));
             }
         }
         out.push_str(&format!("\n{}\n", self.credit));
