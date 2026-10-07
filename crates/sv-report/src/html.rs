@@ -510,6 +510,33 @@ pub fn page(report: &Report) -> String {
         b.push_str("</table>\n");
     }
 
+    // The AI coding tool's own files (ADR-049): apart from the app's grade, and graded by nothing.
+    if !report.ai_tool.notes.is_empty() || !report.ai_tool.not_read.is_empty() {
+        b.push_str("<h2>What your AI coding tool's files let it do</h2>\n");
+        b.push_str(&format!("<p>{}</p>\n", escape("These files in the project folder belong to the AI coding tool you build with, not to the app, so nothing here counts toward the app's grade or any requirement. Each line is something a file lets the tool do on the computer that opens this folder: run a command, send its work or its key somewhere, act without asking, or start a server. You may have set it up on purpose. If you did not, or do not know where it came from, look before you trust the folder. Claude Code asks before it uses a folder's own settings for the first time. The risk column names the OWASP Agentic Skills Top 10 risk it speaks to; that list is not one this report is graded against.")));
+        if !report.ai_tool.notes.is_empty() {
+            b.push_str(
+                "<table>\n<tr><th>file</th><th>tool</th><th>what it lets the tool do</th><th>risk</th></tr>\n",
+            );
+            for note in &report.ai_tool.notes {
+                b.push_str(&format!(
+                    "<tr><td><code>{}</code></td><td>{}</td><td>{}</td><td>{}</td></tr>\n",
+                    escape(&note.file),
+                    escape(&note.tool),
+                    escape(&note.what),
+                    escape(note.risk)
+                ));
+            }
+            b.push_str("</table>\n");
+        }
+        if !report.ai_tool.not_read.is_empty() {
+            b.push_str(&format!(
+                "<p>Not read: {}.</p>\n",
+                escape(&report.ai_tool.not_read.join("; "))
+            ));
+        }
+    }
+
     // Level 1 only; see the note in the Markdown renderer. `sv mcp` gives the AI coding tool the
     // whole list, and report.json carries it.
     let level_one: Vec<&crate::TestToWrite> = report
@@ -760,6 +787,7 @@ mod tests {
             tests_to_write: vec![],
             only_you_can_check: Vec::new(),
             before_going_live: Vec::new(),
+            ai_tool: Default::default(),
             questions_for_you: Vec::new(),
             no_instructions_yet: 0,
             named_not_credited: vec![],
