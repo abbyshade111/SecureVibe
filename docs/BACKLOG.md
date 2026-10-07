@@ -44,6 +44,9 @@ another session is not a claim.
      section's sentence about them for ASVS (`tools/coverage.py`).
      **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
      backlog"), in branch `claude/securevibe-e2-can-be-credited`.
+     **Done the same day** (DESIGN, "The coverage documents count what can be credited"): a **Can be credited**
+     column (ASVS 119 of 345, 34%; level 1, 43 of 70), the sentence for ASVS, and the label "Can only be found
+     failing". Left for whoever next updates the paper's `figure-security.html`: it quotes "can settle" only.
   6. **The development-server check passes `python app.py` that starts Flask's debugger.** (`docs/GAP-ANALYSIS.md`,
      1.9.) A code rule for `app.run(debug=True)`, `app.debug = True`, and Django's `DEBUG = True` (finding only), or
      have `config.development-server-started` say the script it runs decides, instead of passing.
@@ -7841,3 +7844,10 @@ done: `docs/adr/ADR-018.md`.
   stand; `private-pages-no-store` on Haiku is "no reading" in the delivery and at-start tests. Found on the way:
   `data/design-prompts.json` and ADR-028 said the revised `design-limits` and `design-sign-in` were tried in the
   revision trial, which left design prompts out; corrected, with a dated correction on ADR-028.
+
+- **The recipe trial: a brief that tempts the prompts never fairly tested.** Asked for by the owner on 7 October 2026
+  ("I approve the way it's written and there is plenty of credit available, please go ahead with both parts"). A
+  Flask app with pinned packages and `install = true` (`docs/prompts/trial-4/recipe-brief.md`), a baseline of 20
+  builds, then an arm for each prompt whose problem the baseline found in at least 5 of 10, by the rule fixed in
+  `docs/prompts/library-trial/recipe-protocol.md`. **Claimed on 7 October 2026 by session paper-facts**, in branch
+  `claude/recipe-trial`. Read on `main` just before this claim: no other session had claimed it.
