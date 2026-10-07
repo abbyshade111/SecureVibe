@@ -45,6 +45,8 @@ another session is not a claim.
      `FLASK_DEBUG=1` or `flask --debug` in shell scripts; other languages' debug switches are named as not looked for.
      And the start-command check no longer says a command that runs a script starts no development server. A rule
      that only raises findings changes no requirement's status, so no ADR is proposed.
+     **Done the same day** (DESIGN, "A web framework's debug mode switched on in the code"): `ast.debug-mode-on`,
+     findings only, citing V13.4.2, and the start-command check naming the file a command runs.
   7. **Token-based apps get false "request from another site accepted" findings.** (`docs/GAP-ANALYSIS.md`, 2.1.) The
      forged requests in `signed_in/forgery.rs` keep the session's `Authorization: Bearer` header, which another
      website cannot send. When the session's token is not a cookie, send them without it; a refusal then means

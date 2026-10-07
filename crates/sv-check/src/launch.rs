@@ -116,6 +116,13 @@ static RUNS_SCRIPT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\b(npm|yarn|pnpm|bun)\s+(run\s+)?([\w:.-]+)").expect("a fixed pattern")
 });
 
+/// A command that runs one of the app's own files: whether that starts a development server, or turns
+/// a framework's debug mode on, is in the file, not the command.
+static RUNS_OWN_FILE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\b(?:python3?|node|ruby|php|deno run|bun)\s+(?:-\S+\s+)*([\w./-]+\.(?:py|js|mjs|cjs|ts|rb|php))\b")
+        .expect("a fixed pattern")
+});
+
 /// Words in a file or folder name that say the file is for development, not production.
 pub(crate) fn for_development(relative: &str) -> bool {
     let lower = relative.to_lowercase();
@@ -331,12 +338,30 @@ fn development_server(listing: &Listing, report: &mut ConfigReport) {
                 .to_owned(),
         ));
     } else {
+        // Until 7 October 2026 a command such as `python app.py` read as "none starts a development
+        // server", when `app.py` could start Flask's debugger (gap analysis 1.9).
+        let mut own: Vec<String> = starts
+            .iter()
+            .filter_map(|s| RUNS_OWN_FILE.captures(&s.command))
+            .filter_map(|c| c.get(1).map(|f| format!("`{}`", f.as_str())))
+            .collect();
+        own.dedup();
+        let own = if own.is_empty() {
+            String::new()
+        } else {
+            format!(
+                "; {} {} the app's own code, which decides for itself whether it starts a development \
+                 server or a debug mode (`ast.debug-mode-on` reads Python's)",
+                own.join(", "),
+                if own.len() == 1 { "runs" } else { "run" }
+            )
+        };
         report.passed.push(Verified::new(
             DEV_SERVER,
             &[],
             format!(
-                "{}: none starts a development server; how the host starts the app when it does not \
-                 use these files is not in any file",
+                "{}: no command starts a development server{own}; how the host starts the app when it \
+                 does not use these files is not in any file",
                 read.iter().map(|r| format!("`{r}`")).collect::<Vec<_>>().join(", ")
             ),
         ));
@@ -759,6 +784,36 @@ mod tests {
     }
 
     #[test]
+    fn a_command_that_runs_the_apps_own_python_file_says_the_file_decides() {
+        // Gap analysis 1.9: `python app.py` passed as "none starts a development server" when
+        // `app.py` could start Flask's debugger.
+        let dir = scratch("own-file");
+        fs::write(
+            dir.join("Dockerfile"),
+            "FROM python:3.12-slim\nCMD [\"python\", \"-u\", \"app.py\"]\n",
+        )
+        .unwrap();
+        let report = run(&dir);
+        assert!(
+            found(&report, DEV_SERVER).is_empty(),
+            "{:?}",
+            report.findings
+        );
+        let passed = report
+            .passed
+            .iter()
+            .find(|v| v.check_id == DEV_SERVER)
+            .expect("a reading");
+        assert!(passed.requirement_ids.is_empty());
+        assert!(
+            passed.scope.contains("`app.py` runs the app's own code")
+                && passed.scope.contains("ast.debug-mode-on"),
+            "{}",
+            passed.scope
+        );
+    }
+
+    #[test]
     fn a_development_server_in_the_last_stage_is_found_and_a_production_one_is_not() {
         let dir = scratch("dev-server");
         // The control: a production server, in a Dockerfile whose build stage ran the dev tools.
@@ -779,6 +834,14 @@ mod tests {
             passed.requirement_ids.is_empty(),
             "a clean reading credits nothing"
         );
+        // `node server.js` runs the app's own file, which decides for itself; the reading says so
+        // rather than that nothing starts a development server (gap analysis 1.9).
+        assert!(
+            passed.scope.contains("`server.js` runs the app's own code"),
+            "{}",
+            passed.scope
+        );
+        assert!(!passed.scope.contains("none starts"), "{}", passed.scope);
 
         for (dockerfile, line, words) in [
             (
