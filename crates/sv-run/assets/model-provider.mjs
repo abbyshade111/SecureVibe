@@ -34,11 +34,22 @@
 //           tool results, any field), as `private_seen`, and repeats them in the reply: what the app's
 //           search handed the model for this person's question, and whether the app lets it through
 //           to them
+//   BADSHAPE an answer in the wrong shape, when the app asked for a shape (below): JSON whose every
+//           field has the wrong type and carries `SVBAD<tag>`, with one field more, when there is a
+//           schema to break; text that is not JSON, carrying `SVBAD<tag>`, in JSON mode. `shape` in
+//           what was seen says which shape the app asked for, empty when it asked for none, and
+//           `bad_attempts` how many times it asked (a library may ask again when it checks)
 //   MCPPLAIN, MCPBAD, MCPINJECT
 //           asks for the MCP tool `sv_lookup`, when the app offered it, with the tag as its
 //           argument; the MCP server here (`POST /mcp`) answers that call with a clean result, one
 //           that breaks the tool's declared output schema, or one carrying an injected
 //           instruction; and whatever the app then sends back as the tool's result is recorded
+//
+// Every other answer takes the shape the app asked for: JSON that fits the JSON schema it named
+// (OpenAI's `response_format` or `text.format`, Anthropic's `output_format`), with the reply's text
+// in each text field; a JSON object holding the reply in JSON mode; and a call to the tool it made
+// the model call (`tool_choice`), with arguments that fit that tool's schema. A real model asked for
+// a shape answers in it, and an app that asked cannot read anything else (ADR-042).
 //
 // `GET /_sv/fetch/<tag>` and `GET /_sv/redirect/<tag>` are addresses for a feature of the app that
 // fetches what it is given: each request is recorded, and the redirect points at
@@ -136,6 +147,107 @@ function read(api, body) {
   return { system, user: said.join('\n'), bounded, tools: tools.filter(Boolean), results };
 }
 
+// The shape the request asks the answer to take: `{ schema }` for a JSON schema, `{ json: true }` for
+// JSON mode, `{ tool, schema }` for a tool the model is made to call, and null for plain text.
+function shapeOf(api, body) {
+  const format = api === 'messages'
+    ? body.output_format || (body.output_config && body.output_config.format)
+    : api === 'responses' ? body.text && body.text.format : body.response_format;
+  if (format && format.type === 'json_schema') {
+    return { schema: (format.json_schema && format.json_schema.schema) || format.schema || {} };
+  }
+  if (format && format.type === 'json_object') return { json: true };
+  const choice = body.tool_choice;
+  const tools = body.tools || [];
+  let name = null;
+  if (choice && typeof choice === 'object') {
+    name = choice.name || (choice.function && choice.function.name) || null;
+    if (!name && (choice.type === 'any' || choice.type === 'required') && tools.length === 1) {
+      name = tools[0].name || (tools[0].function && tools[0].function.name);
+    }
+  } else if (choice === 'required' && tools.length === 1) {
+    name = tools[0].name || (tools[0].function && tools[0].function.name);
+  }
+  if (!name) return null;
+  const tool = tools.find((t) => (t.name || (t.function && t.function.name)) === name);
+  if (!tool) return null;
+  return { tool: name, schema: tool.input_schema || tool.parameters || (tool.function && tool.function.parameters) || {} };
+}
+
+// A schema a `$ref` names, from the schema it sits in.
+function resolve(schema, root) {
+  let seenRefs = 0;
+  while (schema && typeof schema.$ref === 'string' && seenRefs++ < 8) {
+    const path = schema.$ref.replace(/^#\//, '').split('/');
+    schema = path.reduce((at, key) => (at && typeof at === 'object' ? at[key] : undefined), root);
+  }
+  return schema && typeof schema === 'object' ? schema : {};
+}
+
+const typeOf = (schema) => {
+  const type = Array.isArray(schema.type) ? schema.type.find((t) => t !== 'null') : schema.type;
+  if (type) return type;
+  if (schema.properties) return 'object';
+  if (schema.items) return 'array';
+  return 'string';
+};
+
+// A value that fits `schema`, with `said` in every text field.
+function fit(schema, said, root, depth = 0) {
+  schema = resolve(schema, root);
+  if (depth > 8) return said;
+  if (schema.const !== undefined) return schema.const;
+  if (Array.isArray(schema.enum) && schema.enum.length) return schema.enum[0];
+  const branches = schema.anyOf || schema.oneOf;
+  if (Array.isArray(branches) && branches.length) {
+    const branch = branches.map((b) => resolve(b, root)).find((b) => typeOf(b) !== 'null') || branches[0];
+    return fit(branch, said, root, depth + 1);
+  }
+  switch (typeOf(schema)) {
+    case 'object': {
+      const out = {};
+      for (const [key, value] of Object.entries(schema.properties || {})) out[key] = fit(value, said, root, depth + 1);
+      if (!schema.properties) out.reply = said;
+      return out;
+    }
+    case 'array': return [fit(schema.items || {}, said, root, depth + 1)];
+    case 'integer': case 'number': {
+      // Zero when the schema allows it, else the nearest number it does.
+      let n = Math.min(Math.max(0, Number.isFinite(schema.minimum) ? schema.minimum : -Infinity),
+        Number.isFinite(schema.maximum) ? schema.maximum : Infinity);
+      if (Number.isFinite(schema.exclusiveMinimum) && n <= schema.exclusiveMinimum) n = schema.exclusiveMinimum + 1;
+      if (Number.isFinite(schema.exclusiveMaximum) && n >= schema.exclusiveMaximum) n = schema.exclusiveMaximum - 1;
+      return n;
+    }
+    case 'boolean': return false;
+    case 'null': return null;
+    default: return said;
+  }
+}
+
+// A value that does not fit `schema`: every field the wrong type, each carrying `bad`, and one field
+// the schema does not have. Text where text is wanted is put in a list, so an app that uses the
+// field as it came shows the marker, and one that checks it refuses it.
+function misfit(schema, bad, root, depth = 0) {
+  schema = resolve(schema, root);
+  if (depth > 8) return [bad];
+  const branches = schema.anyOf || schema.oneOf;
+  if (Array.isArray(branches) && branches.length) {
+    return misfit(branches.map((b) => resolve(b, root)).find((b) => typeOf(b) !== 'null') || branches[0], bad, root, depth + 1);
+  }
+  if (schema.const !== undefined || (Array.isArray(schema.enum) && schema.enum.length)) return bad;
+  switch (typeOf(schema)) {
+    case 'object': {
+      const out = {};
+      for (const [key, value] of Object.entries(schema.properties || {})) out[key] = misfit(value, bad, root, depth + 1);
+      out.sv_unexpected = bad;
+      return out;
+    }
+    case 'string': return [bad];
+    default: return bad;
+  }
+}
+
 // A reply is text, or `{ tool, args }` for a tool call.
 function reply(api, body, usage) {
   const { system, user, bounded, tools, results } = read(api, body);
@@ -200,6 +312,12 @@ function reply(api, body, usage) {
     record.failures = (before.failures || 0) + 1;
     return { fail: tag };
   }
+  if (kind === 'BADSHAPE') {
+    const shape = shapeOf(api, body);
+    record.shape = shape ? (shape.tool ? 'tool' : shape.json ? 'json' : 'schema') : '';
+    record.bad_attempts = (before.bad_attempts || 0) + 1;
+    if (shape) return { bad: tag, shape };
+  }
   switch (kind) {
     case 'LEAK':
       return instructions
@@ -255,9 +373,29 @@ function answer(api, body, res) {
   // to 3999 out.
   const input = between(4000, 9000);
   const output = between(1000, 4000);
-  const said = reply(api, body, { input, output });
+  let said = reply(api, body, { input, output });
   if (said && typeof said === 'object' && said.fail) return failure(api, res, said.fail);
   const model = typeof body.model === 'string' ? body.model : MODEL;
+  // The answer in the shape the app asked for, or, for BADSHAPE, in the wrong one.
+  const shape = said && typeof said === 'object' && said.bad ? said.shape : shapeOf(api, body);
+  if (shape && (typeof said === 'string' || said.bad)) {
+    const root = shape.schema || {};
+    if (said.bad) {
+      const bad = `SVBAD${said.bad}`;
+      if (shape.tool) {
+        const args = misfit(root, bad, root);
+        said = { tool: shape.tool, args: args && typeof args === 'object' && !Array.isArray(args) ? args : { sv_unexpected: bad } };
+      } else if (shape.json) {
+        said = `${bad} {"reply": `;
+      } else {
+        said = JSON.stringify(misfit(root, bad, root));
+      }
+    } else if (shape.tool) {
+      said = { tool: shape.tool, args: fit(root, said, root) };
+    } else {
+      said = JSON.stringify(shape.json ? { reply: said } : fit(root, said, root));
+    }
+  }
   if (typeof said !== 'string') return toolCall(api, body, res, said, model, input, output);
   const raw = `SVRAW${tagOf(api, body)}`;
   if (api === 'messages') {

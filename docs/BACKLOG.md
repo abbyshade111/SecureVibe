@@ -1486,6 +1486,11 @@ another session is not a claim.
       wrong shape. The marker in the app's answer is a finding; credit only after an ordinary answer of the right shape
       was seen shown, and the wrong one refused without failing. A service that answers slowly or not at all stays
       unclaimed.
+      **Done the same day** (DESIGN, "Answers in the shape the app asked for, and C7.1.1"; ADR-042, accepted). The test
+      model answers in the shape asked for, through every API it speaks. `probe.ai-output-shape-unchecked` is a finding
+      when the app uses an answer that does not fit. It is credited only when the app showed a reply in the right shape
+      and refused the wrong one without failing. Shown with the OpenAI and Anthropic SDKs and zod against the real test
+      model; not run end to end under Docker here. A service that answers slowly or not at all is still not done.
   11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
       document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
       as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
@@ -3544,6 +3549,11 @@ another session is not a claim.
      joins the error-page markers. `probe.ai-floating-model-sent` (C3.2.3) reads the model name the app sent the test
      model. Five guards broken in turn, each caught. Not done: other frameworks' consoles, and looking up whether a
      name without `latest` is an alias its vendor moves.
+     **Other frameworks' consoles claimed on 6 October 2026 by session securevibe-e2**, at the owner's word ("Please
+     continue to work off the backlog when ready"), in branch `claude/securevibe-e2-more-consoles`: Go's
+     `net/http/pprof`, Laravel's Ignition, Symfony's profiler, and Phoenix's LiveDashboard, each known by words read
+     from its own source, as the two there are. Read on `main` just before this claim: no other session had claimed
+     it.
   8. **The static half of V10.4.4: the password and implicit grants switched on in a sign-in server's code.** Left
      from item 3, whose running half reads only the settings the app publishes. Each library's own names for the two
      grants, read from its source (the proposal in `docs/PARTIAL-CHECKS.md` names Doorkeeper, django-oauth-toolkit,
@@ -6809,6 +6819,9 @@ another session is not a claim.
   item"), in branch `claude/securevibe-e9-cpp-scoped`: a call named through `std::`, `std::filesystem::`, or the
   global `::` is read as the plain call, while a call on a class of the app's own (`Logger::log`) still is not; and
   `std::cout << "Location: " << url` is read as the `printf` form is.
+  **Done the same day** (DESIGN, "C++ calls named through `std::` or `::`, a Location header streamed to `cout`, and
+  C's SQL calls"): nine rules read the scoped form, `ast.open-redirect` reads the `cout` chain, and, found on the way,
+  C's and C++'s SQL calls are judged by their query rather than their connection, which had reported every one.
 
   The two "no grammar" tests this item said would break did, and now use Objective-C (`.m`/`.mm`,
   recognized by the scanner and deliberately left without a grammar) in C++'s place, continuing the same
