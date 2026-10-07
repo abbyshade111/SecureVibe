@@ -1478,6 +1478,9 @@ another session is not a claim.
      through it when marked, as the MCP loop is. C9.1.1's quotas and timeouts stay unclaimed. **Record, `Status:
      proposed`: ADR-045**, which writes down the owner's decision. Read on `main` just before this claim: no other
      session had claimed it.
+     **Done the same day** (DESIGN, "An AI agent's limit, asked through the app's own read-only tool"; ADR-045,
+     accepted). With `read-only = true` on the record tool, the test model asks for it again after every result, and the
+     rounds are judged as the MCP loop's are; without it the tool is never called in a loop.
   10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
       model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
       working, and passes on neither the raw error nor the bad structure.
