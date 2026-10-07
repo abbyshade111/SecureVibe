@@ -85,8 +85,8 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `probe.sql-injection`) |
-| V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`, `ast.shell-command-shell-true`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `ast.shell-command-shell-true`) |
+| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B610`, `B611`; sv only ever as a finding: `probe.sql-injection`) |
+| V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`, `ast.shell-command-shell-true`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B601`; sv only ever as a finding: `ast.shell-command-shell-true`) |
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
@@ -122,9 +122,9 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.1 | L1 | The running app: `probe.reflected-unencoded`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.reflected-unencoded`) |
+| V1.2.1 | L1 | The running app: `probe.reflected-unencoded`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B701`, `B702`, `B703`, `B704`; gosec only ever as a finding: `G203`; sv only ever as a finding: `probe.reflected-unencoded`) |
 | V1.2.3 | L1 | The running app: `probe.reflected-json-unescaped`; Outside tools: `brakeman` (sv only ever as a finding: `probe.reflected-json-unescaped`) |
-| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (sv only ever as a finding: `probe.sql-injection`) |
+| V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B610`, `B611`; sv only ever as a finding: `probe.sql-injection`) |
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |
 | V1.3.6 | L2 | The running app: `probe.fetch-goes-anywhere`; Outside tools: `gosec`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
 | V2.2.2 | L1 | Signed in: `probe.validation-only-in-the-browser` (sv only ever as a finding: `probe.validation-only-in-the-browser`) |
@@ -211,7 +211,7 @@ C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 | V10.5.4 | L2 | Signed in: `probe.oidc-audience-not-checked` |
 | V13.2.4 | L2 | The running app: `probe.fetch-goes-anywhere` (sv only ever as a finding: `probe.fetch-goes-anywhere`) |
 | V13.4.1 | L1 | The running app: `probe.source-control-exposed` |
-| V13.4.2 | L2 | The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `semgrep`, `codeql-python` (sv only ever as a finding: `probe.development-console-open`) |
+| V13.4.2 | L2 | The running app: `probe.error-detail-leak`, `probe.development-console-open`; Outside tools: `bandit`, `gosec`, `semgrep`, `codeql-python` (gosec only ever as a finding: `G108`; sv only ever as a finding: `probe.development-console-open`) |
 | V13.4.3 | L2 | The running app: `probe.directory-listing` (sv only ever as a finding: `probe.directory-listing`) |
 | V13.4.4 | L2 | The running app: `probe.trace-enabled` |
 | V13.4.5 | L2 | The running app: `probe.docs-or-monitoring-exposed` (sv only ever as a finding: `probe.docs-or-monitoring-exposed`) |
@@ -325,10 +325,10 @@ running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's
 - C2.2.1: found failing by semgrep's `mistral-missing-moderation`, `openai-missing-moderation`, `openai-missing-moderation-check`.
 - C2.2.2: found failing by sv's `probe.ai-injection-other-languages`.
 - C3.2.3: found failing by sv's `ast.floating-model-name`, `probe.ai-floating-model-sent`.
-- C4.1.2: found failing by sv's `ast.model-loaded-with-pickle`, `config.model-file-can-run-code`.
+- C4.1.2: found failing by bandit's `B614`; and found failing by sv's `ast.model-loaded-with-pickle`, `config.model-file-can-run-code`.
 - C5.2.2: found failing by sv's `probe.ai-retrieval-ignores-user`.
 - C5.2.4: found failing by sv's `probe.ai-reply-carries-others-data`.
-- C6.1.3: found failing by sv's `ast.model-download-not-pinned`.
+- C6.1.3: found failing by bandit's `B615`; and found failing by sv's `ast.model-download-not-pinned`.
 - C7.1.1: settled by `probe.ai-output-shape-unchecked`.
 - C7.1.2: settled by `probe.ai-output-unbounded`.
 - C7.3.1: settled by `probe.ai-flagged-reply-shown`.

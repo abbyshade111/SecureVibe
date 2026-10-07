@@ -603,3 +603,80 @@ fn no_rule_that_reads_files_for_keys_cites_the_model_context_requirement() {
         .collect();
     assert!(citing.is_empty(), "these cite C9.5.4: {citing:?}");
 }
+
+/// A tool's finding about injection or unescaped output that cites no requirement sits in a report
+/// beside "checked" for the very requirement it shows failing (gap analysis 3.4: a Bandit
+/// SQL-injection finding beside "V1.2.4 checked"). The map must name one for every such rule.
+#[test]
+fn every_tool_rule_about_injection_or_unescaped_output_cites_a_requirement() {
+    const ABOUT: &[&str] = &[
+        "injection",
+        "cross-site scripting",
+        "xss",
+        "escap",
+        "output encoding",
+        "sql",
+        "shell",
+        "server-side request",
+    ];
+    let adapters = Adapters::load(&data("adapters.json")).expect("the adapters load");
+    let mut silent = Vec::new();
+    let mut read = 0;
+    for adapter in adapters.all() {
+        for (rule_id, rule) in &adapter.rules {
+            let what = rule.what.to_lowercase();
+            if !ABOUT.iter().any(|w| what.contains(w)) {
+                continue;
+            }
+            read += 1;
+            if rule.requirements.is_empty() && rule.findings_against.is_empty() {
+                silent.push(format!("{} {rule_id}: {}", adapter.id, rule.what));
+            }
+        }
+    }
+    assert!(
+        read > 50,
+        "only {read} rules read as about injection or escaping"
+    );
+    assert!(
+        silent.is_empty(),
+        "these cite no requirement:\n{}",
+        silent.join("\n")
+    );
+}
+
+/// The same, from the other side: Bandit's and gosec's rules for injection and unescaped output,
+/// from their own sources (bandit `plugins/`, gosec `rules/rulelist.go`, read 7 October 2026), are
+/// each in the map, citing something. A rule left out of the map is shown with no requirement, and
+/// the test above cannot see a rule that is not there.
+#[test]
+fn bandit_and_gosec_injection_and_escaping_rules_are_all_mapped() {
+    const RULES: &[(&str, &[&str])] = &[
+        (
+            "bandit",
+            &[
+                "B601", "B602", "B603", "B604", "B605", "B606", "B608", "B609", "B610", "B611",
+                "B701", "B702", "B703", "B704",
+            ],
+        ),
+        ("gosec", &["G201", "G202", "G203", "G204"]),
+    ];
+    let adapters = Adapters::load(&data("adapters.json")).expect("the adapters load");
+    for (tool, ids) in RULES {
+        let adapter = adapters
+            .all()
+            .iter()
+            .find(|a| a.id == *tool)
+            .unwrap_or_else(|| panic!("no {tool} adapter"));
+        for id in *ids {
+            let rule = adapter
+                .rules
+                .get(*id)
+                .unwrap_or_else(|| panic!("{tool} {id} is not in the map"));
+            assert!(
+                !(rule.requirements.is_empty() && rule.findings_against.is_empty()),
+                "{tool} {id} cites no requirement"
+            );
+        }
+    }
+}
