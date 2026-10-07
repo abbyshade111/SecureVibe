@@ -11978,4 +11978,9 @@ Fifteen guards broken in turn, each caught: the name not judged at all (six case
 `warm_cache`, `loadConfig`, `cleanup`, and `invalidate_session`), no name ever found (every found case in every
 language), the name from an assignment not read (two JavaScript cases), Dart's signature not read (both Dart cases),
 C++'s declarator not read (the C++ case), and capitals not splitting words (most languages, and the word test).
-BREAKS_JSON_PLACEHOLDER
+Then each per-language setting in the rules file taken out, each caught by its language's case that should stay
+quiet: JavaScript's argument pattern (`next(e)`, which passes the error on, reported), Go's error name (`if r != nil {
+return true }` reported), Rust's `Err` and `unwrap_or` names (`Ok(_) => true` reported), Rust's, C#'s, Swift's, PHP's,
+and Kotlin's `true` (each language's `return false` reported), and the shell's `0` (`|| return 1` reported). Ruby's
+and Kotlin's "last line of the handler" anchor has no case: a bare `true` that is not the handler's last line is not
+something anyone writes.
