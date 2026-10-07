@@ -53,6 +53,9 @@ another session is not a claim.
   is only ever found failing).
   **The owner's answers to the three proposals, 7 October 2026:** "yes to 1 and 2, agree on 3". Proposals 1 and 2 are to
   be built; the list is not adopted for now.
+  **Proposals 1 and 2 claimed the same day by session securevibe-e9**, at the owner's word, in branch
+  `claude/securevibe-e9-ai-tool-files`. **Record, `Status: proposed`: ADR-049**, which writes down all three answers.
+  Read on `main` just before this claim: no other session had claimed them.
 
 - **Two citations the prompt-library review found, settled by the owner on 7 October 2026.** From the review in
   `docs/prompts/reviews/language-agnostic-variant.md` (#878), put to the owner the same day. (1) `probe.security-headers`
