@@ -92,6 +92,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-046](ADR-046.md) | Compressed archives sent to the upload, to the limits the owner states |
 | [ADR-047](ADR-047.md) | V3.4.3 is credited only for a Content-Security-Policy with the directives it names |
 | [ADR-048](ADR-048.md) | The weak password-derivation rule cites storing passwords as well as making keys |
+| [ADR-049](ADR-049.md) | `sv` reads the AI coding tool's own files in the project folder, apart from the app's grade (proposed) |
 
 ## Where v1's records disagree with what v1 built
 
