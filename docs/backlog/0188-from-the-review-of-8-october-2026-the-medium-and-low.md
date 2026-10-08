@@ -106,8 +106,30 @@ high were built the same day (the entry above this one's predecessor). Each of t
    name or a tool's finding title is kept from starting a line of its own on screen. Confirmed on `main` just before
    this claim: none of the four is done, and no other session had claimed any part of item 6. The rest of item 6
    stays open.
+   **Those four done the same day** (`docs/design/0307-four-low-findings-from-the-review-of-8-october-8-october.md`): a short value shows at most a
+   third of itself; the names a program prints a credential under, and the token after `Bearer` or `Basic`, are
+   masked; a pipe under a name the MCP server reads is refused before it is read; and `sv check` writes a finding's
+   file and title on one line. The rest of item 6 is open.
+   **Three more of its parts claimed 8 October 2026 by session securevibe-e9**, from the roadmap (Phase 1, item 1, the
+   next unclaimed in its order), in branch `claude/securevibe-e9-low-three`: a header value quoted into a finding is
+   cut to a length a person can read (`production.rs`, `probes.rs`); `sv probe` refuses a host name with letters
+   outside ASCII and says to give its `xn--` form, since curl's `--resolve` key would not match it; and both places
+   `main.rs` ends with 130 after Ctrl-C go through `exit::exit_with`, so what was printed is out first (one of them
+   added by this session's own Ctrl-C fix). Confirmed on `main` just before this claim: none of the three is done,
+   and no other session had claimed them. The rest of item 6 stays open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
    `docs/prompts/library-trial/recipe-summaries.txt`; `assemble_report_saying` is 1,585 lines and
    `Adapters::load` runs three times per report; `main.rs` hard-codes the tool list and omits semgrep.
+   **The spellings and the home path claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1,
+   item 1, last in its order), in branch `claude/securevibe-e2-housekeeping`: the British spellings in files a person
+   reads made American, and the home path in `recipe-summaries.txt` replaced by `~`. History is not rewritten, so
+   the path stays in earlier commits. `assemble_report_saying`, `Adapters::load`, and the tool list stay open.
+   **Those two done the same day**: fifteen British spellings made American in workflows, a code comment, the gap
+   analysis, two decision records, four backlog items, and a trial protocol; and the home path in
+   `recipe-summaries.txt` replaced by `~`. Left as they are, saying why: the OWASP standards' own text in
+   `data/frameworks` (and `docs/REQUIREMENTS.md`, made from it), quoted word for word; `common-passwords.txt`, a list
+   of data; "cancellation", which is American too; identifiers such as test names; this item's own quotation of the
+   words; and `docs/prompts/trial-4/recipe-brief.md`, which is the brief the trial gave its builders as given, so its
+   "recognise" stays, as a record of what they read.

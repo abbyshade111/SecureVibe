@@ -349,6 +349,27 @@ fn is_secret_name(name: &str) -> bool {
     NAMES.iter().any(|k| n.ends_with(k) || n.contains(k))
 }
 
+/// A name whose value is masked wherever `sv` repeats text it did not write: every name the scan
+/// treats as a secret's, and those that hold one in what a program prints rather than in its code,
+/// each as a whole word of the name (`x-session-id`, `Set-Cookie`, `otp_code`), so that `spinner` is
+/// not `pin` (the review of 8 October 2026, item 6: a token a failing test printed reached the report).
+fn is_masked_name(name: &str) -> bool {
+    const PRINTED: &[&str] = &[
+        "authorization",
+        "bearer",
+        "cookie",
+        "session",
+        "sessionid",
+        "otp",
+        "pin",
+        "passcode",
+    ];
+    is_secret_name(name)
+        || name
+            .split(|c: char| !c.is_ascii_alphanumeric())
+            .any(|word| PRINTED.contains(&word.to_ascii_lowercase().as_str()))
+}
+
 /// `.env` is meant to hold real credentials, so the judgment rules would fire on every line of it.
 fn is_env_file(relative: &str) -> bool {
     let name = relative.rsplit('/').next().unwrap_or(relative);
@@ -961,11 +982,23 @@ pub fn redact_text_in(rules: &SecretRules, relative: &str, text: &str) -> (Strin
         };
         // Not a value of punctuation alone: in `password := "v"` and `password => "v"` this
         // pattern reads the `=` or `>` as the value, and the shapes below cut the real one.
-        if is_secret_name(name)
+        if is_masked_name(name)
             && !looks_like_placeholder(value.as_str())
             && value.as_str().chars().any(char::is_alphanumeric)
         {
             spans.push((value.start(), value.end()));
+        }
+    }
+    // A header's credential after its scheme: `Authorization: Bearer <token>` names the scheme as the
+    // value above, and the token after it is what must not be shown.
+    static SCHEME: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:bearer|basic)\s+([A-Za-z0-9._~+/=-]{8,})").expect("static pattern")
+    });
+    for caps in SCHEME.captures_iter(text) {
+        if let Some(token) = caps.get(1)
+            && !looks_like_placeholder(token.as_str())
+        {
+            spans.push((token.start(), token.end()));
         }
     }
     // A password in a web address, cut wherever it is, a `.env` file included.
@@ -977,7 +1010,7 @@ pub fn redact_text_in(rules: &SecretRules, relative: &str, text: &str) -> (Strin
     // And every shape the assignment rule reads (`:=`, `=>`, a typed declaration, a default given to
     // an environment variable), which the pattern above cuts short or misses.
     for Named { name, value, .. } in named_values(relative, text) {
-        if is_secret_name(name.as_str()) && !looks_like_placeholder(value.as_str()) {
+        if is_masked_name(name.as_str()) && !looks_like_placeholder(value.as_str()) {
             spans.push((value.start(), value.end()));
         }
     }

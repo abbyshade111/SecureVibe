@@ -1,6 +1,6 @@
 # A sort column checked against a fixed list is reported as SQL built by hand
 
-**Status:** claimed by paper-facts, 8 October 2026
+**Status:** done, 8 October 2026
 
 Found on 8 October 2026 by the Haiku 5.5 trial (`docs/prompts/library-trial/haiku55.md`): `ast.sql-built-by-hand`
 (V1.2.4, high) fired in all ten Haiku 5.5 apps, and in the four read by hand each query was safe. The sort column is
@@ -25,3 +25,6 @@ To build, for Python, the language of all ten apps; the other languages keep the
 
 Each with witnesses both ways (the safe shape quiet, the same shape with a request value still reported), and each
 guard broken on purpose and seen caught. The record: a "Later" entry on ADR-018 in the pull request that builds it.
+  **Done the same day** (DESIGN, "A sort column from a fixed list, and the other shapes of a safe query (8 October
+  2026)"; ADR-018, Later): all four parts, for Python. The trial's four shapes are quiet; every guard undone is still
+  reported; thirteen breaks, each caught.

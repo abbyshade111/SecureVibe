@@ -56,9 +56,12 @@ pub struct Secret {
 impl Secret {
     /// Keeps the first four characters and says how much was dropped. Four is enough to match a key
     /// against the one in a password manager, and far short of enough to authenticate with.
+    ///
+    /// Never more than a third of the value, though: four characters of a four-character password in
+    /// a web address were the whole of it (the review of 8 October 2026, item 6).
     pub fn redact(value: &str) -> Self {
-        let visible: String = value.chars().take(4).collect();
         let total = value.chars().count();
+        let visible: String = value.chars().take(4.min(total / 3)).collect();
         let hidden = total.saturating_sub(visible.chars().count());
         Secret {
             redacted: if hidden == 0 {
@@ -1218,8 +1221,10 @@ mod tests {
 
     #[test]
     fn a_short_value_is_not_padded_into_looking_longer() {
+        // Shown whole until 8 October 2026, when the review (item 6) found a four-character password
+        // shown whole the same way: now a third of it at most, and its true length, never more.
         let secret = Secret::redact("abc");
-        assert_eq!(secret.as_str(), "abc");
+        assert_eq!(secret.as_str(), "a… (2 more characters)");
         assert_eq!(secret.length(), 3);
     }
 

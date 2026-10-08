@@ -1129,9 +1129,56 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
     // a shell as the second element of a list is the Dart, Swift, and Rust way to write `sh -c`.
     // Python's grammar calls a list `list` (and a tuple `tuple`), JavaScript's and TypeScript's
     // `array`, so `run(["ls", "-la"], shell=True)` is a fixed command too.
+    // Backlog 215, Python: `a if c else b` is fixed when both values are; `SEP.join(pieces)` when
+    // the separator is and the pieces are a list of fixed text written in place, or a list the
+    // function itself builds only of fixed text (`fixed_list`), never a name the file binds once,
+    // since a module's list can be appended to from any function; an f-string when everything put
+    // into it is.
+    if fixed.python {
+        if node.kind() == "conditional_expression"
+            && let Some(branches) = choice_branches(node, source)
+        {
+            return branches.len() == 2
+                && branches.into_iter().all(|b| is_literal(b, source, fixed));
+        }
+        if node.kind() == "call"
+            && called_name(node, source) == Some("join")
+            && let Some(function) = node.child_by_field_name("function")
+            && function.kind() == "attribute"
+            && let Some(separator) = function.child_by_field_name("object")
+            && let Some(arguments) = node.child_by_field_name("arguments")
+        {
+            let mut c = arguments.walk();
+            let args: Vec<_> = arguments
+                .named_children(&mut c)
+                .filter(|a| a.kind() != "comment")
+                .collect();
+            return is_literal(separator, source, fixed)
+                && matches!(args.as_slice(), [pieces]
+                    if (matches!(pieces.kind(), "list" | "tuple") && is_literal(*pieces, source, fixed))
+                        || fixed.fixed_list(*pieces, source));
+        }
+        if node.kind() == "string" {
+            let mut c = node.walk();
+            let interpolations: Vec<_> = node
+                .named_children(&mut c)
+                .filter(|p| p.kind() == "interpolation")
+                .collect();
+            if !interpolations.is_empty() {
+                return interpolations.into_iter().all(|i| {
+                    let mut c = i.walk();
+                    // A format spec with a value of its own in it (`{x:{width}}`) is built too.
+                    !i.named_children(&mut c)
+                        .any(|p| p.kind() == "format_specifier" && has_interpolation(p, source))
+                        && i.child_by_field_name("expression")
+                            .is_some_and(|e| is_literal(e, source, fixed))
+                });
+            }
+        }
+    }
     if matches!(
         node.kind(),
-        "list_literal" | "array_literal" | "array_expression" | "list" | "tuple" | "array"
+        "list_literal" | "array_literal" | "array_expression" | "list" | "tuple" | "array" | "set"
     ) {
         let mut cursor = node.walk();
         return node
@@ -1402,6 +1449,13 @@ pub(crate) struct Fixed {
     /// Names every binding of which is a call to a function whose name says it checks what it is
     /// given (`next_url = safe_next(raw)`), with those functions' names, ready to be shown.
     checked: BTreeMap<String, String>,
+    /// Backlog 215: the file is Python, whose names are also judged in their own function (`local`).
+    python: bool,
+    /// Tables whose every key is fixed text too, so a name checked against them is one of those keys.
+    keyed: BTreeSet<String>,
+    /// How deep `local` is in judging one name by another, so a name defined by itself
+    /// (`sort = sort + ""`) ends instead of going round for ever.
+    depth: std::cell::Cell<u8>,
 }
 
 /// One binding of a name: the value it was given, when the code says, and whether it sits at the top
@@ -1417,7 +1471,10 @@ impl Fixed {
     pub(crate) fn of(root: tree_sitter::Node, source: &[u8]) -> Fixed {
         let mut bindings: BTreeMap<String, Vec<Binding>> = BTreeMap::new();
         collect_bindings(root, source, &mut bindings);
-        let mut fixed = Fixed::default();
+        let mut fixed = Fixed {
+            python: root.kind() == "module",
+            ..Fixed::default()
+        };
         // A name may stand for another (`SQL = BASE + " WHERE id = ?"`), so this runs until nothing
         // more is found; each round adds at least one name or stops.
         loop {
@@ -1431,6 +1488,9 @@ impl Fixed {
                 if matches!(value.kind(), "dictionary" | "object") {
                     if table_is_fixed(value, source, &fixed) {
                         fixed.tables.insert(name.clone());
+                        if keys_are_fixed(value, source, &fixed) {
+                            fixed.keyed.insert(name.clone());
+                        }
                         found = true;
                     }
                 } else if is_literal(value, source, &fixed) || (only.top && is_constant_name(name))
@@ -1503,6 +1563,12 @@ impl Fixed {
 
     /// Whether this node is a fixed name, or a lookup in a fixed table.
     fn holds(&self, node: tree_sitter::Node, source: &[u8]) -> bool {
+        if self.python
+            && node.kind() == "identifier"
+            && let Some(fixed) = self.local(node, source)
+        {
+            return fixed;
+        }
         if self.names.is_empty() && self.tables.is_empty() {
             return false;
         }
@@ -1539,6 +1605,284 @@ impl Fixed {
             _ => false,
         }
     }
+
+    /// Backlog 215: a Python name judged in the function it is used in. `None` when that function
+    /// does not bind it, so the file's own judgment stands. Otherwise fixed when a guard before the
+    /// use leaves the function unless the name is one of a fixed list (`guarded`), or when the
+    /// function binds it exactly once, not as a parameter, to fixed text. A Flask app binds `sort` in
+    /// several routes, which the file-wide judgment cannot trust; in its own function it is one
+    /// assignment. Anything that may bind it unseen (`global`, `nonlocal`, `with ... as`, an import,
+    /// an exception's name) makes it not fixed.
+    fn local(&self, node: tree_sitter::Node, source: &[u8]) -> Option<bool> {
+        let function = enclosing_function(node)?;
+        let name = node.utf8_text(source).ok()?;
+        let mut bindings: BTreeMap<String, Vec<Binding>> = BTreeMap::new();
+        collect_bindings(function, source, &mut bindings);
+        let binds = bindings.get(name)?;
+        if binds_unseen(function, name, source) {
+            return Some(false);
+        }
+        if self.depth.get() >= 8 {
+            return Some(false);
+        }
+        self.depth.set(self.depth.get() + 1);
+        // A list, a set, or a dictionary can be changed after it is bound (`clauses.append(x)`,
+        // handed to a function), so one binding to fixed items says nothing on its own: a list is
+        // judged by everything done to it (`fixed_list`), and the others are not fixed here.
+        let fixed = self.guarded(function, node, name, source)
+            || match binds.as_slice() {
+                [only] => only.value.is_some_and(|value| match value.kind() {
+                    "list" => self.fixed_list(node, source),
+                    "set"
+                    | "dictionary"
+                    | "list_comprehension"
+                    | "set_comprehension"
+                    | "dictionary_comprehension" => false,
+                    _ => is_literal(value, source, self),
+                }),
+                _ => false,
+            };
+        self.depth.set(self.depth.get() - 1);
+        Some(fixed)
+    }
+
+    /// Whether a statement of the function's own body, before `node`, is `if name not in FIXED:` with
+    /// no `elif` or `else` and a block that always leaves (its last statement a `return`, a `raise`,
+    /// or a call to `abort`), and nothing after that statement binds the name again. `FIXED` is a
+    /// list, tuple or set of fixed text, a name for one, or a table whose keys are all fixed.
+    fn guarded(
+        &self,
+        function: tree_sitter::Node,
+        node: tree_sitter::Node,
+        name: &str,
+        source: &[u8],
+    ) -> bool {
+        let Some(body) = function.child_by_field_name("body") else {
+            return false;
+        };
+        let text = |n: tree_sitter::Node| n.utf8_text(source).unwrap_or("");
+        let mut cursor = body.walk();
+        let statements: Vec<_> = body.named_children(&mut cursor).collect();
+        statements.iter().enumerate().any(|(i, guard)| {
+            if guard.kind() != "if_statement" || guard.end_byte() > node.start_byte() {
+                return false;
+            }
+            let mut c = guard.walk();
+            if guard
+                .children_by_field_name("alternative", &mut c)
+                .next()
+                .is_some()
+            {
+                return false;
+            }
+            let Some(condition) = guard.child_by_field_name("condition") else {
+                return false;
+            };
+            if condition.kind() != "comparison_operator" {
+                return false;
+            }
+            let mut c = condition.walk();
+            let parts: Vec<_> = condition.children(&mut c).collect();
+            let [left, operator @ .., right] = parts.as_slice() else {
+                return false;
+            };
+            let operator: Vec<&str> = operator.iter().map(|o| text(*o)).collect();
+            if left.kind() != "identifier"
+                || text(*left) != name
+                || operator != ["not in"] && operator != ["not", "in"]
+            {
+                return false;
+            }
+            let list_fixed = is_literal(*right, source, self)
+                || (right.kind() == "identifier" && self.keyed.contains(text(*right)));
+            let leaves = guard
+                .child_by_field_name("consequence")
+                .and_then(|block| {
+                    let mut c = block.walk();
+                    block
+                        .named_children(&mut c)
+                        .filter(|s| s.kind() != "comment")
+                        .last()
+                })
+                .is_some_and(|last| match last.kind() {
+                    "return_statement" | "raise_statement" => true,
+                    "expression_statement" => last
+                        .named_child(0)
+                        .is_some_and(|call| called_name(call, source) == Some("abort")),
+                    _ => false,
+                });
+            let bound_after = statements[i + 1..].iter().any(|later| {
+                let mut after: BTreeMap<String, Vec<Binding>> = BTreeMap::new();
+                collect_bindings(*later, source, &mut after);
+                after.contains_key(name)
+            });
+            list_fixed && leaves && !bound_after
+        })
+    }
+
+    /// Backlog 215: whether a Python name is a list of fixed text in the function it is used in:
+    /// bound there once, not as a parameter, to a list of fixed items, and otherwise only ever
+    /// grown with `append` or `extend` of fixed items or joined. Any other use (handed to a function,
+    /// indexed, sorted in place) could change it, and makes it not fixed.
+    fn fixed_list(&self, node: tree_sitter::Node, source: &[u8]) -> bool {
+        if !self.python || node.kind() != "identifier" {
+            return false;
+        }
+        let Some(function) = enclosing_function(node) else {
+            return false;
+        };
+        let Ok(name) = node.utf8_text(source) else {
+            return false;
+        };
+        let mut bindings: BTreeMap<String, Vec<Binding>> = BTreeMap::new();
+        collect_bindings(function, source, &mut bindings);
+        let Some([only]) = bindings.get(name).map(Vec::as_slice) else {
+            return false;
+        };
+        let Some(value) = only.value else {
+            return false;
+        };
+        if value.kind() != "list"
+            || !is_literal(value, source, self)
+            || binds_unseen(function, name, source)
+        {
+            return false;
+        }
+        let mut uses = Vec::new();
+        identifiers_named(function, name, source, &mut uses);
+        uses.into_iter().all(|use_| {
+            // The use being judged: what reaches the call is the list as it stands there.
+            if use_ == node {
+                return true;
+            }
+            let parent = use_.parent();
+            // Its one binding, `name = [...]`.
+            if parent.is_some_and(|p| {
+                p.kind() == "assignment" && p.child_by_field_name("left") == Some(use_)
+            }) {
+                return true;
+            }
+            // `SEP.join(name)`: the argument of a join, which reads it.
+            if let Some(arguments) = parent.filter(|p| p.kind() == "argument_list")
+                && let Some(call) = arguments.parent()
+                && called_name(call, source) == Some("join")
+            {
+                return true;
+            }
+            // `name.append(fixed)`, `name.extend([fixed, ...])`.
+            let Some(attribute) = parent.filter(|p| {
+                p.kind() == "attribute" && p.child_by_field_name("object") == Some(use_)
+            }) else {
+                return false;
+            };
+            let Some(call) = attribute.parent().filter(|c| c.kind() == "call") else {
+                return false;
+            };
+            if !matches!(called_name(call, source), Some("append" | "extend")) {
+                return false;
+            }
+            call.child_by_field_name("arguments")
+                .is_some_and(|arguments| {
+                    let mut c = arguments.walk();
+                    let args: Vec<_> = arguments
+                        .named_children(&mut c)
+                        .filter(|a| a.kind() != "comment")
+                        .collect();
+                    !args.is_empty() && args.into_iter().all(|a| is_literal(a, source, self))
+                })
+        })
+    }
+}
+
+/// The Python function a node sits in, directly: a lambda or a class in between is a scope of its
+/// own, and gives none.
+fn enclosing_function(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
+    let mut current = node.parent()?;
+    loop {
+        match current.kind() {
+            "function_definition" => return Some(current),
+            "lambda" | "class_definition" | "module" => return None,
+            _ => current = current.parent()?,
+        }
+    }
+}
+
+/// Every identifier under `node` spelled `name`.
+fn identifiers_named<'a>(
+    node: tree_sitter::Node<'a>,
+    name: &str,
+    source: &[u8],
+    out: &mut Vec<tree_sitter::Node<'a>>,
+) {
+    if node.kind() == "identifier" && node.utf8_text(source) == Ok(name) {
+        out.push(node);
+        return;
+    }
+    let mut cursor = node.walk();
+    for child in node.named_children(&mut cursor) {
+        identifiers_named(child, name, source, out);
+    }
+}
+
+/// Whether something in the function may bind `name` in a way `collect_bindings` does not record:
+/// `global` and `nonlocal`, which hand it to another scope, `with ... as name`, `except ... as name`,
+/// and an import. Any of them makes the name not fixed.
+fn binds_unseen(function: tree_sitter::Node, name: &str, source: &[u8]) -> bool {
+    let mut uses = Vec::new();
+    identifiers_named(function, name, source, &mut uses);
+    uses.iter().any(|use_| {
+        let mut current = *use_;
+        for _ in 0..4 {
+            let Some(parent) = current.parent() else {
+                return false;
+            };
+            if matches!(
+                parent.kind(),
+                "global_statement"
+                    | "nonlocal_statement"
+                    | "as_pattern_target"
+                    | "as_pattern"
+                    | "aliased_import"
+                    | "import_statement"
+                    | "import_from_statement"
+                    | "except_clause"
+            ) {
+                // `with open(p) as name` and `except E as name` bind it; a name read in the
+                // expression before `as` does not.
+                return !matches!(parent.kind(), "as_pattern" | "except_clause")
+                    || parent.child_by_field_name("alias").is_some_and(|alias| {
+                        alias.start_byte() <= use_.start_byte()
+                            && use_.end_byte() <= alias.end_byte()
+                    })
+                    || (parent.kind() == "except_clause"
+                        && parent.named_children(&mut parent.walk()).any(|c| {
+                            c.kind() == "as_pattern"
+                                && c.child_by_field_name("alias").is_some_and(|alias| {
+                                    alias.start_byte() <= use_.start_byte()
+                                        && use_.end_byte() <= alias.end_byte()
+                                })
+                        }));
+            }
+            current = parent;
+        }
+        false
+    })
+}
+
+/// A dictionary whose every key is fixed text: `{"title": "title", "created": "created_at"}`.
+fn keys_are_fixed(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
+    let mut cursor = node.walk();
+    let entries: Vec<_> = node
+        .named_children(&mut cursor)
+        .filter(|c| c.kind() != "comment")
+        .collect();
+    !entries.is_empty()
+        && entries.iter().all(|entry| {
+            entry.kind() == "pair"
+                && entry
+                    .child_by_field_name("key")
+                    .is_some_and(|k| is_literal(k, source, fixed))
+        })
 }
 
 /// The name a call is made by: `f` in `f(x)`, `fetchone` in `cur.execute(q).fetchone()`. An

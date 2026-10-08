@@ -1,6 +1,6 @@
 # Two blind spots found testing the prompt library, 4 October 2026
 
-**Status:** open
+**Status:** done, 8 October 2026
 
 Found by session securevibe-e10, each
 reproduced against `sv` on `main`. **Each can be claimed on its own.**
@@ -26,3 +26,5 @@ not assessed, never "none is an editor", when it cannot read those either. 2: a 
 `ast.shell-command-shell-true`, for Python's `subprocess` with `shell=True`, Node's `spawn` and `execFile` with
 `shell: true`, and Dart's `Process` with `runInShell: true`. Seven guards broken in turn, each caught; the recipe
 app and the Python file that showed the gaps are now caught, and their safe forms are not.
+**Marked done 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 3): the status line read
+`open` because the note above says "Both done" rather than one marker per part.
