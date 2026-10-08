@@ -28,7 +28,7 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `semgrep_rule_map.py`, `codeql_suites.py`,
   `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`,
-  `docs_page.py`, `design_entry.py`, `merge_main.py`) and one shell script,
+  `docs_page.py`, `design_entry.py`, `merge_main.py`, `backlog.py`) and one shell script,
   `install.sh`, which installs `sv` with its data outside the build folder; each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands
@@ -129,6 +129,11 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   same conflict was resolved three times at a 20-minute CI round each. For the same reason a new test goes in a sibling
   test file (`src/<module>/tests.rs`, or one of its own) rather than at the end of a module's `mod tests`, and a new DESIGN
   section is a section of its own rather than a paragraph on an existing one.
+- **The roadmap at the top of `docs/BACKLOG.md` says what comes next.** With no word from the owner, take the first
+  unclaimed sub-item there in its phase order, claim it, and land it before taking the next. `python3 tools/backlog.py
+  list --open` prints every item with anything open, read from the items' own markers, so the file need not be read
+  whole; `summary` prints the counts. Check the item against `main` first: some were overtaken by later work and want
+  a done note, not a build.
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
   `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different identity, so git
   calls the branch unmerged while every line of it is already there.
