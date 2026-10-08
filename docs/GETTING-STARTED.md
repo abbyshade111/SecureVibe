@@ -256,6 +256,19 @@ known vulnerability) or when you ask for it: `sv check . --fail-on attention:hig
 anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
 exactly what each number covers.
 
+### All your apps on one page
+
+Once each app has a report, `sv dashboard` puts them on one page you open in a browser: every app in alphabetical
+order, each with its own view of what was found, what was not examined, and where its requirements went. It reads
+the reports already there and checks nothing itself, so run `sv report` on an app first to bring its part up to
+date. Give it the app folders, and the file to write:
+
+```bash
+sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html
+```
+
+It writes only that file, never inside an app's folder, and never over a file it did not make.
+
 ### Checking the packages against known vulnerabilities
 
 Whether any package the app uses has a published vulnerability is *not assessed* until you give

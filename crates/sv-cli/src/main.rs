@@ -129,6 +129,7 @@ fn run() -> Result<i32> {
         "sbom" => finished(cmd_sbom(rest.first().map(PathBuf::from))),
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
+        "dashboard" => finished(cmd_dashboard(rest)),
         "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
         "bundle" => finished(cmd_bundle(rest)),
         "mcp" => finished(mcp::cmd_mcp(rest)),
@@ -275,6 +276,13 @@ const COMMANDS: &[Command] = &[
         help: "  sv bundle [PATH] [--out FILE.zip] [--run [--slow]] [--tools] [--advisories DIR]\n                     the app, its report and a SHA-256 for every file in one zip, beside\n                     the app unless --out says where, with anything that could hold a\n                     secret left out and listed\n",
     },
     Command {
+        name: "dashboard",
+        word: Some("FOLDER..."),
+        flags: &[],
+        valued: &["--out"],
+        help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     securevibe-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
+    },
+    Command {
         name: "mcp",
         word: None,
         flags: &[],
@@ -331,7 +339,7 @@ fn check_args(command: &Command, args: &[String]) -> Result<()> {
                         "`sv {name}` takes only options, and was given {arg}"
                     ));
                 }
-                Some(word) if words > 1 => {
+                Some(word) if words > 1 && !word.ends_with("...") => {
                     return refuse(format!(
                         "`sv {name}` takes one {word}, and was given a second: {arg}"
                     ));
@@ -2329,6 +2337,128 @@ fn stdout_is_a_file() -> bool {
     {
         false
     }
+}
+
+/// `sv dashboard`: one page for several apps, from their reports (`sv_report::dashboard`; ADR-057).
+///
+/// It writes one file, only where it is told, and never over a file it did not make: not a link,
+/// not a folder, not a page without its mark, and not inside one of the apps, where the next check
+/// would read it as the app's own.
+fn cmd_dashboard(args: &[String]) -> Result<()> {
+    let mut folders = Vec::new();
+    let mut out = None;
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        if arg == "--out" {
+            out = rest.next().map(PathBuf::from);
+        } else {
+            folders.push(PathBuf::from(arg));
+        }
+    }
+    if folders.is_empty() {
+        bail!(
+            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html"
+        );
+    }
+    let Some(out) = out else {
+        bail!(
+            "`sv dashboard` writes only where it is told: add --out FILE.html, for example --out ~/sv-dashboard.html"
+        );
+    };
+    let mut apps = Vec::new();
+    for folder in &folders {
+        if !folder.is_dir() {
+            bail!("{} is not a folder", folder.display());
+        }
+        let folder = std::fs::canonicalize(folder)
+            .with_context(|| format!("finding the folder {}", folder.display()))?;
+        let reports = folder.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
+        let summary = match std::fs::read_to_string(reports.join("report.json")) {
+            Ok(text) => sv_report::dashboard::read(&text),
+            Err(_) => Err(format!(
+                "there is no report.json in its {} folder yet",
+                sv_scan::ecosystems::DEFAULT_REPORT_DIR
+            )),
+        };
+        let report_html = reports.join("report.html");
+        apps.push(sv_report::dashboard::App {
+            report_html: report_html.is_file().then_some(report_html),
+            folder,
+            summary,
+        });
+    }
+
+    // Where it writes: a file of its own, beside nothing of the apps'.
+    let parent = match out.parent() {
+        Some(p) if !p.as_os_str().is_empty() => p.to_path_buf(),
+        _ => PathBuf::from("."),
+    };
+    let parent = std::fs::canonicalize(&parent)
+        .with_context(|| format!("finding the folder {} to write into", parent.display()))?;
+    let name = out
+        .file_name()
+        .with_context(|| format!("{} names no file", out.display()))?;
+    let target = parent.join(name);
+    if let Some(app) = apps.iter().find(|a| target.starts_with(&a.folder)) {
+        bail!(
+            "{} is inside the app folder {}. Choose a place outside it, so the page is not read back as part of the app.",
+            target.display(),
+            app.folder.display()
+        );
+    }
+    if let Ok(meta) = std::fs::symlink_metadata(&target) {
+        if meta.file_type().is_symlink() {
+            bail!(
+                "{} is a link, and nothing is written through it",
+                target.display()
+            );
+        }
+        if meta.is_dir() {
+            bail!(
+                "{} is a folder; give a file name, such as sv-dashboard.html",
+                target.display()
+            );
+        }
+        let existing = std::fs::read(&target).unwrap_or_default();
+        if !String::from_utf8_lossy(&existing).contains(sv_report::dashboard::MADE_BY) {
+            bail!(
+                "{} is already there and was not written by sv dashboard, so it is left as it is. Choose another name.",
+                target.display()
+            );
+        }
+    }
+    let written = crate::bundle::utc_time(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+    );
+    let page = sv_report::dashboard::page(&apps, &written[..written.len().min(10)]);
+    let staging = parent.join(format!(
+        ".{}.sv-{}",
+        name.to_string_lossy(),
+        std::process::id()
+    ));
+    std::fs::write(&staging, page).with_context(|| format!("writing {}", staging.display()))?;
+    std::fs::rename(&staging, &target).with_context(|| format!("writing {}", target.display()))?;
+
+    let missing: Vec<&sv_report::dashboard::App> =
+        apps.iter().filter(|a| a.summary.is_err()).collect();
+    println!(
+        "Wrote {} ({} app{}). Open it in a browser.",
+        target.display(),
+        apps.len(),
+        if apps.len() == 1 { "" } else { "s" }
+    );
+    for app in missing {
+        if let Err(why) = &app.summary {
+            println!(
+                "  {}: no report to show, because {why}. Run `sv report` on it first.",
+                app.folder.display()
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Writes the list of what the app ships.

@@ -181,7 +181,8 @@ Each a backlog item of its own, claimed before it is started, with its part of A
    changes. **Built 8 October 2026**, with a second bar the owner asked for: where every requirement went, the ones
    that do not apply among them (ADR-057, "Later, 8 October 2026").
 2. **`sv dashboard`**: one page from the reports of the app folders it is given, with every app and each app's own
-   page, written where the person says.
+   page, written where the person says. **Built 8 October 2026**: `sv dashboard FOLDER... --out FILE.html` (ADR-057, "Later, 8 October 2026:
+   `sv dashboard`").
 3. **History**, switched on by the person, kept as above, and the over-time view on each app's page; then every app on
    this computer listed from it.
 4. **The progress page during a run**, if wanted once the first three are in use.

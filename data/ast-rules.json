@@ -1368,6 +1368,53 @@
       }
     },
     {
+      "id": "ast.token-signature-not-checked",
+      "title": "A token is accepted without checking its signature",
+      "severity": "high",
+      "confidence": "high",
+      "requirementIds": [
+        "V9.1.1"
+      ],
+      "cwe": [
+        "CWE-347"
+      ],
+      "description": "The code reads a signed token (such as a JWT) with its signature check switched off: `verify_signature` set to false in PyJWT or python-jose; `JWT.decode` told not to verify in ruby-jwt; `RequireSignedTokens = false` in .NET; `insecure_disable_signature_validation()` or `dangerous_insecure_decode` in Rust's `jsonwebtoken`; `ParseUnverified` in Go's `golang-jwt`; or `unsecured()` in Java's `jjwt`.",
+      "impact": "The signature is the only thing that shows a token came from the app or its sign-in server. Without it, anybody can write a token saying they are any user, an administrator included, and it is accepted.",
+      "fix": "Check the signature with the key it was signed with, and name the algorithms allowed (for example `jwt.decode(token, key, algorithms=[\"RS256\"])` in PyJWT, `JWT.decode(token, key, true, { algorithm: 'RS256' })` in ruby-jwt, or `jwt.Parse` with a key function in Go). If the code reads a token only to find which key checks it, read the header alone (`get_unverified_header`), then check the whole token with that key.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "[(pair key: (string) @fn value: (false)) (keyword_argument name: (identifier) @fn value: (false))] @hit",
+        "ruby": "(call method: (identifier) @fn arguments: (argument_list . (_) . (_) . (false))) @hit",
+        "csharp": "(assignment_expression left: [(identifier) @fn (member_access_expression name: (identifier) @fn)] right: (boolean_literal) @arg) @hit",
+        "rust": "[(call_expression function: (field_expression field: (field_identifier) @fn)) (call_expression function: (identifier) @fn) (call_expression function: (scoped_identifier name: (identifier) @fn)) (call_expression function: (generic_function function: [(identifier) @fn (scoped_identifier name: (identifier) @fn)]))] @hit",
+        "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)) @hit",
+        "java": "(method_invocation name: (identifier) @fn) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(verify_signature|\"verify_signature\"|'verify_signature')$",
+        "ruby": "^decode$",
+        "csharp": "^RequireSignedTokens$",
+        "rust": "^(insecure_disable_signature_validation|dangerous_insecure_decode|dangerous_insecure_decode_with_validation)$",
+        "go": "^ParseUnverified$",
+        "java": "^unsecured$"
+      },
+      "argumentPatterns": {
+        "csharp": "^false$"
+      },
+      "looksFor": "the explicit switches that turn a token's signature check off: `verify_signature` false (Python), `JWT.decode` with verification false (Ruby), `RequireSignedTokens = false` (C#), `insecure_disable_signature_validation()` and `dangerous_insecure_decode` (Rust), `ParseUnverified` (Go), and `unsecured()` (Java's jjwt); a token read some other way without being checked is not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "javascript": "`jsonwebtoken`'s `jwt.decode` and `jose`'s `decodeJwt` read a token without checking it, and so does a browser reading its own token, which is what they are mostly used for; telling the two apart needs more than one file, and neither library has a setting that switches checking off, so there is no switch to find.",
+        "typescript": "`jsonwebtoken`'s `jwt.decode` and `jose`'s `decodeJwt` read a token without checking it, and so does a browser reading its own token, which is what they are mostly used for; telling the two apart needs more than one file, and neither library has a setting that switches checking off, so there is no switch to find.",
+        "kotlin": "No setting that switches the signature check off is looked for in Kotlin yet: Java's `jjwt` switch is read in Java files only.",
+        "php": "`firebase/php-jwt` and `lcobucci/jwt` have no setting that switches the signature check off, so there is no switch to find.",
+        "dart": "No setting that switches the signature check off is known for Dart's common token libraries, so there is no switch to look for.",
+        "swift": "No setting that switches the signature check off is known for Swift's common token libraries, so there is no switch to look for.",
+        "c": "No setting that switches the signature check off is known for C's common token libraries, so there is no switch to look for.",
+        "cpp": "No setting that switches the signature check off is known for C++'s common token libraries, so there is no switch to look for.",
+        "shell": "Tokens are not checked in shell scripts in any way this rule can speak to."
+      }
+    },
+    {
       "id": "ast.token-key-source-from-token",
       "title": "A sign-in token is allowed to say where the key that checks it comes from",
       "severity": "high",

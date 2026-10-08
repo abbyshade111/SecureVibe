@@ -18,7 +18,7 @@ pub fn escape(text: &str) -> String {
         .replace('\'', "&#39;")
 }
 
-const STYLE: &str = "\
+pub(crate) const STYLE: &str = "\
 :root { color-scheme: light dark; --edge: #d8d8d8; --dim: #666; --bad: #a11; --unknown: #8a6d00;
   --seg-checked: #127a74; --seg-part: #6fb3ac; --seg-tested: #4b4fb8; --seg-word: #d6b34a; --seg-none: #c9ced8;
   --seg-none-line: #aeb4c0; --seg-apply: #4a5262; --seg-out: #e4e7ec; --seg-ai: #a995cc; }
@@ -137,7 +137,11 @@ fn bar(class: &str, aria: &str, parts: &[(&str, usize, String)]) -> String {
 /// count written beside them. The two are kept apart so the requirements that do not apply are
 /// never drawn in among the evidence for the ones that do.
 pub fn glance(report: &Report) -> String {
-    let c = &report.counts;
+    glance_of(&report.counts, report.target_level)
+}
+
+/// The same bars from the counts alone, as `sv dashboard` has them from a `report.json`.
+pub fn glance_of(c: &crate::Counts, target_level: u8) -> String {
     let mut s = String::from("<div class=\"glance\">\n");
     if c.applicable > 0 {
         let parts: Vec<(&str, usize, String)> = c
@@ -177,7 +181,7 @@ pub fn glance(report: &Report) -> String {
         (
             "above",
             c.out_of_level,
-            format!("are above ASVS level {}", report.target_level),
+            format!("are above ASVS level {target_level}"),
         ),
         (
             "ai",
