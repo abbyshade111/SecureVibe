@@ -135,7 +135,16 @@ pub struct Gaps {
 /// not read at all.
 const SV_OWN_FILES: &[&str] = &["securevibe.toml", "security-notes.md"];
 
+/// The gap an app none of whose files was read is given.
+const NOTHING_READ: &str =
+    "no file of the app was read (securevibe.toml and security-notes.md do not count)";
+
 impl Gaps {
+    /// Whether no file of the app was read, so a check that found nothing had nothing to look in.
+    pub fn read_nothing(&self) -> bool {
+        self.could_not_run.iter().any(|g| g == NOTHING_READ)
+    }
+
     /// What the checks that read the app's files could not do. The list is exactly DESIGN's:
     ///
     /// - always: no file of the app was read as text (apart from `SV_OWN_FILES`); a file or folder
@@ -166,10 +175,7 @@ impl Gaps {
             .filter(|f| !SV_OWN_FILES.contains(&f.relative.as_str()))
             .count();
         if read == 0 {
-            gaps.could_not_run.push(
-                "no file of the app was read (securevibe.toml and security-notes.md do not count)"
-                    .to_owned(),
-            );
+            gaps.could_not_run.push(NOTHING_READ.to_owned());
         }
         let could_not_read: Vec<&(String, String)> = secrets
             .coverage

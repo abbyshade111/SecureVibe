@@ -260,6 +260,10 @@ another session is not a claim.
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
      of it. Wording on screen only: `sv report` already credits nothing for such a folder (checked: 137 not
      verified, none verified).
+     **(g) done the same day** (DESIGN, "Saying a check looked and found nothing", the paragraph "On screen too"):
+     with nothing read, `sv check` says none is listed as checked and fine and why, and a finding about a missing
+     file names the file as not there rather than a line of it. Breaks: the "nothing read" test switched off, a
+     missing file shown at its line, and every run treated as nothing read each failed the new test.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
