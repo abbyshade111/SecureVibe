@@ -205,6 +205,26 @@ fn review(
     secret: Secret<'_>,
 ) -> Result<()> {
     let manifest_path = app_dir.join("securevibe.toml");
+    // The files this writes are looked at before anything is asked: a link planted at one of their
+    // names would otherwise be found only after the person had typed their answers (and perhaps
+    // made a key), and a file outside the app must never be written over through it.
+    crate::refuse_link(&manifest_path, crate::FILE_LINK)?;
+    // The files whose sections say who wrote them: the security notes, and the decisions the
+    // design-time prompts write, read the same way (`sv_check::decisions`).
+    let notes_catalog = sv_check::notes::Catalog::load(&super::notes_path())?;
+    let files: Vec<(sv_check::notes::Catalog, PathBuf)> = [
+        notes_catalog.clone(),
+        sv_check::notes::Catalog::load(&super::decisions_path())?,
+    ]
+    .into_iter()
+    .map(|catalog| {
+        let path = app_dir.join(&catalog.file);
+        (catalog, path)
+    })
+    .collect();
+    for (_, path) in &files {
+        crate::refuse_link(path, crate::FILE_LINK)?;
+    }
     let text = std::fs::read_to_string(&manifest_path)
         .with_context(|| format!("reading {}", manifest_path.display()))?;
     let manifest = sv_manifest::Manifest::load(&manifest_path)?;
@@ -309,19 +329,6 @@ fn review(
             );
         }
     }
-    // The files whose sections say who wrote them: the security notes, and the decisions the
-    // design-time prompts write, read the same way (`sv_check::decisions`).
-    let notes_catalog = sv_check::notes::Catalog::load(&super::notes_path())?;
-    let files: Vec<(sv_check::notes::Catalog, PathBuf)> = [
-        notes_catalog.clone(),
-        sv_check::notes::Catalog::load(&super::decisions_path())?,
-    ]
-    .into_iter()
-    .map(|catalog| {
-        let path = app_dir.join(&catalog.file);
-        (catalog, path)
-    })
-    .collect();
     for (which, (catalog, path)) in files.iter().enumerate() {
         if let Some(text) = notes_text(path)? {
             let answers = sv_check::notes::read_answers(catalog, &text);
@@ -1125,14 +1132,25 @@ fn save(
 }
 
 /// The same for any file: `counts` reads it back.
+///
+/// Never through a link, and never half-written: the text goes to a new file beside it, which is
+/// then renamed over the name (`write_without_following`, as every other file `sv` writes into
+/// the app), so a link planted at the name since `review` looked is replaced rather than written
+/// through, and a run cut short leaves the file as it was.
 fn save_text(path: &Path, text: &str, counts: &dyn Fn() -> bool) -> Result<()> {
+    crate::refuse_link(path, crate::FILE_LINK)?;
     let before =
         std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    std::fs::write(path, text).with_context(|| format!("writing {}", path.display()))?;
+    let dir = path.parent().unwrap_or_else(|| Path::new(""));
+    let name = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .with_context(|| format!("{} has no file name", path.display()))?;
+    crate::write_without_following(dir, name, text.as_bytes())?;
     if counts() {
         return Ok(());
     }
-    std::fs::write(path, before).ok();
+    crate::write_without_following(dir, name, before.as_bytes()).ok();
     bail!(
         "{} was put back as it was, because after writing it what was recorded would not count \
          as written. Nothing was recorded.",

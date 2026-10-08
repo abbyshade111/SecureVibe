@@ -915,14 +915,16 @@ tools, each of the four in the version named:
 - Semgrep 1.178.0 keeps a `// nosemgrep` result in its SARIF, marked as suppressed.
 - Brakeman 8.0.6 keeps a warning listed in `config/brakeman.ignore`, marked as suppressed and naming
   that file. `skip_checks` in `config/brakeman.yml` hides a check with no trace, and
-  `--config-file /dev/null` does not stop Brakeman reading the file.
+  `--config-file /dev/null` does not stop Brakeman reading the file. (Since 8 October 2026 it is given an empty
+  settings file of `sv`'s own instead, and reads the app's not at all: see below.)
 
 Where a tool can be made to look anyway, it is: bandit runs with `--ignore-nosec` and `--ini /dev/null`,
 gosec with `-track-suppressions`. What any tool reports as suppressed is shown as a finding, and says it
 was marked to be ignored and where, since a finding somebody chose to hide is still a finding until
 somebody has looked at why. That is the owner's decision to make with the finding in front of them, not
 one `sv` makes for them by agreeing to look away. What is left, a clean run whose report still counts
-skipped lines or an app with a Brakeman settings file (`switched_off_by` in `adapters.json`), is not
+skipped lines (and, until 8 October 2026, an app with a Brakeman settings file: `switched_off_by` in `adapters.json`,
+which no entry uses now), is not
 credited, and the report says why in the gaps.
 
 The same measurement turned up a neighbor that is not fixed here: semgrep, by default, skips files
@@ -3719,6 +3721,18 @@ Tested with a real backend (`crates/sv-run/tests/install.rs`): a fixture that im
 shows the installed version, and reuses the download on a second run; without the step it fails, naming `six`. Six
 safeguards were broken in turn and each was caught, one of them only by the test with a real backend.
 
+**Only in Docker's own `python` and `node` images (8 October 2026).** The review of `sv` that day found the hole the
+record's "no package's own code runs" did not close: the `sh`, `pip`, or `npm` that run in the install container are
+the *image's*, and `image` is whatever `securevibe.toml` names. An app that named an image of its own had that image's
+code run with the internet, the owner's local network, and the container backend's bridge address reachable, which is
+what the fence exists to deny; the hardening (read-only, no capabilities, an empty environment) kept the host's files
+out of reach, not the network. Now `install::official_image` admits only Docker's own `python` or `node` images (with
+or without a tag, a digest, or Docker Hub's own prefix), and `plan` refuses any other image before the folder is looked
+at, naming the image and the route that stays: build the packages into your own image and leave `install` out. Those
+two images are also the only ones where the packages are sure to fit the interpreter the app then runs them with.
+Held by `the_install_runs_only_in_dockers_own_python_or_node_images` (`sv_run::install`), with nine names admitted
+and twelve refused, `--privileged` among them.
+
 ## Another user's records: lists, changes, deletions, and "checked in part" (ADR-053)
 
 V8.2.2 was *checked* when the second test user was refused one read of one record the first user made (gap analysis
@@ -6358,6 +6372,16 @@ Each guard was broken in turn and the tests rerun, nine ways, each caught: a fil
 following links, a report folder that is a link not refused, the folder made all at once, a link taken for a folder
 (caught only once the test required the refusal to say it was a link, since the next check refused it by luck),
 neither checked, the escaping doing nothing, a file name not escaped, and the invisible characters let through.
+
+**`sv review` too (8 October 2026).** The review of `sv` that day found the one writer left on a plain write:
+`sv review` put `securevibe.toml` and `security-notes.md` back with `std::fs::write`, which follows a link and
+truncates before it writes, so a link the app planted at either name had the file it pointed at replaced, and a run
+cut short left the manifest empty. It now looks at both names before it asks anything, refuses a link at either the
+way `sv notes` does, and writes each file under a new name renamed into place (`write_without_following`), so a
+link put there since the look is replaced rather than written through, and the file is whole or as it was. Held by
+`a_link_at_a_file_it_writes_is_refused_before_anything_is_asked` (`crates/sv-cli/tests/review_terminal.rs`),
+whose setup shows each link reads as the file it stands for, and whose last part shows a review without links still
+records.
 
 **Not done here.** The reports written to disk carry file names as they are: `report.html` escapes them as HTML, but
 `compliance.md` and `security.md` do not escape Markdown. Items 4 to 7 of the backlog entry stay open.
@@ -11022,6 +11046,37 @@ variable. Broken on purpose three ways: the guard left out and the count set to 
 `true` was not, and is not a break, since `true` turns on git's own built-in monitor, which runs no program the
 repository names. Not run with Semgrep or CodeQL themselves, which are not installed here.
 
+**The program itself (8 October 2026).** The review of `sv` that day found the hole one step earlier: an adapter's
+command is a plain name, a name is whatever `PATH` says, and the tools start in the app's folder with the owner's
+`PATH` passed on. `source .venv/bin/activate` in the app before `sv report --tools` puts the app's own
+`.venv/bin/bandit` first, and a relative entry (`.`, or an empty one between two colons) names whatever is in the
+folder a program starts in, which for the tools is the app's. Either way `sv` would have run a program the app's
+author put there, with the owner's rights, in place of the tool. Now `adapters::located` finds each program through
+`PATH` first, the way the system would, follows links, and refuses one that is inside the app or reachable only
+through a relative entry: the tool is reported as not run, saying which program and where, and what to do (install it
+outside the app; put its folder on `PATH` in full). Not even its version is asked. A program found nowhere is run by
+name as before, so a tool that is not installed still reads as not installed; on Windows, which finds programs
+through `PATHEXT` too, nothing changes. Held by `program_tests` (`PATH` given rather than read, so the process's
+own is untouched) and `a_program_inside_the_app_is_not_run_and_the_same_one_outside_is`, whose control runs the
+same script from outside the app. Broken on purpose (the inside-the-app judgment switched off): both caught.
+
+**Brakeman's settings file (8 October 2026).** The review of `sv` that day said the app's `config/brakeman.yml`,
+which Brakeman reads on its own, could name Ruby files for Brakeman to load (`additional_checks_path`), and rated it
+high. Tried with Brakeman 8.1.0 installed for the purpose: it could not. Brakeman has ignored that setting in a
+settings file since 3.6.2 (May 2017) unless asked with `--allow-check-paths-in-config`, and a planted check file
+that writes a mark was not loaded; the same file on the command line (`--add-checks-path`) was. So the finding was
+wrong as rated, and what stood was smaller: the file can still turn checks off (`skip_checks`) with no trace in the
+report, which is why a clean run was withheld whenever the app had one, and `-c /dev/null` had not helped because
+Brakeman takes the first settings *file* it finds, `-c`'s before the app's, and `/dev/null` is not a file. Now the
+entry passes `-c {config}`, a placeholder `sv` fills with an empty settings file (`--- {}`) written in the tool's
+private folder for the run, so Brakeman reads that and the app's not at all; `switched_off_by` is gone from the
+entry, and a clean run is credited whether or not the app has a settings file. Shown with the real Brakeman
+(`crates/sv-check/tests/brakeman_settings.rs`, which says so and checks nothing where Brakeman is not installed):
+the control run without `-c` over the fixture app with a planted `skip_checks: [CheckSQL]` reported no SQL
+injection, and the run through `sv` reported it. Shown without it by a stand-in that exits 9 unless its `-c`
+names a file outside the app holding exactly the empty settings (`a_tool_that_asks_for_a_settings_file_is_given_an_empty_one_of_svs_own`),
+with the control being the same tool asked without one.
+
 ## A lone `Pipfile.lock`, and requirements files under other names (6 October 2026)
 
 Deep review H9's last done note left two gaps open, and both are closed here.
@@ -12678,6 +12733,24 @@ ones not yet placed outside every number. Two sentences now follow the counted l
   - the wrong levels named for a level 1 app;
   - dropping either line from either format.
 
+### The short version opens with two bars (8 October 2026, ADR-057)
+
+The first step of the dashboard (`docs/DASHBOARD.md`). Under the worst findings, the short version of `report.html`
+now draws the requirements that apply as one bar, split by what stands behind each (needs attention, checked,
+checked in part, and so on to not verified), and under it a thinner bar of where every requirement `sv` knows went:
+apply, do not apply, could not be placed, above the level, and counted apart. The second is there because the owner
+asked to see how many do not apply; it is a bar of its own so that those are never drawn in among the evidence for
+the ones that do (`glance` in `crates/sv-report/src/html.rs`).
+
+Each part grows by its count, so the bars are to scale without a percentage anywhere, and a key under each gives
+every count in words; a part with nothing in it is left out of both. "Not verified" is striped in a color no checked
+or answered part uses. Like the rest of the page, the bars are markup and style alone: no script, nothing fetched.
+For the five example apps the second bar adds up to the 640 requirements `sv` loads. The tests hold the bars to
+the counts (to scale, every count in words, the parts adding up), "not verified" to its own color, the words to
+the short version's banned list, and the bars to their place before the tally; five deliberate breaks each failed
+at least one of them. At phone width the page still scrolls sideways, as it did before, because of the
+requirements table further down; the bars fit.
+
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
@@ -13014,3 +13087,93 @@ Tests: `a_condition_found_only_in_a_folder_set_apart_is_named_and_not_a_no` (`cr
 (`crates/sv-cli/tests/not_the_app.rs`). Four guards broken in turn, each caught: the scan still answering "no", the
 second look not taken, the start file not refused, and an entry naming the start file itself not counted as holding it.
 
+## Firebase rules and Supabase migrations are read (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.2; BACKLOG, item 10, its first two parts). An app built with Lovable,
+Bolt, and the like often has no server of its own between the browser and the database: the browser talks to Firebase
+or Supabase directly, and their rules are the whole of its access control. Nothing read them, so a test app with
+`allow read, write: if true;` and a table with no row-level security drew no finding.
+
+`crates/sv-check/src/hosted_rules.rs`, run with the configuration checks, finds three shapes, each high severity and
+citing V8.2.2 (data reached only by who may reach it) and V8.2.1. Each only ever finds: a file without them may still let
+one user reach another's data in a way a file cannot show, so a clean reading credits nothing.
+
+- **`config.firebase-rules-open`.** In a `.rules` file that names `service cloud.firestore` or `service
+  firebase.storage`, an `allow` with no condition, `if true`, or only the date Firebase's test mode writes
+  (`request.time < timestamp.date(...)`, which lets everybody in until that day). In a `database.rules.json`, a
+  `.read` or `.write` set to `true`. Comments are taken out first, so a rule written and commented out is not read.
+- **`config.supabase-table-without-rls`.** A table a migration under `supabase/migrations/` creates in the `public`
+  schema, for which no migration turns row-level security on (`enable` or `force`). A table in another schema
+  (`auth`, a `private` one) is not reached by the browser's key and is left alone, and so is SQL outside the migrations
+  folder: a Postgres app with its own server has no reason to use row-level security.
+- **`config.supabase-policy-allows-all`.** A policy for `all`, `insert`, `update`, or `delete` whose `using` or `with
+  check` is `(true)`, naming who it lets in (`anon`, `authenticated`). A policy that lets everybody read is left alone:
+  a public list is often meant to be one.
+
+Not done: a rule whose condition never mentions `request.auth` (a helper function defined elsewhere in the file can hold
+it, and guessing would mean false alarms), and grants to `anon` as such: on a table with row-level security the policies
+decide, and on one without it the table is already found. The other two parts of item 10, a secret key under a public
+name and a line in the run's summary, are still open.
+
+Tests: five in `hosted_rules.rs`, one of them through `config::check_dir`, the path `sv check` takes. Six guards broken
+in turn, each caught: the check not called, test mode's date not counted, comments read as rules, row-level security
+never seen, a public read policy counted, and tables in any schema counted.
+
+
+## A server's key under a name the browser is given (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.2; BACKLOG, item 10, its third part). Next.js, Vite, Expo, and Create
+React App copy every variable whose name starts `NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`, or `REACT_APP_` into the
+JavaScript each visitor downloads. That is how an app built with Lovable, Bolt, and the like gives the browser its
+Supabase address and public key, and it is easy to put the other key beside them: Supabase's service-role key, which
+passes every row-level security policy, or a Stripe or OpenAI secret key. The secrets scan finds a key by its shape or
+its name, and says it should not be in the code; it did not say that a key under such a name is in every visitor's page,
+wherever the file that holds it is kept, including a `.env` that is never committed.
+
+`crates/sv-check/src/public_keys.rs`, run with the configuration checks, adds `config.secret-under-public-name`: high
+severity, citing V13.3.1 (backend secrets kept where only the backend can reach them) and SBD-AC-05. Two things are read,
+and either is a finding, one for each name in a file, at its first line:
+
+- **A public name that says it holds a secret**, wherever it is written, since code that reads it puts it in the page:
+  `SERVICE_ROLE` in the name, or a word for a secret (`SECRET`, `PRIVATE`, `ADMIN`, `PASSWORD`) with a last word for a
+  key (`KEY`, `TOKEN`, `SECRET`, `PASSWORD`, `JWT`, `CREDENTIALS`). `NEXT_PUBLIC_ADMIN_EMAIL` is an address, and
+  `VITE_STRIPE_PUBLISHABLE_KEY` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are meant to be public. Medium confidence: the name
+  is what the app's author called it.
+- **A value given to any public name that is, by its shape, a key only a server holds:** a Supabase token whose `role`
+  is `service_role` (the token is decoded; an `anon` one is left alone), a Supabase `sb_secret_` key, a Stripe
+  `sk_` or `rk_` key, an OpenAI or Anthropic key, or a GitHub token, each with at least 16 characters after its prefix.
+  High confidence.
+
+The value is never quoted, not even its first four characters: the finding names the variable and the kind of key.
+Comment lines and prose files (`.md`, `.mdx`, `.txt`, `.rst`) are not read, so a README that warns against the name is not
+the app using it. It only ever finds: a public name that says nothing of a secret may still hold a key of a shape this
+does not know.
+
+Not done: the fourth part of item 10, a line in the run summary when the dependencies show Firebase or Supabase.
+
+Tests: four in `public_keys.rs`, one of them through `config::check_dir`; the keys in them are made at run time from
+pieces. Nine guards broken in turn, each caught: the check not called, no name counted as a secret, a secret word
+counted without a key word, any token's role counted, comments read, prose read, no value shapes, a name found twice
+in one file reported twice, and a placeholder as short as `sk-your-key` taken for a key.
+
+## A hosted backend is named as out of the running app's reach (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.2; BACKLOG, item 10, its fourth and last part). An app built with
+Lovable, Bolt, and the like often signs people in and keeps their data with Firebase or Supabase, reached from the
+browser. Behind the network fence the running app cannot reach either, so `sv run` asked it its questions and reported
+what it saw, and said nothing about the part of the app that decides who reads whose records.
+
+When the bill of materials shows a Firebase or Supabase package (`firebase`, `firebase-admin`, `@firebase/…`,
+`@react-native-firebase/…`, `supabase`, `@supabase/…`, and Dart's `firebase_…` and `supabase_…`, matched by name and
+never by a word inside one), `sv run`'s "Not assessed by these probes" and the report's gaps carry one more line, citing
+V8 and V6. It names the service and the package that shows it, says nothing signed in through the service or read or
+changed its data, and points to what `sv check` reads instead: Firebase's rules files, or the policies in
+`supabase/migrations/`. It is a gap, so it credits nothing and finds nothing.
+
+`probes::running_app_gaps` now makes the whole list, which `sv run` printed and the report built separately from the
+same three sources; one list means the two cannot drift apart.
+
+Tests: one in `probes.rs`. Five guards broken in turn, each caught: the line left out of the shared list, Supabase
+never recognized, Firebase never recognized, a package matched by a word inside its name (`supabase-mock`), and one
+service's rules named for the other. Not tested end to end: printing the line needs the app running, which needs a
+container backend this test suite does not have everywhere.
