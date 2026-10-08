@@ -316,6 +316,7 @@ another session is not a claim.
      `ast.cors-any-origin-with-credentials`, for CORS settings that accept every origin and send cookies too
      (flask-cors, Express's and Fastify's `cors`, Spring, ASP.NET Core; V3.4.2), only ever a finding. Read on `main`
      just before this claim: no other session had claimed it.
+     **CSRF protection switched off done the same day** (DESIGN, "Protection against forged requests switched off").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -500,6 +501,11 @@ another session is not a claim.
      both copies updated together; a version held to by its commit's own image; and `docker image prune` for the
      old ones. Breaks: the image renamed in step 1, the update's pull renamed, and the per-commit image no longer
      pushed by the workflow each failed `crates/sv-cli/tests/guide_update.rs`.
+     **(a) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-did-it-connect`: a "did it connect" step for every tool in the
+     guide, the one that works in any tool being to ask it to list the `securevibe_` tools it can call; and the
+     instruction to stop and say so when they are missing, in the prompt the guide gives and in the rules `sv rules`
+     writes into `AGENTS.md`, which a tool reads whether or not SecureVibe is connected.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
@@ -8166,6 +8172,11 @@ another session is not a claim.
      the pipeline's stages, the nine statuses in order (`sv-report/src/lib.rs:44-88`), the five rule mechanisms and
      where a new one goes, the four citation gates, the exit codes, and `data/README.md`. Held to files that exist,
      as `decision_records.rs` holds the records. **Claimed with items 1 to 4 by session securevibe-review.**
+     **Done the same day**: `docs/ARCHITECTURE.md` (the crates in the order a run passes through them, the stages
+     of `sv report`, the nine statuses, the five kinds of rule and the four citation gates, the exit codes, the MCP
+     server, the rules that hold everywhere, and where to look), held to files that exist by
+     `crates/sv-cli/tests/architecture_map.rs`; DESIGN.md's opening says it is the dated record and points here;
+     CLAUDE.md's layout line names it first.
   6. **One answer type for `send`.** The "a crash or a limiter is not an answer" rule exists in seven places with
      three definitions (`signed_in/mod.rs:1282`, `sessions.rs:274`, `fetch.rs:264`, `burst.rs:153`, `once.rs:118`,
      `ai.rs:1932`, `mcp_server.rs:199`, the last missing the 503-with-Retry-After case `rate_limited` knows), and the
