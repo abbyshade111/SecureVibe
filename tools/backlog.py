@@ -29,7 +29,8 @@ and no list of items: a list every item adds a line to would bring back the conf
     python3 tools/backlog.py --check                  # fails on a misnamed file, a missing title or status, two files with
                                                       # one title, or an item left in docs/BACKLOG.md
     python3 tools/backlog.py move FILE                # makes an item of each `- **title.**` entry of FILE, a backlog in the
-                                                      # old single-file layout, whose title is not an item yet
+                                                      # old single-file layout, whose title is not an item yet; an entry
+                                                      # that is an item with lines added has them carried into its file
     python3 tools/backlog.py --self-test
 
 An item may be named by its number or by its exact title. A branch written before the split conflicts in
@@ -39,8 +40,9 @@ docs/BACKLOG.md once it merges `main`. To mend it:
     git checkout MERGE_HEAD -- docs/BACKLOG.md             # main's rules and roadmap
     python3 tools/backlog.py move /tmp/old-backlog.md      # the branch's new items, as files
 
-An item the branch only edited (a claim or a done note inside it) is named by `move` and not written: carry the note
-into the item's file by hand and set its status line, since that is where the note now lives.
+An item the branch only added lines to (a claim or a done note inside it) has those lines carried into its file by
+`move`, which says so; set its status line, since that is where the note now lives. An item whose lines the branch
+changed is named and not written: carry the change by hand.
 """
 
 import datetime
@@ -209,23 +211,48 @@ def split_status(chunk):
     return "open"
 
 
+def carried(mine, theirs):
+    """The item's text with the lines `theirs` adds to `mine` added in place, when `theirs` is `mine` with lines
+    added and nothing else (a claim or a done note written inside the item on a branch); else None."""
+    import difflib
+    a, b = mine.strip("\n").split("\n"), theirs.strip("\n").split("\n")
+    out = []
+    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(None, a, b, autojunk=False).get_opcodes():
+        if tag == "equal":
+            out.extend(a[i1:i2])
+        elif tag == "insert":
+            out.extend(b[j1:j2])
+        else:
+            return None
+    return "\n".join(out)
+
+
 def move(source, folder):
-    """Makes an item of each entry of `source` (old layout) whose title is not an item yet. Returns (written,
-    differing): the paths written, and (title, path) for titles already items whose text differs."""
+    """Makes an item of each entry of `source` (old layout) whose title is not an item yet. An entry that is an item
+    already, and whose text is the item's with lines added (a note written inside it on a branch), has those lines
+    carried into the item's file, its status line left for a person. Returns (written, carried_into, differing): the
+    paths written, the paths lines were carried into, and (title, path) for titles whose text differs otherwise."""
     folder.mkdir(parents=True, exist_ok=True)
     known = {i.title: i for i in items(folder) if i.title}
     number = max((i.number for i in items(folder) if i.number), default=0)
-    written, differing = [], []
+    written, carried_into, differing = [], [], []
     for title, body, status in old_items(source.read_text(encoding="utf-8")):
         if title in known:
-            if known[title].body.strip() != body.strip():
-                differing.append((title, known[title].path))
+            item = known[title]
+            if item.body.strip() != body.strip():
+                merged = carried(item.body, body)
+                if merged is None:
+                    differing.append((title, item.path))
+                else:
+                    head = item.text[: len(item.text) - len(item.body)]
+                    item.path.write_text(head + "\n" + merged.strip("\n") + "\n", encoding="utf-8")
+                    carried_into.append(item.path)
             continue
         number += 1
         path = write(folder, number, title, status, body)
         known[title] = Item(path)
         written.append(path)
-    return written, differing
+    return written, carried_into, differing
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -309,12 +336,12 @@ rules
 
 - ~~**A struck item.**~~ **Done the same day.** It was.
 """, encoding="utf-8")
-        written, differing = move(old, folder)
+        written, carried_into, differing = move(old, folder)
         names = [p.name for p in written]
         assert names == ["0001-an-open-item.md", "0002-a-claimed-item.md", "0003-a-done-item.md", "0004-a-mixed-item.md",
                          "0005-decided-not-yet-written-down-as-adrs.md", "0006-a-decided-item.md",
                          "0007-a-struck-item.md"], names
-        assert differing == []
+        assert differing == [] and carried_into == []
         got = {i.title: i for i in items(folder)}
         assert got["An open item"].kind == "open"
         assert got["A claimed item"].kind == "claimed" and got["A claimed item"].sessions == ["alpha"], got["A claimed item"].status_text
@@ -326,18 +353,25 @@ rules
         assert got["A struck item"].kind == "done" and got["A struck item"].body.strip().startswith("**Done the same day.**")
         # The roadmap's numbered lines are not parts of anything, and the rules are not an item.
         assert "An open item" in got and len(got) == 7
-        # Moving again writes nothing; an item edited since is named, not overwritten.
-        assert move(old, folder) == ([], [])
-        old.write_text(old.read_text(encoding="utf-8").replace("Nothing has happened.", "Nothing has happened. **Done later.**")
+        # Moving again writes nothing; an item with lines added since has them carried in; one whose lines changed
+        # is named, not overwritten.
+        assert move(old, folder) == ([], [], [])
+        old.write_text(old.read_text(encoding="utf-8")
+                       .replace("Nothing has happened.", "Nothing has happened.\n  **Claimed later by session delta.**")
+                       .replace("A second line of it.", "A line that was rewritten.")
                        + "\n- **A new item.** New.\n", encoding="utf-8")
-        written, differing = move(old, folder)
+        written, carried_into, differing = move(old, folder)
         assert [p.name for p in written] == ["0008-a-new-item.md"], written
-        assert [t for t, _ in differing] == ["An open item"], differing
-        assert "Done later" not in got["An open item"].path.read_text(encoding="utf-8")
+        assert [p.name for p in carried_into] == ["0001-an-open-item.md"], carried_into
+        assert [t for t, _ in differing] == ["A done item"], differing
+        text = got["An open item"].path.read_text(encoding="utf-8")
+        assert "**Status:** open" in text and "Claimed later by session delta" in text, text
+        assert "rewritten" not in got["A done item"].path.read_text(encoding="utf-8")
+        assert carried("a\nb\n", "a\nx\nb\n") == "a\nx\nb" and carried("a\nb\n", "a\nc\n") is None
         # claim and done write the status line, and a claim refuses a held or done item.
         item = find(folder, "1")
         item.set_status("claimed by beta, 9 October 2026")
-        assert find(folder, "An open item").kind == "claimed" and find(folder, "0001").sessions == ["beta"]
+        assert find(folder, "An open item").kind == "claimed" and "beta" in find(folder, "0001").sessions
         assert claim(folder, "1", "gamma", "9 October 2026") is False
         assert claim(folder, "1", "beta", "9 October 2026") is True
         assert claim(folder, "3", "gamma", "9 October 2026") is False
@@ -439,9 +473,11 @@ def main(argv):
         print(find(FOLDER, a.args[0]).text)
         return 0
     if a.command == "move" and len(a.args) == 1:
-        written, differing = move(Path(a.args[0]), FOLDER)
+        written, carried_into, differing = move(Path(a.args[0]), FOLDER)
         for path in written:
             print(f"wrote {path.relative_to(ROOT)}")
+        for path in carried_into:
+            print(f"carried added lines into {path.relative_to(ROOT)}: read them, and set its status line")
         for title, path in differing:
             print(f"\"{title}\" is already {path.relative_to(ROOT)}, and its text differs: carry the change into "
                   f"that file by hand, and set its status line")
