@@ -32,6 +32,7 @@ cargo run -p sv-cli -- audit ./my-app --advisories ./osv   # against known vulne
 cargo run -p sv-cli -- report ./my-app   # the whole thing, written out to read and to keep
 cargo run -p sv-cli -- report ./my-app --advisories ./osv  # …with known vulnerabilities in it too
 cargo run -p sv-cli -- bundle ./my-app   # the app, its report and a SHA-256 for every file, in one zip beside the app
+cargo run -p sv-cli -- dashboard ./app-one ./app-two --out ~/sv-dashboard.html  # one page for several apps, from their reports
 cargo run -p sv-cli -- mcp --root ~/code  # serve the checks to your AI coding tool (see below)
 ```
 
