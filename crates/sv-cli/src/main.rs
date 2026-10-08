@@ -2401,25 +2401,30 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
 
     // No database is not a clean result, and must never be printed as one.
     let Some(dir) = advisories_dir else {
+        let mut names: Vec<&str> = sbom
+            .components
+            .iter()
+            .map(|c| c.ecosystem.as_str())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
         println!(
             "Not assessed: nothing here knows which versions are known to be vulnerable.\n\n\
              `sv` does not fetch anything — the list of packages this app depends on is yours, and a\n\
-             check that quietly phones out is one you did not agree to. Download an OSV export for the\n\
-             ecosystems below, unpack it, and point at it:\n\n  \
+             check that quietly phones out is one you did not agree to. Download the OSV export for\n\
+             each ecosystem below, unpack it, and point at it:\n\n  \
              sv audit {} --advisories ./osv\n\n\
-             Ecosystems in this app: {}",
+             Ecosystems in this app: {}\n\n{}",
             app_dir.display(),
-            if sbom.components.is_empty() {
+            if names.is_empty() {
                 "none found".to_owned()
             } else {
-                let mut names: Vec<&str> = sbom
-                    .components
-                    .iter()
-                    .map(|c| c.ecosystem.as_str())
-                    .collect();
-                names.sort_unstable();
-                names.dedup();
                 names.join(", ")
+            },
+            if names.is_empty() {
+                String::new()
+            } else {
+                advisories::how_to_download(&names, "osv")
             }
         );
         return Ok(exit::NOT_ASSESSED);
@@ -3581,8 +3586,23 @@ fn assemble_report_saying(
                 why: format!(
                     "{} `sv` does not fetch anything, because the list of packages an app depends \
                      on is yours: download an OSV export for this app's ecosystems, unpack it, and \
-                     pass its folder with --advisories.",
-                    options.why_no_advisories
+                     pass its folder with --advisories.{}",
+                    options.why_no_advisories,
+                    {
+                        let mut names: Vec<&str> = bill_of_materials
+                            .components
+                            .iter()
+                            .map(|c| c.ecosystem.as_str())
+                            .collect();
+                        names.sort_unstable();
+                        names.dedup();
+                        names
+                            .iter()
+                            .filter_map(|n| {
+                                advisories::osv_download(n).map(|url| format!(" {n}: {url}."))
+                            })
+                            .collect::<String>()
+                    }
                 ),
             })
         }
