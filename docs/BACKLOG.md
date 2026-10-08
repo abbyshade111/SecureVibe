@@ -317,6 +317,8 @@ another session is not a claim.
      (flask-cors, Express's and Fastify's `cors`, Spring, ASP.NET Core; V3.4.2), only ever a finding. Read on `main`
      just before this claim: no other session had claimed it.
      **CSRF protection switched off done the same day** (DESIGN, "Protection against forged requests switched off").
+     **CORS with any site and credentials done the same day** (DESIGN, "Cross-origin settings that let any site in with
+     credentials").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -346,6 +348,12 @@ another session is not a claim.
      for that same code in the answers to the reset requests themselves (body and headers). Found there, anybody can
      reset any account by asking; a finding citing V6.4.3, and its absence credits nothing. The code is never printed.
      Read on `main` just before this claim: no other session had claimed (d).
+     **(c), through sign-in, claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever
+     you're ready"), in branch `claude/securevibe-e9-signin-reveals`: two sign-ins with a wrong password for a real
+     account and one for an address with none, compared as the reset check compares its answers (status, then words
+     with what varies between identical requests set aside). A difference is a finding citing V6.3.8; none credits
+     nothing. Run just before the guessing check, and not judged when any answer was a rate limit. Sign-up's half of
+     (c) stays unclaimed. Read on `main` just before this claim: no other session had claimed (c).
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
