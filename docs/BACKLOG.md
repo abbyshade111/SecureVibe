@@ -117,6 +117,10 @@ another session is not a claim.
      reads the `report.json` already in each app's `securevibe-report` folder and writes one page, every app in
      alphabetical order with its own page beside it, made the way `report.html` is (no script, nothing fetched). It
      writes only the file it is told to, and never over a file it did not make. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "`sv dashboard`: one page for several apps"; ADR-057, Later): the command, the
+     guide's "All your apps on one page", and the README. Breaks: the apps left unsorted, an app's name not escaped,
+     the check for a place inside an app off, a file it did not make overwritten, the reports' own text not escaped,
+     and the counts not taken from the report, each failed a test.
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
