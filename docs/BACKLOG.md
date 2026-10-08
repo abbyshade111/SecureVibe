@@ -251,6 +251,11 @@ another session is not a claim.
      out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
      pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
      folder can be deleted.
+     **(f) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-init-redirect`: when `sv init`'s output goes straight into a
+     file, it prints only the starter `securevibe.toml`, which `sv` can read, and says on screen that the
+     instructions for the AI coding tool were left out and how to see them. Status: proposed, as a "Later" entry
+     on ADR-017 (what lands in the owner's folder), accepted in the pull request that builds it.
      **(c), its first two parts, claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please
      continue to work off the backlog"), in branch `claude/securevibe-e2-tools-on-screen`: `sv report --tools` says on
      screen which tools did not run and why, whatever its exit status, and the install hint reads as a sentence for
