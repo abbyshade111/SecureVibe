@@ -1415,6 +1415,57 @@
       }
     },
     {
+      "id": "ast.template-built-from-value",
+      "title": "A page template is built from a value",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.3.7"
+      ],
+      "cwe": [
+        "CWE-1336"
+      ],
+      "description": "The code makes a template from text that is not fixed in the code: an f-string, a joined string, or a value passed in, given to `render_template_string` or Jinja's `from_string` (Python), `ejs.render`, `Handlebars.compile`, `pug.render`, `_.template`, or `nunjucks.renderString` (JavaScript and TypeScript), `ERB.new` or `Liquid::Template.parse` (Ruby), Twig's `createTemplate` (PHP), or `Template.Parse` or `Handlebars.Compile` (C#).",
+      "impact": "A template is code. If any part of its text comes from a visitor, they can write template code of their own into it: in Jinja and ERB that runs on the server with the app's permissions, enough to read its secrets and its database.",
+      "fix": "Keep the template fixed and pass the value in as data: `render_template_string(\"Hello {{ name }}\", name=name)` rather than `render_template_string(f\"Hello {name}\")`, or better, a template file with `render_template`. If the template's text really must come from somewhere else, such as an administrator's settings, use a sandboxed engine (Jinja's `SandboxedEnvironment`, Liquid) and say so to whoever reads this finding.",
+      "literalArgumentIsSafe": true,
+      "findingsOnly": true,
+      "queries": {
+        "python": "(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list . (_) @arg)) @hit",
+        "javascript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn) arguments: (arguments . (_) @arg)) @hit",
+        "typescript": "(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn) arguments: (arguments . (_) @arg)) @hit",
+        "ruby": "(call receiver: [(constant) (scope_resolution)] @mod method: (identifier) @fn arguments: (argument_list . (_) @arg)) @hit",
+        "php": "(member_call_expression name: (name) @fn arguments: (arguments . (argument (_) @arg))) @hit",
+        "csharp": "(invocation_expression function: (member_access_expression expression: (identifier) @mod name: (identifier) @fn) arguments: (argument_list . (argument (_) @arg))) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(render_template_string|from_string)$",
+        "javascript": "^(render|compile|template|renderString)$",
+        "typescript": "^(render|compile|template|renderString)$",
+        "ruby": "^(new|parse)$",
+        "php": "^createTemplate$",
+        "csharp": "^(Parse|Compile)$"
+      },
+      "modulePatterns": {
+        "javascript": "^(ejs|Handlebars|handlebars|pug|_|lodash|nunjucks)$",
+        "typescript": "^(ejs|Handlebars|handlebars|pug|_|lodash|nunjucks)$",
+        "ruby": "^(ERB|Liquid::Template)$",
+        "csharp": "^(Template|Handlebars)$"
+      },
+      "looksFor": "a template made from text that is not fixed in the code: `render_template_string` and `from_string` (Python), `ejs.render`, `Handlebars.compile`, `pug.render`, `_.template`, and `nunjucks.renderString` (JavaScript, TypeScript), `ERB.new` and `Liquid::Template.parse` (Ruby), `createTemplate` (PHP), and `Template.Parse` and `Handlebars.Compile` (C#); a template read from a file, or built by a call not listed, is not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "go": "Go's `template.Parse` cannot be told from `url.Parse` and the other `Parse` methods by name in one file, and Go's templates run no code the app did not give them, so a template built from a value is not looked for.",
+        "java": "No call that builds a template from text is looked for in Java yet. A template read from the app's own files is not looked for in any language: only one made from text in the code, where the text can be told apart from a value.",
+        "kotlin": "No call that builds a template from text is looked for in Kotlin yet. A template read from the app's own files is not looked for in any language: only one made from text in the code, where the text can be told apart from a value.",
+        "rust": "No call that builds a template from text is looked for in Rust yet. A template read from the app's own files is not looked for in any language: only one made from text in the code, where the text can be told apart from a value.",
+        "dart": "No call that builds a template from text is looked for in Dart yet. A template read from the app's own files is not looked for in any language: only one made from text in the code, where the text can be told apart from a value.",
+        "swift": "No call that builds a template from text is looked for in Swift yet. A template read from the app's own files is not looked for in any language: only one made from text in the code, where the text can be told apart from a value.",
+        "c": "C has no common template engine this rule can speak to.",
+        "cpp": "C++ has no common template engine this rule can speak to.",
+        "shell": "Shell scripts build no page templates this rule can speak to."
+      }
+    },
+    {
       "id": "ast.token-key-source-from-token",
       "title": "A sign-in token is allowed to say where the key that checks it comes from",
       "severity": "high",

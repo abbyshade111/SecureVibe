@@ -294,6 +294,8 @@ another session is not a claim.
      for a template made from anything but fixed text (`render_template_string`, Jinja's `Template(...)` and
      `from_string`, and their like in other languages; V1.3.7), only ever a finding. Read on `main` just before this
      claim: no other session had claimed it.
+     **A template built from a value done the same day** (DESIGN, "A page template built from a value"); Jinja's bare
+     `Template(...)` is left out, since it cannot be told from Python's own `string.Template`.
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
