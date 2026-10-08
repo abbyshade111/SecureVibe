@@ -586,7 +586,7 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
     let stated = [Verified::new(
         "design.stated-by-ai",
         &["V2.2.2"],
-        "securevibe.toml: your AI coding tool answered yes.".to_owned(),
+        "stackvet.toml: your AI coding tool answered yes.".to_owned(),
     )];
     let all = tiered(&[(&stated, Tier::Stated)], &verified);
     let report = build(inputs(&f, &buckets, vec![], &all));
@@ -1537,7 +1537,7 @@ mod attested {
         Verified::new(
             "design.attested",
             &[id],
-            "securevibe.toml: you answered yes. This is your word about the app, not a check of it."
+            "stackvet.toml: you answered yes. This is your word about the app, not a check of it."
                 .to_owned(),
         )
     }
@@ -1631,7 +1631,7 @@ mod attested {
         Verified::new(
             "design.stated-by-ai",
             &[id],
-            "securevibe.toml: your AI coding tool answered yes. This is the word of the tool that \
+            "stackvet.toml: your AI coding tool answered yes. This is the word of the tool that \
              wrote the code, not a check of it."
                 .to_owned(),
         )
@@ -1705,7 +1705,7 @@ mod attested {
         Verified::new(
             "hand.checked",
             &[id],
-            "securevibe.toml: checked by hand by you on 2026-09-26: \"The padlock shows a trusted \
+            "stackvet.toml: checked by hand by you on 2026-09-26: \"The padlock shows a trusted \
              certificate.\" Nothing here repeated it."
                 .to_owned(),
         )
@@ -1972,7 +1972,7 @@ mod only_you {
     }
 
     fn by(check: &str, id: &str) -> Verified {
-        Verified::new(check, &[id], "securevibe.toml".to_owned())
+        Verified::new(check, &[id], "stackvet.toml".to_owned())
     }
 
     #[test]
@@ -2056,7 +2056,7 @@ mod only_you {
         let stated = [Verified::new(
             "design.stated-by-ai",
             &[ones[0]],
-            "securevibe.toml".to_owned(),
+            "stackvet.toml".to_owned(),
         )
         .resting_on(Tier::Stated)];
         let mut i = inputs(&f, &buckets, vec![], &stated);

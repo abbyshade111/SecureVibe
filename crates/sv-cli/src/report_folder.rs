@@ -56,6 +56,14 @@ pub(crate) fn write_report_folder(
         say(note);
     }
     let mut report = build()?;
+    // A manifest read under its old name is said at the terminal as the report says it (ADR-062).
+    if let Some(note) = sv_manifest::locate(app_dir)
+        .ok()
+        .flatten()
+        .and_then(|l| l.note())
+    {
+        say(&format!("Note: {note}"));
+    }
     if let Some((note, gap)) = report_lock::manifest_changed(&report, app_dir) {
         say(&note);
         report.gaps.push(gap);

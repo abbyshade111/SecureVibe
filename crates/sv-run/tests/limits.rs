@@ -10,7 +10,7 @@ use sv_run::{Backend, RunPlan, docker::DockerBackend};
 
 fn plan(test: &str) -> RunPlan {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/static-app");
-    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("fixture manifest");
+    let manifest = Manifest::load(&dir.join("stackvet.toml")).expect("fixture manifest");
     let mut plan = RunPlan::from_manifest(&manifest, &dir).expect("fixture declares how to run");
     plan.test = Some(test.to_owned());
     plan.test_limit = Duration::from_secs(4);

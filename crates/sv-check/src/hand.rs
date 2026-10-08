@@ -4,7 +4,7 @@
 //! theirs (`human-checks.json`): the certificate on the live site, whether being away signs you out,
 //! whether two people can book the same slot. No check here can make them, so the AI coding tool
 //! walks the owner through them (`sv questions`). Until 26 September 2026 what the owner saw was then
-//! lost. It is now recorded in the `[checked-by-hand]` section of securevibe.toml, as the owner agreed
+//! lost. It is now recorded in the `[checked-by-hand]` section of stackvet.toml, as the owner agreed
 //! the same day:
 //!
 //! ```toml
@@ -49,7 +49,7 @@ pub const RESULTS: [&str; 3] = [DONE, PROBLEM, NOT_YET];
 /// How long a check made by hand counts for. One number for all of them, at the owner's choice.
 pub const CURRENT_FOR_DAYS: u32 = 90;
 
-/// One check, as securevibe.toml gives it.
+/// One check, as stackvet.toml gives it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer {
     pub result: String,
@@ -157,7 +157,7 @@ pub fn evaluate(
         let who = if by_owner {
             "you"
         } else if unrecorded.is_some() {
-            "you (so securevibe.toml says; not recorded through `sv review`)"
+            "you (so stackvet.toml says; not recorded through `sv review`)"
         } else if answer.by.is_some() {
             "your AI coding tool"
         } else {
@@ -173,19 +173,19 @@ pub fn evaluate(
         }
         let scope = match (unrecorded, &answer.recorded) {
             (Some(why), _) => format!(
-                "securevibe.toml says you checked it by hand on {}: \"{how}\" But {why}, so it \
+                "stackvet.toml says you checked it by hand on {}: \"{how}\" But {why}, so it \
                  counts as your AI coding tool's word. If you made the check, run `sv review` in \
                  your own terminal to record it as yours. Nothing here repeated it.",
                 on.show()
             ),
             (None, Ok(sealed)) if by_owner => format!(
-                "securevibe.toml: checked by hand by you on {}{}: \"{how}\" Nothing here \
+                "stackvet.toml: checked by hand by you on {}{}: \"{how}\" Nothing here \
                  repeated it.",
                 on.show(),
                 crate::seal::recorded_where(sealed)
             ),
             _ => format!(
-                "securevibe.toml: checked by hand by {who} on {}: \"{how}\" Nothing here repeated \
+                "stackvet.toml: checked by hand by {who} on {}: \"{how}\" Nothing here repeated \
                  it.",
                 on.show()
             ),
@@ -222,7 +222,7 @@ fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> F
         severity: Severity::Medium,
         confidence: Confidence::High,
         location: Location {
-            file: "securevibe.toml".to_owned(),
+            file: "stackvet.toml".to_owned(),
             line: 1,
         },
         secret: None,

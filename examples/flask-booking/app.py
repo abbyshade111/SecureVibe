@@ -25,7 +25,7 @@ def import_appointments():
 
 @app.post("/appointments/<int:appointment_id>/pay")
 def pay(appointment_id: int):
-    # Added late, after the manifest was written. securevibe.toml still says payments = false.
+    # Added late, after the manifest was written. stackvet.toml still says payments = false.
     session = stripe.checkout.Session.create(
         mode="payment",
         line_items=[{"price": "price_consultation", "quantity": 1}],

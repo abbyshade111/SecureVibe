@@ -71,8 +71,8 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
     // Written now, so its modification day is today: confirmed today it holds, confirmed
     // yesterday it has changed since.
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
-    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
+    let example =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
     let mut manifest = std::fs::read_to_string(example).unwrap();
     assert!(
         !manifest.contains("[design]") && !manifest.contains("[checked-by-hand]"),
@@ -129,7 +129,7 @@ fn the_report_shows_each_confirmation_for_what_it_is() {
         d("V4.2.1", "owner", &today, "yes", None, None),
         sealed(&key, "checked-by-hand", "V12.2.2", "Sam Lee", &today, None, None, Some("done"), Some(hand_how)),
     ));
-    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &manifest).unwrap();
 
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))

@@ -8,7 +8,7 @@
 #
 # What is audited is what `sv` is built from: the workspace's Cargo.toml, Cargo.lock, and each crate's
 # Cargo.toml, copied to a folder of their own. Not the whole repository: `sv audit` counts everything in
-# a folder, the example apps and the test fixtures too (securevibe.toml's `not-the-app` changes where
+# a folder, the example apps and the test fixtures too (stackvet.toml's `not-the-app` changes where
 # they are listed, never whether they count), and some fixtures hold lockfiles that cannot be read on
 # purpose, so the whole repository can never be fully compared. Choosing the files here, in a file a
 # person reviews, is the deliberate version of that choice. The job fails on `sv audit`'s status: 1 for

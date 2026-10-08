@@ -216,7 +216,7 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
     if section.follows_redirects {
         say(
             "V15.3.2",
-            "securevibe.toml says following a redirect is what the feature is for, so whether it \
+            "stackvet.toml says following a redirect is what the feature is for, so whether it \
              does was not asked."
                 .to_owned(),
             &mut out,

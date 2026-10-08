@@ -176,7 +176,7 @@ impl CodingRules {
         if withheld > 0 {
             out.push_str(&format!(
                 "{withheld} more rule{} left out, because what {} about does not apply to this app \
-                 according to securevibe.toml.\n\n",
+                 according to stackvet.toml.\n\n",
                 if withheld == 1 { " is" } else { "s are" },
                 if withheld == 1 { "it is" } else { "they are" }
             ));

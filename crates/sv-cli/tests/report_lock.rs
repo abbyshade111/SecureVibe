@@ -23,7 +23,7 @@ fn app(name: &str, test: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("index.html"), "<p>hello</p>\n").unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n[app]\nname = \"Lock\"\n[stack]\nlanguages = []\n\
              [stack.run]\nimage = \"busybox:1.36\"\nstart = \"httpd -f -h /app -p $PORT\"\n\
@@ -87,7 +87,7 @@ fn wait_for_lock(folder: &Path, pid: u32, run: &mut Child) {
     panic!("the first run never took the folder");
 }
 
-/// Waits until the run has started its app container, by which time it has read securevibe.toml.
+/// Waits until the run has started its app container, by which time it has read stackvet.toml.
 fn wait_for_app(pid: u32) {
     let deadline = Instant::now() + Duration::from_secs(120);
     while Instant::now() < deadline {
@@ -175,7 +175,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_folder_and_the_first_finish
     }
     let dir = app("two", "test = \"sleep 20\"");
     let folder = dir.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
-    let toml_before = sha256_of(&dir.join("securevibe.toml"));
+    let toml_before = sha256_of(&dir.join("stackvet.toml"));
 
     let mut first = start(&["--run"], &dir);
     let pid = first.id();
@@ -215,16 +215,16 @@ fn a_second_run_is_refused_while_the_first_holds_the_folder_and_the_first_finish
     // its app is up, so the run has read the file before the change: a change before it read the file
     // is a change it checks.
     wait_for_app(pid);
-    let mut toml = std::fs::read_to_string(dir.join("securevibe.toml")).unwrap();
+    let mut toml = std::fs::read_to_string(dir.join("stackvet.toml")).unwrap();
     toml.push_str("# changed while the run went on\n");
-    std::fs::write(dir.join("securevibe.toml"), &toml).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &toml).unwrap();
 
     let status = wait_for_exit(&mut first, Duration::from_secs(300));
     let mut out = String::new();
     std::io::Read::read_to_string(first.stderr.as_mut().unwrap(), &mut out).unwrap();
     assert!(status.success(), "the first run finished: {out}");
     assert!(
-        out.contains("Note: securevibe.toml changed while this check ran"),
+        out.contains("Note: stackvet.toml changed while this check ran"),
         "{out}"
     );
     assert!(!folder.join(LOCK).exists(), "the first let the folder go");
@@ -242,7 +242,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_folder_and_the_first_finish
             .as_array()
             .unwrap()
             .iter()
-            .any(|g| g["what"] == "securevibe.toml as it is now"),
+            .any(|g| g["what"] == "stackvet.toml as it is now"),
         "the report says the file changed under it: {}",
         report["gaps"]
     );
@@ -252,7 +252,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_folder_and_the_first_finish
     assert!(third.status.success(), "{}", said(&third));
     assert_eq!(
         report_json(&folder)["run_record"]["securevibe_toml_sha256"],
-        sha256_of(&dir.join("securevibe.toml"))
+        sha256_of(&dir.join("stackvet.toml"))
     );
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -332,7 +332,7 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
     assert!(words.contains("a moment later"), "{words}");
     assert!(words.contains("kept the newer one"), "{words}");
     assert!(
-        words.contains("different versions of securevibe.toml"),
+        words.contains("different versions of stackvet.toml"),
         "{words}"
     );
     assert_eq!(
@@ -369,14 +369,14 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
 
 #[test]
 fn a_run_that_writes_no_report_leaves_the_folder_as_it_found_it() {
-    // A securevibe.toml that does not read: the run takes the folder, then fails.
+    // A stackvet.toml that does not read: the run takes the folder, then fails.
     let dir = app("failed", "");
     let folder = dir.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
-    std::fs::write(dir.join("securevibe.toml"), "manifest-version = [\n").unwrap();
+    std::fs::write(dir.join("stackvet.toml"), "manifest-version = [\n").unwrap();
     let failed = sv(&[], &dir);
     assert!(!failed.status.success(), "the setup: the run fails");
     assert!(
-        said(&failed).contains("securevibe.toml"),
+        said(&failed).contains("stackvet.toml"),
         "and fails reading the file: {}",
         said(&failed)
     );
@@ -387,7 +387,7 @@ fn a_run_that_writes_no_report_leaves_the_folder_as_it_found_it() {
     let kept = good.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     assert!(sv(&[], &good).status.success());
     let before = std::fs::read(kept.join("report.json")).unwrap();
-    std::fs::write(good.join("securevibe.toml"), "manifest-version = [\n").unwrap();
+    std::fs::write(good.join("stackvet.toml"), "manifest-version = [\n").unwrap();
     assert!(!sv(&[], &good).status.success());
     assert_eq!(std::fs::read(kept.join("report.json")).unwrap(), before);
     assert!(

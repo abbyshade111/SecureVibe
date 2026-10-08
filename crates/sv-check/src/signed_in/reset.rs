@@ -20,7 +20,7 @@ pub(super) fn reset_checks(
     let Some(reset) = &users.reset else {
         out.not_assessed.push((
             IDS.to_owned(),
-            "How a forgotten password is reset: securevibe.toml sets no `reset` under \
+            "How a forgotten password is reset: stackvet.toml sets no `reset` under \
              [stack.run.users]."
                 .to_owned(),
         ));
@@ -31,7 +31,7 @@ pub(super) fn reset_checks(
         Err(e) => {
             out.not_assessed.push((
                 IDS.to_owned(),
-                format!("`reset.code-pattern` in securevibe.toml cannot be used: {e}."),
+                format!("`reset.code-pattern` in stackvet.toml cannot be used: {e}."),
             ));
             return;
         }
@@ -137,7 +137,7 @@ pub(super) fn reset_checks(
             format!(
                 "Asked for a password reset, the app sent no email to {} at the run's mail server. \
                  The app is told where that is in SMTP_HOST and SMTP_PORT; check that it reads them, \
-                 and check `reset.request` in securevibe.toml.",
+                 and check `reset.request` in stackvet.toml.",
                 account.user
             ),
         ));
@@ -153,7 +153,7 @@ pub(super) fn reset_checks(
             IDS.to_owned(),
             format!(
                 "The reset email arrived and no code was found in it{}. Set `reset.code-pattern` in \
-                 securevibe.toml to a pattern whose first group is the code.",
+                 stackvet.toml to a pattern whose first group is the code.",
                 if reset.code_pattern.is_some() {
                     " with `reset.code-pattern`"
                 } else {
@@ -218,7 +218,7 @@ pub(super) fn reset_checks(
             format!(
                 "Using the code from the reset email through {} did not change the password: the \
                  new password did not sign in. Check `reset.use` and `reset.code-pattern` in \
-                 securevibe.toml. With no reset that works, a refused one shows nothing.",
+                 stackvet.toml. With no reset that works, a refused one shows nothing.",
                 reset.use_code.path
             ),
         ));

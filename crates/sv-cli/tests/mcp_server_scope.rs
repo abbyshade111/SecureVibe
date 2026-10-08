@@ -1,5 +1,5 @@
 //! An app that serves tools over MCP, and has no AI of its own, is asked the server's requirements
-//! of AISVS C10 — through the binary, from what `securevibe.toml` says.
+//! of AISVS C10 — through the binary, from what `stackvet.toml` says.
 
 use serde_json::Value;
 use std::process::Command;
@@ -8,7 +8,7 @@ fn report_for(tag: &str, manifest: &str) -> Value {
     let dir = std::env::temp_dir().join(format!("sv-mcp-server-{tag}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), manifest).unwrap();
     std::fs::write(dir.join("server.py"), "print('serving')\n").unwrap();
     let out = dir.join("report");
     let run = Command::new(env!("CARGO_BIN_EXE_sv"))

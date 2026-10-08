@@ -39,7 +39,7 @@ fn a_bare_manifest_leaves_the_pipeline_requirements_not_assessed() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"x\"\n",
     )
     .unwrap();

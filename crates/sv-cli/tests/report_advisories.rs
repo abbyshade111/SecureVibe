@@ -16,8 +16,7 @@ fn app(name: &str) -> PathBuf {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(dir.join("osv")).unwrap();
     let manifest = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../examples/tested-notes/securevibe.toml"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml"),
     )
     .unwrap();
     assert!(
@@ -25,7 +24,7 @@ fn app(name: &str) -> PathBuf {
         "the example grew a policy; merge rather than append"
     );
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!("{manifest}\n[policy]\nfix-within-days = {{ high = 30 }}\n"),
     )
     .unwrap();

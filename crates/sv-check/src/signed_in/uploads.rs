@@ -172,7 +172,7 @@ pub(super) fn refusal_stands(
 ///
 /// Every part of this establishes its own setup first. A refusal proves nothing unless an ordinary
 /// file of the same shape was accepted, so an ordinary GIF goes first and each later answer is read
-/// against it: if the app refuses everything, or the upload path is not what securevibe.toml says,
+/// against it: if the app refuses everything, or the upload path is not what stackvet.toml says,
 /// the questions are reported *not assessed* rather than passed.
 pub(super) fn upload_checks(
     http: &mut dyn Http,
@@ -204,7 +204,7 @@ pub(super) fn upload_checks(
             format!(
                 "An ordinary file was not accepted at {} ({}), so nothing here can tell a file \
                  refused for being wrong from one refused because the upload does not work as \
-                 securevibe.toml describes.",
+                 stackvet.toml describes.",
                 upload.path,
                 status(&accepted)
             ),
@@ -219,7 +219,7 @@ pub(super) fn upload_checks(
         None => out.not_assessed.push((
             "V5.2.1".to_owned(),
             "Whether the app refuses files that are too large: say the largest it should accept, \
-             as `max-bytes` under the `upload` entry in securevibe.toml, and this will send one \
+             as `max-bytes` under the `upload` entry in stackvet.toml, and this will send one \
              larger than that."
                 .to_owned(),
         )),
@@ -275,7 +275,7 @@ pub(super) fn upload_checks(
                     "A file larger than the stated limit was accepted",
                     Severity::Medium,
                     format!(
-                        "securevibe.toml says the app accepts at most {most} bytes. A file larger \
+                        "stackvet.toml says the app accepts at most {most} bytes. A file larger \
                          than that was accepted at {} ({}).",
                         upload.path,
                         status(&answer)
@@ -1208,7 +1208,7 @@ pub(super) fn client_side_validation_check(
             "V2.2.2".to_owned(),
             format!(
                 "The sign-up page at {} states no rule in its own HTML that this could break \
-                 (`maxlength` or `type=number` on a field securevibe.toml fills in), so there was \
+                 (`maxlength` or `type=number` on a field stackvet.toml fills in), so there was \
                  nothing to send against.",
                 signup.path
             ),
@@ -1794,7 +1794,7 @@ mod tests {
     #[test]
     fn an_upload_that_refuses_everything_answers_nothing() {
         // The setup-first rule, and the one that matters most here: an app whose upload path is not
-        // what securevibe.toml says refuses every file, and "refused" is what each of these checks
+        // what stackvet.toml says refuses every file, and "refused" is what each of these checks
         // is looking for. Without the ordinary file first, a broken upload would read as four
         // passes — the most flattering possible result for the least working app.
         let o = run_against(

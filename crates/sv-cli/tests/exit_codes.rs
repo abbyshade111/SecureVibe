@@ -45,7 +45,7 @@ const MANIFEST: &str = "manifest-version = 1\n[app]\nname = \"Exit codes\"\naudi
 fn app(root: &Path, extra: &[(&str, &str)]) -> PathBuf {
     let app = root.join("app");
     std::fs::create_dir_all(&app).unwrap();
-    std::fs::write(app.join("securevibe.toml"), MANIFEST).unwrap();
+    std::fs::write(app.join("stackvet.toml"), MANIFEST).unwrap();
     std::fs::write(app.join("app.py"), "def hello():\n    return 'hello'\n").unwrap();
     for (name, text) in extra {
         std::fs::write(app.join(name), text).unwrap();
@@ -116,10 +116,10 @@ fn check_exits_2_when_a_check_could_not_run_or_nothing_was_read() {
         &[("broken.py", "def (:\n  return ]]\n")],
     );
     let (broken_code, broken_said) = sv(&["check", s(&broken)]);
-    // A folder holding nothing but securevibe.toml, and one holding nothing.
+    // A folder holding nothing but stackvet.toml, and one holding nothing.
     let only = root.join("only");
     std::fs::create_dir_all(&only).unwrap();
-    std::fs::write(only.join("securevibe.toml"), MANIFEST).unwrap();
+    std::fs::write(only.join("stackvet.toml"), MANIFEST).unwrap();
     let (only_code, only_said) = sv(&["check", s(&only)]);
     let empty = root.join("empty");
     std::fs::create_dir_all(&empty).unwrap();
@@ -257,18 +257,18 @@ fn check_exits_3_when_sv_itself_fails() {
 
 #[test]
 fn check_reads_securevibe_toml_when_it_is_there_and_stops_on_one_it_cannot_read() {
-    // Gap analysis 5.1: a broken securevibe.toml finished with 0 at a terminal, while `sv report`
+    // Gap analysis 5.1: a broken stackvet.toml finished with 0 at a terminal, while `sv report`
     // and securevibe_check refused it. Both of the gap analysis's own examples: bad syntax, and a
     // section misspelt.
     let root = root("check-manifest");
     let app = app(&root, &[("tool.py", "x = 1\n")]);
     let (good, good_said) = sv(&["check", s(&app)]);
-    std::fs::remove_file(app.join("securevibe.toml")).unwrap();
+    std::fs::remove_file(app.join("stackvet.toml")).unwrap();
     let (none, none_said) = sv(&["check", s(&app)]);
-    std::fs::write(app.join("securevibe.toml"), "auth = = true\n").unwrap();
+    std::fs::write(app.join("stackvet.toml"), "auth = = true\n").unwrap();
     let (syntax, syntax_said) = sv(&["check", s(&app)]);
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         format!("{MANIFEST}\n[capabilitys]\nauth = true\n"),
     )
     .unwrap();
@@ -276,14 +276,10 @@ fn check_reads_securevibe_toml_when_it_is_there_and_stops_on_one_it_cannot_read(
     std::fs::remove_dir_all(&root).ok();
 
     assert_eq!(good, Some(0), "{good_said}");
-    assert_eq!(
-        none,
-        Some(0),
-        "no securevibe.toml is fine here: {none_said}"
-    );
+    assert_eq!(none, Some(0), "no stackvet.toml is fine here: {none_said}");
     for (code, said) in [(syntax, &syntax_said), (misspelt, &misspelt_said)] {
         assert_eq!(code, Some(3), "{said}");
-        assert!(said.contains("securevibe.toml"), "{said}");
+        assert!(said.contains("stackvet.toml"), "{said}");
         assert!(!said.contains("Read 1 file"), "the scan ran anyway: {said}");
     }
 }
@@ -310,7 +306,7 @@ fn report_exits_0_1_and_2_as_check_does() {
         "--fail-on",
         "attention:critical",
     ]);
-    // --run asked for, and securevibe.toml says nothing of how to start the app.
+    // --run asked for, and stackvet.toml says nothing of how to start the app.
     let (not_started, not_started_said) =
         sv(&["report", s(&app), "--out", s(&out("run")), "--run"]);
     std::fs::write(app.join("view.m"), "int main(void) { return 0; }\n").unwrap();
@@ -345,13 +341,13 @@ fn report_exits_3_with_no_manifest_a_broken_one_or_no_folder() {
     std::fs::create_dir_all(&bare).unwrap();
     std::fs::write(bare.join("app.py"), "x = 1\n").unwrap();
     let (none, none_said) = sv(&["report", s(&bare), "--out", s(&root.join("o1"))]);
-    std::fs::write(bare.join("securevibe.toml"), "manifest-version = [\n").unwrap();
+    std::fs::write(bare.join("stackvet.toml"), "manifest-version = [\n").unwrap();
     let (broken, broken_said) = sv(&["report", s(&bare), "--out", s(&root.join("o2"))]);
     let (missing, missing_said) = sv(&["report", s(&root.join("not-there"))]);
     std::fs::remove_dir_all(&root).ok();
 
     assert_eq!(none, Some(3), "{none_said}");
-    assert!(none_said.contains("no securevibe.toml"), "{none_said}");
+    assert!(none_said.contains("no stackvet.toml"), "{none_said}");
     assert_eq!(broken, Some(3), "{broken_said}");
     assert!(
         broken_said.starts_with("Error:") || broken_said.contains("\nError:"),
@@ -388,7 +384,7 @@ fn npm_app(root: &Path, packages: &[(&str, &str)], manifest: &str) -> (PathBuf, 
         ),
     )
     .unwrap();
-    std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), manifest).unwrap();
     std::fs::create_dir_all(&osv).unwrap();
     std::fs::write(
         osv.join("GHSA-qs.json"),
@@ -412,7 +408,7 @@ fn audit_keeps_0_1_and_2_and_its_errors_are_now_3() {
     let (dir2, osv2) = npm_app(&root.join("vulnerable"), &[("qs", "6.5.0")], NPM);
     let (found, found_said) = sv(&["audit", s(&dir2), "--advisories", s(&osv2)]);
     // What `sv` itself could not get past, which used to be 1 and read as a vulnerability.
-    std::fs::write(dir.join("securevibe.toml"), "manifest-version = [\n").unwrap();
+    std::fs::write(dir.join("stackvet.toml"), "manifest-version = [\n").unwrap();
     let (bad_manifest, bad_manifest_said) = sv(&["audit", s(&dir), "--advisories", s(&osv)]);
     let (missing, missing_said) = sv(&["audit", s(&root.join("not-there"))]);
     let (no_such_database, no_such_said) =

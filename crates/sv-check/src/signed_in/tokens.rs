@@ -680,7 +680,7 @@ mod tests {
         }
     }
 
-    /// securevibe.toml for an app that signs in through JSON and answers with a token.
+    /// stackvet.toml for an app that signs in through JSON and answers with a token.
     fn bearer_users() -> UsersSection {
         let mut u = users();
         u.login = Some(RequestTemplate {

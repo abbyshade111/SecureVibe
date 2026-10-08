@@ -12,7 +12,7 @@ fn an_app_that_uses_ai_gets_the_reviewer_s_atlas_table() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"x\"\n[capabilities.ai]\nenabled = true\n",
     )
     .unwrap();

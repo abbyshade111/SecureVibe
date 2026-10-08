@@ -15,7 +15,7 @@ to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --ne
 - `securevibe_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
 - `securevibe_check` ran the committed-secrets check and found the `.env`. **This is asserted before
   anything is compared.** The first local test compared the image with the native `sv` on an app with
-  no securevibe.toml: neither ran the check, "no answer" matched "no answer", and the control passed
+  no stackvet.toml: neither ran the check, "no answer" matched "no answer", and the control passed
   while proving nothing;
 - the same, run as root against a folder root does not own, which is what `safe.directory` is for:
   git refuses such a repository, and the check would then quietly be not assessed;

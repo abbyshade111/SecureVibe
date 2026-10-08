@@ -547,7 +547,7 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
             "Read the test and the requirement side by side. If they do match, nothing needs doing \
               — about a third of these are honest tests written in different words, which is why \
               this does not take the credit away. Recording it as a false alarm in \
-              securevibe.toml, to stop seeing it, leaves the credit standing too."
+              stackvet.toml, to stop seeing it, leaves the credit standing too."
                 .into(),
     })
 }

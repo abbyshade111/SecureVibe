@@ -2,7 +2,7 @@
 //!
 //! The probes in `probes.rs` sign in as nobody, so authorization, sessions and request forgery were
 //! always *not assessed*. This asks as two ordinary users, A and B — and an admin, when the app's
-//! `seed` command makes one — using what `[stack.run.users]` in securevibe.toml says about how to sign
+//! `seed` command makes one — using what `[stack.run.users]` in stackvet.toml says about how to sign
 //! up, sign in and out, and which pages and records belong to whom.
 //!
 //! # Every check establishes its own setup first
@@ -22,7 +22,7 @@
 //! # Where each check lives
 //!
 //! This file holds what every check shares: sessions and cookies, anti-forgery tokens, requests
-//! filled from securevibe.toml's templates, signing in and up, and `run_with`, which calls each
+//! filled from stackvet.toml's templates, signing in and up, and `run_with`, which calls each
 //! area's checks in turn. The rules each check can raise are in `rules.rs`. The checks themselves:
 //!
 //! - `signin.rs`: wrong-password limits (V6.3.1), `X-Forwarded-For`, default accounts, a password in
@@ -167,7 +167,7 @@ pub struct Accounts {
     /// Random hex, at least 32 characters, for the passwords the password checks sign up with.
     /// Made with the accounts so every run's are different and none can be guessed from the code.
     pub spare: String,
-    /// A third account with two-factor sign-in, when securevibe.toml has a `totp` entry and a
+    /// A third account with two-factor sign-in, when stackvet.toml has a `totp` entry and a
     /// `seed` to enroll it. Never A or B: they have to keep signing in with a password alone.
     pub totp: Option<TotpAccount>,
     /// A secret for the admin's own two-factor sign-in, made with the accounts when there is an
@@ -652,7 +652,7 @@ pub(crate) struct SignedIn {
     pub(crate) landed: String,
     /// Whether the sign-in was answered by the app's rate limiter, after the wait [`Patient`] gives
     /// it: the limit on sign-in attempts refused `sv`, so nothing about the session says anything
-    /// about the app's checks or securevibe.toml.
+    /// about the app's checks or stackvet.toml.
     pub(crate) limited: bool,
 }
 
@@ -786,7 +786,7 @@ fn sign_in_limit_says(refused: &[String]) -> String {
     format!(
         "The app's limit on sign-in attempts refused `sv`'s own sign-in ({}) even after `sv` \
          waited as the app asked. That is the limit working, not the app failing these checks, and \
-         not a mistake in securevibe.toml: the checks that needed that sign-in were not run, or \
+         not a mistake in stackvet.toml: the checks that needed that sign-in were not run, or \
          not credited. `sv` signs in up to {SIGN_INS_IN_A_RUN} times in one run, all from one \
          address, before the password-guessing check's wrong passwords at the end. Let the copy \
          of the app `sv` runs allow that many (for example, through a setting only the test copy \
@@ -813,7 +813,7 @@ fn limit_gap_names(withheld: &[&str], refused: &[String]) -> String {
     }
 }
 
-/// Everything the signed-in probes can ask, given what securevibe.toml says.
+/// Everything the signed-in probes can ask, given what stackvet.toml says.
 ///
 /// `seeded` says whether `seed` already made the accounts; when it did not, they are made through the
 /// app's own sign-up.
@@ -1626,7 +1626,7 @@ fn run_checks(
         out.not_assessed.push((
             "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V14.3.2, V7.4.4".to_owned(),
             format!(
-                "[stack.run.users] in securevibe.toml cannot be used: {}.",
+                "[stack.run.users] in stackvet.toml cannot be used: {}.",
                 problems.join("; ")
             ),
         ));
@@ -1703,7 +1703,7 @@ fn run_checks(
                  does: the app's page shell, which a single-page app sends everybody and fills in \
                  the browser. Whether the page is private is decided by what the browser fetches \
                  next. List those addresses (`/api/me`, for example) under `private` in \
-                 securevibe.toml, and they are asked instead.",
+                 stackvet.toml, and they are asked instead.",
                 shells.join(", ")
             ),
         ));
@@ -1755,7 +1755,7 @@ fn run_checks(
             NEEDS_A_SESSION.to_owned(),
             format!(
                 "Signing in as the first test user did not open {} — the sign-in request, the \
-                 accounts, or the page is not what securevibe.toml says — so nothing here can say \
+                 accounts, or the page is not what stackvet.toml says — so nothing here can say \
                  what a signed-in user can do.",
                 confirm_path.as_deref().unwrap_or("")
             ),
@@ -1894,7 +1894,7 @@ fn run_checks(
         private_page_checks(http, users, &a, &mut out)
     );
 
-    // 5b. The same pages drawn in a real browser, when securevibe.toml asks for one, with A's
+    // 5b. The same pages drawn in a real browser, when stackvet.toml asks for one, with A's
     //     cookies: whether the way out can be seen, and whether text typed into a form comes back
     //     as text. Here for the same reason as step 5, and it signs nobody else in.
     asked!(
@@ -3205,7 +3205,7 @@ mod rate_limit_tests {
         assert!(
             !o.not_assessed
                 .iter()
-                .any(|(_, why)| why.contains("not what securevibe.toml says")),
+                .any(|(_, why)| why.contains("not what stackvet.toml says")),
             "{:?}",
             o.not_assessed
         );
@@ -3226,7 +3226,7 @@ mod rate_limit_tests {
         assert!(
             o.not_assessed
                 .iter()
-                .any(|(_, why)| why.contains("not what securevibe.toml says")),
+                .any(|(_, why)| why.contains("not what stackvet.toml says")),
             "{:?}",
             o.not_assessed
         );
@@ -3589,7 +3589,7 @@ mod crash_tests {
         }
     }
 
-    /// One fixture: the app's flaws, what securevibe.toml says, and how the run is made.
+    /// One fixture: the app's flaws, what stackvet.toml says, and how the run is made.
     struct Scenario {
         name: &'static str,
         flaws: Flaws,

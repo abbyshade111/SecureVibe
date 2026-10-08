@@ -160,7 +160,7 @@ impl Install {
 ///
 /// The install container is the one part of a run with a way out to the internet, and what runs
 /// in it is the image's own `sh`, `pip`, or `npm`. In Docker's own images those are known; in an
-/// image `securevibe.toml` names from anywhere else they are whatever its author put there, and
+/// image `stackvet.toml` names from anywhere else they are whatever its author put there, and
 /// the step would run that author's code with the network open, which is what the fence exists to
 /// prevent (the review of 8 October 2026, item 1; ADR-052, Later). The two images are also the
 /// only ones where the packages are sure to fit the interpreter the app then runs them with.
@@ -198,7 +198,7 @@ pub fn official_image(image: &str) -> bool {
 pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
     if !official_image(image) {
         return Err(format!(
-            "the install runs in the image securevibe.toml names, with a way out to the internet, \
+            "the install runs in the image stackvet.toml names, with a way out to the internet, \
              and `sv` does that only in one of Docker's own `python` or `node` images (such as \
              `python:3.12-slim` or `node:22-alpine`), whose `sh`, `pip`, and `npm` are known. This \
              app names `{image}`, and in an image of someone else's those could be anything. Name \

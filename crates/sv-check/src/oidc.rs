@@ -22,7 +22,7 @@
 //!
 //! V10.5.2 is asked by sending two identities that are each correct: a different person who shares
 //! the first one's email address, and the first person after their email address changed. When
-//! securevibe.toml says how to save something as the signed-in person (`create`), what the first
+//! stackvet.toml says how to save something as the signed-in person (`create`), what the first
 //! person saved shows whose account each sign-in reached.
 
 use crate::finding::Severity;
@@ -574,7 +574,7 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
                 "The app signed the probes in when {} named another provider. That is the defense \
                  V10.2.2 asks for against mix-up attacks, which matter only to an app that signs in \
                  through more than one provider; with one, only that provider can sign its tokens. \
-                 securevibe.toml does not say how many the app uses, so this is not called a \
+                 stackvet.toml does not say how many the app uses, so this is not called a \
                  finding.",
                 took.join(" and when ")
             ),
@@ -1329,7 +1329,7 @@ mod tests {
 
     #[test]
     fn a_wrong_issuer_taken_is_said_and_never_a_finding() {
-        // Mix-up attacks need a second provider, and securevibe.toml does not say whether there is
+        // Mix-up attacks need a second provider, and stackvet.toml does not say whether there is
         // one, so an app that ignores the issuer is not accused of anything; it is not credited.
         for (flaws, says) in [
             (

@@ -521,7 +521,7 @@ fn a_part_nobody_answered_for_is_named_with_the_question() {
     let report = report_with_threats(vec![]);
     let md = sv_report::markdown::compliance(&report);
     assert!(
-        md.contains("The AI model (not known: securevibe.toml does not answer `ai`)"),
+        md.contains("The AI model (not known: stackvet.toml does not answer `ai`)"),
         "{md}"
     );
     // Uploads were answered no, so their part is not listed at all.

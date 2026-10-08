@@ -154,9 +154,9 @@ impl Server {
             .and_then(Value::as_str)
             .context("securevibe_before needs `feature`")?;
         crate::brief::Features::load(&crate::feature_briefs_path())?.get(feature)?;
-        // Before securevibe.toml is written, the brief gives what does not wait for it, rather
+        // Before stackvet.toml is written, the brief gives what does not wait for it, rather
         // than refusing: builders ask for it first (the backlog, the delivery test of 6 October).
-        let brief = if app_dir.join("securevibe.toml").exists() {
+        let brief = if sv_manifest::locate(&app_dir)?.is_some() {
             let report = self.report_for(&app_dir, progress)?;
             crate::brief_for(&report, feature, &self.loaded)?
         } else {
@@ -187,7 +187,7 @@ impl Server {
     }
 
     /// The rules to follow while writing the app, for all of it or one topic, from OWASP AISVS
-    /// Appendix C, with its attribution and license. Reads nothing but securevibe.toml and the app's
+    /// Appendix C, with its attribution and license. Reads nothing but stackvet.toml and the app's
     /// files to leave out rules that do not apply, and changes nothing.
     pub(super) fn guidance(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
@@ -235,7 +235,7 @@ impl Server {
         }
         if topic.is_some() && given.is_empty() {
             text = format!(
-                "No rule on that topic applies to this app, according to securevibe.toml.\n\n{}\n",
+                "No rule on that topic applies to this app, according to stackvet.toml.\n\n{}\n",
                 found.rules.credit()
             );
         }

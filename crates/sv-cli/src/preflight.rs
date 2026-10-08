@@ -91,7 +91,7 @@ fn app(text: impl Into<String>) -> Part {
 }
 
 /// The app's files that are read: text the app is made of, leaving out what only describes it
-/// (`securevibe.toml`, the security notes, Markdown and plain text), where a path or a variable named
+/// (`stackvet.toml`, the security notes, Markdown and plain text), where a path or a variable named
 /// in prose would read as found.
 pub struct Source {
     pub files: Vec<(String, String)>,
@@ -107,7 +107,8 @@ impl Source {
         let mut unread = Vec::new();
         for entry in listing.app_files() {
             let name = entry.file_name();
-            if name == "securevibe.toml"
+            if name == sv_frameworks::names::MANIFEST
+                || name == sv_frameworks::names::OLD_MANIFEST
                 || entry
                     .extension
                     .as_deref()
@@ -624,12 +625,15 @@ pub type Found = (Vec<Item>, Vec<Item>, Vec<String>);
 
 /// The preflight of the app in `app_dir`.
 pub fn of(app_dir: &Path) -> anyhow::Result<Found> {
-    let manifest_path = app_dir.join("securevibe.toml");
-    anyhow::ensure!(
-        manifest_path.exists(),
-        "no securevibe.toml in {}: write it first (`sv init` gives the spec), and the preflight reads what its [stack.run] asks for",
-        app_dir.display()
-    );
+    let manifest_path = sv_manifest::locate(app_dir)?
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "no {} in {}: write it first (`sv init` gives the spec), and the preflight reads what its [stack.run] asks for",
+                sv_frameworks::names::MANIFEST,
+                app_dir.display()
+            )
+        })?
+        .path;
     let manifest = Manifest::load(&manifest_path)?;
     let source = Source::of(&Listing::of(app_dir));
     let mut items = preflight(&manifest, &source);
@@ -811,7 +815,7 @@ mod tests {
 
     fn manifest(run: &str) -> Manifest {
         let text = format!("manifest-version = 1\n[app]\nname = \"t\"\n{run}");
-        Manifest::parse(&text, Path::new("securevibe.toml")).expect("the test's manifest parses")
+        Manifest::parse(&text, Path::new("stackvet.toml")).expect("the test's manifest parses")
     }
 
     const RUN: &str = "[stack.run]\nimage = \"python:3.12-slim\"\nstart = \"python app.py\"\nhealth = \"/health\"\n[stack.run.users]\nseed = \"python seed.py\"\nlogin = { path = \"/login\", form = { email = \"{user}\", password = \"{password}\", csrf_token = \"{csrf}\" } }\nprivate = [\"/account\"]\nadmin = [\"/admin\"]\n";
@@ -843,7 +847,7 @@ mod tests {
         std::fs::remove_dir_all(&dir).ok();
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
-            dir.join("securevibe.toml"),
+            dir.join("stackvet.toml"),
             format!("manifest-version = 1\n[app]\nname = \"t\"\n{run}"),
         )
         .unwrap();
@@ -1170,7 +1174,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
-            dir.join("securevibe.toml"),
+            dir.join("stackvet.toml"),
             format!("manifest-version = 1\n[app]\nname = \"t\"\n{RUN}"),
         )
         .unwrap();

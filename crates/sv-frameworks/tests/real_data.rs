@@ -337,7 +337,7 @@ fn the_most_specific_scope_wins() {
 
 #[test]
 fn a_partly_answered_app_leaves_the_technology_questions_not_assessed() {
-    // The realistic case, and the one the CLI actually runs: securevibe.toml answers every claim,
+    // The realistic case, and the one the CLI actually runs: stackvet.toml answers every claim,
     // and nothing yet reads the dependency manifests, so the technology conditions stay unknown.
     // Those requirements must land in not-assessed and must not appear among the exclusions.
     let config = v2_config();
@@ -425,7 +425,7 @@ fn every_requirement_lands_in_exactly_one_bucket() {
 
 #[test]
 fn the_conditions_that_gate_nothing_are_exactly_the_ones_we_think() {
-    // Conditions asked about in securevibe.toml that no rule in the data keys on. That is worth
+    // Conditions asked about in stackvet.toml that no rule in the data keys on. That is worth
     // pinning: it is surprising, `sv` tells the owner about it, and if a future data update gives
     // one of them a rule, or takes a rule away from something else, somebody should have to notice.
     //

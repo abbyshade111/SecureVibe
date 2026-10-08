@@ -12,14 +12,14 @@ fn sv(args: &[&str]) -> std::process::Output {
         .expect("sv runs")
 }
 
-/// A folder holding only a brief: the `tested-notes` example's securevibe.toml.
+/// A folder holding only a brief: the `tested-notes` example's stackvet.toml.
 fn brief_only(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sv-plan-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
-    std::fs::copy(manifest, dir.join("securevibe.toml")).unwrap();
+    let manifest =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
+    std::fs::copy(manifest, dir.join("stackvet.toml")).unwrap();
     dir
 }
 
@@ -141,7 +141,7 @@ fn a_folder_with_no_brief_is_told_to_write_one() {
     assert!(!out.status.success());
     let said = String::from_utf8_lossy(&out.stderr);
     assert!(
-        said.contains("no securevibe.toml") && said.contains("sv init"),
+        said.contains("no stackvet.toml") && said.contains("sv init"),
         "{said}"
     );
 }

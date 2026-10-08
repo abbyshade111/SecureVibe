@@ -20,7 +20,7 @@ fn a_finding_inside_a_rust_test_module_is_listed_apart_and_still_counts() {
     std::fs::create_dir_all(app.join("src")).unwrap();
     std::fs::write(app.join("src/lib.rs"), LIB).unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Hashes\"\n[stack]\nlanguages = [\"rust\"]\n",
     )
     .unwrap();
@@ -104,7 +104,7 @@ fn a_password_in_a_test_file_is_reported_apart_and_a_stored_hash_not_at_all() {
     )
     .unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Logins\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();

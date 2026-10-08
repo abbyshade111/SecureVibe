@@ -72,7 +72,7 @@ pub(super) fn totp_checks(
     let Some(totp) = &accounts.totp else {
         out.not_assessed.push((
             IDS.to_owned(),
-            "`totp` is set in securevibe.toml, but only `seed` can enroll an account in two-factor \
+            "`totp` is set in stackvet.toml, but only `seed` can enroll an account in two-factor \
              sign-in, and there is no `seed`."
                 .to_owned(),
         ));
@@ -146,7 +146,7 @@ pub(super) fn totp_checks(
                     format!(
                         "The current code for the secret `seed` was given did not sign the \
                          two-factor account in through {}, so a refused code shows nothing. Check \
-                         `totp` in securevibe.toml, and that `seed` enrolled the account with \
+                         `totp` in stackvet.toml, and that `seed` enrolled the account with \
                          SV_TOTP_SECRET.",
                         entry.path
                     )

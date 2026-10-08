@@ -22,7 +22,7 @@ fn app(name: &str, not_the_app: &str) -> PathBuf {
     )
     .unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n[app]\nname = \"Shop\"\n[stack]\nlanguages = [\"python\"]\n\
              [capabilities]\nauth = false\n[repository]\n{not_the_app}\n"
@@ -66,7 +66,7 @@ fn report(app: &Path) -> (String, String) {
     )
 }
 
-const OVERRULED: &str = "securevibe.toml says auth is not used, but `flask-login`";
+const OVERRULED: &str = "stackvet.toml says auth is not used, but `flask-login`";
 
 #[test]
 fn an_example_app_cannot_overrule_the_manifest_once_it_is_named() {
@@ -241,7 +241,7 @@ fn what_only_a_folder_set_apart_shows_is_a_question_not_a_no() {
         "{security}"
     );
     assert!(
-        security.contains("securevibe.toml says it does not, and that answer stands"),
+        security.contains("stackvet.toml says it does not, and that answer stands"),
         "{security}"
     );
 }
@@ -250,9 +250,9 @@ fn what_only_a_folder_set_apart_shows_is_a_question_not_a_no() {
 fn a_folder_holding_the_file_the_start_command_runs_is_refused() {
     // Gap analysis, item 19: the app's own entry point is never "not the app".
     let dir = app("start", "not-the-app = [\"demo\"]");
-    let manifest = std::fs::read_to_string(dir.join("securevibe.toml")).unwrap();
+    let manifest = std::fs::read_to_string(dir.join("stackvet.toml")).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         manifest.replace(
             "[capabilities]",
             "[stack.run]\nstart = \"python demo/shop/app.py --port 8000\"\n[capabilities]",

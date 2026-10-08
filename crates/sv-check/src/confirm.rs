@@ -57,7 +57,7 @@ pub const CURRENT_FOR_DAYS: u32 = crate::hand::CURRENT_FOR_DAYS;
 pub const DESIGN_CONFIRMED: &str = "design.confirmed";
 pub const HAND_CONFIRMED: &str = "hand.confirmed";
 
-/// A confirmation, as securevibe.toml gives it.
+/// A confirmation, as stackvet.toml gives it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Confirmation {
     pub by: Option<String>,
@@ -91,7 +91,7 @@ impl Confirmation {
     }
 }
 
-/// The part of securevibe.toml a confirmation credited under `check_id` sits in.
+/// The part of stackvet.toml a confirmation credited under `check_id` sits in.
 pub fn section_of(check_id: &str) -> &'static str {
     if check_id == HAND_CONFIRMED {
         "checked-by-hand"
@@ -505,7 +505,7 @@ mod tests {
             Verified::new(
                 "design.stated-by-ai",
                 &["V8.3.1"],
-                "securevibe.toml: your AI coding tool answered yes. This is the word of the tool."
+                "stackvet.toml: your AI coding tool answered yes. This is the word of the tool."
                     .to_owned(),
             ),
             Verified::new("design.stated-by-ai", &["V2.2.2"], "the tool's word".to_owned()),

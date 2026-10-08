@@ -35,7 +35,7 @@ pub(super) fn session_timeout_checks(
         say(
             "V7.3.1, V7.3.2",
             "Whether sessions time out: say after how long, as `idle-timeout-minutes` and \
-             `session-lifetime-minutes` under [policy] in securevibe.toml, and run `sv run --slow`, \
+             `session-lifetime-minutes` under [policy] in stackvet.toml, and run `sv run --slow`, \
              which waits that long and then asks."
                 .to_owned(),
             out,
@@ -45,7 +45,7 @@ pub(super) fn session_timeout_checks(
     if !slow {
         say(
             "V7.3.1, V7.3.2",
-            "Whether sessions time out when securevibe.toml says they should: that means waiting, \
+            "Whether sessions time out when stackvet.toml says they should: that means waiting, \
              so it is asked only by `sv run --slow`."
                 .to_owned(),
             out,
@@ -166,7 +166,7 @@ pub(super) fn session_timeout_checks(
                 "A session left unused does not time out",
                 Severity::Medium,
                 format!(
-                    "securevibe.toml says a session should end after {} unused. A \
+                    "stackvet.toml says a session should end after {} unused. A \
                      session left alone for {} minutes still opened {confirm}.",
                     minutes_text(minutes),
                     minutes + 1
@@ -215,7 +215,7 @@ pub(super) fn session_timeout_checks(
                 "A session kept busy never has to sign in again",
                 Severity::Medium,
                 format!(
-                    "securevibe.toml says a session should last at most {}. One \
+                    "stackvet.toml says a session should last at most {}. One \
                      used every {every} seconds still opened {confirm} after {} minutes.",
                     minutes_text(minutes),
                     minutes + 1
@@ -506,7 +506,7 @@ pub(super) fn websocket_session_checks(
             "A private WebSocket opens without a real session",
             Severity::High,
             format!(
-                "securevibe.toml names {path} as a WebSocket for signed-in users. A handshake {} \
+                "stackvet.toml names {path} as a WebSocket for signed-in users. A handshake {} \
                  was accepted (101).",
                 match (anonymous, invented == Some(true)) {
                     (true, true) => "with no session, and one with a made-up session value,",
@@ -596,7 +596,7 @@ pub(super) fn websocket_session_checks(
     let Some(logout) = &users.logout else {
         say(
             "V4.4.3",
-            "Whether signing out closes the private WebSocket: securevibe.toml lists no `logout`."
+            "Whether signing out closes the private WebSocket: stackvet.toml lists no `logout`."
                 .to_owned(),
             out,
         );
@@ -938,7 +938,7 @@ pub(super) fn private_page_checks(
 
     // ---- V7.4.4: a visible way to sign out
     //
-    // Only asked when securevibe.toml says where signing out happens. Without that there is no
+    // Only asked when stackvet.toml says where signing out happens. Without that there is no
     // address to look for, and "no sign-out link" would be a statement about the manifest.
     let Some(logout) = logout_path else {
         out.not_assessed.push((
@@ -2056,7 +2056,7 @@ mod tests {
 
     #[test]
     fn without_a_sign_out_address_the_link_question_is_not_asked() {
-        // V7.4.4 needs somewhere to look for. With no `logout` in securevibe.toml, "no sign-out
+        // V7.4.4 needs somewhere to look for. With no `logout` in stackvet.toml, "no sign-out
         // link" would be a statement about the manifest rather than about the app — but the caching
         // question does not depend on it and must still be answered.
         let mut no_logout = users();

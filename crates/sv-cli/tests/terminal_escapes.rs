@@ -43,7 +43,7 @@ fn a_file_name_with_an_escape_in_it_is_printed_with_the_escape_written_out() {
 
 /// `sv review` runs only in a terminal, so this gives it one with `script`, on Linux, where its flags are
 /// known. What it shows is in the app's own words: here a reason the AI coding tool wrote into
-/// securevibe.toml, with an escape that would retitle the window.
+/// stackvet.toml, with an escape that would retitle the window.
 #[cfg(target_os = "linux")]
 #[test]
 fn the_review_shows_an_escape_in_a_proposal_rather_than_sending_it() {
@@ -60,7 +60,7 @@ fn the_review_shows_an_escape_in_a_proposal_rather_than_sending_it() {
     std::fs::create_dir_all(&home).unwrap();
     std::fs::write(app.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Reviewed\"\n[stack]\nlanguages = [\"python\"]\n\n\
          [[finding-review]]\nrule = \"ast.open-redirect\"\nfile = \"app.py\"\nfingerprint = \"abc\"\n\
          verdict = \"false-alarm\"\nwhy = \"Safe: \\u001b]0;all clear\\u0007 the redirect is fixed\"\n",

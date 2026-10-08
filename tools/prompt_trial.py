@@ -3,7 +3,7 @@
 
     python3 tools/prompt_trial.py TRIAL_DIR BUILD[:slow] ...
 
-TRIAL_DIR holds one folder per build (an app.py, seed.py, and securevibe.toml a helper agent wrote from
+TRIAL_DIR holds one folder per build (an app.py, seed.py, and stackvet.toml a helper agent wrote from
 docs/prompts/trial/brief.md, with or without one prompt from data/design-prompts.json) and a policy.toml
 (docs/prompts/trial/policy.toml): the numbers standing in for the owner's, added to a build's [policy] only where
 it wrote none of its own. Each build is copied to TRIAL_DIR/runs/, made a git repository, and run behind the
@@ -31,16 +31,16 @@ def merge_policy(path):
     import tomllib
     tester = tomllib.load(open(os.path.join(HERE, 'policy.toml'), 'rb')).get('policy', {}) \
         if os.path.exists(os.path.join(HERE, 'policy.toml')) else {}
-    # A build with no securevibe.toml, or one that does not parse, is checked as it is: what `sv`
+    # A build with no stackvet.toml, or one that does not parse, is checked as it is: what `sv`
     # makes of it is the outcome (loop-protocol.md, "What makes a build unusable").
     if not os.path.exists(path):
-        print('  no securevibe.toml: checked as it is', flush=True)
+        print('  no stackvet.toml: checked as it is', flush=True)
         return
     text = open(path).read()
     try:
         own = tomllib.loads(text).get('policy', {})
     except tomllib.TOMLDecodeError as e:
-        print(f'  securevibe.toml does not parse ({e}): checked as it is', flush=True)
+        print(f'  stackvet.toml does not parse ({e}): checked as it is', flush=True)
         return
     missing = {k: v for k, v in tester.items() if k not in own}
     print(f'  policy the build set itself: {own}; added by the tester: {missing}', flush=True)
@@ -60,7 +60,7 @@ def run(build, slow):
     out = dst + '-out'
     shutil.rmtree(dst, ignore_errors=True); shutil.rmtree(out, ignore_errors=True)
     shutil.copytree(src, dst, ignore=shutil.ignore_patterns('*.db', '__pycache__', 'OWNER-REQUEST.md'))
-    merge_policy(os.path.join(dst, 'securevibe.toml'))
+    merge_policy(os.path.join(dst, 'stackvet.toml'))
     # --allow-empty: a build that wrote nothing is checked as it is (it has no report), not a crash of the run.
     subprocess.run('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm build --allow-empty',
                    shell=True, cwd=dst, check=True)

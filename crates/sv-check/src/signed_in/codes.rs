@@ -32,7 +32,7 @@ pub(super) fn email_code_checks(
             IDS.to_owned(),
             format!(
                 "Using the emailed code through {} in the session that asked for it did not open \
-                 {}: check `email-code` in securevibe.toml. With no code that works, a refused one \
+                 {}: check `email-code` in stackvet.toml. With no code that works, a refused one \
                  shows nothing.",
                 flow.entry.use_code.path, flow.confirm
             ),
@@ -267,7 +267,7 @@ pub(super) fn email_code_guessing(
                 None => {
                     "Whether emailed sign-in codes can be guessed: say how many wrong codes in \
                          a row the app should allow, as `failed-codes` under [policy] in \
-                         securevibe.toml, and this will make two more attempts than that."
+                         stackvet.toml, and this will make two more attempts than that."
                         .to_owned()
                 }
                 Some(n) => format!(
@@ -368,7 +368,7 @@ pub(super) fn email_code_guessing(
             "One more wrong emailed code than stated is let through",
             Severity::Medium,
             format!(
-                "securevibe.toml says the app should allow {allowed} wrong codes in a row. Sent \
+                "stackvet.toml says the app should allow {allowed} wrong codes in a row. Sent \
                  {attempts} wrong codes in a row through {}, the app answered {first_status} to the \
                  first {}, the one past the limit included, and pushed back ({next}) only at the \
                  code after it.",
@@ -434,7 +434,7 @@ pub(super) fn email_code_guessing(
             "Emailed sign-in codes can be guessed without limit",
             Severity::High,
             format!(
-                "securevibe.toml says the app should allow {allowed} wrong codes in a row. After \
+                "stackvet.toml says the app should allow {allowed} wrong codes in a row. After \
                  {attempts} wrong codes through {}, each answered {first_status}, the right code \
                  still signed in.",
                 flow.entry.use_code.path
@@ -516,7 +516,7 @@ impl<'a> EmailCode<'a> {
         let Some(entry) = &users.email_code else {
             out.not_assessed.push((
                 ids.to_owned(),
-                "Signing in with an emailed code: securevibe.toml sets no `email-code` under \
+                "Signing in with an emailed code: stackvet.toml sets no `email-code` under \
                  [stack.run.users]."
                     .to_owned(),
             ));
@@ -530,7 +530,7 @@ impl<'a> EmailCode<'a> {
             Err(e) => {
                 out.not_assessed.push((
                     ids.to_owned(),
-                    format!("`email-code.code-pattern` in securevibe.toml cannot be used: {e}."),
+                    format!("`email-code.code-pattern` in stackvet.toml cannot be used: {e}."),
                 ));
                 return None;
             }
@@ -623,14 +623,14 @@ impl<'a> EmailCode<'a> {
             (Some(code), _) => Ok(code),
             (None, true) => Err(
                 "The sign-in email arrived and no code was found in it. Set \
-                                 `email-code.code-pattern` in securevibe.toml to a pattern whose \
+                                 `email-code.code-pattern` in stackvet.toml to a pattern whose \
                                  first group is the code."
                     .to_owned(),
             ),
             (None, false) => Err(format!(
                 "Asked for a sign-in code, the app sent no email to {} at the run's mail server. \
                  The app is told where that is in SMTP_HOST and SMTP_PORT; check that it reads \
-                 them, and check `email-code.request` in securevibe.toml.",
+                 them, and check `email-code.request` in stackvet.toml.",
                 self.account.user
             )),
         }
@@ -1118,7 +1118,7 @@ mod tests {
 
     #[test]
     fn a_code_limit_one_late_is_said_to_be() {
-        // The fake app refuses after three wrong codes; securevibe.toml says two. The third wrong
+        // The fake app refuses after three wrong codes; stackvet.toml says two. The third wrong
         // code, the first past the limit, is answered as the first was (the review of 6 October,
         // item 13).
         let o = run_with(Flaws::default(), &codes_policy(2));

@@ -97,7 +97,7 @@ fn proposal(app: &Path) -> String {
          fingerprint = \"{fingerprint}\"\nverdict = \"false-alarm\"\nwhy = \"{WHY}\"\n\
          by = \"owner\"\non = \"2026-10-01\"\n"
     );
-    std::fs::write(app.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(app.join("stackvet.toml"), &manifest).unwrap();
     manifest
 }
 
@@ -120,7 +120,7 @@ fn it_refuses_to_run_when_not_in_a_terminal() {
         String::from_utf8_lossy(&run.stderr)
     );
     assert_eq!(
-        std::fs::read_to_string(app.join("securevibe.toml")).unwrap(),
+        std::fs::read_to_string(app.join("stackvet.toml")).unwrap(),
         manifest
     );
     assert!(!config.exists(), "no key is made by a refused run");
@@ -139,7 +139,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
         before.contains("not recorded through `sv review`"),
         "{before}"
     );
-    assert!(!before.contains("## Set aside in securevibe.toml\n\nFound"));
+    assert!(!before.contains("## Set aside in stackvet.toml\n\nFound"));
 
     let run = Command::new("python3")
         .arg("-c")
@@ -159,7 +159,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     assert!(said.contains("Recorded 1 of 1"), "{said}");
     // The proposal named its line with the fingerprint used before 5 October 2026; what was
     // recorded names it with today's, the one the report gives the finding (deep review A2).
-    let recorded = std::fs::read_to_string(app.join("securevibe.toml")).unwrap();
+    let recorded = std::fs::read_to_string(app.join("stackvet.toml")).unwrap();
     let earlier = sv_check::review::named("ast.open-redirect", "app.py", LINE);
     let todays = sv_check::review::todays_form(&app, "ast.open-redirect", "app.py", &earlier)
         .expect("the earlier fingerprint names one line");
@@ -206,7 +206,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     // report says where the list came from (ADR-043).
     let ci_app = s.0.join("ci");
     std::fs::create_dir_all(&ci_app).unwrap();
-    for file in ["app.py", "securevibe.toml"] {
+    for file in ["app.py", "stackvet.toml"] {
         std::fs::copy(app.join(file), ci_app.join(file)).unwrap();
     }
     let ci = report_given(&ci_app, &s.0.join("no-key"), Some(&list));
@@ -221,7 +221,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     // still counts where it was recorded.
     let copy = s.0.join("copy");
     std::fs::create_dir_all(&copy).unwrap();
-    for file in ["app.py", "securevibe.toml"] {
+    for file in ["app.py", "stackvet.toml"] {
         std::fs::copy(app.join(file), copy.join(file)).unwrap();
     }
     let copied = report(&copy, &config);
@@ -257,9 +257,9 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     assert!(elsewhere.contains("does not name"), "{elsewhere}");
     assert!(!elsewhere.contains("set it aside as a false alarm on"));
     // A word of the reason changed after it was recorded: a proposal again.
-    let manifest = std::fs::read_to_string(app.join("securevibe.toml")).unwrap();
+    let manifest = std::fs::read_to_string(app.join("stackvet.toml")).unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         manifest.replace("own paths first", "own paths"),
     )
     .unwrap();
@@ -305,10 +305,10 @@ fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
     let manifest = proposal(&app);
     let precious = s.0.join("precious.toml");
     std::fs::write(&precious, &manifest).unwrap();
-    std::fs::remove_file(app.join("securevibe.toml")).unwrap();
-    std::os::unix::fs::symlink(&precious, app.join("securevibe.toml")).unwrap();
+    std::fs::remove_file(app.join("stackvet.toml")).unwrap();
+    std::os::unix::fs::symlink(&precious, app.join("stackvet.toml")).unwrap();
     assert_eq!(
-        std::fs::read_to_string(app.join("securevibe.toml")).unwrap(),
+        std::fs::read_to_string(app.join("stackvet.toml")).unwrap(),
         manifest,
         "the setup: the link reads as the manifest"
     );
@@ -322,7 +322,7 @@ fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
         "the file the link points at was written over"
     );
     assert!(
-        std::fs::symlink_metadata(app.join("securevibe.toml"))
+        std::fs::symlink_metadata(app.join("stackvet.toml"))
             .unwrap()
             .file_type()
             .is_symlink(),
@@ -332,7 +332,7 @@ fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
     no_staging_left(&app);
 
     // The notes file, with the manifest real again.
-    std::fs::remove_file(app.join("securevibe.toml")).unwrap();
+    std::fs::remove_file(app.join("stackvet.toml")).unwrap();
     proposal(&app);
     let notes = s.0.join("precious-notes.md");
     std::fs::write(&notes, "keep me\n").unwrap();

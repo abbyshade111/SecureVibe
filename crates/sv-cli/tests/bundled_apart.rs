@@ -28,7 +28,7 @@ fn a_finding_in_a_copied_library_is_listed_apart_named_for_it_and_still_counts()
     )
     .unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Pages\"\n[stack]\nlanguages = [\"javascript\"]\n",
     )
     .unwrap();
@@ -142,7 +142,7 @@ fn a_finding_only_in_a_copied_library_still_keeps_its_requirement_from_being_cre
     )
     .unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Pages\"\n[stack]\nlanguages = [\"javascript\"]\n",
     )
     .unwrap();

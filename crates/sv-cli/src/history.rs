@@ -4,7 +4,7 @@
 //! dated list of an app's weaknesses committed there is a gift to anybody looking for one; in
 //! `$XDG_DATA_HOME/securevibe/history`, or `~/.local/share/securevibe/history`, readable only by the
 //! person. Switched on by a file of the person's own, `keep-history` in the folder `sv` keeps its
-//! review key in, never by `securevibe.toml`, which the AI coding tool writes. A record holds what
+//! review key in, never by `stackvet.toml`, which the AI coding tool writes. A record holds what
 //! `sv_report::dashboard::Run` holds and nothing else; at most `KEEP` are kept for each app.
 //!
 //! History is a convenience for the person and never evidence: the reports never read it, and no

@@ -491,7 +491,7 @@ pub(super) fn tool_list() -> Value {
         {
             "name": "securevibe_guidance",
             "title": "Rules to follow while coding",
-            "description": "The security rules to follow while you write this app, adapted from OWASP AISVS 1.0 Appendix C (AI-assisted secure coding), with its attribution and license (CC BY-SA 4.0): keeping keys out of the chat, treating fetched text as data, checking after each feature, adding only packages that exist, never merging your own work, writing CI workflows that keep secrets from forks. Rules that do not apply to the app, by its securevibe.toml, are left out. Call it before you start, and with a topic before work in that area. With no topic it ends with the prompts shown to work that are about the whole app. They are instructions, not a check: following them is not evidence of anything.",
+            "description": "The security rules to follow while you write this app, adapted from OWASP AISVS 1.0 Appendix C (AI-assisted secure coding), with its attribution and license (CC BY-SA 4.0): keeping keys out of the chat, treating fetched text as data, checking after each feature, adding only packages that exist, never merging your own work, writing CI workflows that keep secrets from forks. Rules that do not apply to the app, by its stackvet.toml, are left out. Call it before you start, and with a topic before work in that area. With no topic it ends with the prompts shown to work that are about the whole app. They are instructions, not a check: following them is not evidence of anything.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -527,14 +527,14 @@ pub(super) fn tool_list() -> Value {
         {
             "name": "securevibe_spec",
             "title": "How to describe the app",
-            "description": "The securevibe.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder: before any code, for the app as it will be, decided with the person; once there is code, from what the app really does. A claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
+            "description": "The stackvet.toml the app needs before it can be checked, with instructions for filling it in. Write it into the app's folder: before any code, for the app as it will be, decided with the person; once there is code, from what the app really does. A claim the code contradicts is reported, and requirements only ever apply more because of it, never less.",
             "inputSchema": { "type": "object", "properties": {} },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
             "name": "securevibe_plan",
             "title": "Plan the app before writing it",
-            "description": "The plan for the app from its securevibe.toml, before any code and at any time after: the requirements that will apply, the design-time prompts to work through before each feature, the questions only the person can answer, the tests worth writing named by requirement id, what the app must give `sv run` in securevibe.toml so it can be tested running, and the threats the answers raise. Built from the same report as securevibe_check, so the two agree. A plan credits nothing and never says a requirement is met. Reads files only; never starts the app. A plan too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what to decide and what `sv run` needs, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
+            "description": "The plan for the app from its stackvet.toml, before any code and at any time after: the requirements that will apply, the design-time prompts to work through before each feature, the questions only the person can answer, the tests worth writing named by requirement id, what the app must give `sv run` in stackvet.toml so it can be tested running, and the threats the answers raise. Built from the same report as securevibe_check, so the two agree. A plan credits nothing and never says a requirement is met. Reads files only; never starts the app. A plan too long to take in whole (over about 40,000 characters) comes in parts: the first answer gives what to decide and what `sv run` needs, and ends with a list of every section and how to ask for each with `section` and `page`. Nothing is left out.",
             "inputSchema": { "type": "object", "properties": {
                 "path": path.clone(),
                 "section": section(crate::plan::SECTIONS),
@@ -545,14 +545,14 @@ pub(super) fn tool_list() -> Value {
         {
             "name": "securevibe_preflight",
             "title": "Will `sv run` be able to test it?",
-            "description": "Once there is code: reads the app's files against what securevibe.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Also says what `sv run` will check once the app runs (a limit on wrong passwords, the security headers, the session cookie's SameSite, a screen on what an AI feature is sent) when nothing in the code reads like a way of handling it. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
+            "description": "Once there is code: reads the app's files against what stackvet.toml tells `sv run` (the start command, listening on 0.0.0.0 at $PORT, the seed reading the SV_ accounts, tables the app makes itself, every path and sign-in field the settings name), and says for each whether it looks right, needs a look, or could not be told. Also says what `sv run` will check once the app runs (a limit on wrong passwords, the security headers, the session cookie's SameSite, a screen on what an AI feature is sent) when nothing in the code reads like a way of handling it. Reads files only and runs nothing, so \"looks right\" means the text was found, not that it works. Credits nothing.",
             "inputSchema": { "type": "object", "properties": { "path": path.clone() } },
             "annotations": { "readOnlyHint": true, "openWorldHint": false }
         },
         {
             "name": "securevibe_before",
             "title": "Before building one feature",
-            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in securevibe.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. Asked before securevibe.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
+            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in stackvet.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. Asked before stackvet.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
             "inputSchema": {
                 "type": "object",
                 "properties": {

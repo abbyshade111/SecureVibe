@@ -108,10 +108,10 @@ fn run() -> Result<i32> {
         "init" => {
             println!("{}", spec::STARTER_MANIFEST);
             if stdout_is_a_file() {
-                // `sv init > securevibe.toml`: the instructions after the starter file are prose,
+                // `sv init > stackvet.toml`: the instructions after the starter file are prose,
                 // and would make the file one `sv` cannot read (gap analysis 5.3).
                 eprintln!(
-                    "Wrote only the starter securevibe.toml, because the output went into a file. \
+                    "Wrote only the starter stackvet.toml, because the output went into a file. \
                      The instructions for your AI coding tool were left out: run `sv init` \
                      without `>` to read them, or let your AI coding tool call securevibe_spec."
                 );
@@ -164,7 +164,7 @@ const COMMANDS: &[Command] = &[
         word: None,
         flags: &[],
         valued: &[],
-        help: "  sv init            print the securevibe.toml spec to hand to your AI coding tool\n",
+        help: "  sv init            print the stackvet.toml spec to hand to your AI coding tool\n",
     },
     Command {
         name: "scope",
@@ -185,7 +185,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &[],
         valued: &[],
-        help: "  sv preflight [PATH]\n                     once there is code: whether it gives `sv run` what securevibe.toml\n                     says, read from the files and never run; credits nothing\n",
+        help: "  sv preflight [PATH]\n                     once there is code: whether it gives `sv run` what stackvet.toml\n                     says, read from the files and never run; credits nothing\n",
     },
     Command {
         name: "brief",
@@ -238,14 +238,14 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &["--slow"],
         valued: &[],
-        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     with `install = true` it first downloads the packages the app names,\n                     in a container that sees only the dependency files;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n                     exit status: 0 the app ran; 2 not assessed: it could not be started\n                     or never answered; 3 sv itself failed (no securevibe.toml, a bad manifest)\n",
+        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     with `install = true` it first downloads the packages the app names,\n                     in a container that sees only the dependency files;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n                     exit status: 0 the app ran; 2 not assessed: it could not be started\n                     or never answered; 3 sv itself failed (no stackvet.toml, a bad manifest)\n",
     },
     Command {
         name: "check",
         word: Some("PATH"),
         flags: &[],
         valued: &["--fail-on"],
-        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     securevibe_check), saying nothing about requirements; it reads\n                     securevibe.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     securevibe.toml it cannot read)\n",
+        help: "  sv check [PATH] [--fail-on WHAT]\n                     credentials left in the code, what the rules that read the code find,\n                     and how it is set up: a narrower scan than `sv report` (or\n                     securevibe_check), saying nothing about requirements; it reads\n                     stackvet.toml when it is there only to stop on one it cannot read\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, or an entry that is not an\n                     ordinary file), or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, or no file of the app was read;\n                     3 sv itself failed (no such folder, an option it does not know, a\n                     stackvet.toml it cannot read)\n",
     },
     Command {
         name: "sbom",
@@ -266,7 +266,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories", "--fail-on"],
-        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/securevibe-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no securevibe.toml, a bad manifest, no such folder)\n",
+        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/securevibe-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no stackvet.toml, a bad manifest, no such folder)\n",
     },
     Command {
         name: "review",
@@ -615,7 +615,7 @@ pub(crate) fn whole_app_prompts(loaded: &Loaded) -> Result<Vec<sv_check::prompts
 
 /// The plan for an app from its brief, built from the report's own parts (ADR-030).
 pub(crate) fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<plan::Plan> {
-    let manifest = Manifest::load(&app_dir.join("securevibe.toml"))?;
+    let (manifest, _) = Manifest::load_in(app_dir)?;
     Ok(plan::from_report(report, &manifest, &design_prompts()?))
 }
 
@@ -651,7 +651,7 @@ pub(crate) fn brief_for(
     ))
 }
 
-/// One feature's brief for an app with no `securevibe.toml` yet: what the feature brings, whole,
+/// One feature's brief for an app with no `stackvet.toml` yet: what the feature brings, whole,
 /// with what only the file can decide said to be waiting for it.
 pub(crate) fn brief_without_manifest(feature: &str, loaded: &Loaded) -> Result<brief::Brief> {
     let features = brief::Features::load(&feature_briefs_path())?;
@@ -692,8 +692,8 @@ fn cmd_brief(args: &[String]) -> Result<()> {
     let loaded = Loaded::load()?;
     // The feature is checked before the report is built, so a misspelt name is said at once.
     brief::Features::load(&feature_briefs_path())?.get(feature)?;
-    // Before securevibe.toml is written, the brief gives what does not wait for it.
-    let brief = if app_dir.join("securevibe.toml").exists() {
+    // Before stackvet.toml is written, the brief gives what does not wait for it.
+    let brief = if sv_manifest::locate(&app_dir)?.is_some() {
         let report = assemble_report(&app_dir, &plan_options(), &loaded)?;
         brief_for(&report, feature, &loaded)?
     } else {
@@ -723,14 +723,7 @@ fn cmd_preflight(path: Option<PathBuf>) -> Result<()> {
 
 fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
-    let manifest_path = app_dir.join("securevibe.toml");
-    if !manifest_path.exists() {
-        bail!(
-            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
-            app_dir.display()
-        );
-    }
-    let manifest = Manifest::load(&manifest_path)?;
+    let manifest = Manifest::load_in(&app_dir)?.0;
 
     let data = data_dir()?;
     let frameworks = load_frameworks(&data)?;
@@ -825,7 +818,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
                 .map(|a| describe(&a.evidence))
                 .unwrap_or_default();
             println!(
-                "  securevibe.toml says {} is {}, but {how}",
+                "  stackvet.toml says {} is {}, but {how}",
                 c.condition.name(),
                 match c.claimed {
                     Some(false) => "not used",
@@ -895,7 +888,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         );
         for (condition, n) in &blocked {
             let who = match condition.source() {
-                Source::Claim => "securevibe.toml does not say",
+                Source::Claim => "stackvet.toml does not say",
                 Source::Derived => "no scanner reads this from the code yet",
             };
             println!("  {n:>3}  {:<22} {who}", condition.name());
@@ -913,7 +906,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
     // implies about the data categories, which set the target level.
     let inconsistencies = consistency::check(&manifest, &resolved);
     if !inconsistencies.is_empty() {
-        println!("\nWorth checking in securevibe.toml:");
+        println!("\nWorth checking in stackvet.toml:");
         for i in &inconsistencies {
             println!("  {}", i.explain());
         }
@@ -946,7 +939,7 @@ fn cmd_scope(path: Option<PathBuf>) -> Result<()> {
         .collect();
     if !inert.is_empty() {
         println!(
-            "\nAnswered in securevibe.toml but gating nothing: {}.\n\
+            "\nAnswered in stackvet.toml but gating nothing: {}.\n\
              No requirement in ASVS 5.0, AISVS 1.0 or Appendix C turns on these, so answering them\n\
              differently changes no result. They are kept because they describe the app and because\n\
              a future revision of the standards may use them.",
@@ -1193,7 +1186,7 @@ fn notes_facts(
         .flatten()
         .filter(|h| !h.is_empty())
     {
-        let line = format!("{host}, from securevibe.toml");
+        let line = format!("{host}, from stackvet.toml");
         if !outside_services.contains(&line) {
             outside_services.push(line);
         }
@@ -1266,7 +1259,7 @@ pub(crate) struct RulesForApp {
     /// The ids of the rules given, in the file's order.
     pub given: Vec<String>,
     pub withheld: usize,
-    /// Whether securevibe.toml was there to filter by. Without it every rule is given.
+    /// Whether stackvet.toml was there to filter by. Without it every rule is given.
     pub filtered: bool,
 }
 
@@ -1298,24 +1291,24 @@ impl RulesForApp {
 /// app. Prints nothing, because the MCP server's stdout is the protocol.
 pub(crate) fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
     let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
-    let manifest_path = app_dir.join("securevibe.toml");
-    let excluded: Option<std::collections::BTreeSet<String>> = if manifest_path.exists() {
-        let manifest = Manifest::load(&manifest_path)?;
-        let data = data_dir()?;
-        let frameworks = load_frameworks(&data)?;
-        let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
-        let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
-        let scan_report = scan_for(
-            &manifest,
-            &sv_scan::files::Listing::of(app_dir),
-            &signatures,
-        )?;
-        let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
-        let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
-        Some(buckets.not_applicable.into_iter().map(|n| n.id).collect())
-    } else {
-        None
-    };
+    let excluded: Option<std::collections::BTreeSet<String>> =
+        if let Some(located) = sv_manifest::locate(app_dir)? {
+            let manifest = Manifest::load(&located.path)?;
+            let data = data_dir()?;
+            let frameworks = load_frameworks(&data)?;
+            let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
+            let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+            let scan_report = scan_for(
+                &manifest,
+                &sv_scan::files::Listing::of(app_dir),
+                &signatures,
+            )?;
+            let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
+            let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
+            Some(buckets.not_applicable.into_iter().map(|n| n.id).collect())
+        } else {
+            None
+        };
     let is_excluded = |id: &str| excluded.as_ref().is_some_and(|set| set.contains(id));
     let given: Vec<String> = rules
         .for_app(
@@ -1492,7 +1485,7 @@ fn cmd_rules(args: &[String]) -> Result<()> {
     );
     if !found.filtered {
         println!(
-            "There is no securevibe.toml yet, so every rule is included. Run `sv rules` again once \
+            "There is no stackvet.toml yet, so every rule is included. Run `sv rules` again once \
              it is written, and the rules that do not apply to this app are left out."
         );
     } else if found.withheld > 0 {
@@ -1522,12 +1515,7 @@ fn cmd_rules(args: &[String]) -> Result<()> {
 /// that cannot use `sv mcp`: the owner pastes this into its chat.
 fn cmd_questions(path: Option<PathBuf>) -> Result<()> {
     let app_dir = path.unwrap_or_else(|| PathBuf::from("."));
-    if !app_dir.join("securevibe.toml").exists() {
-        bail!(
-            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
-            app_dir.display()
-        );
-    }
+    sv_manifest::locate_or_bail(&app_dir)?;
     let report = assemble_report(
         &app_dir,
         &ReportOptions::reading_only("`sv questions`"),
@@ -1571,14 +1559,7 @@ pub(crate) fn record_tool_answer(app_dir: &Path, id: &str, answer: &str) -> Resu
 }
 
 fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWritten> {
-    let manifest_path = app_dir.join("securevibe.toml");
-    if !manifest_path.exists() {
-        bail!(
-            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
-            app_dir.display()
-        );
-    }
-    let manifest = Manifest::load(&manifest_path)?;
+    let manifest = Manifest::load_in(app_dir)?.0;
     let data = data_dir()?;
     let frameworks = load_frameworks(&data)?;
     let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
@@ -1734,7 +1715,7 @@ fn probe_the_running_app(
 }
 
 /// Every request the anonymous probes make: the fixed suite, and the GraphQL and WebSocket
-/// questions when securevibe.toml says where those are. One function, because `sv run` also counts
+/// questions when stackvet.toml says where those are. One function, because `sv run` also counts
 /// how many of these went unanswered, and a count taken from a different list is a wrong count.
 fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
     let mut requests = probes::requests(&plan.health_path);
@@ -1751,7 +1732,7 @@ fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
     requests
 }
 
-/// The routes securevibe.toml names that read a body, as `(method, path)`: where a body that does
+/// The routes stackvet.toml names that read a body, as `(method, path)`: where a body that does
 /// not parse is sent, signed out, to see the app's error answers (ADR-056).
 fn body_routes(users: Option<&sv_manifest::UsersSection>) -> Vec<(String, String)> {
     let Some(users) = users else {
@@ -1766,7 +1747,7 @@ fn body_routes(users: Option<&sv_manifest::UsersSection>) -> Vec<(String, String
         .collect()
 }
 
-/// The admin pages securevibe.toml names, and the files in the app's folder that should never be
+/// The admin pages stackvet.toml names, and the files in the app's folder that should never be
 /// served, for the questions in `sv_check::running`. Worked out the same way for the requests and
 /// for reading the answers, so the two agree on what was asked.
 fn more_questions(plan: &RunPlan) -> (Vec<String>, Vec<sv_check::running::PrivateFile>) {
@@ -1873,14 +1854,7 @@ fn cmd_run(args: &[String]) -> Result<i32> {
             other => app_dir = sv_check::adapters::clean_folder(Path::new(other)),
         }
     }
-    let manifest_path = app_dir.join("securevibe.toml");
-    if !manifest_path.exists() {
-        bail!(
-            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
-            app_dir.display()
-        );
-    }
-    let manifest = Manifest::load(&manifest_path)?;
+    let manifest = Manifest::load_in(&app_dir)?.0;
 
     println!("Starting {} behind the network fence…", manifest.app.name);
     let requests = RunPlan::from_manifest(&manifest, &app_dir)
@@ -1888,7 +1862,7 @@ fn cmd_run(args: &[String]) -> Result<i32> {
         .unwrap_or_default();
     if slow {
         println!(
-            "With --slow: this waits out the session timeouts securevibe.toml states, and ten \
+            "With --slow: this waits out the session timeouts stackvet.toml states, and ten \
              minutes before using an emailed sign-in code, so it can take as long as they are."
         );
     }
@@ -2003,7 +1977,7 @@ fn cmd_run(args: &[String]) -> Result<i32> {
 
             match outcome.tests {
                 None => println!(
-                    "\nsecurevibe.toml declares no test command, so no test evidence was \
+                    "\nstackvet.toml declares no test command, so no test evidence was \
                      collected. That is recorded as not assessed, not as a pass."
                 ),
                 Some(result) if result.stopped_after.is_some() => println!(
@@ -2045,14 +2019,12 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     if !app_dir.is_dir() {
         bail!("{} is not a folder", app_dir.display());
     }
-    // securevibe.toml is not needed here, and is read when it is there: one the AI coding tool wrote
+    // stackvet.toml is not needed here, and is read when it is there: one the AI coding tool wrote
     // and `sv` cannot read stops the run, as it stops `sv report`. Until 7 October 2026 it was not
     // read at all, so a broken one finished with 0 at a terminal (gap analysis 5.1).
-    let manifest_path = app_dir.join("securevibe.toml");
-    let manifest = if manifest_path.is_file() {
-        Some(Manifest::load(&manifest_path)?)
-    } else {
-        None
+    let manifest = match sv_manifest::locate(&app_dir)? {
+        Some(located) => Some(Manifest::load(&located.path)?),
+        None => None,
     };
     // The same reading of the app `sv report` makes, and the same findings counted at the end
     // (`static_scan`; ADR-023, Later, 8 October 2026): what the manifest sets apart, what a person
@@ -2361,7 +2333,7 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     // What a person set aside, and what in [[finding-review]] does not count, said as the report
     // says it: nothing is dropped quietly (ADR-023).
     if !settled.set_aside.is_empty() {
-        println!("\nIn securevibe.toml, through `sv review`:");
+        println!("\nIn stackvet.toml, through `sv review`:");
         for s in &settled.set_aside {
             let (what, listed) = if s.verdict == "false-alarm" {
                 ("a false alarm", "not listed below")
@@ -2438,7 +2410,7 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     Ok(status)
 }
 
-/// Whether standard output goes straight into a file, as with `sv init > securevibe.toml`, rather
+/// Whether standard output goes straight into a file, as with `sv init > stackvet.toml`, rather
 /// than to a terminal or a pipe.
 fn stdout_is_a_file() -> bool {
     #[cfg(unix)]
@@ -2687,15 +2659,13 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
         bail!("{} is not a folder", app_dir.display());
     }
 
-    // What securevibe.toml says is not the app (examples, test fixtures) is compared too, listed apart,
+    // What stackvet.toml says is not the app (examples, test fixtures) is compared too, listed apart,
     // and still counted, as every finding in those folders is (DESIGN, "Folders the manifest says are
-    // not the app"): securevibe.toml is written by the AI coding tool, and a line in it that stopped a
+    // not the app"): stackvet.toml is written by the AI coding tool, and a line in it that stopped a
     // vulnerability counting would hide one by naming the folder it is in.
-    let manifest_path = app_dir.join("securevibe.toml");
-    let manifest = if manifest_path.is_file() {
-        Some(Manifest::load(&manifest_path)?)
-    } else {
-        None
+    let manifest = match sv_manifest::locate(&app_dir)? {
+        Some(located) => Some(Manifest::load(&located.path)?),
+        None => None,
     };
     let folders = manifest
         .as_ref()
@@ -2705,7 +2675,7 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
     // A list that would set apart all the app's code is not used, as in every other command (ADR-031).
     let (folders, refused, _) = sv_scan::not_the_app_in(&listing, &folders);
     if let Some(why) = refused {
-        println!("securevibe.toml's `[repository] not-the-app` is not used: {why}.\n");
+        println!("stackvet.toml's `[repository] not-the-app` is not used: {why}.\n");
     }
     let (ours, theirs) = listing.split(&folders);
     let sbom = sbom::build_in(&ours);
@@ -2926,7 +2896,7 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
         unjudged.iter().for_each(|f| print(f));
         if time_frames.is_none() {
             println!(
-                "\n  To judge them, write your time frames in securevibe.toml:\n\n    \
+                "\n  To judge them, write your time frames in stackvet.toml:\n\n    \
                  [policy]\n    fix-within-days = {{ critical = 7, high = 30, medium = 90, low = 180 }}\n\n  \
                  with your own numbers — the ones in your security notes for V15.1.1."
             );
@@ -2942,7 +2912,7 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
     Ok(exit::ATTENTION)
 }
 
-/// What `sv audit` found in folders securevibe.toml says are not the app, listed after the app's own,
+/// What `sv audit` found in folders stackvet.toml says are not the app, listed after the app's own,
 /// one line per vulnerability, and counted all the same. Returns the status it adds.
 fn not_the_app_audit(
     elsewhere: &sbom::Sbom,
@@ -2957,7 +2927,7 @@ fn not_the_app_audit(
         advisories::audit_against(elsewhere, database, time_frames, advisories::Day::today());
     let named = folders.join(", ");
     println!(
-        "\nIn folders securevibe.toml says are not the app ({named}), listed apart and counted all the \
+        "\nIn folders stackvet.toml says are not the app ({named}), listed apart and counted all the \
          same: naming a folder there changes where its findings are listed, never whether they count."
     );
     let mut status = 0;
@@ -3084,7 +3054,7 @@ impl BundleOutcome {
         self.summary_with(&sv_report::fence::Fence::none())
     }
 
-    /// The same, with the app's own text (the zip's path, the files left out, what securevibe.toml
+    /// The same, with the app's own text (the zip's path, the files left out, what stackvet.toml
     /// says the app holds) put through `fence`, for the AI coding tool (deep review R9).
     fn summary_with(&self, fence: &sv_report::fence::Fence) -> String {
         let mut text = format!(
@@ -3111,7 +3081,7 @@ impl BundleOutcome {
         }
         if !self.categories.is_empty() {
             text.push_str(&format!(
-                "\nsecurevibe.toml says this app holds: {}. Those are not left out: sv cannot tell which files hold them.\n",
+                "\nstackvet.toml says this app holds: {}. Those are not left out: sv cannot tell which files hold them.\n",
                 fence.wrap(&self.categories.join(", "))
             ));
         }
@@ -3140,8 +3110,8 @@ fn write_bundle(
     let rules = SecretRules::load(&secret_rules_path())?;
     let scan = scan_dir(&rules, app_abs);
     let plan = bundle::plan(app_abs, &scan);
-    let categories = Manifest::load(&app_abs.join("securevibe.toml"))
-        .map(|m| m.data.listed().to_vec())
+    let categories = Manifest::load_in(app_abs)
+        .map(|(m, _)| m.data.listed().to_vec())
         .unwrap_or_default();
 
     let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
@@ -3243,7 +3213,7 @@ fn write_bundle(
 /// reads as a credential, naming the file, line and rule, never the value.
 ///
 /// The backstop to redacting what outside tools say (deep review S8), and a guard for what the report
-/// quotes of the app itself (its name in `securevibe.toml`, for one): Bandit's B105 message quoted a
+/// quotes of the app itself (its name in `stackvet.toml`, for one): Bandit's B105 message quoted a
 /// password four times inside `report/` of a bundle that had left the file holding it out, so that the
 /// zip carried no secret. `sv`'s own findings carry a credential only redacted, and a tool's words
 /// are redacted as they are read (`adapters::redact_tool_text`); this is what holds if some other
@@ -3271,7 +3241,7 @@ fn refuse_a_credential_in_the_report(
     bail!(
         "the report holds {} thing{} the credential scan reads as a secret, so no bundle was made: \
          a bundle must never carry one. Where: {}. A report quotes some of what the app's own files \
-         say, such as its name in securevibe.toml: take the credential out of the place it was \
+         say, such as its name in stackvet.toml: take the credential out of the place it was \
          quoted from and run this again. If it came from nowhere in the app, it is a fault in sv: \
          please report it.",
         found.len(),
@@ -3809,7 +3779,7 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
             .map(|f| format!("`{f}`"))
             .collect();
         let mut why = format!(
-            "securevibe.toml says these folders are not the app (`[repository] not-the-app`): {}. \
+            "stackvet.toml says these folders are not the app (`[repository] not-the-app`): {}. \
              Their code is still checked, and its findings count, listed with test and sample \
              code. What is in them cannot change which requirements apply: a library an example \
              uses is not one the app uses. If the app's own code is in one of them, take it off \
@@ -3834,7 +3804,7 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
         });
     }
     // What only the folders set apart show (gap analysis, item 19): not read as a "no", so each is a
-    // question, unless securevibe.toml answers it.
+    // question, unless stackvet.toml answers it.
     let claims = manifest.claims();
     for (condition, shown_by) in &scan.found_only_apart {
         let claimed = claims
@@ -3842,8 +3812,8 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
             .find(|(c, _)| c == condition)
             .and_then(|(_, v)| *v);
         let answer = match claimed {
-            Some(true) => "securevibe.toml says it does, so its requirements apply".to_owned(),
-            Some(false) => "securevibe.toml says it does not, and that answer stands; if the app \
+            Some(true) => "stackvet.toml says it does, so its requirements apply".to_owned(),
+            Some(false) => "stackvet.toml says it does not, and that answer stands; if the app \
                             itself does, change the answer"
                 .to_owned(),
             None => "nothing else answers it, so its requirements wait on that question rather \
@@ -3853,7 +3823,7 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
         gaps.push(sv_report::Gap {
             what: format!("whether the app itself has `{}`", condition.name()),
             why: format!(
-                "The only sign of it is {shown_by}, in a folder securevibe.toml says is not the app \
+                "The only sign of it is {shown_by}, in a folder stackvet.toml says is not the app \
                  (`[repository] not-the-app`), so it is not counted as a \"no\": {answer}."
             ),
         });
@@ -4082,14 +4052,14 @@ fn cmd_report(args: &[String]) -> Result<i32> {
     if c.by_hand > 0 {
         println!(
             "The {} you checked by hand, or confirmed after your AI coding tool did, and recorded \
-             in securevibe.toml with what you saw {} your word, which nothing here repeated.",
+             in stackvet.toml with what you saw {} your word, which nothing here repeated.",
             c.by_hand,
             if c.by_hand == 1 { "is" } else { "are" }
         );
     }
     if c.attested > 0 {
         println!(
-            "The {} you answered yes to in the [design] section of securevibe.toml, or confirmed \
+            "The {} you answered yes to in the [design] section of stackvet.toml, or confirmed \
              after your AI coding tool did, {} your word about how the app is built, which is the \
              weakest thing this report says: each one is still listed as a test to write.",
             c.attested,
@@ -4098,7 +4068,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
     }
     if c.stated > 0 {
         println!(
-            "The {} your AI coding tool answered yes to or checked by hand in securevibe.toml, or \
+            "The {} your AI coding tool answered yes to or checked by hand in stackvet.toml, or \
              wrote in security-notes.md, or that do not say who answered, {} the word of the tool \
              that wrote the code, weaker still than yours: each one is still listed as a test to \
              write.",
@@ -4496,7 +4466,7 @@ mod tests {
     fn a_bad_body_goes_to_the_routes_the_manifest_names() {
         // ADR-056: the routes that read a body are where the app's code can be made to fail.
         let example = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../examples/notes-with-users/securevibe.toml");
+            .join("../../examples/notes-with-users/stackvet.toml");
         let manifest = sv_manifest::Manifest::load(&example).expect("the example loads");
         let users = manifest.stack.run.users.as_ref().expect("it has users");
         let routes = body_routes(Some(users));

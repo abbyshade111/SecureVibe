@@ -68,7 +68,7 @@ pub(super) fn flow_checks(
     if flow.steps.len() < 2 {
         out.not_assessed.push((
             ID.to_owned(),
-            "The `flow` in securevibe.toml has fewer than two steps, so there is no step to skip."
+            "The `flow` in stackvet.toml has fewer than two steps, so there is no step to skip."
                 .to_owned(),
         ));
         return;
@@ -76,7 +76,7 @@ pub(super) fn flow_checks(
     if flow.completed.trim().is_empty() {
         out.not_assessed.push((
             ID.to_owned(),
-            "The `flow` in securevibe.toml does not say what the last step shows when the flow \
+            "The `flow` in stackvet.toml does not say what the last step shows when the flow \
              finished (`completed`), so a skip that worked cannot be told from one that was refused."
                 .to_owned(),
         ));
@@ -109,7 +109,7 @@ pub(super) fn flow_checks(
             ID.to_owned(),
             format!(
                 "Going through the {} steps in order as A ended in {}, without \"{}\", so the flow \
-                 does not finish as securevibe.toml describes and nothing can be told from skipping \
+                 does not finish as stackvet.toml describes and nothing can be told from skipping \
                  a step.",
                 steps.len(),
                 status(&done),

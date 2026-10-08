@@ -28,7 +28,7 @@ pub(super) fn once_check(
         out.not_assessed.push((
             IDS.to_owned(),
             "Whether an action can go through twice when sent twice at the same instant: \
-             securevibe.toml names no `once` action under [stack.run.users]."
+             stackvet.toml names no `once` action under [stack.run.users]."
                 .to_owned(),
         ));
         return;
@@ -154,7 +154,7 @@ pub(super) fn once_check(
             IDS.to_owned(),
             format!(
                 "None of the {AT_ONCE} copies of {} {} sent at the same instant went through (no \
-                 answer said \"{}\"). Check `once` in securevibe.toml, and that the app starts the \
+                 answer said \"{}\"). Check `once` in stackvet.toml, and that the app starts the \
                  run with one of the thing to take. With nothing taken, a refusal shows nothing.",
                 once.method, once.path, once.completed
             ),
@@ -230,7 +230,7 @@ pub(super) fn once_check(
 /// afterwards, so a refusal for not being signed in is never read as the thing being taken.
 fn signed_in_now(http: &mut dyn Http, users: &UsersSection, session: &Session) -> Option<String> {
     let Some(page) = users.private.first() else {
-        return Some("securevibe.toml names no `private` page to show it by".to_owned());
+        return Some("stackvet.toml names no `private` page to show it by".to_owned());
     };
     (!ok(&http.send(&get("private-once", page, session)))).then(|| format!("{page} did not open"))
 }

@@ -3,7 +3,7 @@
 //! Some questions have an answer only once a page is drawn: whether a sign-out control that is in
 //! the HTML can actually be seen (V7.4.4), and whether text somebody typed is shown as text or drawn
 //! as markup and run (V3.2.2). A request and its response cannot tell; a browser can. The run starts
-//! a headless Chromium on the fenced network when securevibe.toml has `[stack.run.users.browser]`,
+//! a headless Chromium on the fenced network when stackvet.toml has `[stack.run.users.browser]`,
 //! and this module says what to do in it and what the answers mean.
 //!
 //! Nothing is credited unless the browser was really signed in: each private page has to open in it

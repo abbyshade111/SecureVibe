@@ -14,7 +14,7 @@
 use serde_json::{Value, json};
 use sv_manifest::Manifest;
 
-/// One thing the app must give `sv run`, in `securevibe.toml`, so a check of the running app can be
+/// One thing the app must give `sv run`, in `stackvet.toml`, so a check of the running app can be
 /// made rather than reported as not assessed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct RunNeed {
@@ -474,7 +474,7 @@ pub(crate) fn sections_with(
         let mut text = String::new();
         if n == 0 {
             text.push_str(
-                "\nQuestions only you can answer, in `security-notes.md` or `securevibe.toml` \
+                "\nQuestions only you can answer, in `security-notes.md` or `stackvet.toml` \
                  (`sv questions` asks them one at a time):\n\n",
             );
         }
@@ -510,14 +510,14 @@ pub(crate) fn sections_with(
     let mut run = Section::new(
         "run",
         format!(
-            "What the app must give `sv run` in securevibe.toml so it can be tested running ({})",
+            "What the app must give `sv run` in stackvet.toml so it can be tested running ({})",
             plan.run.len()
         ),
         &["run"],
     );
     run.lead = "\n## 4. What the app must give `sv run`\n\n\
                 So that `sv report --run` can test the app running, rather than reporting those checks as \
-                not assessed. Each goes in `securevibe.toml`; `sv init`, or the `securevibe_spec` tool, \
+                not assessed. Each goes in `stackvet.toml`; `sv init`, or the `securevibe_spec` tool, \
                 describes each one.\n\n"
         .to_owned();
     for n in &plan.run {
@@ -567,7 +567,7 @@ mod tests {
     use super::*;
 
     fn manifest(text: &str) -> Manifest {
-        Manifest::parse(text, std::path::Path::new("securevibe.toml")).expect("the manifest parses")
+        Manifest::parse(text, std::path::Path::new("stackvet.toml")).expect("the manifest parses")
     }
 
     const BASE: &str = "manifest-version = 1\n[app]\nname = \"t\"\ndescription = \"\"\naudience = \"customers\"\n\

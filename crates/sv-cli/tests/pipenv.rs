@@ -18,9 +18,8 @@ fn app(name: &str) -> PathBuf {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(dir.join("osv")).unwrap();
     std::fs::copy(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../examples/tested-notes/securevibe.toml"),
-        dir.join("securevibe.toml"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml"),
+        dir.join("stackvet.toml"),
     )
     .unwrap();
     std::fs::write(

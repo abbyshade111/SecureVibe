@@ -14,7 +14,7 @@ fn report(name: &str, extra: impl Fn(&Path)) -> (String, String, serde_json::Val
     std::fs::create_dir_all(&app).unwrap();
     std::fs::write(app.join("app.py"), "def hello():\n    return 'hello'\n").unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Tools\"\naudience = \"customers\"\n\
          deployment = \"local-only\"\n[stack]\nlanguages = [\"python\"]\n",
     )

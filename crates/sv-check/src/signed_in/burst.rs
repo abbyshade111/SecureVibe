@@ -51,7 +51,7 @@ pub(super) fn burst_check(
     if creates.is_empty() {
         out.not_assessed.push((
             IDS.to_owned(),
-            "Whether creating records is limited: securevibe.toml lists no `owned` record to \
+            "Whether creating records is limited: stackvet.toml lists no `owned` record to \
              create, and no request under `creates`."
                 .to_owned(),
         ));
@@ -63,7 +63,7 @@ pub(super) fn burst_check(
                 IDS.to_owned(),
                 "Whether creating records is limited: say how many records a minute one user \
                  should be able to create, as `requests-per-minute` under [policy] in \
-                 securevibe.toml, and this will send one more than that."
+                 stackvet.toml, and this will send one more than that."
                     .to_owned(),
             ));
             return;
@@ -99,7 +99,7 @@ pub(super) fn burst_check(
     }
 }
 
-/// One burst through `create`, signed in as `session`, against the `n` a minute securevibe.toml
+/// One burst through `create`, signed in as `session`, against the `n` a minute stackvet.toml
 /// states: the finding, the credit, or why neither, for this action alone.
 fn burst_one(
     http: &mut dyn Http,
@@ -188,7 +188,7 @@ fn burst_one(
             "One user can create records without limit",
             Severity::Medium,
             format!(
-                "securevibe.toml says one user should be able to create at most {n} records a \
+                "stackvet.toml says one user should be able to create at most {n} records a \
                  minute. All {sent} sent through {} within {took} seconds went through.",
                 create.path
             ),
@@ -228,7 +228,7 @@ fn burst_one(
             CREATE_UNLIMITED.requirement_ids,
             format!(
                 "{sent} records created through {} within {took} seconds by one user: the first \
-                 went through and the last was refused, against the {n} a minute securevibe.toml \
+                 went through and the last was refused, against the {n} a minute stackvet.toml \
                  states. One action, not every function V2.4.1 names",
                 create.path
             ),

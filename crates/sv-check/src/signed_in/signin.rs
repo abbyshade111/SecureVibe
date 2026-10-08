@@ -243,7 +243,7 @@ fn forwarded_check(
 ///
 /// V6.3.1 asks that brute-force controls are implemented *according to the application's security
 /// documentation*, which nothing can check against prose. A number can be checked: `failed-sign-ins`
-/// in securevibe.toml is the owner stating the policy, and the probe holds the app to it by making
+/// in stackvet.toml is the owner stating the policy, and the probe holds the app to it by making
 /// one more wrong attempt than that and watching what changes.
 ///
 /// What counts as pushing back is deliberately broad — a different status, a refusal, a lockout or
@@ -271,7 +271,7 @@ pub(super) fn brute_force_check(
         out.not_assessed.push((
             "V6.3.1".to_owned(),
             "Whether the app resists password guessing: say how many wrong passwords in a row it \
-             should allow, as `failed-sign-ins` under [policy] in securevibe.toml, and this will \
+             should allow, as `failed-sign-ins` under [policy] in stackvet.toml, and this will \
              make two more attempts than that and watch what the app does."
                 .to_owned(),
         ));
@@ -421,7 +421,7 @@ pub(super) fn brute_force_check(
             "One more wrong password than stated is let through",
             Severity::Medium,
             format!(
-                "securevibe.toml says the app should allow {allowed} wrong passwords in a row. \
+                "stackvet.toml says the app should allow {allowed} wrong passwords in a row. \
                  Asked {attempts} times in a row with a wrong password, the app answered \
                  {first_status} to the first {}, the one past the limit included, and pushed back \
                  ({next}) only at the attempt after it.",
@@ -467,7 +467,7 @@ pub(super) fn brute_force_check(
     let against = if real_account {
         "an account this check made for it"
     } else {
-        "a user name no account has, since securevibe.toml declares no sign-up"
+        "a user name no account has, since stackvet.toml declares no sign-up"
     };
 
     out.steps.push(format!(
@@ -501,7 +501,7 @@ pub(super) fn brute_force_check(
             "Wrong passwords can be tried without limit",
             Severity::High,
             format!(
-                "securevibe.toml says the app should allow {allowed} wrong passwords in a row. \
+                "stackvet.toml says the app should allow {allowed} wrong passwords in a row. \
                  Asked {attempts} times in a row with a wrong password, against {against}, the app \
                  answered {first_status} every time, and the two attempts past the limit took {}ms \
                  and {}ms against {quickest}ms at the quickest before it: nothing about it changed.",
@@ -666,7 +666,7 @@ pub(super) fn sign_out_on_get_check(
         out.not_assessed.push((
             SIGN_OUT_ON_GET.requirement_ids.join(", "),
             if users.logout.is_none() {
-                "Whether a plain link signs the user out: securevibe.toml sets no `logout` under \
+                "Whether a plain link signs the user out: stackvet.toml sets no `logout` under \
                  [stack.run.users]."
             } else {
                 "Whether a plain link signs the user out: no private page opened for a signed-in \
@@ -798,7 +798,7 @@ pub(super) fn password_in_url_check(
         out.not_assessed.push((
             PASSWORD_IN_URL.requirement_ids.join(", "),
             if users.login.is_none() {
-                "Whether a password in the address signs the user in: securevibe.toml sets no \
+                "Whether a password in the address signs the user in: stackvet.toml sets no \
                  `login` under [stack.run.users]."
             } else {
                 "Whether a password in the address signs the user in: no private page opened for \
@@ -878,7 +878,7 @@ pub(super) fn logout_check(
         out.not_assessed.push((
             "V7.4.1, V14.3.1".to_owned(),
             "Whether signing out ends the session, and clears what the browser kept: \
-             securevibe.toml lists no `logout`."
+             stackvet.toml lists no `logout`."
                 .to_owned(),
         ));
         return;
@@ -918,7 +918,7 @@ pub(super) fn logout_check(
             "V7.4.1".to_owned(),
             format!(
                 "Whether signing out ends the session: the sign-out request itself was refused ({}), \
-                 so there was no sign-out to test. Check `logout` in securevibe.toml.",
+                 so there was no sign-out to test. Check `logout` in stackvet.toml.",
                 status(&response)
             ),
         ));

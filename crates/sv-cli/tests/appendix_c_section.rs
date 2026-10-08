@@ -83,7 +83,7 @@ fn a_problem_recorded_by_hand_keeps_an_appendix_c_requirement_in_the_counts() {
             std::fs::copy(entry.path(), app.join(entry.file_name())).unwrap();
         }
     }
-    let manifest = std::fs::read_to_string(app.join("securevibe.toml")).unwrap();
+    let manifest = std::fs::read_to_string(app.join("stackvet.toml")).unwrap();
     let on = "2026-09-27";
     let entry = format!(
         "\"AC.4.1\" = {{ result = \"problem\", on = \"{on}\", by = \"owner\", how = \"Nobody but the AI tool has looked at the sign-in code.\" }}\n"
@@ -96,7 +96,7 @@ fn a_problem_recorded_by_hand_keeps_an_appendix_c_requirement_in_the_counts() {
     } else {
         format!("{manifest}\n[checked-by-hand]\n{entry}")
     };
-    std::fs::write(app.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(app.join("stackvet.toml"), manifest).unwrap();
     let out = app.join("report-out");
     let run = Command::new(env!("CARGO_BIN_EXE_sv"))
         .args([

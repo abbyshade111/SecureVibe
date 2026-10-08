@@ -22,7 +22,7 @@ pub(super) fn activation_checks(
     let say = |why: String, out: &mut Outcome| out.not_assessed.push((ID.to_owned(), why));
     let Some(signup) = &users.signup else {
         say(
-            "The activation code emailed at sign-up: securevibe.toml sets `activation` and no \
+            "The activation code emailed at sign-up: stackvet.toml sets `activation` and no \
              `signup`, so no account is made that would be sent one."
                 .to_owned(),
             out,
@@ -45,7 +45,7 @@ pub(super) fn activation_checks(
         Ok(p) => p,
         Err(e) => {
             say(
-                format!("`activation.code-pattern` in securevibe.toml cannot be used: {e}."),
+                format!("`activation.code-pattern` in stackvet.toml cannot be used: {e}."),
                 out,
             );
             return;
@@ -97,7 +97,7 @@ pub(super) fn activation_checks(
             say(
                 if mail.len() > before {
                     "The sign-up email arrived and no activation code was found in it. Set \
-                     `activation.code-pattern` in securevibe.toml to a pattern whose first group \
+                     `activation.code-pattern` in stackvet.toml to a pattern whose first group \
                      is the code."
                         .to_owned()
                 } else {
@@ -170,7 +170,7 @@ pub(super) fn activation_checks(
         say(
             format!(
                 "The account could not sign in before activation and still could not after its \
-                 code was used through {}: check `activation` in securevibe.toml. With no \
+                 code was used through {}: check `activation` in stackvet.toml. With no \
                  activation that works, nothing about the code can be told.",
                 entry.use_code.path
             ),

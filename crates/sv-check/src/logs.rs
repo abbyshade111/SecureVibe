@@ -147,7 +147,7 @@ fn sign_in_event<'a>(log: &'a str, w: &Window, failed: bool) -> Option<&'a str> 
         } else {
             line.replace(w.login_path.as_str(), " ")
         };
-        // And every other path: securevibe.toml's `login.path` written differently in the log
+        // And every other path: stackvet.toml's `login.path` written differently in the log
         // (`/login/`, `/Login`, `/login?next=/`, a prefix the app is mounted under) is still the
         // request, not a record of it.
         let words = without_paths(&words);
@@ -1055,7 +1055,7 @@ GET /sv-log-after-ok-4a91 404
     #[test]
     fn an_access_log_writing_the_sign_in_path_another_way_is_not_a_record_either() {
         // Found in the review of 1 to 4 October (item 14): only `login.path` exactly as
-        // securevibe.toml writes it was taken out, so the same request written another way
+        // stackvet.toml writes it was taken out, so the same request written another way
         // read as a sign-in event and credited V16.3.1.
         for (logged, json) in [
             ("/login/", false),

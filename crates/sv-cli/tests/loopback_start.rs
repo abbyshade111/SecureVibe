@@ -22,7 +22,7 @@ fn app(name: &str, start: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("index.html"), "<p>hello</p>\n").unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n[app]\nname = \"Loopback\"\n[stack]\nlanguages = []\n\
              [stack.run]\nimage = \"busybox:1.36\"\nstart = \"{start}\"\n\
@@ -77,7 +77,7 @@ fn an_app_listening_on_loopback_is_warned_about_and_named_as_the_likely_cause() 
     println!("container backend present; running the loopback app for real");
     // Before the wait: the warning, which does not stop the run.
     assert!(
-        stderr.contains("Warning: the start command in securevibe.toml names 127.0.0.1"),
+        stderr.contains("Warning: the start command in stackvet.toml names 127.0.0.1"),
         "{stderr}"
     );
     assert!(stderr.contains("Starting it anyway"), "{stderr}");

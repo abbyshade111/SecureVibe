@@ -82,5 +82,5 @@ fn a_folder_with_no_manifest_says_to_write_one() {
     std::fs::remove_dir_all(&dir).ok();
     assert!(!out.status.success());
     let said = String::from_utf8_lossy(&out.stderr);
-    assert!(said.contains("no securevibe.toml"), "{said}");
+    assert!(said.contains("no stackvet.toml"), "{said}");
 }

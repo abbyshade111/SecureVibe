@@ -91,12 +91,12 @@ impl CannotRun {
                  running is reported as not assessed — not as passing, and not as failing."
             ),
             CannotRun::NoRunCommand { missing } => format!(
-                "securevibe.toml does not say how to run this app ({} not set under [stack.run]), \
+                "stackvet.toml does not say how to run this app ({} not set under [stack.run]), \
                  so everything that needs it running is reported as not assessed.",
                 missing.join(", ")
             ),
             CannotRun::BadImage { image, why } => format!(
-                "securevibe.toml names an image under [stack.run] that is not a name Docker \
+                "stackvet.toml names an image under [stack.run] that is not a name Docker \
                  reads as one ({image:?}: {why}), so the app was not started and everything that \
                  needs it running is reported as not assessed. Name the image as Docker does, \
                  `python:3.12-slim` or `registry.example.com/team/app:1.0`."
@@ -146,7 +146,7 @@ impl CannotRun {
                  nothing about the app was seen."
             ),
             CannotRun::InstallRefused { why } => format!(
-                "securevibe.toml asks for the app's packages to be installed before the run, and \
+                "stackvet.toml asks for the app's packages to be installed before the run, and \
                  they were not: {why} Nothing was downloaded and the app was not started, so \
                  everything that needs it running is reported as not assessed."
             ),
@@ -230,7 +230,7 @@ pub fn loopback_named_in(start: &str) -> Option<&'static str> {
 pub fn loopback_warning(start: &str) -> Option<String> {
     loopback_named_in(start).map(|name| {
         format!(
-            "Warning: the start command in securevibe.toml names {name}. An app listening on \
+            "Warning: the start command in stackvet.toml names {name}. An app listening on \
              {name} answers only from inside its own container, and `sv` asks it from a second \
              one, so it may never answer. If this run waits and gives up, have the app listen on \
              0.0.0.0 (every address) at the port in $PORT. Starting it anyway: an app may listen \
@@ -341,7 +341,7 @@ pub fn weakening_warning(start: &str) -> Option<String> {
     let names = weakening_named_in(start);
     (!names.is_empty()).then(|| {
         format!(
-            "Warning: the start command in securevibe.toml sets {}, which looks like it makes the \
+            "Warning: the start command in stackvet.toml sets {}, which looks like it makes the \
              app less secure for this run. What `sv` finds is then about that weaker copy, and a \
              check that passes may not pass for the app as it really runs. If it is not needed, \
              take it out of the start command. Starting it anyway.",
@@ -377,25 +377,25 @@ pub struct RunPlan {
     pub app_dir: PathBuf,
     /// The port the app listens on inside the container.
     pub port: u16,
-    /// How to sign in, when securevibe.toml says. Absent means the probes sign in as nobody.
+    /// How to sign in, when stackvet.toml says. Absent means the probes sign in as nobody.
     pub users: Option<sv_manifest::UsersSection>,
     /// The numbers the owner states as policy, for the probes that hold the app to them.
     pub policy: sv_manifest::PolicySection,
-    /// How the app signs in through another service, when securevibe.toml says. The run then
+    /// How the app signs in through another service, when stackvet.toml says. The run then
     /// starts a test provider of `sv`'s own and points the app at it.
     pub oidc: Option<sv_manifest::OidcSection>,
-    /// How to talk to the app's AI feature, when securevibe.toml says. The run then starts a test
+    /// How to talk to the app's AI feature, when stackvet.toml says. The run then starts a test
     /// model of `sv`'s own and points the app at it.
     pub ai: Option<sv_manifest::AiSection>,
-    /// Where the app answers as an MCP server, when securevibe.toml says.
+    /// Where the app answers as an MCP server, when stackvet.toml says.
     pub mcp_server: Option<sv_manifest::McpServerSection>,
-    /// A feature that fetches an address a person gives it, when securevibe.toml says how to reach
+    /// A feature that fetches an address a person gives it, when stackvet.toml says how to reach
     /// it. The run then starts the test model, whose server records each fetch.
     pub fetch: Option<sv_manifest::FetchSection>,
-    /// Where the app answers GraphQL and WebSocket connections, when securevibe.toml says.
+    /// Where the app answers GraphQL and WebSocket connections, when stackvet.toml says.
     pub graphql: Option<String>,
     pub websocket: Option<String>,
-    /// Whether other programs are meant to use this app's API, as securevibe.toml claims it.
+    /// Whether other programs are meant to use this app's API, as stackvet.toml claims it.
     /// Introspection is allowed for an API meant for others and not otherwise (V4.3.2), so the
     /// answer to that question depends on this one, and silence here leaves it unanswered.
     pub public_api: Option<bool>,
@@ -404,7 +404,7 @@ pub struct RunPlan {
     pub slow: bool,
     /// The longest the test command may take: `TEST_LIMIT`, and shorter only in `sv`'s own tests.
     pub test_limit: Duration,
-    /// Install the app's packages before the run (ADR-052). Off unless securevibe.toml says so.
+    /// Install the app's packages before the run (ADR-052). Off unless stackvet.toml says so.
     pub install: bool,
 }
 
@@ -505,18 +505,18 @@ pub struct RunOutcome {
     /// The anonymous questions the app's rate limiter was still answering after waiting as it asked,
     /// as "id (status)". Left out of `probe_responses`, since the limiter's page is not the app's.
     pub probes_rate_limited: Vec<String>,
-    /// What asking as signed-in users showed, when securevibe.toml says how to sign in.
+    /// What asking as signed-in users showed, when stackvet.toml says how to sign in.
     pub signed_in: Option<sv_check::signed_in::Outcome>,
     /// What signing in through the test provider showed, when the app signs in through another
     /// service. Kept apart from `signed_in`: an app whose only sign-in is "Sign in with …" was not
     /// asked any of the signed-in questions, and folding the two together would say it was.
     pub oidc: Option<sv_check::signed_in::Outcome>,
-    /// What asking the app's AI feature through the test model showed, when securevibe.toml says
+    /// What asking the app's AI feature through the test model showed, when stackvet.toml says
     /// how to reach it.
     pub ai: Option<sv_check::signed_in::Outcome>,
-    /// What asking the app as an MCP server showed, when securevibe.toml says where it answers.
+    /// What asking the app as an MCP server showed, when stackvet.toml says where it answers.
     pub mcp_server: Option<sv_check::signed_in::Outcome>,
-    /// What asking the feature that fetches an address showed, when securevibe.toml says how.
+    /// What asking the feature that fetches an address showed, when stackvet.toml says how.
     pub fetch: Option<sv_check::signed_in::Outcome>,
     /// Containers and networks an earlier run on this machine left behind when its process was
     /// killed outright, removed before this run started. See `cleanup`.
@@ -538,7 +538,7 @@ pub struct RunOutcome {
 /// Fresh every run and never written anywhere but the app's own container: they exist to be signed
 /// in with once. The password carries every kind of character a password rule asks for, so an app
 /// with a strict policy still accepts it.
-/// The accounts a run makes for what securevibe.toml's users section asks: an admin when it lists
+/// The accounts a run makes for what stackvet.toml's users section asks: an admin when it lists
 /// admin pages or admin actions, and a two-factor secret when it names `totp` and a `seed`.
 pub fn accounts_for(users: &sv_manifest::UsersSection) -> sv_check::signed_in::Accounts {
     new_accounts(

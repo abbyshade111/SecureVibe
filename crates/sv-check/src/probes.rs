@@ -88,7 +88,7 @@ fn bad_body_request(method: &str, path: &str) -> ProbeRequest {
     }
 }
 
-/// `BAD_BODY` sent to the routes securevibe.toml names that read a body (sign-in, sign-up, the
+/// `BAD_BODY` sent to the routes stackvet.toml names that read a body (sign-in, sign-up, the
 /// record `owned` creates), each as `(method, path)`, beyond the health path and the root, which
 /// `requests` sends it to. A path with a placeholder in it (`{id}`) is left out, as is one already
 /// asked.
@@ -295,7 +295,7 @@ pub fn unassessed_requirements(signed_in_ran: bool) -> Vec<(&'static str, &'stat
         out.push((
             "V8, V7",
             "Authorization and session handling need a signed-in user. `sv` signs in only when \
-             securevibe.toml says how, under [stack.run.users], and this one does not.",
+             stackvet.toml says how, under [stack.run.users], and this one does not.",
         ));
         // V3.5.1 is the request forgery requirement in ASVS 5.0. This line cited V4.2 until
         // 25 September 2026, which is HTTP message structure validation — a different subject.
@@ -764,7 +764,7 @@ fn directory_listing(responses: &[ProbeResponse]) -> Option<Finding> {
 }
 
 // ------------------------------------------------------------------------------------------------
-// GraphQL and WebSocket, when securevibe.toml names where they are.
+// GraphQL and WebSocket, when stackvet.toml names where they are.
 
 /// How many aliases the amount probe asks for. Large enough that no app means to allow it for one
 /// request, small enough that answering it costs a server nothing worth worrying about: each one is
@@ -841,7 +841,7 @@ fn graphql_ran(r: &ProbeResponse, key: &str) -> bool {
 /// that answered `{__typename}`, the one query every server accepts; a WebSocket one only of an
 /// endpoint that upgraded a handshake with no `Origin`, which is how a non-browser client connects
 /// and how nearly every server accepts one. Without that, a refusal says only that the path is not
-/// what securevibe.toml says.
+/// what stackvet.toml says.
 pub fn evaluate_api(
     responses: &[ProbeResponse],
     public_api: Option<bool>,
@@ -858,7 +858,7 @@ pub fn evaluate_api(
                 "V4.3.1, V4.3.2".to_owned(),
                 format!(
                     "The GraphQL path answered `{{__typename}}` with {} and no data, so it is not \
-                     answering GraphQL as securevibe.toml says, and nothing else could be asked.",
+                     answering GraphQL as stackvet.toml says, and nothing else could be asked.",
                     plain.status
                 ),
             ));
@@ -878,7 +878,7 @@ pub fn evaluate_api(
                         &GRAPHQL_INTROSPECTION,
                         "The GraphQL schema is handed to anybody who asks",
                         Severity::Medium,
-                        "An introspection query was answered with the schema, and securevibe.toml \
+                        "An introspection query was answered with the schema, and stackvet.toml \
                          says no other programs are meant to use this API."
                             .to_owned(),
                     )),
@@ -886,13 +886,13 @@ pub fn evaluate_api(
                         GRAPHQL_INTROSPECTION.rule_id,
                         GRAPHQL_INTROSPECTION.requirement_ids,
                         "introspection answered, which V4.3.2 allows for an API meant for other \
-                         programs, as securevibe.toml says this one is"
+                         programs, as stackvet.toml says this one is"
                             .to_owned(),
                     )),
                     (true, None) => not_assessed.push((
                         "V4.3.2".to_owned(),
                         "Introspection is on. That is right for an API other programs are meant to \
-                         use and wrong otherwise, and securevibe.toml does not say which this is \
+                         use and wrong otherwise, and stackvet.toml does not say which this is \
                          (`public-api` under [capabilities])."
                             .to_owned(),
                     )),
@@ -938,7 +938,7 @@ pub fn evaluate_api(
                 "V4.4.2".to_owned(),
                 format!(
                     "The WebSocket path answered a plain handshake with {} rather than switching \
-                     protocols, so either it is not where securevibe.toml says or it refuses every \
+                     protocols, so either it is not where stackvet.toml says or it refuses every \
                      handshake; either way a refusal of a foreign one would prove nothing.",
                     plain.status
                 ),

@@ -23,8 +23,8 @@ use std::path::Path;
 use sv_manifest::FindingReview;
 
 /// Who an entry says made the decision, as a sentence reads it: "the owner" for `owner`, otherwise
-/// the name as written. Only what securevibe.toml says: `sv` cannot tell who wrote the entry
-/// (deep review R1), so every report puts it as "securevibe.toml says".
+/// the name as written. Only what stackvet.toml says: `sv` cannot tell who wrote the entry
+/// (deep review R1), so every report puts it as "stackvet.toml says".
 pub fn who_said(by: &str) -> String {
     if by.trim().eq_ignore_ascii_case("owner") {
         "the owner".to_owned()
@@ -455,7 +455,7 @@ pub fn apply(
         let Some(&first) = candidates.first() else {
             if earlier && written_unmasked(app_dir, entry) {
                 // Named without its fingerprint: that hash is the one that could give the
-                // credential back, and the report is read by more people than securevibe.toml.
+                // credential back, and the report is read by more people than stackvet.toml.
                 not_counted.push(format!(
                     "`{}` in {}: recorded by an older `sv`, which named a line holding a credential \
                      in a way that could give the credential back, so its fingerprint is not \

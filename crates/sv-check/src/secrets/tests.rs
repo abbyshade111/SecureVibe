@@ -5,7 +5,7 @@
 fn sv_init_s_own_template_raises_no_credential_finding() {
     let found = scan_text(
         &rules(),
-        "securevibe.toml",
+        "stackvet.toml",
         sv_manifest::spec::STARTER_MANIFEST,
     );
     assert!(
@@ -23,7 +23,7 @@ fn sv_init_s_own_template_raises_no_credential_finding() {
 #[test]
 fn a_blank_in_sv_s_own_braces_is_a_placeholder_and_a_value_around_one_is_not() {
     let judged =
-        |line: &str| !assignment_findings("securevibe.toml", line, 1, &(0..usize::MAX)).is_empty();
+        |line: &str| !assignment_findings("stackvet.toml", line, 1, &(0..usize::MAX)).is_empty();
     assert!(!judged(r#"password = "{new_password}""#));
     assert!(!judged(r#"token = "{code}""#));
     // The control: the same blank with text of its own is still reported. Named, not printed.

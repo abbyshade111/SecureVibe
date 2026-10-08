@@ -20,7 +20,7 @@ fn plain_app(name: &str) -> (PathBuf, PathBuf) {
     let dir = root.join("app");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"x\"\n",
     )
     .unwrap();

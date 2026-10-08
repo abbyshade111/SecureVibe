@@ -12,7 +12,7 @@ use sv_run::{Backend, CannotRun, RunPlan, docker::DockerBackend, install::Ecosys
 
 fn plan() -> RunPlan {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/install-app");
-    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("install fixture manifest");
+    let manifest = Manifest::load(&dir.join("stackvet.toml")).expect("install fixture manifest");
     RunPlan::from_manifest(&manifest, &dir).expect("install fixture declares how to run")
 }
 

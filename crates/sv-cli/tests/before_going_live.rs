@@ -1,4 +1,4 @@
-//! The report's "Before going live" list, end to end: `sv report` on an app securevibe.toml says
+//! The report's "Before going live" list, end to end: `sv report` on an app stackvet.toml says
 //! will be on the internet lists what only its live site can answer, and the same app kept on one
 //! computer does not (the `sv probe` item's leftover, 6 October 2026).
 
@@ -12,7 +12,7 @@ fn compliance(deployment: &str) -> String {
     std::fs::create_dir_all(&app).unwrap();
     std::fs::write(app.join("app.py"), "def hello():\n    return 'hello'\n").unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n[app]\nname = \"Live\"\naudience = \"customers\"\n\
              deployment = \"{deployment}\"\n[stack]\nlanguages = [\"python\"]\n"

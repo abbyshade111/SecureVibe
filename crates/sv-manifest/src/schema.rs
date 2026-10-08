@@ -1,4 +1,4 @@
-//! Where in securevibe.toml a field went wrong, and where it belongs.
+//! Where in stackvet.toml a field went wrong, and where it belongs.
 //!
 //! serde's `deny_unknown_fields` says "unknown field `enabled`, expected one of `chat`, …" and
 //! nothing else: not which section the line was read in. In the loop pilot an AI coding tool wrote
@@ -39,7 +39,7 @@ pub struct Section {
 }
 
 impl Section {
-    /// The section as it is written in securevibe.toml: `[capabilities.ai]`, `[[finding-review]]`,
+    /// The section as it is written in stackvet.toml: `[capabilities.ai]`, `[[finding-review]]`,
     /// `[design.<key>]`, or "the top level" for the fields before any `[section]`.
     pub fn name(&self) -> String {
         if self.path.is_empty() {
@@ -97,7 +97,7 @@ enum Place {
     Entry(usize),
 }
 
-/// What to say about a TOML error in securevibe.toml. The line, the pointer to it, and the fields
+/// What to say about a TOML error in stackvet.toml. The line, the pointer to it, and the fields
 /// allowed are kept; an unknown field is named with the section it was read in, and with the
 /// sections where a field of that name belongs, if any. Any other error that points into a section
 /// says which section.
@@ -639,10 +639,10 @@ mod tests {
     use super::*;
 
     /// What `sv` says about `text`, through the same `Manifest::parse` every command and MCP tool
-    /// reads securevibe.toml with. The text must be refused: a test whose file was read would
+    /// reads stackvet.toml with. The text must be refused: a test whose file was read would
     /// assert nothing.
     fn said(text: &str) -> String {
-        match crate::Manifest::parse(text, std::path::Path::new("securevibe.toml")) {
+        match crate::Manifest::parse(text, std::path::Path::new("stackvet.toml")) {
             Ok(_) => panic!("the manifest was read, so there is no message to look at:\n{text}"),
             Err(e) => format!("{e:#}"),
         }
@@ -698,7 +698,7 @@ mod tests {
             message.contains("The fields [stack.run.ai] takes are `chat`, `signed-in`"),
             "{message}"
         );
-        assert!(message.contains("parsing securevibe.toml"), "{message}");
+        assert!(message.contains("parsing stackvet.toml"), "{message}");
     }
 
     #[test]

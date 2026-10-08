@@ -1052,7 +1052,7 @@ fn plural(n: i64) -> &'static str {
 /// The time frame that applies to one advisory, and where it puts the advisory today.
 fn due_for(advisory: &Advisory, time_frames: Option<&FixWithinDays>, today: Option<Day>) -> Due {
     let Some(frames) = time_frames else {
-        return Due::Unjudged("securevibe.toml states no time frames".to_owned());
+        return Due::Unjudged("stackvet.toml states no time frames".to_owned());
     };
     let Some(today) = today else {
         return Due::Unjudged("this computer's clock could not be read".to_owned());
@@ -1069,7 +1069,7 @@ fn due_for(advisory: &Advisory, time_frames: Option<&FixWithinDays>, today: Opti
             };
             let Some(days) = stated else {
                 return Due::Unjudged(format!(
-                    "securevibe.toml states no time frame for {} vulnerabilities",
+                    "stackvet.toml states no time frame for {} vulnerabilities",
                     severity.name()
                 ));
             };
@@ -1084,7 +1084,7 @@ fn due_for(advisory: &Advisory, time_frames: Option<&FixWithinDays>, today: Opti
                 .flatten()
                 .min();
             let Some(days) = shortest else {
-                return Due::Unjudged("securevibe.toml states no time frames".to_owned());
+                return Due::Unjudged("stackvet.toml states no time frames".to_owned());
             };
             days
         }

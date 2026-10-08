@@ -5,7 +5,7 @@ use super::*;
 /// The report as a model should read it: what was not examined first, then what needs attention.
 ///
 /// Every piece of the app's own text, and every line of the report that can quote it (a gap, a
-/// finding's title and fix, a claim, a threat, an entry in securevibe.toml), is fenced as data
+/// finding's title and fix, a claim, a threat, an entry in stackvet.toml), is fenced as data
 /// (`sv_report::fence`): an app's name opened this result as if `sv` had said it (deep review R9).
 /// What `sv` itself tells the tool to do stays outside every fence.
 pub(super) fn summary_with(report: &sv_report::Report, fence: &sv_report::fence::Fence) -> String {
@@ -74,7 +74,7 @@ pub(super) fn check_sections(
          automated check, {} were checked in part (an automated check tried some of what each asks), \
          {} were tested only by the app's own tests (written by the AI coding tool, not a \
          check of sv's), {} the owner answered in the security notes, {} the owner checked by \
-         hand, {} the owner answered yes to in securevibe.toml, {} the AI coding tool answered yes \
+         hand, {} the owner answered yes to in stackvet.toml, {} the AI coding tool answered yes \
          to (those four are somebody's word, not a check), {} were not verified by anything. {} \
          more could not be placed because nobody has answered the question that decides them. \
          Nothing here says a requirement passed.\n",
@@ -145,14 +145,14 @@ pub(super) fn check_sections(
     let mut contradictions = Section::new(
         "contradicted",
         format!(
-            "What securevibe.toml says that the code contradicts ({})",
+            "What stackvet.toml says that the code contradicts ({})",
             contradicted.len()
         ),
         &[],
     );
     if !contradicted.is_empty() {
         contradictions.lead =
-            "\nsecurevibe.toml says one thing and the code another (the code wins):\n".to_owned();
+            "\nstackvet.toml says one thing and the code another (the code wins):\n".to_owned();
     }
     for claim in contradicted {
         contradictions.items.push(Item::text(format!(
@@ -292,7 +292,7 @@ pub(super) fn check_sections(
     );
     if !set_aside.is_empty() {
         aside.lead = format!(
-            "\nSET ASIDE IN securevibe.toml through `sv review`, as false alarms, not counted above \
+            "\nSET ASIDE IN stackvet.toml through `sv review`, as false alarms, not counted above \
              ({}). Only the person can record these, by running `sv review` in their own terminal: \
              never run it for them, and never write a `seal` or a person's name in `by`. {}\n",
             set_aside.len(),
@@ -310,7 +310,7 @@ pub(super) fn check_sections(
     let mut not_counted = Section::new(
         "not-counted",
         format!(
-            "Reviews in securevibe.toml that were not counted ({})",
+            "Reviews in stackvet.toml that were not counted ({})",
             report.reviews_not_counted.len()
         ),
         &[],
@@ -333,7 +333,7 @@ pub(super) fn check_sections(
     let mut claims = Section::new(
         "claims",
         format!(
-            "Every answer in securevibe.toml, with what the code showed ({})",
+            "Every answer in stackvet.toml, with what the code showed ({})",
             report.claims.len()
         ),
         &["claims"],
