@@ -1,7 +1,6 @@
 # Gap item 11, cross-site scripting sinks: a code rule for HTML built from a value and put on the page unescaped
 
-**Status:** claimed by securevibe-e9, as its markers read on 8 October 2026
-
+**Status:** done, 8 October 2026, by its own note carried from main
 From "From the gap analysis of 7 October 2026", item 11 (`docs/GAP-ANALYSIS.md`, 3.3), whose other
 parts were claimed and built by session securevibe-e9; this part was not. **Claimed on 8 October 2026 by session
 securevibe-e2**, at the owner's word ("continue the backlog please"), in branch `claude/securevibe-e2-xss-sinks`:
