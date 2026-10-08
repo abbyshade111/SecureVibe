@@ -1257,12 +1257,66 @@ impl Manifest {
             } else {
                 None
             };
-            match why {
-                Some(why) => refused.push(format!("`{entry}`: {why}, so it is not used")),
-                None => folders.push(path.to_owned()),
+            // A folder holding the file the start command runs is the app (gap analysis, item 19).
+            let starts = self
+                .start_files()
+                .into_iter()
+                .find(|file| why.is_none() && within(file, &parts));
+            match (why, starts) {
+                (Some(why), _) => refused.push(format!("`{entry}`: {why}, so it is not used")),
+                (None, Some(file)) => refused.push(format!(
+                    "`{entry}`: it holds `{file}`, which the start command runs, so it is not used"
+                )),
+                (None, None) => folders.push(path.to_owned()),
             }
         }
         (folders, refused)
+    }
+
+    /// The files `[stack.run] start` names, as paths from the app folder: a word that is a path
+    /// (`server/index.js`, `./app.py`), a Python module run with `-m` (`app.server` is
+    /// `app/server`), and an ASGI or WSGI app named as `module:object` (`app.main:app` is
+    /// `app/main.py`). A start that names no file (`npm start`) gives none.
+    pub fn start_files(&self) -> Vec<String> {
+        const CODE: &[&str] = &[
+            "py", "js", "mjs", "cjs", "ts", "mts", "rb", "php", "go", "sh", "jar", "dll", "exs",
+        ];
+        let Some(start) = self.stack.run.start.as_deref() else {
+            return Vec::new();
+        };
+        let words: Vec<&str> = start
+            .split_whitespace()
+            .map(|w| w.trim_matches(|c| c == '"' || c == '\''))
+            .collect();
+        let mut out = Vec::new();
+        for (i, word) in words.iter().enumerate() {
+            let word = word.trim_start_matches("./");
+            if word.starts_with('-')
+                || word.contains('=')
+                || word.starts_with('/')
+                || word.is_empty()
+            {
+                continue;
+            }
+            let module = |m: &str| m.replace('.', "/");
+            if i > 0 && words[i - 1] == "-m" {
+                out.push(module(word));
+            } else if let Some((m, object)) = word.split_once(':')
+                && !m.is_empty()
+                && !object.is_empty()
+                && m.chars()
+                    .all(|c| c.is_alphanumeric() || c == '_' || c == '.')
+            {
+                out.push(format!("{}.py", module(m)));
+            } else if word
+                .rsplit_once('.')
+                .is_some_and(|(_, ext)| CODE.contains(&ext))
+                || word.contains('/')
+            {
+                out.push(word.to_owned());
+            }
+        }
+        out
     }
 
     pub fn load(path: &Path) -> Result<Self> {
@@ -1546,6 +1600,17 @@ pub fn resolve(
     (ctx, resolved)
 }
 
+/// Whether a path from the app folder is the entry whose path parts are `folder`, or lies inside it,
+/// a `*` standing for any one name, as `sv_scan::under_any` reads a `not-the-app` entry.
+fn within(path: &str, folder: &[&str]) -> bool {
+    let parts: Vec<&str> = path.split('/').filter(|p| !p.is_empty()).collect();
+    folder.len() <= parts.len()
+        && folder
+            .iter()
+            .zip(&parts)
+            .all(|(want, got)| *want == "*" || want == got)
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -1566,6 +1631,44 @@ mod tests {
     }
 
     use super::*;
+
+    #[test]
+    fn the_file_the_start_command_runs_is_read_and_its_folder_refused() {
+        // Gap analysis, item 19.
+        let files = |start: &str| {
+            let m: Manifest = toml::from_str(&format!("[stack.run]\nstart = {start:?}\n")).unwrap();
+            m.start_files()
+        };
+        assert_eq!(files("node ./server/index.js"), ["server/index.js"]);
+        assert_eq!(files("PORT=3000 python app.py --debug"), ["app.py"]);
+        assert_eq!(files("python -m api.server"), ["api/server"]);
+        assert_eq!(
+            files("uvicorn app.main:app --host 0.0.0.0"),
+            ["app/main.py"]
+        );
+        assert_eq!(files("gunicorn 'web.wsgi:application'"), ["web/wsgi.py"]);
+        assert!(files("npm start").is_empty());
+        assert!(files("/usr/bin/env node").is_empty());
+
+        let manifest: Manifest = toml::from_str(
+            "[stack.run]\nstart = \"node server/index.js\"\n\
+             [repository]\nnot-the-app = [\"server\", \"*\", \"examples\", \"server/index.js/x\"]\n",
+        )
+        .unwrap();
+        let (folders, refused) = manifest.not_the_app();
+        assert_eq!(folders, ["examples", "server/index.js/x"]);
+        assert!(
+            refused.iter().any(|r| r
+                == "`server`: it holds `server/index.js`, which the start command runs, so it is not used"),
+            "{refused:#?}"
+        );
+        // A `*` folder holds it too.
+        let manifest: Manifest = toml::from_str(
+            "[stack.run]\nstart = \"node server/index.js\"\n[repository]\nnot-the-app = [\"*/index.js\"]\n",
+        )
+        .unwrap();
+        assert!(manifest.not_the_app().0.is_empty());
+    }
 
     #[test]
     fn a_record_tool_is_read_only_only_when_it_says_so() {

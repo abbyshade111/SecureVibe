@@ -2559,3 +2559,29 @@ fn dependency_files_sv_does_not_read_are_found() {
         ]
     );
 }
+
+#[test]
+fn a_condition_found_only_in_a_folder_set_apart_is_named_and_not_a_no() {
+    // Gap analysis, item 19: an XML parser only in `demo`, which the manifest says is not the app.
+    let dir = std::env::temp_dir().join(format!("sv-found-apart-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(dir.join("demo")).unwrap();
+    std::fs::write(dir.join("app.py"), "print(1)\n").unwrap();
+    std::fs::write(dir.join("demo/feed.py"), "import xml.etree.ElementTree\n").unwrap();
+    let listing = sv_scan::files::Listing::of(&dir);
+    let sigs = all_signatures();
+    let apart = sv_scan::scan_listing_app(&listing, &sigs, &["demo".to_owned()]).unwrap();
+    let whole = sv_scan::scan_listing_app(&listing, &sigs, &[]).unwrap();
+    std::fs::remove_dir_all(&dir).ok();
+    let xml = sv_frameworks::condition::Condition::from_name("xml").expect("xml is a condition");
+    // The whole app shows it; set apart, it is named, and answered by nothing rather than "no".
+    assert_eq!(whole.as_corroborator()(xml), Some(true), "the setup");
+    assert!(whole.found_only_apart.is_empty());
+    assert_eq!(
+        apart.found_only_apart,
+        [(xml, "demo/feed.py".to_owned())],
+        "{:?}",
+        apart.found_only_apart
+    );
+    assert_eq!(apart.as_corroborator()(xml), None);
+}

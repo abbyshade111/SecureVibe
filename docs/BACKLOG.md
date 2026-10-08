@@ -204,6 +204,7 @@ another session is not a claim.
      **Claimed 8 October 2026 by session securevibe-e9** ("pick the next backlog item when ready"), in branch
      `claude/securevibe-e9-not-the-app`: a condition the scan finds only inside a not-the-app folder is not read as
      "no", and the report asks it, naming the file; an entry holding the file the start command runs is refused.
+     **Done the same day** (DESIGN, "A folder set apart cannot switch a capability off"; ADR-031, Later).
   20. **Two lessons from the owner's first build never reached the AI tool.** (`docs/GAP-ANALYSIS.md`, 4.4.) "Never
      rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
      both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
