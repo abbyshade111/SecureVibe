@@ -546,6 +546,8 @@ fn presence_of(adapter: &Adapter, program: &Path) -> Presence {
                     minutes(limit)
                 ),
             )
+        } else if ran.interrupted {
+            (None, STOPPED_WITH_CTRL_C.to_owned())
         } else {
             (ran.code, ran.stderr)
         }
@@ -559,6 +561,9 @@ fn presence_of(adapter: &Adapter, program: &Path) -> Presence {
 pub const TOOL_SECONDS: u64 = 30 * 60;
 /// How long a tool may take to say its version.
 const VERSION_SECONDS: u64 = 60;
+
+/// Why a tool did not run, or did not finish, once somebody asked `sv` to stop.
+const STOPPED_WITH_CTRL_C: &str = "the run was stopped with Ctrl-C";
 
 /// The owner's environment variables an outside tool is handed, and no others: where programs are,
 /// where the home and temporary folders are, the language, a proxy and certificates the computer
@@ -638,19 +643,60 @@ fn minutes(seconds: u64) -> String {
 
 /// What became of a tool run under a time limit.
 struct Finished {
-    /// Its exit code: `None` when it was stopped by a signal, or by the limit.
+    /// Its exit code: `None` when it was stopped by a signal, by the limit, or by Ctrl-C.
     code: Option<i32>,
     stderr: String,
     timed_out: bool,
+    /// Stopped, with everything it started, because the person pressed Ctrl-C (`stop_when`).
+    interrupted: bool,
+}
+
+/// What `sv` says when somebody has asked it to stop: set once, by the program, before any tool
+/// runs (`sv` passes `sv_run::interrupted`, whose handler catches Ctrl-C). Until it is set, nothing
+/// is asked to stop.
+static ASKED_TO_STOP: std::sync::OnceLock<fn() -> bool> = std::sync::OnceLock::new();
+
+/// From here on, a tool still running when `asked` says so is stopped with everything it started,
+/// and no other tool is started. A tool leads a process group of its own (`prepared`), so Ctrl-C at
+/// the terminal reaches `sv` alone: before this, `sv` ended where it stood and the tool ran on with
+/// no limit, its private folder and the report folder's lock left behind (the review of 8 October
+/// 2026, item 1).
+pub fn stop_when(asked: fn() -> bool) {
+    let _ = ASKED_TO_STOP.set(asked);
+}
+
+/// Whether somebody has asked `sv` to stop (`stop_when`).
+pub fn asked_to_stop() -> bool {
+    ASKED_TO_STOP.get().is_some_and(|asked| asked())
 }
 
 /// How much of a tool's stderr is kept; the rest is read and let go, so the tool never waits on a
 /// full pipe.
 const STDERR_KEPT: usize = 64 * 1024;
 
-/// Runs `command`, stopping it, and everything it started, when it has run for `seconds`.
+/// Runs `command`, stopping it, and everything it started, when it has run for `seconds` or when
+/// somebody asks `sv` to stop.
 fn finish(command: &mut Command, seconds: u64) -> std::io::Result<Finished> {
+    finish_unless(command, seconds, &asked_to_stop)
+}
+
+/// `finish`, stopping the command early once `asked` says so, and not starting it at all when it
+/// already has: every program a tool is (its version, its preparing, its run) starts here, so no
+/// tool starts after Ctrl-C.
+fn finish_unless(
+    command: &mut Command,
+    seconds: u64,
+    asked: &dyn Fn() -> bool,
+) -> std::io::Result<Finished> {
     use std::io::Read;
+    if asked() {
+        return Ok(Finished {
+            code: None,
+            stderr: String::new(),
+            timed_out: false,
+            interrupted: true,
+        });
+    }
     let mut child = command.spawn()?;
     let (sent, received) = std::sync::mpsc::channel();
     if let Some(mut stderr) = child.stderr.take() {
@@ -668,13 +714,17 @@ fn finish(command: &mut Command, seconds: u64) -> std::io::Result<Finished> {
         });
     }
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
-    let (status, timed_out) = loop {
+    let (status, timed_out, interrupted) = loop {
         if let Some(status) = child.try_wait()? {
-            break (Some(status), false);
+            break (Some(status), false, false);
+        }
+        if asked() {
+            stop(&mut child);
+            break (child.wait().ok(), false, true);
         }
         if std::time::Instant::now() >= deadline {
             stop(&mut child);
-            break (child.wait().ok(), true);
+            break (child.wait().ok(), true, false);
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     };
@@ -683,13 +733,14 @@ fn finish(command: &mut Command, seconds: u64) -> std::io::Result<Finished> {
         .recv_timeout(std::time::Duration::from_secs(2))
         .unwrap_or_default();
     Ok(Finished {
-        code: if timed_out {
+        code: if timed_out || interrupted {
             None
         } else {
             status.and_then(|s| s.code())
         },
         stderr: String::from_utf8_lossy(&stderr).into_owned(),
         timed_out,
+        interrupted,
     })
 }
 
@@ -1116,6 +1167,7 @@ pub fn run_one_in(
                 "it was stopped after {}, the most `sv` gives one tool",
                 minutes(limit)
             )),
+            Ok(ran) if ran.interrupted => Some(STOPPED_WITH_CTRL_C.to_owned()),
             Ok(ran) if ran.code == Some(0) => None,
             Ok(ran) => Some(said(rules, &last_line(&ran.stderr), LINE_CHARS)),
             Err(e) => Some(e.to_string()),
@@ -1155,6 +1207,16 @@ pub fn run_one_in(
             };
         }
     };
+    if output.interrupted {
+        std::fs::remove_file(report_path).ok();
+        return Outcome::NotRun {
+            why: format!(
+                "{} was stopped before it finished ({STOPPED_WITH_CTRL_C}), so whatever it had \
+                 written is not read",
+                adapter.name
+            ),
+        };
+    }
     if output.timed_out {
         std::fs::remove_file(report_path).ok();
         return Outcome::NotRun {
@@ -2130,3 +2192,6 @@ mod stand_in_tests;
 
 #[cfg(all(test, unix))]
 mod program_tests;
+
+#[cfg(all(test, unix))]
+mod interrupt_tests;
