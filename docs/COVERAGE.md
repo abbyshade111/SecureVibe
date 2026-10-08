@@ -60,7 +60,7 @@ Semgrep is counted above only through rules in a pack the adapter runs (`p/ai-be
 
 C2.1.6, C7.1.2, C7.3.1, V11.3.3.
 
-22 rules that a pack loads read only files `sv` never hands semgrep: templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`), nginx's and Scala Play's `*.conf`, `web.config`, and the like. `sv` hands it the app's code files, and a rule none of whose files it was handed ran over nothing, so they are not counted, and a report does not credit them (ADR-018, Later, 7 October 2026). No requirement is named only by them, so the counts above do not change with it.
+10 rules that a pack loads read only files `sv` never hands semgrep: nginx's and Scala Play's `*.conf`, `web.config`, and the like. `sv` hands it the app's code files, and a rule none of whose files it was handed ran over nothing, so they are not counted, and a report does not credit them (ADR-018, Later, 7 October 2026). Templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`) are code files since 8 October 2026 (ADR-054), so the rules for them are counted. No requirement is named only by them, so the counts above do not change with it.
 
 ## ASVS 5.0 by chapter
 

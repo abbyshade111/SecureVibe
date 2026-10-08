@@ -510,7 +510,8 @@ def code_extensions():
     text = (ROOT / "crates/sv-scan/src/ecosystems.rs").read_text()
     body = text[text.index("pub fn language_of"):]
     body = body[: body.index("_ => return None")]
-    return {e for arm in re.findall(r'^\s*("[^\n]*?)\s*=>', body, re.M)
+    # An arm may run over several lines, as rustfmt wraps a long one.
+    return {e for arm in re.findall(r'((?:"[^"\n]+"\s*\|\s*)*"[^"\n]+")\s*=>', body)
             for e in re.findall(r'"([^"]+)"', arm)}
 
 
@@ -898,11 +899,11 @@ def main():
     w(", ".join(sorted(named_elsewhere, key=lambda q: (q[0], order(q)))) + ".\n")
     never = sorted({r for rules in NEVER_HANDED.values() for r in rules})
     only_there = {q for q in NEVER_HANDED if "semgrep" not in ev[q]["tools"]}
-    w(f"{len(never)} rules that a pack loads read only files `sv` never hands semgrep: templates "
-      "(`*.erb`, `*.ejs`, `*.pug`, `*.jsp`), nginx's and Scala Play's `*.conf`, `web.config`, and the "
-      "like. `sv` hands it the app's code files, and a rule none of whose files it was handed ran over "
-      "nothing, so they are not counted, and a report does not credit them (ADR-018, Later, 7 October "
-      "2026). "
+    w(f"{len(never)} rules that a pack loads read only files `sv` never hands semgrep: nginx's and "
+      "Scala Play's `*.conf`, `web.config`, and the like. `sv` hands it the app's code files, and a rule "
+      "none of whose files it was handed ran over nothing, so they are not counted, and a report does "
+      "not credit them (ADR-018, Later, 7 October 2026). Templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`) "
+      "are code files since 8 October 2026 (ADR-054), so the rules for them are counted. "
       + (f"{len(only_there)} requirements are named only by them: "
          + ", ".join(sorted(only_there, key=lambda q: (q[0], order(q)))) + ".\n" if only_there
          else "No requirement is named only by them, so the counts above do not change with it.\n"))

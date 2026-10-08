@@ -12727,7 +12727,10 @@ Each kind is now read for what it can hold (`language_of` in `crates/sv-scan/src
   recognized by extension in the code rules only and are not given a language, so they do not count as code elsewhere.
 
 The technology scan passes over notebooks and code templates, as it did before they had names, and reads logic-free
-templates as pages. What a notebook costs: one with a `!pip install` line now holds back the rules whose call could
+templates as pages. Semgrep, which is handed every file with a language, is now handed templates and notebooks too, so its
+rules for `*.erb`, `*.ejs`, `*.pug`, and `*.jsp` run over the app's templates and are counted (`docs/COVERAGE.md`:
+twelve of the twenty-two rules that read only files `sv` never handed it). `tools/coverage.py` read `language_of`'s
+extensions one line at a time, and now reads a wrapped line as well. What a notebook costs: one with a `!pip install` line now holds back the rules whose call could
 be named in it, where before the whole notebook was invisible and held back nothing.
 
 Tests: `crates/sv-check/tests/clean_coverage.rs` (`a_notebook_is_read_as_python_at_its_own_lines`, and the six after
