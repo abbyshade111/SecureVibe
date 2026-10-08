@@ -79,6 +79,7 @@ RUST_CHECKS = {
     "config.firebase-rules-open": ("static", ["V8.2.2", "V8.2.1"]),
     "config.supabase-table-without-rls": ("static", ["V8.2.2", "V8.2.1"]),
     "config.supabase-policy-allows-all": ("static", ["V8.2.2", "V8.2.1"]),
+    "config.secret-under-public-name": ("static", ["V13.3.1", "SBD-AC-05"]),
     "probe.retired-grants-offered": ("running", ["V10.4.4"]),
     "probe.admin-opened-by-address": ("running", ["V8.4.2"]),
     "probe.private-files-served": ("running", ["V13.4.7"]),
@@ -311,6 +312,7 @@ RUST_FINDINGS_ONLY = {
     "config.firebase-rules-open",
     "config.supabase-table-without-rls",
     "config.supabase-policy-allows-all",
+    "config.secret-under-public-name",
     # Secrets handed out with care in the workflows say nothing of who else can read them.
     "config.workflow-hands-out-all-secrets",
     # An address with no password in it says nothing of keys kept elsewhere.
@@ -386,6 +388,7 @@ DESCRIBED = {
     "config.firebase-rules-open": "A Firebase rules file that lets anybody in: an `allow` with no condition, `if true`, or test mode's date alone, or a Realtime Database `.read` or `.write` set to true",
     "config.supabase-table-without-rls": "A table a Supabase migration creates with no row-level security turned on, open to the key every visitor's browser holds",
     "config.supabase-policy-allows-all": "A Supabase policy that lets rows be added, changed, or deleted on the condition `true`",
+    "config.secret-under-public-name": "A server's key under a name the build hands to the browser (`NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`, `REACT_APP_`): a name that says it holds a secret, or a value shaped like a service-role, Stripe, OpenAI, Anthropic, Supabase secret, or GitHub key",
     "config.workflow-runs-fork-code": "A CI workflow that runs code from a pull request by someone outside the project with the repository's privileges",
     "config.workflow-checkout-keeps-token": "A CI workflow whose checkout step leaves the repository token where later steps can read it",
     "config.workflow-secrets-with-fork-code": "A CI workflow that hands secrets to a job running code from outside the project",
