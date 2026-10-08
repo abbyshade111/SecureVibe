@@ -76,6 +76,9 @@ RUST_CHECKS = {
     "config.retired-grant-enabled": ("static", ["V10.4.4"]),
     "config.model-file-can-run-code": ("static", ["C4.1.2"]),
     "config.certificate-checks-off": ("static", ["V12.3.2", "V12.3.4"]),
+    "config.firebase-rules-open": ("static", ["V8.2.2", "V8.2.1"]),
+    "config.supabase-table-without-rls": ("static", ["V8.2.2", "V8.2.1"]),
+    "config.supabase-policy-allows-all": ("static", ["V8.2.2", "V8.2.1"]),
     "probe.retired-grants-offered": ("running", ["V10.4.4"]),
     "probe.admin-opened-by-address": ("running", ["V8.4.2"]),
     "probe.private-files-served": ("running", ["V13.4.7"]),
@@ -304,6 +307,10 @@ RUST_FINDINGS_ONLY = {
     "config.model-file-can-run-code",
     # A setting made on the server itself is in no file.
     "config.certificate-checks-off",
+    # A rules file or migration with none of these shapes may still let one user reach another's data.
+    "config.firebase-rules-open",
+    "config.supabase-table-without-rls",
+    "config.supabase-policy-allows-all",
     # Secrets handed out with care in the workflows say nothing of who else can read them.
     "config.workflow-hands-out-all-secrets",
     # An address with no password in it says nothing of keys kept elsewhere.
@@ -376,6 +383,9 @@ def framework(path):
 # differently. Every other check's words are read from the code or data where the check is defined.
 DESCRIBED = {
     "config.certificate-checks-off": "A setting that switches off certificate checking for every connection the app makes",
+    "config.firebase-rules-open": "A Firebase rules file that lets anybody in: an `allow` with no condition, `if true`, or test mode's date alone, or a Realtime Database `.read` or `.write` set to true",
+    "config.supabase-table-without-rls": "A table a Supabase migration creates with no row-level security turned on, open to the key every visitor's browser holds",
+    "config.supabase-policy-allows-all": "A Supabase policy that lets rows be added, changed, or deleted on the condition `true`",
     "config.workflow-runs-fork-code": "A CI workflow that runs code from a pull request by someone outside the project with the repository's privileges",
     "config.workflow-checkout-keeps-token": "A CI workflow whose checkout step leaves the repository token where later steps can read it",
     "config.workflow-secrets-with-fork-code": "A CI workflow that hands secrets to a job running code from outside the project",

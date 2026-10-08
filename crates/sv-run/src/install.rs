@@ -159,8 +159,57 @@ impl Install {
     }
 }
 
+/// Whether `image` is one of Docker's own `python` or `node` images, the only ones the install step
+/// runs in.
+///
+/// The install container is the one part of a run with a way out to the internet, and what runs
+/// in it is the image's own `sh`, `pip`, or `npm`. In Docker's own images those are known; in an
+/// image `securevibe.toml` names from anywhere else they are whatever its author put there, and
+/// the step would run that author's code with the network open, which is what the fence exists to
+/// prevent (the review of 8 October 2026, item 1; ADR-052, Later). The two images are also the
+/// only ones where the packages are sure to fit the interpreter the app then runs them with.
+///
+/// Accepted: `python` or `node`, with or without a tag (`python:3.12-slim`, `node:22-alpine`), with
+/// or without a digest, and with or without Docker Hub's own prefix (`docker.io/library/`,
+/// `library/`, `docker.io/`). Nothing else.
+pub fn official_image(image: &str) -> bool {
+    let name = ["docker.io/library/", "library/", "docker.io/"]
+        .iter()
+        .find_map(|prefix| image.strip_prefix(prefix))
+        .unwrap_or(image);
+    let (name, digest) = match name.split_once('@') {
+        Some((name, digest)) => (name, Some(digest)),
+        None => (name, None),
+    };
+    let (name, tag) = match name.split_once(':') {
+        Some((name, tag)) => (name, Some(tag)),
+        None => (name, None),
+    };
+    let tag_ok = tag.is_none_or(|t| {
+        !t.is_empty()
+            && t.len() <= 128
+            && t.chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-'))
+    });
+    let digest_ok = digest.is_none_or(|d| {
+        d.strip_prefix("sha256:")
+            .is_some_and(|h| h.len() == 64 && h.chars().all(|c| c.is_ascii_hexdigit()))
+    });
+    matches!(name, "python" | "node") && tag_ok && digest_ok
+}
+
 /// What the app's folder asks to have installed, or, in plain words, why it cannot be.
 pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
+    if !official_image(image) {
+        return Err(format!(
+            "the install runs in the image securevibe.toml names, with a way out to the internet, \
+             and `sv` does that only in one of Docker's own `python` or `node` images (such as \
+             `python:3.12-slim` or `node:22-alpine`), whose `sh`, `pip`, and `npm` are known. This \
+             app names `{image}`, and in an image of someone else's those could be anything. Name \
+             one of Docker's own, or build the packages into your own image and leave `install` \
+             out."
+        ));
+    }
     let mut installs = Vec::new();
     let requirements = app_dir.join("requirements.txt");
     if requirements.is_file() {
@@ -448,6 +497,53 @@ gunicorn==23.0.0 \\
             !joined.contains("--network") && !joined.contains(" -p "),
             "{joined}"
         );
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn the_install_runs_only_in_dockers_own_python_or_node_images() {
+        for ok in [
+            "python",
+            "python:3.12-slim",
+            "python:3.13.1-slim-bookworm",
+            "node:22-alpine",
+            "node:22.9.0",
+            "docker.io/library/python:3.12-slim",
+            "library/node:22",
+            "docker.io/node:22-alpine",
+            "python:3.12-slim@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+        ] {
+            assert!(official_image(ok), "{ok} is one of Docker's own");
+        }
+        for not in [
+            "",
+            "ghcr.io/someone/python:3.12-slim",
+            "someone/python:3.12",
+            "pythonx:3.12",
+            "Python:3.12",
+            "node:",
+            "node:22 alpine",
+            "python:3.12-slim@sha256:short",
+            "python:3.12-slim@md5:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            "ruby:3.3",
+            "my-app:latest",
+            "--privileged",
+        ] {
+            assert!(!official_image(not), "{not:?} is not one of Docker's own");
+        }
+        // Through `plan`: refused before the folder is looked at, in plain words naming the image
+        // and the way out.
+        let dir = std::env::temp_dir().join(format!("sv-install-image-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("requirements.txt"), "six==1.16.0\n").unwrap();
+        let refused = plan(&dir, "ghcr.io/someone/app:1").unwrap_err();
+        assert!(
+            refused.contains("`ghcr.io/someone/app:1`")
+                && refused.contains("Docker's own `python` or `node` images")
+                && refused.contains("build the packages into your own image"),
+            "{refused}"
+        );
+        assert_eq!(plan(&dir, "python:3.12-slim").unwrap().len(), 1);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 

@@ -519,7 +519,12 @@ pub enum Presence {
 }
 
 pub fn presence(adapter: &Adapter) -> Presence {
-    let mut command = Command::new(&adapter.version.command);
+    presence_of(adapter, Path::new(&adapter.version.command))
+}
+
+/// `presence`, asking the program at `program` (where `located` found it).
+fn presence_of(adapter: &Adapter, program: &Path) -> Presence {
+    let mut command = Command::new(program);
     command.args(&adapter.version.args);
     let limit = adapter
         .time_limit_seconds
@@ -728,6 +733,141 @@ pub fn is_installed(adapter: &Adapter) -> bool {
     presence(adapter) == Presence::Ready
 }
 
+/// Where the program a command names is, found through `PATH` as the system would find it, and
+/// whether it is one `sv` runs over the app.
+///
+/// An adapter's command is a plain name, and a name is whatever `PATH` says. The tools are started
+/// in the app's folder with the owner's `PATH` passed on, and that `PATH` can point into the app: a
+/// virtual environment activated there puts `.venv/bin` first, and a relative entry (`.`, or an
+/// empty one) names whatever is in the folder a program runs in. Either way `sv report --tools`
+/// would run a program the app's author put there, with the owner's rights, in place of the tool
+/// (the review of 8 October 2026, item 4). So the program is found here first, and refused when it
+/// is inside the app or reachable only through a relative entry.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Located {
+    /// At this path, outside the app.
+    At(PathBuf),
+    /// Nowhere `sv` looks; `presence` then says the tool is not installed.
+    Nowhere,
+    /// Only through this `PATH` entry, which is relative.
+    OnlyRelative(String),
+    /// Inside the app's folder (links followed), at this path.
+    InsideApp(PathBuf),
+}
+
+/// `located`, with `PATH` given rather than read, so it can be tested without changing the
+/// process's own.
+#[cfg(unix)]
+fn located(command: &str, app_dir: &Path, path: Option<&std::ffi::OsStr>) -> Located {
+    let app = app_dir
+        .canonicalize()
+        .unwrap_or_else(|_| app_dir.to_path_buf());
+    let judge = |candidate: &Path| -> Option<Located> {
+        if !runnable(candidate) {
+            return None;
+        }
+        let real = candidate
+            .canonicalize()
+            .unwrap_or_else(|_| candidate.to_path_buf());
+        Some(if real.starts_with(&app) {
+            Located::InsideApp(real)
+        } else {
+            Located::At(real)
+        })
+    };
+    // A path rather than a name is run as it is (the tests name their scripts this way; the data
+    // file never does), and judged the same.
+    if command.contains(['/', '\\']) {
+        return judge(Path::new(command)).unwrap_or(Located::Nowhere);
+    }
+    let mut relative = None;
+    for entry in path.map(std::env::split_paths).into_iter().flatten() {
+        if entry.as_os_str().is_empty() || entry.is_relative() {
+            // What such an entry names depends on the folder the program is started in, which
+            // for most tools is the app's; `sv`'s own is the other possibility.
+            if relative.is_none()
+                && (runnable(&app_dir.join(&entry).join(command)) || runnable(&entry.join(command)))
+            {
+                relative = Some(if entry.as_os_str().is_empty() {
+                    ".".to_owned()
+                } else {
+                    entry.display().to_string()
+                });
+            }
+            continue;
+        }
+        if let Some(found) = judge(&entry.join(command)) {
+            return found;
+        }
+    }
+    match relative {
+        Some(entry) => Located::OnlyRelative(entry),
+        None => Located::Nowhere,
+    }
+}
+
+/// Not unix: the program is run by name, as before. Windows finds programs through `PATHEXT` as
+/// well as `PATH`, which this does not read.
+#[cfg(not(unix))]
+fn located(command: &str, _app_dir: &Path, _path: Option<&std::ffi::OsStr>) -> Located {
+    Located::At(PathBuf::from(command))
+}
+
+/// A file somebody may run: the test `execvp` applies.
+#[cfg(unix)]
+fn runnable(path: &Path) -> bool {
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+}
+
+/// An adapter's programs, each where `located` found it, or the name as given when it found
+/// nothing (so `presence` says the tool is missing, as it always has).
+#[derive(Debug, Clone)]
+struct Programs {
+    version: PathBuf,
+    run: PathBuf,
+    prepare: Option<PathBuf>,
+}
+
+impl Programs {
+    /// Or, in words the owner can act on, why this adapter is not run: a program of its is inside
+    /// the app, or on `PATH` only through a relative entry.
+    fn of(adapter: &Adapter, app_dir: &Path) -> Result<Self, String> {
+        let path = std::env::var_os("PATH");
+        let find = |command: &str| -> Result<PathBuf, String> {
+            match located(command, app_dir, path.as_deref()) {
+                Located::At(program) => Ok(program),
+                Located::Nowhere => Ok(PathBuf::from(command)),
+                Located::OnlyRelative(entry) => Err(format!(
+                    "{} is on PATH only through a relative entry (`{entry}`), which `sv` does not \
+                     use to find a program: what it names depends on the folder a program happens \
+                     to run in, and for the tools that is the app's. Put the folder {} is in on \
+                     PATH in full, and run this again.",
+                    adapter.name, adapter.name
+                )),
+                Located::InsideApp(program) => Err(format!(
+                    "{} would run from inside the app ({}), and a program the app's folder holds \
+                     is not one `sv` runs over it: whoever wrote the app could have put anything \
+                     there. Install {} outside the app (to install it, {}), and run this again.",
+                    adapter.name,
+                    program.display(),
+                    adapter.name,
+                    install_step(&adapter.install)
+                )),
+            }
+        };
+        Ok(Programs {
+            version: find(&adapter.version.command)?,
+            run: find(&adapter.run.command)?,
+            prepare: adapter
+                .prepare
+                .as_ref()
+                .map(|p| find(&p.command))
+                .transpose()?,
+        })
+    }
+}
+
 /// How to install a tool, as the middle of a sentence: a command to type is quoted and introduced,
 /// and steps already written in words (CodeQL's download) are left as they are.
 fn install_step(install: &str) -> String {
@@ -783,14 +923,24 @@ pub fn run_one_in(
 ) -> Outcome {
     let app_dir = listing.root.as_path();
     let subject = adapter.subject();
-    let own = presence(adapter);
+    // Where each program is, before anything is asked of it: one inside the app is never started,
+    // not even for its version.
+    let programs = match Programs::of(adapter, app_dir) {
+        Ok(programs) => programs,
+        Err(why) => return Outcome::NotRun { why },
+    };
+    let own = presence_of(adapter, &programs.version);
     // Asked only when the adapter's own program is missing, so a stand-in never runs beside it.
     let other = match own {
-        Presence::Missing => adapter.standing_in().map(|other| (presence(&other), other)),
+        Presence::Missing => adapter.standing_in().map(|other| {
+            let found = Programs::of(&other, app_dir)
+                .map(|programs| (presence_of(&other, &programs.version), programs));
+            (found, other)
+        }),
         _ => None,
     };
-    let (adapter, own, stood_in) = match &other {
-        Some((Presence::Ready, other)) => (
+    let (adapter, own, stood_in, programs) = match &other {
+        Some((Ok((Presence::Ready, theirs)), other)) => (
             other,
             Presence::Ready,
             Some(StoodIn {
@@ -800,24 +950,27 @@ pub fn run_one_in(
                     other.name, adapter.name
                 ),
             }),
+            theirs.clone(),
         ),
-        _ => (adapter, own, None),
+        _ => (adapter, own, None, programs),
     };
     let run_args = adapter.run_args(not_holding);
     match own {
         Presence::Ready => {}
         Presence::Missing => {
             let also = match &other {
-                Some((Presence::Missing, other)) => format!(
+                Some((Ok((Presence::Missing, _)), other)) => format!(
                     " {}, which can run in its place, is not installed either.",
                     other.name
                 ),
-                Some((Presence::Broken { detail }, other)) => format!(
+                Some((Ok((Presence::Broken { detail }, _)), other)) => format!(
                     " {}, which can run in its place, is installed and would not start. It said: \
                      {}",
                     other.name,
                     said(rules, detail, PRESENCE_CHARS)
                 ),
+                // The stand-in is inside the app, or only on a relative PATH entry; `why` names it.
+                Some((Err(why), _)) => format!(" {why}"),
                 _ => String::new(),
             };
             return Outcome::NotRun {
@@ -925,7 +1078,12 @@ pub fn run_one_in(
             .replace("{config}", &settings.to_string_lossy())
     };
     if let Some(prepare) = &adapter.prepare {
-        let mut command = Command::new(&prepare.command);
+        let mut command = Command::new(
+            programs
+                .prepare
+                .clone()
+                .unwrap_or_else(|| PathBuf::from(&prepare.command)),
+        );
         command.args(prepare.args.iter().map(|a| fill(a)));
         if adapter.working_directory.is_some() {
             command.current_dir(app_dir);
@@ -950,7 +1108,7 @@ pub fn run_one_in(
             };
         }
     }
-    let mut command = Command::new(&adapter.run.command);
+    let mut command = Command::new(&programs.run);
     for arg in &run_args {
         if arg == "{files}" {
             // `./` as well as the `--` before it in the data: a file called `-x.py` is a file.
@@ -2220,6 +2378,39 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
     }
 
     #[test]
+    fn a_program_inside_the_app_is_not_run_and_the_same_one_outside_is() {
+        let dir = scratch("inside");
+        let (rule, _) = {
+            let (adapter, rule) = adapter(&dir, "unused");
+            (rule, adapter)
+        };
+        // The control: the tool outside the app runs and its clean report is credited.
+        let outside = tool(&dir, &rule, "CLEAN");
+        let outcome = run(&dir, outside.clone());
+        assert_eq!(outcome.ran, ["primary"], "{:?}", outcome.not_run);
+        // The same script, inside the app where an activated virtual environment would put it.
+        let inside = dir.join("app/.venv/bin/tool");
+        std::fs::create_dir_all(inside.parent().unwrap()).unwrap();
+        std::fs::copy(&outside.run.command, &inside).unwrap();
+        let mut planted = outside.clone();
+        planted.version.command = inside.display().to_string();
+        planted.run.command = inside.display().to_string();
+        let outcome = run(&dir, planted);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            outcome.ran.is_empty() && outcome.verified.is_empty(),
+            "{outcome:?}"
+        );
+        let why = &outcome.not_run[0].1;
+        assert!(
+            why.starts_with("Tool would run from inside the app (")
+                && why.contains(".venv/bin/tool"),
+            "{why}"
+        );
+        assert!(why.contains("Install Tool outside the app"), "{why}");
+    }
+
+    #[test]
     fn a_tool_that_asks_for_a_settings_file_is_given_an_empty_one_of_svs_own() {
         let dir = scratch("settings");
         let (rule, _) = {
@@ -3074,5 +3265,125 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
                 adapter.id
             );
         }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod program_tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn scratch(name: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-program-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(dir.join("app")).unwrap();
+        dir
+    }
+
+    fn program(dir: &Path, relative: &str) -> PathBuf {
+        let path = dir.join(relative);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        path
+    }
+
+    fn path_of(entries: &[&Path]) -> std::ffi::OsString {
+        std::env::join_paths(entries).unwrap()
+    }
+
+    #[test]
+    fn a_program_is_found_through_path_outside_the_app_and_refused_inside_it() {
+        let dir = scratch("where");
+        let app = dir.join("app");
+        let outside = program(&dir, "bin/tool");
+        let inside = program(&dir, "app/.venv/bin/tool");
+        let real_outside = outside.canonicalize().unwrap();
+        let real_inside = inside.canonicalize().unwrap();
+        // Outside first: found there.
+        assert_eq!(
+            located(
+                "tool",
+                &app,
+                Some(&path_of(&[&dir.join("bin"), &app.join(".venv/bin")]))
+            ),
+            Located::At(real_outside.clone())
+        );
+        // The virtual environment first, as `source .venv/bin/activate` leaves PATH: refused.
+        assert_eq!(
+            located(
+                "tool",
+                &app,
+                Some(&path_of(&[&app.join(".venv/bin"), &dir.join("bin")]))
+            ),
+            Located::InsideApp(real_inside.clone())
+        );
+        // A link outside the app to a program inside it is inside it.
+        let linked = dir.join("linked");
+        std::fs::create_dir_all(&linked).unwrap();
+        std::os::unix::fs::symlink(&inside, linked.join("tool")).unwrap();
+        assert_eq!(
+            located("tool", &app, Some(&path_of(&[&linked]))),
+            Located::InsideApp(real_inside.clone())
+        );
+        // A path rather than a name is judged the same way.
+        assert_eq!(
+            located(inside.to_str().unwrap(), &app, None),
+            Located::InsideApp(real_inside)
+        );
+        assert_eq!(
+            located(outside.to_str().unwrap(), &app, None),
+            Located::At(real_outside)
+        );
+        // Nowhere: not on PATH, or there but not runnable.
+        assert_eq!(
+            located("tool", &app, Some(&path_of(&[&linked.join("no")]))),
+            Located::Nowhere
+        );
+        assert_eq!(located("tool", &app, None), Located::Nowhere);
+        std::fs::set_permissions(&outside, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert_eq!(
+            located("tool", &app, Some(&path_of(&[&dir.join("bin")]))),
+            Located::Nowhere
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_relative_path_entry_is_never_used_and_is_named_when_it_is_the_only_way() {
+        let dir = scratch("relative");
+        let app = dir.join("app");
+        program(&dir, "app/tool");
+        let outside = program(&dir, "bin/tool");
+        // `.` names the app's own folder once the tool is started there.
+        assert_eq!(
+            located("tool", &app, Some(std::ffi::OsStr::new("."))),
+            Located::OnlyRelative(".".to_owned())
+        );
+        // An empty entry (`:bin:`) is `.` too.
+        let mut with_empty = std::ffi::OsString::new();
+        with_empty.push("");
+        with_empty.push(":");
+        with_empty.push(dir.join("nowhere"));
+        assert_eq!(
+            located("tool", &app, Some(&with_empty)),
+            Located::OnlyRelative(".".to_owned())
+        );
+        // With an absolute entry that has it, the relative one is skipped and the absolute one
+        // used, whatever the order.
+        let mut both = std::ffi::OsString::new();
+        both.push(".:");
+        both.push(dir.join("bin"));
+        assert_eq!(
+            located("tool", &app, Some(&both)),
+            Located::At(outside.canonicalize().unwrap())
+        );
+        // A relative entry naming nothing is simply nowhere.
+        std::fs::remove_file(app.join("tool")).unwrap();
+        assert_eq!(
+            located("tool", &app, Some(std::ffi::OsStr::new("."))),
+            Located::Nowhere
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 }
