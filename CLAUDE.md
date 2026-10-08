@@ -23,7 +23,8 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   Every run-time read goes through `sv_frameworks::data` (ADR-036): `SV_DATA_DIR` (the whole folder), then beside
   the program, then the folder it was compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`), which the Docker
   image keeps at the same path. A test fails on `CARGO_MANIFEST_DIR` anywhere else outside a test module.
-- `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
+- `docs/` — `ARCHITECTURE.md` (the ten-minute map: read it first), design, backlog, coverage, getting started,
+  threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `semgrep_rule_map.py`, `codeql_suites.py`,
   `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`,
   `docs_page.py`) and one shell script,
