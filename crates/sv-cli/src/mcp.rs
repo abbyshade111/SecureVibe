@@ -864,7 +864,7 @@ impl Server {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if last.as_ref().is_some_and(|check| !check.is_finished()) {
-            return Err(crate::Remedy::new(
+            return Err(crate::Remedy::error(
                 format!(
                     "the last check ran out of time and is still finishing, so no other is started \
                      beside it. Nothing was assessed. At a terminal, with no time limit: {}.",
@@ -910,19 +910,17 @@ impl Server {
                 }
                 report
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
-                return Err(crate::Remedy::new(
-                    format!(
-                        "the check did not finish within {} seconds, so nothing was assessed: this is \
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(crate::Remedy::error(
+                format!(
+                    "the check did not finish within {} seconds, so nothing was assessed: this is \
                      not a pass and not a failure. The folder may be very large. At a terminal, with \
                      no time limit: {}.",
-                        self.time_limit.as_secs_f64(),
-                        at_a_terminal(&app_dir.to_string_lossy(), "")
-                    ),
-                    "Check a smaller folder with `path`, or ask the person to run that command at a \
+                    self.time_limit.as_secs_f64(),
+                    at_a_terminal(&app_dir.to_string_lossy(), "")
+                ),
+                "Check a smaller folder with `path`, or ask the person to run that command at a \
                  terminal.",
-                ));
-            }
+            )),
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                 anyhow::bail!("the check stopped before it finished, so nothing was assessed")
             }
@@ -1290,7 +1288,7 @@ impl Server {
         // the parent is somewhere this server was not started for.
         let parent = app_dir.parent().map(Path::to_path_buf).unwrap_or_default();
         if app_dir == self.root || !parent.starts_with(&self.root) {
-            return Err(crate::Remedy::new(
+            return Err(crate::Remedy::error(
                 format!(
                     "the bundle is written beside the app, and beside {} would be outside {}, the \
                      folder this server was started for. At a terminal: {}.",
@@ -1702,7 +1700,7 @@ fn needs_manifest(app_dir: &Path, again: &str) -> Result<()> {
     if app_dir.join("securevibe.toml").exists() {
         return Ok(());
     }
-    Err(crate::Remedy::new(
+    Err(crate::Remedy::error(
         format!("there is no securevibe.toml in {}.", app_dir.display()),
         format!("Call securevibe_spec, write the file it describes into that folder, and {again}."),
     ))

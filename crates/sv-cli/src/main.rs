@@ -3390,16 +3390,16 @@ fn is_staging(name: &str, ours: &[&str]) -> bool {
 /// Refuses a path that is a link, whatever it points to, saying so in the owner's terms and saying
 /// what to do instead.
 fn refuse_link(path: &Path, what_to_do: &str) -> Result<()> {
-    if let Ok(meta) = std::fs::symlink_metadata(path) {
-        if meta.file_type().is_symlink() {
-            return Err(Remedy::new(
-                format!(
-                    "{} is a link to somewhere else, so sv does not read or write through it.",
-                    path.display()
-                ),
-                what_to_do,
-            ));
-        }
+    if let Ok(meta) = std::fs::symlink_metadata(path)
+        && meta.file_type().is_symlink()
+    {
+        return Err(Remedy::error(
+            format!(
+                "{} is a link to somewhere else, so sv does not read or write through it.",
+                path.display()
+            ),
+            what_to_do,
+        ));
     }
     Ok(())
 }
@@ -3416,7 +3416,8 @@ pub(crate) struct Remedy {
 }
 
 impl Remedy {
-    pub fn new(problem: impl Into<String>, next: impl Into<String>) -> anyhow::Error {
+    /// The error that carries `problem` and `next`.
+    pub fn error(problem: impl Into<String>, next: impl Into<String>) -> anyhow::Error {
         anyhow::Error::new(Remedy {
             problem: problem.into(),
             next: next.into(),
