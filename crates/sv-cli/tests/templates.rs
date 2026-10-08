@@ -8,7 +8,7 @@ fn app(name: &str) -> std::path::PathBuf {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(dir.join("views")).unwrap();
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
-    std::fs::write(dir.join("views/index.ejs"), "<p><%= name %></p>\n").unwrap();
+    std::fs::write(dir.join("views/index.erb"), "<p><%= name %></p>\n").unwrap();
     std::fs::write(dir.join("schema.sql"), "create table notes (id int);\n").unwrap();
     dir
 }
@@ -23,10 +23,10 @@ fn the_terminal_names_the_template_and_the_sql() {
         .expect("sv runs");
     std::fs::remove_dir_all(&dir).ok();
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("nothing here reads ejs"), "{stdout}");
+    assert!(stdout.contains("nothing here reads erb"), "{stdout}");
     assert!(
         stdout.contains(
-            "Templates with code in them, which `sv` does not read yet: `views/index.ejs`."
+            "Templates with code in them, which `sv` does not read yet: `views/index.erb`."
         ),
         "{stdout}"
     );
@@ -58,7 +58,7 @@ fn the_report_names_them_as_gaps() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(
-        compliance.contains("the templates are `views/index.ejs`"),
+        compliance.contains("the templates are `views/index.erb`"),
         "{compliance}"
     );
     assert!(
