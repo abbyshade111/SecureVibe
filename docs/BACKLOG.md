@@ -374,6 +374,8 @@ another session is not a claim.
      `probe.reset-code-in-answer`.
      **(f) done the same day** (DESIGN, "A sign-in token signed with a placeholder secret"):
      `probe.app-token-placeholder-key`.
+     **(c) through sign-in done the same day** (DESIGN, "A failed sign-in that tells which accounts exist"):
+     `probe.signin-reveals-account`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.

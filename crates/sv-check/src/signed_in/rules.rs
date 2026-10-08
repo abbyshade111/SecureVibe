@@ -784,6 +784,17 @@ pub(super) const RESET_REVEALS_ACCOUNT: Rule = Rule {
           link\" — and send the email, or not, afterwards.",
 };
 
+pub(super) const SIGNIN_REVEALS_ACCOUNT: Rule = Rule {
+    rule_id: "probe.signin-reveals-account",
+    requirement_ids: &["V6.3.8"],
+    cwe: &["CWE-204"],
+    impact: "Anybody can find out whether an email address has an account by trying to sign in \
+             with it, which is where guessing passwords and targeted phishing begin.",
+    fix: "Answer a failed sign-in the same way whether the address has no account or the password \
+          was wrong: the same status and the same words, such as \"That email or password is not \
+          right\".",
+};
+
 pub(super) const EMAIL_CODE_REUSABLE: Rule = Rule {
     rule_id: "probe.email-code-reusable",
     requirement_ids: &["V6.5.1"],
