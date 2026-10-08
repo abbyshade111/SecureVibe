@@ -339,6 +339,11 @@ another session is not a claim.
      secret (HS256, HS384, HS512), checked offline against a list of placeholder secrets; a match is a finding citing
      V9.1.1, and no match credits nothing. The secret is never printed. Read on `main` just before this claim: no other
      session had claimed any part of this item.
+     **(d) claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever you're ready"), in
+     branch `claude/securevibe-e9-reset-code-answer`: once the reset check has found the code in the email, it looks
+     for that same code in the answers to the reset requests themselves (body and headers). Found there, anybody can
+     reset any account by asking; a finding citing V6.4.3, and its absence credits nothing. The code is never printed.
+     Read on `main` just before this claim: no other session had claimed (d).
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
@@ -492,6 +497,10 @@ another session is not a claim.
      and by recent Debian and Ubuntu; so Semgrep and gosec through Homebrew on a Mac, and Bandit (with its SARIF
      formatter) and Semgrep through `pipx` where `pip` is refused. Only for packages checked to exist; Brakeman and
      CodeQL keep today's hint, since Homebrew has no Brakeman and its CodeQL lacks the query packs `sv` runs.
+     **Done the same day** (DESIGN, "The language's own tool", the paragraph after "The hint reads as a sentence"):
+     `install_on` in `data/adapters.json`, chosen by the computer `sv` runs on. Breaks: the computer ignored, and
+     the per-platform hints ignored, each failed a test (`tools_on_screen.rs`, and a unit test in
+     `adapters.rs` that holds every hint to `run` a command, never `pip install`, and to name Bandit's formatter).
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1

@@ -802,6 +802,16 @@ Three decisions, each a way of not lying:
   sentence either way: "To install it, run `pip install semgrep`; then run this again", and for CodeQL,
   whose install is steps in words, "To install it, download the CodeQL bundle …" rather than a quoted
   command that is not one (`install_step` in `crates/sv-check/src/adapters.rs`).
+  The hint is the one for the computer `sv` is running on, where a tool has one (`install_on` in
+  `data/adapters.json`, `Adapter::install_hint`): `pip install` is refused by the Python Homebrew installs
+  on a Mac and by recent Debian and Ubuntu (PEP 668), so a hint that worked nowhere the owner works was no
+  hint. On a Mac, Semgrep and gosec come from Homebrew, and Bandit from `pipx` with its SARIF formatter
+  added (`pipx inject`), since Homebrew's Bandit lacks the formatter; on Linux, Bandit and Semgrep come
+  from `pipx`. Each was checked to exist where it says (Homebrew's own formula files, 8 October 2026).
+  Brakeman and CodeQL keep the general hint: Homebrew has no Brakeman, and its CodeQL is the command alone,
+  without the query packs `sv` runs from the bundle. In `sv`'s own container the computer is not the
+  person's, so the general hint is given there. Nothing a hint says is evidence of anything; it only
+  decides whether the person can follow it.
 - **SARIF and nothing else.** One output parser that is trusted is worth more than five that are nearly
   right. A tool that cannot emit SARIF is not listed yet rather than parsed by guesswork — which is why
   bandit's install line names two packages, since its SARIF formatter is a separate one.
