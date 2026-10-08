@@ -210,7 +210,11 @@ fn gosec_runs_no_c_compiler_downloads_nothing_says_what_it_read_and_follows_no_l
     }
     std::fs::remove_dir_all(&modcache).ok();
     let outcome = adapters::run_one(&gosec, &deps, &dir.join("deps.sarif"), &secret_rules());
-    assert_eq!(archives(&modcache), 0, "through `sv`, nothing is downloaded");
+    assert_eq!(
+        archives(&modcache),
+        0,
+        "through `sv`, nothing is downloaded"
+    );
     let Outcome::Ran {
         findings,
         looked_away,
