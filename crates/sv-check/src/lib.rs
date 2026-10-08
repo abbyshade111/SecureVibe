@@ -41,6 +41,7 @@ pub mod oidc;
 pub mod probes;
 pub mod production;
 pub mod prompts;
+pub mod public_keys;
 pub mod review;
 pub mod rich_text;
 pub mod running;
