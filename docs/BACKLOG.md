@@ -8009,6 +8009,10 @@ done: `docs/adr/ADR-018.md`.
   paper-facts**, at the owner's word ("go ahead with ... the deep scrub and review of the documentation"), in branch
   `claude/owned-control`, with a Later entry on ADR-053. Read on `main` just before this claim: no other session had
   claimed it.
+  **Done the same day** (ADR-053, Later): the first user sends the same request at a second record of their own, and
+  the second user's request counts as refused only when the owner's own changes or deletes theirs; otherwise V8.2.2 is
+  checked in part, naming the request and `method`. The specification says how to give `method`, `json`,
+  `token-field` and `id-field`.
 - **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
