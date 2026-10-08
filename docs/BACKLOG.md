@@ -334,6 +334,11 @@ another session is not a claim.
      (d) a reset code returned in the reset request's own answer; (e) prompt injection through a stored note with
      `reads-owned`; (f) a sign-in token signed with a placeholder secret (`secret`, `changeme`), offline; (g) the
      Gemini request shape in the test model.
+     **(f) claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever you're ready"), in
+     branch `claude/securevibe-e9-weak-token-secret`: the app's own sign-in token, when it is signed with a shared
+     secret (HS256, HS384, HS512), checked offline against a list of placeholder secrets; a match is a finding citing
+     V9.1.1, and no match credits nothing. The secret is never printed. Read on `main` just before this claim: no other
+     session had claimed any part of this item.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
