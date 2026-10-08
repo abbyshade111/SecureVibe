@@ -20,3 +20,7 @@ claimable on its own, and the second is the owner's to decide.
    nightly routine you proposed"), in branch `claude/securevibe-review-nightly`, in the form of a `schedule` trigger
    on `rust.yml` (ADR-051, Later) rather than a Claude routine, since CI already runs every piece with Docker; parts
    1 and 2 stay open.
+   **Part 3 done the same day** (ADR-051, Later, 8 October 2026; design entry "A nightly run on main, and the example
+   apps' verdicts held to a snapshot"): a `schedule` trigger on `rust.yml`, 03:17 UTC daily, running the `test` and
+   `image` jobs on `main`; the `publish` job keeps its push-only condition. The comparison the write-up wanted is the
+   snapshot test of the ideas item's part 2.
