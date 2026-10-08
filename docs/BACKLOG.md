@@ -476,6 +476,12 @@ another session is not a claim.
      on screen before the closing line, and not again when the exit status already lists them; the hint is a
      sentence for a command and for CodeQL's steps alike. Breaks: the screen list switched off, the old hint, every
      hint quoted as a command, and the list said twice each failed a test written for it.
+     **(c)'s per-platform install hints claimed on 8 October 2026 by session securevibe-e2**, at the owner's word
+     ("please continue to work off the backlog"), in branch `claude/securevibe-e2-install-hints`: an outside tool's
+     install hint can differ on a Mac and on Linux, because `pip install` is refused by the Python Homebrew installs
+     and by recent Debian and Ubuntu; so Semgrep and gosec through Homebrew on a Mac, and Bandit (with its SARIF
+     formatter) and Semgrep through `pipx` where `pip` is refused. Only for packages checked to exist; Brakeman and
+     CodeQL keep today's hint, since Homebrew has no Brakeman and its CodeQL lacks the query packs `sv` runs.
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
