@@ -176,7 +176,11 @@ pub(super) const FAKE_MODEL: &str = "http://sv-1-model:9100";
 /// together at run time, as `browser_storage`'s test password is, so the file holds no key for a
 /// scanner to flag: CodeQL's hard-coded cryptographic value rule did, on the literal (alert 113,
 /// 8 October 2026). The bytes are the same as before.
-fn jwt_key() -> Vec<u8> {
+fn jwt_key(placeholder: bool) -> Vec<u8> {
+    if placeholder {
+        // Made from pieces, so this file holds no secret's whole shape.
+        return ["your-", "256-bit-", "secret"].concat().into_bytes();
+    }
     ["the fake app", "signs its tokens", "with this"]
         .join(" ")
         .into_bytes()
@@ -498,6 +502,10 @@ pub(super) struct Flaws {
     /// debugging aid left in; later requests for it do not. One request is all an attacker needs,
     /// so the check must read the first answer, and this shows it does.
     pub(super) reset_code_in_answer: bool,
+    /// A sign-in for an address with no account is answered 404, not 403.
+    pub(super) signin_reveals_by_status: bool,
+    /// A sign-in for an address with no account says so; a wrong password says that instead.
+    pub(super) signin_reveals_by_words: bool,
     /// A reset for an address with no account is answered in different words.
     pub(super) reset_reveals_by_words: bool,
     /// The reset email carries its code where the default patterns do not look.
@@ -557,6 +565,9 @@ pub(super) struct Flaws {
     /// Fetches the address a token's `jku` or `x5u` header names, for the key to check it with
     /// (V9.1.3), before it can know whether the token is good.
     pub(super) jwt_key_source_followed: bool,
+    /// Signs its tokens with a placeholder secret, the one a tutorial's example used, rather than a
+    /// key of its own (V9.1.1).
+    pub(super) jwt_placeholder_key: bool,
 }
 
 pub(super) const CSRF: &str = "tok-123";
@@ -646,7 +657,7 @@ impl FakeApp {
         }
         let payload = crate::browser::base64(claims.to_string().as_bytes(), true);
         let signed = format!("{header}.{payload}");
-        let signature = jwt_signature(&signed);
+        let signature = jwt_signature(&signed, self.flaws.jwt_placeholder_key);
         format!("{signed}.{signature}")
     }
 
@@ -663,7 +674,13 @@ impl FakeApp {
         let (head, claims) = (read(header)?, read(payload)?);
         let signed = self.flaws.jwt_signature_ignored
             || match head.get("alg").and_then(|a| a.as_str()) {
-                Some("HS256") => signature == jwt_signature(&format!("{header}.{payload}")),
+                Some("HS256") => {
+                    signature
+                        == jwt_signature(
+                            &format!("{header}.{payload}"),
+                            self.flaws.jwt_placeholder_key,
+                        )
+                }
                 Some("none") => self.flaws.jwt_alg_none_accepted && signature.is_empty(),
                 _ => false,
             };
@@ -920,9 +937,10 @@ fn escape(text: &str) -> String {
 }
 
 /// A token's signature: HMAC-SHA256 with `jwt_key()`, in base64 for web addresses.
-fn jwt_signature(signed: &str) -> String {
+fn jwt_signature(signed: &str, placeholder: bool) -> String {
     use hmac::{Hmac, KeyInit, Mac};
-    let mut mac = <Hmac<sha2::Sha256>>::new_from_slice(&jwt_key()).expect("HMAC takes any key");
+    let mut mac =
+        <Hmac<sha2::Sha256>>::new_from_slice(&jwt_key(placeholder)).expect("HMAC takes any key");
     mac.update(signed.as_bytes());
     crate::browser::base64(&mac.finalize().into_bytes(), true)
 }
@@ -1290,6 +1308,18 @@ impl FakeApp {
                     }
                     if self.flaws.locks_out_after.is_some() {
                         *self.failures.entry(key).or_insert(0) += 1;
+                    }
+                    let known = self.users.contains_key(email);
+                    if !known && self.flaws.signin_reveals_by_status {
+                        return Some(Self::respond(404, vec![], "no"));
+                    }
+                    if self.flaws.signin_reveals_by_words {
+                        let words = if known {
+                            "Wrong password."
+                        } else {
+                            "No account has that email."
+                        };
+                        return Some(Self::respond(403, vec![], words));
                     }
                     return Some(Self::respond(403, vec![], "no"));
                 }

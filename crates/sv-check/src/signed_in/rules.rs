@@ -341,6 +341,19 @@ pub(super) const APP_TOKEN_KEY_SOURCE: Rule = Rule {
           addresses before fetching anything.",
 };
 
+pub(super) const APP_TOKEN_PLACEHOLDER_KEY: Rule = Rule {
+    rule_id: "probe.app-token-placeholder-key",
+    requirement_ids: &["V9.1.1"],
+    cwe: &["CWE-1391"],
+    impact: "The app signs its sign-in tokens with a secret anybody can guess, one of the placeholders \
+             that tutorials, library examples, and generated starter code use. With it, anybody can \
+             make a token that says they are any user, an administrator included, and the app will \
+             take it as its own.",
+    fix: "Make a long random secret (for example `openssl rand -base64 48`), keep it in the app's \
+          settings or a secrets manager rather than in the code, and sign tokens with that. Every \
+          token signed with the old secret should then be refused, so everybody signs in again.",
+};
+
 pub(super) const WS_WITHOUT_SESSION: Rule = Rule {
     rule_id: "probe.websocket-without-session",
     requirement_ids: &["V4.4.4"],
@@ -769,6 +782,17 @@ pub(super) const RESET_REVEALS_ACCOUNT: Rule = Rule {
     fix: "Answer a reset request the same way whether or not the address has an account — the same \
           status and the same words, such as \"if that address has an account, we have sent it a \
           link\" — and send the email, or not, afterwards.",
+};
+
+pub(super) const SIGNIN_REVEALS_ACCOUNT: Rule = Rule {
+    rule_id: "probe.signin-reveals-account",
+    requirement_ids: &["V6.3.8"],
+    cwe: &["CWE-204"],
+    impact: "Anybody can find out whether an email address has an account by trying to sign in \
+             with it, which is where guessing passwords and targeted phishing begin.",
+    fix: "Answer a failed sign-in the same way whether the address has no account or the password \
+          was wrong: the same status and the same words, such as \"That email or password is not \
+          right\".",
 };
 
 pub(super) const EMAIL_CODE_REUSABLE: Rule = Rule {
