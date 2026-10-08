@@ -112,6 +112,11 @@ another session is not a claim.
      with every count in words, and no script. Breaks: a part one too large, "not verified" in the checked color, the
      ones that do not apply left out, the bars left off the page, and empty parts kept, each failed a test.
   2. **`sv dashboard`**, one page for the app folders it is given (2).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please start on the sv dashboard
+     command next"), in branch `claude/securevibe-e2-dashboard-command`: `sv dashboard <app folders> --out <file>`
+     reads the `report.json` already in each app's `securevibe-report` folder and writes one page, every app in
+     alphabetical order with its own page beside it, made the way `report.html` is (no script, nothing fetched). It
+     writes only the file it is told to, and never over a file it did not make. Accepts this part of ADR-057.
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
