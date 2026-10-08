@@ -1098,6 +1098,7 @@ const RAISED_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     ),
     (RESET_REVEALS_ACCOUNT.rule_id, &["reset-request-"]),
     (SIGNIN_REVEALS_ACCOUNT.rule_id, &["reveal-"]),
+    (SIGNUP_REVEALS_ACCOUNT.rule_id, &["signup-reveal-"]),
     (NO_BRUTE_FORCE_LIMIT.rule_id, &["guess-"]),
 ];
 
@@ -1767,6 +1768,7 @@ fn run_checks(
     //    other accounts, so A's session is untouched for the sign-out below.
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
     password_checks(http, users, accounts, confirm.as_deref(), policy, &mut out);
+    signup_reveals_account_check(http, users, accounts, &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
     password_field_checks(http, users, Some(&a.session), &mut out);
 

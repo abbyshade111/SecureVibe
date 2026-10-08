@@ -502,6 +502,10 @@ pub(super) struct Flaws {
     /// debugging aid left in; later requests for it do not. One request is all an attacker needs,
     /// so the check must read the first answer, and this shows it does.
     pub(super) reset_code_in_answer: bool,
+    /// A sign-up with an address that has an account is answered 409, and changes nothing.
+    pub(super) signup_reveals_by_status: bool,
+    /// A sign-up with an address that has an account is sent somewhere else, and changes nothing.
+    pub(super) signup_reveals_by_words: bool,
     /// A sign-in for an address with no account is answered 404, not 403.
     pub(super) signin_reveals_by_status: bool,
     /// A sign-in for an address with no account says so; a wrong password says that instead.
@@ -1720,6 +1724,15 @@ impl FakeApp {
                 }
                 if self.flaws.signup_closed || !self.password_allowed(&password) {
                     return Some(Self::respond(422, vec![], "password refused"));
+                }
+                if self.users.contains_key(&email) {
+                    if self.flaws.signup_reveals_by_status {
+                        return Some(Self::respond(409, vec![], "already registered"));
+                    }
+                    if self.flaws.signup_reveals_by_words {
+                        let to = ("Location", "/login?already-registered=1".into());
+                        return Some(Self::respond(303, vec![to], ""));
+                    }
                 }
                 if !self.flaws.signup_does_nothing {
                     let asked_for_admin = f.get("role").is_some_and(|v| v == "admin")
