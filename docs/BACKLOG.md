@@ -428,6 +428,13 @@ another session is not a claim.
      `finding-review`, `not-the-app`) noticed (a change to ADR-049); (f) feature briefs for owned or shared records,
      API keys, background jobs, and several customer organizations; (g) "shown to work" giving each prompt's sample
      size, and saying when delivery through `sv` was not shown.
+     **(g), its first half, claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please
+     continue to work off the backlog"), in branch `claude/securevibe-e2-prompt-sample`: each prompt shown to work
+     says how many builds it was shown on, with it and without, wherever its status is given (`sv prompts`, the
+     MCP server's prompts and offers, the instructions the AI tool reads first), so a prompt shown on one pair no
+     longer reads the same as one shown on ten. The counts are read from each prompt's own trial record. The
+     second half, saying when delivery through `sv` was not shown, stays unclaimed.
+
   23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
      warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
      rule that the terminal command is the narrower scan.
@@ -489,6 +496,10 @@ another session is not a claim.
      and by recent Debian and Ubuntu; so Semgrep and gosec through Homebrew on a Mac, and Bandit (with its SARIF
      formatter) and Semgrep through `pipx` where `pip` is refused. Only for packages checked to exist; Brakeman and
      CodeQL keep today's hint, since Homebrew has no Brakeman and its CodeQL lacks the query packs `sv` runs.
+     **Done the same day** (DESIGN, "The language's own tool", the paragraph after "The hint reads as a sentence"):
+     `install_on` in `data/adapters.json`, chosen by the computer `sv` runs on. Breaks: the computer ignored, and
+     the per-platform hints ignored, each failed a test (`tools_on_screen.rs`, and a unit test in
+     `adapters.rs` that holds every hint to `run` a command, never `pip install`, and to name Bandit's formatter).
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
@@ -8205,6 +8216,10 @@ another session is not a claim.
      records that govern the files get their "unchanged, because" lines.
      **First half done the same day** (DESIGN, "The tier is on the value"): `sv_check::Tier` on `Verified`, set
      where each credit is made; `Inputs` has one list; `sv_report::status_of` with a unit test per tier.
+     **Second half done the same day** (DESIGN, "The run's script is in `sv-check`, and runs without Docker"):
+     `sv_check::script::run` against the trait `Services`, which `sv-run`'s `DockerRun` implements over Docker;
+     `run_after_cleanup` from 568 lines to 430, the fence, the helpers, the app, the install step, the tests, and
+     the teardown; the script's own tests show the order against a harness that answers nothing.
   5. **A two-page `docs/ARCHITECTURE.md`.** There is no ten-minute map: DESIGN.md is 13,084 lines in 281 dated
      sections and its opening still describes "a second version beside v1 in `agnostic/`"; CLAUDE.md's eight-line
      Layout paragraph is the nearest thing. Lift it from text that exists: the chain listing, scan, resolve, bucket,
