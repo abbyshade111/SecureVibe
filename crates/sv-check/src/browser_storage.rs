@@ -9,7 +9,8 @@
 //! aside: it was not kept for the person.
 //!
 //! Both questions are only ever findings. Finding nothing on one page, after one sign-in, does not
-//! show that the app never keeps either anywhere, so a clean look credits nothing.
+//! show that the app never keeps either anywhere, so a clean look credits nothing: it says what
+//! was looked at, as not assessed, so the report shows the question was asked.
 //!
 //! No value is ever written into the outcome: a place is named by its kind and key, and a token by
 //! what it is and its length.
@@ -434,6 +435,37 @@ pub(crate) fn storage_check(
             ),
         ));
     }
+
+    // What was looked for and not found: said, and credited nothing, since one page after one
+    // sign-in does not show the app never keeps it anywhere.
+    let clean: Vec<(&str, &str)> = [
+        (worst.is_none(), "V10.1.1", "a sign-in token"),
+        (with_password.is_empty(), "V14.3.3", "the password"),
+    ]
+    .into_iter()
+    .filter(|(clean, _, _)| *clean)
+    .map(|(_, id, what)| (id, what))
+    .collect();
+    if !clean.is_empty() {
+        let ids: Vec<&str> = clean.iter().map(|(id, _)| *id).collect();
+        let what: Vec<&str> = clean.iter().map(|(_, what)| *what).collect();
+        out.not_assessed.push((
+            ids.join(", "),
+            format!(
+                "In a real browser: after signing in through the form on {} and opening {private}, \
+                 nothing the page's scripts can read held {}{}. One page after one sign-in does not \
+                 show that the app never keeps {} anywhere, so this credits nothing.",
+                login.path,
+                what.join(" or "),
+                if unread.is_empty() {
+                    String::new()
+                } else {
+                    format!(" ({} could not be read)", unread.join(" and "))
+                },
+                if what.len() == 1 { "it" } else { "either" }
+            ),
+        ));
+    }
 }
 
 #[cfg(test)]
@@ -583,8 +615,18 @@ mod tests {
     fn the_browser_signs_in_through_the_form_and_the_page_opening_is_the_control() {
         let (o, jobs) = run(Browser::default());
         assert!(o.findings.is_empty(), "{:?}", o.findings);
-        assert!(o.not_assessed.is_empty(), "{:?}", o.not_assessed);
         assert!(o.verified.is_empty(), "never credited");
+        // A clean look says what was looked at, and that it credits nothing.
+        assert_eq!(o.not_assessed.len(), 1, "{:?}", o.not_assessed);
+        let (ids, why) = &o.not_assessed[0];
+        assert_eq!(ids, IDS);
+        assert!(
+            why.contains("the form on /login and opening /account")
+                && why.contains("held a sign-in token or the password")
+                && why.contains("credits nothing")
+                && !why.contains("could not be read"),
+            "{why}"
+        );
         let job = &jobs[0];
         assert!(
             !job.actions
@@ -629,6 +671,15 @@ mod tests {
             let f = found(&o, &PASSWORD_IN_STORAGE).unwrap_or_else(|| panic!("{place}: {:?}", o));
             assert_eq!(f.severity, Severity::High);
             assert!(f.description.contains(place), "{}", f.description);
+            // The password was found; the token, looked for and not, is said apart.
+            let [(ids, why)] = o.not_assessed.as_slice() else {
+                panic!("{place}: {:?}", o.not_assessed)
+            };
+            assert_eq!(ids, "V10.1.1", "{place}");
+            assert!(
+                why.contains("held a sign-in token.") && why.contains("never keeps it anywhere"),
+                "{why}"
+            );
             assert!(
                 !every_word(&o).contains(&pw),
                 "the password is in the outcome"
