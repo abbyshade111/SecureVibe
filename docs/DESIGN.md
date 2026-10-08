@@ -2485,6 +2485,16 @@ network at all** — an air-gapped review, a CI runner with egress rules, a lapt
 
 So getting the data is the owner's step, done deliberately and visible in their shell history.
 
+**Where to get it, named (8 October 2026, backlog item 24).** Until then the step said "download an OSV export"
+and not where, which left the check out of reach for somebody who is not a programmer (`docs/GAP-ANALYSIS.md`,
+5.2). `sv audit` without a database, and the report's gap about known vulnerabilities, now name the OSV zip
+for each kind of package the app uses (`osv_download` in `crates/sv-check/src/advisories.rs`), and `sv audit`
+adds the folder layout: one folder per download under `osv`, which works because the reader walks every
+folder under the one it is given. The guide (`docs/GETTING-STARTED.md`) carries the same addresses as a table,
+and a test fails when the table and `osv_download` disagree. A kind of package with no download is named as
+one `sv` does not compare yet. Nothing downloads: a `sv advisories fetch` would change what `sv` connects to,
+and would need a decision record of its own (ADR-027's rule).
+
 ### No data is not a clean result
 
 With no database, `audit` reports **not assessed** and says what to do about it. It never prints "no known
