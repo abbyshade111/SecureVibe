@@ -274,6 +274,13 @@ another session is not a claim.
      not read every file it was given" check (`unread_files`) which of them a loaded rule reads, so a template no
      rule reads is not called unread. Changes what `sv` gives an outside tool: ADR-018, Later. Added 7 October 2026
      when the first half was built.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
+     `claude/securevibe-e9-semgrep-files`. Since item 14 (8 October) the templates and notebooks are handed to Semgrep
+     already, and Semgrep leaves out, without a word, any file no loaded rule's language reads (measured with semgrep
+     1.180.0), so an app with one `.ejs`, `.hbs`, or `.ipynb` file loses Semgrep's whole clean run. The plan: a handed
+     file counts as unread only when a loaded rule in the map reads it (its language's extensions, as Semgrep's own
+     parsers take them, or its `paths.include`); and the configuration files a loaded rule names (`*.conf`,
+     `web.config`) are handed too.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
