@@ -194,6 +194,33 @@ fn osv_ecosystem(ours: &str) -> Option<&'static str> {
     })
 }
 
+/// Where OSV publishes the whole export for one of `sv`'s ecosystems, as one zip file: what to
+/// download by hand for `--advisories`. `sv` itself never fetches it (ADR-027); it only names it.
+pub fn osv_download(ours: &str) -> Option<String> {
+    osv_ecosystem(ours)
+        .map(|osv| format!("https://osv-vulnerabilities.storage.googleapis.com/{osv}/all.zip"))
+}
+
+/// How to fill an advisory folder for these ecosystems, step by step, for somebody who is not a
+/// programmer: one download per ecosystem, each unpacked into a folder of its own under `folder`.
+/// An ecosystem OSV has no export `sv` reads for is named as such.
+pub fn how_to_download(ecosystems: &[&str], folder: &str) -> String {
+    let mut out = format!(
+        "Download each file below in your browser, make a folder called `{folder}`, and unpack each \
+         download into a folder of its own inside it (for example `{folder}/PyPI`). `sv` reads every \
+         advisory file under `{folder}`, however the folders inside it are arranged.\n"
+    );
+    for ours in ecosystems {
+        match osv_download(ours) {
+            Some(url) => out.push_str(&format!("  {ours}: {url}\n")),
+            None => out.push_str(&format!(
+                "  {ours}: `sv` does not compare this ecosystem's packages against advisories yet\n"
+            )),
+        }
+    }
+    out
+}
+
 /// Compares two versions the way a package manager would, as far as it can.
 ///
 /// Returns `None` when the strings are not comparable — a git hash, a date, a build tag. That is not a
@@ -1087,6 +1114,59 @@ fn due_for(advisory: &Advisory, time_frames: Option<&FixWithinDays>, today: Opti
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn each_ecosystem_sv_compares_has_its_osv_download_named() {
+        // Gap analysis 5.2: the owner was told to "download an OSV export" and not where. Each
+        // ecosystem `sv` compares names its file, under OSV's own name for it.
+        for (ours, osv) in [
+            ("npm", "npm"),
+            ("Python", "PyPI"),
+            ("Rust", "crates.io"),
+            ("Ruby", "RubyGems"),
+            ("PHP", "Packagist"),
+            ("Go", "Go"),
+        ] {
+            assert_eq!(
+                osv_download(ours).as_deref(),
+                Some(
+                    format!("https://osv-vulnerabilities.storage.googleapis.com/{osv}/all.zip")
+                        .as_str()
+                ),
+                "{ours}"
+            );
+        }
+        assert_eq!(osv_download("Maven"), None);
+        let steps = how_to_download(&["Python", "Maven"], "osv");
+        assert!(steps.contains("PyPI/all.zip"), "{steps}");
+        assert!(steps.contains("Maven: `sv` does not compare"), "{steps}");
+        assert!(steps.contains("`osv/PyPI`"), "{steps}");
+    }
+
+    #[test]
+    fn the_guide_lists_every_download_sv_names_and_no_other() {
+        // The guide's table is what the owner reads before running anything: it must hold the same
+        // addresses `sv` prints, so a new ecosystem cannot be compared without being written up.
+        let guide = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/GETTING-STARTED.md"),
+        )
+        .unwrap();
+        let in_guide: std::collections::BTreeSet<&str> = guide
+            .split(|c: char| c.is_whitespace() || c == '|')
+            .filter(|w| w.starts_with("https://osv-vulnerabilities.storage.googleapis.com/"))
+            .collect();
+        assert!(!in_guide.is_empty(), "the guide's download table is gone");
+        let named: std::collections::BTreeSet<String> =
+            ["npm", "Python", "Rust", "Ruby", "PHP", "Go"]
+                .iter()
+                .filter_map(|e| osv_download(e))
+                .collect();
+        assert_eq!(
+            in_guide,
+            named.iter().map(String::as_str).collect(),
+            "docs/GETTING-STARTED.md and osv_download disagree"
+        );
+    }
+
     use super::*;
     use crate::sbom::VersionSource;
 
