@@ -8174,6 +8174,8 @@ another session is not a claim.
      `Http` plus a `Services` struct, so it runs against the fake app without Docker and the Docker-only residue is
      the fence, limits, teardown, and install (branch `claude/securevibe-review-run-script`). Both refactors; the
      records that govern the files get their "unchanged, because" lines.
+     **First half done the same day** (DESIGN, "The tier is on the value"): `sv_check::Tier` on `Verified`, set
+     where each credit is made; `Inputs` has one list; `sv_report::status_of` with a unit test per tier.
   5. **A two-page `docs/ARCHITECTURE.md`.** There is no ten-minute map: DESIGN.md is 13,084 lines in 281 dated
      sections and its opening still describes "a second version beside v1 in `agnostic/`"; CLAUDE.md's eight-line
      Layout paragraph is the nearest thing. Lift it from text that exists: the chain listing, scan, resolve, bucket,

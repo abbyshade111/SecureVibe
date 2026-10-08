@@ -19,6 +19,39 @@
 
 use serde::Serialize;
 
+/// Whose word a credit rests on, which decides what a requirement with no finding is called in the
+/// report (ADR-022, ADR-050): a check of `sv`'s own outranks the app's tests, which outrank a
+/// person's written answer, which outranks a check a person made by hand, which outranks the
+/// owner's `yes` to a design question, which outranks the AI coding tool's. Until 8 October 2026 a
+/// credit landed in a tier by which list it was passed to the report in, and the owner's `yes` was
+/// told from the tool's by the check's name; now each credit says, and the report reads it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Tier {
+    /// A check of `sv`'s own read the app or watched it run: *checked*.
+    #[default]
+    Checked,
+    /// The app's own tests name the requirement and passed (ADR-050): *tested by the app's own
+    /// tests*, never folded into *checked*.
+    AppTested,
+    /// The owner answered the question in the security notes, recorded through `sv review`
+    /// (ADR-017): *documented*.
+    Documented,
+    /// The owner checked it by hand and recorded what they saw (ADR-022): *checked by hand*.
+    ByHand,
+    /// The owner answered `yes` to a design question, recorded through `sv review`: *attested*.
+    Attested,
+    /// The AI coding tool answered, or nobody recorded that the owner did: *stated*, the lowest.
+    Stated,
+}
+
+impl Tier {
+    /// Whether a machine read the app for this credit, rather than a person's word being taken.
+    pub fn is_a_check(self) -> bool {
+        matches!(self, Tier::Checked | Tier::AppTested)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Verified {
     /// The rule or check that ran, named the same way its findings are.
@@ -35,6 +68,10 @@ pub struct Verified {
     /// not tried. Left out of the JSON when false, so nothing else's output changes.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub in_part: bool,
+    /// Whose word this rests on. Not written into any report: the report says it as the
+    /// requirement's status, which is what a reader is given.
+    #[serde(skip)]
+    pub tier: Tier,
 }
 
 impl Verified {
@@ -47,12 +84,19 @@ impl Verified {
             requirement_ids: requirement_ids.iter().map(|s| (*s).to_owned()).collect(),
             scope,
             in_part: false,
+            tier: Tier::Checked,
         }
     }
 
     /// The same credit, marked as resting on part of what its requirements ask (ADR-053).
     pub fn in_part(mut self) -> Self {
         self.in_part = true;
+        self
+    }
+
+    /// The same credit, resting on `tier`'s word rather than a check of `sv`'s own.
+    pub fn resting_on(mut self, tier: Tier) -> Self {
+        self.tier = tier;
         self
     }
 }

@@ -48,6 +48,7 @@
 use crate::Verified;
 use crate::advisories::Day;
 use crate::seal::{Checker, Sealed};
+use crate::verified::Tier;
 
 /// How long a confirmation counts, the same as a check made by hand.
 pub const CURRENT_FOR_DAYS: u32 = crate::hand::CURRENT_FOR_DAYS;
@@ -213,6 +214,14 @@ pub fn judge(confirmation: &Confirmation, current: &Current, today: Day) -> Resu
 /// The confirmed version of a piece of *stated* evidence: the tool's words, then the person's, and
 /// whether `sv review`'s seal on it was checked here.
 pub fn credit(stated: &Verified, check_id: &str, holds: &Holds, sealed: &Sealed) -> Verified {
+    // A confirmed check by hand is the owner's check by hand; a confirmed design answer is the
+    // owner's `yes` to a design question. Decided where the credit is made, by the one caller's
+    // choice of check, and never again downstream.
+    let tier = if check_id == HAND_CONFIRMED {
+        Tier::ByHand
+    } else {
+        Tier::Attested
+    };
     Verified::new(
         check_id,
         &stated
@@ -240,6 +249,7 @@ pub fn credit(stated: &Verified, check_id: &str, holds: &Holds, sealed: &Sealed)
             ),
         },
     )
+    .resting_on(tier)
 }
 
 /// What confirming came to, for one kind of record.
