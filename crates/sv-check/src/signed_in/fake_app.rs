@@ -498,6 +498,10 @@ pub(super) struct Flaws {
     pub(super) reset_counting_codes: bool,
     /// A reset for an address with no account is answered 404.
     pub(super) reset_reveals_by_status: bool,
+    /// The answer to an address's first reset request carries the code the email does, as a
+    /// debugging aid left in; later requests for it do not. One request is all an attacker needs,
+    /// so the check must read the first answer, and this shows it does.
+    pub(super) reset_code_in_answer: bool,
     /// A reset for an address with no account is answered in different words.
     pub(super) reset_reveals_by_words: bool,
     /// The reset email carries its code where the default patterns do not look.
@@ -1583,6 +1587,8 @@ impl FakeApp {
                 }
                 let email = form(r).get("email")?.clone();
                 let known = self.users.contains_key(&email);
+                let mut issued = None;
+                let first_for_address = !self.reset_codes.values().any(|(who, _)| *who == email);
                 if known && !self.flaws.reset_sends_nothing {
                     self.next += 1;
                     let code = if self.flaws.reset_short_code {
@@ -1602,6 +1608,7 @@ impl FakeApp {
                         )
                     };
                     self.outbox.push((email.clone(), text));
+                    issued = Some(code);
                 }
                 // A field that differs on every answer, as a real form's token does, so the
                 // comparison is shown to set it aside.
@@ -1625,7 +1632,16 @@ impl FakeApp {
                 } else {
                     String::new()
                 };
-                Self::respond(200, vec![], &format!("{hidden}<p>{words}</p>{count}"))
+                let debug =
+                    match issued.filter(|_| self.flaws.reset_code_in_answer && first_for_address) {
+                        Some(code) => format!("<!-- reset_token={code} -->"),
+                        None => String::new(),
+                    };
+                Self::respond(
+                    200,
+                    vec![],
+                    &format!("{hidden}<p>{words}</p>{count}{debug}"),
+                )
             }
             ("POST", "/reset") => {
                 if !token_ok {

@@ -354,6 +354,8 @@ another session is not a claim.
      with what varies between identical requests set aside). A difference is a finding citing V6.3.8; none credits
      nothing. Run just before the guessing check, and not judged when any answer was a rate limit. Sign-up's half of
      (c) stays unclaimed. Read on `main` just before this claim: no other session had claimed (c).
+     **(d) done the same day** (DESIGN, "A reset code handed back in the reset request's own answer"):
+     `probe.reset-code-in-answer`.
      **(f) done the same day** (DESIGN, "A sign-in token signed with a placeholder secret"):
      `probe.app-token-placeholder-key`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
@@ -649,6 +651,11 @@ another session is not a claim.
      all ten withhold by design with "not assessed" or no credit, and each already has a test asserting so. Step 2
      becomes: those checks mark where they withhold, so the census sees it. Breaks: nothing written, and a test's
      own finding counted, each failed `crates/sv-check/tests/withheld_log.rs`.
+     **Step 2 claimed the same day by session securevibe-e2**, at the owner's word ("yes, please go ahead with step
+     2"), in branch `claude/securevibe-e2-withhold-step2`: a marker, `verified::withheld`, that a check calls where it
+     gives no credit without a finding ("not assessed", or nothing), written to the same `.withheld` log, and put in
+     the ten checks the first count listed, so the tests they already have are seen; and the gate's decision record
+     written as proposed.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
