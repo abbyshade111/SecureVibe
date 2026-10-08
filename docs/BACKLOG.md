@@ -39,6 +39,9 @@ another session is not a claim.
      apply: a second, thinner bar shows where every requirement `sv` knows went (apply, do not apply, could not be
      placed, above the level, counted apart), apart from the first, so the ones that do not apply are never mixed
      with the evidence for the ones that do. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "The short version opens with two bars"; ADR-057, Later): both bars, to scale,
+     with every count in words, and no script. Breaks: a part one too large, "not verified" in the checked color, the
+     ones that do not apply left out, the bars left off the page, and empty parts kept, each failed a test.
   2. **`sv dashboard`**, one page for the app folders it is given (2).
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
