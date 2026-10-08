@@ -231,8 +231,9 @@ another session is not a claim.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
-     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
-     `claude/securevibe-e9-run-kind`.
+     **Done 7 October 2026 with item 27**, by session securevibe-e2 (its claim and done note are under item 27): the
+     short version's "Not run this time" line (DESIGN, "The short version says what kind of run it was, and which
+     level").
   27. **The short version does not say which level the app was held to.** (`docs/GAP-ANALYSIS.md`, 6.2.) "Held to
      ASVS level 1: N more at levels 2 and 3, and M not yet placed, are not in these numbers."
      **Items 26 and 27 claimed together on 7 October 2026 by session securevibe-e2**, at the owner's word ("please
