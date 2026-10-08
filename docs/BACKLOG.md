@@ -258,6 +258,9 @@ another session is not a claim.
      branch `claude/securevibe-e2-readme-first`: the README's opening sends somebody who is not a programmer to
      `docs/GETTING-STARTED.md` first, `tools/install.sh` builds with `--locked`, and the guide says which build
      folder can be deleted afterwards, how large it is, and that deleting it does not remove `sv`.
+     **(h) done the same day** (ADR-036, "Later, 8 October 2026"; DESIGN, "A copy of `sv` reads the data beside it"):
+     all three. Breaks: `--locked` removed, and the build skipped, each failed the new test, which runs the script
+     with a stand-in `cargo`.
      **(f) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-init-redirect`: when `sv init`'s output goes straight into a
      file, it prints only the starter `securevibe.toml`, which `sv` can read, and says on screen that the

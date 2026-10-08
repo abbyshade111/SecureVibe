@@ -344,6 +344,16 @@ the folder it was built in; once that is gone, it cannot find those files and sa
 the build folder; if your `PATH` or your AI tool's settings name `…/securevibe/target/release/sv`, change
 them to `~/.local/bin/sv`.
 
+**The build folder can be deleted.** Building leaves a folder named `target` inside `~/securevibe`, of 1 to 7 GB,
+which the installed copy does not use. To get the space back:
+
+```bash
+rm -rf ~/securevibe/target
+```
+
+That removes only the build's leftovers: `sv` keeps working, and so does your AI tool's link to it. The next
+time you update SecureVibe, the build takes its few minutes again, as it did the first time.
+
 **Docker or Colima has to be running** for `--run`, as in step 1 of this guide, because that is what
 starts your app. With Colima on a Mac, your app's folder has to be inside your home folder (Colima
 shares only that unless you tell it otherwise); if it is not, the report says so and why.

@@ -186,6 +186,55 @@ fn nothing_but_the_data_finder_reads_from_the_build_folder_at_run_time() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn the_install_script_builds_with_the_versions_in_cargo_lock() {
+    // Gap analysis 5.3: without `--locked`, a build chooses today's newest versions of what `sv` is
+    // made from, which no test of `sv` ever ran with. A stand-in `cargo` writes down what it was
+    // asked, and fails, so nothing is built or installed.
+    use std::os::unix::fs::PermissionsExt;
+    let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/install.sh");
+    let root = scratch("locked");
+    let bin = root.join("bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let asked = root.join("asked");
+    let cargo = bin.join("cargo");
+    std::fs::write(
+        &cargo,
+        format!("#!/bin/sh\necho \"$@\" > '{}'\nexit 1\n", asked.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&cargo, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let ran = Command::new("sh")
+        .arg(&script)
+        .env("SV_PREFIX", root.join("prefix"))
+        .env_remove("SV_BINARY")
+        .env(
+            "PATH",
+            format!(
+                "{}:{}",
+                bin.display(),
+                std::env::var("PATH").unwrap_or_default()
+            ),
+        )
+        .output()
+        .unwrap();
+    let args = std::fs::read_to_string(&asked).unwrap_or_default();
+    let installed = root.join("prefix/bin/sv").exists();
+    std::fs::remove_dir_all(&root).ok();
+
+    assert!(
+        args.contains("build"),
+        "the setup: the stand-in cargo was asked to build: {args:?}, {}",
+        String::from_utf8_lossy(&ran.stderr)
+    );
+    assert!(args.split_whitespace().any(|a| a == "--locked"), "{args}");
+    assert!(
+        !ran.status.success() && !installed,
+        "a failed build installed something"
+    );
+}
+
 #[test]
 fn the_install_script_puts_sv_and_its_data_in_a_folder_of_their_own() {
     // `tools/install.sh`, with the program already built (`SV_BINARY`) and a folder of the test's own
