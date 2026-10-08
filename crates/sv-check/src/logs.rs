@@ -578,7 +578,7 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
                 t.text
             ),
         )),
-        Some(t) => out.findings.push(Finding {
+        Some(t) => out.findings.push(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -607,7 +607,7 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
                   explicit offset. In Python, `datetime.now(timezone.utc).isoformat()`; most \
                   logging libraries have a UTC setting."
                 .to_owned(),
-        }),
+        })),
         None => out.not_assessed.push((
             "V16.2.2".to_owned(),
             "The line recording the refused sign-in carried no timestamp of the app's own, so \

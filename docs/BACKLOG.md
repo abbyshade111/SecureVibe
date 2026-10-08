@@ -309,6 +309,8 @@ another session is not a claim.
      for a template made from anything but fixed text (`render_template_string`, Jinja's `Template(...)` and
      `from_string`, and their like in other languages; V1.3.7), only ever a finding. Read on `main` just before this
      claim: no other session had claimed it.
+     **A template built from a value done the same day** (DESIGN, "A page template built from a value"); Jinja's bare
+     `Template(...)` is left out, since it cannot be told from Python's own `string.Template`.
      **Cross-origin settings that let any site in with credentials claimed 8 October 2026 by session securevibe-e9**
      ("pick your next backlog item whenever you're ready"), in branch `claude/securevibe-e9-cors`: a code rule,
      `ast.cors-any-origin-with-credentials`, for CORS settings that accept every origin and send cookies too
@@ -628,6 +630,24 @@ another session is not a claim.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("that sounds good, yes, please
+     proceed"), in three steps, each its own pull request, of which this claim covers the first:
+     (1) *measure*, in branch `claude/securevibe-e2-withhold-census`: each finding a check makes in the code that
+     ships is written, with the check's id and the place in the code, to a log beside the credit log
+     (`SV_CREDIT_LOG` plus `.withheld`), and `tools/coverage.py --withheld` lists every check the suite saw credit and
+     never saw withhold; a list, failing nothing; (2) *fill the gaps*, a test for each check on that list in which
+     the thing it guards is broken and it says no, in batches the owner hears about first; (3) *the gate*: the list
+     empty, or down to named exceptions each with its reason, and `--credits` failing on any crediting check with no
+     withholding test. **Status: proposed**, for (3): it changes what CI enforces, so its record (a new decision
+     record, governing `tools/coverage.py`'s census) is written as proposed with step 2 and accepted in the pull
+     request that builds the gate. "Not assessed" as a way of withholding is counted from step 2 if the list shows
+     checks that can only withhold that way.
+     **Step 1 done the same day** (DESIGN, "And what it withholds"): `finding::found` at the 45 places a finding is
+     made, and `tools/coverage.py --withheld`. First count: 125 checks seen crediting, 115 seen withholding, 10 not;
+     all ten withhold by design with "not assessed" or no credit, and each already has a test asserting so. Step 2
+     becomes: those checks mark where they withhold, so the census sees it. Breaks: nothing written, and a test's
+     own finding counted, each failed `crates/sv-check/tests/withheld_log.rs`.
+
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
      on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
@@ -8247,15 +8267,18 @@ another session is not a claim.
      NoAnswer { Silent, Crashed, Limited }>` makes a 5xx body unreadable as a refusal unless a check chooses to.
      Changes what a request's answer counts as: a Later entry on ADR-021. The four suites then gain limiter waits,
      so item 7 goes with it.
+     **Claimed 8 October 2026 by session securevibe-review**, with item 7 (branch `claude/securevibe-review-one-answer`).
   7. **The probe sidecar's life is a fixed 900 s** (`docker.rs:84`), not derived from the request budget: 300 s of
      limiter waiting plus the AI suite's fixed waits can outlive it, after which every request reads as "no answer"
      and nothing names the sidecar. Tie it to the budget and have `probe` tell "container gone" from "app silent".
      A Later entry on ADR-025.
+     **Claimed 8 October 2026 by session securevibe-review**, with item 6 (the same branch).
   8. **A check cannot be made to say what it asked.** A check is `fn(.., out: &mut Outcome)` and nothing requires it
      to touch `out`: about 200 hand-written `not_assessed.push` sites, and four early returns with none
      (`sessions.rs:711`, fixed on 8 October; `sessions.rs:298`, `passwords.rs:1318`, `signin.rs:618`). Cheapest: a
      `#[must_use]` guard per rule whose drop records "asked and never answered", plus one test that every rule's ids
      land in exactly one bucket on the correct app and on the all-flaws app. Fuller: checks return a `Verdict`.
+     **Claimed 8 October 2026 by session securevibe-review**, the cheaper form first (branch `claude/securevibe-review-asked-and-answered`).
   9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
      `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
      real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
@@ -8281,6 +8304,7 @@ another session is not a claim.
      sibling `*_tests.rs` files and new DESIGN sections per topic cut that further. Split the tests out of the seven
      modules over 3,000 lines (`ast.rs`, `ai.rs`, `probes.rs`, `adapters.rs`, `secrets.rs`, `production.rs`,
      `sbom.rs`; 40 to 65% of each is tests), then `ast.rs` and `sbom.rs` along their seams.
+     **Claimed 8 October 2026 by session securevibe-review**: the CLAUDE.md line, and the tests split out of the seven modules (branch `claude/securevibe-review-tests-apart`).
   12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
      unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
      (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability

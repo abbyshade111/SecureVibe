@@ -5,6 +5,7 @@ with it, docs/REQUIREMENTS.md (every requirement and its checks) and data/reach.
     python3 tools/coverage.py            # rewrite all three
     python3 tools/coverage.py --check    # fail if any of the three is not what this would write
     python3 tools/coverage.py --credits LOG  # fail if the suite's credits disagree with the lists below
+    python3 tools/coverage.py --withheld LOG # list the checks the suite saw credit and never saw withhold
 
 Everything is read from where the checks themselves keep their citations, so the document cannot
 claim a check the code does not have:
@@ -744,6 +745,49 @@ def check_credits(log):
     return faults
 
 
+# A check whose findings carry names of their own, one per thing found, rather than the check's: each
+# finding named with the prefix is that check withholding.
+WITHHELD_UNDER = {"advisory.": "advisories", "sbom.": "sbom"}
+
+
+def withheld_report(log):
+    """The checks the suite saw give credit and never saw withhold it (backlog item 32, step 1).
+
+    A check known to work says no when the thing it guards is broken. `Verified::new` writes each credit
+    to `log`; `finding::found` writes each finding a check makes to `log` + `.withheld`, with the place
+    in the code that made it. A finding made in a test module, or in a test of its own, is a test
+    building its own finding and is left out, as a credit is. Returns (credited, seen withholding,
+    never seen withholding), each a sorted list of check ids, for the checks this script knows (the
+    Rust checks and the tree-sitter rules). Fails nothing: it measures.
+    """
+    shipping = {str(p.relative_to(ROOT)): code.count("\n") + 1 for p, code in rust_code()}
+
+    def read(path, columns):
+        seen = set()
+        for line in Path(path).read_text().splitlines():
+            parts = line.split("\t")
+            if len(parts) != columns:
+                continue
+            at = parts[-1]
+            source, number = at.rsplit(":", 1)
+            if shipping.get(source, 0) < int(number):
+                continue
+            check = parts[0]
+            for prefix, owner in WITHHELD_UNDER.items():
+                if columns == 2 and check.startswith(prefix):
+                    check = owner
+            seen.add(check)
+        return seen
+
+    credited = read(log, 3)
+    withheld_log = Path(str(log) + ".withheld")
+    withheld = read(withheld_log, 2) if withheld_log.exists() else set()
+    known = {check for check, _ in RUST_CHECKS.items() if check not in RUST_FINDINGS_ONLY}
+    known |= {r["id"] for r in load(ROOT / "data/ast-rules.json")["rules"] if not r.get("findingsOnly")}
+    crediting = sorted(credited & known)
+    return crediting, sorted(set(crediting) & withheld), sorted(set(crediting) - withheld)
+
+
 def reach_json(asvs, aisvs, ev, tiers, settles):
     """Requirement id -> the kinds of run (`TIERS` ids) with a check that can credit it, for every
     requirement a check can settle. A check that is only ever a finding is left out: it can show a
@@ -769,6 +813,18 @@ def reach_json(asvs, aisvs, ev, tiers, settles):
 
 
 def main():
+    if "--withheld" in sys.argv[1:]:
+        log = sys.argv[sys.argv.index("--withheld") + 1]
+        crediting, seen, never = withheld_report(log)
+        if not crediting:
+            sys.exit(f"{log} holds no credit from a check: was the suite run with SV_CREDIT_LOG set?")
+        if not Path(log + ".withheld").exists():
+            sys.exit(f"{log}.withheld is not there: was the suite run with SV_CREDIT_LOG set, in a debug build?")
+        print(f"{len(crediting)} checks were seen giving credit; {len(seen)} of them were also seen "
+              f"withholding it, and {len(never)} never were:")
+        for check in never:
+            print(f"  {check}")
+        return
     if "--credits" in sys.argv[1:]:
         faults = check_credits(sys.argv[sys.argv.index("--credits") + 1])
         if faults:

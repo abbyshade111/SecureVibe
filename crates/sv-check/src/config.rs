@@ -223,7 +223,7 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
 
     match committed.first() {
         None => Outcome::Passed(&["V13.3.1"]),
-        Some(first) => Outcome::Failed(Box::new(Finding {
+        Some(first) => Outcome::Failed(Box::new(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -255,13 +255,14 @@ fn secrets_file_committed(app_dir: &Path) -> Outcome {
                   you. Then stop tracking it (`git rm --cached`), add it to .gitignore, and keep a \
                   .env.example with the names and no values."
                 .into(),
-        })),
+        }))),
     }
 }
 
 /// A file that holds credentials, committed in the past and no longer tracked: still in the history.
+#[track_caller]
 fn in_history_finding(first: &str, count: usize) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -304,7 +305,7 @@ fn in_history_finding(first: &str, count: usize) -> Finding {
               history, which every copy of the repository then has to take up; only do that with \
               someone experienced, and never instead of changing the credentials."
             .into(),
-    }
+    })
 }
 
 /// Whether `.gitignore` excludes the environment file, so the next person does not commit it.
@@ -491,8 +492,9 @@ fn glob_matches(pattern: &str, text: &str) -> bool {
     go(&p, &t)
 }
 
+#[track_caller]
 fn env_not_ignored_finding(file: &str, description: String) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -513,7 +515,7 @@ fn env_not_ignored_finding(file: &str, description: String) -> Finding {
                  access to it, including any host or backup, and deleting it later does not undo that."
             .into(),
         fix: "Add `.env` and `.env.*` to .gitignore, with an exception for `.env.example`.".into(),
-    }
+    })
 }
 
 /// Whether the app pins what it installs.
@@ -628,7 +630,7 @@ fn versions_pinned(
                 "Install once and commit the lockfile that produces, then install from it from then on.",
             ),
         };
-        return Outcome::Failed(Box::new(Finding {
+        return Outcome::Failed(Box::new(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -661,7 +663,7 @@ fn versions_pinned(
                      on the next install without anything changing here."
                 .into(),
             fix: fix.into(),
-        }));
+        })));
     }
 
     let open: Vec<String> = judged
@@ -790,7 +792,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
         // show rather than hide.
         return Outcome::Passed(&[]);
     }
-    Outcome::Failed(Box::new(Finding {
+    Outcome::Failed(Box::new(crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -816,7 +818,7 @@ fn security_contact(app_dir: &Path) -> Outcome {
         impact: "Problems found by outsiders get reported publicly, or not at all.".into(),
         fix: "Add a SECURITY.md saying where to send a report and how long a reply should take."
             .into(),
-    }))
+    })))
 }
 
 #[cfg(test)]

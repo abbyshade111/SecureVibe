@@ -248,8 +248,9 @@ fn policies_allowing_all(file: &str, sql: &str) -> Vec<Finding> {
         .collect()
 }
 
+#[track_caller]
 fn base(rule_id: &str, title: &str, file: &str, line: usize, description: String) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -272,9 +273,10 @@ fn base(rule_id: &str, title: &str, file: &str, line: usize, description: String
         description,
         impact: String::new(),
         fix: String::new(),
-    }
+    })
 }
 
+#[track_caller]
 fn open_rule(file: &str, line: usize, what: &str) -> Finding {
     let mut f = base(
         FIREBASE_OPEN,
@@ -297,6 +299,7 @@ fn open_rule(file: &str, line: usize, what: &str) -> Finding {
     f
 }
 
+#[track_caller]
 fn table_without_rls(file: &str, line: usize, table: &str) -> Finding {
     let mut f = base(
         TABLE_WITHOUT_RLS,
@@ -320,6 +323,7 @@ fn table_without_rls(file: &str, line: usize, table: &str) -> Finding {
     f
 }
 
+#[track_caller]
 fn policy_allows_all(file: &str, line: usize, who: &str, command: &str) -> Finding {
     let mut f = base(
         POLICY_ALLOWS_ALL,

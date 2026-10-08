@@ -373,7 +373,7 @@ pub fn check(listing: &Listing, report: &mut ConfigReport) {
             )
         })
         .collect();
-    report.findings.push(Finding {
+    report.findings.push(crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -411,7 +411,7 @@ pub fn check(listing: &Listing, report: &mut ConfigReport) {
               PyTorch file has to stay, load it with `torch.load(path, weights_only=True)`, and never \
               load a pickle from anywhere you do not control."
             .into(),
-    });
+    }));
 }
 
 #[cfg(test)]
