@@ -488,6 +488,11 @@ another session is not a claim.
      next step ends with "What to do: …" outside the fence, and what went wrong stays inside it; the preflight's
      missing-file error names `securevibe_spec`, not `sv init`. Breaks: the next step fenced again, and the
      preflight's own check removed, each failed a test written for it.
+     **(e) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-image-update`: a section of the guide on keeping SecureVibe up
+     to date, both the container image the AI tool runs and a copy built on this computer, how to tell which
+     version each is, and that the AI tool picks up a new image only when it starts the server again. Held to the
+     workflow that publishes the image by a test.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
