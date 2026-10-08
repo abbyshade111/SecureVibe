@@ -27,6 +27,10 @@ another session is not a claim.
      `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
      (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
      clean. Changes what counts as evidence: a record.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
+     `claude/securevibe-e9-error-answers`: a body that does not parse, sent signed out to the routes securevibe.toml
+     names and to the health path; V16.5.1 credited only from a clean error answer, V13.4.2 only from a clean server
+     error. **`Status: proposed`: ADR-056.**
   4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
@@ -7950,3 +7954,21 @@ done: `docs/adr/ADR-018.md`.
 - **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
   faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
   own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.
+
+- **The three untried sentences, tried.** Asked for by the owner on 7 October 2026 ("go ahead with the small trial",
+  "All three, about $13.50"): `password-rules` naming `zxcvbn`, `production-server`'s SQLite sentence, and
+  `isolate-the-window`'s sentence on Python's own error pages, by `docs/prompts/library-trial/sentences-protocol.md`.
+  **Claimed on 7 October 2026 by session paper-facts**, in branch `claude/sentences`. Read on `main` just before this
+  claim: no other session had claimed it.
+- **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
+  (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
+  trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
+  October 2026 did for the loop trials. **Claimed on 7 October 2026 by session paper-facts**, after the trial above.
+- **A second review of all of `sv`'s documentation, and the paper's figures and analyses.** Asked for by the owner on 7
+  October 2026 ("the deep scrub and review of the documentation to get everything up-to-date, including the figures
+  and analyses for the paper that are now out-of-date as well"). The first review (above, 6 October 2026) was done
+  before the install step (ADR-052), the record checks (ADR-053), the two checks of ADR-055, the prompt library's
+  trials, and more. Every document a person or an AI tool reads, and `docs/paper/`'s documents, figures and data,
+  read against `main`; records and DESIGN get dated entries rather than rewrites. **Claimed on 7 October 2026 by
+  session paper-facts**, after the write-up. Read on `main` just before this claim: no other session had claimed it.
+
