@@ -8604,6 +8604,16 @@ line in each item's file rather than a reading of its prose.
   ready?"). **Claimed 8 October 2026 by session securevibe-review**, in branch `claude/securevibe-review-backlog-files`;
   the record is ADR-061, `Status: proposed`, to be accepted in the pull request that builds it.
 
+- **Gap item 11, cross-site scripting sinks: a code rule for HTML built from a value and put on the page
+  unescaped.** From "From the gap analysis of 7 October 2026", item 11 (`docs/GAP-ANALYSIS.md`, 3.3), whose other
+  parts were claimed and built by session securevibe-e9; this part was not. **Claimed on 8 October 2026 by session
+  securevibe-e2**, at the owner's word ("continue the backlog please"), in branch `claude/securevibe-e2-xss-sinks`:
+  `ast.html-from-value`, citing V1.2.1 and only ever a finding, for React's `dangerouslySetInnerHTML` given anything
+  but fixed text; `innerHTML`, `outerHTML`, `insertAdjacentHTML`, and `document.write` given a value; Python's
+  `Markup(...)` and Django's `mark_safe(...)` given a value; and Express's `res.send` of HTML
+  pieced together from a value. Finding-only, crediting nothing, so no decision record is proposed. Read on `main`
+  just before this claim: no other session had claimed it.
+
 ## Decided, not yet written down as ADRs
 
 **All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
