@@ -426,6 +426,13 @@ another session is not a claim.
      `finding-review`, `not-the-app`) noticed (a change to ADR-049); (f) feature briefs for owned or shared records,
      API keys, background jobs, and several customer organizations; (g) "shown to work" giving each prompt's sample
      size, and saying when delivery through `sv` was not shown.
+     **(g), its first half, claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please
+     continue to work off the backlog"), in branch `claude/securevibe-e2-prompt-sample`: each prompt shown to work
+     says how many builds it was shown on, with it and without, wherever its status is given (`sv prompts`, the
+     MCP server's prompts and offers, the instructions the AI tool reads first), so a prompt shown on one pair no
+     longer reads the same as one shown on ten. The counts are read from each prompt's own trial record. The
+     second half, saying when delivery through `sv` was not shown, stays unclaimed.
+
   23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
      warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
      rule that the terminal command is the narrower scan.
