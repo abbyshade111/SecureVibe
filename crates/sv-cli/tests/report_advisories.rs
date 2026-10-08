@@ -140,6 +140,24 @@ fn with_no_database_the_report_says_it_compared_nothing() {
     advisory(&dir, "GHSA-late", "npm", "lodash", "2020-01-01T00:00:00Z");
     let r = report(&dir, false);
     assert!(gap_about_vulnerabilities(&r).is_some(), "silent about it");
+    // And where to get what it needs, for this app's npm packages.
+    let why = r["gaps"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| {
+            g["what"]
+                .as_str()
+                .unwrap_or("")
+                .contains("known vulnerabilit")
+        })
+        .and_then(|g| g["why"].as_str())
+        .unwrap_or("")
+        .to_owned();
+    assert!(
+        why.contains("npm: https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
+        "{why}"
+    );
     assert!(advisory_findings(&r).is_empty());
     assert_eq!(status(&r, "V15.2.1"), "not-verified");
 }
