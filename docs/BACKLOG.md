@@ -34,6 +34,11 @@ another session is not a claim.
   Recorded in `docs/DASHBOARD.md` (its last four sections) and ADR-057 (proposed). Four build items follow, each to be
   claimed on its own:
   1. **The bar at the top of `report.html`** (`docs/DASHBOARD.md`, "Build order", 1).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("Yes, please go ahead when you're
+     ready"), in branch `claude/securevibe-e2-glance-bar`. The owner also asked for how many requirements do not
+     apply: a second, thinner bar shows where every requirement `sv` knows went (apply, do not apply, could not be
+     placed, above the level, counted apart), apart from the first, so the ones that do not apply are never mixed
+     with the evidence for the ones that do. Accepts this part of ADR-057.
   2. **`sv dashboard`**, one page for the app folders it is given (2).
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
