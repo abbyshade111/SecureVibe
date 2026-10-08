@@ -59,6 +59,18 @@ fn the_old_name_is_read_and_said_once_in_the_report_and_at_the_terminal() {
         app.join(OLD_MANIFEST).is_file() && !app.join(MANIFEST).exists(),
         "the setup"
     );
+    // A design question answered no is a finding the manifest's answers made, so the report has
+    // one to point somewhere.
+    let manifest = std::fs::read_to_string(app.join(OLD_MANIFEST)).unwrap();
+    assert!(
+        !manifest.contains("[design]"),
+        "the setup: the example has no design answers"
+    );
+    std::fs::write(
+        app.join(OLD_MANIFEST),
+        format!("{manifest}\n[design]\n\"V2.2.2\" = {{ answer = \"no\", by = \"owner\" }}\n"),
+    )
+    .unwrap();
     let (code, said) = report(&app);
     assert!(code.is_some_and(|c| c < 2), "{said}");
     let json = std::fs::read_to_string(app.join(DEFAULT_REPORT_DIR).join("report.json")).unwrap();
@@ -91,11 +103,18 @@ fn the_old_name_is_read_and_said_once_in_the_report_and_at_the_terminal() {
     );
     // A finding the manifest's answers made points at the file by the name it has.
     let findings = value["findings"].as_array().unwrap();
+    let at_the_manifest: Vec<&str> = findings
+        .iter()
+        .filter_map(|f| f["location"]["file"].as_str())
+        .filter(|file| *file == MANIFEST || *file == OLD_MANIFEST)
+        .collect();
     assert!(
-        findings
-            .iter()
-            .all(|f| f["location"]["file"].as_str() != Some(MANIFEST)),
-        "no finding points at a file this app does not have: {findings:?}"
+        !at_the_manifest.is_empty(),
+        "the setup: the answer of no made no finding: {findings:?}"
+    );
+    assert!(
+        at_the_manifest.iter().all(|file| *file == OLD_MANIFEST),
+        "a finding points at a file this app does not have: {at_the_manifest:?}"
     );
     std::fs::remove_dir_all(&root).ok();
 }
