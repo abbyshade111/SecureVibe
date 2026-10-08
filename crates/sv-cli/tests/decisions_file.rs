@@ -194,6 +194,12 @@ fn the_decisions_files_own_words_are_inert_in_security_md() {
     std::fs::remove_dir_all(&dir).ok();
     // The setup: the section really reached security.md.
     assert!(security.contains("before going live"), "{security}");
+    // Gap analysis 4.2: whose words they are is said, and the AI coding tool's are not the owner's.
+    assert!(
+        security.contains("in a section your AI coding tool wrote"),
+        "{security}"
+    );
+    assert!(!security.contains("marked as written by you"), "{security}");
     for live in ["![x](", "<img", "[click]("] {
         assert!(!security.contains(live), "{live} is live in:\n{security}");
     }

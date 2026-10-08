@@ -629,6 +629,12 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
         );
     } else if brief.tests.is_empty() {
         out.push_str("None: no requirement of this feature waits on a test.\n");
+    } else {
+        out.push_str(
+            "Name a requirement in a test only where the test proves it: nothing here can check \
+             that a test does what its name says, and a test naming one it does not show leaves \
+             that requirement looking examined when nothing examined it.\n\n",
+        );
     }
     for t in &brief.tests {
         out.push_str(&format!(

@@ -191,6 +191,8 @@ another session is not a claim.
      keep the standing line that no tool can make this judgment.
      **Claimed on 8 October 2026 by session securevibe-e2**, with item 20, at the owner's word ("feel free to pick
      another item from the backlog"), in branch `claude/securevibe-e2-loop-lessons`.
+     **Done the same day** (DESIGN, "Whose "bring in a person" text it is, and two lessons for the AI tool"): the
+     report names who wrote the section, from its `Written by:` line.
   19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
      condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
      start command's file. A change to ADR-031: a Later entry.
@@ -200,6 +202,8 @@ another session is not a claim.
      section.
      **Claimed on 8 October 2026 by session securevibe-e2**, with item 18, in branch
      `claude/securevibe-e2-loop-lessons`.
+     **Done the same day** (the same DESIGN section): the first lesson in `never-weaken-a-check`, the second at the
+     top of the feature brief's "Tests to write".
   21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
      how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
      `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
@@ -295,6 +299,8 @@ another session is not a claim.
      `web.config`, `*.tf`); and count a handed file as unread only when a loaded rule in the map reads it (its
      language's extensions, as Semgrep's own parsers take them, or its `paths.include`), so the check stays right
      when a pack changes.
+     **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
+     in `crates/sv-check/tests/unread_files.rs`.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to

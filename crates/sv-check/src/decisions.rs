@@ -204,6 +204,28 @@ fn heading_of(line: &str) -> Option<String> {
         .map(plain)
 }
 
+/// Who the section under `heading` says wrote it, from its `Written by:` line: `None` when there is
+/// no such section or it does not say.
+pub fn section_writer(text: &str, heading: &str) -> Option<String> {
+    let wanted = plain(heading);
+    let mut lines = text.lines();
+    lines.find(|line| {
+        ["## ", "### "]
+            .iter()
+            .find_map(|prefix| line.trim_end().strip_prefix(prefix))
+            .is_some_and(|rest| plain(rest) == wanted)
+    })?;
+    lines
+        .take_while(|line| {
+            !["# ", "## ", "### "]
+                .iter()
+                .any(|prefix| line.trim_end().starts_with(prefix))
+        })
+        .find_map(|line| line.trim().strip_prefix(crate::notes::WRITTEN_BY))
+        .map(|who| who.trim().to_owned())
+        .filter(|who| !who.is_empty())
+}
+
 /// The most of a section repeated in the report, in characters: enough for a recommendation and
 /// its reason, short enough that a long section does not take over the report.
 const MOST_REPEATED: usize = 600;
@@ -267,6 +289,18 @@ mod tests {
         assert!(
             !read.contains("Debug mode"),
             "the next section is not part of it: {read}"
+        );
+        // Who wrote it, from the section's own line, and nothing when it does not say.
+        assert_eq!(
+            section_writer(text, BRING_IN_A_PERSON).as_deref(),
+            Some(crate::notes::BY_AI_TOOL)
+        );
+        assert_eq!(
+            section_writer(
+                "## When to bring in a person\nRecommend a review.\n",
+                BRING_IN_A_PERSON
+            ),
+            None
         );
     }
 

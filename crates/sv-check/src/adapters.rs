@@ -820,7 +820,7 @@ pub fn run_one_in(
     // A list left behind by an earlier run would vouch for files this one never read.
     std::fs::remove_file(&scanned_path).ok();
     let files = if names_files {
-        code_files_for(listing, &adapter.language)
+        handed_files(listing, adapter)
     } else {
         Vec::new()
     };
@@ -1000,7 +1000,9 @@ pub fn run_one_in(
                 let mut reasons = looked_away(adapter, &text, app_dir);
                 reasons.extend(did_not_finish(rules, &text, app_dir));
                 if lists_scanned {
-                    reasons.extend(unread_files(&files, scanned.as_deref()));
+                    let loaded = loaded_rules(&text);
+                    let reads = |file: &str| read_by_a_loaded_rule(adapter, &loaded, file);
+                    reasons.extend(unread_files(&files, scanned.as_deref(), &reads));
                 }
                 reasons
             },
@@ -1310,6 +1312,81 @@ pub fn code_files_in(listing: &sv_scan::files::Listing) -> Vec<String> {
     code_files_for(listing, "*")
 }
 
+/// What a tool is handed by name: the app's code files in the tool's language, and, for a tool of
+/// every language, the other files one of its rules in the map names in its `paths.include` too
+/// (`*.conf`, `web.config`, `*.tf`). Semgrep reads only the files it is given, so a rule for an
+/// nginx configuration ran over nothing until the configuration was handed to it (gap analysis,
+/// item 34).
+pub fn handed_files(listing: &sv_scan::files::Listing, adapter: &Adapter) -> Vec<String> {
+    let mut out = code_files_for(listing, &adapter.language);
+    if adapter.language == "*" {
+        let named = |file: &str| {
+            adapter
+                .rules
+                .values()
+                .any(|r| !r.targets.is_empty() && r.reads(file))
+        };
+        out.extend(
+            listing
+                .app_files()
+                .filter(|e| e.language.is_none() && named(&e.relative))
+                .map(|e| e.relative.clone()),
+        );
+        out.sort();
+        out.dedup();
+    }
+    out
+}
+
+/// The extensions each of Semgrep's parsers reads, in `sv`'s names for the languages, as semgrep
+/// 1.180.0 took them when handed a file of each (8 October 2026). Its JavaScript parser reads
+/// TypeScript too; neither reads `.mts` or `.cts`. A language not here is one `sv` hands no file in.
+const SEMGREP_EXTENSIONS: &[(&str, &[&str])] = &[
+    ("python", &["py", "pyi"]),
+    ("javascript", &["js", "jsx", "mjs", "cjs", "ts", "tsx"]),
+    ("typescript", &["ts", "tsx"]),
+    ("java", &["java"]),
+    ("kotlin", &["kt", "kts"]),
+    ("go", &["go"]),
+    ("rust", &["rs"]),
+    ("ruby", &["rb"]),
+    ("php", &["php"]),
+    ("csharp", &["cs"]),
+    ("c", &["c", "h"]),
+    ("cpp", &["cc", "cpp", "cxx", "h", "hh", "hpp"]),
+    ("dart", &["dart"]),
+    ("swift", &["swift"]),
+    ("shell", &["sh", "bash"]),
+    ("html", &["html", "htm"]),
+    ("vue", &["vue"]),
+];
+
+/// Whether a rule the tool loaded, and that the map knows, reads this file: one of the files its
+/// `paths.include` names, or a file its language's parser reads, or, for a rule of any language
+/// (Semgrep's `generic` and `regex`), every file. Rules the map does not know are left out: a clean
+/// run credits only rules in the map, and none of those is the worse for a file only another rule
+/// would have read.
+pub fn read_by_a_loaded_rule(adapter: &Adapter, loaded: &BTreeSet<String>, file: &str) -> bool {
+    let extension = file
+        .rsplit_once('.')
+        .map(|(_, e)| e.to_ascii_lowercase())
+        .unwrap_or_default();
+    let parses = |language: &str| {
+        language == "*"
+            || SEMGREP_EXTENSIONS
+                .iter()
+                .any(|(l, exts)| *l == language && exts.contains(&extension.as_str()))
+    };
+    adapter
+        .rules
+        .iter()
+        .filter(|(id, _)| loaded.contains(*id))
+        .any(|(_, rule)| {
+            rule.reads(file)
+                && (!rule.targets.is_empty() || rule.languages.iter().any(|l| parses(l)))
+        })
+}
+
 /// The code files of one language, or of every language for `*`: what a tool that reads one
 /// language is given in place of the folder. `sv`'s own listing has already left out links, folders
 /// of installed or built code (`vendor/`, `node_modules/`), and anything it would not read itself
@@ -1416,7 +1493,16 @@ fn relative_uri(uri: &str, app_dir: &Path) -> String {
 ///
 /// `scanned` is the tool's own list (semgrep's `--json-output`, `paths.scanned`). No list at all is a
 /// reason too: a tool that does not say what it read has not shown it read anything.
-pub fn unread_files(given: &[String], scanned: Option<&str>) -> Option<String> {
+///
+/// Only a file `reads` says a rule it loaded reads counts. Semgrep leaves a handed file out of its
+/// list, without a word, when no rule it loaded reads it: a `.hbs` page, with no rule for one
+/// loaded, was never going to be read, and missing it says nothing about the rules that ran
+/// (`read_by_a_loaded_rule`; gap analysis, item 34).
+pub fn unread_files(
+    given: &[String],
+    scanned: Option<&str>,
+    reads: &dyn Fn(&str) -> bool,
+) -> Option<String> {
     let Some(document) = scanned.and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
     else {
         return Some("it did not write the list of files it read".to_owned());
@@ -1429,9 +1515,14 @@ pub fn unread_files(given: &[String], scanned: Option<&str>) -> Option<String> {
         .filter_map(|p| p.as_str())
         .map(|p| p.trim_start_matches("./"))
         .collect();
-    let unread: Vec<&str> = given
+    let expected: Vec<&str> = given
         .iter()
         .map(String::as_str)
+        .filter(|f| reads(f))
+        .collect();
+    let unread: Vec<&str> = expected
+        .iter()
+        .copied()
         .filter(|f| !read.contains(f))
         .collect();
     if unread.is_empty() {
@@ -1439,9 +1530,9 @@ pub fn unread_files(given: &[String], scanned: Option<&str>) -> Option<String> {
     }
     let shown: Vec<String> = unread.iter().take(5).map(|f| format!("`{f}`")).collect();
     Some(format!(
-        "it did not read {} of the {} code files it was given ({}{})",
+        "it did not read {} of the {} files it was given that a rule it loaded reads ({}{})",
         unread.len(),
-        given.len(),
+        expected.len(),
         shown.join(", "),
         if unread.len() > shown.len() {
             ", and others"
