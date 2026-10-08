@@ -2248,7 +2248,15 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     // when it is not. A document cannot be both an incomplete list and a good inventory.
     let mut passed = config.passed.clone();
     passed.extend(sbom::completeness_verified(&bill_of_materials));
-    if !passed.is_empty() {
+    if !passed.is_empty() && gaps.read_nothing() {
+        // A check that found nothing in no files is not one that found the app fine.
+        println!(
+            "\nNothing is listed as checked and fine: no file of the app was read, so the {} check{} \
+             that found nothing had nothing to look in.",
+            passed.len(),
+            if passed.len() == 1 { "" } else { "s" }
+        );
+    } else if !passed.is_empty() {
         println!("\nChecked and fine:");
         for claim in &passed {
             println!("  {} — {}", claim.check_id, claim.scope);
@@ -2274,13 +2282,14 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         if scan.findings.len() == 1 { "" } else { "s" }
     );
     for f in &scan.findings {
-        println!(
-            "\n  [{}] {}\n     {}:{}",
-            f.severity.name(),
-            f.title,
-            f.location.file,
-            f.location.line
-        );
+        // A finding about a file that is missing, such as no SECURITY.md, names the file it
+        // would be, not a line of it.
+        let place = if app_dir.join(&f.location.file).symlink_metadata().is_ok() {
+            format!("{}:{}", f.location.file, f.location.line)
+        } else {
+            format!("{} (not there)", f.location.file)
+        };
+        println!("\n  [{}] {}\n     {place}", f.severity.name(), f.title);
         if let Some(secret) = &f.secret {
             println!("     found: {}", secret.as_str());
         }
