@@ -167,6 +167,11 @@ pub(super) struct FakeApp {
     pub(super) model_up: bool,
     /// What the app fetched from the test model's server: the tags of `/_sv/keys/<tag>`.
     pub(super) model_fetched: std::collections::BTreeSet<String>,
+    /// The run has a headless browser that signs in through the app's form, as a person would, and
+    /// finds nothing kept where the page's scripts can read it: a correct app, as
+    /// `examples/notes-with-users` is. It answers only a job that signs in through a form; any
+    /// other, as with no browser at all.
+    pub(super) browser: bool,
 }
 
 /// The test model's server as the fake app reaches it.
@@ -1025,6 +1030,35 @@ impl Http for FakeApp {
 
     fn model_address(&mut self) -> Option<String> {
         self.model_up.then(|| FAKE_MODEL.to_owned())
+    }
+
+    /// `browser`: a sign-in through the form works, every page opens where it was asked for, and
+    /// the page's scripts can read nothing, before signing in or after.
+    fn browser(&mut self, job: &crate::browser::Job) -> Option<Vec<serde_json::Value>> {
+        use crate::browser::Action;
+        use serde_json::json;
+        let signs_in = job
+            .actions
+            .iter()
+            .any(|a| matches!(a, Action::Act(script) if script.contains("input[type=password]")));
+        if !self.browser || !signs_in {
+            return None;
+        }
+        Some(
+            job.actions
+                .iter()
+                .map(|action| match action {
+                    Action::Goto(path) => json!({ "status": 200, "path": path }),
+                    Action::Act(_) => {
+                        json!({ "found": true, "after": { "status": 200, "path": "/" } })
+                    }
+                    Action::Eval(_) => json!({ "value": {
+                        "local": [], "session": [], "indexeddb": [], "cookie": ""
+                    }}),
+                    _ => json!({}),
+                })
+                .collect(),
+        )
     }
 
     fn send_together(&mut self, rs: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
@@ -2724,7 +2758,11 @@ pub(super) fn run_against(flaws: Flaws, users: &UsersSection) -> Outcome {
 
 /// As `run_against`, and the app afterwards, for a test that reads what was sent to it.
 pub(super) fn run_against_keeping(flaws: Flaws, users: &UsersSection) -> (Outcome, FakeApp) {
-    let mut app = FakeApp::new(flaws);
+    run_seeded(FakeApp::new(flaws), users)
+}
+
+/// As `run_against_keeping`, with an app a test has set up beyond its flaws.
+pub(super) fn run_seeded(mut app: FakeApp, users: &UsersSection) -> (Outcome, FakeApp) {
     let acc = accounts();
     app.users
         .insert(acc.a.user.clone(), (acc.a.password.clone(), false));

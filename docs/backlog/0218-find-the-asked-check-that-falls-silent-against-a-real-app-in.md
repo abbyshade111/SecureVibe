@@ -1,6 +1,6 @@
 # Find the asked! check that falls silent against a real app in CI, and make it say what it found
 
-**Status:** claimed by practical-banach-b1faa1, 8 October 2026
+**Status:** done, 8 October 2026
 
 The guard added on 8 October 2026 (`Said::held`, `docs/design/0310-a-check-that-asked-says-what-it-found-8-october-2026.md`)
 panicked in CI's `test` job, which starts the example apps in Docker, until the panic was limited to sv-check's own
