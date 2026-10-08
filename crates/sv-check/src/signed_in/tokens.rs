@@ -216,6 +216,7 @@ pub(super) fn app_token_checks(
     let Some(jwt) = Jwt::find(&signed_in.session) else {
         return;
     };
+    placeholder_secret_check(&jwt, out);
     let Some(confirm) = confirm else {
         out.not_assessed.push((
             IDS.to_owned(),
@@ -262,6 +263,126 @@ pub(super) fn app_token_checks(
         out,
     );
     key_source_check(http, &jwt, confirm, out);
+}
+
+/// Shared secrets that tutorials, token libraries' examples, and generated starter code sign
+/// tokens with, in the spellings they are written in. jwt.io's own example is the first.
+const PLACEHOLDER_SECRETS: &[&str] = &[
+    "your-256-bit-secret",
+    "your-384-bit-secret",
+    "your-512-bit-secret",
+    "secret",
+    "Secret",
+    "SECRET",
+    "secretkey",
+    "secret_key",
+    "secret-key",
+    "secret123",
+    "changeme",
+    "change-me",
+    "change_me",
+    "changethis",
+    "change-this-secret",
+    "jwt_secret",
+    "jwt-secret",
+    "jwtsecret",
+    "JWT_SECRET",
+    "your_jwt_secret",
+    "your-jwt-secret",
+    "your_secret_key",
+    "your-secret-key",
+    "yoursecretkey",
+    "mysecret",
+    "my-secret",
+    "my_secret",
+    "mysecretkey",
+    "my-secret-key",
+    "supersecret",
+    "super-secret",
+    "supersecretkey",
+    "super-secret-key",
+    "topsecret",
+    "s3cr3t",
+    "shhhhh",
+    "shhhhhhared-secret",
+    "keyboard cat",
+    "password",
+    "123456",
+    "key",
+    "test",
+    "dev",
+    "development",
+    "default",
+];
+
+/// Whether the app signs its own token with a placeholder secret (V9.1.1). Worked out here, from
+/// the token alone: each secret on the list is used to sign the token's first two parts, and the
+/// result compared with its signature. Nothing is sent to the app. A match is a finding, and names
+/// the secret only as its first four characters and its length. No match is never credit: a
+/// secret that is not on this list may still be guessed.
+fn placeholder_secret_check(jwt: &Jwt, out: &mut Outcome) {
+    use hmac::{Hmac, KeyInit, Mac};
+    let alg = jwt
+        .header
+        .get("alg")
+        .and_then(|a| a.as_str())
+        .unwrap_or_default();
+    if !matches!(alg, "HS256" | "HS384" | "HS512") {
+        return;
+    }
+    let (Some((signed, _)), Some(signature)) = (jwt.raw.rsplit_once('.'), unbase64(&jwt.signature))
+    else {
+        return;
+    };
+    let sign = |secret: &str| -> Option<Vec<u8>> {
+        let key = secret.as_bytes();
+        let data = signed.as_bytes();
+        Some(match alg {
+            "HS256" => {
+                let mut mac = <Hmac<sha2::Sha256>>::new_from_slice(key).ok()?;
+                mac.update(data);
+                mac.finalize().into_bytes().to_vec()
+            }
+            "HS384" => {
+                let mut mac = <Hmac<sha2::Sha384>>::new_from_slice(key).ok()?;
+                mac.update(data);
+                mac.finalize().into_bytes().to_vec()
+            }
+            _ => {
+                let mut mac = <Hmac<sha2::Sha512>>::new_from_slice(key).ok()?;
+                mac.update(data);
+                mac.finalize().into_bytes().to_vec()
+            }
+        })
+    };
+    let matched = PLACEHOLDER_SECRETS
+        .iter()
+        .find(|secret| sign(secret).as_deref() == Some(signature.as_slice()));
+    out.steps.push(format!(
+        "checked the app's own sign-in token ({alg}) against {} placeholder secrets, offline: {}",
+        PLACEHOLDER_SECRETS.len(),
+        if matched.is_some() {
+            "one signs it"
+        } else {
+            "none signs it"
+        }
+    ));
+    if let Some(secret) = matched {
+        let shown = crate::finding::Secret::redact(secret);
+        out.findings.push(finding(
+            &APP_TOKEN_PLACEHOLDER_KEY,
+            "The app signs its sign-in tokens with a placeholder secret",
+            Severity::Critical,
+            format!(
+                "The app's own sign-in token, carried in {}, is signed ({alg}) with a placeholder \
+                 secret that tutorials and examples use: `{}`, {} characters long. `sv` found it \
+                 from the token alone, without asking the app anything.",
+                jwt.where_carried(),
+                shown.as_str(),
+                shown.length()
+            ),
+        ));
+    }
 }
 
 /// Whether the app lets its own token say where the key that checks it comes from (V9.1.3).
@@ -1158,5 +1279,115 @@ mod tests {
         assert_eq!(duration_text(1), "1 second");
         assert_eq!(duration_text(60), "1 minute");
         assert_eq!(duration_text(125), "2 minutes 5 seconds");
+    }
+
+    #[test]
+    fn a_token_signed_with_a_placeholder_secret_is_found_carried_either_way() {
+        let full: String = ["your-", "256-bit-", "secret"].concat();
+        for bearer in [true, false] {
+            let (o, _) = Run {
+                flaws: Flaws {
+                    jwt_placeholder_key: true,
+                    ..Default::default()
+                },
+                bearer,
+                ..Default::default()
+            }
+            .go();
+            let found: Vec<&Finding> = o
+                .findings
+                .iter()
+                .filter(|f| f.rule_id == APP_TOKEN_PLACEHOLDER_KEY.rule_id)
+                .collect();
+            assert_eq!(found.len(), 1, "bearer {bearer}: {:?}", o.steps);
+            assert_eq!(found[0].requirement_ids, vec!["V9.1.1".to_owned()]);
+            // The secret is shown as its first four characters and its length, never whole.
+            let said = &found[0].description;
+            assert!(
+                said.contains("`your… (15 more characters)`, 19 characters long"),
+                "{said}"
+            );
+            assert!(!said.contains(&full), "{said}");
+            assert!(!o.steps.iter().any(|s| s.contains(&full)), "{:?}", o.steps);
+            // The app still checks its tokens properly, so the other checks still credit it.
+            assert_eq!(
+                credited(&o),
+                TOKEN_RULES.map(|r| r.rule_id).to_vec(),
+                "bearer {bearer}: {:?}",
+                o.not_assessed
+            );
+            assert!(
+                !verified_ids(&o).contains(&APP_TOKEN_PLACEHOLDER_KEY.rule_id),
+                "never credited"
+            );
+        }
+    }
+
+    #[test]
+    fn a_token_signed_with_the_apps_own_key_is_checked_and_not_reported() {
+        let (o, _) = Run::default().go();
+        assert!(!rule_ids(&o).contains(&APP_TOKEN_PLACEHOLDER_KEY.rule_id));
+        assert!(!verified_ids(&o).contains(&APP_TOKEN_PLACEHOLDER_KEY.rule_id));
+        // Setup: the check ran over the real token, so its silence means something.
+        assert!(
+            o.steps
+                .iter()
+                .any(|s| s.contains("placeholder secrets, offline: none signs it")),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn each_shared_secret_signing_method_is_checked_and_a_key_pair_is_left_alone() {
+        use hmac::{Hmac, KeyInit, Mac};
+        let secret = "sec".to_owned() + "ret";
+        let payload = crate::browser::base64(br#"{"sub":"a@example.com"}"#, true);
+        let token = |alg: &str| -> String {
+            let header = crate::browser::base64(format!(r#"{{"alg":"{alg}"}}"#).as_bytes(), true);
+            let signed = format!("{header}.{payload}");
+            let mac = match alg {
+                "HS384" => {
+                    let mut m = <Hmac<sha2::Sha384>>::new_from_slice(secret.as_bytes()).unwrap();
+                    m.update(signed.as_bytes());
+                    m.finalize().into_bytes().to_vec()
+                }
+                "HS512" => {
+                    let mut m = <Hmac<sha2::Sha512>>::new_from_slice(secret.as_bytes()).unwrap();
+                    m.update(signed.as_bytes());
+                    m.finalize().into_bytes().to_vec()
+                }
+                _ => {
+                    let mut m = <Hmac<sha2::Sha256>>::new_from_slice(secret.as_bytes()).unwrap();
+                    m.update(signed.as_bytes());
+                    m.finalize().into_bytes().to_vec()
+                }
+            };
+            format!("{signed}.{}", crate::browser::base64(&mac, true))
+        };
+        for alg in ["HS256", "HS384", "HS512"] {
+            let jwt = Jwt::read(&token(alg), Carried::Bearer).expect("a token");
+            let mut out = Outcome::default();
+            placeholder_secret_check(&jwt, &mut out);
+            assert_eq!(
+                rule_ids(&out),
+                vec![APP_TOKEN_PLACEHOLDER_KEY.rule_id],
+                "{alg}"
+            );
+        }
+        // The same signature under a key-pair method has no shared secret to guess.
+        let rs = token("HS256").replacen(
+            &crate::browser::base64(br#"{"alg":"HS256"}"#, true),
+            &crate::browser::base64(br#"{"alg":"RS256"}"#, true),
+            1,
+        );
+        let jwt = Jwt::read(&rs, Carried::Bearer).expect("a token");
+        let mut out = Outcome::default();
+        placeholder_secret_check(&jwt, &mut out);
+        assert!(
+            out.findings.is_empty() && out.steps.is_empty(),
+            "{:?}",
+            out.steps
+        );
     }
 }
