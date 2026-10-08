@@ -33,8 +33,10 @@ Every app of both arms is given to one tester in the same way, so the settings f
 1. **Blind copies.** Each build's folder is copied to a folder named by a code drawn at random; the table from code to
    build is written apart and not read until scoring. From each copy are removed, in both arms alike:
    `securevibe.toml`, `securevibe-report/`, `security-notes.md`, `design-decisions.md`, `.mcp.json`, the section `sv
-   rules` writes into `AGENTS.md` (between its markers), and the transcript, which is never in the folder. The app's
-   code, its tests, its seed script if it wrote one, and its `requirements.txt` stay.
+   rules` writes into `AGENTS.md` (between its markers), `.git/` (its messages may name `sv`), `.claude/`, and the
+   transcript, which is never in the folder. The app's code, its tests, its seed script if it wrote one, and its
+   `requirements.txt` stay. **Known limit:** a comment in the code that names SecureVibe, or a test named after a
+   requirement, can still show the tester which arm an app came from; nothing in the code is rewritten to hide it.
 2. **The tester:** headless Claude Code 2.1.293 with Claude Haiku 5.5, no MCP server, the file tools only (`Read`,
    `Write`, `Edit`, `Glob`, `Grep`; no shell), $0.50 cap. Its request: `sv init`'s specification, then: *"The app in
    this folder is finished. Write `securevibe.toml` for it, describing the code that is there, so SecureVibe can start
