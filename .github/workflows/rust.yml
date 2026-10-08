@@ -20,6 +20,12 @@ on:
     # architecture assessment of 8 October 2026", item 1).
     branches: [main]
   pull_request:
+  schedule:
+    # Every night on main, whether or not anything was pushed (ADR-051, Later, 8 October 2026): the
+    # toolchain step takes the newest stable, the runner image moves, and OSV and Docker Hub change
+    # under the image job, so a quiet day can still break the build, and this says so by morning
+    # rather than at somebody's next pull request. The publish job below runs only for a push.
+    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
