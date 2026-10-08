@@ -76,7 +76,8 @@ fn every_prompt_is_marked_above_its_text_as_shown_or_not_tested() {
             .nth(1)
             .unwrap_or_else(|| panic!("{} is not in the text", p.title));
         let mark = match p.status {
-            Status::Shown => "**Shown to work.**",
+            // With how many builds it was shown on (gap analysis 4.6).
+            Status::Shown => "**Shown to work, on ",
             Status::NotShown => "**Tried, not shown to work.**",
             Status::Untested => "**Not tried yet.**",
         };
@@ -229,4 +230,73 @@ fn every_heading_a_prompt_names_in_the_security_notes_is_one_sv_writes() {
     }
     // The control: the prompts do name headings, so the loop above checked something.
     assert!(named >= 8, "only {named} headings found");
+}
+
+/// Gap analysis 4.6: "shown to work" covered prompts shown on one pair of builds and prompts shown on
+/// ten alike. Every shown prompt says how many builds it was decided on, and the number is held to
+/// the trial's own account of who built what, so it cannot be written in without one.
+#[test]
+fn every_shown_prompt_says_how_many_builds_it_was_shown_on() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let mut shown = 0;
+    for file in ["prompts.json", "design-prompts.json"] {
+        let prompts = Prompts::load(&root.join(file)).unwrap();
+        for p in &prompts.prompts {
+            if p.status != Status::Shown {
+                continue;
+            }
+            shown += 1;
+            let tested = p
+                .tested
+                .as_ref()
+                .expect("a shown prompt says how it was tried");
+            let builds = tested
+                .builds
+                .unwrap_or_else(|| panic!("{}: shown, and no count of builds", p.id));
+            assert!(builds.with >= 1 && builds.without >= 1, "{}", p.id);
+            // Held to how the trial says it was built.
+            let account = format!("{} {}", tested.builder, tested.result);
+            let said = match (builds.with, builds.without) {
+                (10, 10) => {
+                    account.contains("ten builds with the prompt")
+                        && (account.contains("ten without")
+                            || account.contains("ten builds without"))
+                }
+                (1, 2) => account.contains("two builds without any prompt"),
+                (1, 1) => {
+                    account.contains("one per build, the build without any prompt shared by all")
+                }
+                _ => false,
+            };
+            assert!(
+                said,
+                "{}: {} with and {} without is not what its trial says: {}",
+                p.id, builds.with, builds.without, tested.builder
+            );
+            let sentence = p.status_sentence();
+            assert!(sentence.starts_with("Shown to work, on "), "{sentence}");
+            assert!(
+                sentence.contains(&format!("{} without.", builds.without)),
+                "{sentence}"
+            );
+        }
+    }
+    assert!(
+        shown >= 10,
+        "the setup: the shown prompts were read ({shown})"
+    );
+}
+
+#[test]
+fn one_build_is_one_build() {
+    let builds = sv_check::prompts::Builds {
+        with: 1,
+        without: 2,
+    };
+    assert_eq!(builds.words(), "on 1 build with it and 2 without");
+    let builds = sv_check::prompts::Builds {
+        with: 10,
+        without: 10,
+    };
+    assert_eq!(builds.words(), "on 10 builds with it and 10 without");
 }

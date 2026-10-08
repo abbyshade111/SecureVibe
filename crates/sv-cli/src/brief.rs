@@ -153,6 +153,8 @@ pub(crate) struct PromptText {
     pub id: String,
     pub title: String,
     pub status: &'static str,
+    /// Its status as every copy of it says it, with the builds it was shown on (`Prompt::status_sentence`).
+    pub said: String,
     pub text: String,
 }
 
@@ -422,6 +424,7 @@ impl Shared {
                 id: p.id.clone(),
                 title: p.title.clone(),
                 status: p.status.as_str(),
+                said: p.status_sentence(),
                 text: p.prompt.clone(),
             })
             .collect();
@@ -434,6 +437,7 @@ impl Shared {
                 id: p.id.clone(),
                 title: p.title.clone(),
                 status: p.status.as_str(),
+                said: p.status_sentence(),
                 text: p.prompt.clone(),
             })
             .collect();
@@ -590,8 +594,8 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     }
     for p in &brief.prompts {
         out.push_str(&format!(
-            "### {} (`{}`, {})\n\n{}\n\n",
-            p.title, p.id, p.status, p.text
+            "### {} (`{}`, {})\n\n{}\n\n{}\n\n",
+            p.title, p.id, p.status, p.said, p.text
         ));
     }
 
@@ -603,7 +607,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
              while you build this feature:\n\n",
         );
         for p in &brief.coding_prompts {
-            out.push_str(&format!("#### {} (`{}`)\n\n", p.title, p.id));
+            out.push_str(&format!("#### {} (`{}`)\n\n{}\n\n", p.title, p.id, p.said));
             for line in p.text.lines() {
                 out.push_str(&format!("> {line}\n"));
             }

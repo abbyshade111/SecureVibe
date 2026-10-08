@@ -1497,7 +1497,7 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
             sbom.declared_count()
         ));
     }
-    Some(Finding {
+    Some(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -1523,7 +1523,7 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
                  version of some library is in this app, nobody could answer from this document."
             .into(),
         fix: "Commit a lockfile for every ecosystem in use, and install from it.".into(),
-    })
+    }))
 }
 
 #[cfg(test)]

@@ -549,7 +549,13 @@ pub(crate) fn prompts_at_start() -> String {
          build, as you follow the rest of these instructions:\n",
     );
     for p in shown {
-        out.push_str(&format!("\n### {} (`{}`)\n\n{}\n", p.title, p.id, p.prompt));
+        out.push_str(&format!(
+            "\n### {} (`{}`)\n\n{}\n\n{}\n",
+            p.title,
+            p.id,
+            p.status_sentence(),
+            p.prompt
+        ));
     }
     out
 }

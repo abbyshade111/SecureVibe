@@ -47,12 +47,12 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 57 | 43 | 15 | 1 | 6 | 37 | 21 | 3 |
-| L2 | 183 | 91 | 67 | 19 | 0 | 19 | 46 | 28 | 2 |
+| L2 | 183 | 91 | 67 | 20 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 50 of the 169 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
-With nothing beyond plain `sv check`, 37 ASVS requirements can be settled. 26 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 38 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -86,7 +86,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (37)
+### Settled by reading the code (38)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -94,6 +94,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`, `ast.shell-command-shell-true`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B601`; sv only ever as a finding: `ast.shell-command-shell-true`) |
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V1.3.7 | L2 | Reads the code: `ast.template-built-from-value`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `ast.template-built-from-value`) |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V3.5.1 | L1 | Reads the code: `ast.csrf-protection-off`; Signed in: `probe.cross-site-request-accepted`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `ast.csrf-protection-off`) |
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
@@ -251,7 +252,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 |---|---|---|
 | V15.2.1 | L1 | Known vulnerabilities: `advisories`; Outside tools: `brakeman` |
 
-### Settled only by an outside tool (26)
+### Settled only by an outside tool (25)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -259,7 +260,6 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.2.6 | L2 | Outside tools: `semgrep`, `codeql-python` |
 | V1.2.7 | L2 | Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.2.9 | L2 | Outside tools: `codeql-javascript`, `codeql-python` |
-| V1.3.7 | L2 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.3.10 | L2 | Outside tools: `semgrep`, `codeql-javascript` |
 | V1.3.12 | L3 | Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` |
 | V1.4.1 | L2 | Outside tools: `semgrep` (semgrep only ever as a finding: `insecure-use-gets-fn`, `insecure-use-strcat-fn`, `insecure-use-string-copy-fn`) |

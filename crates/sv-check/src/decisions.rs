@@ -158,7 +158,7 @@ pub fn not_held_to(decided: &[Decided], findings: &[crate::Finding]) -> Vec<crat
         .filter_map(|d| {
             let found = findings.iter().find(|f| f.rule_id == d.switch.rule_id)?;
             let said = format!("{}: {}", d.switch.name, d.switch.safe);
-            Some(crate::Finding {
+            Some(crate::finding::found(crate::Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -191,7 +191,7 @@ pub fn not_held_to(decided: &[Decided], findings: &[crate::Finding]) -> Vec<crat
                      decision was changed on purpose, change the line in {FILE} and say why.",
                     found.rule_id
                 ),
-            })
+            }))
         })
         .collect()
 }
