@@ -121,8 +121,13 @@ health = "/"              # a path that returns 200 once the app is up
 #                           # A single-page app (React, Vite, and the like) sends every visitor the
 #                           # same page and fetches the data after: list the addresses it fetches
 #                           # from (`"/api/me"`) too, or that page alone cannot show anything is private.
+#                           # List a search page with a term (`"/search?q=test"`) and any JSON API
+#                           # (`"/api/recipes"`): the checks for SQL injection and for other sites
+#                           # reading the app ask only the pages listed here.
 # redirects = ["/go"]      # the app's own pages that send the browser on to an address they are given
-#                           # (a "continue to" link); each is given an address outside the app
+#                           # (a "continue to" link); each is given an address outside the app. The
+#                           # sign-in page's own return address is asked without being listed; any
+#                           # other page that sends people on is asked only if it is listed here.
 # admin = ["/admin"]        # pages only an admin should see (needs `seed`); the admin account is
 #                           # made only when this is listed
 # admin-actions = [{ path = "/admin/announce", form = { text = "{marker}", csrf_token = "{csrf}" }, check = "/announcements" }]
@@ -159,6 +164,8 @@ health = "/"              # a path that returns 200 once the app is up
 #   password again. Only ever done to an account made for it through `signup`.
 # delete-account = { path = "/account/delete", form = { password = "{password}", csrf_token = "{csrf}" } }
 # upload = { path = "/upload", field = "file", form = { csrf_token = "{csrf}" }, serves-at = "/files/{name}", max-bytes = 1048576 }
+#   Declare every upload the app takes: an upload not declared here is never tried, and the report
+#   cannot tell it from one that is safe.
 #   `field` is the form field the file goes in; `serves-at` is where an upload can be fetched back,
 #   with {name} standing for its file name — leave it out if uploads are never served over the web.
 #   `max-bytes` is the largest file you say the app accepts, which is what it is held to.

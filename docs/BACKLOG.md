@@ -7879,7 +7879,7 @@ done: `docs/adr/ADR-018.md`.
   `claude/recipe-trial`. Read on `main` just before this claim: no other session had claimed it.
   **Done the same day** (`docs/prompts/library-trial/recipe.md`): 40 builds, $18.09. `production-server` shown on
   Sonnet (5 of 10, then 0 of 9) and marked shown by the owner; `password-rules` not shown (10 of 10, then 8 of 10);
-  six prompts no reading, done right unprompted; four not reached by their checks. The install step worked for every
+  six prompts no reading, done right unprompted; three not reached by their checks (first written as four: corrected, `same-site-redirects` was reached and done right). The install step worked for every
   Sonnet app; Haiku's apps mostly did not start, as its builders could not try a Flask app they could not install.
 
 - **`probe.cors-any-origin` asks only the health path.** Found on 7 October 2026 by session paper-facts, in the recipe
@@ -7891,8 +7891,9 @@ done: `docs/adr/ADR-018.md`.
   443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
   credit in part (ADR-053).
 - **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
-  trial: of 10 Sonnet apps, 8 did not list their return-address pages under `redirects`, 7 did not declare their upload,
-  and only one listed its search page with a term, so those checks did not reach what the brief tempted. The
+  trial: of 10 Sonnet apps, 7 did not declare their upload and only one listed its search page with a term, so those
+  checks did not reach what the brief tempted. (First written with redirects as a third: the sign-in page's return
+  address is asked without being listed, so that check did reach it.) The
   specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
 - **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
   its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install

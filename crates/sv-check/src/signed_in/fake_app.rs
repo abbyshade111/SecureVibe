@@ -228,6 +228,12 @@ pub(super) struct Flaws {
     pub(super) short_password_ok: bool,
     /// Sign-up takes a password from the common list.
     pub(super) common_password_ok: bool,
+    /// The account page answers any site's Origin by echoing it, with credentials allowed: a signed-in
+    /// page any site can read (ADR-055). The health path does not.
+    pub(super) private_cors_echoes: bool,
+    /// Sign-up refuses `COMMON` and takes the other common words: a list written from memory that
+    /// holds one word and not the rest (ADR-055).
+    pub(super) common_list_short: bool,
     /// Sign-up takes a password from far down the common list.
     pub(super) breached_password_ok: bool,
     /// Any step of the checkout can be taken first.
@@ -797,6 +803,12 @@ impl FakeApp {
         if password == COMMON && !self.flaws.common_password_ok {
             return false;
         }
+        if COMMON_MORE.contains(&password)
+            && !self.flaws.common_password_ok
+            && !self.flaws.common_list_short
+        {
+            return false;
+        }
         if password == BREACHED && !self.flaws.breached_password_ok {
             return false;
         }
@@ -939,7 +951,23 @@ impl Http for FakeApp {
             std::thread::sleep(std::time::Duration::from_millis(*ms));
         }
         let answer = self.answer(r)?;
-        let answer = self.follow_next(r, answer);
+        let mut answer = self.follow_next(r, answer);
+        if self.flaws.private_cors_echoes
+            && r.path == "/account"
+            && answer.status == 200
+            && let Some((_, origin)) = r
+                .headers
+                .iter()
+                .find(|(k, _)| k.eq_ignore_ascii_case("origin"))
+        {
+            answer
+                .headers
+                .push(("access-control-allow-origin".to_owned(), origin.clone()));
+            answer.headers.push((
+                "access-control-allow-credentials".to_owned(),
+                "true".to_owned(),
+            ));
+        }
         self.write_log(r, &answer);
         Some(answer)
     }

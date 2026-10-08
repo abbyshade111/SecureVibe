@@ -4,6 +4,12 @@ use super::*;
 /// `data/knowledge/common-passwords.txt`.
 pub(super) const COMMON: &str = "123qweasdzxc";
 
+/// Two more from the top 3000, of the same shape as `COMMON` (12 characters of digits and lowercase
+/// letters), so the one random control of that shape still shows a refusal is about the word: lines
+/// 2,018 and 2,744 of `data/knowledge/common-passwords.txt`. One word alone was a matter of whether a list
+/// held it, so the credit needs all three refused (ADR-055).
+pub(super) const COMMON_MORE: [&str; 2] = ["1q2w3e4r5t6y", "qwerty123456"];
+
 /// A password far down the common list, at line 12,393 of `data/knowledge/common-passwords.txt`:
 /// well past the top 3000 that V6.2.4 asks about, so an app that checks only those accepts it, and
 /// 16 characters, so a length rule of up to 16 does not refuse it first. That it is breached is
@@ -300,6 +306,8 @@ pub(super) fn password_checks(
         ("short", account("short", format!("S{}aZ9!", &spare[..2]))),
         ("lower", account("lower", lowercase)),
         ("common", account("common", COMMON.to_owned())),
+        ("common-b", account("common-b", COMMON_MORE[0].to_owned())),
+        ("common-c", account("common-c", COMMON_MORE[1].to_owned())),
         (
             "like-common",
             account("like-common", spare[2..14].to_owned()),
@@ -369,29 +377,53 @@ pub(super) fn password_checks(
         ));
     }
 
-    match (works["common"], works["like-common"]) {
+    // Three common words of one shape (ADR-055): any accepted is a finding naming it; the credit needs
+    // all three refused, with the random control of the same shape accepted.
+    let words = [
+        ("common", COMMON),
+        ("common-b", COMMON_MORE[0]),
+        ("common-c", COMMON_MORE[1]),
+    ];
+    let named = |ws: &[&str]| {
+        ws.iter()
+            .map(|w| format!("`{w}`"))
+            .collect::<Vec<_>>()
+            .join(" and ")
+    };
+    let accepted: Vec<&str> = words
+        .iter()
+        .filter(|(label, _)| works[label])
+        .map(|(_, word)| *word)
+        .collect();
+    let all: Vec<&str> = words.iter().map(|(_, word)| *word).collect();
+    match (!accepted.is_empty(), works["like-common"]) {
         (true, _) => out.findings.push(finding(
             &COMMON_PASSWORD,
             "A common password is accepted",
             Severity::Medium,
             format!(
-                "The app let an account sign up with `{COMMON}`, which is among the 3000 most \
-                 common passwords, and sign in with it."
+                "The app let an account sign up with {}, {} among the 3000 most common passwords, \
+                 and sign in with {}.",
+                named(&accepted),
+                if accepted.len() == 1 { "which is" } else { "which are" },
+                if accepted.len() == 1 { "it" } else { "each" }
             ),
         )),
         (false, true) => out.verified.push(crate::Verified::new(
             COMMON_PASSWORD.rule_id,
             COMMON_PASSWORD.requirement_ids,
             format!(
-                "`{COMMON}` at sign-up, refused where a random password of the same length and \
-                 kinds of character was accepted"
+                "{}, three of the 3000 most common passwords, at sign-up, each refused where a random \
+                 password of the same length and kinds of character was accepted",
+                named(&all)
             ),
         )),
         (false, false) => out.not_assessed.push((
             "V6.2.4".to_owned(),
             format!(
-                "The app refused `{COMMON}`, and also a random password of the same length and \
-                 kinds of character, so the refusal cannot be told apart from another rule."
+                "The app refused {}, and also a random password of the same length and kinds of \
+                 character, so the refusals cannot be told apart from another rule.",
+                named(&all)
             ),
         )),
     }
@@ -1416,6 +1448,60 @@ mod tests {
     }
 
     #[test]
+    fn three_common_words_of_one_shape_and_a_list_holding_one_of_them_is_found() {
+        // ADR-055. The three are where they say in the list, in its top 3000, and of the one shape the
+        // random control has, so a refusal of any of them is about the word.
+        let list = include_str!("../../../../data/knowledge/common-passwords.txt");
+        let lines: Vec<&str> = list.lines().collect();
+        for (word, line) in [
+            (COMMON, 1238),
+            (COMMON_MORE[0], 2018),
+            (COMMON_MORE[1], 2744),
+        ] {
+            assert_eq!(lines[line - 1], word, "line {line}");
+            assert!(line <= 3000, "{word}");
+            assert_eq!(word.len(), 12, "{word}");
+            assert!(
+                word.chars()
+                    .all(|c| c.is_ascii_digit() || c.is_ascii_lowercase())
+            );
+        }
+        let u = with_signup();
+        // A list written from memory that holds the first word and not the others: found, naming them.
+        let o = run_against(
+            Flaws {
+                common_list_short: true,
+                ..Default::default()
+            },
+            &u,
+        );
+        let found = o
+            .findings
+            .iter()
+            .find(|f| f.rule_id == COMMON_PASSWORD.rule_id)
+            .expect("found");
+        assert!(
+            found
+                .description
+                .contains("`1q2w3e4r5t6y` and `qwerty123456`")
+                && !found.description.contains(COMMON),
+            "{}",
+            found.description
+        );
+        assert!(!verified_ids(&o).contains(&COMMON_PASSWORD.rule_id));
+        // All three refused: credited, the line naming all three.
+        let o = run_against(Flaws::default(), &u);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == COMMON_PASSWORD.rule_id)
+            .expect("credited");
+        for word in [COMMON, COMMON_MORE[0], COMMON_MORE[1]] {
+            assert!(credit.scope.contains(word), "{}", credit.scope);
+        }
+    }
+
+    #[test]
     fn each_password_flaw_is_found_by_its_own_rule_and_by_no_other() {
         for (flaw, rule) in [
             (
@@ -1428,6 +1514,13 @@ mod tests {
             (
                 Flaws {
                     common_password_ok: true,
+                    ..Default::default()
+                },
+                COMMON_PASSWORD.rule_id,
+            ),
+            (
+                Flaws {
+                    common_list_short: true,
                     ..Default::default()
                 },
                 COMMON_PASSWORD.rule_id,

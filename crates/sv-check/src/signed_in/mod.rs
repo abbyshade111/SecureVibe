@@ -60,6 +60,7 @@ mod admin;
 mod archives;
 mod burst;
 mod codes;
+mod cross_site;
 mod flows;
 mod forgery;
 mod once;
@@ -966,7 +967,18 @@ const RESTS_ON_A_REFUSAL: &[(&str, &[&str])] = &[
     ),
     (
         COMMON_PASSWORD.rule_id,
-        &["signup-common", "login-common", "private-common"],
+        &[
+            "signup-common",
+            "login-common",
+            "private-common",
+            // ADR-055: the two more common words.
+            "signup-common-b",
+            "login-common-b",
+            "private-common-b",
+            "signup-common-c",
+            "login-common-c",
+            "private-common-c",
+        ],
     ),
     (
         CONTEXT_WORD_PASSWORD.rule_id,
@@ -1536,6 +1548,10 @@ fn run_checks(
     //    among the signed-in checks because A reading back what A made is the second way to show
     //    the session works — the only way, when the private page turned out to be open to all.
     let owned_read = owned_checks(http, users, accounts, &a, &mut out);
+
+    // 3½. Another site's Origin on the private pages, as A (ADR-055): the place a page that lets any
+    //     site read it does harm, which the anonymous question to the health path never reaches.
+    cross_site::private_pages(http, users, &a, &mut out);
 
     // 4. The session cookie, and whether signing in made a new one, once it is shown which cookies
     //    carry the session.
@@ -3196,6 +3212,20 @@ mod crash_tests {
             max_files: Some(ARCHIVE_FILE_LIMIT),
         });
         vec![
+            // ADR-055: a list that holds the first common word and not the other two.
+            Scenario::new(
+                "a short common-password list",
+                Flaws {
+                    common_list_short: true,
+                    ..Default::default()
+                },
+                {
+                    let mut u = with_signup();
+                    u.seed = Some("seed".into());
+                    u
+                },
+                true,
+            ),
             // Each of ADR-053's three on its own, so that crashing any one request is tried
             // against a run where that finding is the only one standing between it and a pass.
             Scenario::new(
