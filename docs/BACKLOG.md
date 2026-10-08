@@ -26,6 +26,8 @@ another session is not a claim.
      **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
      `claude/securevibe-e9-unread-ecosystems`: each named in the bill of materials as unread, which holds back
      V15.2.1, and in the pinning check, which then cannot pass V15.1.2 either. Recorded as a Later entry on ADR-037.
+     **Done the same day** (DESIGN, "Dependencies `sv` does not read are named, and hold back the credit"; ADR-037,
+     Later).
   3. **"Debug mode off" and "generic error messages" are credited from a 404 alone.** (`docs/GAP-ANALYSIS.md`, 1.6.)
      `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
      (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was

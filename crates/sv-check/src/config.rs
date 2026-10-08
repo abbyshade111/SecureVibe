@@ -538,7 +538,24 @@ fn versions_pinned(
         .into_iter()
         .chain(sv_scan::ecosystems::declared_elsewhere_in(listing))
         .collect();
+    // Dependency files in an ecosystem `sv` does not read (gap analysis, item 2). Before they were
+    // found, a .NET app was told it had no package manifest.
+    let unread_files = sv_scan::ecosystems::unread_declarations_in(listing);
+    let unread_named = || {
+        unread_files
+            .iter()
+            .map(|u| format!("`{}` ({})", u.path, u.name))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
     if detected.is_empty() {
+        if !unread_files.is_empty() {
+            return Outcome::NotAssessed(format!(
+                "This app declares its dependencies in {}, which `sv` does not read, so whether \
+                 their versions are pinned is not known.",
+                unread_named()
+            ));
+        }
         return Outcome::NotAssessed(
             "No package manifest was found, so there is nothing whose versions could be pinned. If this \
              app installs dependencies some other way, that is not something `sv` can see."
@@ -687,6 +704,14 @@ fn versions_pinned(
             "A lockfile is there, and `sv` could not read the versions from it: {}. Whether this app \
              pins what it installs is still an open question, not a passed check.",
             unread.join("; ")
+        ));
+    }
+    if !unread_files.is_empty() {
+        return Outcome::NotAssessed(format!(
+            "Every lockfile `sv` reads pins what it installs, and this app also declares \
+             dependencies in {}, which `sv` does not read, so whether everything it installs is \
+             pinned is still an open question, not a passed check.",
+            unread_named()
         ));
     }
 
@@ -1740,6 +1765,88 @@ mod tests {
         }
         for dir in [alone, beside, hashed_alone, hashed_beside] {
             fs::remove_dir_all(&dir).ok();
+        }
+    }
+
+    #[test]
+    fn dependencies_sv_does_not_read_are_named_and_never_pass() {
+        // Gap analysis, item 2. A .NET app was told "No package manifest was found", and a mixed app
+        // had its pinning (V15.1.2) and its known-vulnerability check (V15.2.1) credited on npm alone.
+        let npm = |dir: &std::path::Path| {
+            fs::write(
+                dir.join("package.json"),
+                r#"{"dependencies":{"left-pad":"1.3.0"}}"#,
+            )
+            .unwrap();
+            fs::write(
+                dir.join("package-lock.json"),
+                r#"{"lockfileVersion":3,"packages":{"":{},"node_modules/left-pad":{"version":"1.3.0"}}}"#,
+            )
+            .unwrap();
+        };
+        // The control: npm alone, locked, passes and is complete.
+        let control = scratch("unread-control");
+        npm(&control);
+        let (passed, finding, open) = pinned_outcome(&control);
+        assert!(passed, "the setup: {finding:?} {open:?}");
+        assert!(crate::sbom::build(&control).is_complete());
+        fs::remove_dir_all(&control).ok();
+
+        for (file, text, name) in [
+            (
+                "Api/Api.csproj",
+                "<Project><ItemGroup><PackageReference Include=\"Newtonsoft.Json\" Version=\"9.0.1\" /></ItemGroup></Project>",
+                ".NET (NuGet)",
+            ),
+            (
+                "app/pubspec.yaml",
+                "dependencies:\n  http: ^1.0.0\n",
+                "Dart (pub)",
+            ),
+            (
+                "Package.swift",
+                "// swift-tools-version:5.9\n",
+                "Swift (Swift Package Manager)",
+            ),
+            (
+                "mix.exs",
+                "defmodule App.MixProject do\nend\n",
+                "Elixir (Mix)",
+            ),
+            ("deno.json", "{\"imports\":{}}", "Deno"),
+        ] {
+            // Beside a locked npm app: neither passes, and the list is not complete.
+            let dir = scratch("unread-mixed");
+            npm(&dir);
+            let path = dir.join(file);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, text).unwrap();
+            let (passed, _, open) = pinned_outcome(&dir);
+            assert!(!passed, "{file}");
+            let open = open.unwrap_or_else(|| panic!("{file}: not named as open"));
+            assert!(open.contains(&format!("`{file}` ({name})")), "{open}");
+            let sbom = crate::sbom::build(&dir);
+            assert!(!sbom.is_complete(), "{file}");
+            assert!(
+                sbom.unread
+                    .iter()
+                    .any(|(eco, why)| eco == name && why.contains(file)),
+                "{:?}",
+                sbom.unread
+            );
+            fs::remove_dir_all(&dir).ok();
+
+            // Alone: named, not "no package manifest".
+            let dir = scratch("unread-alone");
+            let path = dir.join(file);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, text).unwrap();
+            let (passed, _, open) = pinned_outcome(&dir);
+            fs::remove_dir_all(&dir).ok();
+            assert!(!passed, "{file}");
+            let open = open.unwrap();
+            assert!(!open.contains("No package manifest"), "{open}");
+            assert!(open.contains(file), "{open}");
         }
     }
 
