@@ -346,6 +346,12 @@ another session is not a claim.
      for that same code in the answers to the reset requests themselves (body and headers). Found there, anybody can
      reset any account by asking; a finding citing V6.4.3, and its absence credits nothing. The code is never printed.
      Read on `main` just before this claim: no other session had claimed (d).
+     **(c), through sign-in, claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever
+     you're ready"), in branch `claude/securevibe-e9-signin-reveals`: two sign-ins with a wrong password for a real
+     account and one for an address with none, compared as the reset check compares its answers (status, then words
+     with what varies between identical requests set aside). A difference is a finding citing V6.3.8; none credits
+     nothing. Run just before the guessing check, and not judged when any answer was a rate limit. Sign-up's half of
+     (c) stays unclaimed. Read on `main` just before this claim: no other session had claimed (c).
      **(d) done the same day** (DESIGN, "A reset code handed back in the reset request's own answer"):
      `probe.reset-code-in-answer`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
@@ -8262,11 +8268,16 @@ another session is not a claim.
      Changes what a request's answer counts as: a Later entry on ADR-021. The four suites then gain limiter waits,
      so item 7 goes with it.
      **Claimed 8 October 2026 by session securevibe-review**, with item 7 (branch `claude/securevibe-review-one-answer`).
+     **Done the same day** (ADR-021, Later, 8 October 2026; DESIGN, "One rule for what an answer is, and one wait for
+     the whole run"): `answer_of`, the seven places through it, `Patient` around the OIDC, MCP, and fetch suites with
+     one budget for the run; the AI suite left as it is, with why.
   7. **The probe sidecar's life is a fixed 900 s** (`docker.rs:84`), not derived from the request budget: 300 s of
      limiter waiting plus the AI suite's fixed waits can outlive it, after which every request reads as "no answer"
      and nothing names the sidecar. Tie it to the budget and have `probe` tell "container gone" from "app silent".
      A Later entry on ADR-025.
      **Claimed 8 October 2026 by session securevibe-review**, with item 6 (the same branch).
+     **Done the same day** (ADR-025, Later, 8 October 2026): `SIDECAR_SECONDS` built from `MOST_WAITING`, and a lost
+     sidecar named in the run's output and the report (`RunOutcome::sidecar_lost`).
   8. **A check cannot be made to say what it asked.** A check is `fn(.., out: &mut Outcome)` and nothing requires it
      to touch `out`: about 200 hand-written `not_assessed.push` sites, and four early returns with none
      (`sessions.rs:711`, fixed on 8 October; `sessions.rs:298`, `passwords.rs:1318`, `signin.rs:618`). Cheapest: a

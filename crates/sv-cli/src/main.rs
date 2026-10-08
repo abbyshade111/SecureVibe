@@ -1791,6 +1791,22 @@ fn running_app_evidence(
 /// What the report and `sv run` say about the anonymous questions the app's rate limiter answered
 /// in the app's place. Those answers were left out, so nothing was judged from them; this says so,
 /// rather than letting them read as questions the app never answered.
+/// The gap when the container the questions are sent from was gone before they were done
+/// (ADR-025, Later, 8 October 2026): everything asked after that got no answer because nothing
+/// was there to ask, and a reader would otherwise take the silence for the app's.
+fn sidecar_lost_gap(lost: Option<&str>) -> Option<sv_report::Gap> {
+    let lost = lost?;
+    Some(sv_report::Gap {
+        what: "every question asked after the way to the app ended".to_owned(),
+        why: format!(
+            "{lost}. From then on every request got no answer, because nothing was there to send \
+             it, not because the app was silent: nothing asked after it is judged either way. Run \
+             again; if it happens again, the run is taking longer than the container it asks \
+             through is allowed to live, which is a fault in sv to report."
+        ),
+    })
+}
+
 fn rate_limited_gap(limited: &[String]) -> Option<sv_report::Gap> {
     if limited.is_empty() {
         return None;
@@ -1873,6 +1889,9 @@ fn cmd_run(args: &[String]) -> Result<i32> {
                 println!("  {unanswered} got no answer at all, so nothing is claimed about them.");
             }
             if let Some(gap) = rate_limited_gap(&outcome.probes_rate_limited) {
+                println!("  {} — {}", gap.what, gap.why);
+            }
+            if let Some(gap) = sidecar_lost_gap(outcome.sidecar_lost.as_deref()) {
                 println!("  {} — {}", gap.what, gap.why);
             }
 
@@ -4260,6 +4279,7 @@ fn assemble_report_saying(
                     });
                 }
                 gaps.extend(rate_limited_gap(&outcome.probes_rate_limited));
+                gaps.extend(sidecar_lost_gap(outcome.sidecar_lost.as_deref()));
                 // What asking it could not reach. These replace the "it was never started" gap
                 // rather than removing it: the app running answers some questions and not others,
                 // and the ones it cannot answer are the ones behind a login.

@@ -191,14 +191,12 @@ enum Verdict {
 }
 
 fn verdict(r: &Option<ProbeResponse>) -> Verdict {
-    let Some(r) = r else {
+    // A server error is not an answer, and neither is a rate limiter's (429, or 503 with
+    // `Retry-After`): a refusal it gave is the limiter's, not the server's own check (ADR-021; the
+    // review of 1 to 4 October, item 4). One rule, `answer_of`, since 8 October 2026.
+    let Some(r) = crate::signed_in::answer_of(r.as_ref()).answered() else {
         return Verdict::NoAnswer;
     };
-    // A server error is not an answer, and neither is a rate limiter's 429: a refusal it gave is
-    // the limiter's, not the server's own check (ADR-021; the review of 1 to 4 October, item 4).
-    if r.status >= 500 || r.status == 429 {
-        return Verdict::NoAnswer;
-    }
     let squeezed: String = r.body.chars().filter(|c| !c.is_whitespace()).collect();
     let tool_error = squeezed.contains("\"isError\":true");
     if (200..300).contains(&r.status) && squeezed.contains("\"result\"") && !tool_error {

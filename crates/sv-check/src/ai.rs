@@ -1927,24 +1927,22 @@ where
         ));
         return;
     }
-    let why_not = match &bad_answer {
-        None => Some("the app gave no answer".to_owned()),
-        Some(r) if crate::signed_in::rate_limited(r).is_some() => Some(format!(
-            "the app answered with a limit on how often it may be asked ({}), which says \
-             nothing either way",
-            r.status
+    let why_not = match crate::signed_in::answer_of(bad_answer.as_ref()) {
+        crate::signed_in::Answer::Silent => Some("the app gave no answer".to_owned()),
+        crate::signed_in::Answer::Limited { status, .. } => Some(format!(
+            "the app answered with a limit on how often it may be asked ({status}), which says \
+             nothing either way"
         )),
-        Some(r) if r.status >= 500 => Some(format!(
-            "the app failed ({}): it did not use the answer, but a crash rejects it without \
-             checking it",
-            r.status
+        crate::signed_in::Answer::Crashed(status) => Some(format!(
+            "the app failed ({status}): it did not use the answer, but a crash rejects it without \
+             checking it"
         )),
-        Some(_) if !shows_replies => Some(
+        crate::signed_in::Answer::Answered(_) if !shows_replies => Some(
             "the app did not show the test model's plain reply either, so not showing this one \
              says nothing about whether it checked it"
                 .to_owned(),
         ),
-        Some(_) => None,
+        crate::signed_in::Answer::Answered(_) => None,
     };
     match why_not {
         Some(why) => out.not_assessed.push((
