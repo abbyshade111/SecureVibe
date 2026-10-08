@@ -5,7 +5,7 @@
 //! the rules whose result shows whether it worked. A prompt is *shown to work* only once an app built
 //! with it passed that check and the same app built without it failed (the owner's decision of 3
 //! October 2026). The others are offered too, at the owner's asking on 4 October 2026, and every copy
-//! of one says it is not tested.
+//! of one says whether it was tried and not shown to work, or not tried yet.
 //!
 //! That a prompt's requirements are the ones its rules cite is held by `tools/coverage.py`, which a
 //! test runs, beside every other citation.
@@ -137,7 +137,7 @@ impl Prompts {
                 path.display(),
                 p.id
             );
-            // A prompt said to be tried has to say what happened, or "not tested" and "shown" read
+            // A prompt said to be tried has to say what happened, or "not shown" and "shown" read
             // the same to the person choosing one.
             let says_what_happened = p
                 .tested
@@ -212,7 +212,7 @@ impl Prompts {
         out.push_str(
             "Each asks the AI coding tool for something SecureVibe checks. A prompt is shown to work \
              only when an app built with it passed its check and the same app built without it \
-             failed; every other one says it is not tested. A prompt is an instruction, not \
+             failed; every other one says whether it was tried and not shown to work, or not tried yet. A prompt is an instruction, not \
              evidence: check the app afterwards, whichever you use.\n",
         );
         for p in chosen {
@@ -221,9 +221,9 @@ impl Prompts {
             out.push_str(&match p.status {
                 Status::Shown => format!("**Shown to work.** {result}\n\n"),
                 Status::NotShown => {
-                    format!("**Not tested:** tried, and not shown to work. {result}\n\n")
+                    format!("**Tried, not shown to work.** {result}\n\n")
                 }
-                Status::Untested => "**Not tested:** not tried yet.\n\n".to_owned(),
+                Status::Untested => "**Not tried yet.**\n\n".to_owned(),
             });
             for line in p.prompt.lines() {
                 out.push_str(&format!("> {line}\n"));
@@ -290,8 +290,8 @@ impl Prompts {
             out.push_str(&format!("\n### {}\n\n", p.title));
             out.push_str(match p.status {
                 Status::Shown => "**Shown to work.**\n\n",
-                Status::NotShown => "**Not tested:** tried, and not shown to work.\n\n",
-                Status::Untested => "**Not tested:** not tried yet.\n\n",
+                Status::NotShown => "**Tried, not shown to work.**\n\n",
+                Status::Untested => "**Not tried yet.**\n\n",
             });
             out.push_str(&format!(
                 "For: {}.\n\n",

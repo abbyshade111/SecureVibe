@@ -100,6 +100,34 @@ pub(super) fn error_reply(id: Value, code: i64, message: &str) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
 }
 
+/// Refuses an app folder with no securevibe.toml, naming the tool that writes one, and what to do
+/// after: `again`, such as "check again".
+pub(super) fn needs_manifest(app_dir: &Path, again: &str) -> Result<()> {
+    if app_dir.join("securevibe.toml").exists() {
+        return Ok(());
+    }
+    Err(crate::Remedy::error(
+        format!("there is no securevibe.toml in {}.", app_dir.display()),
+        format!("Call securevibe_spec, write the file it describes into that folder, and {again}."),
+    ))
+}
+
+/// What went wrong, the whole chain of it, and `sv`'s own next step when the error carries one
+/// (`crate::Remedy`). The remedy is the innermost error, so its words end the chain; they are taken
+/// off the end, and only when they are found there.
+pub(super) fn split_remedy(e: &anyhow::Error) -> (String, Option<String>) {
+    let whole = format!("{e:#}");
+    match e.downcast_ref::<crate::Remedy>() {
+        Some(remedy) if !remedy.next.is_empty() && whole.ends_with(&remedy.next) => (
+            whole[..whole.len() - remedy.next.len()]
+                .trim_end()
+                .to_owned(),
+            Some(remedy.next.clone()),
+        ),
+        _ => (whole, None),
+    }
+}
+
 pub(super) fn tool_error(message: &str) -> Value {
     json!({ "content": [{ "type": "text", "text": message }], "isError": true })
 }

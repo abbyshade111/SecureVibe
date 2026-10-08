@@ -93,7 +93,7 @@ pub(crate) const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP AS
     answer with the person; then, before you build sign-in, anything people create or take, \
     logging, or a call to anything outside the app, get the design-time prompt for it from \
     securevibe_prompts, work through it with the person, and write down what was decided where it \
-    says, before the code. securevibe_plan turns the brief into a plan: what to decide, the tests to \
+    says, before the code. securevibe_plan turns securevibe.toml into a plan: what to decide, the tests to \
     write, and what the app must give `sv run` so it can be tested running. A long plan or check \
     comes in parts, each small enough to read whole: the first answer starts with what to act on \
     and ends with a list of the rest, each asked for with `section` and `page`; read the parts you \
@@ -127,7 +127,7 @@ pub(crate) const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP AS
     makes security-notes.md, and securevibe_record_answer writes an answer the person gave you \
     into it, marked as yours until they record it with `sv review`; securevibe_explain gives a \
     requirement in its framework's own words. When the report is written, offer the person a zip of the whole result to keep or hand on \
-    (securevibe_bundle), only if they want one. It does not start \
+    (securevibe_bundle), only if they want one. This server does not start \
     the app, compare the app's packages with known vulnerabilities, or run other security tools; \
     for those, ask the person to run ";
 
@@ -576,9 +576,17 @@ impl Server {
         // say, but it quotes the app as often as not: a path, a line of securevibe.toml that does
         // not parse, a heading in the notes, the command in a lock file anything in the app can
         // write. So the whole of it is fenced as the app's text is (deep review R9).
+        // What `sv` itself says to do next, when it says something, is its own, and stays outside the
+        // fence: inside, the AI coding tool is told to read it as information, and did not act on it.
         Ok(result.unwrap_or_else(|e| {
+            let (problem, next) = split_remedy(&e);
             tool_error(&sv_report::fence::fenced(|fence| {
-                format!("sv could not do this: {}", fence.wrap(&format!("{e:#}")))
+                let mut text = format!("sv could not do this: {}", fence.wrap(&problem));
+                if let Some(next) = &next {
+                    text.push_str("\n\nWhat to do: ");
+                    text.push_str(next);
+                }
+                text
             }))
         }))
     }

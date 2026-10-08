@@ -111,22 +111,18 @@ pub struct Install {
 }
 
 impl Install {
-    /// The arguments of the `docker run` that fills the volume. Hardened like the app's own
-    /// container, but not fenced: this is the one container of a run that can reach the internet,
-    /// and it is given nothing to send.
+    /// The arguments of the `docker run` that fills the volume. Hardened like every container
+    /// (read-only, no capabilities: `docker::HARDENING`, put on by `prepared` when it is sent), but
+    /// not fenced: this is the one container of a run that can reach the internet, and it is given
+    /// nothing to send.
     pub fn args(&self, name: &str, image: &str) -> Vec<String> {
         let mut args: Vec<String> = [
             "run",
             "--rm",
             "--name",
             name,
-            "--read-only",
             "--tmpfs",
             INSTALL_TMPFS,
-            "--cap-drop",
-            "ALL",
-            "--security-opt",
-            "no-new-privileges",
             // Nothing of the owner's: no API keys, no home directory.
             "--env-file",
             "/dev/null",
@@ -480,14 +476,9 @@ gunicorn==23.0.0 \\
                 .iter()
                 .any(|m| m.starts_with(&format!("{}:", dir.display())))
         );
-        // Hardened, and no package code run.
-        for needed in [
-            "--read-only",
-            "--cap-drop ALL",
-            "no-new-privileges",
-            "--env-file /dev/null",
-            "--only-binary=:all:",
-        ] {
+        // Nothing of the owner's, and no package code run. The hardening is put on by `prepared`
+        // when the arguments are sent, as for every container (tested in `docker`).
+        for needed in ["--env-file /dev/null", "--only-binary=:all:"] {
             assert!(joined.contains(needed), "{needed} missing: {joined}");
         }
         assert!(Ecosystem::Node.command().contains("--ignore-scripts"));
