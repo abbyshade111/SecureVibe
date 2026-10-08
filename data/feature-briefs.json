@@ -186,8 +186,24 @@
       ],
       "settings": [
         {
+          "table": "capabilities.ai",
+          "key": "enabled"
+        },
+        {
           "table": "stack.run.ai",
           "key": "chat"
+        },
+        {
+          "table": "stack.run.ai",
+          "key": "signed-in"
+        },
+        {
+          "table": "stack.run.ai",
+          "key": "kill-switch"
+        },
+        {
+          "table": "stack.run.ai",
+          "key": "record-tool"
         },
         {
           "table": "policy",

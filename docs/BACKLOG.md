@@ -8110,7 +8110,10 @@ another session is not a claim.
      profile setting made each of its suite runs cheaper.
   2. **Two pure refactors in the harness and the MCP server.** The hardening flags (`--read-only --cap-drop ALL
      --security-opt no-new-privileges`) are written out 12 times in `docker.rs` and once in `install.rs`; they belong
-     in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`). `mcp.rs`
+     in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`).
+     **The first half done the same day** (DESIGN, "The hardening in one place"; ADR-019, Later, 8 October 2026):
+     `HARDENING` put on in `prepared` for every `run` and `create`, the eleven copies and `install.rs`'s gone, and the
+     no-sidecar fallback through `prepared` too, so it gains the limits and the run label it lacked. `mcp.rs`
      is 7,202 lines in one file, 62% tests, with natural seams (protocol, confinement, resources, the tool catalog,
      check rendering, report writing, the other tools); and the report-writing sequence (claim, assemble, manifest
      changed, refuse older, write, seal, written) is in `cmd_report` and again in `write_report_into`, so a step
@@ -8417,4 +8420,9 @@ done: `docs/adr/ADR-018.md`.
   `docs/paper/trials/make_figure.py`; `SINCE-THE-CUTOFF.md` carried on to `main` at `01b10f60`, counted there, with a
   correction of its own (11 records at `4c3c5e0`, not 12); the artifact index; and the health-tracking app's wording
   made the same everywhere.
+  **The wording inside the code done the same day** (ADR-035, Later): the specification (the app's own tests' status,
+  `--fail-on attention`, the `[data]` level, the tests-to-write list, `within-minutes`, the install step), the MCP
+  server's descriptions and instructions, the prompts' "Not tested" labels (now "Tried, not shown to work" and "Not
+  tried yet"), the help on the install step's download, and the feature briefs' settings; and the preflight now reads
+  the install step, by calling it. With that, the second review is done.
 

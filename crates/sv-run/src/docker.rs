@@ -202,7 +202,7 @@ impl DockerBackend {
                 _ => None,
             }
         });
-        limited(labeled, cpus.as_deref())
+        limited(hardened(labeled), cpus.as_deref())
     }
 
     /// Removes the containers, then the networks, that runs on this machine left behind when their
@@ -560,11 +560,6 @@ impl DockerBackend {
                     "--rm",
                     "--network",
                     "none",
-                    "--read-only",
-                    "--cap-drop",
-                    "ALL",
-                    "--security-opt",
-                    "no-new-privileges",
                     "-v",
                     &mount,
                     PROBE_IMAGE,
@@ -1099,6 +1094,28 @@ fn last_line(text: &str) -> String {
 
 /// `args`, a `docker run` or `docker create`, with the limits every container is started under
 /// inserted after the command.
+/// What every container this backend starts carries, whichever path starts it: a read-only root
+/// (each place it may write is a tmpfs the caller names, with a size), no capabilities, and no
+/// way to gain any. Put on in `prepared` beside the limits (ADR-019, 4 October and 8 October
+/// 2026), so that a path which forgets it cannot exist: until 8 October 2026 these five arguments
+/// were written out at eleven places in this file and one in `install.rs`, and the fallback for
+/// a run without a sidecar once had none of them.
+pub(crate) const HARDENING: [&str; 5] = [
+    "--read-only",
+    "--cap-drop",
+    "ALL",
+    "--security-opt",
+    "no-new-privileges",
+];
+
+/// `args` with `HARDENING` just after the command word.
+fn hardened(args: Vec<String>) -> Vec<String> {
+    let mut out = args;
+    let at = 1.min(out.len());
+    out.splice(at..at, HARDENING.iter().map(|s| (*s).to_owned()));
+    out
+}
+
 fn limited(args: Vec<String>, cpus: Option<&str>) -> Vec<String> {
     let mut limits = vec![
         "--memory",
@@ -1154,13 +1171,8 @@ fn app_args<'a>(
         name,
         "--network",
         network,
-        "--read-only",
         "--tmpfs",
         APP_TMP,
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
         "-v",
         mount,
         "--tmpfs",
@@ -1178,20 +1190,7 @@ fn app_args<'a>(
 /// How the test provider is started: fenced and hardened like the mail server, with its script
 /// passed on the command line so nothing is written to the owner's disk.
 fn provider_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 4]) -> Vec<&'a str> {
-    let mut args = vec![
-        "run",
-        "-d",
-        "--rm",
-        "--name",
-        name,
-        "--network",
-        network,
-        "--read-only",
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
-    ];
+    let mut args = vec!["run", "-d", "--rm", "--name", name, "--network", network];
     for pair in env {
         args.extend(["-e", pair]);
     }
@@ -1224,20 +1223,7 @@ fn switched_off_args(
 
 /// How the test model is started: fenced and hardened like the test provider.
 fn model_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 2]) -> Vec<&'a str> {
-    let mut args = vec![
-        "run",
-        "-d",
-        "--rm",
-        "--name",
-        name,
-        "--network",
-        network,
-        "--read-only",
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
-    ];
+    let mut args = vec!["run", "-d", "--rm", "--name", name, "--network", network];
     for pair in env {
         args.extend(["-e", pair]);
     }
@@ -1291,13 +1277,8 @@ fn browser_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
         name,
         "--network",
         network,
-        "--read-only",
         "--tmpfs",
         BROWSER_TMP,
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
         "--entrypoint",
         "/headless-shell/headless-shell",
         BROWSER_IMAGE,
@@ -1317,11 +1298,6 @@ fn driver_args<'a>(network: &'a str, job: &'a str) -> Vec<&'a str> {
         "--rm",
         "--network",
         network,
-        "--read-only",
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
         "-e",
         job,
         PROVIDER_IMAGE,
@@ -1342,13 +1318,8 @@ fn mail_args<'a>(network: &'a str, name: &'a str) -> Vec<&'a str> {
         name,
         "--network",
         network,
-        "--read-only",
         "--tmpfs",
         MAIL_TMP,
-        "--cap-drop",
-        "ALL",
-        "--security-opt",
-        "no-new-privileges",
         MAIL_IMAGE,
         "--smtp-auth-accept-any",
         "--smtp-auth-allow-insecure",
@@ -1472,11 +1443,6 @@ impl DockerBackend {
                     "--rm",
                     "--network",
                     "none",
-                    "--read-only",
-                    "--cap-drop",
-                    "ALL",
-                    "--security-opt",
-                    "no-new-privileges",
                     "-v",
                     &look,
                     PROBE_IMAGE,
@@ -1647,11 +1613,6 @@ impl DockerBackend {
             "--rm",
             "--network",
             network,
-            "--read-only",
-            "--cap-drop",
-            "ALL",
-            "--security-opt",
-            "no-new-privileges",
             PROBE_IMAGE,
             "sh",
             "-c",
@@ -1692,13 +1653,8 @@ impl DockerBackend {
                 name,
                 "--network",
                 network,
-                "--read-only",
                 "--tmpfs",
                 PROBE_TMPFS,
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
                 PROBE_IMAGE,
                 "sleep",
                 &limit,
@@ -1828,7 +1784,7 @@ impl DockerBackend {
         let mut args = self.fence_args(via);
         args.extend_from_slice(command);
         let mut c = Command::new(&self.binary);
-        c.args(crate::cleanup::labeled(&args, &self.owner));
+        c.args(self.prepared(&args));
         crate::output_with_input(&mut c, input)
     }
 
@@ -1837,23 +1793,19 @@ impl DockerBackend {
     fn fence_args<'a>(&self, via: &Via<'a>) -> Vec<&'a str> {
         match via {
             Via::Sidecar(name) => vec!["exec", "-i", name],
-            // The same hardening as the sidecar. It had none of it: the flags were added where the
-            // fast path was written and not where the fallback already lived, so a run that could
-            // not start a sidecar quietly made every request from a container with its capabilities
-            // and a writable file system — while the comment said the fallback was only slower.
+            // Hardened and limited by `prepared`, like the sidecar. Before 8 October 2026 each path
+            // carried its own copy of the flags, and the fallback once had none of them: they were
+            // added where the fast path was written and not where the fallback already lived, so
+            // a run that could not start a sidecar quietly made every request from a container with
+            // its capabilities and a writable file system.
             Via::FreshContainer(network) => vec![
                 "run",
                 "-i",
                 "--rm",
                 "--network",
                 network,
-                "--read-only",
                 "--tmpfs",
                 PROBE_TMPFS,
-                "--cap-drop",
-                "ALL",
-                "--security-opt",
-                "no-new-privileges",
                 PROBE_IMAGE,
             ],
         }
@@ -2921,8 +2873,63 @@ mod probe_tests {
         assert!(kept_body(&body).contains(mark));
     }
 
-    /// The flags a container making requests to the app must carry, whichever path started it.
-    const HARDENING: [&str; 4] = ["--read-only", "--cap-drop", "ALL", "no-new-privileges"];
+    /// What `prepared` sends for `args`, as a fresh backend with no run under way sends it.
+    fn sent(args: &[&str]) -> Vec<String> {
+        DockerBackend::new().prepared(args)
+    }
+
+    /// Asserts `args`, once through `prepared`, carry every hardening flag, and that the builder's
+    /// own arguments carry none of them: the one place is the only place.
+    fn hardened_by_prepared(args: &[&str]) {
+        for flag in HARDENING {
+            assert!(
+                !args.contains(&flag),
+                "{flag} written out beside `prepared`: {args:?}"
+            );
+        }
+        let sent = sent(args);
+        for flag in HARDENING {
+            assert_eq!(
+                sent.iter().filter(|a| *a == flag).count(),
+                1,
+                "{flag} once in what is sent: {sent:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn every_container_started_is_hardened_in_one_place_and_a_plain_exec_is_not() {
+        // The chokepoint: a `run` or a `create` of anything gets the five arguments, just after
+        // the command word; an `exec` into a container that is already running gets none.
+        for start in [
+            &["run", "busybox"][..],
+            &["create", "--name", "x", "busybox"][..],
+        ] {
+            hardened_by_prepared(start);
+            let sent = sent(start);
+            assert_eq!(sent[0], start[0]);
+            // Before the image, beside the limits: nothing the caller wrote comes between.
+            let image = sent.iter().position(|a| a == "busybox").unwrap();
+            for flag in HARDENING {
+                assert!(sent.iter().position(|a| a == flag).unwrap() < image);
+            }
+        }
+        let exec = sent(&["exec", "-i", "sv-1-probe", "sh"]);
+        for flag in HARDENING {
+            assert!(!exec.iter().any(|a| a == flag), "{exec:?}");
+        }
+        // The install step's container, started through `docker` like every other, is hardened the
+        // same way; its own arguments carry only what differs (no network fence, and a writable
+        // volume).
+        let install = crate::install::Install {
+            ecosystem: crate::install::Ecosystem::Python,
+            files: vec![],
+            volume: "sv-deps-py-x".to_owned(),
+        };
+        let args = install.args("sv-1-install", "python:3.12-slim");
+        let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+        hardened_by_prepared(&refs);
+    }
 
     #[test]
     fn a_crash_at_start_is_quoted_by_its_error_line() {
@@ -2998,9 +3005,7 @@ mod probe_tests {
     #[test]
     fn the_app_is_hardened_like_every_helper() {
         let args = app_args("sv-1-app", "sv-1-net", "/apps/notes:/app:ro", "PORT=8080");
-        for flag in HARDENING {
-            assert!(args.contains(&flag), "{flag} missing: {args:?}");
-        }
+        hardened_by_prepared(&args);
         let at = args.iter().position(|a| *a == "--network").unwrap();
         assert_eq!(args[at + 1], "sv-1-net");
         assert!(
@@ -3198,12 +3203,7 @@ mod probe_tests {
         // one place and absent beside it.
         let backend = DockerBackend::new();
         let fresh = backend.fence_args(&Via::FreshContainer("net"));
-        for flag in HARDENING {
-            assert!(
-                fresh.contains(&flag),
-                "the fallback container is missing {flag}: {fresh:?}"
-            );
-        }
+        hardened_by_prepared(&fresh);
         assert!(
             fresh.contains(&"--network"),
             "and it still has to be on the fenced network: {fresh:?}"
@@ -3215,9 +3215,7 @@ mod probe_tests {
     #[test]
     fn the_test_provider_is_fenced_and_hardened_like_the_sidecar() {
         let args = provider_args("sv-1-net", "sv-1-idp", ["A=1", "B=2", "C=3", "D=4"]);
-        for flag in HARDENING {
-            assert!(args.contains(&flag), "{flag} missing: {args:?}");
-        }
+        hardened_by_prepared(&args);
         let at = args.iter().position(|a| *a == "--network").unwrap();
         assert_eq!(args[at + 1], "sv-1-net");
         assert!(
@@ -3286,9 +3284,7 @@ mod probe_tests {
     #[test]
     fn the_test_model_is_fenced_and_hardened_like_the_sidecar() {
         let args = model_args("sv-1-net", "sv-1-model", ["HOST=sv-1-model", "PORT=9100"]);
-        for flag in HARDENING {
-            assert!(args.contains(&flag), "{flag} missing: {args:?}");
-        }
+        hardened_by_prepared(&args);
         let at = args.iter().position(|a| *a == "--network").unwrap();
         assert_eq!(args[at + 1], "sv-1-net");
         assert!(
@@ -3376,9 +3372,7 @@ mod probe_tests {
         let browser = browser_args("sv-1-net", "sv-1-browser");
         let driver = driver_args("container:sv-1-browser", "SV_JOB=e30=");
         for args in [&browser, &driver] {
-            for flag in HARDENING {
-                assert!(args.contains(&flag), "{flag} missing: {args:?}");
-            }
+            hardened_by_prepared(args);
             assert!(
                 !args
                     .iter()
@@ -3588,16 +3582,20 @@ http.createServer((q, s) => {
             return;
         }
         let name = format!("sv-seedtest-{}", std::process::id());
+        // Started through `prepared` like every container, so read-only (8 October 2026): `/app`,
+        // where the seed runs, is a mount here as it is in the app's own container.
         let started = backend.docker(&[
             "run",
             "-d",
             "--rm",
+            "--tmpfs",
+            "/app",
             "--name",
             &name,
             PROBE_IMAGE,
             "sh",
             "-c",
-            "mkdir -p /app; sleep 120",
+            "sleep 120",
         ]);
         let accounts = crate::new_accounts(true, true);
         // The seed passes only if each value arrived whole; it compares, and prints nothing.
@@ -4034,9 +4032,7 @@ http.createServer((q, s) => {
     #[test]
     fn the_mail_server_is_fenced_and_hardened_like_the_sidecar() {
         let args = mail_args("sv-1-net", "sv-1-mail");
-        for flag in HARDENING {
-            assert!(args.contains(&flag), "{flag} missing: {args:?}");
-        }
+        hardened_by_prepared(&args);
         let at = args.iter().position(|a| *a == "--network").unwrap();
         assert_eq!(args[at + 1], "sv-1-net");
         // Nothing published: the only way to it is from inside the fence.

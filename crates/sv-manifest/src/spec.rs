@@ -34,9 +34,11 @@ health = "/"              # a path that returns 200 once the app is up
 # websocket = "/ws"         # where it accepts WebSocket connections, if it does
 #   `install = true`: the app runs with no network and a read-only folder, so `build` cannot install
 #   packages. With `install = true`, `sv` installs them first, in a separate container that is
-#   given only requirements.txt (every line pinned, `name==1.2.3`), or package.json with
-#   package-lock.json, never the app's code, and that runs none of the packages' own install
-#   code; then the fenced app gets them read-only. Only with one of Docker's own `python` or
+#   given only requirements.txt (every line pinned, `name==1.2.3`), package.json with
+#   package-lock.json, or both, at the top of the app's folder; never the app's code, and it runs
+#   none of the packages' own install code. Then the fenced app gets them read-only, where it looks
+#   for them anyway (Python's on `PYTHONPATH`, Node's in a `node_modules` above the app), with their
+#   commands, such as `gunicorn`, on `PATH`. Only with one of Docker's own `python` or
 #   `node` images (`python:3.12-slim`, `node:22-alpine`): that container can reach the internet,
 #   and in any other image what it runs is whatever that image's author put there. A package that
 #   has no ready-made download, or needs its install script, cannot be installed this way: build
@@ -223,7 +225,8 @@ health = "/"              # a path that returns 200 once the app is up
 [data]
 # What kinds of information the app holds about people. Starts commented out, like the capabilities:
 # a list nobody filled in is read as unanswered, and the app is held to ASVS level 2, the level for
-# apps that hold sensitive information, until it is answered. Remove the `#` and list what it holds,
+# apps that hold sensitive information, until it is answered. (An app whose audience is customers or
+# the public is held to level 2 whatever it holds.) Remove the `#` and list what it holds,
 # or write [] if it holds nothing about people at all.
 # contact | financial | payment-card | health | government-id | credentials
 # children | location | files | business-confidential | other-personal
@@ -270,7 +273,7 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # moderation = ?
 # rag = ?                     # does it search documents of the app's own: a document store, search index, or vector database?
 # web-search = ?              # does it search the web or read web pages? (a web search is this, not rag)
-# generates-media = ?        # does it make images, audio, or video? (matters only at level 3)
+# generates-media = ?        # does it make images, audio, or video? (matters only at level 3, which `sv` does not yet hold any app to)
 # mcp = ?                     # does it reach tools over the Model Context Protocol?
 # training = ?                # does this app train or fine-tune a model?
 # self-hosted = ?             # does it host or deploy model files itself, rather than calling a vendor's API?
@@ -281,6 +284,8 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 # Leave one out and nothing is claimed about it either way.
 [policy]
 # failed-sign-ins = 5     # wrong passwords in a row the app should allow before pushing back
+# within-minutes = 15     # the window `failed-sign-ins` applies within (recorded, not tested: every
+#                         # attempt this makes lands within a few seconds)
 # failed-codes = 5        # wrong emailed sign-in codes in a row before pushing back (with `email-code`)
 # ai-requests-per-minute = 20   # messages a minute the AI feature passes on before refusing (with `ai`)
 # requests-per-minute = 30   # records a minute one user can create through `owned` (and each of
@@ -288,8 +293,6 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 #                            # pushes back; one more than this is sent
 # idle-timeout-minutes = 15       # how long a session may sit unused (checked by `sv run --slow`)
 # session-lifetime-minutes = 60   # how long a session may last however busy (`sv run --slow`, up to 90)
-# within-minutes = 15     # the window that count applies within (recorded, not tested: every
-#                         # attempt this makes lands within a few seconds)
 # The most days a known vulnerability may stay unfixed, by how serious it is. `sv audit` compares
 # each one's age with these; a severity left out is counted as overdue whatever its age.
 # fix-within-days = { critical = 7, high = 30, medium = 90, low = 180 }
@@ -419,7 +422,9 @@ switches off a requirement the code says applies.
           ...
 
   `sv` reads those ids back and, when the whole suite passes (or, with a test report, for each test
-  the report says passed), reports that requirement as checked by the app's own tests, naming the file and line so anybody can go and look. Ids may be written
+  the report says passed), reports that requirement as tested by the app's own tests, naming the file and line so anybody can go and look.
+  That is a status of its own, below a check of `sv`'s, never checked. Only an id in a code file counts,
+  and a requirement about documentation, deployment or design is never credited by a test. Ids may be written
   with underscores or dots; `V1.2.4` and `V1_2_4` are the same requirement.
 
   This is the only way a test counts. Matching tests to requirements by what they are called would
@@ -430,7 +435,7 @@ switches off a requirement the code says applies.
   Which tests to write
 
   `sv report` lists, under "Tests worth writing first" in compliance.md, the level 1 requirements
-  that apply to the app and have no evidence of any kind and no test naming it; report.json
+  that apply to the app and have nothing stronger than someone's word, and no test naming it; report.json
   (`tests_to_write`) and `sv mcp` give the whole list, every level, lowest first. Work down it: for each requirement the app really meets, a test that shows it, with the
   id in its name. Where the app does not meet one yet, that is the thing to fix first, and the test
   follows.
@@ -462,6 +467,6 @@ switches off a requirement the code says applies.
 
   By default a check that finds something still exits 0; only a check that could not run fails. So a
   workflow step that runs `sv` must ask it to fail: `sv check . --fail-on attention:high` stops on
-  anything high or critical (`attention` alone on any finding), and the same flag works for
+  anything high or critical (`attention` alone on any finding of low severity or worse), and the same flag works for
   `sv report`. A step without it passes whatever was found.
 "#;
