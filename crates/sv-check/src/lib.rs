@@ -27,6 +27,7 @@ pub mod finding;
 pub mod git;
 pub mod grants;
 pub mod hand;
+pub mod hosted_rules;
 pub mod human;
 pub mod junit;
 pub mod launch;
