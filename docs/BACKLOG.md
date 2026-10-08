@@ -239,6 +239,11 @@ another session is not a claim.
      out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
      pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
      folder can be deleted.
+     **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
+     was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
+     of it. Wording on screen only: `sv report` already credits nothing for such a folder (checked: 137 not
+     verified, none verified).
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
