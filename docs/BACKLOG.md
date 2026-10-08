@@ -8613,6 +8613,11 @@ line in each item's file rather than a reading of its prose.
   `Markup(...)` and Django's `mark_safe(...)` given a value; and Express's `res.send` of HTML
   pieced together from a value. Finding-only, crediting nothing, so no decision record is proposed. Read on `main`
   just before this claim: no other session had claimed it.
+  **Done the same day** (`docs/design/0302-a-value-put-on-the-page-as-html-without-escaping-8-october.md`): the rule,
+  also taught Go's `template.HTML(…)` and Ruby's `raw` and `html_safe`, with two new rule fields:
+  `safeArgumentPiecesRead` (an argument judged piece by piece, so `'<p>' + escapeHtml(x)` is not reported) and
+  `jsxQuery` (JSX patterns for `.tsx` files only). Not looked for yet, and named so in the rule's `nothingToFind`:
+  PHP, Java, C#, Kotlin, Rust, Dart, and Swift.
 
 ## Decided, not yet written down as ADRs
 
