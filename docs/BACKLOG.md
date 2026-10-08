@@ -8410,6 +8410,23 @@ another session is not a claim.
      `docs/prompts/library-trial/recipe-summaries.txt`; `assemble_report_saying` is 1,585 lines and
      `Adapters::load` runs three times per report; `main.rs` hard-codes the tool list and omits semgrep.
 
+- **A merge script, and the merging rules in `CLAUDE.md`.** Asked for by the owner on 8 October 2026 ("go ahead with
+  the merge script and CLAUDE.md lines please"), from the end-of-day write-up of session securevibe-review (its
+  section "Pull requests and merging"), after ADR-060 took the `DESIGN.md` conflicts away. What remains is the
+  backlog: every claim and every done note is an addition to this file, so two open pull requests still meet here, and
+  on 8 October each such conflict was resolved by hand the same way (both sides kept, `main`'s first) at the cost of a
+  ten-minute CI round, with one pull request of this session refused three times because another merge landed
+  between its green run and its own. To build: `tools/merge_main.py`, which merges `origin/main` into the branch and
+  settles a conflict in a Markdown file when, and only when, both sides added text at the same place (the merge base
+  holds nothing there), keeping `main`'s side first; any other conflict is left for a person, named, and the script
+  fails. A self-test that builds a repository with both kinds of conflict, run by a test in `crates/sv-cli/tests`.
+  And five lines in `CLAUDE.md`: turn auto-merge on when a pull request is opened and bring `main` in with the script
+  when GitHub reports a conflict; one open build pull request per session; `main` red after your merge is yours to
+  mend within the hour; before a review or an assessment, read the day's write-ups in this file; and the script's
+  name in the tools list. No decision: nothing changes what `sv` runs, writes, or concludes.
+  **Claimed 8 October 2026 by session securevibe-review**, at the owner's word, in branch
+  `claude/securevibe-review-merge-script`.
+
 ## Decided, not yet written down as ADRs
 
 **All three written down on 27 September 2026 by session securevibe-e8**, in a `docs/adr/` of `sv`'s
