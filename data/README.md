@@ -61,8 +61,8 @@ The requirements themselves, as published. Read by `sv-frameworks` and counted b
 
 | File | Read by | What it is |
 |---|---|---|
-| `knowledge/common-passwords.txt` | nothing at run time | The most common passwords, 96,517 of them, one per line. `sv`'s sign-up check uses one entry from it, written into the code; `tools/pwned_passwords.py` samples it. |
-| `breached-password-evidence.json` | `sv-check`, **compiled in** | Evidence that the one password `sv` tries at sign-up is in known breaches. Written by `tools/pwned_passwords.py`; rebuild `sv` after changing it. |
+| `knowledge/common-passwords.txt` | nothing at run time | The most common passwords, 96,517 of them, one per line. `sv`'s sign-up checks use four entries from it, written into the code (`signed_in/passwords.rs`): three from the top 3000, all of which must be refused (ADR-055), and one far down the list for the breached-password check; `tools/pwned_passwords.py` samples it. |
+| `breached-password-evidence.json` | `sv-check`, **compiled in** | Evidence that the password `sv` tries at sign-up for the breached-password check is in known breaches. Written by `tools/pwned_passwords.py`; rebuild `sv` after changing it. |
 | `common-passwords-breach-sample.json` | nothing at run time | How much of the common-password list is breach data, from a sample. Written by `tools/pwned_passwords.py`. |
 
 ## v1's files

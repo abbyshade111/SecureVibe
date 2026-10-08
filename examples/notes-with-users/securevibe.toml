@@ -3,8 +3,11 @@ manifest-version = 1
 # An example of [stack.run.users]: `sv run` makes two accounts and an admin with `seed`, signs in as
 # each, and asks what they can reach — each other's notes, the admin page, a note created from
 # another site, the session after signing out — and signs up through `signup` to ask what passwords
-# the app accepts. With `browser`, it also opens the private pages and types a note in a headless
-# Chromium on the same fenced network.
+# the app accepts. It also changes a password, deletes an account, and sends uploads. With `browser`,
+# it also opens the private pages and types a note in a headless Chromium on the same fenced network.
+# This app has no page that lists notes and no way to change or delete one, so `owned` has only
+# `create`: reading another user's note is all that can be tried, and V8.2.2 is "checked in part"
+# (ADR-053). An app that has them gives `list`, `update` and `delete` too (see `sv init`).
 
 [app]
 name = "Notes with users"
