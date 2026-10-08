@@ -141,6 +141,23 @@ pub fn proven(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
     if !sv_scan::ecosystems::is_sv_output(dir) {
         return Err("the folder holds files sv does not write in a report folder".to_owned());
     }
+    sealed_here(dir)
+}
+
+/// The SHA-256 of each sealed file in `dir`, when its marker's seal holds for them under this
+/// computer's report key; otherwise why not, as `proven` says it. Whatever else the folder holds is
+/// not looked at: this says `sv` wrote the report there, not that the folder holds nothing else.
+///
+/// What `sv report` asks before it writes beside files it did not write (the review of 8 October,
+/// item 4): a marker can be planted in any of the app's folders, and a seal cannot be made without
+/// the key.
+pub fn sealed_here(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
+    let marker = dir.join(sv_scan::ecosystems::REPORT_MARKER);
+    let meta = std::fs::symlink_metadata(&marker)
+        .map_err(|_| "the folder holds no marker of sv's".to_owned())?;
+    if !meta.is_file() || meta.len() > MAX_MARKER_BYTES {
+        return Err("its marker is not one sv writes".to_owned());
+    }
     let text = std::fs::read_to_string(&marker)
         .map_err(|_| "its marker is not one sv writes".to_owned())?;
     let seal = text
