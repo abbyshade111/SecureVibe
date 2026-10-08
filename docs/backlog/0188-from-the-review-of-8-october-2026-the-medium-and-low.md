@@ -34,6 +34,15 @@ high were built the same day (the entry above this one's predecessor). Each of t
    `sitecustomize.py`: test it the ADR-032 way with a planted `preinstall` and `sitecustomize.py`. gosec,
    Brakeman, and CodeQL walk the folder themselves and follow links `sv` refuses: skip them when `listing.links`
    is non-empty, or list the links in `looked_away`.
+   **Claimed 8 October 2026 by session securevibe-review**, from the roadmap (Phase 1, item 1, fourth in its order;
+   the first three are done or claimed), in branch `claude/securevibe-review-tools-fence`: gosec is started with
+   `GOPROXY=off` and `CGO_ENABLED=0`, so it neither downloads the app's modules nor runs a C compiler, and a run that
+   could not load the app's packages for want of them is said to be one; the three tools given the folder rather
+   than the files (gosec, Brakeman, CodeQL) are not run while the app holds a link, with the links named, since
+   each would follow it out of the app; and CodeQL's extractors are tried against a planted `preinstall` and
+   `sitecustomize.py` the ADR-032 way where `codeql` is installed. Changes what the tools may run and fetch, and when
+   they run: a Later entry on ADR-032. Confirmed on `main` just before this claim: gosec's `env` is empty,
+   `adapters.rs` reads `listing.links` nowhere, and no other session had claimed this part.
 4. A planted `.securevibe-report` marker lets `securevibe_write_report` replace five named files in any app
    subfolder (`main.rs`, `refuse_someone_elses_folder`: a marker alone counts for writing). Require
    `is_sv_output` or a proven seal, else "give an empty folder".
@@ -53,6 +62,12 @@ high were built the same day (the entry above this one's predecessor). Each of t
    per check, not per requirement: a check citing two ids whose tests only ever credit one passes; also fail on
    `ids - got`, and mirror a findings log. `model_provider.rs` passes silently without `node`: honor
    `SV_REQUIRE_BACKEND` there.
+   **Claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, the next unclaimed in its
+   order), in branch `claude/securevibe-e2-honesty-gaps`: all three parts. A manifest-versus-lockfile comparison that
+   could not be made is named as not made, with the file; the credit census fails a requirement a check cites and
+   was never seen crediting, beside the per-check test it has (a Later entry on ADR-059); and the model-provider
+   test fails without `node` when `SV_REQUIRE_BACKEND` is set. Confirmed on `main` just before this claim: none of
+   the three is done, and no other session had claimed this part.
 6. Low: a FIFO named `securevibe.toml` hangs the MCP server's serving thread (`app_dir` refuses links only);
    `Secret::redact` keeps four characters whatever the length, so a 4-character URL password is shown whole (show
    `min(4, len/3)`); `redact_text` masks only listed names, and `authorization`, `bearer`, `cookie`, `session`,
