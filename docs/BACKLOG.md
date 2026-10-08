@@ -264,6 +264,10 @@ another session is not a claim.
      continue to work off the backlog"), in branch `claude/securevibe-e2-tools-on-screen`: `sv report --tools` says on
      screen which tools did not run and why, whatever its exit status, and the install hint reads as a sentence for
      CodeQL as for the others. Per-platform install hints stay unclaimed.
+     **Those two parts done the same day** (DESIGN, "The language's own tool"): the tools that did not run are listed
+     on screen before the closing line, and not again when the exit status already lists them; the hint is a
+     sentence for a command and for CodeQL's steps alike. Breaks: the screen list switched off, the old hint, every
+     hint quoted as a command, and the list said twice each failed a test written for it.
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
