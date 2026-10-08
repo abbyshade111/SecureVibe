@@ -5,7 +5,7 @@ fn examples() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples")
 }
 
-fn call(server: &Server, name: &str, args: Value) -> Value {
+pub(super) fn call(server: &Server, name: &str, args: Value) -> Value {
     test_keys();
     server
         .handle(&json!({
@@ -16,7 +16,7 @@ fn call(server: &Server, name: &str, args: Value) -> Value {
         .clone()
 }
 
-fn text(result: &Value) -> &str {
+pub(super) fn text(result: &Value) -> &str {
     result["content"][0]["text"].as_str().unwrap_or("")
 }
 
@@ -1359,7 +1359,7 @@ fn test_keys() -> &'static Path {
     )
 }
 
-fn scratch_app(tag: &str, example: &str) -> PathBuf {
+pub(super) fn scratch_app(tag: &str, example: &str) -> PathBuf {
     test_keys();
     let root = std::env::temp_dir().join(format!("sv-mcp-{tag}-{}", std::process::id()));
     std::fs::remove_dir_all(&root).ok();

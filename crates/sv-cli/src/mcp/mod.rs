@@ -40,6 +40,8 @@ use std::path::{Component, Path, PathBuf};
 mod catalog;
 mod check_text;
 mod confine;
+#[cfg(test)]
+mod marker_tests;
 mod protocol;
 mod report_writing;
 mod resources;
