@@ -23,14 +23,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use sv_check::seal::{Key, REPORT_KEY_FILE};
 
-/// The files a seal covers, in the order they are sealed: every report file `sv` writes.
-pub const SEALED: [&str; 5] = [
-    "report.html",
-    "compliance.md",
-    "security.md",
-    "findings.sarif",
-    "report.json",
-];
+/// The files a seal covers, in the order they are sealed: every report file `sv` writes, from the
+/// one list of them.
+pub const SEALED: [&str; 5] = crate::report_files::NAMES;
 
 /// How the seal's line in the marker starts.
 const SEAL_LINE: &str = "seal: ";

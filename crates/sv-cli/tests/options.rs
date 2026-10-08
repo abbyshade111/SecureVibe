@@ -23,6 +23,8 @@ const COMMANDS: &[&str] = &[
     "report",
     "review",
     "bundle",
+    "dashboard",
+    "history",
     "mcp",
 ];
 

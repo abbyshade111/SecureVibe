@@ -21,6 +21,7 @@
 
 pub mod bluf;
 pub mod chapters;
+pub mod dashboard;
 pub mod fence;
 pub mod groups;
 pub mod html;
@@ -411,7 +412,8 @@ impl Examined {
     }
 }
 
-#[derive(Debug, Clone, Default, Serialize)]
+#[derive(Debug, Clone, Default, Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Counts {
     pub applicable: usize,
     pub needs_attention: usize,
