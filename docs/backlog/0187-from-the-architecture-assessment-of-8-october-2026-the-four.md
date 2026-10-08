@@ -123,7 +123,7 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    One source for the AI-facing flow text: `INSTRUCTIONS`, the tool descriptions, the spec `sv init` prints, and
    GETTING-STARTED's pasted prompt are kept in step by hand and the prompt's order differs; a test that the tool
    names appear in the same order, and a banned-word and American-spelling test over every string the AI tool
-   reads (none exists). Reading stdin on its own thread, so `ping` and `notifications/cancelled` are answered
+   reads (none exists). Reading stdin on its own thread, so `ping` and `notifications/canceled` are answered
    during a check, only if a client is seen to time out (a decision).
 11. **Process.** Every session inserts its claim at the top of this file's "Next" section, so a branch an hour old
    conflicts with `main` here; the same conflict was resolved three times on 8 October, each costing a 20-minute

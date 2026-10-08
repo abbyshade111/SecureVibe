@@ -537,7 +537,7 @@ pub(super) struct Flaws {
     /// The sign-in-by-code forms carry no anti-forgery token, so nothing makes the probe open
     /// their pages. Not a fault.
     pub(super) code_no_csrf: bool,
-    /// Past the limit, wrong codes are answered as before and the code is quietly cancelled:
+    /// Past the limit, wrong codes are answered as before and the code is quietly canceled:
     /// the only sign of pushing back is that the right code no longer works. Not a fault.
     pub(super) code_cancels_quietly: bool,
     /// Every wrong code is answered 429 from the first, as an app whose limiter an earlier

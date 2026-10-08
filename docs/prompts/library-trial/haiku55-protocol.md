@@ -24,7 +24,7 @@ As in `recipe-protocol.md`, with two differences, both so the two arms differ on
   at the top, and the recipe brief (`docs/prompts/trial-4/recipe-brief.md`). The recipe trial used 2.1.286.
 - **Each model named by its full id,** since the short name `haiku` may now resolve to the newer model:
   `claude-haiku-4-5-20251001` (the model every earlier Haiku build used, as their transcripts record) and
-  `claude-haiku-5-5`. The builds are labelled `haiku45` and `haiku55`.
+  `claude-haiku-5-5`. The builds are labeled `haiku45` and `haiku55`.
 
 Every build is checked by `sv report --run` from one release build of `main`, its commit recorded.
 

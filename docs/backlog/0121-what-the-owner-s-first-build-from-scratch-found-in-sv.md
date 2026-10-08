@@ -109,5 +109,5 @@ requirements with no evidence did its job: it pointed at human approval for AI-p
 (C9.2.1), which led to the approval step the owner chose.
 
 **To keep in mind rather than fix:** 18 of the 40 requirements checked came from tests the same tool
-wrote and labelled with the requirement each proves. It checked the wording before labelling, and
+wrote and labeled with the requirement each proves. It checked the wording before labelling, and
 those tests run and pass, but it is the author vouching for its own work through the name.
