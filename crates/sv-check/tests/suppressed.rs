@@ -296,16 +296,15 @@ fn a_clean_brakeman_run_with_no_settings_file_is_credited() {
 }
 
 #[test]
-fn brakeman_settings_that_can_skip_checks_withhold_the_clean_run() {
-    // Brakeman 8.0.6 reads `config/brakeman.yml` on its own, `skip_checks` there hides an injection
-    // with no trace in the report, and `--config-file /dev/null` does not stop it reading the file.
+fn brakeman_settings_in_the_app_no_longer_withhold_the_clean_run() {
+    // Brakeman reads `config/brakeman.yml` on its own, and `skip_checks` there hides an injection
+    // with no trace in the report; `--config-file /dev/null` did not stop it, since it reads the
+    // first settings *file* it finds. Since 8 October 2026 it is given an empty settings file of
+    // `sv`'s own (`-c {config}`), reads the app's not at all, and a clean run is credited whether
+    // or not the app has one. `brakeman_settings.rs` shows that with the real Brakeman.
     let outcome = brakeman_clean(true);
-    assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
-    assert!(
-        outcome.not_run[0].1.contains("`config/brakeman.yml`"),
-        "{:?}",
-        outcome.not_run
-    );
+    assert!(outcome.not_run.is_empty(), "{:?}", outcome.not_run);
+    assert_eq!(outcome.verified.len(), 1);
 }
 
 #[test]
@@ -328,20 +327,33 @@ fn a_run_that_found_something_is_not_turned_into_not_run() {
 }
 
 #[test]
-fn the_settings_file_is_named_in_what_was_looked_away_from() {
-    // Second witness for the settings file, asked directly rather than through a run: present, it
-    // is named; absent, nothing is said.
+fn the_settings_file_is_no_longer_something_looked_away_from_and_the_entry_asks_for_svs_own() {
+    // Second witness, asked directly rather than through a run: the app's settings file is not
+    // among what Brakeman looked away from, because the entry gives it `sv`'s own, first on its
+    // command line so nothing before it can name another.
     let all = Adapters::load(&real_adapters()).unwrap();
     let brakeman = all.all().iter().find(|a| a.id == "brakeman").unwrap();
+    assert_eq!(
+        &brakeman.run.args[..2],
+        ["-c", "{config}"],
+        "{:?}",
+        brakeman.run.args
+    );
+    assert!(
+        brakeman.switched_off_by.is_empty(),
+        "{:?}",
+        brakeman.switched_off_by
+    );
     let dir = scratch("settings-named");
     std::fs::create_dir_all(dir.join("config")).unwrap();
-    let before = adapters::looked_away(brakeman, "{}", &dir);
-    std::fs::write(dir.join("config/brakeman.yml"), "---\n").unwrap();
-    let after = adapters::looked_away(brakeman, "{}", &dir);
+    std::fs::write(
+        dir.join("config/brakeman.yml"),
+        "---\n:skip_checks:\n- CheckSQL\n",
+    )
+    .unwrap();
+    let with_settings = adapters::looked_away(brakeman, "{}", &dir);
     std::fs::remove_dir_all(&dir).ok();
-    assert!(before.is_empty(), "{before:?}");
-    assert_eq!(after.len(), 1);
-    assert!(after[0].contains("`config/brakeman.yml`"), "{after:?}");
+    assert!(with_settings.is_empty(), "{with_settings:?}");
 }
 
 #[test]

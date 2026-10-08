@@ -1881,11 +1881,11 @@ fn cmd_run(args: &[String]) -> Result<i32> {
 
             // What the probes cannot reach comes before what they found, for the usual reason.
             println!("\nNot assessed by these probes:");
-            for (requirements, why) in probes::unassessed_requirements(outcome.signed_in.is_some())
-            {
-                println!("  {requirements} — {why}");
-            }
-            if let Some((requirements, why)) = probes::error_answer_gap(&outcome.probe_responses) {
+            for (requirements, why) in probes::running_app_gaps(
+                outcome.signed_in.is_some(),
+                &outcome.probe_responses,
+                &sbom::build(&app_dir).components,
+            ) {
                 println!("  {requirements} — {why}");
             }
             for (requirements, why) in &signed_in_not_assessed {
@@ -4017,17 +4017,11 @@ fn assemble_report_saying(
                 // What asking it could not reach. These replace the "it was never started" gap
                 // rather than removing it: the app running answers some questions and not others,
                 // and the ones it cannot answer are the ones behind a login.
-                for (requirements, why) in
-                    probes::unassessed_requirements(outcome.signed_in.is_some())
-                {
-                    gaps.push(sv_report::Gap {
-                        what: format!("{requirements}, by asking the running app"),
-                        why: why.to_owned(),
-                    });
-                }
-                if let Some((requirements, why)) =
-                    probes::error_answer_gap(&outcome.probe_responses)
-                {
+                for (requirements, why) in probes::running_app_gaps(
+                    outcome.signed_in.is_some(),
+                    &outcome.probe_responses,
+                    &bill_of_materials.components,
+                ) {
                     gaps.push(sv_report::Gap {
                         what: format!("{requirements}, by asking the running app"),
                         why,

@@ -1,11 +1,16 @@
 # Prompts for your AI coding tool
 
 These are instructions you can paste into the AI tool that builds your app (Claude Code, Cursor, Copilot, or
-another). Each one asks for something SecureVibe checks, and all but the newest have been tried: the same small app was built
-twice, once with the prompt and once without, and `sv` checked both. A prompt is listed under "Shown to work" only
-when the build with it passed its check and the build without it failed. The rest are listed apart, marked
-**not tested**, with what happened: they are worth using, but a prompt that has not been shown to change anything
-should not be trusted as if it had.
+another). Each one asks for something SecureVibe checks, and every one has been tried: an app was built with the
+prompt and without it, by an AI coding tool working on its own, and `sv` checked each build. Since 6 October 2026 a
+trial is ten builds each way, with two models, and a prompt is listed under "Shown to work" only when the problem it
+is for was in at least five of the builds without it and in at most one with it. The rest are listed apart, as
+**tried, not shown**, with what happened: they are worth using, but a prompt that has not been shown to change
+anything should not be trusted as if it had. The trials are written up in `docs/prompts/library-trial/`.
+
+**You do not need to paste the ones shown to work.** Since 7 October 2026, `sv` gives every prompt shown to work, in
+full, at the end of the specification an AI tool reads before writing any code (`sv init`, `securevibe_spec`) and of
+the MCP server's opening instructions, and the ones for a feature in that feature's brief (`securevibe_before`).
 
 `sv prompts` prints the same prompts at a terminal (`sv prompts --requirement V1.2.4` for those aimed at one
 requirement), and an AI coding tool connected to `sv mcp` can fetch them with `securevibe_prompts`. Once `sv report`
@@ -42,12 +47,15 @@ of those builds had each fault put back, and every one was caught. So these four
 
 ## Shown to work
 
-**Four of these were revised on 7 October 2026** after the reviews in `docs/prompts/reviews/`: `git-from-the-start`
+**Five of these were revised on 7 October 2026** after the reviews in `docs/prompts/reviews/`: `git-from-the-start`
 (the `.gitignore` lines written out), `secrets-in-the-environment` (start anyway when an outside key is missing),
-`security-headers` (`object-src` and `base-uri`, never `no-referrer`), and `ai-feature-guard` (a screen that works with
-no network). All four revisions were kept by the revision trial (`docs/prompts/library-trial/revision.md`): with the
-prompts shown to work already at the start of every build, the problems were rare without them pasted, and pasted
-each left its problem in at most one build of ten. Two new prompts joined them that day, at the end of this list.
+`security-headers` (`object-src` and `base-uri`, never `no-referrer`), `ai-feature-guard` (a screen that works with
+no network), and `settings-file-first` (check the file once it is written). The first four were tried in the
+revision trial (`docs/prompts/library-trial/revision.md`) and kept: with the prompts shown to work already at the start
+of every build, fewer than five builds without the prompt pasted had the problem, and pasted, each left it in at most
+one of ten. `settings-file-first`'s new sentence was not in that trial and is not yet tried. Four new prompts were
+shown that week, at the end of this list: `isolate-the-window`, `security-contact`, `production-server`, and
+`password-rules`.
 
 ### Describe the app to SecureVibe before writing code
 
@@ -60,7 +68,9 @@ depend on it do not apply. `sv` looks for each claim in the code: where the code
 requirement still applies and the claim is reported as contradicted, but where the code cannot show it, a wrong
 `false` takes those requirements out unseen.
 One word was changed after the trial, at the owner's decision (6 October 2026): `sv init` prints the file rather
-than creating it, so "it creates" became "it prints". Nothing else in the prompt changed.
+than creating it, so "it creates" became "it prints". On 7 October 2026 a last sentence was added after the reviews
+(check the file once it is written: a third of Haiku's builds wrote one `sv` could not read); it is not yet tried, and
+the prompt's status rests on the text before it.
 
 ### Keep the app in git from the first file
 
@@ -138,9 +148,11 @@ could not run.
 
 ## Not yet shown to work
 
-**Not tested.** Each of these asks for something sound, and every build that used one did what it asked. But the
-test could not show that the prompt made the difference, so none of them has been shown to work. Use them, and
-check the result with `sv` as you would anything else.
+**Tried, not shown to work.** Each of these asks for something sound, and each has been tried. In most, the builds
+without the prompt already did the safe thing, so there was nothing for the prompt to fix ("no reading"); in a few,
+the prompt was followed and the problem stayed ("not shown"). Use them, and check the result with `sv` as you would
+anything else. "The trial's harm rule", named below, flags a prompt whose builds started, or answered `sv`'s checks
+on the running app, less often than the builds without it.
 
 ### Build every database query with placeholders
 
@@ -148,7 +160,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V1.2.4.
 
-*Not tested:* The build with the prompt followed it, and `sv` wrongly flagged two of its safe queries. That is a fault in `sv`, recorded in the backlog, and fixed on 4 October 2026: both queries are now left alone. The prompt has not been tried again since.
+*Tried, not shown:* The build with the prompt followed it, and `sv` wrongly flagged two of its safe queries. That is a fault in `sv`, recorded in the backlog, and fixed on 4 October 2026: both queries are now left alone. The prompt has not been tried again since. Revised on 7 October 2026 after the reviews (held to the running check, which judges a query that really takes what a person typed); the revised text is not yet tried. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): not reached at the sortable search, which one Sonnet 5.5 build listed with a term to ask.
 
 ### Run other programs without a shell
 
@@ -156,7 +168,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V1.2.5.
 
-*Not tested:* The build without the prompt already ran the export with no shell.
+*Tried, not shown:* The build without the prompt already ran the export with no shell. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): no reading, Sonnet 5.5 credited in 10 of 10 builds without the prompt.
 
 ### Save files under names the app makes
 
@@ -164,7 +176,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V5.3.2.
 
-*Not tested:* The build with the prompt followed it, and `sv` wrongly flagged the file path it read back from its own database. That is a fault in `sv`, recorded in the backlog. Since 5 October 2026 the finding stays, at low confidence, and says the path was built from fixed text and a value read back from the app's own database. The prompt has not been tried again since.
+*Tried, not shown:* The build with the prompt followed it, and `sv` wrongly flagged the file path it read back from its own database. That is a fault in `sv`, recorded in the backlog. Since 5 October 2026 the finding stays, at low confidence, and says the path was built from fixed text and a value read back from the app's own database. The prompt has not been tried again since. Revised on 7 October 2026 after the reviews (save to a folder named by a setting, since sv run makes the code's folder read-only; held to the running check); the revised text is not yet tried. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): not reached, 7 of 10 Sonnet 5.5 builds not declaring their upload.
 
 ### Store passwords with a password-hashing function
 
@@ -172,7 +184,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V11.4.1, V11.4.2.
 
-*Not tested:* The build without the prompt already used a proper password hash. Tried again on 6 October 2026 with Haiku 4.5: no reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8.
+*Tried, not shown:* The build without the prompt already used a proper password hash. Tried again on 6 October 2026 with Haiku 4.5: no reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8. Revised on 7 October 2026 after the reviews (the PBKDF2 rounds named: 23 Haiku loop builds used too few); the revised text is not yet tried. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): no reading, Sonnet 5.5 credited in 10 of 10 builds without the prompt.
 
 ### Send people back only to pages on the same site
 
@@ -180,7 +192,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V3.7.2.
 
-*Not tested:* Both builds checked the address before redirecting, and `sv` flagged both: it could not tell a checked redirect from an unchecked one. Recorded in the backlog. Since 5 October 2026 the finding stays, at low confidence, and names the function the address passed through (such as `safe_next`), as the owner decided. The prompt has not been tried again since.
+*Tried, not shown:* Both builds checked the address before redirecting, and `sv` flagged both: it could not tell a checked redirect from an unchecked one. Recorded in the backlog. Since 5 October 2026 the finding stays, at low confidence, and names the function the address passed through (such as `safe_next`), as the owner decided. The prompt has not been tried again since. Revised on 7 October 2026 after the reviews (held to the running check, which judges where the app really sends the browser); the revised text is not yet tried. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): no reading, no Sonnet 5.5 build without the prompt sending the browser outside the app from its sign-in page's return address, which the check asks of every app with a sign-in.
 
 ### Clean formatted text before showing it
 
@@ -188,7 +200,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V1.3.1.
 
-*Not tested:* The build without the prompt allowed only a few safe tags itself. `sv`'s check reads which libraries an app uses, so it could not judge that build either way.
+*Tried, not shown:* The build without the prompt allowed only a few safe tags itself. `sv`'s check reads which libraries an app uses, so it could not judge that build either way. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): no reading, 9 of 10 Sonnet 5.5 builds used an HTML sanitizer without the prompt.
 
 ### Let other sites read the app only by name
 
@@ -196,7 +208,7 @@ check the result with `sv` as you would anything else.
 
 *Requirement:* ASVS V3.4.2.
 
-*Not tested:* No build turned cross-site access on, with or without the prompt.
+*Tried, not shown:* No build turned cross-site access on, with or without the prompt. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): not reached, its check asking only `/` and not the JSON API the brief asks for. Since ADR-055 (the same day) it asks every signed-in page listed under `private` too.
 
 ### Show plain error pages, and keep the details in the log
 
@@ -204,7 +216,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V13.4.2, V16.5.1.
 
-*Not tested:* Every build, with or without the prompt, answered errors with a plain page.
+*Tried, not shown:* Every build, with or without the prompt, answered errors with a plain page. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): no reading, and a weak one, its check credited from a missing page's answer alone.
 
 ### Check on the server who may open each page and record
 
@@ -212,7 +224,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V8.2.1, V8.2.2, V8.3.1.
 
-*Not tested:* Both builds without the prompt already refused all of these.
+*Tried, not shown:* Both builds without the prompt already refused all of these. With the recipe brief (7 October 2026, `docs/prompts/library-trial/recipe.md`): no reading, Sonnet 5.5 credited in 10 of 10 builds without the prompt, V8.2.2 in full (reading, listing, changing and deleting refused).
 
 ### Make the session hard to steal, and end it properly
 
@@ -220,7 +232,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V3.3.2, V3.3.4, V7.2.3, V7.4.1.
 
-*Not tested:* No reading by the trial's rule: without the prompt a session fault was there in 4 of the 6 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) Reading builds 1, 4 and 7, each did all the prompt asks.
+*Tried, not shown:* No reading by the trial's rule: without the prompt a session fault was there in 4 of the 6 builds sv could sign in to, one short of the five the rule needs; with it in 1 of 4. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) Reading builds 1, 4 and 7, each did all the prompt asks.
 
 ### Limit wrong passwords and new records, without waiting to be told the numbers
 
@@ -228,7 +240,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V2.4.1, V6.3.1.
 
-*Not tested:* No reading by the trial's rule (7 October 2026, Haiku 4.5): without the prompt the problem was there in 4 of the 5 builds `sv` could sign in to, one short of the five the rule needs; with it in 1 of 6. Builds 1, 4 and 7 each wrote the limits into `security-notes.md` (`docs/prompts/library-trial/revision.md`).
+*Tried, not shown:* No reading by the trial's rule (7 October 2026, Haiku 4.5): without the prompt the problem was there in 4 of the 5 builds `sv` could sign in to, one short of the five the rule needs; with it in 1 of 6. Builds 1, 4 and 7 each wrote the limits into `security-notes.md` (`docs/prompts/library-trial/revision.md`).
 
 ### Accept changes only from the app's own pages
 
@@ -236,7 +248,7 @@ check the result with `sv` as you would anything else.
 
 *Requirements:* ASVS V3.5.1.
 
-*Not tested:* No reading (7 October 2026, Sonnet 5.5, the recipe brief): every build without the prompt already refused a change from another site (`docs/prompts/library-trial/recipe.md`).
+*Tried, not shown:* No reading (7 October 2026, Sonnet 5.5, the recipe brief): every build without the prompt already refused a change from another site (`docs/prompts/library-trial/recipe.md`).
 
 The same prompts, with the checks behind them, are in `data/prompts.json`.
 
