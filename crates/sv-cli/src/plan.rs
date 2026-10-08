@@ -34,6 +34,8 @@ pub(crate) struct PromptRef {
     pub id: String,
     pub title: String,
     pub status: &'static str,
+    /// Its status as every copy of it says it, with the builds it was shown on.
+    pub said: String,
 }
 
 /// A requirement that will apply.
@@ -253,6 +255,7 @@ pub(crate) fn from_report(
             id: p.id.clone(),
             title: p.title.clone(),
             status: status_word(p.status),
+            said: p.status_sentence(),
         })
         .collect();
     let threats = report
@@ -456,10 +459,11 @@ pub(crate) fn sections_with(
                  about (`sv prompts` prints them):\n\n",
             );
         }
-        let mark = match p.status {
-            "shown" => "shown to work",
-            "not-shown" => "tried, not shown to work",
-            _ => "not tried yet",
+        // "Shown to work, on 1 build with it and 2 without." as the middle of the line.
+        let said = p.said.trim_end_matches('.');
+        let mark = match said.chars().next() {
+            Some(first) => format!("{}{}", first.to_lowercase(), &said[first.len_utf8()..]),
+            None => String::new(),
         };
         text.push_str(&format!("- {} (`{}`, {mark})\n", p.title, p.id));
         decide

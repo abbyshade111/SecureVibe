@@ -342,14 +342,9 @@ pub(super) fn design_prompts() -> Result<sv_check::prompts::Prompts, (i64, Strin
 /// which Secure by Design controls it helps them answer. Every copy of a prompt says this, so "not
 /// tested" and "shown" never read the same.
 pub(super) fn prompt_description(p: &sv_check::prompts::Prompt) -> String {
-    use sv_check::prompts::Status;
-    let status = match p.status {
-        Status::Shown => "Shown to work.",
-        Status::NotShown => "Tried, not shown to work.",
-        Status::Untested => "Not tried yet.",
-    };
+    let status = p.status_sentence();
     if p.sbd_controls.is_empty() {
-        status.to_owned()
+        status
     } else {
         format!(
             "{status} Helps you answer Secure by Design {} (you still answer each).",

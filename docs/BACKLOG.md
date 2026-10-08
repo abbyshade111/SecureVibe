@@ -432,6 +432,9 @@ another session is not a claim.
      MCP server's prompts and offers, the instructions the AI tool reads first), so a prompt shown on one pair no
      longer reads the same as one shown on ten. The counts are read from each prompt's own trial record. The
      second half, saying when delivery through `sv` was not shown, stays unclaimed.
+     **That half done the same day** (DESIGN, "And on how many builds"): `builds` in each shown prompt's `tested`,
+     said in every copy of its status. Breaks: the count left out of the words, a count changed, and a count
+     removed each failed a test (`crates/sv-check/tests/prompts.rs` holds each count to its trial's account).
 
   23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
      warning and exit 0. Read it when present and exit 2 on a parse error; say plainly in its help and in the coding
