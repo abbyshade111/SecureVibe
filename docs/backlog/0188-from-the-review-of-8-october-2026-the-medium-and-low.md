@@ -12,6 +12,12 @@ high were built the same day (the entry above this one's predecessor). Each of t
    wherever the lockfile says; refuse unless every entry is `https://registry.npmjs.org/` with `integrity`, as
    pip's `unpinned` refuses. And a dependency file that is a symlink is followed into the networked container
    (`symlink_metadata`, refuse a link).
+   **Claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, second in its order), in
+   branch `claude/securevibe-e2-npm-sources`: `install = true` refuses a `package-lock.json` any of whose packages is
+   downloaded from anywhere but `https://registry.npmjs.org/` or carries no `integrity`, and a dependency file that
+   is a link, each in plain words before anything runs. Changes what `sv` lets the networked install fetch: a Later
+   entry on ADR-052. Confirmed on `main` just before this claim: `install::plan` reads neither, and no other session
+   had claimed this part.
 3. gosec fetches modules and runs the C toolchain, undeclared: `GOPROXY=off` and `CGO_ENABLED=0` in its `env`, or
    mark it `network: true` and say so in the README. CodeQL's extractors may run the app's package manager or
    `sitecustomize.py`: test it the ADR-032 way with a planted `preinstall` and `sitecustomize.py`. gosec,
