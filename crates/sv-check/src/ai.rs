@@ -2716,6 +2716,7 @@ fn session_context(markers: &LogMarkers, line: &str, out: &mut Outcome) {
                 .to_owned(),
         ));
     }
+    crate::verified::unless_credited(SESSION_LOG.rule_id, &out.verified);
 }
 
 /// Services a log line may name as the provider.
@@ -2915,6 +2916,7 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
                 out,
             );
         }
+        crate::verified::unless_credited(INJECTION_LOGGED, &out.verified);
     }
 }
 

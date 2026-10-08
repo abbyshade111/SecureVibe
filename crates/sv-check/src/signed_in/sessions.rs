@@ -762,6 +762,7 @@ pub(super) fn clear_site_data_check(
             ),
         ));
     }
+    crate::verified::unless_credited("probe.clear-site-data", &out.verified);
 }
 
 /// Whether signing out also happens on a plain page visit (V3.5.3).
