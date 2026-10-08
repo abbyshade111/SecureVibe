@@ -644,6 +644,13 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     }
 
     out.push_str("\n## 5. What `sv run` needs in `securevibe.toml`\n\n");
+    if !brief.settings.is_empty() {
+        out.push_str(
+            "Each is quoted as the specification writes it, commented out. Remove the `#` from the \
+             table's own header line (such as `[stack.run.users]`) as well as from each key: keys \
+             with no header of their own land in the table above them, and `sv` refuses the file.\n\n",
+        );
+    }
     for s in &brief.settings {
         out.push_str(&format!(
             "In `[{}]`, `{}`:\n\n```toml\n{}\n```\n\n",

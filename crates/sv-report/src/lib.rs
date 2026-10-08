@@ -732,7 +732,7 @@ pub struct Report {
     /// and still tells the reader something untrue.
     pub satisfied_elsewhere: Vec<SatisfiedElsewhere>,
     pub checklist_above_level: Vec<ChecklistAboveLevel>,
-    /// Applicable requirements with no evidence of any kind and no test in the app naming them,
+    /// Applicable requirements with nothing stronger than someone's word and no test in the app naming them,
     /// lowest level first. A test that names a requirement and passes is the one route to evidence
     /// for every requirement, including the ones no check here can reach, so this is the list of
     /// what to write.

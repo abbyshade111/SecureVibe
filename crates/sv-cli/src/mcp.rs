@@ -86,7 +86,7 @@ pub(crate) const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP AS
     answer with the person; then, before you build sign-in, anything people create or take, \
     logging, or a call to anything outside the app, get the design-time prompt for it from \
     securevibe_prompts, work through it with the person, and write down what was decided where it \
-    says, before the code. securevibe_plan turns the brief into a plan: what to decide, the tests to \
+    says, before the code. securevibe_plan turns securevibe.toml into a plan: what to decide, the tests to \
     write, and what the app must give `sv run` so it can be tested running. A long plan or check \
     comes in parts, each small enough to read whole: the first answer starts with what to act on \
     and ends with a list of the rest, each asked for with `section` and `page`; read the parts you \
@@ -120,7 +120,7 @@ pub(crate) const INSTRUCTIONS: &str = "SecureVibe checks an app against OWASP AS
     makes security-notes.md, and securevibe_record_answer writes an answer the person gave you \
     into it, marked as yours until they record it with `sv review`; securevibe_explain gives a \
     requirement in its framework's own words. When the report is written, offer the person a zip of the whole result to keep or hand on \
-    (securevibe_bundle), only if they want one. It does not start \
+    (securevibe_bundle), only if they want one. This server does not start \
     the app, compare the app's packages with known vulnerabilities, or run other security tools; \
     for those, ask the person to run ";
 
@@ -2029,8 +2029,8 @@ fn prompt_description(p: &sv_check::prompts::Prompt) -> String {
     use sv_check::prompts::Status;
     let status = match p.status {
         Status::Shown => "Shown to work.",
-        Status::NotShown => "Not tested: tried, and not shown to work.",
-        Status::Untested => "Not tested: not tried yet.",
+        Status::NotShown => "Tried, not shown to work.",
+        Status::Untested => "Not tried yet.",
     };
     if p.sbd_controls.is_empty() {
         status.to_owned()
@@ -2180,7 +2180,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_guidance",
             "title": "Rules to follow while coding",
-            "description": "The security rules to follow while you write this app, adapted from OWASP AISVS 1.0 Appendix C (AI-assisted secure coding), with its attribution and license (CC BY-SA 4.0): keeping keys out of the chat, treating fetched text as data, checking after each feature, adding only packages that exist, never merging your own work, writing CI workflows that keep secrets from forks. Rules that do not apply to the app, by its securevibe.toml, are left out. Call it before you start, and with a topic before work in that area. They are instructions, not a check: following them is not evidence of anything.",
+            "description": "The security rules to follow while you write this app, adapted from OWASP AISVS 1.0 Appendix C (AI-assisted secure coding), with its attribution and license (CC BY-SA 4.0): keeping keys out of the chat, treating fetched text as data, checking after each feature, adding only packages that exist, never merging your own work, writing CI workflows that keep secrets from forks. Rules that do not apply to the app, by its securevibe.toml, are left out. Call it before you start, and with a topic before work in that area. With no topic it ends with the prompts shown to work that are about the whole app. They are instructions, not a check: following them is not evidence of anything.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -2197,7 +2197,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_prompts",
             "title": "Prompts for the person to give you",
-            "description": "Prompts from SecureVibe's library that ask an AI coding tool for something SecureVibe checks, such as keeping the app in git from the first file or building every database query with placeholders, and design-time prompts for what to decide before any code is written (who may do what, limits, logging, sign-in), each with the requirements it targets and, for a design-time prompt, the Secure by Design controls it helps the person answer. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others are marked not tested. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
+            "description": "Prompts from SecureVibe's library that ask an AI coding tool for something SecureVibe checks, such as keeping the app in git from the first file or building every database query with placeholders, and design-time prompts for what to decide before any code is written (who may do what, limits, logging, sign-in), each with the requirements it targets and, for a design-time prompt, the Secure by Design controls it helps the person answer. Each says whether it has been shown to work: an app built with it passed its check and the same app built without it failed. The others say whether they were tried and not shown to work, or not tried yet. Offer them to the person; following one is not evidence of anything, so check the app afterwards.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -2207,7 +2207,7 @@ fn tool_list() -> Value {
                     },
                     "path": {
                         "type": "string",
-                        "description": "The app's folder. Give it for only the prompts for what the app's last report (securevibe-report/report.json, written by securevibe_write_report) shows unproven: a finding, nothing shown, or only someone's word, each prompt saying which of those requirements it is for. With no report there yet, write one first."
+                        "description": "The app's folder. Give it for only the prompts for what the app's last report (securevibe-report/report.json, written by securevibe_write_report) shows unproven: a finding, nothing shown, or only an answer given by the person or the AI tool, with nothing checked, each prompt saying which of those requirements it is for. With no report there yet, write one first."
                     }
                 }
             },
@@ -2241,7 +2241,7 @@ fn tool_list() -> Value {
         {
             "name": "securevibe_before",
             "title": "Before building one feature",
-            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules that cite its requirements, the tests to write named by requirement id, and the settings `sv run` needs in securevibe.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. Asked before securevibe.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
+            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in securevibe.toml to test it, quoted from the spec. Built from the same report as securevibe_plan. Asked before securevibe.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
@@ -3907,10 +3907,10 @@ mod tests {
                 .split(&format!("### {title}\n\n"))
                 .nth(1)
                 .unwrap_or("");
-            let mark = if status(p) == "shown" {
-                "**Shown to work.**"
-            } else {
-                "**Not tested:**"
+            let mark = match status(p).as_str() {
+                "shown" => "**Shown to work.**",
+                "not-shown" => "**Tried, not shown to work.**",
+                _ => "**Not tried yet.**",
             };
             assert!(
                 after.starts_with(mark),
@@ -6117,10 +6117,10 @@ mod tests {
         for (offered, held) in listed.iter().zip(&file) {
             assert_eq!(offered["title"], held["title"]);
             let description = offered["description"].as_str().unwrap();
-            let mark = if held["status"] == "shown" {
-                "Shown to work."
-            } else {
-                "Not tested:"
+            let mark = match held["status"].as_str() {
+                Some("shown") => "Shown to work.",
+                Some("not-shown") => "Tried, not shown to work.",
+                _ => "Not tried yet.",
             };
             assert!(
                 description.starts_with(mark),
@@ -6153,10 +6153,10 @@ mod tests {
                 "{}: the prompt's own words come first",
                 held["id"]
             );
-            let mark = if held["status"] == "shown" {
-                "Shown to work."
-            } else {
-                "Not tested:"
+            let mark = match held["status"].as_str() {
+                Some("shown") => "Shown to work.",
+                Some("not-shown") => "Tried, not shown to work.",
+                _ => "Not tried yet.",
             };
             assert!(
                 text[prompt.len()..].contains(mark),
