@@ -38,7 +38,11 @@ another session is not a claim.
      spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
      `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the
      program is found through `PATH` by `sv` first, a relative entry is skipped, one under the app folder is refused
-     as not run, saying which and why, and the report names the program's path.
+     as not run, saying which and why.
+     **Done the same day** (DESIGN, "The outside tools run no program an app's repository names", the paragraph
+     "The program itself"): `adapters::located`, with a program found nowhere still run by name, so "not installed"
+     reads as it did. Not done: naming the program's path in the report, since the path can hold the owner's home
+     folder and a report may be shared; the refusal names it instead.
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
   October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
