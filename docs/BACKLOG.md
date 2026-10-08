@@ -465,6 +465,10 @@ another session is not a claim.
      says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
      the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
      the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
+     **(d) done the same day** (DESIGN, "`sv`'s own next step, outside the fence"): an error that carries `sv`'s
+     next step ends with "What to do: …" outside the fence, and what went wrong stays inside it; the preflight's
+     missing-file error names `securevibe_spec`, not `sv init`. Breaks: the next step fenced again, and the
+     preflight's own check removed, each failed a test written for it.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).

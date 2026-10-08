@@ -3391,14 +3391,46 @@ fn is_staging(name: &str, ours: &[&str]) -> bool {
 /// what to do instead.
 fn refuse_link(path: &Path, what_to_do: &str) -> Result<()> {
     if let Ok(meta) = std::fs::symlink_metadata(path) {
-        anyhow::ensure!(
-            !meta.file_type().is_symlink(),
-            "{} is a link to somewhere else, so sv does not read or write through it. {what_to_do}",
-            path.display()
-        );
+        if meta.file_type().is_symlink() {
+            return Err(Remedy::new(
+                format!(
+                    "{} is a link to somewhere else, so sv does not read or write through it.",
+                    path.display()
+                ),
+                what_to_do,
+            ));
+        }
     }
     Ok(())
 }
+
+/// What went wrong, and what `sv` itself says to do about it, kept apart. The MCP server fences what
+/// went wrong as the app's text, since it quotes the app as often as not, and writes the next step
+/// outside the fence as `sv`'s own words, which an AI coding tool reading a fenced instruction as
+/// information did not act on (`docs/GAP-ANALYSIS.md`, 5.3). At a terminal the two read as one, as
+/// before. `next` is `sv`'s words only: nothing of the app's goes in it.
+#[derive(Debug)]
+pub(crate) struct Remedy {
+    pub problem: String,
+    pub next: String,
+}
+
+impl Remedy {
+    pub fn new(problem: impl Into<String>, next: impl Into<String>) -> anyhow::Error {
+        anyhow::Error::new(Remedy {
+            problem: problem.into(),
+            next: next.into(),
+        })
+    }
+}
+
+impl std::fmt::Display for Remedy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.problem, self.next)
+    }
+}
+
+impl std::error::Error for Remedy {}
 
 /// What to do about a link where a report file or folder goes.
 const REPORT_LINK: &str = "Remove the link, or give a folder of your own with --out.";

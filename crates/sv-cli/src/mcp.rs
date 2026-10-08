@@ -796,9 +796,17 @@ impl Server {
         // say, but it quotes the app as often as not: a path, a line of securevibe.toml that does
         // not parse, a heading in the notes, the command in a lock file anything in the app can
         // write. So the whole of it is fenced as the app's text is (deep review R9).
+        // What `sv` itself says to do next, when it says something, is its own, and stays outside the
+        // fence: inside, the AI coding tool is told to read it as information, and did not act on it.
         Ok(result.unwrap_or_else(|e| {
+            let (problem, next) = split_remedy(&e);
             tool_error(&sv_report::fence::fenced(|fence| {
-                format!("sv could not do this: {}", fence.wrap(&format!("{e:#}")))
+                let mut text = format!("sv could not do this: {}", fence.wrap(&problem));
+                if let Some(next) = &next {
+                    text.push_str("\n\nWhat to do: ");
+                    text.push_str(next);
+                }
+                text
             }))
         }))
     }
@@ -850,22 +858,20 @@ impl Server {
     /// stopped from outside, so the check runs on to its end and its result is dropped; until it
     /// ends, another check is refused rather than started beside it.
     fn report_for(&self, app_dir: &Path, progress: &Progress) -> Result<sv_report::Report> {
-        anyhow::ensure!(
-            app_dir.join("securevibe.toml").exists(),
-            "there is no securevibe.toml in {}. Call securevibe_spec, write the file it describes \
-             into that folder, and check again.",
-            app_dir.display()
-        );
+        needs_manifest(app_dir, "check again")?;
         let mut last = self
             .last_check
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if last.as_ref().is_some_and(|check| !check.is_finished()) {
-            anyhow::bail!(
-                "the last check ran out of time and is still finishing, so no other is started \
-                 beside it. Nothing was assessed. Ask again in a minute, or ask the person to run {}.",
-                at_a_terminal(&app_dir.to_string_lossy(), "")
-            );
+            return Err(crate::Remedy::new(
+                format!(
+                    "the last check ran out of time and is still finishing, so no other is started \
+                     beside it. Nothing was assessed. At a terminal, with no time limit: {}.",
+                    at_a_terminal(&app_dir.to_string_lossy(), "")
+                ),
+                "Ask again in a minute, or ask the person to run that command at a terminal.",
+            ));
         }
         let (send, receive) = std::sync::mpsc::channel();
         let loaded = std::sync::Arc::clone(&self.loaded);
@@ -904,13 +910,19 @@ impl Server {
                 }
                 report
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => anyhow::bail!(
-                "the check did not finish within {} seconds, so nothing was assessed: this is not a \
-                 pass and not a failure. The folder may be very large; check a smaller folder with \
-                 `path`, or ask the person to run {}, which has no time limit.",
-                self.time_limit.as_secs_f64(),
-                at_a_terminal(&app_dir.to_string_lossy(), "")
-            ),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                return Err(crate::Remedy::new(
+                    format!(
+                        "the check did not finish within {} seconds, so nothing was assessed: this is \
+                     not a pass and not a failure. The folder may be very large. At a terminal, with \
+                     no time limit: {}.",
+                        self.time_limit.as_secs_f64(),
+                        at_a_terminal(&app_dir.to_string_lossy(), "")
+                    ),
+                    "Check a smaller folder with `path`, or ask the person to run that command at a \
+                 terminal.",
+                ));
+            }
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                 anyhow::bail!("the check stopped before it finished, so nothing was assessed")
             }
@@ -963,6 +975,8 @@ impl Server {
     /// What `sv run` will need, looked for in the code, with nothing run (ADR-035).
     fn preflight(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
+        // Asked here, so the remedy names the tool the AI coding tool has, not `sv init`.
+        needs_manifest(&app_dir, "ask for the preflight again")?;
         let (items, ahead, unread) = crate::preflight::of(&app_dir)?;
         Ok(json!({
             "content": [{
@@ -1175,12 +1189,7 @@ impl Server {
     /// Makes or refreshes security-notes.md, so the tool can write the owner's decisions into it.
     fn notes_file(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
-        anyhow::ensure!(
-            app_dir.join("securevibe.toml").exists(),
-            "there is no securevibe.toml in {}. Call securevibe_spec, write the file it describes \
-             into that folder, and try again.",
-            app_dir.display()
-        );
+        needs_manifest(&app_dir, "try again")?;
         // The one file this writes is inside a folder already held to the root, but the file itself
         // could be a link to somewhere else, and writing follows it. Refused before anything is
         // written, the same care `securevibe_write_report` takes with its folder.
@@ -1280,15 +1289,19 @@ impl Server {
         // Beside the app means in its parent, which has to be inside the root: when the app is the root itself,
         // the parent is somewhere this server was not started for.
         let parent = app_dir.parent().map(Path::to_path_buf).unwrap_or_default();
-        anyhow::ensure!(
-            app_dir != self.root && parent.starts_with(&self.root),
-            "the bundle is written beside the app, and beside {} would be outside {}, the folder this server \
-             was started for. Start the server for the folder that holds the app, or ask the person to run \
-             {} in a terminal.",
-            app_dir.display(),
-            self.root.display(),
-            this_sv_running("bundle", &app_dir.to_string_lossy())
-        );
+        if app_dir == self.root || !parent.starts_with(&self.root) {
+            return Err(crate::Remedy::new(
+                format!(
+                    "the bundle is written beside the app, and beside {} would be outside {}, the \
+                     folder this server was started for. At a terminal: {}.",
+                    app_dir.display(),
+                    self.root.display(),
+                    this_sv_running("bundle", &app_dir.to_string_lossy())
+                ),
+                "Start the server for the folder that holds the app, or ask the person to run that \
+                 command in a terminal.",
+            ));
+        }
         // Resolved through links, so a `-securevibe-bundle.zip` that is a link to somewhere else is refused
         // before anything is written.
         let zip = crate::bundle::resolve_for_writing(
@@ -1681,6 +1694,34 @@ fn ok_reply(id: Value, result: Value) -> Value {
 
 fn error_reply(id: Value, code: i64, message: &str) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
+}
+
+/// Refuses an app folder with no securevibe.toml, naming the tool that writes one, and what to do
+/// after: `again`, such as "check again".
+fn needs_manifest(app_dir: &Path, again: &str) -> Result<()> {
+    if app_dir.join("securevibe.toml").exists() {
+        return Ok(());
+    }
+    Err(crate::Remedy::new(
+        format!("there is no securevibe.toml in {}.", app_dir.display()),
+        format!("Call securevibe_spec, write the file it describes into that folder, and {again}."),
+    ))
+}
+
+/// What went wrong, the whole chain of it, and `sv`'s own next step when the error carries one
+/// (`crate::Remedy`). The remedy is the innermost error, so its words end the chain; they are taken
+/// off the end, and only when they are found there.
+fn split_remedy(e: &anyhow::Error) -> (String, Option<String>) {
+    let whole = format!("{e:#}");
+    match e.downcast_ref::<crate::Remedy>() {
+        Some(remedy) if !remedy.next.is_empty() && whole.ends_with(&remedy.next) => (
+            whole[..whole.len() - remedy.next.len()]
+                .trim_end()
+                .to_owned(),
+            Some(remedy.next.clone()),
+        ),
+        _ => (whole, None),
+    }
 }
 
 fn tool_error(message: &str) -> Value {
@@ -2734,6 +2775,94 @@ mod tests {
 
     fn text(result: &Value) -> &str {
         result["content"][0]["text"].as_str().unwrap_or("")
+    }
+
+    /// `text` with every fenced piece of the app's text taken out: what `sv` says in its own words.
+    fn sv_own_words(text: &str) -> String {
+        let mut out = String::new();
+        let mut rest = text;
+        while let Some(at) = rest.find("<app-text-") {
+            out.push_str(&rest[..at]);
+            let tag_end = rest[at..]
+                .find('>')
+                .map(|e| at + e + 1)
+                .expect("a whole tag");
+            let name = &rest[at + 1..tag_end - 1];
+            let close = format!("</{name}>");
+            let after = rest[tag_end..].find(&close).expect("a closed fence");
+            rest = &rest[tag_end + after + close.len()..];
+        }
+        out.push_str(rest);
+        out
+    }
+
+    #[test]
+    fn what_sv_says_to_do_next_is_outside_the_fence_and_names_its_own_tool() {
+        // `docs/GAP-ANALYSIS.md`, 5.3: "Call securevibe_spec, write the file..." was fenced with the
+        // app's text, where the AI coding tool is told it is information, and the trials saw it not
+        // acted on. The path, which is the app's, stays inside; the next step is `sv`'s, outside.
+        let root = std::env::temp_dir().join(format!("sv-mcp-remedy-{}", std::process::id()));
+        std::fs::remove_dir_all(&root).ok();
+        std::fs::create_dir_all(root.join("bare")).unwrap();
+        std::fs::write(root.join("bare/app.py"), "print('hi')\n").unwrap();
+        let server = Server::new(&root).unwrap();
+        for (tool, again) in [
+            ("securevibe_check", "check again"),
+            ("securevibe_notes_file", "try again"),
+            ("securevibe_preflight", "ask for the preflight again"),
+        ] {
+            let result = call(&server, tool, json!({ "path": "bare" }));
+            let said = text(&result);
+            assert_eq!(result["isError"], true, "{tool}: {said}");
+            // The setup: the fence is there, and the path is inside it.
+            assert!(said.contains("<app-text-"), "{tool}: {said}");
+            let own = sv_own_words(said);
+            assert!(
+                !own.contains("bare"),
+                "{tool}: the path is outside the fence: {said}"
+            );
+            assert!(
+                own.contains(&format!(
+                    "What to do: Call securevibe_spec, write the file it describes into that \
+                     folder, and {again}."
+                )),
+                "{tool}: {said}"
+            );
+            assert!(
+                !said.contains("sv init"),
+                "{tool}: names a command the AI coding tool cannot run: {said}"
+            );
+        }
+        // A link where a file is read: its remedy is outside too.
+        #[cfg(unix)]
+        {
+            std::fs::write(root.join("elsewhere.toml"), "").unwrap();
+            std::os::unix::fs::symlink(
+                root.join("elsewhere.toml"),
+                root.join("bare/securevibe.toml"),
+            )
+            .unwrap();
+            let result = call(&server, "securevibe_check", json!({ "path": "bare" }));
+            let own = sv_own_words(text(&result));
+            assert!(
+                own.contains("What to do: Make it a file of the app's own, and ask again."),
+                "{}",
+                text(&result)
+            );
+            assert!(!own.contains("is a link"), "{}", text(&result));
+        }
+        std::fs::remove_dir_all(&root).ok();
+        // Any other error is fenced whole, as before, with no "What to do" made up for it.
+        let server = Server::new(&examples().join("tested-notes")).unwrap();
+        let other = call(&server, "securevibe_check", json!({ "path": ".." }));
+        assert!(!text(&other).contains("What to do"), "{}", text(&other));
+        assert!(
+            sv_own_words(text(&other))
+                .trim_end()
+                .ends_with("\n\nsv could not do this:"),
+            "{}",
+            text(&other)
+        );
     }
 
     #[test]
@@ -5294,6 +5423,10 @@ mod tests {
                 said.contains("report"),
                 "{tool}: says how to run it at a terminal: {said}"
             );
+            assert!(
+                sv_own_words(&said).contains("What to do: Check a smaller folder with `path`"),
+                "{tool}: the next step is sv's own, outside the fence: {said}"
+            );
 
             // The check runs on, and no other is started beside it. The setup is real: the check
             // that ran out of time is still running when the second call comes.
@@ -5311,6 +5444,11 @@ mod tests {
             assert_eq!(beside["isError"], true, "{tool}");
             assert!(
                 text(&beside).contains("still finishing"),
+                "{tool}: {}",
+                text(&beside)
+            );
+            assert!(
+                sv_own_words(text(&beside)).contains("What to do: Ask again in a minute"),
                 "{tool}: {}",
                 text(&beside)
             );

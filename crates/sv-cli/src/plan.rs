@@ -513,7 +513,8 @@ pub(crate) fn sections_with(
     );
     run.lead = "\n## 4. What the app must give `sv run`\n\n\
                 So that `sv report --run` can test the app running, rather than reporting those checks as \
-                not assessed. Each goes in `securevibe.toml`; `sv init` describes each one.\n\n"
+                not assessed. Each goes in `securevibe.toml`; `sv init`, or the `securevibe_spec` tool, \
+                describes each one.\n\n"
         .to_owned();
     for n in &plan.run {
         run.items.push(Item::with(
