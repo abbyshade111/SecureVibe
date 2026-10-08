@@ -9,6 +9,15 @@ another session is not a claim.
 
 ## Next
 
+- **The MCP time-limit test races its own check.** Found on 8 October 2026 by session securevibe-e9, in a full
+  `cargo test --workspace` run: `mcp::tests::a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_on`
+  (`crates/sv-cli/src/mcp.rs`) asserts the check that ran out of time is still running, then calls again and expects
+  "still finishing". Under load the check ends between the two, and the second call times out instead. It passed 5
+  of 5 times alone. **Claimed the same day by session securevibe-e9** ("go ahead and fix the test race next"), in
+  branch `claude/securevibe-e9-mcp-race`: a gate, only in tests, holds the check open until the test lets it go.
+  **Done the same day:** `Hold` in `mcp.rs`, which the check waits at before it hands back its report. With a
+  three-second pause put between the two calls, the test passed with the gate and failed without it, as in the full
+  run.
 - **A dashboard view for `sv`: explore it.** Asked for by the owner on 8 October 2026 ("explore building out a
   dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `compliance.md`, `security.md`,
   `report.json`) and nothing that shows an app at a glance, several runs over time, or several apps side by side. The
@@ -151,6 +160,9 @@ another session is not a claim.
      admin key under a `NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`, or `REACT_APP_` name; and, when the dependencies show
      such a service, a line in the run summary that its sign-in and data are outside what the fence can test. Each
      part can be claimed on its own.
+     **The rules files and the migrations (the first two parts) claimed 8 October 2026 by session securevibe-e9**
+     ("choose the next backlog item"), in branch `claude/securevibe-e9-hosted-rules`: findings only, crediting nothing.
+     The public-name key and the run summary's line stay open.
   11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
      finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
      `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
@@ -364,6 +376,20 @@ another session is not a claim.
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
+     **Claimed 8 October 2026 by session securevibe-e9** ("choose the next backlog item after that"), in branch
+     `claude/securevibe-e9-governs`. `suite.rs` is already governed (ADR-050).
+     **The governed half done the same day:** `data/applicability-v2.json` under ADR-015, `tools/coverage.py` under
+     ADR-018, and `data/human-checks.json` under ADR-022, each with a dated Later entry saying why.
+     **The weekly review, as found the same day, left to the owner:** two routines do it, "Weekly decision-record
+     review" (Mondays 8:45, New York time, made 4 October) and "Weekly ADR review" (8:59, made 28 September), both
+     enabled and next due 12 October. Each ran once, on 5 October, and each run ended after about 50 seconds with
+     about 1,800 words written, too little to read 40 records, which matches the review leaving no trace. Neither
+     routine has the repository attached, so each run would have to add it itself. Changing a routine is the owner's
+     to decide: attach the repository to one, and turn the other off.
+     **Fixed the same day, at the owner's asking** ("please do fix the routine issues"): a session made for it,
+     "Weekly decision-record review", with the repository attached and three thousand commits of history, and one
+     routine that wakes it on Mondays at 8:45, New York time, with the same instructions and a first step that brings
+     the checkout up to date. Both old routines are turned off, not deleted. Its first run is due 12 October.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
