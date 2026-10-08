@@ -661,6 +661,11 @@ another session is not a claim.
      **Step 2 done the same day** (DESIGN, "Step 2: a credit not given is written down too"; ADR-059, proposed):
      `verified::unless_credited` in the ten checks. Break: the marker writing nothing failed
      `crates/sv-check/tests/withheld_log.rs`.
+     **Step 3 claimed the same day by session securevibe-e2**, at the owner's word ("go ahead with step 3 when it's
+     merged"), in branch `claude/securevibe-e2-withhold-gate`: `tools/coverage.py --credits` fails on any check the
+     suite saw credit and never saw withhold, with a named list of exceptions for any that cannot be made to, each
+     with its reason; a check that every place in shipping code that builds a finding hands it through
+     `finding::found`; and ADR-059 accepted.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
