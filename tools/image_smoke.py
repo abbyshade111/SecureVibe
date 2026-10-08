@@ -137,7 +137,7 @@ def main():
         check(names == TOOLS, f"thirteen tools offered: {names}")
         prompts = replies[6]["result"]
         prompts_text = prompts["content"][0]["text"]
-        check(prompts["isError"] is False and "**Shown to work.**" in prompts_text
+        check(prompts["isError"] is False and "**Shown to work, on " in prompts_text
               and "**Tried, not shown to work.**" in prompts_text,
               "securevibe_prompts gives the prompt library, each prompt marked")
         guidance = replies[5]["result"]
