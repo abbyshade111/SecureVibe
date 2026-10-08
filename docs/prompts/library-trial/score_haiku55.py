@@ -21,6 +21,21 @@ PROMPTS = ["password-rules", "password-hashing", "same-site-redirects", "sanitiz
            "cross-site-access", "plain-error-pages", "production-server"]
 MODELS = ("haiku45", "haiku55")
 
+# Amendment 1 (8 October 2026, while checking the results): `sv` signed in only when it says nothing to the contrary
+# was too generous. score_revision.py's signed_in() looks for one message, the sign-in itself failing; it missed an app
+# whose seed command crashed, so there were no accounts ("nobody to sign in as"), and an app that left
+# [stack.run.users] out, so `sv` never tried ("signs in only when securevibe.toml"). Neither says the sign-in failed,
+# and both were counted as signed in. Here, signed in means started and none of the three.
+NOT_SIGNED_IN = ("Signing in as the first test user did not open", "nobody to sign in as",
+                 "`sv` signs in only when securevibe")
+
+
+def signed_in(rep):
+    return r.started(rep) and not any(any(m in g["why"] for m in NOT_SIGNED_IN) for g in rep["gaps"])
+
+
+r.signed_in = signed_in  # so r.asked(), which counts a signed-in check as asked only when signed in, uses it too
+
 
 def result(b):
     """The transcript's final result line: cost, time, and the last thing the builder said."""
@@ -48,7 +63,7 @@ for model in MODELS:
             "has_requirements": os.path.exists(os.path.join(OUT, b, "requirements.txt")),
             "install_refused": "asks for the app's packages to be installed before the run, and they were not" in why,
             "install_failed": "Installing the app's packages from" in why,
-            "started": r.started(rep), "signed_in": r.signed_in(rep),
+            "started": r.started(rep), "signed_in": signed_in(rep),
             # A stall: no app written, and the builder's last words end in a question to the owner.
             "stalled": not wrote and str(end.get("result", "")).rstrip().endswith("?"),
             "cost": end.get("total_cost_usd") or 0, "seconds": round((end.get("duration_ms") or 0) / 1000),

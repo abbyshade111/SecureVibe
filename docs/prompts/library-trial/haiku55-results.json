@@ -22,7 +22,7 @@
     "install_refused": false,
     "install_failed": false,
     "started": true,
-    "signed_in": true,
+    "signed_in": false,
     "stalled": false,
     "cost": 0.6284573500000002,
     "seconds": 292
@@ -100,7 +100,7 @@
     "install_refused": false,
     "install_failed": false,
     "started": true,
-    "signed_in": true,
+    "signed_in": false,
     "stalled": false,
     "cost": 0.392744,
     "seconds": 250
@@ -258,7 +258,7 @@
     "install_refused": false,
     "install_failed": false,
     "started": true,
-    "signed_in": true,
+    "signed_in": false,
     "stalled": false,
     "cost": 0.09379860999999999,
     "seconds": 331
@@ -267,7 +267,7 @@
  },
  "prompts": {
   "password-rules@haiku45": {
-   "asked": 2,
+   "asked": 0,
    "problem": 0
   },
   "password-hashing@haiku45": {
@@ -275,7 +275,7 @@
    "problem": 1
   },
   "same-site-redirects@haiku45": {
-   "asked": 2,
+   "asked": 0,
    "problem": 0
   },
   "sanitize-rich-text@haiku45": {
@@ -283,11 +283,11 @@
    "problem": 0
   },
   "check-every-request@haiku45": {
-   "asked": 2,
+   "asked": 0,
    "problem": 0
   },
   "changes-from-own-pages@haiku45": {
-   "asked": 2,
+   "asked": 0,
    "problem": 0
   },
   "database-placeholders@haiku45": {
@@ -295,7 +295,7 @@
    "problem": 0
   },
   "files-under-own-names@haiku45": {
-   "asked": 2,
+   "asked": 0,
    "problem": 0
   },
   "no-shell-with-input@haiku45": {
@@ -315,7 +315,7 @@
    "problem": 1
   },
   "password-rules@haiku55": {
-   "asked": 9,
+   "asked": 8,
    "problem": 0
   },
   "password-hashing@haiku55": {
@@ -323,7 +323,7 @@
    "problem": 0
   },
   "same-site-redirects@haiku55": {
-   "asked": 9,
+   "asked": 8,
    "problem": 0
   },
   "sanitize-rich-text@haiku55": {
@@ -331,11 +331,11 @@
    "problem": 0
   },
   "check-every-request@haiku55": {
-   "asked": 9,
+   "asked": 8,
    "problem": 0
   },
   "changes-from-own-pages@haiku55": {
-   "asked": 9,
+   "asked": 8,
    "problem": 0
   },
   "database-placeholders@haiku55": {
@@ -343,7 +343,7 @@
    "problem": 0
   },
   "files-under-own-names@haiku55": {
-   "asked": 9,
+   "asked": 8,
    "problem": 0
   },
   "no-shell-with-input@haiku55": {
@@ -375,9 +375,9 @@
    "verdict": "shown"
   },
   "signed in": {
-   "haiku45_failed": 8,
-   "haiku55_failed": 1,
-   "verdict": "shown"
+   "haiku45_failed": 10,
+   "haiku55_failed": 2,
+   "verdict": "not shown"
   }
  },
  "cost": {

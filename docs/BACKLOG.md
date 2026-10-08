@@ -8809,6 +8809,12 @@ done: `docs/adr/ADR-018.md`.
   build. About $4.50 to $6. **Claimed on 8 October 2026 by session paper-facts**, in branch `claude/haiku55`. Read on
   `main` just before this claim: no other session had claimed it.
   **Done the same day** (`docs/prompts/library-trial/haiku55.md`): 20 builds, $6.16. Haiku 5.5's apps started 9 times
-  in 10 and were signed in to 9 (Haiku 4.5: 3 and 2), shown by the protocol's rule, at $0.125 a build against $0.48.
-  With nothing pasted it had none of the recipe brief's twelve problems, so stage 2 has no arms. Two code rules
-  (`ast.sql-built-by-hand`, `ast.open-redirect`) flagged safe code in every Haiku 5.5 app.
+  in 10 (Haiku 4.5: 3), shown by the protocol's rule; `sv` signed in to 8 (Haiku 4.5: none), not shown, as the rule
+  allows one failure and there were two. $0.125 a build against $0.48. With nothing pasted it had none of the recipe
+  brief's twelve problems, so stage 2 has no arms. Two code rules (`ast.sql-built-by-hand`, `ast.open-redirect`)
+  flagged safe code in every Haiku 5.5 app.
+- **The earlier trials' "signed in" may be too high.** Found on 8 October 2026 by the Haiku 5.5 trial's Amendment 1:
+  `score_revision.py`'s `signed_in()`, used by the revision, recipe and sentences scorers, counts a started app as
+  signed in unless `sv` says signing in failed, so an app whose seed crashed, or that set no `[stack.run.users]`, is
+  counted too, and the signed-in checks are counted as asked of it. Recount those trials with the corrected test
+  (`score_haiku55.py`'s `signed_in`), and say whether any verdict moves. Not started.
