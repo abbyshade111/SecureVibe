@@ -57,3 +57,27 @@ fn the_old_default_folder_name_is_still_a_report_folder() {
     assert_eq!(REPORT_MARKER, names::REPORT_MARKER);
     std::fs::remove_dir_all(&root).ok();
 }
+
+#[test]
+fn the_default_folder_is_the_old_one_only_while_it_alone_exists() {
+    use sv_scan::ecosystems::default_report_dir_in;
+    let root = scratch("default-dir");
+    let new = root.join(DEFAULT_REPORT_DIR);
+    let old = root.join(names::OLD_REPORT_DIR);
+    // Neither: a new app gets the new name.
+    assert_eq!(default_report_dir_in(&root), new);
+    // Only the old: a report written before the rename is found and written over.
+    std::fs::create_dir_all(&old).unwrap();
+    assert_eq!(default_report_dir_in(&root), old);
+    // Both: the new one, so a folder made after the rename is never left behind.
+    std::fs::create_dir_all(&new).unwrap();
+    assert_eq!(default_report_dir_in(&root), new);
+    // Only the new.
+    std::fs::remove_dir_all(&old).unwrap();
+    assert_eq!(default_report_dir_in(&root), new);
+    // The old name as a file, not a folder, is nobody's report folder.
+    std::fs::remove_dir_all(&new).unwrap();
+    std::fs::write(&old, "").unwrap();
+    assert_eq!(default_report_dir_in(&root), new);
+    std::fs::remove_dir_all(&root).ok();
+}
