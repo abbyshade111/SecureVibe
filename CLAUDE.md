@@ -25,7 +25,8 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   image keeps at the same path. A test fails on `CARGO_MANIFEST_DIR` anywhere else outside a test module.
 - `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `semgrep_rule_map.py`, `codeql_suites.py`,
-  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`) and one shell script,
+  `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`,
+  `docs_page.py`) and one shell script,
   `install.sh`, which installs `sv` with its data outside the build folder; each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands

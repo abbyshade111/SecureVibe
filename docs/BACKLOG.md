@@ -32,6 +32,17 @@ another session is not a claim.
   please". So the pages are written to a folder of their own in the home folder (`~/securevibe-docs/`), and
   `docs/paper/` is left out. These are the owner's decisions; their record (a new ADR, governing the script) is
   written as `Status: proposed` with the claim, and accepted in the pull request that builds it.
+  **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and build the docs page
+  next"), in branch `claude/securevibe-e2-docs-page`: `tools/docs_page.py`, which writes `~/securevibe-docs/` from the
+  documents git tracks, `docs/paper/` and the example apps left out, with a small Markdown reader of its own and a
+  search box over an index written into the page. Its record, a new decision record governing the script, is
+  written and accepted in the pull request that builds it (a number cited here before its record exists fails
+  `every_record_number_cited_is_a_record`).
+  **Done the same day** (ADR-058, accepted): `python3 tools/docs_page.py` writes 87 documents to `~/securevibe-docs/`,
+  with the search box working and nothing fetched. Breaks: the paper left in, the search index not escaped, a folder
+  that was not its own written into, a place inside the repository allowed, every file in its folder removed on a
+  rerun, and code not escaped, each failed a test (`crates/sv-cli/tests/docs_page.rs`, which also runs its
+  `--self-test`).
 
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
@@ -130,7 +141,21 @@ another session is not a claim.
      reads the `report.json` already in each app's `securevibe-report` folder and writes one page, every app in
      alphabetical order with its own page beside it, made the way `report.html` is (no script, nothing fetched). It
      writes only the file it is told to, and never over a file it did not make. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "`sv dashboard`: one page for several apps"; ADR-057, Later): the command, the
+     guide's "All your apps on one page", and the README. Breaks: the apps left unsorted, an app's name not escaped,
+     the check for a place inside an app off, a file it did not make overwritten, the reports' own text not escaped,
+     and the counts not taken from the report, each failed a test.
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+     backlog"), in branch `claude/securevibe-e2-history`, as ADR-057 and `docs/DASHBOARD.md` ("Keeping history safely")
+     set it out: `sv history on` and `sv history off` (a setting in the person's own `~/.config/securevibe/`, never in
+     `securevibe.toml`); while it is on, each `sv report` at the terminal adds one small record for the app under
+     `~/.local/share/securevibe/history/`, readable only by the person (the counts, the kind of run, the level, the
+     `sv` version, the `securevibe.toml` fingerprint, and each finding's fingerprint, severity, rule, and title; no
+     code, no file's contents, no credential), at most 100 for each app; `sv history forget FOLDER` and `sv history forget
+     --all`; and in `sv dashboard`, each app's runs over time, set against the last run that can be compared (same
+     kind, level, `securevibe.toml`, and `sv`), and otherwise said not to be compared and why. No requirement is ever
+     credited from history, and the reports never read it. Accepts this part of ADR-057.
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
@@ -269,6 +294,7 @@ another session is not a claim.
      for a token's signature check switched off where the library has a switch for it (V9.1.1), only ever a finding.
      The `none` algorithm and the other rules of this item stay open. Read on `main` just before this claim: no other
      session had claimed any part of this item.
+     **The unverified token done the same day** (DESIGN, "A token read with its signature check switched off").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -8073,6 +8099,12 @@ another session is not a claim.
      added to one and not the other is a silent difference between what the person gets and what the AI tool gets.
      One pipeline, a `ReportOptions::reading_only(caller)` for the eight hand-written "why not run" triples, and one
      list the three report-file-name lists derive from (branch `claude/securevibe-review-mcp-split`).
+     **Second half done the same day** (DESIGN, "The MCP server in a folder, and one way to write a report folder"):
+     `mcp.rs` is the folder `mcp/` (nine files, the tests their own); `report_folder::write_report_folder` is the
+     one sequence `sv report` and `securevibe_write_report` both call; `ReportOptions::reading_only` and `asked_of`
+     replace the seven hand-written triples (the MCP server's three sentences written over `reading_only`'s); and
+     the five file names are `sv_scan::ecosystems::REPORT_FILES`, which the folder names, the seal's list, and the
+     MCP server's resources derive from, with `sv-cli`'s table of renderers held to it by the compiler.
   3. **`sv check` and `sv report` can exit differently on the same folder.** `cmd_check` runs the same five scanners
      but never `merge_same_place`, the test-code and bundled-library marks, or `review::apply`, and its exit code
      counts every finding, where `sv report`'s counts the findings left after a person's recorded false alarms. So
@@ -8362,4 +8394,9 @@ done: `docs/adr/ADR-018.md`.
   notes), the decision-record index, the CodeQL workflow's comments, the examples, and the Governs lines of ADR-044
   and ADR-045. One fault in `sv` itself was found and fixed on its own (the item above). Still to do: the wording
   inside the code (the specification, the MCP tools' descriptions, the help), and the paper.
+  **The paper done the same day**, the cut-off kept as the owner chose ("Keep the cut-off, add a new part"):
+  `docs/paper/TRIALS.md` for the nine trials, with `figure-trials.html` made from their committed results by
+  `docs/paper/trials/make_figure.py`; `SINCE-THE-CUTOFF.md` carried on to `main` at `01b10f60`, counted there, with a
+  correction of its own (11 records at `4c3c5e0`, not 12); the artifact index; and the health-tracking app's wording
+  made the same everywhere.
 

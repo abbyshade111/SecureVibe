@@ -149,5 +149,5 @@ The first four points were written on 28 September and still hold; the last thre
 Two more decisions were made on the afternoon of 4 October, after the cut-off, and are not in the table. The owner chose
 to build `sv review`, with what the owner records sealed by a key kept outside the app's folder, and the record kept in
 `securevibe.toml` rather than outside it; and then to give the owner's own answers the same rule. Both extend decision
-34, and both are recorded in ADR-026. The owner also confirmed on 4 October that the paper keeps the friend's health
-app anonymous, as decision 23 did for the repository; the paper was corrected after the cut-off (#591, #606). `SINCE-THE-CUTOFF.md` has the rest.
+34, and both are recorded in ADR-026. The owner also confirmed on 4 October that the paper keeps the health-tracking
+app built for a friend anonymous, as decision 23 did for the repository; the paper was corrected after the cut-off (#591, #606). `SINCE-THE-CUTOFF.md` has the rest.
