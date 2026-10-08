@@ -8108,6 +8108,10 @@ another session is not a claim.
      `sv check --fail-on attention` can fail a CI pipeline on a finding the owner set aside. One `StaticScan` stage
      used by both. An exit code is a default that changes a conclusion: **`Status: proposed`, a Later entry on
      ADR-023**, made accepted in the pull request that builds it. Branch `claude/securevibe-review-static-scan`.
+     **Done the same day** (ADR-023, Later, 8 October 2026; DESIGN, "One static stage for `sv check` and
+     `sv report`"): `crates/sv-cli/src/static_scan.rs`, `StaticScan::read` and `settle`, called by both; `sv check`
+     applies the manifest's reviews and says what was set aside and what does not count; the test shows the two
+     exit alike before and after a review.
   4. **The tier is not on the value, and the run's script lives in the container layer.** A `Verified` lands in
      *attested*, *stated*, *by hand*, or *documented* by which slice of `Inputs` it is passed in, assembled by hand
      in `main.rs`, and *attested* is told from *stated* by a string match on the check id; an enum on `Verified` and
