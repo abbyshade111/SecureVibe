@@ -35,8 +35,9 @@ another session is not a claim.
   **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and build the docs page
   next"), in branch `claude/securevibe-e2-docs-page`: `tools/docs_page.py`, which writes `~/securevibe-docs/` from the
   documents git tracks, `docs/paper/` and the example apps left out, with a small Markdown reader of its own and a
-  search box over an index written into the page. Its record is ADR-058, proposed here and accepted in the pull
-  request that builds it.
+  search box over an index written into the page. Its record, a new decision record governing the script, is
+  written and accepted in the pull request that builds it (a number cited here before its record exists fails
+  `every_record_number_cited_is_a_record`).
 
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
