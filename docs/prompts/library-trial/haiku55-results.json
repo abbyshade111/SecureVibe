@@ -1,0 +1,395 @@
+{
+ "builds": {
+  "haiku45": [
+   {
+    "build": "haiku45-none-1",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.4562523500000001,
+    "seconds": 281
+   },
+   {
+    "build": "haiku45-none-2",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.6284573500000002,
+    "seconds": 292
+   },
+   {
+    "build": "haiku45-none-3",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.3933025,
+    "seconds": 222
+   },
+   {
+    "build": "haiku45-none-4",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": true,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.7549979000000006,
+    "seconds": 372
+   },
+   {
+    "build": "haiku45-none-5",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": true,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.3711228,
+    "seconds": 242
+   },
+   {
+    "build": "haiku45-none-6",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": true,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.4150672000000001,
+    "seconds": 248
+   },
+   {
+    "build": "haiku45-none-7",
+    "wrote_app": true,
+    "report": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.31304964999999996,
+    "seconds": 204
+   },
+   {
+    "build": "haiku45-none-8",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.392744,
+    "seconds": 250
+   },
+   {
+    "build": "haiku45-none-9",
+    "wrote_app": true,
+    "report": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.5681329500000001,
+    "seconds": 333
+   },
+   {
+    "build": "haiku45-none-10",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.5248583,
+    "seconds": 315
+   }
+  ],
+  "haiku55": [
+   {
+    "build": "haiku55-none-1",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.06520194000000001,
+    "seconds": 309
+   },
+   {
+    "build": "haiku55-none-2",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.17289363500000002,
+    "seconds": 413
+   },
+   {
+    "build": "haiku55-none-3",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.11225607,
+    "seconds": 346
+   },
+   {
+    "build": "haiku55-none-4",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false,
+    "stalled": false,
+    "cost": 0.06272020499999999,
+    "seconds": 302
+   },
+   {
+    "build": "haiku55-none-5",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.13402124999999998,
+    "seconds": 360
+   },
+   {
+    "build": "haiku55-none-6",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.13291354500000002,
+    "seconds": 359
+   },
+   {
+    "build": "haiku55-none-7",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.198185945,
+    "seconds": 390
+   },
+   {
+    "build": "haiku55-none-8",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.12558512500000002,
+    "seconds": 355
+   },
+   {
+    "build": "haiku55-none-9",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.15233179,
+    "seconds": 407
+   },
+   {
+    "build": "haiku55-none-10",
+    "wrote_app": true,
+    "report": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true,
+    "stalled": false,
+    "cost": 0.09379860999999999,
+    "seconds": 331
+   }
+  ]
+ },
+ "prompts": {
+  "password-rules@haiku45": {
+   "asked": 2,
+   "problem": 0
+  },
+  "password-hashing@haiku45": {
+   "asked": 8,
+   "problem": 1
+  },
+  "same-site-redirects@haiku45": {
+   "asked": 2,
+   "problem": 0
+  },
+  "sanitize-rich-text@haiku45": {
+   "asked": 8,
+   "problem": 0
+  },
+  "check-every-request@haiku45": {
+   "asked": 2,
+   "problem": 0
+  },
+  "changes-from-own-pages@haiku45": {
+   "asked": 2,
+   "problem": 0
+  },
+  "database-placeholders@haiku45": {
+   "asked": 3,
+   "problem": 0
+  },
+  "files-under-own-names@haiku45": {
+   "asked": 2,
+   "problem": 0
+  },
+  "no-shell-with-input@haiku45": {
+   "asked": 8,
+   "problem": 0
+  },
+  "cross-site-access@haiku45": {
+   "asked": 3,
+   "problem": 0
+  },
+  "plain-error-pages@haiku45": {
+   "asked": 3,
+   "problem": 0
+  },
+  "production-server@haiku45": {
+   "asked": 3,
+   "problem": 1
+  },
+  "password-rules@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "password-hashing@haiku55": {
+   "asked": 10,
+   "problem": 0
+  },
+  "same-site-redirects@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "sanitize-rich-text@haiku55": {
+   "asked": 10,
+   "problem": 0
+  },
+  "check-every-request@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "changes-from-own-pages@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "database-placeholders@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "files-under-own-names@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "no-shell-with-input@haiku55": {
+   "asked": 10,
+   "problem": 0
+  },
+  "cross-site-access@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "plain-error-pages@haiku55": {
+   "asked": 9,
+   "problem": 0
+  },
+  "production-server@haiku55": {
+   "asked": 9,
+   "problem": 0
+  }
+ },
+ "steps": {
+  "readable settings": {
+   "haiku45_failed": 2,
+   "haiku55_failed": 0,
+   "verdict": "no reading"
+  },
+  "started": {
+   "haiku45_failed": 7,
+   "haiku55_failed": 1,
+   "verdict": "shown"
+  },
+  "signed in": {
+   "haiku45_failed": 8,
+   "haiku55_failed": 1,
+   "verdict": "shown"
+  }
+ },
+ "cost": {
+  "haiku45": {
+   "builds": 10,
+   "total": 4.82,
+   "mean": 0.482
+  },
+  "haiku55": {
+   "builds": 10,
+   "total": 1.25,
+   "mean": 0.125
+  }
+ }
+}
