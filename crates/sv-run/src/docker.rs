@@ -3582,16 +3582,20 @@ http.createServer((q, s) => {
             return;
         }
         let name = format!("sv-seedtest-{}", std::process::id());
+        // Started through `prepared` like every container, so read-only (8 October 2026): `/app`,
+        // where the seed runs, is a mount here as it is in the app's own container.
         let started = backend.docker(&[
             "run",
             "-d",
             "--rm",
+            "--tmpfs",
+            "/app",
             "--name",
             &name,
             PROBE_IMAGE,
             "sh",
             "-c",
-            "mkdir -p /app; sleep 120",
+            "sleep 120",
         ]);
         let accounts = crate::new_accounts(true, true);
         // The seed passes only if each value arrived whole; it compares, and prints nothing.
