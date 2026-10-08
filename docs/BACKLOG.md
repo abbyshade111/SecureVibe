@@ -8013,6 +8013,10 @@ another session is not a claim.
      since every pull-request commit runs the 15-minute test job twice today (push and pull_request), and branch
      protection waits for both. Branch `claude/securevibe-review-suite-speed`. ADR-051 unchanged: every pull request
      commit and every commit on `main` is still tested.
+     **Done the same day** (DESIGN, "The test suite's time: five tests and a profile setting"): the `sv-check` unit
+     binary from 531 s to 92 s on four CPUs, the `ast` tests from 126 s to 1.9 s, the crash sweeps from about 400 s
+     on the critical path to 80 s. The crash sweep itself is unchanged: it already ran on scoped threads, and the
+     profile setting made each of its suite runs cheaper.
   2. **Two pure refactors in the harness and the MCP server.** The hardening flags (`--read-only --cap-drop ALL
      --security-opt no-new-privileges`) are written out 12 times in `docker.rs` and once in `install.rs`; they belong
      in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`). `mcp.rs`
