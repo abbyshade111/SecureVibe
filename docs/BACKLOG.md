@@ -137,6 +137,10 @@ another session is not a claim.
      **The rules files and the migrations (the first two parts) claimed 8 October 2026 by session securevibe-e9**
      ("choose the next backlog item"), in branch `claude/securevibe-e9-hosted-rules`: findings only, crediting nothing.
      The public-name key and the run summary's line stay open.
+     **The public-name key (the third part) claimed 8 October 2026 by session securevibe-e9** ("choose the next
+     backlog item"), in branch `claude/securevibe-e9-public-keys`: a secret, service-role, or admin key under a name
+     the build hands to the browser, only ever a finding. Read on `main` just before this claim: no other session had
+     claimed it. The run summary's line stays open.
   11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
      finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
      `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
