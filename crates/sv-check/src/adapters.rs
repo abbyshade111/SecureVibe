@@ -102,6 +102,35 @@ pub struct Adapter {
     /// not, from its own source. Any other ending (another code, or a signal) is a failure, and its
     /// report is not read: a tool that stopped part way can leave a report that looks clean.
     pub finished_exits: Vec<i32>,
+    /// Set for a tool that reads the app's folder for itself and was shown to follow a link in it
+    /// to a file outside the app (gosec 2.22.9 and Brakeman 8.1.0, each given a linked `.go` or
+    /// `.rb` file, 8 October 2026; CodeQL 2.27.2 did not). `sv`'s own listing never follows a link,
+    /// so such a tool is not run over an app that holds one, with the links named, rather than
+    /// reading, and quoting into the report, code that is not the app's. A tool handed `{files}`
+    /// never needs it: it reads only what it is given.
+    #[serde(default)]
+    pub follows_links: bool,
+    /// Text on a line of the tool's stderr that is followed by the name of a file it read
+    /// (gosec's `Checking file: `), for a tool whose report never says what it read. While set, a
+    /// code file of the tool's language the log never names was not read, and a run that names
+    /// none read nothing; a log longer than `sv` keeps says so instead of guessing.
+    #[serde(default)]
+    pub read_log_prefix: Option<String>,
+    /// Lines on the tool's stderr that mean part of its run did not happen, each with what it
+    /// means in words the owner can act on. A run whose stderr holds one is not credited as
+    /// clean; its findings still stand.
+    #[serde(default)]
+    pub unfinished_when: Vec<Unfinished>,
+}
+
+/// A line a tool writes when part of its run did not happen, and what it means.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Unfinished {
+    /// Text a line of its stderr contains.
+    pub contains: String,
+    /// What that line means, as the report says it.
+    pub means: String,
 }
 
 /// A program that reads the same rules and writes the same report as an adapter's own, run when
@@ -396,6 +425,35 @@ impl Adapters {
                         adapter.id
                     );
                 }
+            }
+            // Only a tool given the folder walks it; one handed the files reads what it is given.
+            if adapter.follows_links && adapter.run.args.iter().any(|a| a == "{files}") {
+                anyhow::bail!(
+                    "adapter `{}` is handed {{files}} and says it follows links, which only a tool \
+                     given the folder can do",
+                    adapter.id
+                );
+            }
+            if adapter
+                .read_log_prefix
+                .as_deref()
+                .is_some_and(|p| p.trim().is_empty())
+            {
+                anyhow::bail!(
+                    "adapter `{}` names an empty prefix for the files its log says it read",
+                    adapter.id
+                );
+            }
+            if let Some(line) = adapter
+                .unfinished_when
+                .iter()
+                .find(|u| u.contains.trim().is_empty() || u.means.trim().is_empty())
+            {
+                anyhow::bail!(
+                    "adapter `{}` names a line that means its run did not finish without the text \
+                     or the meaning: {line:?}",
+                    adapter.id
+                );
             }
             if let Some(name) = adapter
                 .env
@@ -1069,6 +1127,38 @@ pub fn run_one_in(
         }
     }
 
+    // A tool that walks the folder itself follows a link to wherever it points; `sv` never does,
+    // and what is on the other side is not the app's code to read, or to quote into its report.
+    if adapter.follows_links && !listing.links.is_empty() {
+        let shown: Vec<String> = listing
+            .links
+            .iter()
+            .take(5)
+            .map(|l| format!("`{l}`"))
+            .collect();
+        let more = listing.links.len().saturating_sub(shown.len());
+        let one = listing.links.len() == 1;
+        return Outcome::NotRun {
+            why: format!(
+                "{} was not run: it reads the app's folder for itself and follows a link to \
+                 wherever it points, which `sv` never does, and this app holds {} link{} ({}{}). \
+                 Remove {}, or put a copy of what {} points at in {} place, then run this again.",
+                adapter.name,
+                listing.links.len(),
+                if one { "" } else { "s" },
+                shown.join(", "),
+                if more > 0 {
+                    format!(", and {more} more")
+                } else {
+                    String::new()
+                },
+                if one { "it" } else { "them" },
+                if one { "it" } else { "each" },
+                if one { "its" } else { "their" },
+            ),
+        };
+    }
+
     let scanned_path = report_path.with_extension("scanned.json");
     let names_files = run_args.iter().any(|a| a == "{files}");
     let lists_scanned = run_args.iter().any(|a| a.contains("{scanned}"));
@@ -1289,6 +1379,8 @@ pub fn run_one_in(
             looked_away: {
                 let mut reasons = looked_away(adapter, &text, app_dir);
                 reasons.extend(did_not_finish(rules, &text, app_dir));
+                reasons.extend(read_log(adapter, &output.stderr, listing));
+                reasons.extend(unfinished(adapter, &output.stderr));
                 if lists_scanned {
                     let loaded = loaded_rules(&text);
                     let reads = |file: &str| read_by_a_loaded_rule(adapter, &loaded, file);
@@ -1779,6 +1871,74 @@ fn relative_uri(uri: &str, app_dir: &Path) -> String {
         .to_owned()
 }
 
+/// Which of the app's code files in a tool's language its log never says it read, for a tool whose
+/// report does not say (`read_log_prefix`): a reason not to credit its clean run, naming them.
+///
+/// gosec's SARIF names only what it found; its log names each file it checked, and a file it left
+/// out (one that uses cgo while the C compiler is kept from running, or a package it could not
+/// load) otherwise reads as clean. A file is named as gosec names it, by its full path, and is
+/// matched to the listing as any tool's path is (`relative_to`). The log `sv` keeps is capped
+/// (`STDERR_KEPT`); a log that reached the cap may have named the rest, and says so rather than
+/// counting them unread.
+pub fn read_log(adapter: &Adapter, stderr: &str, listing: &sv_scan::files::Listing) -> Vec<String> {
+    let Some(prefix) = adapter.read_log_prefix.as_deref() else {
+        return Vec::new();
+    };
+    let expected = code_files_for(listing, &adapter.language);
+    if expected.is_empty() {
+        return Vec::new();
+    }
+    if stderr.len() >= STDERR_KEPT {
+        return vec![
+            "its log was longer than `sv` keeps, so which files it read is not known".to_owned(),
+        ];
+    }
+    let read: BTreeSet<String> = stderr
+        .lines()
+        .filter_map(|line| line.split_once(prefix))
+        .map(|(_, file)| relative_to(file.trim(), &listing.root))
+        .collect();
+    let unread: Vec<&str> = expected
+        .iter()
+        .map(String::as_str)
+        .filter(|f| !read.contains(*f))
+        .collect();
+    if unread.is_empty() {
+        return Vec::new();
+    }
+    if unread.len() == expected.len() {
+        return vec![format!(
+            "its log names none of the {} {} file{} in this app as read",
+            expected.len(),
+            adapter.language,
+            if expected.len() == 1 { "" } else { "s" }
+        )];
+    }
+    let shown: Vec<String> = unread.iter().take(5).map(|f| format!("`{f}`")).collect();
+    vec![format!(
+        "its log does not say it read {} of the {} {} files in this app ({}{})",
+        unread.len(),
+        expected.len(),
+        adapter.language,
+        shown.join(", "),
+        if unread.len() > shown.len() {
+            ", and others"
+        } else {
+            ""
+        }
+    )]
+}
+
+/// What a tool's stderr says did not happen (`unfinished_when`), in the words the entry gives it.
+pub fn unfinished(adapter: &Adapter, stderr: &str) -> Vec<String> {
+    adapter
+        .unfinished_when
+        .iter()
+        .filter(|u| stderr.lines().any(|line| line.contains(&u.contains)))
+        .map(|u| u.means.clone())
+        .collect()
+}
+
 /// Which of the files a tool was given it did not read, as a reason not to credit its clean run.
 ///
 /// `scanned` is the tool's own list (semgrep's `--json-output`, `paths.scanned`). No list at all is a
@@ -2195,3 +2355,6 @@ mod program_tests;
 
 #[cfg(all(test, unix))]
 mod interrupt_tests;
+
+#[cfg(all(test, unix))]
+mod fence_tests;
