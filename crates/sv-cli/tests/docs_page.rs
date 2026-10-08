@@ -71,7 +71,8 @@ fn the_pages_hold_the_documents_and_leave_out_the_paper() {
         !paper,
         "the paper's drafts are left out, as the owner chose"
     );
-    assert!(!index.contains("docs/paper/"), "nor listed");
+    // Nor linked: the documents may name the folder, but no page points into it.
+    assert!(!index.contains("href=\"docs/paper/"), "nor listed");
     // Fetches nothing: no script or style from anywhere, and the search index holds no `<` that
     // could end its own element.
     for page in [&index, &adr, &guide] {
