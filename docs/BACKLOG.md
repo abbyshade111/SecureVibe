@@ -143,6 +143,9 @@ another session is not a claim.
      owner approved it with item 14 on 7 October), in branch `claude/securevibe-e9-astro-ejs`: Astro's `---` header read
      as TypeScript and its markup as a page; EJS's `<% %>`, `<%= %>`, and `<%- %>` blocks read as JavaScript at their
      own lines. A file whose code is not all taken out stays unread. Recorded as a "Later" entry on ADR-054.
+     **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
+     tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
+     Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,

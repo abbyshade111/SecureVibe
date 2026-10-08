@@ -1868,6 +1868,14 @@ pub struct AstScan {
     /// Rules whose query for a language met in this app would not compile, so they did not run
     /// there. Like an unread file, this keeps every rule from claiming anything is absent.
     pub broken_queries: Vec<BrokenQuery>,
+    /// Templates that hold a general-purpose language no grammar here reads (`.ejs`, `.erb`, `.jsp`,
+    /// and the rest of `sv_scan::ecosystems::CODE_TEMPLATES`), so the report can name the files that
+    /// put their kind in `unread_languages` (ADR-054).
+    pub unread_templates: Vec<String>,
+    /// `.sql` files, which no rule reads and which hold nothing back: the injection rules look at how
+    /// the app's code builds a query, not at a file of SQL (ADR-054). Named so their silence is not
+    /// taken for a reading.
+    pub sql_files: Vec<String>,
 }
 
 /// One rule, and the languages in this app it was not able to look in.
@@ -2928,9 +2936,24 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
     let mut scan = AstScan::default();
     let mut parameter_destinations = Vec::new();
     for entry in listing.app_files() {
+        if entry.extension.as_deref() == Some("sql") {
+            scan.sql_files.push(entry.relative.clone());
+            continue;
+        }
         let Some(language) = entry.language else {
             continue;
         };
+        if language == "notebook" {
+            match entry.read_text() {
+                Ok(source) => read_notebook(rules, &entry.relative, &source, &mut scan),
+                Err(why) => {
+                    scan.unread_files
+                        .push((entry.relative.clone(), why.explain().to_owned()));
+                    hold_back(rules, &mut scan, "python", &entry.relative, None);
+                }
+            }
+            continue;
+        }
         if !is_supported(language) {
             // Present, and not read. The rules have nothing to say about this file and the report
             // should say that rather than let its silence be read as approval.
@@ -2949,6 +2972,9 @@ pub fn scan_listing(rules: &AstRules, listing: &sv_scan::files::Listing) -> AstS
                     }
                 }
                 continue;
+            }
+            if sv_scan::ecosystems::CODE_TEMPLATES.contains(&language) {
+                scan.unread_templates.push(entry.relative.clone());
             }
             scan.unread_languages.insert(language.to_owned());
             continue;
@@ -3307,6 +3333,196 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
             scan.findings.push(finding);
         }
     }
+}
+
+/// Reads a Jupyter notebook's code cells as Python (ADR-054), each line at the line it is on in the
+/// notebook, so a finding sends the reader to the right place in the file.
+///
+/// A notebook whose kernel is another language is that language unread. A notebook that is not JSON
+/// `sv` can read is a file not opened. Lines Python cannot read, IPython's `%magic` and `!command`
+/// lines and its `%%` cell magics, are blanked before the parse, and every rule whose call could be
+/// named in them is kept from claiming the app clean, as for a page not fully read: `!rm -rf {path}`
+/// runs a shell command no rule looked at. A few magics that run nothing of the app's own
+/// (`NOTEBOOK_SETTINGS`) are only blanked.
+fn read_notebook(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan) {
+    let notebook = match notebook_python(source) {
+        Ok(notebook) => notebook,
+        Err(NotebookUnread::Language(language)) => {
+            scan.unread_languages.insert(language);
+            return;
+        }
+        Err(NotebookUnread::NotRead(why)) => {
+            scan.unread_files.push((relative.to_owned(), why));
+            hold_back(rules, scan, "python", relative, None);
+            return;
+        }
+    };
+    let read = read_file(rules, "python", relative, &notebook.code);
+    scan.files_parsed += 1;
+    *scan
+        .parsed_by_language
+        .entry("python".to_owned())
+        .or_default() += 1;
+    if read.parse_error || !notebook.unread.is_empty() {
+        scan.unparsed_files.push(relative.to_owned());
+        let held = if read.parse_error {
+            source
+        } else {
+            &notebook.unread
+        };
+        hold_back(rules, scan, "python", relative, Some(held));
+    }
+    scan.findings.extend(read.findings);
+    note_broken(scan, read.broken);
+}
+
+/// Line magics that change only how the notebook shows or reloads things, and run none of the app's
+/// code: blanked, and not counted as unread.
+const NOTEBOOK_SETTINGS: &[&str] = &[
+    "matplotlib",
+    "load_ext",
+    "reload_ext",
+    "autoreload",
+    "config",
+];
+
+/// A notebook's Python, and the lines in it Python cannot read.
+#[derive(Debug, PartialEq)]
+struct NotebookCode {
+    /// The code cells' Python, each line where it is in the notebook, with blank lines between.
+    code: String,
+    /// The `%` and `!` lines and `%%` cells taken out of it, one after another.
+    unread: String,
+}
+
+#[derive(Debug, PartialEq)]
+enum NotebookUnread {
+    /// The notebook's kernel is this language, not Python.
+    Language(String),
+    /// The notebook could not be read, and why.
+    NotRead(String),
+}
+
+/// The Python in a notebook's code cells.
+///
+/// Notebooks as Jupyter saves them list each cell's source a line to a JSON string, one string to a
+/// line of the file, so each line is found in the file, in order, and put on that line. When one
+/// cannot be (a notebook written on a single line, or by a tool that escapes text differently), the
+/// cells are read one after another instead, and a finding's line counts the code cells' lines.
+fn notebook_python(source: &str) -> Result<NotebookCode, NotebookUnread> {
+    let not_read = |why: &str| NotebookUnread::NotRead(why.to_owned());
+    let doc: serde_json::Value = serde_json::from_str(source)
+        .map_err(|_| not_read("not a notebook `sv` could read: its JSON did not parse"))?;
+    let language = doc
+        .pointer("/metadata/language_info/name")
+        .or_else(|| doc.pointer("/metadata/kernelspec/language"))
+        .and_then(|l| l.as_str());
+    if let Some(language) = language
+        && !language.eq_ignore_ascii_case("python")
+    {
+        return Err(NotebookUnread::Language(language.to_lowercase()));
+    }
+    let cells = doc
+        .get("cells")
+        .and_then(|c| c.as_array())
+        .ok_or_else(|| not_read("not a notebook `sv` could read: it has no list of cells"))?;
+
+    // Each code cell's lines, as the notebook stores them (a list of strings, or one string).
+    let mut stored: Vec<Vec<String>> = Vec::new();
+    for cell in cells {
+        if cell.get("cell_type").and_then(|t| t.as_str()) != Some("code") {
+            continue;
+        }
+        let lines = match cell.get("source") {
+            Some(serde_json::Value::Array(parts)) => parts
+                .iter()
+                .map(|p| p.as_str().map(str::to_owned))
+                .collect::<Option<Vec<_>>>(),
+            Some(serde_json::Value::String(text)) => {
+                Some(text.split_inclusive('\n').map(str::to_owned).collect())
+            }
+            None => Some(Vec::new()),
+            _ => None,
+        }
+        .ok_or_else(|| not_read("not a notebook `sv` could read: a cell's source is not text"))?;
+        stored.push(lines);
+    }
+
+    // Each line as Python reads it: the line, or nothing with the line put among the unread.
+    let mut unread = String::new();
+    let mut python: Vec<Vec<String>> = Vec::new();
+    for lines in &stored {
+        let first = lines.first().map(|l| l.trim_start()).unwrap_or("");
+        let whole_cell_unread = first.starts_with("%%");
+        let mut out = Vec::new();
+        for line in lines {
+            let text = line.strip_suffix('\n').unwrap_or(line);
+            let trimmed = text.trim_start();
+            let magic = trimmed.starts_with('%') || trimmed.starts_with('!');
+            if whole_cell_unread || magic {
+                let name = trimmed
+                    .trim_start_matches(['%', '!'])
+                    .split(|c: char| !(c.is_alphanumeric() || c == '_'))
+                    .next()
+                    .unwrap_or("");
+                let setting = trimmed.starts_with('%')
+                    && !trimmed.starts_with("%%")
+                    && NOTEBOOK_SETTINGS.contains(&name);
+                if !setting {
+                    unread.push_str(text);
+                    unread.push('\n');
+                }
+                out.push(String::new());
+            } else {
+                out.push(text.to_owned());
+            }
+        }
+        python.push(out);
+    }
+
+    // Where each stored line is in the file: its JSON string, found after the one before it.
+    let line_starts: Vec<usize> = std::iter::once(0)
+        .chain(source.match_indices('\n').map(|(i, _)| i + 1))
+        .collect();
+    let line_of = |at: usize| line_starts.partition_point(|&s| s <= at) - 1;
+    let mut placed: Vec<(usize, &str)> = Vec::new();
+    let mut cursor = 0;
+    let mut last_line = None;
+    'place: {
+        for (lines, out) in stored.iter().zip(&python) {
+            for (line, text) in lines.iter().zip(out) {
+                let Ok(encoded) = serde_json::to_string(line) else {
+                    break 'place;
+                };
+                let Some(found) = source[cursor..].find(&encoded) else {
+                    break 'place;
+                };
+                let at = cursor + found;
+                let n = line_of(at);
+                if last_line.is_some_and(|l| n <= l) {
+                    break 'place;
+                }
+                placed.push((n, text));
+                last_line = Some(n);
+                cursor = at + encoded.len();
+            }
+        }
+        let mut code = vec![""; line_starts.len()];
+        for (n, text) in placed {
+            code[n] = text;
+        }
+        return Ok(NotebookCode {
+            code: code.join("\n"),
+            unread,
+        });
+    }
+    // One cell after another, with a blank line between.
+    let code = python
+        .iter()
+        .map(|out| out.join("\n"))
+        .collect::<Vec<_>>()
+        .join("\n\n");
+    Ok(NotebookCode { code, unread })
 }
 
 /// Whether a `.svelte` or `.vue` page's markup, outside its `<script>` and `<style>` elements and its

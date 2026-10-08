@@ -716,7 +716,20 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
         // grammar in ast.rs: the language sv-check's own tests use to prove that combination still
         // behaves. Whoever gives it a grammar moves those tests to the next one without.
         "m" | "mm" => "objc",
-        "html" | "htm" | "vue" | "svelte" => "html",
+        // Pages, and templates whose own syntax cannot run code: the scripts in them are read as
+        // JavaScript, and nothing else in them can call what the code rules look for (ADR-054).
+        "html" | "htm" | "vue" | "svelte" | "hbs" | "handlebars" | "mustache" | "liquid"
+        | "twig" | "j2" | "jinja" | "jinja2" | "njk" => "html",
+        // Jupyter notebooks: their code cells are read as Python (ADR-054).
+        "ipynb" => "notebook",
+        // Templates that hold a general-purpose language, by the name of their kind. None has a
+        // grammar in ast.rs yet, so while one is present the code rules claim nothing (ADR-054).
+        "ejs" => "ejs",
+        "pug" => "pug",
+        "erb" => "erb",
+        "jsp" => "jsp",
+        "cshtml" | "razor" => "razor",
+        "astro" => "astro",
         _ => return None,
     })
 }
@@ -730,6 +743,18 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
 /// "this app does not use X" answer away from any app with one deploy script, to cover a technology
 /// written only in shell, which is rare. The price is stated in DESIGN rather than paid silently.
 pub const NO_TECHNOLOGY_READER: &[&str] = &["dart", "swift"];
+
+/// The templates `language_of` names that hold a general-purpose language, which no grammar in
+/// `sv` reads yet (ADR-054).
+pub const CODE_TEMPLATES: &[&str] = &["ejs", "pug", "erb", "jsp", "razor", "astro"];
+
+/// Whether the technology scan passes over files of this kind, as it did before they had names
+/// (ADR-054): notebooks, and templates that hold code. No signature has a pattern for them, and
+/// counting them as not looked in would take a "this app does not use X" answer away from every app
+/// with one template.
+pub fn not_for_technology(language: &str) -> bool {
+    language == "notebook" || CODE_TEMPLATES.contains(&language)
+}
 
 /// Folders never walked, wherever they are: version control, installed dependencies, virtual
 /// environments, caches, and editor settings. Nobody keeps an app's own code under these names. Their
