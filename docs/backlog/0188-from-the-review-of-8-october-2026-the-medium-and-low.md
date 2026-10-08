@@ -8,6 +8,12 @@ high were built the same day (the entry above this one's predecessor). Each of t
    (`adapters.rs`, `process_group(0)`) and that path installs no handler, so SIGINT kills `sv` alone and the
    30-minute limit, the private folder, and the lock's `Drop` are gone. The handler `sv-run` uses, killing the
    recorded group.
+   **Claimed 8 October 2026 by session securevibe-e9**, from the roadmap (Phase 1, item 1, third in its order, the
+   second being claimed by securevibe-e2), in branch `claude/securevibe-e9-tools-interrupt`: while an outside tool
+   runs, Ctrl-C (or a polite `kill`) stops the tool's whole process group and lets `sv` end through its own cleanup,
+   with the private folder removed and the lock let go, and the report not written as if the tools had run.
+   Confirmed on `main` just before this claim: `adapters::finish` installs no handler, and `sv_run::catch_interrupts`
+   is called only by the Docker backend.
 2. npm lockfile `resolved` URLs are not held to the registry (`install.rs`), so the install container fetches
    wherever the lockfile says; refuse unless every entry is `https://registry.npmjs.org/` with `integrity`, as
    pip's `unpinned` refuses. And a dependency file that is a symlink is followed into the networked container
