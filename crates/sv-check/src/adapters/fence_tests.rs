@@ -137,7 +137,7 @@ fn a_tool_handed_the_files_cannot_claim_to_follow_links() {
     assert_ne!(doctored, file, "bandit is the entry to doctor");
     let path = dir.join("adapters.json");
     std::fs::write(&path, doctored).unwrap();
-    let err = Adapters::load(&path).err().expect("refused at load");
+    let err = Adapters::load(&path).expect_err("refused at load");
     assert!(
         err.to_string()
             .contains("handed {files} and says it follows links"),
