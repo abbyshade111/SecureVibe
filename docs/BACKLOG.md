@@ -201,6 +201,9 @@ another session is not a claim.
   19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
      condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
      start command's file. A change to ADR-031: a Later entry.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick the next backlog item when ready"), in branch
+     `claude/securevibe-e9-not-the-app`: a condition the scan finds only inside a not-the-app folder is not read as
+     "no", and the report asks it, naming the file; an entry holding the file the start command runs is refused.
   20. **Two lessons from the owner's first build never reached the AI tool.** (`docs/GAP-ANALYSIS.md`, 4.4.) "Never
      rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
      both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
