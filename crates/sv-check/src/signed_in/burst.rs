@@ -30,13 +30,7 @@ fn still_in(http: &mut dyn Http, users: &UsersSection, when: &str, session: &Ses
 /// Whether an answer is how a limit refuses: 429 Too Many Requests, or 503 Service Unavailable with
 /// a `Retry-After` saying when to come back.
 fn limit_answer(answer: &Option<ProbeResponse>) -> bool {
-    answer.as_ref().is_some_and(|r| {
-        r.status == 429
-            || (r.status == 503
-                && r.headers
-                    .iter()
-                    .any(|(k, _)| k.eq_ignore_ascii_case("retry-after")))
-    })
+    super::answer_of(answer.as_ref()).is_limited()
 }
 
 pub(super) fn burst_check(
@@ -150,7 +144,7 @@ fn burst_one(
     let through = answers.iter().filter(|a| accepted(a)).count();
     let crashed = answers
         .iter()
-        .filter(|a| a.as_ref().is_none_or(|r| r.status >= 500) && !limit_answer(a))
+        .filter(|a| super::answer_of(a.as_ref()).is_crash_or_silence())
         .count();
     let first = answers.first().is_some_and(accepted);
     let last = answers.last().is_some_and(accepted);

@@ -270,10 +270,8 @@ pub(super) fn sign_in_cookies_carry_session(
     without
         .cookies
         .retain(|(name, _)| !a.set_at_login.iter().any(|c| c.name == *name));
-    let answer = http.send(&get("session-without-sign-in-cookies", confirm, &without))?;
-    if answer.status >= 500 || super::rate_limited(&answer).is_some() {
-        return None;
-    }
+    let answer = http.send(&get("session-without-sign-in-cookies", confirm, &without));
+    let answer = super::answer_of(answer.as_ref()).answered()?;
     Some(!(200..300).contains(&answer.status))
 }
 

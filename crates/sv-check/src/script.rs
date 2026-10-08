@@ -14,7 +14,8 @@
 
 use crate::probes::{ProbeRequest, ProbeResponse};
 use crate::running::Liveness;
-use crate::signed_in::{Accounts, Http};
+use crate::signed_in::{Accounts, Http, Patient};
+use std::cell::Cell;
 use sv_manifest::{
     AiSection, FetchSection, McpServerSection, OidcSection, PolicySection, UsersSection,
 };
@@ -117,6 +118,9 @@ fn as_second_user<'a>(
 /// manifest says how, and says so itself when it cannot.
 pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Outcome {
     let mut out = Outcome::default();
+    // One budget of waiting for a rate limiter for the whole run (`MOST_WAITING`), shared by every
+    // suite, so the run cannot wait five minutes in each of them (ADR-021, Later, 8 October 2026).
+    let spent = Cell::new(0);
 
     // 4. The probes, while the app is up and the fence is in place. A request that gets no
     //    answer is left out rather than recorded as an empty response: "the app said nothing"
@@ -125,7 +129,8 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     //    app's (`ask_anonymously`).
     {
         let mut http = services.http(Target::App, With::default());
-        let (responses, limited) = crate::signed_in::ask_anonymously(http.as_mut(), probes);
+        let (responses, limited) =
+            crate::signed_in::ask_anonymously_within(http.as_mut(), probes, &spent);
         out.probe_responses = responses;
         out.probes_rate_limited = limited;
     }
@@ -137,10 +142,12 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     out.signed_in = plan
         .users
         .zip(plan.accounts)
-        .map(|(users, accounts)| signed_in(services, plan, users, accounts));
+        .map(|(users, accounts)| signed_in(services, plan, users, accounts, &spent));
 
     // 4c. Signing in through the test provider, when the app signs in through another service.
     //     A provider that never came up leaves the way to it empty, and the check says so.
+    // 4c, 4c', 4c'': each with a rate limiter's answer waited out, as the signed-in suites have
+    //     it (`Patient`); until 8 October 2026 these three took the app's answers as they came.
     out.oidc = plan.oidc.map(|section| {
         let mut http = services.http(
             Target::App,
@@ -149,13 +156,19 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
                 ..With::default()
             },
         );
-        crate::oidc::run(http.as_mut(), section)
+        let mut patient = Patient::within(http.as_mut(), &spent);
+        let mut out = crate::oidc::run(&mut patient, section);
+        patient.settle(&mut out);
+        out
     });
 
     // 4c'. The app as an MCP server, when securevibe.toml says where it answers.
     out.mcp_server = plan.mcp_server.map(|section| {
         let mut http = services.http(Target::App, With::default());
-        crate::mcp_server::run(http.as_mut(), section, plan.mcp_token)
+        let mut patient = Patient::within(http.as_mut(), &spent);
+        let mut out = crate::mcp_server::run(&mut patient, section, plan.mcp_token);
+        patient.settle(&mut out);
+        out
     });
 
     // 4c''. A feature that fetches an address a person gives it, pointed at the test model's
@@ -173,12 +186,17 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
             signed_in: as_second_user(plan),
             canary: canary.as_deref(),
         };
-        crate::fetch::run(http.as_mut(), section, &context)
+        let mut patient = Patient::within(http.as_mut(), &spent);
+        let mut out = crate::fetch::run(&mut patient, section, &context);
+        patient.settle(&mut out);
+        out
     });
 
     // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
     //     Last of the questions, as the second test user when it needs one: nothing after it
-    //     depends on that user's session.
+    //     depends on that user's session. Not through `Patient`: the suite waits a limiter out
+    //     itself where an answer matters, and its rate check (C11.2.2) sets out to make the app
+    //     refuse, which a wait and a second try would unmake.
     out.ai = plan.ai.map(|section| ai(services, plan, section));
 
     // Still up after everything else it was asked, while the sidecar can still ask it.
@@ -201,6 +219,7 @@ fn signed_in(
     plan: &Plan,
     users: &UsersSection,
     accounts: &Accounts,
+    spent: &Cell<u64>,
 ) -> crate::signed_in::Outcome {
     let mut http = services.http(
         Target::App,
@@ -230,13 +249,14 @@ fn signed_in(
         },
         None => false,
     };
-    let mut out = crate::signed_in::run_with(
+    let mut out = crate::signed_in::run_within(
         http.as_mut(),
         users,
         accounts,
         seeded,
         plan.policy,
         plan.slow,
+        spent,
     );
     drop(http);
 
@@ -471,6 +491,138 @@ mod tests {
             ],
             "{:?}",
             first_words(&calls)
+        );
+    }
+
+    /// A harness whose app answers every request with its rate limiter, asking for a second's
+    /// wait, and writes down what was sent and waited.
+    struct Limited {
+        sent: RefCell<Vec<String>>,
+        waited: RefCell<u64>,
+    }
+
+    struct LimiterOnly<'a>(&'a Limited);
+    impl Http for LimiterOnly<'_> {
+        fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+            self.0.sent.borrow_mut().push(request.id.clone());
+            Some(ProbeResponse {
+                id: request.id.clone(),
+                status: 429,
+                headers: vec![("Retry-After".to_owned(), "1".to_owned())],
+                body: "slow down".to_owned(),
+            })
+        }
+        fn wait(&mut self, seconds: u64) {
+            *self.0.waited.borrow_mut() += seconds;
+        }
+    }
+
+    impl Services for Limited {
+        fn http<'s>(&'s self, _target: Target, _with: With) -> Box<dyn Http + 's> {
+            Box::new(LimiterOnly(self))
+        }
+        fn model_canary(&self) -> Option<String> {
+            None
+        }
+        fn app_log(&self) -> String {
+            String::new()
+        }
+        fn seed(&self, _: Target, _: &str, _: &Accounts) -> Result<(), String> {
+            Ok(())
+        }
+        fn start_switched_off(&self, _: &str) -> bool {
+            false
+        }
+        fn remove_switched_off(&self) {}
+        fn liveness(&self, after: &str) -> Liveness {
+            Liveness {
+                after: after.to_owned(),
+                status: "running".to_owned(),
+                restarts: 0,
+                exit_code: 0,
+                out_of_memory: false,
+                answered: true,
+            }
+        }
+    }
+
+    #[test]
+    fn the_mcp_suite_waits_a_limiter_out_once_and_says_when_it_kept_answering() {
+        // Until 8 October 2026 the OIDC, MCP, and fetch suites took a limiter's answer as the
+        // app's. Now each goes through `Patient`: the request is sent again after the wait the
+        // app asks for, and a limiter that keeps answering is said, as the signed-in suites say it.
+        let harness = Limited {
+            sent: RefCell::new(Vec::new()),
+            waited: RefCell::new(0),
+        };
+        let policy = PolicySection::default();
+        let mcp = McpServerSection {
+            path: "/mcp".to_owned(),
+            ..McpServerSection::default()
+        };
+        let plan = Plan {
+            users: None,
+            policy: &policy,
+            oidc: None,
+            ai: None,
+            mcp_server: Some(&mcp),
+            fetch: None,
+            health_path: "/",
+            slow: false,
+            accounts: None,
+            mcp_token: None,
+        };
+        let out = run(&harness, &plan, &[]);
+        let sent = harness.sent.borrow();
+        // The setup: the suite asked, and was answered by the limiter each time.
+        let first = sent.iter().filter(|id| *id == "mcp-initialize").count();
+        assert_eq!(first, 2, "sent once, waited, sent once more: {sent:?}");
+        assert!(*harness.waited.borrow() >= 1, "waited as the app asked");
+        let mcp = out.mcp_server.expect("the MCP suite ran");
+        assert!(
+            mcp.steps
+                .iter()
+                .any(|s| s.contains("rate limiter was still answering")),
+            "{:?}",
+            mcp.steps
+        );
+        assert!(
+            mcp.verified.is_empty(),
+            "nothing is credited behind a limiter"
+        );
+    }
+
+    #[test]
+    fn the_run_waits_for_a_limiter_at_most_once_over_all_its_suites() {
+        // One budget (`MOST_WAITING`) for the run: with the limiter answering everything, the
+        // MCP and fetch suites together wait no longer than one suite alone may.
+        let harness = Limited {
+            sent: RefCell::new(Vec::new()),
+            waited: RefCell::new(0),
+        };
+        let policy = PolicySection::default();
+        let mcp = McpServerSection {
+            path: "/mcp".to_owned(),
+            ..McpServerSection::default()
+        };
+        let fetch = FetchSection::default();
+        let plan = Plan {
+            users: None,
+            policy: &policy,
+            oidc: None,
+            ai: None,
+            mcp_server: Some(&mcp),
+            fetch: Some(&fetch),
+            health_path: "/",
+            slow: false,
+            accounts: None,
+            mcp_token: None,
+        };
+        let _ = run(&harness, &plan, &[]);
+        assert!(
+            *harness.waited.borrow() <= crate::signed_in::MOST_WAITING,
+            "waited {} seconds over the run",
+            harness.waited.borrow()
         );
     }
 
