@@ -152,6 +152,8 @@ another session is not a claim.
      taken from gitleaks' rules rather than recalled, for those whose keys carry a prefix of their own (a provider whose
      keys are plain letters and digits is named as not looked for, since a pattern for it would match ordinary text).
      A notebook's escaped JSON is not part of this. More formats find more and credit nothing new, so no ADR is proposed.
+     **Done the same day** (DESIGN, "Passwords in web addresses, and the key formats of the providers AI-built apps
+     use"): `secrets.password-in-url`, and ten provider formats.
   16. **Smaller static gaps: workflows, and where infrastructure and CI files are looked for.**
      (`docs/GAP-ANALYSIS.md`, 3.8.) Workflows: a pull request's title or branch pasted into a `run:` line, and
      third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
@@ -243,6 +245,10 @@ another session is not a claim.
   30. **The fence tests pass without testing the fence when there is no container backend.** (`docs/GAP-ANALYSIS.md`,
      7.2.) `SV_REQUIRE_BACKEND=1`, set in `rust.yml`, turns each test's "no container backend here" branch into a
      failure, so a broken Docker on the runner turns CI red.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick another item from
+     the backlog whenever you're ready"), in branch `claude/securevibe-e9-require-backend`: one test that, with
+     `SV_REQUIRE_BACKEND=1`, fails when no container backend answers, and `rust.yml` setting it for the test job, so the
+     38 "no container backend here" branches can no longer all pass on a runner whose Docker broke.
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
