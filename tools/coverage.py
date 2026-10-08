@@ -722,8 +722,9 @@ def check_credits(log):
     set, writes each credit to a file, with the place in the code that gave it, and this reads it.
     A credit made in a test module, or in a test of its own, is a test building its own evidence and
     is left out. Faults: a check listed as findings-only that was credited; a check never credited
-    that is not listed, which is either findings-only or a credit no test reaches; and a credit
-    naming a requirement the check does not cite.
+    that is not listed, which is either findings-only or a credit no test reaches; a credit naming a
+    requirement the check does not cite; and a requirement a crediting check cites that it was never
+    seen crediting.
     """
     shipping = {str(p.relative_to(ROOT)): code.count("\n") + 1 for p, code in rust_code()}
     credited = defaultdict(set)
@@ -751,6 +752,11 @@ def check_credits(log):
                           "a test that reaches its credit")
         if got - ids:
             faults.append(f"{check} credited {', '.join(sorted(got - ids))}, which it does not cite")
+        # Per requirement, not only per check (the review of 8 October 2026, item 5): a check that cites
+        # two requirements and was only ever seen crediting one passed, with the other cited on no evidence.
+        if not findings_only and got and ids - got:
+            faults.append(f"{check} cites {', '.join(sorted(ids - got))} and the suite never saw it credit "
+                          "that: add a test that reaches the credit, or stop citing it")
     faults += check_withheld(log)
     return faults
 

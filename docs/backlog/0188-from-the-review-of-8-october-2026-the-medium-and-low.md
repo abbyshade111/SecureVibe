@@ -71,6 +71,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    was never seen crediting, beside the per-check test it has (a Later entry on ADR-059); and the model-provider
    test fails without `node` when `SV_REQUIRE_BACKEND` is set. Confirmed on `main` just before this claim: none of
    the three is done, and no other session had claimed this part.
+   **Done the same day** (`docs/design/0306-three-honesty-gaps-from-the-review-of-8-october-8-october.md`; ADR-059,
+   Later): a manifest that cannot be read or understood is said not compared, on screen, in the report, and in the
+   CycloneDX document, the bill of materials still complete; the census fails a cited requirement never seen
+   credited; and the test model's tests fail without `node` when `SV_REQUIRE_BACKEND=1`. The findings log the review
+   also asked for is the census of what checks withhold (ADR-059).
 6. Low: a FIFO named `securevibe.toml` hangs the MCP server's serving thread (`app_dir` refuses links only);
    `Secret::redact` keeps four characters whatever the length, so a 4-character URL password is shown whole (show
    `min(4, len/3)`); `redact_text` masks only listed names, and `authorization`, `bearer`, `cookie`, `session`,
@@ -84,6 +89,13 @@ high were built the same day (the entry above this one's predecessor). Each of t
    without; `main.rs` exits 130 in one place without the flush `exit_with` does; the bundle's scratch folder in the
    system temp dir is a write outside the root no document records; `report.html` has no Content-Security-Policy
    meta tag; the install volume's cache key is FNV-1a (use SHA-256).
+   **Its first four parts claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, next
+   in its order), in branch `claude/securevibe-e2-low-findings`: a FIFO (or anything but a plain file) named
+   `securevibe.toml` refused before it is read; `Secret::redact` shows at most a third of a short value; `redact_text`
+   masks values under `authorization`, `bearer`, `cookie`, `session`, `otp`, and `pin` too; and a line break in a file
+   name or a tool's finding title is kept from starting a line of its own on screen. Confirmed on `main` just before
+   this claim: none of the four is done, and no other session had claimed any part of item 6. The rest of item 6
+   stays open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in

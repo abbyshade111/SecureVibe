@@ -83,6 +83,35 @@ pub struct Comparison {
     pub differs: Vec<Differs>,
     /// Packages the manifest asks for that could not be held to the lockfile, as it writes them.
     pub not_compared: Vec<String>,
+    /// Why the manifest could not be compared with its lockfile at all: it could not be read, or
+    /// it is of a kind compared here and could not be understood. Said, rather than left out, since
+    /// a comparison not made reads as agreement (the review of 8 October 2026, item 5).
+    pub whole: Option<String>,
+}
+
+impl Comparison {
+    /// Whether anything the manifest asks for could not be held to the lockfile.
+    pub fn not_all_compared(&self) -> bool {
+        self.whole.is_some() || !self.not_compared.is_empty()
+    }
+}
+
+/// Whether `compare` reads manifests of this kind, so that one it cannot understand is a comparison
+/// not made rather than one of another kind.
+pub fn compares(manifest_name: &str) -> bool {
+    matches!(
+        manifest_name,
+        "requirements.txt"
+            | "pyproject.toml"
+            | "Pipfile"
+            | "package.json"
+            | "Cargo.toml"
+            | "composer.json"
+            | "Gemfile"
+            | "go.mod"
+            | "build.gradle"
+            | "build.gradle.kts"
+    )
 }
 
 /// Compares a manifest with what its lockfile has, when the manifest is one read here. `None` for a
