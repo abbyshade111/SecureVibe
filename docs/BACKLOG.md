@@ -233,6 +233,7 @@ another session is not a claim.
      **Claimed 8 October 2026 by session securevibe-e9** ("pick the next backlog item when ready"), in branch
      `claude/securevibe-e9-not-the-app`: a condition the scan finds only inside a not-the-app folder is not read as
      "no", and the report asks it, naming the file; an entry holding the file the start command runs is refused.
+     **Done the same day** (DESIGN, "A folder set apart cannot switch a capability off"; ADR-031, Later).
   20. **Two lessons from the owner's first build never reached the AI tool.** (`docs/GAP-ANALYSIS.md`, 4.4.) "Never
      rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
      both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
@@ -8044,6 +8045,10 @@ done: `docs/adr/ADR-018.md`.
   paper-facts**, at the owner's word ("go ahead with ... the deep scrub and review of the documentation"), in branch
   `claude/owned-control`, with a Later entry on ADR-053. Read on `main` just before this claim: no other session had
   claimed it.
+  **Done the same day** (ADR-053, Later): the first user sends the same request at a second record of their own, and
+  the second user's request counts as refused only when the owner's own changes or deletes theirs; otherwise V8.2.2 is
+  checked in part, naming the request and `method`. The specification says how to give `method`, `json`,
+  `token-field` and `id-field`.
 - **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
