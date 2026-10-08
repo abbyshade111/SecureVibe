@@ -17,6 +17,10 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    **Claimed 8 October 2026 by session securevibe-review**, with part 3 of the process item, in branch
    `claude/securevibe-review-nightly`: as a snapshot held by a test at pull-request time rather than a nightly
    comparison, which is stronger.
+   **Done the same day** (design entry "A nightly run on main, and the example apps' verdicts held to a snapshot"):
+   `crates/sv-cli/tests/verdicts.rs` holds every example app's requirement statuses to `tests/verdicts/<app>.json`,
+   names each difference, and is updated by `SV_UPDATE_VERDICTS=1` when a change is meant. Only the static report is
+   held; the nightly run of the suite is the process item's part 3.
 3. **Fuzz the readers of untrusted input.** `cargo fuzz` targets for the JSON-RPC framing, `securevibe.toml`, the
    lockfile and SBOM readers, and the tool-output parsers, run weekly in CI; each reads what an app or a tool hands
    it, and a planted file that panics `sv` would be found here before an owner finds it. Two days to set up.
