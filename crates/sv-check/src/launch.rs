@@ -368,8 +368,9 @@ fn development_server(listing: &Listing, report: &mut ConfigReport) {
     }
 }
 
+#[track_caller]
 fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -402,7 +403,7 @@ fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Fin
               `nodemon`, and set `NODE_ENV=production` (or your framework's equivalent). If this file is \
               only for development, name it so (`Dockerfile.dev`) and `sv` will leave it out."
             .into(),
-    }
+    })
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -710,6 +711,7 @@ fn mcp_servers(listing: &Listing, report: &mut ConfigReport) {
     }
 }
 
+#[track_caller]
 fn mcp_finding(file: &str, line: usize, launch: &Launch) -> Finding {
     let (how, fix) = if launch.launcher == "docker" {
         (
@@ -728,7 +730,7 @@ fn mcp_finding(file: &str, line: usize, launch: &Launch) -> Finding {
              are recorded and checked on install.",
         )
     };
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -758,7 +760,7 @@ fn mcp_finding(file: &str, line: usize, launch: &Launch) -> Finding {
                  with the app's access to its tools and data, and nothing records that it changed."
                 .into(),
         fix: fix.into(),
-    }
+    })
 }
 
 #[cfg(test)]

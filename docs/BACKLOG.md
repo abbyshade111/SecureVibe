@@ -634,6 +634,11 @@ another session is not a claim.
      record, governing `tools/coverage.py`'s census) is written as proposed with step 2 and accepted in the pull
      request that builds the gate. "Not assessed" as a way of withholding is counted from step 2 if the list shows
      checks that can only withhold that way.
+     **Step 1 done the same day** (DESIGN, "And what it withholds"): `finding::found` at the 45 places a finding is
+     made, and `tools/coverage.py --withheld`. First count: 125 checks seen crediting, 115 seen withholding, 10 not;
+     all ten withhold by design with "not assessed" or no credit, and each already has a test asserting so. Step 2
+     becomes: those checks mark where they withhold, so the census sees it. Breaks: nothing written, and a test's
+     own finding counted, each failed `crates/sv-check/tests/withheld_log.rs`.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed

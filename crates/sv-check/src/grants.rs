@@ -276,7 +276,7 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
             )
         })
         .collect();
-    report.findings.push(Finding {
+    report.findings.push(crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -310,7 +310,7 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
               client credentials grant for a service with no person behind it). If a line only names \
               a grant in order to refuse it, this does not apply and can be set aside."
             .into(),
-    });
+    }));
 }
 
 #[cfg(test)]

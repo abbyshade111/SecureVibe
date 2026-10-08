@@ -673,8 +673,9 @@ const COOKIE_WITHOUT_HOST_PREFIX: Rule = Rule {
           attribute, which is what the prefix requires.",
 };
 
+#[track_caller]
 fn finding(rule: &Rule, description: String, host: &str) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -700,7 +701,7 @@ fn finding(rule: &Rule, description: String, host: &str) -> Finding {
         description,
         impact: rule.impact.to_owned(),
         fix: rule.fix.to_owned(),
-    }
+    })
 }
 
 /// Asks the live site the handful of questions only it can answer.
