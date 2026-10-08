@@ -2799,6 +2799,13 @@ mod probe_tests {
             headers: Vec::new(),
             body,
         };
+        // The answer to a body that does not parse (ADR-056): the error credit needs one.
+        let bad_body = |body: String| sv_check::probes::ProbeResponse {
+            id: "bad-body POST /".to_owned(),
+            status: 500,
+            headers: Vec::new(),
+            body,
+        };
         for marker in sv_check::probes::TRACE_MARKERS {
             let body = format!(
                 "{}<pre>{marker} detail</pre>{}",
@@ -2811,24 +2818,28 @@ mod probe_tests {
             );
             let kept = kept_body(&body);
             assert!(kept.contains(marker), "{marker:?} was cut away");
-            let found = sv_check::probes::evaluate(&[missing(kept.clone())]);
+            for answer in [missing(kept.clone()), bad_body(kept.clone())] {
+                let found = sv_check::probes::evaluate(std::slice::from_ref(&answer));
+                assert!(
+                    found.iter().any(|f| f.rule_id == "probe.error-detail-leak"),
+                    "{marker:?} in {}: {found:?}",
+                    answer.id
+                );
+            }
             assert!(
-                found.iter().any(|f| f.rule_id == "probe.error-detail-leak"),
-                "{marker:?}: {found:?}"
-            );
-            assert!(
-                !sv_check::probes::verified(&[missing(kept)])
+                !sv_check::probes::verified(&[missing(kept.clone()), bad_body(kept)])
                     .iter()
                     .any(|v| v.check_id == "probe.error-detail-leak"),
                 "{marker:?} was credited as saying nothing"
             );
         }
-        // The control: the same long page with no trace keeps its start only and is credited.
+        // The control: the same long page with no trace keeps its start only, and an error answer
+        // with it is credited.
         let plain = "<div>layout</div>".repeat(800);
         let kept = kept_body(&plain);
         assert_eq!(kept.chars().count(), KEPT_CHARS);
         assert!(
-            sv_check::probes::verified(&[missing(kept)])
+            sv_check::probes::verified(&[missing(kept.clone()), bad_body(kept)])
                 .iter()
                 .any(|v| v.check_id == "probe.error-detail-leak")
         );

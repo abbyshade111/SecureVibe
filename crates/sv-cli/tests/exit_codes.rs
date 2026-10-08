@@ -157,6 +157,40 @@ fn check_exits_2_when_a_check_could_not_run_or_nothing_was_read() {
     assert_eq!(both, Some(1));
 }
 
+#[test]
+fn a_folder_with_nothing_read_is_not_checked_and_fine() {
+    // Gap analysis 5.3: an empty folder's `sv check` listed five "Checked and fine" items and a
+    // finding at line 1 of a SECURITY.md that is not there.
+    let root = root("nothing-read");
+    let empty = root.join("empty");
+    std::fs::create_dir_all(&empty).unwrap();
+    let (_, empty_said) = sv(&["check", s(&empty)]);
+    // The other side: an app with a file read, a finding in it, and still no SECURITY.md.
+    let read = app(&root.join("read"), &[("tool.py", HIGH_FINDINGS)]);
+    let (_, read_said) = sv(&["check", s(&read)]);
+    std::fs::remove_dir_all(&root).ok();
+
+    assert!(
+        empty_said.contains("no file of the app was read"),
+        "the setup: nothing was read: {empty_said}"
+    );
+    assert!(!empty_said.contains("Checked and fine"), "{empty_said}");
+    assert!(
+        empty_said.contains("checks that found nothing had nothing to look in"),
+        "{empty_said}"
+    );
+    assert!(
+        empty_said.contains("SECURITY.md (not there)"),
+        "{empty_said}"
+    );
+    assert!(!empty_said.contains("SECURITY.md:1"), "{empty_said}");
+
+    assert!(read_said.contains("Checked and fine:"), "{read_said}");
+    assert!(!read_said.contains("had nothing to look in"), "{read_said}");
+    assert!(read_said.contains("SECURITY.md (not there)"), "{read_said}");
+    assert!(read_said.contains("tool.py:4"), "{read_said}");
+}
+
 #[cfg(unix)]
 #[test]
 fn check_exits_2_for_a_file_it_could_not_open_and_a_link_only_with_fail_on_not_assessed() {
@@ -387,6 +421,12 @@ fn audit_keeps_0_1_and_2_and_its_errors_are_now_3() {
 
     assert_eq!(clean, Some(0), "{clean_said}");
     assert_eq!(no_database, Some(2), "{no_database_said}");
+    // Not assessed says where the list it needs is, for this app's own kind of package.
+    assert!(
+        no_database_said
+            .contains("npm: https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
+        "{no_database_said}"
+    );
     assert!(found_said.contains("qs 6.5.0"), "{found_said}");
     assert_eq!(found, Some(1), "{found_said}");
     assert_eq!(bad_manifest, Some(3), "{bad_manifest_said}");

@@ -1,0 +1,62 @@
+{
+ "password-rules@sonnet": {
+  "verdict": "shown",
+  "baseline": "the recipe trial's Sonnet baseline",
+  "without": [
+   10,
+   10
+  ],
+  "with": [
+   0,
+   10
+  ],
+  "earlier_text": [
+   8,
+   10
+  ],
+  "started": 10,
+  "signed_in": 10,
+  "usable": 10,
+  "database_locked": 0
+ },
+ "production-server@sonnet": {
+  "verdict": "shown",
+  "baseline": "the recipe trial's Sonnet baseline",
+  "without": [
+   5,
+   10
+  ],
+  "with": [
+   0,
+   9
+  ],
+  "earlier_text": [
+   0,
+   9
+  ],
+  "started": 9,
+  "signed_in": 9,
+  "usable": 10,
+  "database_locked": 0
+ },
+ "isolate-the-window@haiku": {
+  "verdict": "shown",
+  "baseline": "the revision trial's Haiku baseline",
+  "without": [
+   7,
+   7
+  ],
+  "with": [
+   0,
+   9
+  ],
+  "earlier_text": [
+   4,
+   10
+  ],
+  "started": 9,
+  "signed_in": 6,
+  "usable": 10,
+  "database_locked": 0
+ }
+}

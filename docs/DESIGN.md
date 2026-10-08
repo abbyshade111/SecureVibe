@@ -792,6 +792,12 @@ Three decisions, each a way of not lying:
   is the whole reason the adapters are a data file with a gap attached rather than a shell script: a
   script that skips a missing binary produces a report identical to one where the tool ran and found
   nothing, and the second is the one everybody assumes.
+  Until 8 October 2026 that *not run* was only in the reports: with no tool installed, `sv report
+  --tools` printed nothing about them and exited 0, the default (ADR-029). It now says on screen which tools
+  did not run and why, each once, whatever the exit status (backlog item 25(c)). The hint reads as a
+  sentence either way: "To install it, run `pip install semgrep`; then run this again", and for CodeQL,
+  whose install is steps in words, "To install it, download the CodeQL bundle …" rather than a quoted
+  command that is not one (`install_step` in `crates/sv-check/src/adapters.rs`).
 - **SARIF and nothing else.** One output parser that is trusted is worth more than five that are nearly
   right. A tool that cannot emit SARIF is not listed yet rather than parsed by guesswork — which is why
   bandit's install line names two packages, since its SARIF formatter is a separate one.
@@ -1349,6 +1355,15 @@ What that rules out is more interesting than what it allows:
 The probes are the only place anything here observes the app doing the right thing rather than failing
 to catch it doing the wrong one, and a probe with no answer credits nothing — otherwise a run against an
 app that would not start reads as a run against an app that passed.
+
+**On screen too (8 October 2026, backlog item 25(g)).** The reports already credited nothing for a folder
+none of whose files was read, but `sv check` still printed its config checks that found nothing under
+"Checked and fine", five of them for an empty folder, each "0 files: none …". When no file of the app was
+read, it now prints one line instead: none is listed as checked and fine, because the checks that found
+nothing had nothing to look in (`Gaps::read_nothing` in `crates/sv-cli/src/exit.rs`). The same run showed a
+finding about an absence, no SECURITY.md, at `SECURITY.md:1`, a line of a file that is not there; a finding
+whose file is missing is now shown as `SECURITY.md (not there)`. Only what `sv check` prints changed: the
+finding's location in the JSON reports, SARIF, and fingerprints is as it was.
 
 ### What the reports found in the checks themselves
 
@@ -2484,6 +2499,16 @@ service is slow is a check that reports a clean result on a bad day. And **`sv` 
 network at all** — an air-gapped review, a CI runner with egress rules, a laptop on a train.
 
 So getting the data is the owner's step, done deliberately and visible in their shell history.
+
+**Where to get it, named (8 October 2026, backlog item 24).** Until then the step said "download an OSV export"
+and not where, which left the check out of reach for somebody who is not a programmer (`docs/GAP-ANALYSIS.md`,
+5.2). `sv audit` without a database, and the report's gap about known vulnerabilities, now name the OSV zip
+for each kind of package the app uses (`osv_download` in `crates/sv-check/src/advisories.rs`), and `sv audit`
+adds the folder layout: one folder per download under `osv`, which works because the reader walks every
+folder under the one it is given. The guide (`docs/GETTING-STARTED.md`) carries the same addresses as a table,
+and a test fails when the table and `osv_download` disagree. A kind of package with no download is named as
+one `sv` does not compare yet. Nothing downloads: a `sv advisories fetch` would change what `sv` connects to,
+and would need a decision record of its own (ADR-027's rule).
 
 ### No data is not a clean result
 
@@ -11961,6 +11986,19 @@ braces are one now, since the new one takes in everything the old one did.
 template among them), a quote allowed inside, text after the braces allowed (two), and the first character not held.
 That last was caught by nothing at first, so a case of a key in braces starting with a digit was added.
 
+## `sv init` into a file (8 October 2026)
+
+`sv init` prints the starter `securevibe.toml` and then the instructions for the AI coding tool: the
+specification, the coding rules, and the design-time prompts. That is what an AI coding tool should read, and it
+is nothing like a file `sv` can read. The gap analysis (5.3) found the obvious thing an owner types,
+`sv init > securevibe.toml`, wrote all of it into the file, and every later command refused the file.
+
+When standard output is a file, `sv init` now prints only the starter, and says on the screen (standard error, so
+not into the file) that the instructions were left out, and how to read them: `sv init` without `>`, or the
+`securevibe_spec` tool. A terminal and a pipe get everything as before, so an AI coding tool that runs `sv init`
+reads the same as it did. The starter alone is a file `sv scope` reads, with every answer still to give; that is
+what the test checks, rather than only that the prose is gone. ADR-017 has the record ("Later, 8 October 2026").
+
 ## A feature brief before securevibe.toml (7 October 2026)
 
 Found by session paper-facts in the delivery test of 6 October 2026: with the specification in the request, most
@@ -12916,4 +12954,34 @@ Tests: `dependency_files_sv_does_not_read_are_found` (`crates/sv-scan/tests/scan
 locked npm app and alone, with the locked npm app alone as the control. Five guards broken in turn, each caught: not
 named in the bill of materials, the pinning check passing beside one, "No package manifest" when alone, a `*` that may
 match nothing, and Deno left out.
+
+## An error answer is credited only when the app was made to give one (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 1.6; BACKLOG, item 3; ADR-056). `probe.error-detail-leak` asked the
+running app for a page that does not exist, and when the answer carried no stack trace it credited V16.5.1 (errors
+answered with a generic message) and V13.4.2 (debug mode off). It did so in 177 of about 190 trial builds that
+started. Frameworks show their traces when the app's code fails, not when a page is missing, so a clean 404 showed
+neither.
+
+- **The app is made to fail, without changing anything.** Signed out, `sv` sends `{"sv-probe": `, which is not JSON,
+  marked as JSON, to the health path, the root, and the routes securevibe.toml names that read a body: `signup`,
+  `login`, and `owned`'s `create` (`bad_body_request` and `error_requests` in `crates/sv-check/src/probes.rs`;
+  `body_routes` in `crates/sv-cli/src/main.rs`). A body that does not parse creates nothing. To a sign-in route it is
+  one failed sign-in naming no account.
+- **What is credited.** V16.5.1, only when at least one answer was an error the app produced (400, 422, or 500 to 599
+  other than 501) and no answer, the missing page included, carried a trace. V13.4.2, only when one of them was a
+  server error: Flask answers a body it cannot read with a plain 400 whether debug mode is on or off, and a debug page
+  shows on a failure. The credit names each request and its status.
+- **What is found.** A trace in any answer to the body: "An error answer shows how the app is built", naming each
+  request and what it showed. Express's default error handler prints the stack of a body it cannot parse in
+  development, which the missing page never showed.
+- **What the report says otherwise.** No error drawn: "V16.5.1, V13.4.2" is a gap, naming the requests answered
+  without one. Only refusals: "V13.4.2" is (`error_answer_gap`).
+
+Most apps lose both credits from the missing page alone. Tests: `an_error_answer_is_credited_only_when_the_app_was_made_to_give_one`
+and `a_bad_body_goes_to_each_route_that_reads_one_once` in `probes.rs`; `a_bad_body_goes_to_the_routes_the_manifest_names`
+in `main.rs`; and `sv-run`'s trace-keeping test, whose control now needs an error answer. Six guards were broken in turn
+and a test went red each time: a 404 counted as an error, debug mode credited from a 400, the missing page not held to
+the rule, a trace in an error answer not found, the old credit from the missing page alone, and no routes taken from
+the manifest.
 

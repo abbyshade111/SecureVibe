@@ -36,6 +36,8 @@ another session is not a claim.
      `claude/securevibe-e9-error-answers`: a body that does not parse, sent signed out to the routes securevibe.toml
      names and to the health path; V16.5.1 credited only from a clean error answer, V13.4.2 only from a clean server
      error. **`Status: proposed`: ADR-056.**
+     **Done the same day** (DESIGN, "An error answer is credited only when the app was made to give one"; ADR-056,
+     accepted).
   4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
@@ -199,6 +201,9 @@ another session is not a claim.
   19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
      condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
      start command's file. A change to ADR-031: a Later entry.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick the next backlog item when ready"), in branch
+     `claude/securevibe-e9-not-the-app`: a condition the scan finds only inside a not-the-app folder is not read as
+     "no", and the report asks it, naming the file; an entry holding the file the start command runs is refused.
   20. **Two lessons from the owner's first build never reached the AI tool.** (`docs/GAP-ANALYSIS.md`, 4.4.) "Never
      rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
      both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
@@ -235,6 +240,11 @@ another session is not a claim.
      **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
      backlog"), in branch `claude/securevibe-e2-osv-addresses`: the addresses and the folder layout only, in `sv
      audit`'s message, the report's gap, and the guide. Nothing that downloads.
+     **Done on 8 October 2026** (session securevibe-e2): `sv audit` with no database names the OSV zip for each
+     kind of package the app uses and how to lay the folder out; the report's gap names the same addresses; and
+     `docs/GETTING-STARTED.md` has a table of all six, held to the code by a test. Breaks: a wrong address format
+     failed three tests; the report not naming the address, the audit message not saying how, and a row missing
+     from the guide each failed the test written for it. Nothing downloads.
   25. **Silent failures while setting up.** (`docs/GAP-ANALYSIS.md`, 5.3.) Each claimable on its own: (a) a "did it
      connect" step for every tool in the guide, and a coding rule telling the AI tool to stop and say so when the
      `securevibe_` tools are missing; (b) the container form of `sv review` in the guide, and an `.mcp.json` example
@@ -244,6 +254,36 @@ another session is not a claim.
      out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
      pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
      folder can be deleted.
+     **(h) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please go ahead"), in
+     branch `claude/securevibe-e2-readme-first`: the README's opening sends somebody who is not a programmer to
+     `docs/GETTING-STARTED.md` first, `tools/install.sh` builds with `--locked`, and the guide says which build
+     folder can be deleted afterwards, how large it is, and that deleting it does not remove `sv`.
+     **(f) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-init-redirect`: when `sv init`'s output goes straight into a
+     file, it prints only the starter `securevibe.toml`, which `sv` can read, and says on screen that the
+     instructions for the AI coding tool were left out and how to see them. Status: proposed, as a "Later" entry
+     on ADR-017 (what lands in the owner's folder), accepted in the pull request that builds it.
+     **(f) done the same day** (ADR-017, "Later, 8 October 2026"; DESIGN, "`sv init` into a file"): into a file,
+     `sv init` writes only the starter, which `sv scope` then reads, and says on screen what it left out; through a
+     pipe, everything as before. Breaks: the file never recognized, and every output treated as a file, each failed
+     the new test.
+     **(c), its first two parts, claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please
+     continue to work off the backlog"), in branch `claude/securevibe-e2-tools-on-screen`: `sv report --tools` says on
+     screen which tools did not run and why, whatever its exit status, and the install hint reads as a sentence for
+     CodeQL as for the others. Per-platform install hints stay unclaimed.
+     **Those two parts done the same day** (DESIGN, "The language's own tool"): the tools that did not run are listed
+     on screen before the closing line, and not again when the exit status already lists them; the hint is a
+     sentence for a command and for CodeQL's steps alike. Breaks: the screen list switched off, the old hint, every
+     hint quoted as a command, and the list said twice each failed a test written for it.
+     **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
+     was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
+     of it. Wording on screen only: `sv report` already credits nothing for such a folder (checked: 137 not
+     verified, none verified).
+     **(g) done the same day** (DESIGN, "Saying a check looked and found nothing", the paragraph "On screen too"):
+     with nothing read, `sv check` says none is listed as checked and fine and why, and a finding about a missing
+     file names the file as not there rather than a line of it. Breaks: the "nothing read" test switched off, a
+     missing file shown at its line, and every run treated as nothing read each failed the new test.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
@@ -7960,6 +8000,18 @@ done: `docs/adr/ADR-018.md`.
   `isolate-the-window`'s sentence on Python's own error pages, by `docs/prompts/library-trial/sentences-protocol.md`.
   **Claimed on 7 October 2026 by session paper-facts**, in branch `claude/sentences`. Read on `main` just before this
   claim: no other session had claimed it.
+  **Done the same day** (`docs/prompts/library-trial/sentences.md`): 30 builds, $10.59. All three shown: `password-rules`
+  0 of 10 (10 of 10 without, 8 of 10 with the earlier text), marked shown by the owner; `production-server` 0 of 9 and
+  no locked database; `isolate-the-window` 0 of 9 on Haiku (7 of 7 without, 4 of 10 with the earlier text). No harm.
+- **Changing and deleting another user's record can be credited when the request never reached a route.** Found on 8
+  October 2026 by the second documentation review: `update` and `delete` under `owned` are POSTed as forms unless they
+  say otherwise, and the specification does not say they can (`method`, `json`). For an app whose route is `PUT` or
+  `DELETE`, the second user's request answers 405, the first user's record is unchanged, and that is read as a refusal,
+  so V8.2.2 is credited in full (`crates/sv-check/src/signed_in/admin.rs`, ADR-053). A refusal should count only when
+  the same request, sent by the record's owner, does change or delete it. **Claimed on 8 October 2026 by session
+  paper-facts**, at the owner's word ("go ahead with ... the deep scrub and review of the documentation"), in branch
+  `claude/owned-control`, with a Later entry on ADR-053. Read on `main` just before this claim: no other session had
+  claimed it.
 - **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6

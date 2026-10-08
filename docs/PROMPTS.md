@@ -110,7 +110,7 @@ could not run.
 
 *Requirements:* ASVS V3.4.7, V3.4.8.
 
-*What it showed (7 October 2026, Sonnet 5.5 and Haiku 4.5, ten builds each with it and without):* Sonnet: without the prompt the window header or the report address was missing in 10 of the 10 builds, with it in 0 of 10. Haiku: 7 of 7 without, 4 of 10 with, because Python's own error pages skipped the helper that sets the headers. No harm. Shown by the owner's decision of 7 October 2026, with Haiku's result recorded here (`docs/prompts/library-trial/revision.md`). Its last sentence, for Python's own error pages, was added afterwards from Haiku's misses and is not yet tried. Suggested by the reviews in `docs/prompts/reviews/`.
+*What it showed (7 October 2026, Sonnet 5.5 and Haiku 4.5, ten builds each with it and without):* Sonnet: without the prompt the window header or the report address was missing in 10 of the 10 builds, with it in 0 of 10. Haiku: 7 of 7 without, 4 of 10 with, because Python's own error pages skipped the helper that sets the headers. No harm. Shown by the owner's decision of 7 October 2026, with Haiku's result recorded here (`docs/prompts/library-trial/revision.md`). Its last sentence, for Python's own error pages, was added afterwards from Haiku's misses and tried the same day with ten Haiku builds: 0 of 9, against 7 of 7 without the prompt (`docs/prompts/library-trial/sentences.md`). Suggested by the reviews in `docs/prompts/reviews/`.
 
 ### Say how to report a security problem
 
@@ -126,7 +126,15 @@ could not run.
 
 *Requirements:* ASVS V4.1.1, V13.4.6.
 
-*What it showed (7 October 2026, Sonnet 5.5, the recipe brief, ten builds with it and ten without):* Without the prompt the server's version was given away in 5 of the 10 builds (Flask's development server); with it in 0 of 9, every build serving through gunicorn. One of the ten did not start, its two gunicorn workers setting up the same SQLite file at once; its last sentence, on SQLite, was added afterwards from that build and is not yet tried. Shown by the owner's decision of 7 October 2026 (`docs/prompts/library-trial/recipe.md`).
+*What it showed (7 October 2026, Sonnet 5.5, the recipe brief, ten builds with it and ten without):* Without the prompt the server's version was given away in 5 of the 10 builds (Flask's development server); with it in 0 of 9, every build serving through gunicorn. One of the ten did not start, its two gunicorn workers setting up the same SQLite file at once; its last sentence, on SQLite, was added afterwards from that build and tried the same day: the version given away in 0 of 9, and no app stopped for a locked database (`docs/prompts/library-trial/sentences.md`). Shown by the owner's decision of 7 October 2026 (`docs/prompts/library-trial/recipe.md`).
+
+### Refuse short and common passwords, and keep each one exactly as typed
+
+> When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each. Rather than writing the list of common passwords yourself, use one a maintained package ships: in Python, `zxcvbn` (pinned, as `zxcvbn==4.5.0`), refusing a password it scores below 2; it knows tens of thousands of common passwords and keyboard patterns, far more than a list written from memory.
+
+*Requirements:* ASVS V6.2.1, V6.2.4, V6.2.8.
+
+*What it showed (7 October 2026, Sonnet 5.5, the recipe brief, ten builds with it against the recipe trial's ten without):* A common password accepted in 10 of 10 builds without the prompt and 0 of 10 with it; every build pinned `zxcvbn` and refused all three common passwords `sv` tries. Before its last sentence, which names `zxcvbn`, 8 of 10: every build wrote its list from memory. No harm. Shown by the owner's decision of 7 October 2026 (`docs/prompts/library-trial/sentences.md`).
 
 ## Not yet shown to work
 
@@ -221,14 +229,6 @@ check the result with `sv` as you would anything else.
 *Requirements:* ASVS V2.4.1, V6.3.1.
 
 *Not tested:* No reading by the trial's rule (7 October 2026, Haiku 4.5): without the prompt the problem was there in 4 of the 5 builds `sv` could sign in to, one short of the five the rule needs; with it in 1 of 6. Builds 1, 4 and 7 each wrote the limits into `security-notes.md` (`docs/prompts/library-trial/revision.md`).
-
-### Refuse short and common passwords, and keep each one exactly as typed
-
-> When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each. Rather than writing the list of common passwords yourself, use one a maintained package ships: in Python, `zxcvbn` (pinned, as `zxcvbn==4.5.0`), refusing a password it scores below 2; it knows tens of thousands of common passwords and keyboard patterns, far more than a list written from memory.
-
-*Requirements:* ASVS V6.2.1, V6.2.4, V6.2.8.
-
-*Not tested:* Not shown (7 October 2026, Sonnet 5.5, the recipe brief): a common password accepted in 10 of 10 builds without the prompt and 8 of 10 with it. Every build with it wrote a common-password list, from memory; `sv` tries one word, and the two lists that held it passed. Its last sentence, naming `zxcvbn`, was added from that trial and is not yet tried (`docs/prompts/library-trial/recipe.md`).
 
 ### Accept changes only from the app's own pages
 

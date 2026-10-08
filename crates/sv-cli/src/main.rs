@@ -101,8 +101,18 @@ fn run() -> Result<i32> {
     match command.name {
         "init" => {
             println!("{}", spec::STARTER_MANIFEST);
-            println!("{}", spec::INSTRUCTIONS);
-            print!("{}", prompts_at_start());
+            if stdout_is_a_file() {
+                // `sv init > securevibe.toml`: the instructions after the starter file are prose,
+                // and would make the file one `sv` cannot read (gap analysis 5.3).
+                eprintln!(
+                    "Wrote only the starter securevibe.toml, because the output went into a file. \
+                     The instructions for your AI coding tool were left out: run `sv init` \
+                     without `>` to read them, or let your AI coding tool call securevibe_spec."
+                );
+            } else {
+                println!("{}", spec::INSTRUCTIONS);
+                print!("{}", prompts_at_start());
+            }
             Ok(exit::CLEAN)
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
@@ -1678,7 +1688,26 @@ fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
     ));
     let (admin_pages, private_files) = more_questions(plan);
     requests.extend(sv_check::running::requests(&admin_pages, &private_files));
+    requests.extend(probes::error_requests(
+        &plan.health_path,
+        &body_routes(plan.users.as_ref()),
+    ));
     requests
+}
+
+/// The routes securevibe.toml names that read a body, as `(method, path)`: where a body that does
+/// not parse is sent, signed out, to see the app's error answers (ADR-056).
+fn body_routes(users: Option<&sv_manifest::UsersSection>) -> Vec<(String, String)> {
+    let Some(users) = users else {
+        return Vec::new();
+    };
+    users
+        .signup
+        .iter()
+        .chain(users.login.iter())
+        .chain(users.owned.iter().map(|o| &o.create))
+        .map(|t| (t.method.clone(), t.path.clone()))
+        .collect()
 }
 
 /// The admin pages securevibe.toml names, and the files in the app's folder that should never be
@@ -1854,6 +1883,9 @@ fn cmd_run(args: &[String]) -> Result<i32> {
             println!("\nNot assessed by these probes:");
             for (requirements, why) in probes::unassessed_requirements(outcome.signed_in.is_some())
             {
+                println!("  {requirements} — {why}");
+            }
+            if let Some((requirements, why)) = probes::error_answer_gap(&outcome.probe_responses) {
                 println!("  {requirements} — {why}");
             }
             for (requirements, why) in &signed_in_not_assessed {
@@ -2216,7 +2248,15 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     // when it is not. A document cannot be both an incomplete list and a good inventory.
     let mut passed = config.passed.clone();
     passed.extend(sbom::completeness_verified(&bill_of_materials));
-    if !passed.is_empty() {
+    if !passed.is_empty() && gaps.read_nothing() {
+        // A check that found nothing in no files is not one that found the app fine.
+        println!(
+            "\nNothing is listed as checked and fine: no file of the app was read, so the {} check{} \
+             that found nothing had nothing to look in.",
+            passed.len(),
+            if passed.len() == 1 { "" } else { "s" }
+        );
+    } else if !passed.is_empty() {
         println!("\nChecked and fine:");
         for claim in &passed {
             println!("  {} — {}", claim.check_id, claim.scope);
@@ -2242,13 +2282,14 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         if scan.findings.len() == 1 { "" } else { "s" }
     );
     for f in &scan.findings {
-        println!(
-            "\n  [{}] {}\n     {}:{}",
-            f.severity.name(),
-            f.title,
-            f.location.file,
-            f.location.line
-        );
+        // A finding about a file that is missing, such as no SECURITY.md, names the file it
+        // would be, not a line of it.
+        let place = if app_dir.join(&f.location.file).symlink_metadata().is_ok() {
+            format!("{}:{}", f.location.file, f.location.line)
+        } else {
+            format!("{} (not there)", f.location.file)
+        };
+        println!("\n  [{}] {}\n     {place}", f.severity.name(), f.title);
         if let Some(secret) = &f.secret {
             println!("     found: {}", secret.as_str());
         }
@@ -2269,6 +2310,25 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         .iter()
         .for_each(|l| println!("{l}"));
     Ok(status)
+}
+
+/// Whether standard output goes straight into a file, as with `sv init > securevibe.toml`, rather
+/// than to a terminal or a pipe.
+fn stdout_is_a_file() -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsFd;
+        std::io::stdout()
+            .as_fd()
+            .try_clone_to_owned()
+            .map(std::fs::File::from)
+            .and_then(|f| f.metadata())
+            .is_ok_and(|m| m.is_file())
+    }
+    #[cfg(not(unix))]
+    {
+        false
+    }
 }
 
 /// Writes the list of what the app ships.
@@ -2401,25 +2461,30 @@ fn cmd_audit(args: &[String]) -> Result<i32> {
 
     // No database is not a clean result, and must never be printed as one.
     let Some(dir) = advisories_dir else {
+        let mut names: Vec<&str> = sbom
+            .components
+            .iter()
+            .map(|c| c.ecosystem.as_str())
+            .collect();
+        names.sort_unstable();
+        names.dedup();
         println!(
             "Not assessed: nothing here knows which versions are known to be vulnerable.\n\n\
              `sv` does not fetch anything — the list of packages this app depends on is yours, and a\n\
-             check that quietly phones out is one you did not agree to. Download an OSV export for the\n\
-             ecosystems below, unpack it, and point at it:\n\n  \
+             check that quietly phones out is one you did not agree to. Download the OSV export for\n\
+             each ecosystem below, unpack it, and point at it:\n\n  \
              sv audit {} --advisories ./osv\n\n\
-             Ecosystems in this app: {}",
+             Ecosystems in this app: {}\n\n{}",
             app_dir.display(),
-            if sbom.components.is_empty() {
+            if names.is_empty() {
                 "none found".to_owned()
             } else {
-                let mut names: Vec<&str> = sbom
-                    .components
-                    .iter()
-                    .map(|c| c.ecosystem.as_str())
-                    .collect();
-                names.sort_unstable();
-                names.dedup();
                 names.join(", ")
+            },
+            if names.is_empty() {
+                String::new()
+            } else {
+                advisories::how_to_download(&names, "osv")
             }
         );
         return Ok(exit::NOT_ASSESSED);
@@ -3581,8 +3646,23 @@ fn assemble_report_saying(
                 why: format!(
                     "{} `sv` does not fetch anything, because the list of packages an app depends \
                      on is yours: download an OSV export for this app's ecosystems, unpack it, and \
-                     pass its folder with --advisories.",
-                    options.why_no_advisories
+                     pass its folder with --advisories.{}",
+                    options.why_no_advisories,
+                    {
+                        let mut names: Vec<&str> = bill_of_materials
+                            .components
+                            .iter()
+                            .map(|c| c.ecosystem.as_str())
+                            .collect();
+                        names.sort_unstable();
+                        names.dedup();
+                        names
+                            .iter()
+                            .filter_map(|n| {
+                                advisories::osv_download(n).map(|url| format!(" {n}: {url}."))
+                            })
+                            .collect::<String>()
+                    }
                 ),
             })
         }
@@ -3918,6 +3998,14 @@ fn assemble_report_saying(
                     gaps.push(sv_report::Gap {
                         what: format!("{requirements}, by asking the running app"),
                         why: why.to_owned(),
+                    });
+                }
+                if let Some((requirements, why)) =
+                    probes::error_answer_gap(&outcome.probe_responses)
+                {
+                    gaps.push(sv_report::Gap {
+                        what: format!("{requirements}, by asking the running app"),
+                        why,
                     });
                 }
                 match &outcome.tests {
@@ -5349,12 +5437,25 @@ fn cmd_report(args: &[String]) -> Result<i32> {
             sv_report::threats::count_line(&report.threats)
         );
     }
+    let gaps = report_gaps(&report, run_tools, advisories_given);
+    let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
+    // What was asked for and did not all run is said here whatever the exit status: by default it
+    // does not change the status (ADR-029), and a run that ends quietly reads as one where it ran.
+    let unsaid: Vec<&String> = gaps
+        .partly
+        .iter()
+        .filter(|g| !reasons.iter().any(|r| r.starts_with(g.as_str())))
+        .collect();
+    if !unsaid.is_empty() {
+        println!("\nAsked for, and not all of it ran (the reports say the same):");
+        for gap in unsaid {
+            println!("  {gap}");
+        }
+    }
     println!(
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
-    let gaps = report_gaps(&report, run_tools, advisories_given);
-    let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
     exit::explain(status, &reasons)
         .iter()
         .for_each(|l| println!("{l}"));
@@ -5753,6 +5854,35 @@ fn shown_files(files: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bad_body_goes_to_the_routes_the_manifest_names() {
+        // ADR-056: the routes that read a body are where the app's code can be made to fail.
+        let example = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/notes-with-users/securevibe.toml");
+        let manifest = sv_manifest::Manifest::load(&example).expect("the example loads");
+        let users = manifest.stack.run.users.as_ref().expect("it has users");
+        let routes = body_routes(Some(users));
+        let login = users.login.as_ref().expect("it signs in");
+        assert!(
+            routes.contains(&(login.method.clone(), login.path.clone())),
+            "{routes:?}"
+        );
+        let create = &users.owned.as_ref().expect("it has an owned record").create;
+        assert!(
+            routes.contains(&(create.method.clone(), create.path.clone())),
+            "{routes:?}"
+        );
+        let ids: Vec<String> = probes::error_requests("/health", &routes)
+            .into_iter()
+            .map(|r| r.id)
+            .collect();
+        assert!(
+            ids.contains(&format!("bad-body POST {}", login.path)),
+            "{ids:?}"
+        );
+        assert!(body_routes(None).is_empty());
+    }
 
     #[test]
     fn a_decisions_finding_reaches_the_reviews_and_goes_with_its_running_app_finding() {
