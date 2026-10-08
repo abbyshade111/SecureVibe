@@ -458,8 +458,8 @@ pub(crate) fn sections_with(
         }
         let mark = match p.status {
             "shown" => "shown to work",
-            "not-shown" => "not tested: tried, and not shown to work",
-            _ => "not tested: not tried yet",
+            "not-shown" => "tried, not shown to work",
+            _ => "not tried yet",
         };
         text.push_str(&format!("- {} (`{}`, {mark})\n", p.title, p.id));
         decide

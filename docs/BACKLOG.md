@@ -8415,4 +8415,9 @@ done: `docs/adr/ADR-018.md`.
   `docs/paper/trials/make_figure.py`; `SINCE-THE-CUTOFF.md` carried on to `main` at `01b10f60`, counted there, with a
   correction of its own (11 records at `4c3c5e0`, not 12); the artifact index; and the health-tracking app's wording
   made the same everywhere.
+  **The wording inside the code done the same day** (ADR-035, Later): the specification (the app's own tests' status,
+  `--fail-on attention`, the `[data]` level, the tests-to-write list, `within-minutes`, the install step), the MCP
+  server's descriptions and instructions, the prompts' "Not tested" labels (now "Tried, not shown to work" and "Not
+  tried yet"), the help on the install step's download, and the feature briefs' settings; and the preflight now reads
+  the install step, by calling it. With that, the second review is done.
 
