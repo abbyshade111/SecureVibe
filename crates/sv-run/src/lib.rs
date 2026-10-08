@@ -510,6 +510,10 @@ pub struct RunOutcome {
     /// Whether the app was still running and answering after the anonymous questions, and again
     /// after the signed-in, sign-in-provider, and AI questions when any of those were asked (V16.5.4).
     pub liveness: Vec<sv_check::running::Liveness>,
+    /// The first request that found the container the questions are sent from gone, when one did,
+    /// and what Docker said: every request after it got no answer because nothing was there to
+    /// ask, not because the app was silent (ADR-025, Later, 8 October 2026).
+    pub sidecar_lost: Option<String>,
     /// The packages installed before the run (ADR-052), and whether each came from an earlier
     /// run's download. Empty when `install` was not asked for.
     pub installed: Vec<(install::Ecosystem, bool)>,
@@ -1042,7 +1046,7 @@ mod tests {
         );
         // And the seed comes after the anonymous questions, which see the app as a stranger.
         let anonymous = script
-            .find("ask_anonymously(")
+            .find("ask_anonymously_within(")
             .expect("the anonymous questions");
         let seeded = script.find("services.seed(Target::App").unwrap();
         assert!(
