@@ -274,6 +274,8 @@ another session is not a claim.
      not read every file it was given" check (`unread_files`) which of them a loaded rule reads, so a template no
      rule reads is not called unread. Changes what `sv` gives an outside tool: ADR-018, Later. Added 7 October 2026
      when the first half was built.
+     **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
+     in `crates/sv-check/tests/unread_files.rs`.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
