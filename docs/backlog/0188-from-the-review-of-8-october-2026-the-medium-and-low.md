@@ -34,6 +34,15 @@ high were built the same day (the entry above this one's predecessor). Each of t
    `sitecustomize.py`: test it the ADR-032 way with a planted `preinstall` and `sitecustomize.py`. gosec,
    Brakeman, and CodeQL walk the folder themselves and follow links `sv` refuses: skip them when `listing.links`
    is non-empty, or list the links in `looked_away`.
+   **Claimed 8 October 2026 by session securevibe-review**, from the roadmap (Phase 1, item 1, fourth in its order;
+   the first three are done or claimed), in branch `claude/securevibe-review-tools-fence`: gosec is started with
+   `GOPROXY=off` and `CGO_ENABLED=0`, so it neither downloads the app's modules nor runs a C compiler, and a run that
+   could not load the app's packages for want of them is said to be one; the three tools given the folder rather
+   than the files (gosec, Brakeman, CodeQL) are not run while the app holds a link, with the links named, since
+   each would follow it out of the app; and CodeQL's extractors are tried against a planted `preinstall` and
+   `sitecustomize.py` the ADR-032 way where `codeql` is installed. Changes what the tools may run and fetch, and when
+   they run: a Later entry on ADR-032. Confirmed on `main` just before this claim: gosec's `env` is empty,
+   `adapters.rs` reads `listing.links` nowhere, and no other session had claimed this part.
 4. A planted `.securevibe-report` marker lets `securevibe_write_report` replace five named files in any app
    subfolder (`main.rs`, `refuse_someone_elses_folder`: a marker alone counts for writing). Require
    `is_sv_output` or a proven seal, else "give an empty folder".
