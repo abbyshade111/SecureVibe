@@ -1194,6 +1194,88 @@ pub(super) const RESET_REQUEST: AskedAbout<'static> = AskedAbout {
     what: "A reset request",
 };
 
+/// Whether a second sign-up with an address that has an account takes that account (V6.2.3).
+///
+/// An account is made for it, never A's or B's, and shown to work: its password opens the private
+/// page. Then the same address signs up again with another password, and both passwords are tried.
+/// The new one opening the page is the finding: the second sign-up changed the account's password
+/// without the current one, which is what a password change must ask for. Only ever a finding: the
+/// old password still working, and the new one refused, shows nothing about the app's own password
+/// change. Without a sign-up, or a private page to tell a working sign-in by, it does not run.
+pub(super) fn signup_replaces_account_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    confirm: Option<&str>,
+    out: &mut Outcome,
+) {
+    let (Some(signup), Some(confirm)) = (users.signup.as_ref(), confirm) else {
+        return;
+    };
+    let spare: String = accounts.b.password.chars().take(12).collect();
+    let first = Account {
+        user: format!("resignup.{}", accounts.a.user),
+        password: format!("R1-{spare}-1aZ!"),
+    };
+    let second = Account {
+        user: first.user.clone(),
+        password: format!("R2-{spare}-1aZ!"),
+    };
+    sign_up(http, users, signup, "resignup-1", &first);
+    if !account_works(http, users, "resignup-1", &first, confirm, &mut out.steps) {
+        out.steps.push(format!(
+            "made an account, {}, to sign up with again: it did not sign in, so the second sign-up \
+             was not tried",
+            first.user
+        ));
+        return;
+    }
+    let answer = sign_up(http, users, signup, "resignup-2", &second);
+    let status = answer.as_ref().map_or(0, |r| r.status);
+    let new_works = account_works(
+        http,
+        users,
+        "resignup-new",
+        &second,
+        confirm,
+        &mut out.steps,
+    );
+    let old_works = account_works(http, users, "resignup-old", &first, confirm, &mut out.steps);
+    out.steps.push(format!(
+        "signed up again with {}, which has an account, and another password ({status}): the new \
+         password {}, the old one {}",
+        first.user,
+        if new_works {
+            "signed in"
+        } else {
+            "was refused"
+        },
+        if old_works {
+            "still signed in"
+        } else {
+            "was refused"
+        },
+    ));
+    if new_works {
+        out.findings.push(finding(
+            &SIGNUP_REPLACES_ACCOUNT,
+            "Signing up again with a taken address takes the account",
+            Severity::Critical,
+            format!(
+                "After an account was made through {} and shown to sign in, a second sign-up with the \
+                 same address and another password was answered {status}, and that other password then \
+                 signed in to the account{}.",
+                signup.path,
+                if old_works {
+                    ", beside the old one"
+                } else {
+                    " in place of the old one"
+                }
+            ),
+        ));
+    }
+}
+
 /// The sign-up a run asked, as `reveals_account_check` names it.
 const SIGN_UP_WITH_A_TAKEN_ADDRESS: AskedAbout<'static> = AskedAbout {
     rule: &SIGNUP_REVEALS_ACCOUNT,

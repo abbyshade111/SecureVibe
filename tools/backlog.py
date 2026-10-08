@@ -56,7 +56,7 @@ FOLDER = ROOT / "docs" / "backlog"
 BACKLOG = ROOT / "docs" / "BACKLOG.md"
 
 NAME = re.compile(r"^(\d{4})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$")
-STATUS = re.compile(r"^\*\*Status:\*\* (?P<text>.+?)\s*$", re.M)
+STATUS = re.compile(r"^\*\*Status:\*\* (?P<text>.+?)[ \t]*$", re.M)
 FORMS = re.compile(r"^(open|claimed by [^,\n]+, \S.*|done, \S.*|partly done: \S.*)$")
 ITEM = re.compile(r"(?=^- (?:~~)?\*\*)", re.M)
 TITLE = re.compile(r"^- (?:~~)?\*\*(.*?)\*\*(?:~~)?", re.S)
@@ -245,7 +245,7 @@ def move(source, folder):
                     differing.append((title, item.path))
                 else:
                     head = item.text[: len(item.text) - len(item.body)]
-                    item.path.write_text(head + "\n" + merged.strip("\n") + "\n", encoding="utf-8")
+                    item.path.write_text(head.rstrip("\n") + "\n\n" + merged.strip("\n") + "\n", encoding="utf-8")
                     carried_into.append(item.path)
             continue
         number += 1
@@ -376,6 +376,8 @@ rules
         assert claim(folder, "1", "beta", "9 October 2026") is True
         assert claim(folder, "3", "gamma", "9 October 2026") is False
         assert mark_done(folder, "1", "9 October 2026", None) is True and find(folder, "1").kind == "done"
+        # The blank line after the status stays: `\s*` once ate the line's own newline and joined the two.
+        assert "**Status:** done, 9 October 2026\n\nNothing" in find(folder, "1").path.read_text(encoding="utf-8")
         assert mark_done(folder, "8", "9 October 2026", "the tail") is True
         assert find(folder, "8").status_text == "partly done: the tail"
         # new, and the checks.

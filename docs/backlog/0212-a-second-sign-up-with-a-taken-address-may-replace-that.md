@@ -1,6 +1,6 @@
 # A second sign-up with a taken address may replace that account's password
 
-**Status:** open
+**Status:** done, 8 October 2026
 
 Found on 8 October 2026 by session
 securevibe-e9 while building 13(c) through sign-up: the fake app the signed-in tests use answers a sign-up for an
@@ -15,3 +15,6 @@ and new password"): a sign-up that replaces an account's password is a password 
 requirement names sign-up itself, and V6.3.8 is about telling accounts apart, not taking them. Only ever a finding:
 the old password still working shows nothing about the app's own password change. The fake app's sign-up will keep
 accounts apart by default, with the replacing behavior behind a switch of its own.
+**Done 8 October 2026** (session securevibe-e9): `probe.signup-replaces-account`, a critical finding citing V6.2.3
+when signing up again with a taken address gives that account the new password; the fake app keeps accounts apart by
+default. Design entry `docs/design/0304-a-second-sign-up-that-takes-a-taken-account-8-october-2026.md`.
