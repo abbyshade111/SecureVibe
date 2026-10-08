@@ -139,6 +139,10 @@ another session is not a claim.
      `claude/securevibe-e9-templates`: notebooks read as Python; templates embedding a general-purpose language named
      as unread code; logic-free templates read as pages; `.sql` named and holding nothing back. **`Status: proposed`:
      ADR-054.** Reading Astro's header and EJS's blocks is a second pull request.
+     **The second pull request claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"; the
+     owner approved it with item 14 on 7 October), in branch `claude/securevibe-e9-astro-ejs`: Astro's `---` header read
+     as TypeScript and its markup as a page; EJS's `<% %>`, `<%= %>`, and `<%- %>` blocks read as JavaScript at their
+     own lines. A file whose code is not all taken out stays unread. Recorded as a "Later" entry on ADR-054.
      **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
      tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
      Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
@@ -245,6 +249,9 @@ another session is not a claim.
      **Claimed on 7 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
      backlog"), in branch `claude/securevibe-e2-hand-instructions`: the ten ASVS requirements named, first; the AISVS
      ones after, as far as they go.
+     **Done the same day** (DESIGN, "Hand instructions for requirements nobody was told how to check"): all ten ASVS
+     requirements, and the 16 AISVS level 1 ones in C2, C7, C9, and C10 with no instruction, in
+     `data/human-checks.json`, each held by a test.
   30. **The fence tests pass without testing the fence when there is no container backend.** (`docs/GAP-ANALYSIS.md`,
      7.2.) `SV_REQUIRE_BACKEND=1`, set in `rust.yml`, turns each test's "no container backend here" branch into a
      failure, so a broken Docker on the runner turns CI red.
@@ -252,6 +259,7 @@ another session is not a claim.
      the backlog whenever you're ready"), in branch `claude/securevibe-e9-require-backend`: one test that, with
      `SV_REQUIRE_BACKEND=1`, fails when no container backend answers, and `rust.yml` setting it for the test job, so the
      38 "no container backend here" branches can no longer all pass on a runner whose Docker broke.
+     **Done the same day** (DESIGN, "CI requires a container backend"; ADR-051, Later, 7 October 2026).
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
@@ -7877,3 +7885,26 @@ done: `docs/adr/ADR-018.md`.
   builds, then an arm for each prompt whose problem the baseline found in at least 5 of 10, by the rule fixed in
   `docs/prompts/library-trial/recipe-protocol.md`. **Claimed on 7 October 2026 by session paper-facts**, in branch
   `claude/recipe-trial`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (`docs/prompts/library-trial/recipe.md`): 40 builds, $18.09. `production-server` shown on
+  Sonnet (5 of 10, then 0 of 9) and marked shown by the owner; `password-rules` not shown (10 of 10, then 8 of 10);
+  six prompts no reading, done right unprompted; four not reached by their checks. The install step worked for every
+  Sonnet app; Haiku's apps mostly did not start, as its builders could not try a Flask app they could not install.
+
+- **`probe.cors-any-origin` asks only the health path.** Found on 7 October 2026 by session paper-facts, in the recipe
+  trial: the stranger `Origin` goes to `/` alone (`crates/sv-check/src/probes.rs`, the `cors` request), so a JSON API
+  that lets any site read it, the case the check exists for, is never asked. Ask the app's listed private pages and
+  API addresses too, signed in where they need it.
+- **`probe.common-password-accepted` rests on one word.** Found on 7 October 2026 by session paper-facts, in the recipe
+  trial: it tries `123qweasdzxc` alone, so a list written from memory passes when it happens to hold that word (one of
+  443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
+  credit in part (ADR-053).
+- **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
+  trial: of 10 Sonnet apps, 8 did not list their return-address pages under `redirects`, 7 did not declare their upload,
+  and only one listed its search page with a term, so those checks did not reach what the brief tempted. The
+  specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
+- **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
+  its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install
+  step can give the app).
+- **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
+  faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
+  own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.

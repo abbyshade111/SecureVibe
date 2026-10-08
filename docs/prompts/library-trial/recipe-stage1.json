@@ -1,0 +1,406 @@
+{
+ "arms": [
+  [
+   "sonnet",
+   "password-rules"
+  ],
+  [
+   "sonnet",
+   "production-server"
+  ]
+ ],
+ "prompts": {
+  "password-rules@haiku": {
+   "asked": 1,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "password-hashing@haiku": {
+   "asked": 8,
+   "problem": 1,
+   "arm": false,
+   "with_problem": [
+    "haiku-none-9"
+   ]
+  },
+  "same-site-redirects@haiku": {
+   "asked": 1,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "sanitize-rich-text@haiku": {
+   "asked": 8,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "check-every-request@haiku": {
+   "asked": 1,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "changes-from-own-pages@haiku": {
+   "asked": 1,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "database-placeholders@haiku": {
+   "asked": 2,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "files-under-own-names@haiku": {
+   "asked": 1,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "no-shell-with-input@haiku": {
+   "asked": 8,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "cross-site-access@haiku": {
+   "asked": 2,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "plain-error-pages@haiku": {
+   "asked": 2,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "production-server@haiku": {
+   "asked": 2,
+   "problem": 2,
+   "arm": false,
+   "with_problem": [
+    "haiku-none-4",
+    "haiku-none-5"
+   ]
+  },
+  "password-rules@sonnet": {
+   "asked": 10,
+   "problem": 10,
+   "arm": true,
+   "with_problem": [
+    "sonnet-none-1",
+    "sonnet-none-2",
+    "sonnet-none-3",
+    "sonnet-none-4",
+    "sonnet-none-5",
+    "sonnet-none-6",
+    "sonnet-none-7",
+    "sonnet-none-8",
+    "sonnet-none-9",
+    "sonnet-none-10"
+   ]
+  },
+  "password-hashing@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "same-site-redirects@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "sanitize-rich-text@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "check-every-request@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "changes-from-own-pages@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "database-placeholders@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "files-under-own-names@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "no-shell-with-input@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "cross-site-access@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "plain-error-pages@sonnet": {
+   "asked": 10,
+   "problem": 0,
+   "arm": false,
+   "with_problem": []
+  },
+  "production-server@sonnet": {
+   "asked": 10,
+   "problem": 5,
+   "arm": true,
+   "with_problem": [
+    "sonnet-none-1",
+    "sonnet-none-2",
+    "sonnet-none-4",
+    "sonnet-none-7",
+    "sonnet-none-9"
+   ]
+  }
+ },
+ "builds": {
+  "haiku": [
+   {
+    "build": "haiku-none-1",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-2",
+    "wrote_app": false,
+    "report": false,
+    "unreadable": false,
+    "has_requirements": false,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-3",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-4",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-5",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "haiku-none-6",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": true,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-7",
+    "wrote_app": true,
+    "report": false,
+    "unreadable": true,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-8",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-9",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": true,
+    "started": false,
+    "signed_in": false
+   },
+   {
+    "build": "haiku-none-10",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": false,
+    "signed_in": false
+   }
+  ],
+  "sonnet": [
+   {
+    "build": "sonnet-none-1",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-2",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-3",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-4",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-5",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-6",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-7",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-8",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-9",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   },
+   {
+    "build": "sonnet-none-10",
+    "wrote_app": true,
+    "report": true,
+    "unreadable": false,
+    "has_requirements": true,
+    "install_refused": false,
+    "install_failed": false,
+    "started": true,
+    "signed_in": true
+   }
+  ]
+ }
+}

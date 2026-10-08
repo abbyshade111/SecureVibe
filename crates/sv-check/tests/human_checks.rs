@@ -309,3 +309,27 @@ fn the_live_sites_ciphers_are_left_to_a_scanner_the_owner_runs() {
     // The control: V12.1.1, which `sv probe` does ask about, is not left to a scanner here.
     assert!(!checks.checks.iter().any(|c| c.id == "V12.1.1"));
 }
+
+#[test]
+fn the_requirements_the_gap_analysis_named_have_instructions() {
+    // Gap analysis 6.4 (7 October 2026): requirements no check settles, and nobody was told how to
+    // check by hand. Each now has a line in one of the three catalogs, and losing one is caught here.
+    let named = [
+        "V2.2.1", "V1.3.3", "V1.3.5", "V1.3.8", "V6.5.2", "V6.5.3", "V8.4.1", "V11.6.1", "V13.3.2",
+        "V16.3.4", "C2.1.1", "C2.1.2", "C2.1.4", "C2.1.5", "C2.2.1", "C2.2.2", "C7.4.1", "C7.4.2",
+        "C9.1.1", "C9.2.1", "C9.3.1", "C10.1.1", "C10.2.2", "C10.2.3", "C10.3.1", "C10.3.2",
+    ];
+    let explained: BTreeSet<String> = human()
+        .checks
+        .iter()
+        .map(|c| c.id.clone())
+        .chain(notes().sections.iter().map(|s| s.id.clone()))
+        .chain(design().questions.iter().map(|q| q.id.clone()))
+        .collect();
+    let missing: Vec<&str> = named
+        .iter()
+        .copied()
+        .filter(|id| !explained.contains(*id))
+        .collect();
+    assert!(missing.is_empty(), "no instruction for {missing:?}");
+}

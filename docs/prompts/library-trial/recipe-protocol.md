@@ -70,4 +70,16 @@ the credit balance before each stage.
 
 ## Amendments
 
-None yet.
+1. **7 October 2026, while scoring stage 1: "asked" for a check that needs the feature listed.** The scorer counted a
+   signed-in check as asked whenever `sv` signed in. Some checks reach their feature only when securevibe.toml lists
+   it (`redirects`, `upload`, a search page with a term) or only at one address (`probe.cors-any-origin` asks `/`
+   alone). Read by hand, four prompts' checks did not reach the feature the brief tempts in most builds, and they are
+   reported as "not reached", not as 0 of 10. No arm could come from a check that did not run, so stage 2's arms are
+   unchanged.
+2. **7 October 2026, during stage 2: the cost guard, and going on.** The `password-rules` arm averaged $0.65 a build,
+   over the $0.60 guard, which was set from Haiku's costs; the run stopped before the `production-server` arm, as this
+   protocol says. The owner chose to go on with the guard at $0.80 for that arm ("Run it, guard at $0.80"). The ten
+   `password-rules` builds were checked as they were.
+3. **7 October 2026, while scoring stage 2: no verdict from nothing.** With the run stopped, the stage 2 scorer first
+   printed "shown" from 0 of 0 builds asked. Corrected before any result was reported: an arm none of whose builds
+   could be asked is "not scored".

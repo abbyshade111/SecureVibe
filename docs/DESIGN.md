@@ -3542,6 +3542,28 @@ about whether it reaches the reader. Dropping it on the way into the row was cau
 so was never printing it. **A guard on the input is not a guard on the output**, and both ends now
 have one.
 
+## Hand instructions for requirements nobody was told how to check (7 October 2026)
+
+The gap analysis (`docs/GAP-ANALYSIS.md`, 6.4) listed requirements that no check settles and that no catalog told
+anybody how to check by hand. `data/human-checks.json` now has a line for each, 26 in all, written for somebody who is
+not a programmer: what to go and do, and what counts as the wrong answer.
+
+- **ASVS:** V2.2.1 (input checked against what the app expects), V1.3.3, V1.3.5, V1.3.8, V6.5.2, V6.5.3, V8.4.1,
+  V11.6.1, V13.3.2, and V16.3.4. An instruction that only applies to some apps says when it does not apply. V1.3.8 is
+  for Java only, and V8.4.1 for an app that keeps separate organizations apart. Where `sv check` already finds part of
+  the requirement (V6.5.3, V13.3.2), the line says so and covers the rest.
+- **AISVS level 1, in C2, C7, C9, and C10:** input normalization, disguised instructions, input that is too long,
+  allowed characters, content screening in English and in other languages, sources for answers built from
+  documents, limits on the AI's tools, approval before high-impact actions, tools' least access, and the MCP
+  server's sources, tokens, and transport.
+- **Where they show.** Like every entry in the catalog, they reach the questions the AI coding tool asks the owner
+  (`questions_for_you`, `sv mcp`). The report's own "only you can check" list keeps leaving out a requirement a test
+  could also settle, as before: those stay on "Tests to write".
+- **Held.** The catalog's tests check each new line. It must name a real requirement at level 1 or 2, share words
+  with it, say what to do, avoid the jargon list, and not appear in another catalog. A new test,
+  `the_requirements_the_gap_analysis_named_have_instructions`, fails if any of the 26 loses its line. Removing C9.2.1
+  turned it red.
+
 ## `sv probe`: the questions only the live site can answer
 
 Some requirements are about deployment rather than code, and reading a repository will never settle
@@ -12766,6 +12788,23 @@ be named in it, where before the whole notebook was invisible and held back noth
 Tests: `crates/sv-check/tests/clean_coverage.rs` (`a_notebook_is_read_as_python_at_its_own_lines`, and the six after
 it), and `crates/sv-cli/tests/templates.rs`. Each guard was broken in turn and its test went red: line placement
 always falling back, shell lines not counted, `.ejs` read as a page, and `.ipynb` given no language.
+
+## CI requires a container backend (7 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 7.2). Thirty-eight places in twelve test files print "no container
+backend here" and take the honest-absence path, asserting that `sv` says the app was not assessed. That is the right
+test on a computer without Docker, and the wrong one on CI, where GitHub's runners have Docker: if the runner's Docker
+broke, every fence test would stay green while none of them ran the app.
+
+One test, `a_container_backend_is_here_where_ci_says_it_must_be` (`crates/sv-run/tests/fence.rs`), fails when
+`SV_REQUIRE_BACKEND=1` is set and no backend answers, naming why (`docker info` failing, or no `docker` to start);
+without the variable it says a backend is not required and passes. `rust.yml` sets it for the test job (ADR-051,
+"Later, 7 October 2026"). One test rather than thirty-eight changed branches, so the honest-absence paths stay as they
+are for everyone else.
+
+**What was verified where.** Both failing cases were run in this session's container, which has the `docker` program
+and no running daemon, and with `docker` taken off the path: each failed, naming its reason. The passing case needs a
+daemon, and is shown by the pull request's own CI run.
 
 ## Astro's header and EJS's tags read as code (8 October 2026)
 
