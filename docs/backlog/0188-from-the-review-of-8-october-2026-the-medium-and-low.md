@@ -25,6 +25,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    shows it is (`is_sv_output`), so a marker alone no longer lets a report replace files there. Confirmed on `main`
    just before this claim: `refuse_someone_elses_folder` lets any marked folder through, and no other session had
    claimed this part.
+   **Done the same day** (`docs/design/0304-a-copied-report-marker-no-longer-lets-a-report-replace-the.md`; ADR-034,
+   Later): a marked folder holding files `sv` did not write takes a report only when this computer can show, by the
+   marker's seal, that `sv` wrote the report there, rather than only when the folder holds nothing else as the claim
+   said, so a file the owner puts in a folder `sv` sealed is still kept. Not done: a folder holding only files under
+   `sv`'s names, with no marker, is still written to as an old report folder (the deep review's S5 decided that).
 5. Honesty gaps: an unreadable lockfile or unparseable manifest silently drops the manifest-versus-lockfile
    comparison (`sbom.rs:281, 437`; `manifest_lock.rs` returning `None`), so an unsaid comparison reads as
    agreement: an `unread` entry naming the file. The credit census (`tools/coverage.py`, `check_credits`) checks
