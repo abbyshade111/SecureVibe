@@ -4184,7 +4184,7 @@ mod tests {
         let rules = rules();
         let read = |name: &str, source: &str| {
             let mut scan = AstScan::default();
-            read_page(&rules, name, source, &mut scan);
+            read_page(rules, name, source, &mut scan);
             scan
         };
         let head = "---\nimport Card from './Card.astro';\nconst items: string[] = [];\n";
@@ -4283,7 +4283,7 @@ mod tests {
         let rules = rules();
         let read = |name: &str, source: &str| {
             let mut scan = AstScan::default();
-            read_page(&rules, name, source, &mut scan);
+            read_page(rules, name, source, &mut scan);
             scan
         };
         let script = "<script>\n  let count = 0;\n</script>\n";
@@ -4431,18 +4431,26 @@ mod tests {
         }
     }
 
-    fn rules() -> AstRules {
-        AstRules::load(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/ast-rules.json"))
+    /// The rules, loaded once for the whole test binary: each query is compiled the first time a
+    /// test needs it and kept, where loading them anew for every case made the 46 tests here spend
+    /// most of their time compiling the same queries again (8 October 2026).
+    fn rules() -> &'static AstRules {
+        static RULES: std::sync::OnceLock<AstRules> = std::sync::OnceLock::new();
+        RULES.get_or_init(|| {
+            AstRules::load(
+                &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/ast-rules.json"),
+            )
             .expect("rules load")
+        })
     }
 
     fn scan(language: &str, source: &str) -> Vec<Finding> {
-        scan_file(&rules(), language, &format!("src/app.{language}"), source)
+        scan_file(rules(), language, &format!("src/app.{language}"), source)
     }
 
     /// The one finding `rule` makes in `source`, read as `file`.
     fn only_finding(rule: &str, language: &str, file: &str, source: &str) -> Finding {
-        let found: Vec<Finding> = scan_file(&rules(), language, file, source)
+        let found: Vec<Finding> = scan_file(rules(), language, file, source)
             .into_iter()
             .filter(|f| f.rule_id == rule)
             .collect();
@@ -4486,7 +4494,7 @@ mod tests {
         ];
         for body in typed {
             let found: Vec<Finding> =
-                scan_file(&rules(), "python", "app.py", &format!("{head}{body}"))
+                scan_file(rules(), "python", "app.py", &format!("{head}{body}"))
                     .into_iter()
                     .filter(|f| f.rule_id == rule)
                     .collect();
@@ -4520,7 +4528,7 @@ mod tests {
             for (file, text) in files {
                 std::fs::write(dir.join(file), text).unwrap();
             }
-            let scan = scan_dir(&rules(), &dir);
+            let scan = scan_dir(rules(), &dir);
             std::fs::remove_dir_all(&dir).ok();
             let found: Vec<Finding> = scan
                 .findings
@@ -4718,7 +4726,7 @@ mod tests {
         }
         // Checked by one function in one place and another in another: both are named.
         let both = "def done():\n    next_url = safe_next(request.args.get('next'))\n    return redirect(next_url)\n\ndef other():\n    next_url = clean_url(request.args.get('next'))\n    return redirect(next_url)\n";
-        let found: Vec<Finding> = scan_file(&rules(), "python", "app.py", &format!("{head}{both}"))
+        let found: Vec<Finding> = scan_file(rules(), "python", "app.py", &format!("{head}{both}"))
             .into_iter()
             .filter(|f| f.rule_id == rule)
             .collect();
@@ -4738,7 +4746,7 @@ mod tests {
         ];
         for body in unchecked {
             let found: Vec<Finding> =
-                scan_file(&rules(), "python", "app.py", &format!("{head}{body}"))
+                scan_file(rules(), "python", "app.py", &format!("{head}{body}"))
                     .into_iter()
                     .filter(|f| f.rule_id == rule)
                     .collect();
@@ -5109,7 +5117,7 @@ mod tests {
         // Objective-C is read by `sv-scan` — it counts towards what an app is written in, through
         // `.m`/`.mm` — and has no grammar here, which is the combination that has to stay silent
         // rather than guess.
-        assert!(scan_file(&rules(), "objc", "app.m", "system(argv[1]);").is_empty());
+        assert!(scan_file(rules(), "objc", "app.m", "system(argv[1]);").is_empty());
         assert!(!is_supported("objc"));
         assert!(is_supported("python") && is_supported("typescript") && is_supported("cpp"));
     }
@@ -5155,7 +5163,7 @@ mod tests {
                 "ast.unsafe-deserialization",
             ),
         ] {
-            let findings = scan_file(&rules(), language, file, source);
+            let findings = scan_file(rules(), language, file, source);
             assert!(
                 ids(&findings).contains(&expected),
                 "{language}: expected {expected}, got {:?}",
@@ -5169,12 +5177,12 @@ mod tests {
         // The backtick form has no method name to match, so it is its own pattern. `ls` cannot be
         // made to run anything else; `ls #{dir}` can, and the literal check is what tells them
         // apart — the same rule the rest of this file runs on.
-        let dangerous = scan_file(&rules(), "ruby", "app.rb", "`ls #{params[:dir]}`");
+        let dangerous = scan_file(rules(), "ruby", "app.rb", "`ls #{params[:dir]}`");
         assert!(
             ids(&dangerous).contains(&"ast.shell-command-backticks"),
             "{dangerous:?}"
         );
-        let fixed = scan_file(&rules(), "ruby", "app.rb", "`ls -la`");
+        let fixed = scan_file(rules(), "ruby", "app.rb", "`ls -la`");
         assert!(
             !ids(&fixed).contains(&"ast.shell-command-backticks"),
             "a fixed command cannot be made to run anything else: {fixed:?}"
@@ -5378,7 +5386,7 @@ mod tests {
         let extracted = html_fragments(page);
         assert!(extracted.left_behind.is_none(), "{extracted:?}");
         let fragment = &extracted.fragments[0];
-        let findings = scan_file(&rules(), fragment.language, "index.html", &fragment.code);
+        let findings = scan_file(rules(), fragment.language, "index.html", &fragment.code);
         assert_eq!(ids(&findings), vec!["ast.dynamic-code-execution"]);
         assert_eq!(findings[0].location.line + fragment.line_offset, 3);
     }
@@ -5391,7 +5399,7 @@ mod tests {
         let extracted = html_fragments(page);
         assert_eq!(extracted.fragments.len(), 1);
         let fragment = &extracted.fragments[0];
-        let findings = scan_file(&rules(), fragment.language, "index.html", &fragment.code);
+        let findings = scan_file(rules(), fragment.language, "index.html", &fragment.code);
         assert_eq!(ids(&findings), vec!["ast.dynamic-code-execution"]);
         assert_eq!(
             findings[0].location.line + fragment.line_offset,
@@ -5446,7 +5454,7 @@ mod tests {
                 "ast.sql-built-by-hand",
             ),
         ] {
-            let findings = scan_file(&rules(), language, file, source);
+            let findings = scan_file(rules(), language, file, source);
             assert!(
                 ids(&findings).contains(&expected),
                 "{language}: expected {expected}, got {:?}",
@@ -5463,7 +5471,7 @@ mod tests {
         // instead would report an escaped `\$`, which leaves two of them either side of an
         // `escape_sequence`.
         let built = scan_file(
-            &rules(),
+            rules(),
             "kotlin",
             "App.kt",
             "fun f(n: String) { db.execSQL(\"select * from t where n = $n\") }",
@@ -5474,7 +5482,7 @@ mod tests {
         );
 
         let escaped = scan_file(
-            &rules(),
+            rules(),
             "kotlin",
             "App.kt",
             "fun f() { db.execSQL(\"select * from prices where label = 'cost \\$5'\") }",
@@ -5485,7 +5493,7 @@ mod tests {
         );
 
         let plain = scan_file(
-            &rules(),
+            rules(),
             "kotlin",
             "App.kt",
             "fun f() { db.execSQL(\"select 1\") }",
@@ -5498,7 +5506,7 @@ mod tests {
         // `Deserialize` is what every JSON library is called with. Only the receiver makes it the
         // dangerous one, and reporting the safe case would teach somebody to skip the rule.
         let safe = scan_file(
-            &rules(),
+            rules(),
             "csharp",
             "App.cs",
             "class A { void F() { JsonSerializer.Deserialize(body); } }",
@@ -5516,7 +5524,7 @@ mod tests {
         // Missing this reports every PHP query built the most natural way as a constant, which is
         // the case the rule exists for.
         let built = scan_file(
-            &rules(),
+            rules(),
             "php",
             "app.php",
             "<?php $db->query(\"select * from t where n = $name\");",
@@ -5526,7 +5534,7 @@ mod tests {
             "an interpolated PHP string is a built string: {built:?}"
         );
         let fixed = scan_file(
-            &rules(),
+            rules(),
             "php",
             "app.php",
             "<?php $db->query(\"select * from t where n = ?\");",
@@ -5732,7 +5740,7 @@ mod tests {
                 parses_cleanly(language, code),
                 "the fixture must parse, or a pass proves nothing: {code}"
             );
-            let found = ids(&scan_file(&rules(), language, file, code)).contains(&sql);
+            let found = ids(&scan_file(rules(), language, file, code)).contains(&sql);
             if found != *expected {
                 wrong.push(format!("{language}: expected {expected}: {code}"));
             }
@@ -5897,7 +5905,7 @@ mod tests {
                 parses,
                 "the fixture must parse, or a pass proves nothing: {code}"
             );
-            let found = ids(&scan_file(&rules(), language, name, code)).contains(rule);
+            let found = ids(&scan_file(rules(), language, name, code)).contains(rule);
             if found != *expected {
                 wrong.push(format!("{rule}, expected {expected}: {code}"));
             }
@@ -5910,7 +5918,7 @@ mod tests {
         // `load` is far too common a method name to report on its own. The receiver is what makes
         // it a deserialization, and over-reporting here would teach somebody to skip the rule.
         // A lower-case receiver is an `identifier`, which the query's own shape excludes.
-        let findings = scan_file(&rules(), "ruby", "app.rb", "config.load(path)");
+        let findings = scan_file(rules(), "ruby", "app.rb", "config.load(path)");
         assert!(
             !ids(&findings).contains(&"ast.unsafe-deserialization"),
             "{findings:?}"
@@ -5918,12 +5926,12 @@ mod tests {
         // A capitalized one is a `constant`, which the query does match — so only the receiver
         // pattern stops it. Without this case the pattern could be deleted and every test here
         // would still pass, because the one above was being excluded by the node kind instead.
-        let other_constant = scan_file(&rules(), "ruby", "app.rb", "Settings.load(path)");
+        let other_constant = scan_file(rules(), "ruby", "app.rb", "Settings.load(path)");
         assert!(
             !ids(&other_constant).contains(&"ast.unsafe-deserialization"),
             "a constant that is not a deserializer must not be reported: {other_constant:?}"
         );
-        let real = scan_file(&rules(), "ruby", "app.rb", "YAML.load(untrusted)");
+        let real = scan_file(rules(), "ruby", "app.rb", "YAML.load(untrusted)");
         assert!(
             ids(&real).contains(&"ast.unsafe-deserialization"),
             "{real:?}"
@@ -6983,6 +6991,27 @@ mod tests {
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithoutClaimsValidation()) }", true),
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { v := provider.Verifier(&oidc.Config{ClientID: \"my-api\", SkipClientIDCheck: false}) }", false),
         ("ast.token-audience-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc, jwt.WithAudience(\"my-api\")) }", false),
+        // A token read with its signature check switched off (gap analysis, item 11).
+        ("ast.token-signature-not-checked", "python", "claims = jwt.decode(token, options={\"verify_signature\": False})", true),
+        ("ast.token-signature-not-checked", "python", "claims = jwt.decode(token, key, options=dict(verify_signature=False))", true),
+        ("ast.token-signature-not-checked", "python", "claims = jose_jwt.decode(token, key, options={'verify_signature': False})", true),
+        ("ast.token-signature-not-checked", "python", "claims = jwt.decode(token, key, algorithms=[\"RS256\"])", false),
+        ("ast.token-signature-not-checked", "python", "claims = jwt.decode(token, key, algorithms=[\"RS256\"], options={\"verify_signature\": True})", false),
+        ("ast.token-signature-not-checked", "python", "r = requests.get(url, verify=False)", false),
+        ("ast.token-signature-not-checked", "ruby", "decoded = JWT.decode(token, nil, false)", true),
+        ("ast.token-signature-not-checked", "ruby", "decoded = JWT.decode(token, key, true, { algorithm: 'RS256' })", false),
+        ("ast.token-signature-not-checked", "ruby", "decoded = Base64.decode(text)", false),
+        ("ast.token-signature-not-checked", "csharp", "class A { void M() { var p = new TokenValidationParameters { RequireSignedTokens = false }; } }", true),
+        ("ast.token-signature-not-checked", "csharp", "class A { void M(TokenValidationParameters p) { p.RequireSignedTokens = false; } }", true),
+        ("ast.token-signature-not-checked", "csharp", "class A { void M() { var p = new TokenValidationParameters { RequireSignedTokens = true, ValidateIssuerSigningKey = true }; } }", false),
+        ("ast.token-signature-not-checked", "rust", "fn m() { let mut v = Validation::new(Algorithm::HS256); v.insecure_disable_signature_validation(); }", true),
+        ("ast.token-signature-not-checked", "rust", "fn m(t: &str) { let d = dangerous_insecure_decode::<Claims>(t); }", true),
+        ("ast.token-signature-not-checked", "rust", "fn m(t: &str) { let d = jsonwebtoken::dangerous_insecure_decode::<Claims>(t); }", true),
+        ("ast.token-signature-not-checked", "rust", "fn m(t: &str, k: &DecodingKey) { let d = decode::<Claims>(t, k, &Validation::new(Algorithm::RS256)); }", false),
+        ("ast.token-signature-not-checked", "go", "package m\nfunc f() { t, _, err := jwt.NewParser().ParseUnverified(s, &claims) }", true),
+        ("ast.token-signature-not-checked", "go", "package m\nfunc f() { t, err := jwt.Parse(s, keyFunc) }", false),
+        ("ast.token-signature-not-checked", "java", "class A { void f() { Jwts.parser().unsecured().build().parse(token); } }", true),
+        ("ast.token-signature-not-checked", "java", "class A { void f() { Jwts.parser().verifyWith(key).build().parseSignedClaims(token); } }", false),
         // Request-forgery protection switched off (gap analysis, item 11).
         ("ast.csrf-protection-off", "python", "from django.views.decorators.csrf import csrf_exempt\n\n@csrf_exempt\ndef pay(request):\n    return charge(request)", true),
         ("ast.csrf-protection-off", "python", "@app.route('/hook', methods=['POST'])\n@csrf.exempt\ndef hook():\n    return 'ok'", true),
@@ -7286,7 +7315,7 @@ mod tests {
         // query that is only a name the file does not settle is reported, but as possible.
         let rules = rules();
         let sql = |source: &str| -> Vec<Finding> {
-            scan_file(&rules, "python", "src/app.py", source)
+            scan_file(rules, "python", "src/app.py", source)
                 .into_iter()
                 .filter(|f| f.rule_id == "ast.sql-built-by-hand")
                 .collect()
@@ -7377,7 +7406,7 @@ mod tests {
         ] {
             let fires = |source: &str| {
                 ids(&scan_file(
-                    &rules,
+                    rules,
                     language,
                     &format!("src/app.{language}"),
                     source,
@@ -7410,7 +7439,7 @@ mod tests {
         let rules = rules();
         let mut wrong = Vec::new();
         for (rule, language, source, expected) in WITNESSES {
-            let findings = scan_file(&rules, language, &format!("src/app.{language}"), source);
+            let findings = scan_file(rules, language, &format!("src/app.{language}"), source);
             let found = ids(&findings).contains(rule);
             if found != *expected {
                 wrong.push(format!(

@@ -12751,6 +12751,25 @@ the short version's banned list, and the bars to their place before the tally; f
 at least one of them. At phone width the page still scrolls sideways, as it did before, because of the
 requirements table further down; the bars fit.
 
+
+### `sv dashboard`: one page for several apps (8 October 2026, ADR-057)
+
+The second step of the dashboard. `sv dashboard FOLDER... --out FILE.html` reads the `report.json` already in each
+app's `securevibe-report` folder and writes one page (`crates/sv-report/src/dashboard.rs`): a view of every app, in
+alphabetical order, with the two bars and its findings by severity, and one view per app with what was not examined,
+the two bars, its findings worst first, and a link to its full `report.html`. The views are sections shown by the
+address's `#` (CSS `:target`), so there is still no script, and the page fetches nothing.
+
+It checks nothing itself and says so; each app's part gives the date of its report, the level, what kind of run it was,
+and the `sv` that made it, so a stale report does not pass for today's. The apps are never ranked or added up. Every
+number is one the report states, and what a report says (the app's name, which the AI coding tool writes into
+`securevibe.toml`, and every finding's title) reaches the page escaped, as text. It writes only the file it is given:
+not through a link, not over a folder, not over a file without the page's own mark, and not inside an app, where the
+next check would read it as the app's code. `--out` has no default, because any default would be a place the person
+did not choose.
+
+Tried on copies of the five example apps and a folder with no report; the page in light and dark, and at phone width
+with no sideways scroll. Six deliberate breaks each failed a test (backlog, dashboard build item 2).
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
@@ -13156,6 +13175,28 @@ pieces. Nine guards broken in turn, each caught: the check not called, no name c
 counted without a key word, any token's role counted, comments read, prose read, no value shapes, a name found twice
 in one file reported twice, and a placeholder as short as `sk-your-key` taken for a key.
 
+## A token read with its signature check switched off (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.3; BACKLOG, item 11, one of its rules). Plain `sv check`, with no
+outside tool installed, had a rule for a token whose audience check is switched off (`ast.token-audience-not-checked`)
+and none for the worse case beside it: a token whose signature is never checked, so anybody can write one naming any
+user.
+
+`ast.token-signature-not-checked`, in `data/ast-rules.json`, finds the explicit switches the common libraries have for
+it: `verify_signature` false in PyJWT and python-jose, `JWT.decode` with its third argument `false` in ruby-jwt,
+`RequireSignedTokens = false` in .NET, `insecure_disable_signature_validation()` and `dangerous_insecure_decode` in Rust's
+`jsonwebtoken` (with or without a type given), `ParseUnverified` in Go's `golang-jwt`, and `unsecured()` in Java's
+`jjwt`. High severity, citing V9.1.1, and only ever a finding: finding no switch does not show every token is checked.
+
+JavaScript and TypeScript have no such switch: `jsonwebtoken`'s `jwt.decode` and `jose`'s `decodeJwt` read a token
+without checking it, which is also how a browser reads its own token, so a call cannot be told from a fault in one file.
+The rule says so for those languages rather than looking. The `none` algorithm (V9.1.2) and item 11's other rules stay
+open.
+
+Tests: twenty cases in the AST rules' table, each language's switch found and its checked form left alone, with
+`requests.get(url, verify=False)` (a TLS setting, not a token) among the safe ones. Seven guards broken in turn, each
+caught: Python's switch never matched, any `verify…` name counted, any `decode` counted in Ruby, `RequireSignedTokens =
+true` counted, Rust's `decode::<Claims>(…)` form missed, any Go `Parse…` counted, and Java's switch never matched.
 ## A hosted backend is named as out of the running app's reach (8 October 2026)
 
 From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.2; BACKLOG, item 10, its fourth and last part). An app built with
@@ -13177,6 +13218,77 @@ Tests: one in `probes.rs`. Five guards broken in turn, each caught: the line lef
 never recognized, Firebase never recognized, a package matched by a word inside its name (`supabase-mock`), and one
 service's rules named for the other. Not tested end to end: printing the line needs the app running, which needs a
 container backend this test suite does not have everywhere.
+
+## The test suite's time: five tests and a profile setting (8 October 2026)
+
+The architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October 2026", item 1)
+timed the `sv-check` unit binary one test at a time: its 1,263 tests took 1,263 s single-threaded, 531 s on four
+CPUs, of the whole suite's 896 s. The time was in five tests and a build setting. `a_crash_never_turns_a_finding_into_a_pass`
+took 405 s, since each scenario's sweep runs the whole signed-in suite once per request it crashes; four
+`signed_in::once` tests took 60 s each, since each ran the whole suite to reach one check; and the 46 `ast` tests took
+126 s, since each case loaded the rules anew and compiled every query again, in a debug build of tree-sitter.
+
+Four changes, none to what `sv` does:
+
+- **Dependencies optimized in a debug build.** `[profile.dev.package."*"] opt-level = 2` in the workspace `Cargo.toml`:
+  tree-sitter's parse tables, the regular expressions, and the hashing live in dependencies that never change between
+  test runs, and `sv`'s own crates stay unoptimized and debuggable. The first build of the dependencies takes longer
+  (about three minutes here); every build after it is as before.
+- **The rules loaded once per test binary** (`ast::tests::rules`, a `OnceLock`): the queries compile the first time a
+  test needs them and are kept.
+- **The `once` tests call `once_check` itself**, against a fake app holding the two accounts, rather than the whole
+  suite; the suite's own scenario tests still run it in its place.
+- **One CI run per pull-request commit.** `rust.yml` ran on every push and on every pull request, so a commit on a
+  pull-request branch ran the 15-minute test job twice, and branch protection waited for both. The `push` trigger is
+  now `main` only (ADR-051 unchanged: every pull-request commit and every commit on `main` is still tested).
+
+Measured here, four CPUs:
+
+| Tests | Before | After |
+|---|---|---|
+| The 46 `ast` tests | 126 s | 1.9 s |
+| The five crash-sweep tests | about 400 s on the critical path | 80 s |
+| The `sv-check` unit binary, 1,269 tests | 531 s | 92 s |
+
+The crash sweep is not changed: its scenarios already run on scoped threads, and the profile setting is what made each
+of the suite runs it needs cheaper. Not done: splitting the sweep across scenarios as well, which on four CPUs would
+gain little.
+
+## The MCP server in a folder, and one way to write a report folder (8 October 2026)
+
+The architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October 2026", item 2,
+second half) named two costs in `crates/sv-cli`. `mcp.rs` was 7,202 lines in one file, 62% of them tests, with seams
+nobody had cut. And the sequence that writes a report folder (the folder claimed, the report built, a changed manifest
+noted, an older report refused, the files written, the folder sealed, the claim released) was written out twice, in
+`cmd_report` for `sv report` and in `write_report_into` for the MCP server's `securevibe_write_report`, so a guard added
+to one and not the other was a silent difference between what the person gets at a terminal and what their AI coding
+tool gets. Each of the lock (ADR-041), the seal (ADR-034), and the refusal of an older report had been added to both by
+hand.
+
+Three changes, none to what `sv` writes:
+
+- **`mcp.rs` is the folder `mcp/`.** `mod.rs` keeps the server, its state, and the request dispatch; `protocol.rs` the
+  JSON-RPC reading and replies; `confine.rs` the path confinement below the root; `resources.rs` the report folders
+  offered as resources; `catalog.rs` the tool and prompt lists; `check_text.rs` the text of a check for the tool;
+  `report_writing.rs` the `securevibe_write_report` tool; `tools.rs` the other tools; and `tests.rs` the tests, as they
+  were. Nothing moved changed; the decision records that named `mcp.rs` name the new files.
+- **One sequence for a report folder**, `report_folder::write_report_folder`, called by `sv report` and by the MCP
+  server. What differs between the two is passed in: how the report is built, what the lock names the run, where a
+  second run is told to write instead, and what is done with what `sv` says on the way (printed before the wait at a
+  terminal, collected for the reply by the server). Its own tests show the claim is on the folder while the report is
+  being built and gone once it is written, that a report from an older run does not replace a newer one, and that a
+  build that fails leaves no folder behind. With the refusal of an older report removed on purpose, the second of these
+  failed, and no test had before: the two copies had been held together by nothing but care.
+- **One table of the five report files** (`report_files::REPORT_FILES`: each name, what kind of file it is, and how it
+  is rendered), which `write_report` writes in order, the seal covers (`report_seal::SEALED`), and the MCP server offers
+  as resources. The names were written out four times, held together by a test. `sv-scan`'s walk needs them too, to
+  leave a report folder out, and that crate cannot see `sv-cli`, so the names are its (`REPORT_FILES` in
+  `ecosystems.rs`, from which `REPORT_FOLDER_NAMES` is built) and the table in `sv-cli` is held to them by the compiler:
+  a name that differs between the two does not build.
+
+Also: `ReportOptions::reading_only(caller)` and `ReportOptions::asked_of(caller, ...)` replace the seven places that
+each wrote the three "why not run" sentences and three `false`s by hand; the MCP server writes its three sentences, which
+say what the person can do instead, over `reading_only`'s.
 
 ## Protection against forged requests switched off (8 October 2026)
 

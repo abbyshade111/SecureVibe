@@ -14,6 +14,11 @@ name: Rust
 
 on:
   push:
+    # Every commit on main (ADR-051). A commit on any other branch is tested by its pull request's
+    # run, which is the one branch protection reads; until 8 October 2026 every push to a branch
+    # also ran here, so each pull-request commit ran the 15-minute test job twice (BACKLOG, "From the
+    # architecture assessment of 8 October 2026", item 1).
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
