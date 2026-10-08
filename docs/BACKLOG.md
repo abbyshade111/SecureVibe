@@ -8359,4 +8359,9 @@ done: `docs/adr/ADR-018.md`.
   notes), the decision-record index, the CodeQL workflow's comments, the examples, and the Governs lines of ADR-044
   and ADR-045. One fault in `sv` itself was found and fixed on its own (the item above). Still to do: the wording
   inside the code (the specification, the MCP tools' descriptions, the help), and the paper.
+  **The paper done the same day**, the cut-off kept as the owner chose ("Keep the cut-off, add a new part"):
+  `docs/paper/TRIALS.md` for the nine trials, with `figure-trials.html` made from their committed results by
+  `docs/paper/trials/make_figure.py`; `SINCE-THE-CUTOFF.md` carried on to `main` at `01b10f60`, counted there, with a
+  correction of its own (11 records at `4c3c5e0`, not 12); the artifact index; and the health-tracking app's wording
+  made the same everywhere.
 

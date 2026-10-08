@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Trials</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1: #fcfcfb; --surface-2: #f3f2ee;
+    --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #77766f;
+    --grid: #e3e2dd; --shown: #2a78d6; --not: #eb6834; --none: #a3a29b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+      --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+      --shown: #3987e5; --not: #d95926; --none: #77766f;
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1: #1a1a19; --surface-2: #242320; --text-primary: #fff;
+    --text-secondary: #c3c2b7; --text-muted: #96958c; --grid: #35342f;
+    --shown: #3987e5; --not: #d95926; --none: #77766f;
+  }
+  body { margin: 0; background: var(--surface-1); }
+  .viz-root { background: var(--surface-1); color: var(--text-primary);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 24px 16px; max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  h2 { font-size: 1rem; margin: 24px 0 4px; }
+  .sub { color: var(--text-secondary); margin: 0 0 14px; font-size: .9rem; }
+  .hero { display: flex; gap: 16px; flex-wrap: wrap; margin: 0 0 12px; }
+  .stat { background: var(--surface-2); border-radius: 10px; padding: 12px 16px; flex: 1 1 150px; }
+  .stat b { display: block; font-size: 1.7rem; line-height: 1.1; }
+  .stat span { color: var(--text-secondary); font-size: .82rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: .8rem; color: var(--text-secondary); margin: 4px 0 6px; }
+  .key { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+  .key.open { box-shadow: inset 0 0 0 2px var(--text-secondary); }
+  .rows { display: grid; grid-template-columns: minmax(120px, 210px) 1fr 76px; gap: 8px 12px; align-items: center; }
+  .lab { font-size: .84rem; overflow-wrap: anywhere; }
+  .lab small { display: block; color: var(--text-muted); font-size: .74rem; }
+  .track { position: relative; height: 18px; border-left: 1px solid var(--grid); border-right: 1px solid var(--grid);
+    background: linear-gradient(to right, transparent calc(50% - .5px), var(--grid) calc(50% - .5px), var(--grid) calc(50% + .5px), transparent calc(50% + .5px)); }
+  .bar { position: absolute; top: 8px; height: 2px; }
+  .dot { position: absolute; top: 4px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+    box-shadow: 0 0 0 2px var(--surface-1); }
+  .dot.open { background: var(--surface-1); box-shadow: inset 0 0 0 2px var(--text-secondary), 0 0 0 2px var(--surface-1); }
+  .shown { background: var(--shown); } .not-shown { background: var(--not); } .no-reading { background: var(--none); }
+  .ver { background: none; font-size: .78rem; color: var(--text-secondary); }
+  .axis { display: grid; grid-template-columns: minmax(120px, 210px) 1fr 76px; gap: 12px; font-size: .72rem; color: var(--text-muted); }
+  .axis div:nth-child(2) { display: flex; justify-content: space-between; }
+  @media (max-width: 560px) {
+    .rows, .axis { grid-template-columns: 1fr 70px; }
+    .rows .lab { grid-column: 1 / -1; margin-bottom: -6px; }
+    .axis div:first-child { display: none; }
+  }
+  .wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: .8rem; min-width: 560px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  th:first-child, td:first-child, td.q { text-align: left; }
+  th { color: var(--text-muted); font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; }
+  tr.tot td { font-weight: 600; }
+  code { font-size: .74rem; }
+  .note { color: var(--text-muted); font-size: .8rem; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>The prompt trials, 5 to 7 October 2026</h1>
+  <p class="sub">Apps built by Claude Haiku 4.5 and Claude Sonnet 5.5 from one request, each checked by <code>sv</code>. A
+  prompt is <b>shown</b> when its problem was in at least 5 of the builds without it and at most 1 with it; <b>not
+  shown</b> when it stayed in 2 or more; <b>no reading</b> when fewer than 5 builds had the problem without it.</p>
+  <div class="hero">
+    <div class="stat"><b>9</b><span>trials</span></div>
+    <div class="stat"><b>464</b><span>builds</span></div>
+    <div class="stat"><b>$150.53</b><span>of the owner's API credit</span></div>
+    <div class="stat"><b>10 of 21</b><span>pasted-prompt comparisons shown</span></div>
+  </div>
+
+  <h2>Every pasted-prompt comparison</h2>
+  <p class="sub">The share of builds with the problem without the prompt (open circle) and with it (filled). The
+  library's status can differ by the owner's decision; <code>docs/PROMPTS.md</code> says where.</p>
+  <div class="legend">
+    <span><i class="key open"></i>without the prompt</span>
+    <span><i class="key shown"></i>with it: shown</span>
+    <span><i class="key not-shown"></i>not shown</span>
+    <span><i class="key no-reading"></i>no reading</span>
+  </div>
+  <div class="axis"><div></div><div><span>0%</span><span>50%</span><span>100% of builds with the problem</span></div><div></div></div>
+  <div class="rows">
+<div class=lab>password-hashing<small>Haiku · prompt library</small></div><div class=track title="password-hashing, haiku, prompt library: 4 of 6 without, 2 of 8 with; no reading"><span class="bar no-reading" style="left:25.0%;width:41.7%"></span><span class="dot open" style="left:66.7%"></span><span class="dot no-reading" style="left:25.0%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>secrets-in-the-environment<small>Haiku · prompt library</small></div><div class=track title="secrets-in-the-environment, haiku, prompt library: 6 of 6 without, 1 of 4 with; shown"><span class="bar shown" style="left:25.0%;width:75.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:25.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>security-headers<small>Haiku · prompt library</small></div><div class=track title="security-headers, haiku, prompt library: 6 of 6 without, 0 of 7 with; shown"><span class="bar shown" style="left:0.0%;width:100.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>design-limits<small>Haiku · prompt library</small></div><div class=track title="design-limits, haiku, prompt library: 5 of 6 without, 2 of 2 with; not shown"><span class="bar not-shown" style="left:83.3%;width:16.7%"></span><span class="dot open" style="left:83.3%"></span><span class="dot not-shown" style="left:100.0%"></span></div><div class="ver not-shown">not shown</div>
+<div class=lab>sessions-hard-to-steal<small>Haiku · prompt library</small></div><div class=track title="sessions-hard-to-steal, haiku, prompt library: 4 of 6 without, 1 of 4 with; no reading"><span class="bar no-reading" style="left:25.0%;width:41.7%"></span><span class="dot open" style="left:66.7%"></span><span class="dot no-reading" style="left:25.0%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>private-pages-no-store<small>Haiku · prompt library</small></div><div class=track title="private-pages-no-store, haiku, prompt library: 5 of 6 without, 0 of 6 with; shown"><span class="bar shown" style="left:0.0%;width:83.3%"></span><span class="dot open" style="left:83.3%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>ai-feature-guard<small>Sonnet · prompt library</small></div><div class=track title="ai-feature-guard, sonnet, prompt library: 10 of 10 without, 0 of 9 with; shown"><span class="bar shown" style="left:0.0%;width:100.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>limits-without-asking<small>Haiku · revision</small></div><div class=track title="limits-without-asking, haiku, revision: 4 of 5 without, 1 of 6 with; no reading"><span class="bar no-reading" style="left:16.7%;width:63.3%"></span><span class="dot open" style="left:80.0%"></span><span class="dot no-reading" style="left:16.7%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>production-server<small>Haiku · revision</small></div><div class=track title="production-server, haiku, revision: 7 of 7 without, 8 of 8 with; not shown"><span class="bar not-shown" style="left:100.0%;width:0.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot not-shown" style="left:100.0%"></span></div><div class="ver not-shown">not shown</div>
+<div class=lab>isolate-the-window<small>Haiku · revision</small></div><div class=track title="isolate-the-window, haiku, revision: 7 of 7 without, 4 of 10 with; not shown"><span class="bar not-shown" style="left:40.0%;width:60.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot not-shown" style="left:40.0%"></span></div><div class="ver not-shown">not shown</div>
+<div class=lab>security-contact<small>Haiku · revision</small></div><div class=track title="security-contact, haiku, revision: 8 of 8 without, 0 of 9 with; shown"><span class="bar shown" style="left:0.0%;width:100.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>secrets-in-the-environment<small>Haiku · revision</small></div><div class=track title="secrets-in-the-environment, haiku, revision: 4 of 8 without, 1 of 7 with; no reading"><span class="bar no-reading" style="left:14.3%;width:35.7%"></span><span class="dot open" style="left:50.0%"></span><span class="dot no-reading" style="left:14.3%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>security-headers<small>Haiku · revision</small></div><div class=track title="security-headers, haiku, revision: 0 of 7 without, 0 of 7 with; no reading"><span class="bar no-reading" style="left:0.0%;width:0.0%"></span><span class="dot open" style="left:0.0%"></span><span class="dot no-reading" style="left:0.0%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>git-from-the-start<small>Haiku · revision</small></div><div class=track title="git-from-the-start, haiku, revision: 0 of 8 without, 0 of 10 with; no reading"><span class="bar no-reading" style="left:0.0%;width:0.0%"></span><span class="dot open" style="left:0.0%"></span><span class="dot no-reading" style="left:0.0%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>ai-feature-guard<small>Sonnet · revision</small></div><div class=track title="ai-feature-guard, sonnet, revision: 3 of 10 without, 0 of 10 with; no reading"><span class="bar no-reading" style="left:0.0%;width:30.0%"></span><span class="dot open" style="left:30.0%"></span><span class="dot no-reading" style="left:0.0%"></span></div><div class="ver no-reading">no reading</div>
+<div class=lab>isolate-the-window<small>Sonnet · revision</small></div><div class=track title="isolate-the-window, sonnet, revision: 10 of 10 without, 0 of 10 with; shown"><span class="bar shown" style="left:0.0%;width:100.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>password-rules<small>Sonnet · recipe</small></div><div class=track title="password-rules, sonnet, recipe: 10 of 10 without, 8 of 10 with; not shown"><span class="bar not-shown" style="left:80.0%;width:20.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot not-shown" style="left:80.0%"></span></div><div class="ver not-shown">not shown</div>
+<div class=lab>production-server<small>Sonnet · recipe</small></div><div class=track title="production-server, sonnet, recipe: 5 of 10 without, 0 of 9 with; shown"><span class="bar shown" style="left:0.0%;width:50.0%"></span><span class="dot open" style="left:50.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>password-rules<small>Sonnet · three sentences</small></div><div class=track title="password-rules, sonnet, three sentences: 10 of 10 without, 0 of 10 with; shown"><span class="bar shown" style="left:0.0%;width:100.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>production-server<small>Sonnet · three sentences</small></div><div class=track title="production-server, sonnet, three sentences: 5 of 10 without, 0 of 9 with; shown"><span class="bar shown" style="left:0.0%;width:50.0%"></span><span class="dot open" style="left:50.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+<div class=lab>isolate-the-window<small>Haiku · three sentences</small></div><div class=track title="isolate-the-window, haiku, three sentences: 7 of 7 without, 0 of 9 with; shown"><span class="bar shown" style="left:0.0%;width:100.0%"></span><span class="dot open" style="left:100.0%"></span><span class="dot shown" style="left:0.0%"></span></div><div class="ver shown">shown</div>
+  </div>
+
+  <h2>The same, as a table</h2>
+  <div class="wrap"><table>
+    <tr><th>Prompt</th><th>Model</th><th>Trial</th><th>Without</th><th>With</th><th>Verdict</th></tr>
+<tr><td>password-hashing</td><td>Haiku</td><td>prompt library</td><td>4 of 6</td><td>2 of 8</td><td>no reading</td></tr>
+<tr><td>secrets-in-the-environment</td><td>Haiku</td><td>prompt library</td><td>6 of 6</td><td>1 of 4</td><td>shown</td></tr>
+<tr><td>security-headers</td><td>Haiku</td><td>prompt library</td><td>6 of 6</td><td>0 of 7</td><td>shown</td></tr>
+<tr><td>design-limits</td><td>Haiku</td><td>prompt library</td><td>5 of 6</td><td>2 of 2</td><td>not shown</td></tr>
+<tr><td>sessions-hard-to-steal</td><td>Haiku</td><td>prompt library</td><td>4 of 6</td><td>1 of 4</td><td>no reading</td></tr>
+<tr><td>private-pages-no-store</td><td>Haiku</td><td>prompt library</td><td>5 of 6</td><td>0 of 6</td><td>shown</td></tr>
+<tr><td>ai-feature-guard</td><td>Sonnet</td><td>prompt library</td><td>10 of 10</td><td>0 of 9</td><td>shown</td></tr>
+<tr><td>limits-without-asking</td><td>Haiku</td><td>revision</td><td>4 of 5</td><td>1 of 6</td><td>no reading</td></tr>
+<tr><td>production-server</td><td>Haiku</td><td>revision</td><td>7 of 7</td><td>8 of 8</td><td>not shown</td></tr>
+<tr><td>isolate-the-window</td><td>Haiku</td><td>revision</td><td>7 of 7</td><td>4 of 10</td><td>not shown</td></tr>
+<tr><td>security-contact</td><td>Haiku</td><td>revision</td><td>8 of 8</td><td>0 of 9</td><td>shown</td></tr>
+<tr><td>secrets-in-the-environment</td><td>Haiku</td><td>revision</td><td>4 of 8</td><td>1 of 7</td><td>no reading</td></tr>
+<tr><td>security-headers</td><td>Haiku</td><td>revision</td><td>0 of 7</td><td>0 of 7</td><td>no reading</td></tr>
+<tr><td>git-from-the-start</td><td>Haiku</td><td>revision</td><td>0 of 8</td><td>0 of 10</td><td>no reading</td></tr>
+<tr><td>ai-feature-guard</td><td>Sonnet</td><td>revision</td><td>3 of 10</td><td>0 of 10</td><td>no reading</td></tr>
+<tr><td>isolate-the-window</td><td>Sonnet</td><td>revision</td><td>10 of 10</td><td>0 of 10</td><td>shown</td></tr>
+<tr><td>password-rules</td><td>Sonnet</td><td>recipe</td><td>10 of 10</td><td>8 of 10</td><td>not shown</td></tr>
+<tr><td>production-server</td><td>Sonnet</td><td>recipe</td><td>5 of 10</td><td>0 of 9</td><td>shown</td></tr>
+<tr><td>password-rules</td><td>Sonnet</td><td>three sentences</td><td>10 of 10</td><td>0 of 10</td><td>shown</td></tr>
+<tr><td>production-server</td><td>Sonnet</td><td>three sentences</td><td>5 of 10</td><td>0 of 9</td><td>shown</td></tr>
+<tr><td>isolate-the-window</td><td>Haiku</td><td>three sentences</td><td>7 of 7</td><td>0 of 9</td><td>shown</td></tr>
+  </table></div>
+
+  <h2>The trials</h2>
+  <div class="wrap"><table>
+    <tr><th>Trial</th><th>When</th><th>Builds</th><th>Cost</th><th>Question</th><th>Write-up</th></tr>
+<tr><td>Loop pilot</td><td>5 Oct</td><td>6</td><td>$1.86</td><td class=q>Does a builder use sv&#x27;s tools when they are attached, and can its app be tested?</td><td class=q><code>docs/prompts/loop-pilot/README.md</code></td></tr>
+<tr><td>Loop arms</td><td>5 Oct</td><td>18</td><td>$4.78</td><td class=q>Which part of the loop does the work: the specification, the check, the plan?</td><td class=q><code>docs/prompts/loop-arms/README.md</code></td></tr>
+<tr><td>Loop at scale</td><td>5–6 Oct</td><td>70</td><td>$21.34</td><td class=q>The same, five builds a cell, with the specification in every request</td><td class=q><code>docs/prompts/loop-scale/README.md</code></td></tr>
+<tr><td>Prompt library</td><td>6 Oct</td><td>90</td><td>$21.12</td><td class=q>Does pasting a library prompt remove the problem it is for?</td><td class=q><code>docs/prompts/library-trial/README.md</code></td></tr>
+<tr><td>Delivery test</td><td>6 Oct</td><td>60</td><td>$19.36</td><td class=q>Do two new sentences make settings readable, and does sv deliver prompts that work?</td><td class=q><code>docs/prompts/library-trial/delivery.md</code></td></tr>
+<tr><td>Prompts at the start</td><td>7 Oct</td><td>40</td><td>$18.11</td><td class=q>Do the shown prompts work given at the start of every build?</td><td class=q><code>docs/prompts/library-trial/start.md</code></td></tr>
+<tr><td>Revision trial</td><td>7 Oct</td><td>110</td><td>$35.28</td><td class=q>Do the reviews&#x27; revisions keep working, and do five new prompts work?</td><td class=q><code>docs/prompts/library-trial/revision.md</code></td></tr>
+<tr><td>Recipe trial</td><td>7 Oct</td><td>40</td><td>$18.09</td><td class=q>A Flask brief that tempts the prompts never fairly tried</td><td class=q><code>docs/prompts/library-trial/recipe.md</code></td></tr>
+<tr><td>Three sentences</td><td>7 Oct</td><td>30</td><td>$10.59</td><td class=q>Do the three sentences added from the trials work?</td><td class=q><code>docs/prompts/library-trial/sentences.md</code></td></tr>
+    <tr class="tot"><td>All</td><td></td><td>464</td><td>$150.53</td><td></td><td></td></tr>
+  </table></div>
+
+  <p class="note">Made by <code>docs/paper/trials/make_figure.py</code> from <code>verdicts.json</code>,
+  <code>revision-verdicts.json</code>, <code>recipe-stage2.json</code> and <code>sentences-verdicts.json</code> in
+  <code>docs/prompts/library-trial/</code>. The loop trials, the delivery test and the start test compared ways of
+  working or of delivering prompts, not one pasted prompt against none, so they are in the trial table and not the
+  chart. "Builds with the problem" counts only builds where the check could ask, as each trial's protocol defines it.</p>
+</div>
+</body>
+</html>

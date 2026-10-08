@@ -1,21 +1,23 @@
 # Since the cut-off
 
 The rest of this appendix stops at the cut-off, `main` at `157ddc3` (11:37 on 4 October 2026, Eastern time), and its
-numbers are true there. This file records what changed in `sv` after it, up to `main` at `4c3c5e0` (16:30 the same
-day). The other files keep their cut-off figures and point here. Nothing below was measured the way the cut-off's
+numbers are true there. This file records what changed in `sv` after it: first up to `main` at `4c3c5e0` (16:30 the
+same day), as it was written that evening, and then, added on 8 October 2026, up to `main` at `01b10f60` (05:07 on 8
+October). The other files keep their cut-off figures and point here; the trials of 5 to 7 October are in `TRIALS.md`. Nothing below was measured the way the cut-off's
 analyses were; it is a record of what was built, from the merges, `docs/BACKLOG.md`, and `docs/DESIGN.md`.
 
 ## In numbers
 
-| | at the cut-off, `157ddc3` | at `4c3c5e0` |
-|---|---|---|
-| Pull requests merged after the cut-off | | 41, numbered between #558 and #606 |
-| Tests (`#[test]` attributes in `crates/`) | 1,655 | 1,761 |
-| Commands | 14 | 15 (`sv review` added) |
-| MCP tools | 10 | 10 (`sv review` is deliberately not one) |
-| Rules that read the code (tree-sitter) | 19 | 20 (a shell command run with `shell=True`, #587) |
-| Deep-review findings fixed, of 58 | 1 (S1) | 14, and one in part |
-| Decision records for `sv` | 11 (ADR-015 to ADR-025) | 12 (ADR-026 added) |
+| | at the cut-off, `157ddc3` | at `4c3c5e0` | at `01b10f60`, 8 October |
+|---|---|---|---|
+| Pull requests merged after the cut-off | | 41, numbered between #558 and #606 | 378 more after `4c3c5e0`, numbered between #602 and #990 |
+| Tests (`#[test]` attributes in `crates/`) | 1,655 | 1,761 | 2,366 |
+| Commands | 14 | 15 (`sv review` added) | 18 (`plan`, `preflight`, `brief`) |
+| MCP tools | 10 | 10 (`sv review` is deliberately not one) | 13 (`securevibe_plan`, `securevibe_preflight`, `securevibe_before`) |
+| Rules that read the code (tree-sitter) | 19 | 20 (a shell command run with `shell=True`, #587) | 27 |
+| ASVS 5.0 requirements a check can settle, of 345 | 163 | 163 | 169, of which 119 can be credited |
+| Deep-review findings done, of 58 | 1 (S1) | 14, and one in part | 58, six with a part deliberately left out |
+| Decision records for `sv` | 11 (ADR-015 to ADR-025) | 11 (see the correction below) | 42 (ADR-015 to ADR-056) |
 
 ## The deep review
 
@@ -89,8 +91,50 @@ commit, not on current `main`.
 
 ## In the appendix itself
 
-- **The friend's health app is anonymous in the paper** (#591, 14:52; and #606, 16:26, for the study figure's short
-  label). Its first word was left in `figure-study.html` by the first pass. It remains in the history of the files
-  that held it.
+- **The health-tracking app built for a friend is anonymous in the paper** (#591, 14:52; and #606, 16:26, for the
+  study figure's short label). Its first word was left in `figure-study.html` by the first pass, and an abbreviation
+  of its name in `figure-top10.html`, replaced on 8 October 2026 (#978). It remains in the history of the files that
+  held it.
 - **Errors found at the cut-off were corrected in place**, each saying it was. A review of the appendix against `sv` at
   `12dbdaf8` found them, and the same change added this file.
+
+## From `4c3c5e0` to 8 October 2026
+
+Added on 8 October 2026, from the merges, `docs/BACKLOG.md`, `docs/DESIGN.md`, and the decision records; the numbers
+in the table above were counted on `01b10f60` that day. As before, nothing here was measured the way the cut-off's
+analyses were.
+
+**A correction to this file.** As first written, the table gave 12 decision records at `4c3c5e0`. ADR-026 was written
+by the change that added this file (`45bbf188`), merged a few minutes after `4c3c5e0`, so there were 11 there.
+
+**The deep review is done.** All 58 findings are marked done in `docs/BACKLOG.md`, the last on 6 October (H9). Six
+were done with a part deliberately left out, each with its reason: S7 (Brakeman is still given the whole folder), S9
+(the app is not run as a separate user, ADR-019), H2 (Vue templates in another language), H3 (a passphrase with
+spaces in JSON), H4 (the dispatch events), and R6 (the owner chose other exit codes, ADR-029). Two later reviews, of
+the code merged 1 to 4 October and 5 to 6 October, found faults in some of those fixes, and every item of both is
+done. `REVIEW.md` keeps the status as it stood at the cut-off.
+
+**What a report says changed.** The order of the tiers `HOW-SV-WORKS.md` describes has two additions, both below
+*checked*: *tested by the app's own tests* (ADR-050), for a passing test of the app's that names a requirement, and
+*checked in part* (ADR-053), for a check that tried only part of what its requirement asks. There are nine statuses
+in all. A seal is now a signature any computer can check against keys the owner chose to trust (ADR-043), replacing
+`~/.config/securevibe/review-key` above. A threat is still moved only by a check that ran.
+
+**What a run can reach changed.** With `install = true`, an app's packages are installed before the run, in a
+container that sees only the dependency files and runs none of their code, so apps that use packages can be tested
+at all (ADR-052). The signed-in checks gained, among others, another user's records listed, changed and deleted
+(ADR-053), compressed uploads to the owner's limits (ADR-046), the sign-in token checks (ADR-039), a read-only SQL
+injection probe on `sv`'s own copy of the app (ADR-038), and another site's Origin on the signed-in pages (ADR-055).
+Notebooks and templates are read for what they can hold (ADR-054).
+
+**Before any code.** `sv plan`, `sv brief` and `sv preflight` (ADR-030, ADR-035) say what to decide, what each feature
+brings, and whether the run settings look right, and credit nothing. The coding prompts shown to work are given to
+the AI coding tool at the start of every build (ADR-044); the trials that decided which are in `TRIALS.md`.
+
+**How the project is run.** Every pull request must pass the tests before it merges into `main`, and every commit on
+`main` is tested (ADR-051); a pull request that changes what a decision record governs must change the record or say
+why not (`tools/adr_check.py`).
+
+**What this means for the comparison study.** Beyond what is said above for `4c3c5e0`: the study's apps would now meet
+the install step, the new statuses, and the larger set of checks, so re-running it on current `main` would answer a
+different question. Its results reproduce on its own commit.
