@@ -535,5 +535,5 @@ goes through [SECURITY.md](SECURITY.md), not a public issue.
 
 ## Reading order
 
-`docs/DESIGN.md` explains the two changes from v1 (the design was written when the two were side by side), why deleting the wizard was the hard part, and what the
+The design record, one dated entry per file in `docs/design/` (`docs/DESIGN.md` says how it is kept), explains the two changes from v1 (the design was written when the two were side by side), why deleting the wizard was the hard part, and what the
 first run against real data turned up.
