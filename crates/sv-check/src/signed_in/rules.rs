@@ -737,6 +737,19 @@ pub(super) const RESET_KEEPS_OLD: Rule = Rule {
           signs in afterwards.",
 };
 
+pub(super) const RESET_CODE_IN_ANSWER: Rule = Rule {
+    rule_id: "probe.reset-code-in-answer",
+    requirement_ids: &["V6.4.3"],
+    cwe: &["CWE-640"],
+    impact: "The app hands back the password reset code to whoever asked for it, not only to the \
+             account's email. Anybody who knows an email address can ask for a reset, read the code \
+             from the answer, and set a new password: the account is theirs without ever seeing the \
+             email.",
+    fix: "Send the reset code only in the email, and answer the request with the same words \
+          whether or not the account exists (\"If that address has an account, we have sent it a \
+          link\"). Remove any debugging output that echoes the code, the token, or the link.",
+};
+
 pub(super) const RESET_CODE_GUESSABLE: Rule = Rule {
     rule_id: "probe.reset-code-guessable",
     requirement_ids: &["V6.4.3"],
