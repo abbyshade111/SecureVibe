@@ -8349,6 +8349,9 @@ another session is not a claim.
      modules over 3,000 lines (`ast.rs`, `ai.rs`, `probes.rs`, `adapters.rs`, `secrets.rs`, `production.rs`,
      `sbom.rs`; 40 to 65% of each is tests), then `ast.rs` and `sbom.rs` along their seams.
      **Claimed 8 October 2026 by session securevibe-review**: the CLAUDE.md line, and the tests split out of the seven modules (branch `claude/securevibe-review-tests-apart`).
+     **Done the same day** (CLAUDE.md, the claim bullet; DESIGN, "The tests of the seven largest modules live beside
+     them"): the rule written down, and the eleven test modules of the seven files moved to `src/<module>/<name>.rs`,
+     verbatim. Not done: `ast.rs` and `sbom.rs` along their seams.
   12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
      unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
      (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability

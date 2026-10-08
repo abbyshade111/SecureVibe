@@ -111,6 +111,11 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   to another session does not count: a session that is not running never receives it, and one that is will not see it again
   after its context is summarized. On 20 September 2026 two sessions each read the backlog, each correctly saw an item
   unclaimed, and both built it.
+  Append the claim at the end of the "Next" section, never at its top, and merge the claim's pull request before building
+  on it: on 8 October 2026 every session inserted at the top, so a branch an hour old conflicted with `main` there, and the
+  same conflict was resolved three times at a 20-minute CI round each. For the same reason a new test goes in a sibling
+  test file (`src/<module>/tests.rs`, or one of its own) rather than at the end of a module's `mod tests`, and a new DESIGN
+  section is a section of its own rather than a paragraph on an existing one.
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
   `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different identity, so git
   calls the branch unmerged while every line of it is already there.
