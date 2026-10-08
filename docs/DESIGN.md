@@ -1,8 +1,12 @@
 # SecureVibe (`sv`) — design
 
-> Written while `sv` was a second version beside v1 in `agnostic/`. On 26 September 2026 `sv` became the top of the
-> repository and v1 moved to the `v1` branch; paths written `agnostic/…` below are now at the repository root
-> (`agnostic/data/…` is `data/…`, `agnostic/Dockerfile` is `Dockerfile`), and `../data` is `data/`.
+> **This is the dated record, not the map.** Every section below was written when its decision was made, oldest
+> first, and none is rewritten afterward; what `sv` is today is the sum of them. For the ten-minute map of the crates,
+> the stages of a run, and where each rule is held, read `docs/ARCHITECTURE.md` first; for the decisions that matter
+> most, with the files each governs, `docs/adr/`. The opening sections below were written while `sv` was a second
+> version beside v1 in `agnostic/`. On 26 September 2026 `sv` became the top of the repository and v1 moved to the
+> `v1` branch; paths written `agnostic/…` below are now at the repository root (`agnostic/data/…` is `data/…`,
+> `agnostic/Dockerfile` is `Dockerfile`), and `../data` is `data/`.
 
 A second version of SecureVibe. It keeps the workflow, the checks, the compliance engine and the reports, and
 changes two things:
