@@ -340,6 +340,19 @@ pub(super) const APP_TOKEN_KEY_SOURCE: Rule = Rule {
           addresses before fetching anything.",
 };
 
+pub(super) const APP_TOKEN_PLACEHOLDER_KEY: Rule = Rule {
+    rule_id: "probe.app-token-placeholder-key",
+    requirement_ids: &["V9.1.1"],
+    cwe: &["CWE-1391"],
+    impact: "The app signs its sign-in tokens with a secret anybody can guess, one of the placeholders \
+             that tutorials, library examples, and generated starter code use. With it, anybody can \
+             make a token that says they are any user, an administrator included, and the app will \
+             take it as its own.",
+    fix: "Make a long random secret (for example `openssl rand -base64 48`), keep it in the app's \
+          settings or a secrets manager rather than in the code, and sign tokens with that. Every \
+          token signed with the old secret should then be refused, so everybody signs in again.",
+};
+
 pub(super) const WS_WITHOUT_SESSION: Rule = Rule {
     rule_id: "probe.websocket-without-session",
     requirement_ids: &["V4.4.4"],

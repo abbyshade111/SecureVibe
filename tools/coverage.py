@@ -249,6 +249,7 @@ RUST_CHECKS = {
     "probe.app-token-alg-none": ("signed-in", ["V9.1.2"]),
     "probe.app-token-expired-accepted": ("signed-in", ["V9.2.1"]),
     "probe.app-token-key-source-followed": ("signed-in", ["V9.1.3"]),
+    "probe.app-token-placeholder-key": ("signed-in", ["V9.1.1"]),
     "probe.record-returns-secret-fields": ("signed-in", ["V15.3.1", "V8.2.3"]),
     "probe.clear-site-data": ("signed-in", ["V14.3.1"]),
 }
@@ -305,6 +306,8 @@ RUST_FINDINGS_ONLY = {
     "probe.fetch-goes-anywhere",
     # An app that ignores a token's `jku` cannot be told from one that checks it against a list.
     "probe.app-token-key-source-followed",
+    # Not matching a list of placeholder secrets does not show the app's secret is strong.
+    "probe.app-token-placeholder-key",
     "config.retired-grant-enabled",
     "config.model-file-can-run-code",
     # A setting made on the server itself is in no file.
