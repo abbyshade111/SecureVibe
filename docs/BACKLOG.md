@@ -251,6 +251,10 @@ another session is not a claim.
      out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
      pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
      folder can be deleted.
+     **(c), its first two parts, claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please
+     continue to work off the backlog"), in branch `claude/securevibe-e2-tools-on-screen`: `sv report --tools` says on
+     screen which tools did not run and why, whatever its exit status, and the install hint reads as a sentence for
+     CodeQL as for the others. Per-platform install hints stay unclaimed.
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
