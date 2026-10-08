@@ -330,6 +330,8 @@ another session is not a claim.
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
+     **Claimed 8 October 2026 by session securevibe-e9** ("choose the next backlog item after that"), in branch
+     `claude/securevibe-e9-governs`. `suite.rs` is already governed (ADR-050).
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
