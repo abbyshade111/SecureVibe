@@ -10517,6 +10517,12 @@ How it is held: the six tests in `data.rs` and the four in `crates/sv-cli/tests/
 was caught; the one at first caught by nothing, following a link to the program, is caught by a test of its own,
 since Linux already gives the program's real place and only macOS gives the link.
 
+**8 October 2026 (backlog item 25(h)).** The install script builds with `--locked`, so the owner's copy is made from
+the versions in `Cargo.lock` that the tests ran with (ADR-036, "Later, 8 October 2026"). The guide now says the
+`target` folder the build leaves, 1 to 7 GB, can be deleted without stopping the installed `sv`, which is true
+because of the copy described above. And the README's second paragraph sends somebody who is not a programmer to the
+guide before the developer commands that follow.
+
 ## A shell script's and a Dockerfile's unquoted values are read; a JSON passphrase is still not (5 October 2026)
 
 The two parts of H3 left open on 4 October ("The credential rule reads the shapes credentials are written in").
