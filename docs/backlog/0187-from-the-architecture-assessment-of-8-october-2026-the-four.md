@@ -108,6 +108,13 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    five silent returns and the two lists that named too few, and `asked_tests.rs`, which runs the suite three
    ways and holds every requirement named on the correct app to be named in each; it found V14.3.1 and V3.5.2
    beyond the three the assessment named. The guard per check is not built.
+   **The guard per check claimed 8 October 2026 by session securevibe-e9**, from the roadmap (Phase 2, first), in
+   branch `claude/securevibe-e9-check-guard`: each signed-in check is called through one wrapper that names the rules
+   it speaks to, and when the check returns without naming one of their requirements (no finding, credit, or
+   not-assessed entry of its own), the wrapper records it as not assessed, "asked and never answered", and a debug
+   build (the test suite) fails there. A silent return is then impossible in a report rather than caught by a test.
+   Record, proposed with this claim: ADR-021, Later (a report can now say a check fell silent). Confirmed on `main`
+   just before this claim: no such wrapper, and no other session holds this part.
 9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
    `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
    real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for

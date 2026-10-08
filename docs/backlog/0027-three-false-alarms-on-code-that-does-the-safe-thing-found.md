@@ -1,6 +1,6 @@
 # Three false alarms on code that does the safe thing, found testing the prompt library, 3 October 2026
 
-**Status:** partly done: 2 of 3 parts done, 0 claimed, 1 open, as its markers read on 8 October 2026
+**Status:** done, 8 October 2026
 
 Found
 by session securevibe-e10 in the prompt test builds (Python and Flask, written by helper agents; see
@@ -39,3 +39,6 @@ flagged. **Each can be claimed on its own.**
    work (#738) merged first and already does what the owner decided. This session's version, which named any
    function the same file defines rather than one whose name says it checks, was closed unmerged (#744); its
    branch is kept.
+**Every part done, checked on `main` on 8 October 2026 by session securevibe-e9** from the roadmap (Phase 1, item 3):
+the status line read "2 of 3 parts done" because parts 2 and 3 were marked together ("Items 2 and 3 claimed", "Done
+the same day"), which the board does not read part by part. The withdrawn second claim above changes nothing.

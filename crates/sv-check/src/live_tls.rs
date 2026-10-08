@@ -304,6 +304,18 @@ pub fn https_answer(id: u16, data: &[u8]) -> Result<Vec<ServiceRecord>, String> 
     Ok(records)
 }
 
+/// The transaction id of one query: 16 bits from the operating system's randomness, so an
+/// answer forged by somebody who can see this computer's process ids does not match (the review
+/// of 8 October 2026, item 6; until then it was the process id, which `ps` shows anyone). The
+/// standard library seeds each `RandomState` from the operating system, which is enough here and
+/// costs no dependency; the id only has to be one a bystander cannot predict.
+pub fn query_id() -> u16 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+    hasher.write_u64(std::process::id().into());
+    hasher.finish() as u16
+}
+
 /// Asks the first resolver named in `/etc/resolv.conf`.
 pub struct SystemDns;
 
@@ -316,7 +328,7 @@ impl Dns for SystemDns {
             .filter_map(|l| l.trim().strip_prefix("nameserver"))
             .find_map(|rest| rest.trim().split('%').next()?.parse().ok())
             .ok_or("/etc/resolv.conf names no resolver")?;
-        let id = std::process::id() as u16 ^ 0x5ab1;
+        let id = query_id();
         let query = https_query(id, host).ok_or("the name cannot be asked about")?;
         let bind = if server.is_ipv4() {
             "0.0.0.0:0"
@@ -337,6 +349,9 @@ impl Dns for SystemDns {
         https_answer(id, &buf[..n])
     }
 }
+
+#[cfg(test)]
+mod id_tests;
 
 #[cfg(test)]
 mod tests {

@@ -626,15 +626,6 @@ pub fn safe_name(name: &str) -> String {
     }
 }
 
-/// A temporary folder that nothing else uses, for the report on its way into the zip.
-pub fn scratch_dir() -> PathBuf {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    std::env::temp_dir().join(format!("sv-bundle-{}-{nanos}", std::process::id()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

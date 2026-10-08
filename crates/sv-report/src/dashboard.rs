@@ -378,6 +378,7 @@ pub fn page(apps: &[App], written: &str) -> String {
     apps.sort_by_key(|a| label(a).to_lowercase());
     let mut b = String::new();
     b.push_str("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n");
+    b.push_str(crate::html::CSP_META);
     b.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     b.push_str(MADE_BY);
     b.push_str("\n<title>sv dashboard</title>\n");

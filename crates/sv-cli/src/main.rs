@@ -3144,7 +3144,14 @@ fn write_bundle(
         let bytes = std::fs::read(app_abs.join(rel)).with_context(|| format!("reading {rel}"))?;
         entries.push((format!("{folder}/app/{rel}"), bytes));
     }
-    let scratch = bundle::scratch_dir();
+    // The report on its way into the zip is written to a folder of this run's own in the system's
+    // temporary folder, readable by this user alone and named so nobody can guess it, and removed
+    // with everything in it when `private` is dropped, however this returns (ADR-017, Later, 8
+    // October 2026). It used to be a folder named by the process id and the time, which anyone
+    // on the computer could name first and read.
+    let private = sv_check::adapters::PrivateFolder::new_in(&std::env::temp_dir())
+        .context("making a private folder for the report on its way into the zip")?;
+    let scratch = private.path().to_path_buf();
     let written = write_report_files(report, &scratch);
     let sbom_json =
         serde_json::to_string_pretty(&sbom::to_cyclonedx(&sbom::build(app_abs)))? + "\n";
@@ -3159,7 +3166,7 @@ fn write_bundle(
             })
             .collect()
     });
-    let _ = std::fs::remove_dir_all(&scratch);
+    drop(private);
     let report_files = report_files?;
     refuse_a_credential_in_the_report(&rules, &report_files)?;
     entries.extend(report_files);
