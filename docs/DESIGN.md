@@ -11022,6 +11022,20 @@ variable. Broken on purpose three ways: the guard left out and the count set to 
 `true` was not, and is not a break, since `true` turns on git's own built-in monitor, which runs no program the
 repository names. Not run with Semgrep or CodeQL themselves, which are not installed here.
 
+**The program itself (8 October 2026).** The review of `sv` that day found the hole one step earlier: an adapter's
+command is a plain name, a name is whatever `PATH` says, and the tools start in the app's folder with the owner's
+`PATH` passed on. `source .venv/bin/activate` in the app before `sv report --tools` puts the app's own
+`.venv/bin/bandit` first, and a relative entry (`.`, or an empty one between two colons) names whatever is in the
+folder a program starts in, which for the tools is the app's. Either way `sv` would have run a program the app's
+author put there, with the owner's rights, in place of the tool. Now `adapters::located` finds each program through
+`PATH` first, the way the system would, follows links, and refuses one that is inside the app or reachable only
+through a relative entry: the tool is reported as not run, saying which program and where, and what to do (install it
+outside the app; put its folder on `PATH` in full). Not even its version is asked. A program found nowhere is run by
+name as before, so a tool that is not installed still reads as not installed; on Windows, which finds programs
+through `PATHEXT` too, nothing changes. Held by `program_tests` (`PATH` given rather than read, so the process's
+own is untouched) and `a_program_inside_the_app_is_not_run_and_the_same_one_outside_is`, whose control runs the
+same script from outside the app. Broken on purpose (the inside-the-app judgment switched off): both caught.
+
 ## A lone `Pipfile.lock`, and requirements files under other names (6 October 2026)
 
 Deep review H9's last done note left two gaps open, and both are closed here.
