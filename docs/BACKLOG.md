@@ -340,6 +340,10 @@ another session is not a claim.
      about 1,800 words written, too little to read 40 records, which matches the review leaving no trace. Neither
      routine has the repository attached, so each run would have to add it itself. Changing a routine is the owner's
      to decide: attach the repository to one, and turn the other off.
+     **Fixed the same day, at the owner's asking** ("please do fix the routine issues"): a session made for it,
+     "Weekly decision-record review", with the repository attached and three thousand commits of history, and one
+     routine that wakes it on Mondays at 8:45, New York time, with the same instructions and a first step that brings
+     the checkout up to date. Both old routines are turned off, not deleted. Its first run is due 12 October.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
