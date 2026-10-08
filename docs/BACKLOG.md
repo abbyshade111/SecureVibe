@@ -31,6 +31,8 @@ another session is not a claim.
      `claude/securevibe-e9-error-answers`: a body that does not parse, sent signed out to the routes securevibe.toml
      names and to the health path; V16.5.1 credited only from a clean error answer, V13.4.2 only from a clean server
      error. **`Status: proposed`: ADR-056.**
+     **Done the same day** (DESIGN, "An error answer is credited only when the app was made to give one"; ADR-056,
+     accepted).
   4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording

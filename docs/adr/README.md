@@ -99,7 +99,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-053](ADR-053.md) | Another user's records are checked for reading, listing, changing, and deleting, and one read alone is "checked in part" |
 | [ADR-054](ADR-054.md) | Templates and notebooks are read for what they can hold, and never pass silently |
 | [ADR-055](ADR-055.md) | Two checks stop resting on one sample: cross-site access asks the private pages, and a common password is three (proposed) |
-| [ADR-056](ADR-056.md) | An error answer is credited only when the app was made to give one, and it was clean (proposed) |
+| [ADR-056](ADR-056.md) | An error answer is credited only when the app was made to give one, and it was clean |
 
 ## Where v1's records disagree with what v1 built
 

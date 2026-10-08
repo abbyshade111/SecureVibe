@@ -71,6 +71,97 @@ impl ProbeResponse {
 const MISSING_PATH: &str = "/sv-probe-does-not-exist-9f2a";
 /// An origin the app has certainly never heard of.
 const STRANGER: &str = "https://sv-probe-stranger.invalid";
+/// A body that is not JSON, sent as JSON, to make the app's code fail where it reads one (ADR-056).
+/// A body that does not parse cannot create anything.
+const BAD_BODY: &[u8] = b"{\"sv-probe\": ";
+/// The start of the id of each request that sends it, followed by its method and path.
+const BAD_BODY_ID: &str = "bad-body";
+
+/// A request sending `BAD_BODY`, signed out, with an id that says where it went.
+fn bad_body_request(method: &str, path: &str) -> ProbeRequest {
+    ProbeRequest {
+        id: format!("{BAD_BODY_ID} {method} {path}"),
+        method: method.to_owned(),
+        path: path.to_owned(),
+        headers: vec![("Content-Type".into(), "application/json".into())],
+        body: Some(BAD_BODY.to_vec()),
+    }
+}
+
+/// `BAD_BODY` sent to the routes securevibe.toml names that read a body (sign-in, sign-up, the
+/// record `owned` creates), each as `(method, path)`, beyond the health path and the root, which
+/// `requests` sends it to. A path with a placeholder in it (`{id}`) is left out, as is one already
+/// asked.
+pub fn error_requests(health_path: &str, routes: &[(String, String)]) -> Vec<ProbeRequest> {
+    let mut out: Vec<ProbeRequest> = Vec::new();
+    for (method, path) in routes {
+        let asked_already =
+            method.eq_ignore_ascii_case("POST") && (path == health_path || path == "/");
+        if !path.starts_with('/') || path.contains('{') || asked_already {
+            continue;
+        }
+        let request = bad_body_request(&method.to_ascii_uppercase(), path);
+        if !out.iter().any(|r| r.id == request.id) {
+            out.push(request);
+        }
+    }
+    out
+}
+
+/// Whether an answer is an error the app produced: a request it could not use (400, 422), or its
+/// own failure (500 to 599). 501 is a method it does not have, which says nothing about its errors.
+fn is_error_answer(status: u16) -> bool {
+    matches!(status, 400 | 422) || is_server_error(status)
+}
+
+fn is_server_error(status: u16) -> bool {
+    (500..600).contains(&status) && status != 501
+}
+
+/// The answers to `BAD_BODY`.
+fn bad_body_answers(responses: &[ProbeResponse]) -> Vec<&ProbeResponse> {
+    responses
+        .iter()
+        .filter(|r| r.id.starts_with(BAD_BODY_ID))
+        .collect()
+}
+
+/// What the report says when no request drew an error, so V16.5.1 and V13.4.2 were not credited
+/// (ADR-056). `None` when one did, or when no request sending `BAD_BODY` was answered at all.
+pub fn error_answer_gap(responses: &[ProbeResponse]) -> Option<(&'static str, String)> {
+    let answers = bad_body_answers(responses);
+    if answers.is_empty() {
+        return None;
+    }
+    let drew_error = answers.iter().any(|r| is_error_answer(r.status));
+    let drew_server_error = answers.iter().any(|r| is_server_error(r.status));
+    let asked = answers
+        .iter()
+        .map(|r| format!("`{}`", r.id.trim_start_matches(BAD_BODY_ID).trim()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    if !drew_error {
+        Some((
+            "V16.5.1, V13.4.2",
+            format!(
+                "Whether an error is answered with a generic message, and debug mode is off, show \
+                 only in an error answer. The app was asked for a page that does not exist, and sent \
+                 a body that is not JSON at {asked}, and answered without an error."
+            ),
+        ))
+    } else if !drew_server_error {
+        Some((
+            "V13.4.2",
+            format!(
+                "Debug mode shows when the app's code fails. Sent a body that is not JSON at \
+                 {asked}, the app refused it, and none of them failed, so whether a failure would \
+                 show a debug page is not known."
+            ),
+        ))
+    } else {
+        None
+    }
+}
 
 /// The requests this suite needs.
 pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
@@ -168,6 +259,8 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
         body: None,
     }))
     .chain(reflection_requests(health_path))
+    .chain(std::iter::once(bad_body_request("POST", health_path)))
+    .chain((health_path != "/").then(|| bad_body_request("POST", "/")))
     .collect()
 }
 
@@ -277,6 +370,7 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     if let Some(missing) = find("missing") {
         out.extend(error_page_leak(missing));
     }
+    out.extend(error_answer_leak(&bad_body_answers(responses)));
     if let Some(trace) = find("trace") {
         out.extend(trace_enabled(trace));
     }
@@ -365,14 +459,39 @@ pub fn verified(responses: &[ProbeResponse]) -> Vec<crate::Verified> {
             ));
         }
     }
-    if let Some(missing) = find("missing")
-        && error_page_leak(missing).is_none()
-    {
-        out.push(crate::Verified::new(
-            ERROR_DETAIL_LEAK.rule_id,
-            ERROR_DETAIL_LEAK.requirement_ids,
-            "what the app says when asked for a page that is not there".to_owned(),
-        ));
+    // ADR-056: a clean missing page is not a clean error. Credit needs an error the app was made to
+    // give, and no answer asked for it, the missing page included, carrying a trace.
+    let provoked = bad_body_answers(responses);
+    let clean = find("missing").is_none_or(|m| error_page_leak(m).is_none())
+        && provoked.iter().all(|r| error_page_leak(r).is_none());
+    if clean {
+        let errors: Vec<&&ProbeResponse> = provoked
+            .iter()
+            .filter(|r| is_error_answer(r.status))
+            .collect();
+        let server_error = errors.iter().any(|r| is_server_error(r.status));
+        if !errors.is_empty() {
+            let shown = errors
+                .iter()
+                .map(|r| {
+                    format!(
+                        "`{}` ({})",
+                        r.id.trim_start_matches(BAD_BODY_ID).trim(),
+                        r.status
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            out.push(crate::Verified::new(
+                ERROR_DETAIL_LEAK.rule_id,
+                if server_error {
+                    &["V13.4.2", "V16.5.1"]
+                } else {
+                    &["V16.5.1"]
+                },
+                format!("the app's error answers to a body that is not JSON, at {shown}"),
+            ));
+        }
     }
     if let Some(trace) = find("trace")
         && trace_enabled(trace).is_none()
@@ -1103,6 +1222,44 @@ fn error_page_leak(response: &ProbeResponse) -> Option<Finding> {
                 .map(|m| format!("`{}`", m.trim()))
                 .collect::<Vec<_>>()
                 .join(" and ")
+        ),
+    ))
+}
+
+/// What the app says when sent a body it cannot read (ADR-056): one finding naming every request
+/// whose answer carried a trace.
+fn error_answer_leak(answers: &[&ProbeResponse]) -> Option<Finding> {
+    let leaking: Vec<(String, Vec<&str>)> = answers
+        .iter()
+        .map(|r| {
+            (
+                r.id.trim_start_matches(BAD_BODY_ID).trim().to_owned(),
+                trace_markers_in(&r.body),
+            )
+        })
+        .filter(|(_, found)| !found.is_empty())
+        .collect();
+    if leaking.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &ERROR_DETAIL_LEAK,
+        "An error answer shows how the app is built",
+        Severity::Medium,
+        format!(
+            "Sent a body that is not JSON, marked as JSON, the app answered with {}.",
+            leaking
+                .iter()
+                .map(|(asked, found)| format!(
+                    "{} at `{asked}`",
+                    found
+                        .iter()
+                        .map(|m| format!("`{}`", m.trim()))
+                        .collect::<Vec<_>>()
+                        .join(" and ")
+                ))
+                .collect::<Vec<_>>()
+                .join("; ")
         ),
     ))
 }
@@ -2393,6 +2550,101 @@ mod tests {
     }
 
     #[test]
+    fn an_error_answer_is_credited_only_when_the_app_was_made_to_give_one() {
+        // ADR-056 (gap analysis 1.6). A missing page with no trace credited V13.4.2 and V16.5.1 in
+        // 177 of about 190 trial builds; frameworks show their traces when code fails, not on a 404.
+        let answer = |id: &str, status: u16, body: &str| ProbeResponse {
+            id: id.to_owned(),
+            status,
+            headers: Vec::new(),
+            body: body.to_owned(),
+        };
+        let credited = |answers: &[ProbeResponse]| -> Vec<String> {
+            verified(answers)
+                .into_iter()
+                .filter(|v| v.check_id == ERROR_DETAIL_LEAK.rule_id)
+                .flat_map(|v| v.requirement_ids)
+                .collect()
+        };
+        let missing = answer("missing", 404, "<h1>Not Found</h1>");
+        let to = |status: u16, body: &str| answer("bad-body POST /login", status, body);
+
+        // The missing page alone, clean, credits nothing, and says why.
+        assert!(credited(std::slice::from_ref(&missing)).is_empty());
+        // Bodies refused as a method or a page it does not have are not errors either.
+        for status in [404, 405, 501, 200, 302] {
+            let answers = [missing.clone(), to(status, "nope")];
+            assert!(credited(&answers).is_empty(), "{status}");
+            let (ids, why) = error_answer_gap(&answers).expect("the gap is named");
+            assert_eq!(ids, "V16.5.1, V13.4.2", "{status}");
+            assert!(why.contains("`POST /login`"), "{why}");
+        }
+        // A clean "bad request" credits the generic error message, and not debug mode.
+        for status in [400, 422] {
+            let answers = [missing.clone(), to(status, r#"{"error":"bad request"}"#)];
+            assert_eq!(credited(&answers), ["V16.5.1"], "{status}");
+            assert_eq!(error_answer_gap(&answers).map(|g| g.0), Some("V13.4.2"));
+        }
+        // A clean failure credits both.
+        let answers = [missing.clone(), to(500, "<h1>Something went wrong</h1>")];
+        assert_eq!(credited(&answers), ["V13.4.2", "V16.5.1"]);
+        assert_eq!(error_answer_gap(&answers), None);
+        let scope = verified(&answers)
+            .into_iter()
+            .find(|v| v.check_id == ERROR_DETAIL_LEAK.rule_id)
+            .unwrap()
+            .scope;
+        assert!(scope.contains("`POST /login` (500)"), "{scope}");
+
+        // A trace in the error answer is a finding, and credits nothing.
+        let leaking = [
+            missing.clone(),
+            to(
+                400,
+                "SyntaxError: Unexpected end of JSON input\n    at JSON.parse (<anonymous>)",
+            ),
+        ];
+        assert!(credited(&leaking).is_empty());
+        let found = evaluate(&leaking)
+            .into_iter()
+            .find(|f| f.rule_id == ERROR_DETAIL_LEAK.rule_id)
+            .expect("the trace is found");
+        assert!(
+            found.description.contains("at `POST /login`"),
+            "{}",
+            found.description
+        );
+        // Nor does a clean error beside a missing page that leaks.
+        let answers = [
+            answer("missing", 404, "Traceback (most recent call last)"),
+            to(500, "error"),
+        ];
+        assert!(credited(&answers).is_empty());
+        // No answer to a bad body at all: nothing credited, and no gap claimed for a question
+        // nobody asked.
+        assert!(credited(&[missing.clone()]).is_empty());
+        assert_eq!(error_answer_gap(&[missing]), None);
+    }
+
+    #[test]
+    fn a_bad_body_goes_to_each_route_that_reads_one_once() {
+        let routes = [
+            ("POST".to_owned(), "/login".to_owned()),
+            ("post".to_owned(), "/login".to_owned()),
+            ("POST".to_owned(), "/api/notes".to_owned()),
+            ("PUT".to_owned(), "/api/notes/{id}".to_owned()),
+            ("POST".to_owned(), "/healthz".to_owned()),
+            ("POST".to_owned(), "/".to_owned()),
+            ("POST".to_owned(), "relative".to_owned()),
+        ];
+        let ids: Vec<String> = error_requests("/healthz", &routes)
+            .into_iter()
+            .map(|r| r.id)
+            .collect();
+        assert_eq!(ids, ["bad-body POST /login", "bad-body POST /api/notes"]);
+    }
+
+    #[test]
     fn the_suite_asks_what_it_says_it_asks() {
         let requests = requests("/healthz");
         assert_eq!(
@@ -2404,6 +2656,27 @@ mod tests {
                 + 1
                 + CONSOLES.len()
                 + 3
+                + 2
+        );
+        // A body that does not parse, to the health path and the root (ADR-056), signed out.
+        for path in ["/healthz", "/"] {
+            let request = requests
+                .iter()
+                .find(|r| r.id == format!("bad-body POST {path}"))
+                .unwrap_or_else(|| panic!("no bad body sent to {path}"));
+            assert_eq!(
+                (request.method.as_str(), request.path.as_str()),
+                ("POST", path)
+            );
+            assert_eq!(request.body.as_deref(), Some(BAD_BODY));
+            assert!(serde_json::from_slice::<serde_json::Value>(BAD_BODY).is_err());
+        }
+        assert_eq!(
+            super::requests("/")
+                .iter()
+                .filter(|r| r.id.starts_with(BAD_BODY_ID))
+                .count(),
+            1
         );
         // The root is asked as well as the health path, and only once when they are the same.
         assert!(requests.iter().any(|r| r.id == "root" && r.path == "/"));
