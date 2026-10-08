@@ -7683,9 +7683,9 @@ now holds `builds`, how many builds its status was decided on with it and withou
 "Shown to work, on 10 builds with it and 10 without." (`Prompt::status_sentence`), in `sv prompts`, the MCP
 server's prompts and their descriptions, the offer for an app's gaps, the instructions every builder starts
 with, the feature briefs, and the plan. The counts are the trial each status was first decided on; a later
-trial that changed nothing is still told in its `result`. Ten coding prompts were shown on ten and ten (two of
-them, `settings-file-first` and `git-from-the-start`, on one and one), and the three design prompts on one
-with and two without. A test holds each count to the trial's own account of who built what, so a count cannot
+trial that changed nothing is still told in its `result`. Of the ten coding prompts shown to work, eight were
+shown on ten and ten, and two, `settings-file-first` and `git-from-the-start`, on one and one; the three
+design prompts on one with and two without. A test holds each count to the trial's own account of who built what, so a count cannot
 be written in without one. Breaks: the count left out of the words (six tests), a count changed, and a count
 removed, each caught. Not done: saying when delivery through `sv`, rather than pasted, was not shown, the
 other half of the gap analysis's point.
