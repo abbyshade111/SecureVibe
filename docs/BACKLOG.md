@@ -309,6 +309,11 @@ another session is not a claim.
      for a template made from anything but fixed text (`render_template_string`, Jinja's `Template(...)` and
      `from_string`, and their like in other languages; V1.3.7), only ever a finding. Read on `main` just before this
      claim: no other session had claimed it.
+     **Cross-origin settings that let any site in with credentials claimed 8 October 2026 by session securevibe-e9**
+     ("pick your next backlog item whenever you're ready"), in branch `claude/securevibe-e9-cors`: a code rule,
+     `ast.cors-any-origin-with-credentials`, for CORS settings that accept every origin and send cookies too
+     (flask-cors, Express's and Fastify's `cors`, Spring, ASP.NET Core; V3.4.2), only ever a finding. Read on `main`
+     just before this claim: no other session had claimed it.
      **CSRF protection switched off done the same day** (DESIGN, "Protection against forged requests switched off").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
@@ -480,6 +485,10 @@ another session is not a claim.
      says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
      the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
      the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
+     **(d) done the same day** (DESIGN, "`sv`'s own next step, outside the fence"): an error that carries `sv`'s
+     next step ends with "What to do: …" outside the fence, and what went wrong stays inside it; the preflight's
+     missing-file error names `securevibe_spec`, not `sv init`. Breaks: the next step fenced again, and the
+     preflight's own check removed, each failed a test written for it.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
