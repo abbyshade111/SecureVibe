@@ -314,6 +314,8 @@ another session is not a claim.
      `ast.cors-any-origin-with-credentials`, for CORS settings that accept every origin and send cookies too
      (flask-cors, Express's and Fastify's `cors`, Spring, ASP.NET Core; V3.4.2), only ever a finding. Read on `main`
      just before this claim: no other session had claimed it.
+     **CORS with any site and credentials done the same day** (DESIGN, "Cross-origin settings that let any site in with
+     credentials").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.

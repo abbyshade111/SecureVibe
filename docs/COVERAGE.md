@@ -46,13 +46,13 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 57 | 43 | 14 | 1 | 6 | 37 | 21 | 3 |
+| L1 | 70 | 57 | 43 | 15 | 1 | 6 | 37 | 21 | 3 |
 | L2 | 183 | 91 | 67 | 19 | 0 | 19 | 46 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 50 of the 169 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
-With nothing beyond plain `sv check`, 36 ASVS requirements can be settled. 26 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 37 ASVS requirements can be settled. 26 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -86,7 +86,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (36)
+### Settled by reading the code (37)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -95,6 +95,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
 | V1.3.2 | L1 | Reads the code: `ast.dynamic-code-execution`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
 | V1.5.2 | L2 | Reads the code: `ast.unsafe-deserialization`; Outside tools: `bandit`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
+| V3.4.2 | L1 | Reads the code: `ast.cors-any-origin-with-credentials`; The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.cors-any-origin-with-credentials`) |
 | V3.7.2 | L2 | Reads the code: `ast.open-redirect`; Signed in: `probe.open-redirect`; Outside tools: `brakeman`, `semgrep`, `codeql-javascript`, `codeql-python` (sv only ever as a finding: `probe.open-redirect`) |
 | V4.4.1 | L1 | Reads the code: `ast.plaintext-websocket-url`; Outside tools: `semgrep` (semgrep only ever as a finding: `detect-insecure-websocket`; sv only ever as a finding: `ast.plaintext-websocket-url`) |
 | V5.3.2 | L1 | Reads the code: `ast.file-path-from-value`; Signed in: `probe.upload-path-traversal`; Outside tools: `gosec`, `brakeman`, `semgrep`, `codeql-javascript` and 1 more |
@@ -142,7 +143,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V3.2.2 | L1 | Signed in: `probe.text-rendered-as-markup`; Outside tools: `semgrep` (semgrep only ever as a finding: `avoid-v-html`, `react-dangerouslysetinnerhtml`) |
 | V3.3.2 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
 | V3.3.4 | L2 | The running app: `probe.cookie-attributes`; Signed in: `probe.session-cookie-attributes`; Outside tools: `semgrep`, `codeql-javascript`, `codeql-python` |
-| V3.4.2 | L1 | The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` |
+| V3.4.2 | L1 | Reads the code: `ast.cors-any-origin-with-credentials`; The running app: `probe.cors-any-origin`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.cors-any-origin-with-credentials`) |
 | V3.4.3 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |
 | V3.4.4 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |
 | V3.4.5 | L2 | The running app: `probe.security-headers`; Signed in: `probe.private-page-headers` |

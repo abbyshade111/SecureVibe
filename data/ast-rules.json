@@ -1415,6 +1415,57 @@
       }
     },
     {
+      "id": "ast.cors-any-origin-with-credentials",
+      "title": "Any website may call the app with its visitors' cookies",
+      "severity": "high",
+      "confidence": "high",
+      "requirementIds": [
+        "V3.4.2"
+      ],
+      "cwe": [
+        "CWE-942"
+      ],
+      "description": "The app's cross-origin (CORS) settings accept every website as an origin and also allow credentials: flask-cors' `CORS(app, supports_credentials=True)` with no list of origins; `origin: true` (or `/.*/`) with `credentials: true` for Express's or Fastify's `cors`; Spring's `allowedOriginPatterns(\"*\")` or `originPatterns = \"*\"` with `allowCredentials(true)`; or ASP.NET Core's `SetIsOriginAllowed(_ => true)` with `AllowCredentials()`. Each sends back whatever origin asked, which is how a browser is told that any site may read the answers.",
+      "impact": "While somebody is signed in, any website they visit can make requests to this app as them, with their cookies, and read the answers: their profile, their messages, their data, and any token the app hands out.",
+      "fix": "Name the sites that may call the app, and only those: `CORS(app, origins=[\"https://app.example.com\"], supports_credentials=True)`, `cors({ origin: [\"https://app.example.com\"], credentials: true })`, `allowedOrigins(\"https://app.example.com\")`, or `WithOrigins(\"https://app.example.com\")`. If no other site needs the user's cookies, turn credentials off instead.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list) @arg) @hit",
+        "javascript": "[(call_expression function: (identifier) @fn arguments: (arguments (object) @arg)) (call_expression function: (member_expression property: (property_identifier) @fn) arguments: (arguments (_) (object) @arg))] @hit",
+        "typescript": "[(call_expression function: (identifier) @fn arguments: (arguments (object) @arg)) (call_expression function: (member_expression property: (property_identifier) @fn) arguments: (arguments (_) (object) @arg))] @hit",
+        "java": "[(method_declaration) (annotation)] @fn @hit",
+        "csharp": "(invocation_expression) @fn @hit"
+      },
+      "functionPatterns": {
+        "python": "^(CORS|cross_origin)$",
+        "javascript": "^(cors|register)$",
+        "typescript": "^(cors|register)$",
+        "java": "(?s)((allowedOriginPatterns|addAllowedOriginPattern|setAllowedOriginPatterns)\\(\\s*((List\\.of|Arrays\\.asList)\\(\\s*)?\"\\*\"|originPatterns\\s*=\\s*\"\\*\").*((allowCredentials|setAllowCredentials)\\(\\s*true\\s*\\)|allowCredentials\\s*=\\s*\"true\")|((allowCredentials|setAllowCredentials)\\(\\s*true\\s*\\)|allowCredentials\\s*=\\s*\"true\").*((allowedOriginPatterns|addAllowedOriginPattern|setAllowedOriginPatterns)\\(\\s*((List\\.of|Arrays\\.asList)\\(\\s*)?\"\\*\"|originPatterns\\s*=\\s*\"\\*\")",
+        "csharp": "(?s)SetIsOriginAllowed\\(\\s*\\(?\\s*\\w*\\s*\\)?\\s*=>\\s*true\\s*\\).*AllowCredentials\\(\\s*\\)|AllowCredentials\\(\\s*\\).*SetIsOriginAllowed\\(\\s*\\(?\\s*\\w*\\s*\\)?\\s*=>\\s*true\\s*\\)"
+      },
+      "argumentPatterns": {
+        "python": "\\bsupports_credentials\\s*=\\s*True\\b",
+        "javascript": "(?s)\\borigin\\s*:\\s*(true|/\\.\\*/)\\s*[,}].*\\bcredentials\\s*:\\s*true\\b|\\bcredentials\\s*:\\s*true\\b.*\\borigin\\s*:\\s*(true|/\\.\\*/)\\s*[,}]",
+        "typescript": "(?s)\\borigin\\s*:\\s*(true|/\\.\\*/)\\s*[,}].*\\bcredentials\\s*:\\s*true\\b|\\bcredentials\\s*:\\s*true\\b.*\\borigin\\s*:\\s*(true|/\\.\\*/)\\s*[,}]"
+      },
+      "safeArgumentPatterns": {
+        "python": "\\b(origins|resources)\\s*="
+      },
+      "looksFor": "CORS settings in the code that accept every origin and also allow credentials: flask-cors without a list of origins (Python), `origin: true` or `/.*/` with `credentials: true` (Express, Fastify), `allowedOriginPatterns(\"*\")` or `originPatterns = \"*\"` with credentials (Spring), and `SetIsOriginAllowed(_ => true)` with `AllowCredentials()` (ASP.NET Core); a list of origins built at run time, or headers set by hand, is not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "go": "Go's CORS libraries (`rs/cors`, `gin-contrib/cors`) take a function or a list that cannot be told to hold every site from one file in the common case, so they are not looked for yet.",
+        "ruby": "`rack-cors` refuses `origins '*'` with `credentials: true` when the app starts, so that pair cannot run; an origin block that lets every site in is not looked for yet.",
+        "php": "No setting that lets every site in with credentials is looked for in PHP yet. A list of allowed sites built at run time is not looked for in any language: whether it holds every site cannot be told from one file.",
+        "kotlin": "Spring's CORS settings in Kotlin are not read yet: only the Java spellings are.",
+        "rust": "No setting that lets every site in with credentials is looked for in Rust yet. A list of allowed sites built at run time is not looked for in any language: whether it holds every site cannot be told from one file.",
+        "dart": "No setting that lets every site in with credentials is looked for in Dart yet. A list of allowed sites built at run time is not looked for in any language: whether it holds every site cannot be told from one file.",
+        "swift": "No setting that lets every site in with credentials is looked for in Swift yet. A list of allowed sites built at run time is not looked for in any language: whether it holds every site cannot be told from one file.",
+        "c": "C has no common web framework whose CORS settings this rule can speak to.",
+        "cpp": "C++ has no common web framework whose CORS settings this rule can speak to.",
+        "shell": "Shell scripts set no CORS policy this rule can speak to."
+      }
+    },
+    {
       "id": "ast.token-key-source-from-token",
       "title": "A sign-in token is allowed to say where the key that checks it comes from",
       "severity": "high",
