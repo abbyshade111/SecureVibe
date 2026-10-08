@@ -795,6 +795,17 @@ pub(super) const SIGNIN_REVEALS_ACCOUNT: Rule = Rule {
           right\".",
 };
 
+pub(super) const SIGNUP_REVEALS_ACCOUNT: Rule = Rule {
+    rule_id: "probe.signup-reveals-account",
+    requirement_ids: &["V6.3.8"],
+    cwe: &["CWE-204"],
+    impact: "Anybody can find out whether an email address has an account by trying to sign up with \
+             it, which is where guessing passwords and targeted phishing begin.",
+    fix: "Answer a sign-up the same way whether or not the address already has an account, for \
+          example \"Check your email to finish signing up\", and tell the address's owner by email \
+          that somebody tried to sign up with it.",
+};
+
 pub(super) const EMAIL_CODE_REUSABLE: Rule = Rule {
     rule_id: "probe.email-code-reusable",
     requirement_ids: &["V6.5.1"],

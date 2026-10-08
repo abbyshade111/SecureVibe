@@ -186,7 +186,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V6.3.1 | L1 | Signed in: `probe.failed-sign-ins-unlimited` |
 | V6.3.2 | L1 | Signed in: `probe.default-account` (sv only ever as a finding: `probe.default-account`) |
 | V6.3.7 | L3 | Signed in: `probe.password-change-notified` |
-| V6.3.8 | L3 | Signed in: `probe.reset-reveals-account`, `probe.signin-reveals-account` (sv only ever as a finding: `probe.reset-reveals-account`, `probe.signin-reveals-account`) |
+| V6.3.8 | L3 | Signed in: `probe.reset-reveals-account`, `probe.signin-reveals-account`, `probe.signup-reveals-account` (sv only ever as a finding: `probe.reset-reveals-account`, `probe.signin-reveals-account`, `probe.signup-reveals-account`) |
 | V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` (sv only ever as a finding: `probe.activation-code-guessable`, `probe.activation-link-reusable`) |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` (sv only ever as a finding: `probe.password-hints`) |
 | V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable`, `probe.reset-code-in-answer` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-code-in-answer`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |

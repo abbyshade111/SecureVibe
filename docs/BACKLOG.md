@@ -5,9 +5,91 @@
 > v1's own backlog is on the `v1` branch.
 
 Same rules as the v1 backlog: claim an item here, in a commit of its own, before starting it. A message to
-another session is not a claim.
+another session is not a claim. **Read the roadmap below first**; `python3 tools/backlog.py list --open` prints what
+is open without reading the whole file.
+
+## Roadmap
+
+Written 8 October 2026 by session securevibe-review, at the owner's asking, after the day's review and architecture
+assessment; the reasons are in the end-of-day write-up, which is with the owner. This section is the order of work,
+not its record: a claim and a done note go on the item itself, as always, and this section is rewritten only when
+the order changes, by whoever changes it, with the date. **A session with no word from the owner takes the first
+unclaimed sub-item below, in this order, claims it, and lands it before taking the next.** `python3 tools/backlog.py
+list --open` prints every item with anything open, read from the items' own markers, so nobody reads 8,000 lines to
+find it; `python3 tools/backlog.py summary` prints the counts. Items are named by their titles here; find one by
+searching this file for it. Check an item against `main` before claiming: some were overtaken by later work and want
+a done note rather than a build.
+
+**Phase 1: close what is known to be broken.** Safety and honesty first; each numbered sub-item is claimable on
+its own.
+
+1. "A review of the code merged on 1 to 4 October 2026, for faults": 24 findings, several rated high, none claimed
+   as of 8 October. First the false passes and the high ones (1, 12, 13, 14, 18, 19), then the rest in order; 8 and
+   11 wait on the owner (ADR-026). Items 4 and 7 were overtaken on 8 October by "One rule for what an answer is"
+   (ADR-021, Later): verify on `main` and write the done note.
+2. "A review of the code merged on 5 and 6 October 2026, for faults": 17 findings, none claimed. First the false
+   passes and the missed secrets (2, 5, 10, 11, 12, 13), then the rest.
+3. "From the review of 8 October 2026: the medium and low findings, for any session to pick up", in the order 4
+   (the planted report marker), 2 (the npm download addresses and the linked dependency file), 1 (Ctrl-C under
+   `--tools`), 3 (gosec, CodeQL, and the links the tools follow), 5 (the honesty gaps), 6 (the low ones), 7 (the
+   spellings and the home path). The first three are the last known ways `sv` writes or fetches where it was not asked.
+4. "Hardening the MCP server, and `sv report`'s writing": 7 items from 6 October, none claimed. Items 1, 3, and 6
+   look done by later work (the link rule of ADR-041's fixes, the fence, the 1 MiB cap and the 50-second limit):
+   verify on `main` and write the done notes; build 2, 4, 5, and 7.
+5. "Found by the documentation review (6 October 2026), in `sv` itself": items 1 and 3 to 7.
+6. The smaller open parts of the older reviews: "A review of `sv` on 27 September 2026" (the one open part),
+   "The running-app checks, reviewed on 3 October 2026" (its open part and the ten partly done), "Two blind spots
+   found testing the prompt library", "Three false alarms on code that does the safe thing" (item 3), "Two limits
+   cato-pipeline hit" (its open part), and "Improving the MCP server" (its open part).
+
+**Phase 2: the shape, from the architecture assessment.** "From the architecture assessment of 8 October 2026: the
+four costs worth paying down": item 8 in its fuller form (the guard per check, so a silent check is impossible rather
+than tested for), then 9 (the stand-in protocol defined once), 10 (the MCP server's record and the check injected
+into `Server`; the tool fold only if the owner says), 12 (the small typing fixes, then the library move), and the
+second half of 11 (`ast.rs` and `sbom.rs` along their seams). The library move last, as two or three short pull
+requests, since it is the one that most changes how `main.rs` reads.
+
+**Phase 3: the records.** "Records owed, from the first weekly review of the decision records (30 September 2026)",
+"Records owed, from the second weekly review (5 October 2026)", "Records that disagree with what was built, or are
+missing", and the open parts of "A weekly review of the decision records". Each owed record is debt every later pull
+request pays again in "unchanged, because" lines; the weekly review wants a fixed day.
+
+**Phase 4: the product.** In this order, because the first is the paper's central claim and the rest build on it:
+
+1. "The loop trials cannot compare security with the arms that have no `sv`", then "The loop: `sv` as the MCP server
+   an AI tool uses while it builds" (items 3, 4, and 6).
+2. "Test the prompt library where the prompts have something to fix" and the open parts of "A prompt library".
+3. "Design-time prompts from the Secure by Design checklist" (15 prompts, none claimed) and the open parts of
+   "Design-time help before any code".
+4. The open findings of "From the gap analysis of 7 October 2026" (items 1, 9, 10, 11, 13, 16, 17, 21, 22; item 33
+   is this section and the "Backlog management" item).
+5. "A dashboard view for `sv`" (items 1 to 4) and "A private page for the owner" (items 2 to 4).
+6. "From the end-of-day write-up of 8 October 2026: ideas for `sv` itself" (at the end of this section's items).
+7. The open parts of "Research OWASP's Agentic Skills Top 10".
+
+**Phase 5: when nothing above is open.** "Corroborators for the remaining claims", "What a new tool, service, or
+process would reach" (item 7), "More adapters", "A checklist for what only a person can check", "Let the owner
+confirm what the AI coding tool said", "False alarms, part 2" and "part 3", the leftovers of "Packaging `sv`" and
+"Promote `sv` to the top of the repository", "What the remaining Level 1 and 2 requirements need", "More questions
+for the running app", the paper's three items ("Eight places where the paper's earlier files disagree with the
+record", "Two more analyses for the paper", "Two analyses for the paper, and a stale count"), and "Evaluate Opengrep
+against semgrep", whose title says it was done on 29 September while its parts read as open: read it and either
+write its done notes or close it. "Research: could the Kaspa blockchain" is the owner's own question and waits for
+them.
+
+**Process, any time, each cheap:** "Process: shorter CI, a merge queue decision, and a nightly routine on `main`",
+and the owner's decision on "One file per backlog item, with a status line", which would make the status above a
+line in each item's file rather than a reading of its prose.
 
 ## Next
+
+- **A second sign-up with a taken address may replace that account's password.** Found on 8 October 2026 by session
+  securevibe-e9 while building 13(c) through sign-up: the fake app the signed-in tests use answers a sign-up for an
+  address that already has an account by giving that account the new password, and no check asks whether a real app
+  does the same. An app that does lets anybody who knows an address take the account by signing up with it. To build:
+  make an account through sign-up, sign up again with its address and another password, and see which password then
+  signs in; the new one signing in is the finding, the old one still working and the new one refused is evidence the
+  app keeps accounts apart. Which requirement it cites needs reading first. **Not claimed.**
 
 - **One file per design entry, so two pull requests stop colliding in `docs/DESIGN.md`.** Asked for by the owner on
   8 October 2026 ("can you implement your recommended action of one file per design entry"), after auto-merge kept
@@ -376,6 +458,14 @@ another session is not a claim.
      `probe.app-token-placeholder-key`.
      **(c) through sign-in done the same day** (DESIGN, "A failed sign-in that tells which accounts exist"):
      `probe.signin-reveals-account`.
+     **(c), through sign-up, claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever
+     you're ready"), in branch `claude/securevibe-e9-signup-reveals`: an account made for it, then two sign-ups with its
+     address and one with an address nobody has, compared by the same `reveals_account_check`. A difference is a finding
+     citing V6.3.8; none credits nothing. Never with A's or B's address, since an app that lets a second sign-up replace
+     an account would change a password the other checks rely on. Read on `main` just before this claim: no other session
+     had claimed it.
+     **(c) through sign-up done the same day**
+     (`docs/design/0301-a-sign-up-that-tells-which-accounts-exist-8-october-2026.md`): `probe.signup-reveals-account`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
@@ -8431,6 +8521,98 @@ another session is not a claim.
   backlog's conflicts, and four merging rules"). The script settles a conflict in a Markdown file only when every
   block's merge base is empty; a Rust file, or a block where both sides changed the same lines, is left as Git
   left it, named, and the script fails. It never commits: the merge is staged for the session's own commit.
+
+- **Backlog management: a roadmap at the top, a status board, and the proposal of one file per item.** Asked for by the
+  owner on 8 October 2026 ("do you have suggestions for managing the backlog better? ... it's hard for me to parse what's
+  done and not done" and "ensure the backlog has the sequencing and details needed from your roadmap"), after the
+  end-of-day write-up. Measured that evening: 145 items in "Next", about 100 of them done and never moved, 20 partly
+  done, no "Done" section, and the two reviews of the code merged 1 to 6 October holding 41 findings with none claimed,
+  which the write-up's roadmap had not counted. To build now, without changing the file's shape: a `## Roadmap` section
+  at the top, ordered by phase, naming each item by its title and the sub-items by number, with why each comes where it
+  does and how the section is kept current; `tools/backlog.py list`, a status board read from the items' own markers
+  (`**Claimed`, `**Done`, "Not done"), per item and per numbered sub-item, with `--open`, `--claimed`, `--done`, and a
+  self-test a test runs; the items the write-up proposed that had none here (ideas for `sv`, process), appended at the
+  end of "Next"; and a `CLAUDE.md` line that a session with no word from the owner takes the roadmap's next unclaimed
+  item. To propose, not build: one file per backlog item with a `**Status:**` line, as ADR-060 did for the design
+  record and gap item 33 asked for, so that what is open becomes data rather than a reading of prose, and a claim is an
+  edit of one file (two sessions claiming the same item then conflict, which is the right outcome). That is the
+  owner's decision: an ADR, `Status: proposed`, with the claim that builds it.
+  **Claimed 8 October 2026 by session securevibe-review**, at the owner's word, in branch
+  `claude/securevibe-review-backlog`.
+  **Built the same day** (the `## Roadmap` section at the top of this file; `tools/backlog.py`, with its self-test run by
+  `crates/sv-cli/tests/backlog_board.rs`; the three items appended just above this one; `CLAUDE.md`, the roadmap
+  bullet and the tools list; design entry "The backlog's roadmap and status board"). The one-file-per-item layout is
+  proposed in its own item above, not built.
+
+- **From the end-of-day write-up of 8 October 2026: ideas for `sv` itself.** Proposed by session securevibe-review
+  in the write-up the owner asked for that evening ("additional suggestions for improvements, new features, changes,
+  etc. are very welcome"); none is claimed, and each is claimable on its own. The guard per check, also proposed
+  there, is item 8 of "From the architecture assessment of 8 October 2026" and is not repeated here.
+  1. **Fail CI only on what is new.** `sv report --baseline <older report folder>`, exiting on the findings not in
+     the baseline, so a team can adopt `sv` on an app with a hundred existing findings without setting them all
+     aside. The history the dashboard work keeps has the data. A day, and a decision record: an exit code is a default
+     that changes a conclusion (ADR-029 governs the exit codes).
+  2. **A corpus of known verdicts as a regression test.** The example apps and the trial apps already scored, with
+     their expected counts per requirement checked in, run nightly and compared with the night before: the honesty
+     rule turned into a measurement, so a change that credits more or finds less has to say why. Builds on the
+     nightly routine in the process item below.
+  3. **Fuzz the readers of untrusted input.** `cargo fuzz` targets for the JSON-RPC framing, `securevibe.toml`, the
+     lockfile and SBOM readers, and the tool-output parsers, run weekly in CI; each reads what an app or a tool hands
+     it, and a planted file that panics `sv` would be found here before an owner finds it. Two days to set up.
+  4. **Signed releases.** The container image signed and provenance published for the binary (the SLSA generator or
+     cosign), so an owner can verify that what they run is what CI built; `install.sh --locked` and the image exist.
+     Half a day, and a line in the paper's threat model.
+  5. **"Explain this requirement" from the report.** A person reading "V7.4.1 not assessed" needs the requirement's
+     text, what `sv` would have checked, and what to do; the data files hold the first two. A command, or a column in
+     `report.html`. A day.
+  6. **A GitHub Action wrapping the image**, so `sv report --tools` runs on each pull request of an owner's app with
+     the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.
+
+- **Process: shorter CI, a merge queue decision, and a nightly routine on `main`.** From the same write-up; each
+  claimable on its own, and the second is the owner's to decide.
+  1. **Shorter CI.** The test job is one job of about ten minutes and `sv-check` is most of it: a matrix that runs
+     `sv-check` in two or three shards beside the other crates brings it to about five; docs-only pull requests skip
+     the test and image jobs behind a path filter, with a job of the required name still reporting. ADR-051 governs
+     `rust.yml`: a Later entry or an "unchanged, because" line.
+  2. **A merge queue** (a repository setting, the owner's). GitHub merges a pull request that was green against an
+     older `main`, so the first test of the combination is `main`'s own; a queue tests each pull request on top of
+     the ones ahead of it, at one more CI run each. The write-up's advice: try auto-merge alone first (on since
+     8 October), and turn the queue on only if `main` goes red from an untested combination more than once a week.
+  3. **A nightly routine on `main`.** The full workspace tests with a container backend, `tools/coverage.py
+     --credits`, and the example apps re-scored, with the counts compared to the night before and a one-line note
+     when anything changed. The pieces exist; the comparison does not. The weekly decision-record review's routine
+     ("A weekly review of the decision records") is the model.
+
+- **One file per backlog item, with a status line.** Proposed on 8 October 2026 by session securevibe-review after
+  measuring this file (146 items in "Next", 82 done and never moved, 31 mixed, no "Done" section), and asked for in
+  another form by gap item 33 ("move done items to a file of their own"). The owner's decision: an ADR, `Status:
+  proposed`, written by whoever claims this, and accepted in the pull request that builds it. The shape, as ADR-060
+  gave the design record: each item a file under `docs/backlog/`, numbered in the order written and named by its
+  title, whose second line is `**Status:** open` or `claimed by <session>, <date>` or `done, <date>` or `partly
+  done: <what remains>`, kept by hand as the markers are today; sub-items keep their numbers inside the file, so
+  "gap item 13(c)" and "backlog 32, step 2" still resolve; `docs/BACKLOG.md` becomes the roadmap and the rules, with
+  no list of items (a list every item adds a line to would bring the conflicts back); `tools/backlog.py` reads the
+  status lines instead of the prose, gains `new`, `claim`, and `done`, and its `move` splits this file once, using
+  the parser it has today, with the 31 mixed items settled by a person. What it buys: what is open becomes data; a
+  claim is an edit of one file, so two sessions claiming the same item conflict with each other, which is the right
+  outcome, and the merge script has nothing left to settle; the documentation pages list the items apart. What it
+  costs: the 300-odd citations of the form `BACKLOG, "title"` in the code and the documents still resolve by a search
+  of `docs/backlog/`, as the design citations do, and the paper names this file at commits that still hold it; the
+  other two asks of gap item 33 are not recommended (GitHub issues would move the record out of the repository the
+  paper cites; CI refusing a double claim comes free with one file per item).
+  **The owner said yes the same evening** ("can you please go ahead with the one file per backlog item when you're
+  ready?"). **Claimed 8 October 2026 by session securevibe-review**, in branch `claude/securevibe-review-backlog-files`;
+  the record is ADR-061, `Status: proposed`, to be accepted in the pull request that builds it.
+
+- **Gap item 11, cross-site scripting sinks: a code rule for HTML built from a value and put on the page
+  unescaped.** From "From the gap analysis of 7 October 2026", item 11 (`docs/GAP-ANALYSIS.md`, 3.3), whose other
+  parts were claimed and built by session securevibe-e9; this part was not. **Claimed on 8 October 2026 by session
+  securevibe-e2**, at the owner's word ("continue the backlog please"), in branch `claude/securevibe-e2-xss-sinks`:
+  `ast.html-from-value`, citing V1.2.1 and only ever a finding, for React's `dangerouslySetInnerHTML` given anything
+  but fixed text; `innerHTML`, `outerHTML`, `insertAdjacentHTML`, and `document.write` given a value; Python's
+  `Markup(...)` and Django's `mark_safe(...)` given a value; and Express's `res.send` of HTML
+  pieced together from a value. Finding-only, crediting nothing, so no decision record is proposed. Read on `main`
+  just before this claim: no other session had claimed it.
 
 ## Decided, not yet written down as ADRs
 
