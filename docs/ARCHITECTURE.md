@@ -142,7 +142,7 @@ terminal command the person can run.
 | What the AI coding tool is told | `crates/sv-cli/src/mcp/catalog.rs` (tools and prompts), `check_text.rs` |
 | What a person can set aside or confirm | `crates/sv-check/src/review.rs`, `confirm.rs`, `seal.rs`; `sv review` in `crates/sv-cli/src/review.rs` |
 | A data file | `data/README.md` says what each is and what reads it; `sv_frameworks::data::file` finds it |
-| What is still to do | `docs/BACKLOG.md`; claim an item there before starting it |
+| What is still to do | `docs/backlog/`, one file per item with its status on its third line; `docs/BACKLOG.md` holds the rules and the roadmap. Claim an item with `python3 tools/backlog.py claim` before starting it |
 
 `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test --workspace` are what CI runs;
 a test that starts the app needs a container backend and says which branch it took without one.
