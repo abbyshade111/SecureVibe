@@ -12,9 +12,11 @@ languages = ["python"]
 
 [stack.run]
 image = "python:3.12-slim"
-build = "pip install -r requirements.txt"
+install = true           # the packages in requirements.txt, installed before the run (ADR-052)
+# Deliberately wrong: 127.0.0.1 is answered only from inside the app's own container, and `sv run` asks from
+# another, so a real app listens on 0.0.0.0. It is left here for `sv preflight` to point out
+# (crates/sv-cli/tests/preflight.rs). This example has no tests of its own, so there is no `test` line.
 start = "gunicorn -b 127.0.0.1:$PORT app:app"
-test = "pytest -q"
 health = "/healthz"
 
 [data]

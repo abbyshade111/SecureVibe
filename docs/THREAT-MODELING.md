@@ -169,7 +169,7 @@ part, then cannot place; within each, in the order of the parts of the app in th
 3. **Where it shows.** A section of the existing report, or its own file (`threat-model.md`) the way
    v1 writes one?
 
-## Since (reviewed 6 October 2026)
+## Since (reviewed 6 October 2026, and again 8 October 2026)
 
 - **v1 is archived.** On 26 September 2026 v1 moved to the `v1` branch, and nothing in this tree is v1's. Where this
   page says v1 has, or will read, something, it means the archived v1; only `sv` reads `threats.json`, and a change
@@ -180,7 +180,10 @@ part, then cannot place; within each, in the order of the parts of the app in th
   code is written, but only those *not verified* or that it *cannot place*: a plan never says a threat was *found*
   or *checked in part*, since nothing has been looked at yet. `sv brief` shows no threats.
 - **An answer is not a check.** A `[design]` answer, a section written down, or a statement never settles a threat;
-  only a check that ran moves one to *checked in part*.
+  only a check that ran moves one to *checked in part*. Nor do the app's own tests (ADR-050) or a check made by
+  hand: the threat lists those requirements under their own headings, and they leave it *not verified*
+  (`crates/sv-report/src/threats.rs`). A requirement *checked in part* (ADR-053) counts toward a threat as *checked*
+  does, since a threat is only ever *checked in part* anyway. (Added 8 October 2026.)
 - **The AI threats name their MITRE ATLAS techniques** (`data/atlas-references.json`).
 - **The order:** a threat whose condition is unanswered is *cannot place* even when one of its requirements needs
   attention.
