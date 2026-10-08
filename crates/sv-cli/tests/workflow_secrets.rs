@@ -30,7 +30,11 @@ fn report_for(name: &str, workflow: Option<&str>) -> serde_json::Value {
         String::from_utf8_lossy(&out.stderr)
     );
     let json = serde_json::from_str(
-        &std::fs::read_to_string(app.join("securevibe-report/report.json")).unwrap(),
+        &std::fs::read_to_string(
+            app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                .join("report.json"),
+        )
+        .unwrap(),
     )
     .unwrap();
     std::fs::remove_dir_all(&app).ok();

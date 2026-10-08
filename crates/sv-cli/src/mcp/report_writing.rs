@@ -6,10 +6,16 @@ use super::*;
 impl Server {
     pub(super) fn write_report(&self, args: &Value, progress: &Progress) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
+        // The folder's default name is the new one, or the old one while only it exists (ADR-062).
+        let default_out = sv_scan::ecosystems::default_report_dir_in(&app_dir);
+        let default_out = default_out
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
         let out = args
             .get("out")
             .and_then(Value::as_str)
-            .unwrap_or("securevibe-report");
+            .unwrap_or(default_out);
         // Relative and downward only. The folder may not exist yet, so it cannot be canonicalized
         // before it is created; refusing `..` and absolute paths keeps it under the app instead.
         anyhow::ensure!(

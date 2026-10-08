@@ -235,7 +235,7 @@ fn a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen() {
     assert!(!leaks(b"[redacted: Qv7r\xe2\x80\xa6 (16 more characters)]"));
 
     // The report, through `sv report --tools`, inside the app so the MCP server offers it.
-    let out = app.join("securevibe-report");
+    let out = app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     let report = sv(
         &[
             "report",

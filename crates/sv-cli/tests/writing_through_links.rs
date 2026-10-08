@@ -172,7 +172,11 @@ fn a_report_folder_holding_a_name_like_one_of_svs_but_for_capitals_is_refused_ev
     let (root, app, _) = scratch("report-case");
     let out_dir = root.join("report");
     std::fs::create_dir(&out_dir).unwrap();
-    std::fs::write(out_dir.join(".securevibe-report"), "planted\n").unwrap();
+    std::fs::write(
+        out_dir.join(sv_scan::ecosystems::REPORT_MARKER),
+        "planted\n",
+    )
+    .unwrap();
     std::fs::write(out_dir.join("SECURITY.md"), "Theirs.\n").unwrap();
     let out = sv(&[
         "report",
@@ -200,7 +204,10 @@ fn a_report_is_written_into_a_new_an_empty_or_its_own_folder() {
         let out = sv(&["report", app_s, "--out", fresh.to_str().unwrap()]);
         assert!(out.status.success(), "{}", said(&out));
     }
-    assert!(fresh.join(".securevibe-report").exists() && fresh.join("report.json").exists());
+    assert!(
+        fresh.join(sv_scan::ecosystems::REPORT_MARKER).exists()
+            && fresh.join("report.json").exists()
+    );
     // A folder sv marked, with a file the owner put there since: still sv's, and the file is kept.
     std::fs::write(fresh.join("notes-to-self.txt"), "mine\n").unwrap();
     let out = sv(&["report", app_s, "--out", fresh.to_str().unwrap()]);

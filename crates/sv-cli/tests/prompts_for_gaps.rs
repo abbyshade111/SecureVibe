@@ -38,7 +38,11 @@ fn the_prompts_offered_are_for_requirements_the_real_report_shows_unproven() {
         .output()
         .expect("sv runs");
     let json: serde_json::Value = serde_json::from_str(
-        &std::fs::read_to_string(app.join("securevibe-report/report.json")).unwrap_or_default(),
+        &std::fs::read_to_string(
+            app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                .join("report.json"),
+        )
+        .unwrap_or_default(),
     )
     .unwrap_or_default();
     std::fs::remove_dir_all(&app).ok();

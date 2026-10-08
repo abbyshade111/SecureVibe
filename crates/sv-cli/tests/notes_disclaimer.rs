@@ -35,7 +35,9 @@ fn a_section_holding_only_the_tools_disclaimer_is_not_verified() {
     let config = dir.join("config");
     sv(&["notes", dir.to_str().unwrap()], &config);
     // The owner's section is recorded through `sv review`, as it counts as theirs only then.
-    let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    let (key, _) =
+        sv_check::seal::Key::load_or_make_in(&config.join(sv_frameworks::names::CONFIG_DIR))
+            .unwrap();
     // Sealed for this app, as `sv review` run in it seals.
     let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
     let accountant = "Written by our accountant: only the owner may change prices or see payments.";

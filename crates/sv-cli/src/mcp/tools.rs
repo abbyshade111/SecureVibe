@@ -268,15 +268,19 @@ impl Server {
                 requirement.is_none(),
                 "give either requirement or path, not both"
             );
-            let report = self
-                .app_dir(args)?
-                .join("securevibe-report")
-                .join("report.json");
+            // The folder with the new name, or the old one while only it exists (ADR-062).
+            let folder = sv_scan::ecosystems::default_report_dir_in(&self.app_dir(args)?);
+            let folder_name = folder
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| sv_scan::ecosystems::DEFAULT_REPORT_DIR.to_owned());
+            let report_name = format!("{folder_name}/report.json");
+            let report = folder.join("report.json");
             // A link could point outside the root, as for every other file read here.
             if let Ok(meta) = std::fs::symlink_metadata(&report) {
                 anyhow::ensure!(
                     !meta.file_type().is_symlink(),
-                    "securevibe-report/report.json is a link to somewhere else, so it is not read"
+                    "{report_name} is a link to somewhere else, so it is not read"
                 );
             }
             let crate::ReportPrompts {
@@ -310,14 +314,14 @@ impl Server {
             let text = prompts.gaps_markdown(
                 &offered_refs,
                 &gaps,
-                "the app's last report (securevibe-report/report.json)",
+                &format!("the app's last report ({report_name})"),
             );
             return Ok(json!({
                 "content": [{ "type": "text", "text": text }],
                 "structuredContent": {
                     "prompts": chosen,
                     "credit": prompts.credit,
-                    "report": "securevibe-report/report.json",
+                    "report": report_name,
                     "unproven": gaps.len(),
                 },
                 "isError": false,

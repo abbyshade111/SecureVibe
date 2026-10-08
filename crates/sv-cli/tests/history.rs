@@ -68,7 +68,7 @@ impl Home {
             .join(example);
         let to = self.root.join("apps").join(example);
         copy(&from, &to);
-        std::fs::remove_dir_all(to.join("securevibe-report")).ok();
+        std::fs::remove_dir_all(to.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)).ok();
         to
     }
 }
@@ -101,7 +101,9 @@ fn nothing_is_kept_until_the_person_turns_it_on() {
     let app = home.app("notes-with-users");
     let (code, said) = home.sv(&["report", s(&app)]);
     assert!(
-        app.join("securevibe-report/report.json").is_file(),
+        app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.json")
+            .is_file(),
         "the setup: {code:?} {said}"
     );
     assert!(!said.contains("Kept a record"), "{said}");
@@ -138,7 +140,11 @@ fn a_record_holds_the_counts_and_titles_and_nothing_of_the_code() {
     let text = std::fs::read_to_string(&runs[0]).unwrap();
     let run: Value = serde_json::from_str(&text).unwrap();
     let report: Value = serde_json::from_str(
-        &std::fs::read_to_string(app.join("securevibe-report/report.json")).unwrap(),
+        &std::fs::read_to_string(
+            app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                .join("report.json"),
+        )
+        .unwrap(),
     )
     .unwrap();
 
@@ -242,7 +248,11 @@ fn the_reports_never_read_history_and_the_dashboard_shows_it_as_text() {
     }]);
     std::fs::write(&runs[0], run.to_string()).unwrap();
     home.sv(&["report", s(&app)]);
-    let report = std::fs::read_to_string(app.join("securevibe-report/report.html")).unwrap();
+    let report = std::fs::read_to_string(
+        app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.html"),
+    )
+    .unwrap();
     assert!(!report.contains("PLANTED"), "a report read history");
 
     let out = home.root.join("d.html");

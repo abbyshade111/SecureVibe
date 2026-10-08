@@ -687,7 +687,7 @@ fn a_bundle_replaces_only_a_zip_sv_made() {
         .output()
         .expect("python3 is needed to read the zip back");
     assert!(
-        String::from_utf8_lossy(&comment.stdout).starts_with("Made by SecureVibe (sv bundle)"),
+        String::from_utf8_lossy(&comment.stdout).starts_with("Made by StackVet (sv bundle)"),
         "{}{}",
         String::from_utf8_lossy(&comment.stdout),
         String::from_utf8_lossy(&comment.stderr)

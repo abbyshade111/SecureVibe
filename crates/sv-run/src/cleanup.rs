@@ -121,7 +121,7 @@ mod tests {
             vec![
                 "run",
                 "--label",
-                "org.securevibe.owner=laptop:42",
+                "org.stackvet.owner=laptop:42",
                 "-d",
                 "--name",
                 "x",
@@ -134,7 +134,7 @@ mod tests {
                 "network",
                 "create",
                 "--label",
-                "org.securevibe.owner=laptop:42",
+                "org.stackvet.owner=laptop:42",
                 "--internal",
                 "n"
             ]
@@ -144,7 +144,7 @@ mod tests {
             vec![
                 "create",
                 "--label",
-                "org.securevibe.owner=laptop:42",
+                "org.stackvet.owner=laptop:42",
                 "busybox"
             ]
         );

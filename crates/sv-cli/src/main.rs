@@ -1389,7 +1389,9 @@ fn cmd_prompts(args: &[String]) -> Result<()> {
     let requirement = value("--requirement");
     let report = match (value("--report"), value("--app")) {
         (Some(file), _) => Some(PathBuf::from(file)),
-        (None, Some(app)) => Some(Path::new(app).join("securevibe-report").join("report.json")),
+        (None, Some(app)) => {
+            Some(sv_scan::ecosystems::default_report_dir_in(Path::new(app)).join("report.json"))
+        }
         (None, None) => None,
     };
     if let Some(report) = report {
@@ -2456,7 +2458,7 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         }
         let folder = std::fs::canonicalize(folder)
             .with_context(|| format!("finding the folder {}", folder.display()))?;
-        let reports = folder.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
+        let reports = sv_scan::ecosystems::default_report_dir_in(&folder);
         let summary = match std::fs::read_to_string(reports.join("report.json")) {
             Ok(text) => sv_report::dashboard::read(&text),
             Err(_) => Err(format!(
@@ -3280,7 +3282,10 @@ fn claim_report_folder(
             return Err(e);
         }
     };
-    let marker = out_dir.join(sv_scan::ecosystems::REPORT_MARKER);
+    // The marker under either of its names (ADR-062): one already there is kept until the report
+    // is written; a folder without one gets the new name.
+    let marker = sv_scan::ecosystems::report_marker_in(out_dir)
+        .unwrap_or_else(|| out_dir.join(sv_scan::ecosystems::REPORT_MARKER));
     held.undo_unless_written(
         (!marker.is_file()).then(|| marker.clone()),
         made.then(|| out_dir.to_path_buf()),
@@ -3433,9 +3438,10 @@ fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
             .collect::<Vec<_>>()
             .join(", ")
     );
-    let marked = names
-        .iter()
-        .any(|name| name == sv_scan::ecosystems::REPORT_MARKER);
+    let marked = names.iter().any(|name| {
+        name == sv_scan::ecosystems::REPORT_MARKER
+            || name == sv_frameworks::names::OLD_REPORT_MARKER
+    });
     let others: Vec<&String> = names
         .iter()
         .filter(|name| !ours.contains(&name.as_str()) && !is_staging(name, ours))
@@ -5609,7 +5615,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         advisories_dir,
     } = parse_report_args(args, "a directory")?;
     let advisories_given = advisories_dir.is_some();
-    let out_dir = out.unwrap_or_else(|| app_dir.join("securevibe-report"));
+    let out_dir = out.unwrap_or_else(|| sv_scan::ecosystems::default_report_dir_in(&app_dir));
     // Taken before the run, and held until its report is written, so a second run at the same time
     // is refused at once rather than replacing this one's report when it finishes (BACKLOG, "What the
     // owner hit building family-hub", item 2).
@@ -6577,7 +6583,10 @@ mod report_folder_tests {
         }
         let held =
             claim_report_folder(&dir, "sv report", "give --out", false).expect("sv's own folder");
-        assert!(dir.join(".securevibe-report").is_file(), "marked");
+        assert!(
+            dir.join(sv_scan::ecosystems::REPORT_MARKER).is_file(),
+            "marked"
+        );
         assert!(
             !dir.join("..securevibe-report.sv-98295").exists(),
             "cleared"

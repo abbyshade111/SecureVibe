@@ -151,8 +151,7 @@ pub(super) enum Unreadable {
 
 /// Whether `sv` marked this folder as one of its reports: the marker is a file, not a link to one.
 pub(super) fn is_report_folder(dir: &Path) -> bool {
-    std::fs::symlink_metadata(dir.join(sv_scan::ecosystems::REPORT_MARKER))
-        .is_ok_and(|meta| meta.is_file())
+    sv_scan::ecosystems::report_marker_in(dir).is_some()
 }
 
 /// The report folders at or below `dir`, not following links. A report folder is not looked into

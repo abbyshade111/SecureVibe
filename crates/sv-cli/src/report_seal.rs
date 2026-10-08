@@ -122,6 +122,11 @@ fn seal_in(
         marker_text(sentence, &seal).as_bytes(),
     )
     .map_err(|e| format!("{e:#}"))?;
+    // A marker under the old name (ADR-062) is `sv`'s own file, replaced by the one just written.
+    let old = dir.join(sv_frameworks::names::OLD_REPORT_MARKER);
+    if std::fs::symlink_metadata(&old).is_ok_and(|m| m.is_file()) {
+        std::fs::remove_file(&old).map_err(|e| format!("removing the old marker: {e}"))?;
+    }
     Ok(Sealed {
         made_key: made.then(|| folder.join(REPORT_KEY_FILE)),
     })
@@ -131,7 +136,8 @@ fn seal_in(
 /// computer and nothing has changed them since; otherwise why not, as the end of a sentence
 /// beginning "sv cannot show it wrote this report:".
 pub fn proven(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
-    let marker = dir.join(sv_scan::ecosystems::REPORT_MARKER);
+    let marker = sv_scan::ecosystems::report_marker_in(dir)
+        .ok_or_else(|| "the folder holds no marker of sv's".to_owned())?;
     let meta = std::fs::symlink_metadata(&marker)
         .map_err(|_| "the folder holds no marker of sv's".to_owned())?;
     if !meta.is_file() || meta.len() > MAX_MARKER_BYTES {
@@ -152,7 +158,8 @@ pub fn proven(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
 /// item 4): a marker can be planted in any of the app's folders, and a seal cannot be made without
 /// the key.
 pub fn sealed_here(dir: &Path) -> Result<BTreeMap<&'static str, String>, String> {
-    let marker = dir.join(sv_scan::ecosystems::REPORT_MARKER);
+    let marker = sv_scan::ecosystems::report_marker_in(dir)
+        .ok_or_else(|| "the folder holds no marker of sv's".to_owned())?;
     let meta = std::fs::symlink_metadata(&marker)
         .map_err(|_| "the folder holds no marker of sv's".to_owned())?;
     if !meta.is_file() || meta.len() > MAX_MARKER_BYTES {

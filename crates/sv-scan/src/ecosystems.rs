@@ -993,7 +993,28 @@ fn claims_to_be_report(dir: &Path) -> bool {
 /// Whether the folder carries `sv`'s marker, under its name or the name it had before the rename
 /// (ADR-062): both are `sv`'s own writing.
 pub fn has_report_marker(dir: &Path) -> bool {
-    dir.join(REPORT_MARKER).is_file() || dir.join(sv_frameworks::names::OLD_REPORT_MARKER).is_file()
+    report_marker_in(dir).is_some()
+}
+
+/// The marker file in `dir`, under its name or its old one (the new first when both are there),
+/// as a path; `None` when the folder carries neither. A link where the marker would be is not one.
+pub fn report_marker_in(dir: &Path) -> Option<std::path::PathBuf> {
+    [REPORT_MARKER, sv_frameworks::names::OLD_REPORT_MARKER]
+        .iter()
+        .map(|name| dir.join(name))
+        .find(|path| std::fs::symlink_metadata(path).is_ok_and(|m| m.is_file()))
+}
+
+/// The app's default report folder: the new name when it exists or when neither does, the old name
+/// while only it exists (ADR-062), so a report written before the rename is still found and still
+/// written over, and a new app gets the new name.
+pub fn default_report_dir_in(app_dir: &Path) -> std::path::PathBuf {
+    let new = app_dir.join(DEFAULT_REPORT_DIR);
+    let old = app_dir.join(sv_frameworks::names::OLD_REPORT_DIR);
+    if !new.exists() && old.is_dir() {
+        return old;
+    }
+    new
 }
 
 /// Every entry is one of the names `sv` writes, compared without regard to capitals, and each is a

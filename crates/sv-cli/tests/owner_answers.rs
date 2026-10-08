@@ -26,7 +26,9 @@ fn an_owners_answer_is_theirs_only_as_recorded_and_not_changed_since() {
         .join("../../examples/tested-notes/securevibe.toml");
     let mut manifest = std::fs::read_to_string(example).unwrap();
     let config = dir.join("config");
-    let (key, _) = sv_check::seal::Key::load_or_make_in(&config.join("securevibe")).unwrap();
+    let (key, _) =
+        sv_check::seal::Key::load_or_make_in(&config.join(sv_frameworks::names::CONFIG_DIR))
+            .unwrap();
     // Sealed for this app, as `sv review` run in it seals.
     let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
 
@@ -141,8 +143,11 @@ fn an_owners_signed_answer_counts_where_sv_trusted_seals_names_its_key() {
     let line = key.trusted_line(&app).unwrap();
     // This computer's own list trusts another key for the app.
     let config = dir.join("config");
-    let other = sv_check::signed::SigningKey::make_in(&config.join("securevibe"), None).unwrap();
-    sv_check::signed::trust_here(&config.join("securevibe"), &other, &app).unwrap();
+    let other =
+        sv_check::signed::SigningKey::make_in(&config.join(sv_frameworks::names::CONFIG_DIR), None)
+            .unwrap();
+    sv_check::signed::trust_here(&config.join(sv_frameworks::names::CONFIG_DIR), &other, &app)
+        .unwrap();
     let answer = sv_manifest::DesignAnswer {
         answer: "yes".into(),
         r#where: Some("app.py".into()),
