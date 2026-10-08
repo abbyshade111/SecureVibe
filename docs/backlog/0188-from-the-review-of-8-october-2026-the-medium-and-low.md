@@ -179,3 +179,8 @@ high were built the same day (the entry above this one's predecessor). Each of t
    change to what the example apps' reports say, and by the existing MCP tests of the stage names. Confirmed on
    `main` just before this claim: the function is still one body, and no other session had claimed it (#1108
    touches `main.rs` elsewhere; this build starts once it has merged, so the two do not meet).
+   **Done the same day** (`docs/design/0311-the-report-s-assembly-in-stages-one-function-each-8-october.md`): the
+   function moved to `crates/sv-cli/src/assemble.rs` and became eight functions along its own sections, with what
+   every stage reads in one struct (`Scene`) and what each produces returned; the report, the stage names, and their
+   order unchanged, held by the verdict snapshots and the rest of `sv-cli`'s suite. With it, every part of item 7 is
+   done. `main.rs` is 5,063 lines after it, and its size stays with the architecture assessment's item.
