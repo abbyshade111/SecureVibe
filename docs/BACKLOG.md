@@ -482,6 +482,10 @@ another session is not a claim.
      and by recent Debian and Ubuntu; so Semgrep and gosec through Homebrew on a Mac, and Bandit (with its SARIF
      formatter) and Semgrep through `pipx` where `pip` is refused. Only for packages checked to exist; Brakeman and
      CodeQL keep today's hint, since Homebrew has no Brakeman and its CodeQL lacks the query packs `sv` runs.
+     **Done the same day** (DESIGN, "The language's own tool", the paragraph after "The hint reads as a sentence"):
+     `install_on` in `data/adapters.json`, chosen by the computer `sv` runs on. Breaks: the computer ignored, and
+     the per-platform hints ignored, each failed a test (`tools_on_screen.rs`, and a unit test in
+     `adapters.rs` that holds every hint to `run` a command, never `pip install`, and to name Bandit's formatter).
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
