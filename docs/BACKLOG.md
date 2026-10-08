@@ -24,6 +24,10 @@ another session is not a claim.
      `python` or `node` images, which is also the only case where the packages fit the interpreter that runs them;
      any other image is refused in plain words, naming the route that stays (build the packages into your own
      image). Changes what `sv` runs with the network open: a Later entry on ADR-052.
+     **Done the same day** (DESIGN, "Packages installed before the run, outside the fence", the paragraph "Only in
+     Docker's own `python` and `node` images"; ADR-052, Later, 8 October 2026): `install::official_image`, and `plan`
+     refusing any other image before the folder is read. Not done: a terminal confirmation for other images, since
+     the MCP server has no terminal to ask at; building the packages into your own image stays the route.
   2. **Brakeman reads `config/brakeman.yml` from the app, and that file can name Ruby files Brakeman loads**
      (`data/adapters.json`, the brakeman entry passes no config of its own; `additional_checks_path` is a documented
      option whose `*.rb` files Brakeman requires). A Rails app handed to the owner runs Ruby on their computer under

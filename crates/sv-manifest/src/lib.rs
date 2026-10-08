@@ -201,8 +201,9 @@ pub struct RunSection {
     pub test: Option<String>,
     /// Install the app's packages before the run (ADR-052): in a container of their own that is
     /// given only `requirements.txt`, or `package.json` and `package-lock.json`, and can reach the
-    /// internet, with no package's code run there; then given to the fenced app read-only. Absent
-    /// or false means nothing is installed and nothing is downloaded, as before.
+    /// internet, with no package's code run there; then given to the fenced app read-only. Only
+    /// when `image` is one of Docker's own `python` or `node` images, whose programs are known.
+    /// Absent or false means nothing is installed and nothing is downloaded, as before.
     #[serde(default)]
     pub install: Option<bool>,
     /// Where the test command writes its report (JUnit XML, TAP, `go test -json`, or jest/Vitest JSON),
