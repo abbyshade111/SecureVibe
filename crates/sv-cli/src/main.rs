@@ -2571,7 +2571,7 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
         if disagreement.differs() {
             eprintln!("{}: {}.", disagreement.project, disagreement.explain());
         }
-        if !disagreement.comparison.not_compared.is_empty() {
+        if disagreement.comparison.not_all_compared() {
             eprintln!(
                 "{}: {}.",
                 disagreement.project,
@@ -3685,7 +3685,7 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                 ),
             });
         }
-        if !disagreement.comparison.not_compared.is_empty() {
+        if disagreement.comparison.not_all_compared() {
             gaps.push(sv_report::Gap {
                 what: format!(
                     "whether `{}` and `{}` agree about every package",

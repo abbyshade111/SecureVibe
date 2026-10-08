@@ -1887,6 +1887,7 @@ mod tests {
                 comparison: crate::manifest_lock::Comparison {
                     differs,
                     not_compared,
+                    whole: None,
                 },
             }
         };
