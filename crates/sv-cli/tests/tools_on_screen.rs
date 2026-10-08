@@ -54,8 +54,17 @@ fn tools_that_did_not_run_are_named_on_screen_with_how_to_install_them() {
             "{tool}: {said}"
         );
     }
+    // The hint for this kind of computer: `pip install` is refused on many (data/adapters.json,
+    // `install_on`).
+    let semgrep_hint = if cfg!(target_os = "macos") {
+        "run `brew install semgrep`"
+    } else if cfg!(target_os = "linux") {
+        "run `pipx install semgrep`"
+    } else {
+        "run `pip install semgrep`"
+    };
     assert!(
-        said.contains("To install it, run `pip install semgrep`; then run this again."),
+        said.contains(&format!("To install it, {semgrep_hint}")),
         "{said}"
     );
     // CodeQL's install is steps in words, not a command to quote.

@@ -52,8 +52,9 @@ fn a_tool_that_is_not_installed_is_not_run_rather_than_clean() {
                 why.contains("not installed"),
                 "it must say the tool is missing: {why}"
             );
+            // On every kind of computer, the hint names the formatter Bandit needs for its report.
             assert!(
-                why.contains("pip install bandit"),
+                why.contains("bandit-sarif-formatter"),
                 "and how to get it: {why}"
             );
         }
