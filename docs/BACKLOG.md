@@ -23,6 +23,9 @@ another session is not a claim.
      (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
      `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
      back V15.2.1's credit and the "No package manifest" message stops being wrong.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
+     `claude/securevibe-e9-unread-ecosystems`: each named in the bill of materials as unread, which holds back
+     V15.2.1, and in the pinning check, which then cannot pass V15.1.2 either. Recorded as a Later entry on ADR-037.
   3. **"Debug mode off" and "generic error messages" are credited from a 404 alone.** (`docs/GAP-ANALYSIS.md`, 1.6.)
      `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
      (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
