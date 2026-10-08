@@ -9,6 +9,38 @@ another session is not a claim.
 
 ## Next
 
+- **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
+  readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
+  outside tools and the CLI, and the test suite; `cargo fmt`, `clippy`, and 2,355 tests clean). The areas the 4
+  October deep review fixed held. Four findings rated high, **all four claimed on 8 October 2026 by session
+  securevibe-review**, at the owner's word ("Yes please, go ahead"), one pull request each; read on `main` just before
+  this claim, none was claimed by another session. The rest of that review (ten medium, sixteen low) is in the owner's
+  hands to add here as they choose.
+  1. **The install step runs the manifest's own image with the network open** (`crates/sv-run/src/install.rs`,
+     `docker.rs`). ADR-052 says no package's own code runs there, and that holds; but the `sh`, `pip`, and `npm` that
+     run are the image's, and `image` is whatever `securevibe.toml` names, so an app that names its own image runs
+     that image's code with the internet, the owner's LAN, and the container backend's bridge reachable. Branch
+     `claude/securevibe-review-install-image`: `install = true` is honored only when `image` is one of Docker's own
+     `python` or `node` images, which is also the only case where the packages fit the interpreter that runs them;
+     any other image is refused in plain words, naming the route that stays (build the packages into your own
+     image). Changes what `sv` runs with the network open: a Later entry on ADR-052.
+  2. **Brakeman reads `config/brakeman.yml` from the app, and that file can name Ruby files Brakeman loads**
+     (`data/adapters.json`, the brakeman entry passes no config of its own; `additional_checks_path` is a documented
+     option whose `*.rb` files Brakeman requires). A Rails app handed to the owner runs Ruby on their computer under
+     `--tools`. Branch `claude/securevibe-review-brakeman-config`: a `{config}` placeholder that `sv` fills with an
+     empty settings file in the tool's private folder, passed as `-c`, so the app's file is never read. The spirit of
+     ADR-032 (a program the app names is not run): a Later entry there.
+  3. **`sv review` writes `securevibe.toml` and `security-notes.md` through a link the app planted, and not
+     atomically** (`crates/sv-cli/src/review.rs`, `save_text`): the one writer left on a plain write after S3 fixed
+     `sv notes` and `sv rules`. Branch `claude/securevibe-review-links`: `refuse_link` and `write_without_following`,
+     and a test in `writing_through_links.rs` that plants the link and shows the file it points at left alone.
+  4. **A `--tools` program is whatever `PATH` says, and `PATH` can point inside the app** (`crates/sv-check/src/adapters.rs`
+     spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
+     `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the
+     program is found through `PATH` by `sv` first, a relative entry is skipped, one under the app folder is refused
+     as not run, saying which and why, and the report names the program's path.
+
+
 - **The MCP time-limit test races its own check.** Found on 8 October 2026 by session securevibe-e9, in a full
   `cargo test --workspace` run: `mcp::tests::a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_on`
   (`crates/sv-cli/src/mcp.rs`) asserts the check that ran out of time is still running, then calls again and expects
@@ -166,6 +198,8 @@ another session is not a claim.
      **The rules files and the migrations (the first two parts) claimed 8 October 2026 by session securevibe-e9**
      ("choose the next backlog item"), in branch `claude/securevibe-e9-hosted-rules`: findings only, crediting nothing.
      The public-name key and the run summary's line stay open.
+     **Those two parts done the same day** (DESIGN, "Firebase rules and Supabase migrations are read"):
+     `config.firebase-rules-open`, `config.supabase-table-without-rls`, and `config.supabase-policy-allows-all`.
   11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
      finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
      `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
