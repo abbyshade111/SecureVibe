@@ -464,6 +464,8 @@ line in each item's file rather than a reading of its prose.
      citing V6.3.8; none credits nothing. Never with A's or B's address, since an app that lets a second sign-up replace
      an account would change a password the other checks rely on. Read on `main` just before this claim: no other session
      had claimed it.
+     **(c) through sign-up done the same day**
+     (`docs/design/0301-a-sign-up-that-tells-which-accounts-exist-8-october-2026.md`): `probe.signup-reveals-account`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.

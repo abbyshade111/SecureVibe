@@ -1194,6 +1194,76 @@ pub(super) const RESET_REQUEST: AskedAbout<'static> = AskedAbout {
     what: "A reset request",
 };
 
+/// The sign-up a run asked, as `reveals_account_check` names it.
+const SIGN_UP_WITH_A_TAKEN_ADDRESS: AskedAbout<'static> = AskedAbout {
+    rule: &SIGNUP_REVEALS_ACCOUNT,
+    title: "Sign-up tells anyone whether an address has an account",
+    what: "A sign-up",
+};
+
+/// Whether a sign-up tells an address that has an account from one that has none (V6.3.8).
+///
+/// An account is made for it first, never A's or B's: an app that lets a second sign-up replace an
+/// account would otherwise change a password the other checks rely on. Then two sign-ups with that
+/// address and one with an address nobody has, all with the same password, compared by
+/// `reveals_account_check`: the pair shows what varies between identical sign-ups, and only a
+/// status, words, or a redirect that differ beyond that count. A limit refusing a sign-up (429), or
+/// no answer, leaves them uncompared; a crash is set aside through `RAISED_ON_A_REFUSAL`. Only ever a
+/// finding: answers alike can still differ in how long they take, or in the email sent afterwards.
+pub(super) fn signup_reveals_account_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    out: &mut Outcome,
+) {
+    let Some(signup) = users.signup.as_ref() else {
+        return;
+    };
+    let password = format!(
+        "Su-{}-1aZ!",
+        accounts.b.password.chars().take(12).collect::<String>()
+    );
+    let taken = Account {
+        user: format!("taken.{}", accounts.a.user),
+        password: password.clone(),
+    };
+    let fresh = Account {
+        user: format!("nobody.taken.{}", accounts.a.user),
+        password,
+    };
+    sign_up_only(http, signup, "reveal-made", &taken);
+    let first = sign_up_only(http, signup, "reveal-1", &taken);
+    let second = sign_up_only(http, signup, "reveal-2", &taken);
+    let stranger = sign_up_only(http, signup, "reveal-nobody", &fresh);
+    let status = |r: &Option<ProbeResponse>| r.as_ref().map_or(0, |r| r.status);
+    let statuses = [status(&first), status(&second), status(&stranger)];
+    let limited = statuses.iter().any(|s| *s == 429 || *s == 0);
+    out.steps.push(format!(
+        "signed up with an address that has an account, {}, twice ({}, {}) and with one that has none \
+         ({}){}",
+        taken.user,
+        statuses[0],
+        statuses[1],
+        statuses[2],
+        if limited {
+            ": not compared, since a sign-up was refused as too many or not answered"
+        } else {
+            ""
+        }
+    ));
+    if limited {
+        return;
+    }
+    reveals_account_check(
+        [&first, &second, &stranger],
+        &taken.user,
+        &fresh.user,
+        &signup.path,
+        &SIGN_UP_WITH_A_TAKEN_ADDRESS,
+        out,
+    );
+}
+
 /// Whether the answer to a request tells an address with an account from one without.
 ///
 /// Two requests for the same account show what changes between identical requests — a token in
@@ -2583,5 +2653,126 @@ mod tests {
         let why = not_assessed_for(&o, "V7.4.3, V6.3.7");
         assert_eq!(why.len(), 1, "{:?}", o.not_assessed);
         assert!(why[0].contains("wrong current password"), "{}", why[0]);
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // A sign-up that tells which accounts exist (V6.3.8)
+    // -------------------------------------------------------------------------------------------
+
+    fn reveals(o: &Outcome) -> Vec<&str> {
+        rule_ids(o)
+            .into_iter()
+            .filter(|id| id.ends_with("-reveals-account"))
+            .collect()
+    }
+
+    #[test]
+    fn a_sign_up_that_answers_alike_is_compared_and_not_reported() {
+        let o = run_signing_up(Flaws::default());
+        assert_eq!(reveals(&o), Vec::<&str>::new(), "{:?}", o.steps);
+        assert!(!verified_ids(&o).contains(&SIGNUP_REVEALS_ACCOUNT.rule_id));
+        // Setup: the account was made and the three sign-ups answered, so the quiet means something.
+        assert!(
+            o.steps.iter().any(|s| s
+                == "signed up with an address that has an account, taken.a@example.test, twice \
+                    (303, 303) and with one that has none (303)"),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_sign_up_that_tells_which_accounts_exist_is_found_either_way_it_does() {
+        for flaws in [
+            Flaws {
+                signup_reveals_by_status: true,
+                ..Default::default()
+            },
+            Flaws {
+                signup_reveals_by_words: true,
+                ..Default::default()
+            },
+        ] {
+            let o = run_signing_up(flaws);
+            assert_eq!(
+                reveals(&o),
+                vec![SIGNUP_REVEALS_ACCOUNT.rule_id],
+                "{:?}",
+                o.steps
+            );
+            let f = o
+                .findings
+                .iter()
+                .find(|f| f.rule_id == SIGNUP_REVEALS_ACCOUNT.rule_id)
+                .unwrap();
+            assert!(
+                f.description.starts_with("A sign-up to /signup"),
+                "{}",
+                f.description
+            );
+        }
+    }
+
+    #[test]
+    fn with_no_sign_up_the_check_does_not_run() {
+        let o = run_against(
+            Flaws {
+                signup_reveals_by_status: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        assert!(
+            !o.steps
+                .iter()
+                .any(|s| s.starts_with("signed up with an address"))
+        );
+        assert!(!rule_ids(&o).contains(&SIGNUP_REVEALS_ACCOUNT.rule_id));
+    }
+
+    /// The fake app, with the one request named answered as a limit refusing it (429).
+    struct LimitedOnce {
+        app: FakeApp,
+        refuse: &'static str,
+    }
+
+    impl Http for LimitedOnce {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            if r.id == self.refuse {
+                return Some(ProbeResponse {
+                    id: r.id.clone(),
+                    status: 429,
+                    headers: Vec::new(),
+                    body: "too many sign-ups".into(),
+                });
+            }
+            self.app.send(r)
+        }
+        fn now(&mut self) -> u64 {
+            self.app.now()
+        }
+        fn wait(&mut self, seconds: u64) {
+            self.app.wait(seconds);
+        }
+    }
+
+    #[test]
+    fn one_sign_up_refused_as_too_many_is_not_read_as_an_account_told_apart() {
+        let mut http = LimitedOnce {
+            app: FakeApp::new(Flaws::default()),
+            refuse: "signup-reveal-nobody",
+        };
+        let mut out = Outcome::default();
+        signup_reveals_account_check(&mut http, &with_signup(), &accounts(), &mut out);
+        assert!(out.findings.is_empty(), "{:?}", out.findings);
+        assert_eq!(
+            out.steps,
+            vec![
+                "signed up with an address that has an account, taken.a@example.test, twice (303, \
+                 303) and with one that has none (429): not compared, since a sign-up was refused as \
+                 too many or not answered"
+                    .to_owned()
+            ]
+        );
     }
 }
