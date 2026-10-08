@@ -206,10 +206,20 @@ pub fn glance_of(c: &crate::Counts, target_level: u8) -> String {
     s
 }
 
+/// The content security policy both pages carry, as a `meta` tag, since a file opened from disk
+/// has no server to send a header: nothing may load from anywhere (the pages fetch nothing),
+/// no script may run (they have none), the one style is the inline one, and the page can neither
+/// be framed into another nor submit a form. A browser that honors it would refuse a script or
+/// an image that somebody edited into the saved file, which is what a report somebody hands on
+/// invites (the review of 8 October 2026, item 6).
+pub const CSP_META: &str = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; \
+                            style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'\">\n";
+
 pub fn page(report: &Report) -> String {
     let c = &report.counts;
     let mut b = String::new();
     b.push_str("<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n");
+    b.push_str(CSP_META);
     b.push_str("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
     b.push_str(&format!(
         "<title>{} — sv report</title>\n",

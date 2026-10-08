@@ -138,6 +138,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    the id from `std::process::id()`, `volume_name` still uses FNV-1a, no `Content-Security-Policy` in `sv-report`,
    no `zeroize` in `sv-cli`, no image grammar check in `sv-run`), and the only other claims on item 6 are the parts
    above and the broken `adapters.json` in #1104.
+   **Those six done the same day** (`docs/design/0309-six-low-findings-from-the-review-of-8-october-an-image-name.md`;
+   ADR-017, ADR-019, ADR-027, ADR-043, ADR-052, and ADR-057, Later): `image` held to Docker's grammar and refused with
+   its reason; the typed passphrase zeroed; the DNS id from the operating system's randomness; the bundle's report in
+   a private folder; a Content-Security-Policy tag on both pages; the volume's name a SHA-256. With the no-sidecar
+   fallback's done note, item 6 is closed, apart from the broken `adapters.json` claimed in #1104.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
