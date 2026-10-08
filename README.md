@@ -4,6 +4,10 @@ SecureVibe checks an app against the OWASP standards and writes reports that say
 what was not. You write the app in whatever AI coding tool you like, in any language; you have the back-and-forth
 with your own AI tool until the app is what you wanted, and then `sv` picks up the code and grades it.
 
+**If you are not a programmer, start with [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md).** It walks through
+installing Docker, connecting SecureVibe to your AI tool, the prompt to start with, and reading the report, one step
+at a time. The rest of this page is written for programmers, and its commands build SecureVibe from its source code.
+
 **SecureVibe v1**, the earlier version that asked you to fill in a form and then wrote a Node app for you, is
 archived, not deleted: it lives on the `v1` branch (see `ARCHIVED.md` there) and at the tags `v1-paper` and
 `v1-final`. Its Zenodo version DOI, the one to cite, is 10.5281/zenodo.22984709. Until 26 September 2026 this
