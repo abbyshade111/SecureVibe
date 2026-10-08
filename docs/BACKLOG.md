@@ -180,6 +180,8 @@ another session is not a claim.
      `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
      design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
      keep the standing line that no tool can make this judgment.
+     **Claimed on 8 October 2026 by session securevibe-e2**, with item 20, at the owner's word ("feel free to pick
+     another item from the backlog"), in branch `claude/securevibe-e2-loop-lessons`.
   19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
      condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
      start command's file. A change to ADR-031: a Later entry.
@@ -187,6 +189,8 @@ another session is not a claim.
      rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
      both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
      section.
+     **Claimed on 8 October 2026 by session securevibe-e2**, with item 18, in branch
+     `claude/securevibe-e2-loop-lessons`.
   21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
      how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
      `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
