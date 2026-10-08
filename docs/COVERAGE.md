@@ -186,7 +186,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` (sv only ever as a finding: `probe.reset-reveals-account`) |
 | V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` (sv only ever as a finding: `probe.activation-code-guessable`, `probe.activation-link-reusable`) |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` (sv only ever as a finding: `probe.password-hints`) |
-| V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |
+| V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable`, `probe.reset-code-in-answer` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-code-in-answer`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |
 | V6.5.1 | L2 | Signed in: `probe.totp-reused`, `probe.email-code-reusable` |
 | V6.5.4 | L2 | Signed in: `probe.email-code-short` (sv only ever as a finding: `probe.email-code-short`) |
 | V6.5.5 | L2 | Signed in: `probe.email-code-long-lived`, `probe.totp-old-code-accepted` |

@@ -344,6 +344,8 @@ another session is not a claim.
      for that same code in the answers to the reset requests themselves (body and headers). Found there, anybody can
      reset any account by asking; a finding citing V6.4.3, and its absence credits nothing. The code is never printed.
      Read on `main` just before this claim: no other session had claimed (d).
+     **(d) done the same day** (DESIGN, "A reset code handed back in the reset request's own answer"):
+     `probe.reset-code-in-answer`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
