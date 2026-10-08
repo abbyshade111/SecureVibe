@@ -3278,12 +3278,17 @@ fn claim_report_folder(
             }
         }
     }
-    write_without_following(
-        out_dir,
-        sv_scan::ecosystems::REPORT_MARKER,
-        REPORT_MARKER_TEXT.as_bytes(),
-    )
-    .context("writing the report folder's marker")?;
+    // A marker already there is kept until the report is written: it may carry the seal that lets
+    // the report go beside a file of the owner's (`refuse_someone_elses_folder`), and the report's
+    // own writing and sealing replace it.
+    if !marker.is_file() {
+        write_without_following(
+            out_dir,
+            sv_scan::ecosystems::REPORT_MARKER,
+            REPORT_MARKER_TEXT.as_bytes(),
+        )
+        .context("writing the report folder's marker")?;
+    }
     Ok(held)
 }
 
@@ -3380,8 +3385,8 @@ fn write_report(report: &sv_report::Report, out_dir: &Path) -> Result<Written> {
 }
 
 /// Refuses to write a report into a folder that holds anything but `sv`'s own files, unless `sv` marked
-/// it as its own; and, marked or not, one holding a file whose name differs from one of `sv`'s only in
-/// capitals.
+/// it as its own and this computer can show, by its seal, that `sv` wrote the report there; and,
+/// marked or not, one holding a file whose name differs from one of `sv`'s only in capitals.
 ///
 /// A report written with `out` "." landed in the app itself, and on a disk that does not tell capitals
 /// apart (macOS and Windows, by default) its `security.md` replaced the app's own `SECURITY.md` (deep
@@ -3420,11 +3425,14 @@ fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
         .iter()
         .filter(|name| !ours.contains(&name.as_str()) && !is_staging(name, ours))
         .collect();
-    anyhow::ensure!(
-        marked || others.is_empty(),
-        "{} already holds files sv did not write ({}{}), so sv does not write its report there. Give \
-         an empty folder, or a new one, with --out.",
-        out_dir.display(),
+    if others.is_empty() {
+        return Ok(());
+    }
+    // Beside files `sv` did not write, only in a folder whose last report this computer can show it
+    // sealed: the marker alone can be planted in any of the app's folders (the review of 8 October,
+    // item 4), and a seal cannot be made without the report key.
+    let named = format!(
+        "{}{}",
         others
             .iter()
             .take(3)
@@ -3433,6 +3441,21 @@ fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
             .join(", "),
         if others.len() > 3 { ", and more" } else { "" }
     );
+    if !marked {
+        anyhow::bail!(
+            "{} already holds files sv did not write ({named}), so sv does not write its report \
+             there. Give an empty folder, or a new one, with --out.",
+            out_dir.display()
+        );
+    }
+    if let Err(why) = report_seal::sealed_here(out_dir) {
+        anyhow::bail!(
+            "{} carries sv's marker and also holds files sv did not write ({named}), and sv cannot \
+             show it wrote the report there: {why}. A marker can be copied into any folder, so sv \
+             does not write its report there. Give an empty folder, or a new one, with --out.",
+            out_dir.display()
+        );
+    }
     Ok(())
 }
 

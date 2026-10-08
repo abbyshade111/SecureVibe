@@ -12,6 +12,12 @@ high were built the same day (the entry above this one's predecessor). Each of t
    wherever the lockfile says; refuse unless every entry is `https://registry.npmjs.org/` with `integrity`, as
    pip's `unpinned` refuses. And a dependency file that is a symlink is followed into the networked container
    (`symlink_metadata`, refuse a link).
+   **Claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, second in its order), in
+   branch `claude/securevibe-e2-npm-sources`: `install = true` refuses a `package-lock.json` any of whose packages is
+   downloaded from anywhere but `https://registry.npmjs.org/` or carries no `integrity`, and a dependency file that
+   is a link, each in plain words before anything runs. Changes what `sv` lets the networked install fetch: a Later
+   entry on ADR-052. Confirmed on `main` just before this claim: `install::plan` reads neither, and no other session
+   had claimed this part.
 3. gosec fetches modules and runs the C toolchain, undeclared: `GOPROXY=off` and `CGO_ENABLED=0` in its `env`, or
    mark it `network: true` and say so in the README. CodeQL's extractors may run the app's package manager or
    `sitecustomize.py`: test it the ADR-032 way with a planted `preinstall` and `sitecustomize.py`. gosec,
@@ -25,6 +31,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    shows it is (`is_sv_output`), so a marker alone no longer lets a report replace files there. Confirmed on `main`
    just before this claim: `refuse_someone_elses_folder` lets any marked folder through, and no other session had
    claimed this part.
+   **Done the same day** (`docs/design/0304-a-copied-report-marker-no-longer-lets-a-report-replace-the.md`; ADR-034,
+   Later): a marked folder holding files `sv` did not write takes a report only when this computer can show, by the
+   marker's seal, that `sv` wrote the report there, rather than only when the folder holds nothing else as the claim
+   said, so a file the owner puts in a folder `sv` sealed is still kept. Not done: a folder holding only files under
+   `sv`'s names, with no marker, is still written to as an old report folder (the deep review's S5 decided that).
 5. Honesty gaps: an unreadable lockfile or unparseable manifest silently drops the manifest-versus-lockfile
    comparison (`sbom.rs:281, 437`; `manifest_lock.rs` returning `None`), so an unsaid comparison reads as
    agreement: an `unread` entry naming the file. The credit census (`tools/coverage.py`, `check_credits`) checks
