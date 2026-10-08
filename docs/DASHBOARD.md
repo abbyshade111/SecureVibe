@@ -184,6 +184,7 @@ Each a backlog item of its own, claimed before it is started, with its part of A
    page, written where the person says. **Built 8 October 2026**: `sv dashboard FOLDER... --out FILE.html` (ADR-057, "Later, 8 October 2026:
    `sv dashboard`").
 3. **History**, switched on by the person, kept as above, and the over-time view on each app's page; then every app on
-   this computer listed from it.
+   this computer listed from it. **Built 8 October 2026**: `sv history on|off|status|forget` (ADR-057, "Later, 8 October 2026:
+   history").
 4. **The progress page during a run**, if wanted once the first three are in use.
 

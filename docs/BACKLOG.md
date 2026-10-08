@@ -156,6 +156,10 @@ another session is not a claim.
      --all`; and in `sv dashboard`, each app's runs over time, set against the last run that can be compared (same
      kind, level, `securevibe.toml`, and `sv`), and otherwise said not to be compared and why. No requirement is ever
      credited from history, and the reports never read it. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "History: each app over time"; ADR-057, Later): the command, the record kept by
+     `sv report`, the over-time view, and `sv dashboard` with no folders. Breaks: history always on, a record others
+     can read, no limit on how many are kept, every run compared whatever its kind, history's text not escaped on
+     the page, and `forget` that deletes nothing, each failed a test (`crates/sv-cli/tests/history.rs`).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
