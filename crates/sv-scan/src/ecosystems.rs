@@ -720,16 +720,17 @@ pub fn language_of(extension: &str) -> Option<&'static str> {
         // JavaScript, and nothing else in them can call what the code rules look for (ADR-054).
         "html" | "htm" | "vue" | "svelte" | "hbs" | "handlebars" | "mustache" | "liquid"
         | "twig" | "j2" | "jinja" | "jinja2" | "njk" => "html",
+        // Templates whose code ast.rs takes out and reads with the page's scripts: Astro's `---`
+        // header and `{…}` as TypeScript, and EJS's `<% %>` blocks as JavaScript (ADR-054, Later).
+        "astro" | "ejs" => "html",
         // Jupyter notebooks: their code cells are read as Python (ADR-054).
         "ipynb" => "notebook",
         // Templates that hold a general-purpose language, by the name of their kind. None has a
         // grammar in ast.rs yet, so while one is present the code rules claim nothing (ADR-054).
-        "ejs" => "ejs",
         "pug" => "pug",
         "erb" => "erb",
         "jsp" => "jsp",
         "cshtml" | "razor" => "razor",
-        "astro" => "astro",
         _ => return None,
     })
 }
@@ -746,7 +747,7 @@ pub const NO_TECHNOLOGY_READER: &[&str] = &["dart", "swift"];
 
 /// The templates `language_of` names that hold a general-purpose language, which no grammar in
 /// `sv` reads yet (ADR-054).
-pub const CODE_TEMPLATES: &[&str] = &["ejs", "pug", "erb", "jsp", "razor", "astro"];
+pub const CODE_TEMPLATES: &[&str] = &["pug", "erb", "jsp", "razor"];
 
 /// Whether the technology scan passes over files of this kind, as it did before they had names
 /// (ADR-054): notebooks, and templates that hold code. No signature has a pattern for them, and

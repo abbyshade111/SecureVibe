@@ -146,6 +146,9 @@ another session is not a claim.
      **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
      tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
      Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
+     **The second half done 8 October 2026** (DESIGN, "Astro's header and EJS's tags read as code"; ADR-054, Later):
+     Astro's header, `{…}`, and scripts read as TypeScript, and EJS's tags as one JavaScript program, each at its own
+     lines. `.pug`, `.erb`, `.jsp`, `.cshtml`, and `.razor` are still unread code.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
