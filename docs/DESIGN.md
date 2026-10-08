@@ -1350,6 +1350,15 @@ The probes are the only place anything here observes the app doing the right thi
 to catch it doing the wrong one, and a probe with no answer credits nothing — otherwise a run against an
 app that would not start reads as a run against an app that passed.
 
+**On screen too (8 October 2026, backlog item 25(g)).** The reports already credited nothing for a folder
+none of whose files was read, but `sv check` still printed its config checks that found nothing under
+"Checked and fine", five of them for an empty folder, each "0 files: none …". When no file of the app was
+read, it now prints one line instead: none is listed as checked and fine, because the checks that found
+nothing had nothing to look in (`Gaps::read_nothing` in `crates/sv-cli/src/exit.rs`). The same run showed a
+finding about an absence, no SECURITY.md, at `SECURITY.md:1`, a line of a file that is not there; a finding
+whose file is missing is now shown as `SECURITY.md (not there)`. Only what `sv check` prints changed: the
+finding's location in the JSON reports, SARIF, and fingerprints is as it was.
+
 ### What the reports found in the checks themselves
 
 Building the first one turned up two faults that nothing else could have shown, because both were
