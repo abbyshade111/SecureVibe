@@ -14,6 +14,9 @@ high were built the same day (the entry above this one's predecessor). Each of t
    with the private folder removed and the lock let go, and the report not written as if the tools had run.
    Confirmed on `main` just before this claim: `adapters::finish` installs no handler, and `sv_run::catch_interrupts`
    is called only by the Docker backend.
+   **Done the same day** (`docs/design/0306-ctrl-c-while-an-outside-tool-runs-8-october-2026.md`): Ctrl-C while a
+   tool runs stops the tool's whole group, starts no other, removes the private folder, lets go of the report folder,
+   and ends `sv` with 130 and nothing written.
 2. npm lockfile `resolved` URLs are not held to the registry (`install.rs`), so the install container fetches
    wherever the lockfile says; refuse unless every entry is `https://registry.npmjs.org/` with `integrity`, as
    pip's `unpinned` refuses. And a dependency file that is a symlink is followed into the networked container
