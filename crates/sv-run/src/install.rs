@@ -206,6 +206,17 @@ pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
              out."
         ));
     }
+    // A dependency file that is a link would be followed into the container that can reach the
+    // internet, wherever it points (the review of 8 October 2026, item 2).
+    for name in ["requirements.txt", "package.json", "package-lock.json"] {
+        if std::fs::symlink_metadata(app_dir.join(name)).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(format!(
+                "{name} is a link to another file. The install container is given the app's own \
+                 dependency files and nothing else, so `sv` does not follow it: put the file itself \
+                 in the app's folder."
+            ));
+        }
+    }
     let mut installs = Vec::new();
     let requirements = app_dir.join("requirements.txt");
     if requirements.is_file() {
@@ -241,6 +252,29 @@ pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
                     .to_owned(),
             );
         }
+        let text = std::fs::read_to_string(app_dir.join("package-lock.json"))
+            .map_err(|e| format!("package-lock.json could not be read: {e}"))?;
+        let elsewhere = not_from_the_registry(&text)?;
+        if !elsewhere.is_empty() {
+            return Err(format!(
+                "every package in package-lock.json must be downloaded from the npm registry \
+                 (`{NPM_REGISTRY}`) and carry an `integrity` fingerprint npm checks it against, and \
+                 {} do{} not: {}. Only those are installed, so what is downloaded is what the \
+                 lockfile names, from where every app's packages come.",
+                if elsewhere.len() == 1 {
+                    "this one"
+                } else {
+                    "these"
+                },
+                if elsewhere.len() == 1 { "es" } else { "" },
+                elsewhere
+                    .iter()
+                    .take(3)
+                    .map(|l| format!("`{l}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ));
+        }
         installs.push(Ecosystem::Node);
     }
     if installs.is_empty() {
@@ -269,6 +303,84 @@ pub fn plan(app_dir: &Path, image: &str) -> Result<Vec<Install>, String> {
             })
         })
         .collect()
+}
+
+/// Where every package an npm lockfile installs must come from.
+pub const NPM_REGISTRY: &str = "https://registry.npmjs.org/";
+
+/// The packages of a `package-lock.json` that would be downloaded from anywhere but the npm
+/// registry, or without an `integrity` fingerprint for npm to check the download against, each as
+/// its name and why; `Err` when the file is not a lockfile `sv` can read. Read from `packages`
+/// (lockfile versions 2 and 3) and, failing that, the nested `dependencies` of version 1. The app's
+/// own entry, and a package bundled inside another (`inBundle`), download nothing of their own. A
+/// local folder (`link`) is refused, since the install is given no folder of the app's.
+pub fn not_from_the_registry(text: &str) -> Result<Vec<String>, String> {
+    let lock: serde_json::Value = serde_json::from_str(text)
+        .map_err(|e| format!("package-lock.json is not a lockfile sv can read: {e}"))?;
+    let mut found = Vec::new();
+    let mut judge = |name: &str, entry: &serde_json::Value| {
+        if entry.get("inBundle").and_then(|b| b.as_bool()) == Some(true)
+            || entry.get("bundled").and_then(|b| b.as_bool()) == Some(true)
+        {
+            return;
+        }
+        if entry.get("link").and_then(|b| b.as_bool()) == Some(true) {
+            found.push(format!("{name} (a folder on this computer)"));
+            return;
+        }
+        let resolved = entry.get("resolved").and_then(|r| r.as_str()).unwrap_or("");
+        let integrity = entry
+            .get("integrity")
+            .and_then(|r| r.as_str())
+            .unwrap_or("");
+        if !resolved.starts_with(NPM_REGISTRY) {
+            found.push(if resolved.is_empty() {
+                format!("{name} (no download address)")
+            } else {
+                format!("{name} (from {})", one_line(resolved))
+            });
+        } else if !["sha512-", "sha384-", "sha256-"]
+            .iter()
+            .any(|p| integrity.starts_with(p))
+        {
+            found.push(format!("{name} (no integrity fingerprint)"));
+        }
+    };
+    if let Some(packages) = lock.get("packages").and_then(|p| p.as_object()) {
+        for (path, entry) in packages {
+            if path.is_empty() {
+                continue;
+            }
+            let name = path.rsplit("node_modules/").next().unwrap_or(path);
+            judge(name, entry);
+        }
+    } else if let Some(deps) = lock.get("dependencies").and_then(|d| d.as_object()) {
+        let mut stack: Vec<(&String, &serde_json::Value)> = deps.iter().collect();
+        while let Some((name, entry)) = stack.pop() {
+            judge(name, entry);
+            if let Some(inner) = entry.get("dependencies").and_then(|d| d.as_object()) {
+                stack.extend(inner.iter());
+            }
+        }
+    } else {
+        return Err(
+            "package-lock.json lists no packages sv can read (neither `packages` nor `dependencies`)"
+                .to_owned(),
+        );
+    }
+    found.sort();
+    found.dedup();
+    Ok(found)
+}
+
+/// A download address as one short line, for a sentence.
+fn one_line(text: &str) -> String {
+    let flat: String = text.chars().filter(|c| !c.is_control()).collect();
+    if flat.chars().count() > 80 {
+        format!("{}…", flat.chars().take(80).collect::<String>())
+    } else {
+        flat
+    }
 }
 
 /// The lines of a requirements file that do not name one exact version. Allowed: `name==version`,

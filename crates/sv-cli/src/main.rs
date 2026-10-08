@@ -2571,7 +2571,7 @@ fn cmd_sbom(path: Option<PathBuf>) -> Result<()> {
         if disagreement.differs() {
             eprintln!("{}: {}.", disagreement.project, disagreement.explain());
         }
-        if !disagreement.comparison.not_compared.is_empty() {
+        if disagreement.comparison.not_all_compared() {
             eprintln!(
                 "{}: {}.",
                 disagreement.project,
@@ -3685,7 +3685,7 @@ fn dependency_gaps(sbom: &sbom::Sbom) -> Vec<sv_report::Gap> {
                 ),
             });
         }
-        if !disagreement.comparison.not_compared.is_empty() {
+        if disagreement.comparison.not_all_compared() {
             gaps.push(sv_report::Gap {
                 what: format!(
                     "whether `{}` and `{}` agree about every package",
@@ -4153,6 +4153,12 @@ fn assemble_report_saying(
         let adapters = sv_check::adapters::Adapters::load(&adapters_path())?;
         let languages: Vec<String> = scan_report.languages.iter().cloned().collect();
         let not_holding = adapters.not_holding(|condition| ctx.get(condition));
+        // Ctrl-C while a tool runs stops the tool and everything it started, and the run ends
+        // here, with the tools' private folder removed and the report folder let go of. Before
+        // this, nothing caught Ctrl-C on this path: it ended `sv` alone, and the tool, in a process
+        // group of its own, ran on with no limit (the review of 8 October 2026, item 1).
+        sv_run::catch_interrupts();
+        sv_check::adapters::stop_when(sv_run::interrupted);
         let outcome = sv_check::adapters::run_all_in(
             &adapters,
             listing,
@@ -4161,6 +4167,15 @@ fn assemble_report_saying(
             &sv_check::adapters::scratch_dir(),
             &loaded.secret_rules,
         );
+        // What the tools got to before then is not a report of the app, so nothing is written.
+        if sv_run::interrupted() {
+            eprintln!(
+                "Stopped with Ctrl-C. The outside tools were stopped and their reports removed; \
+                 nothing was written."
+            );
+            report_lock::let_go_of_all();
+            std::process::exit(130);
+        }
         examined.extend(adapters_examined(&adapters, &languages, &outcome));
         findings.extend(outcome.findings);
         tool_verified = outcome.verified;
