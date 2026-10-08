@@ -514,6 +514,11 @@ another session is not a claim.
      none; the prompt and `AGENTS.md` both tell the tool to stop and say so. Breaks: the line left out of
      `AGENTS.md`, the prompt's line removed, and the count in the guide wrong each failed
      `crates/sv-cli/tests/did_it_connect.rs`.
+     **(b) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-review-container`: the guide's step 5 gives the container form
+     of `sv review` itself, for someone who has only Docker, and a whole `.mcp.json` for the AI tool's container
+     that passes the list of trusted keys as `SV_TRUSTED_SEALS` rather than mounting the key folder, so the private
+     signing key never enters the container the AI tool drives. Held to the README and the code by a test.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
