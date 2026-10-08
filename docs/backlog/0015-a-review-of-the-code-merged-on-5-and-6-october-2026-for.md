@@ -1,7 +1,6 @@
 # A review of the code merged on 5 and 6 October 2026, for faults
 
-**Status:** open
-
+**Status:** done, by its own batch notes, read again on 8 October 2026 after a reviewer's comment on the split
 Asked for by the owner on 6 October 2026,
 once every item an agent could take without the owner's word was done or claimed. About 120 pull requests,
 23,600 lines in `crates/` and `data/`: among them the booking check sent as two users, the decisions file held to

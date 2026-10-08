@@ -1,7 +1,6 @@
 # A review of the code merged on 1 to 4 October 2026, for faults
 
-**Status:** open
-
+**Status:** done, by its own batch notes, read again on 8 October 2026 after a reviewer's comment on the split
 Asked for by the owner on 6 October 2026, after
 the review of 5 and 6 October found seventeen faults, four of them false passes. The same method: four reviewers read
 the changes from `34ca633` to `0d5258e` in four parts, each fault is reproduced by running `sv` on a small app made for it
