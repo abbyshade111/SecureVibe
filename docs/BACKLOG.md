@@ -23,6 +23,11 @@ another session is not a claim.
      (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
      `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
      back V15.2.1's credit and the "No package manifest" message stops being wrong.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
+     `claude/securevibe-e9-unread-ecosystems`: each named in the bill of materials as unread, which holds back
+     V15.2.1, and in the pinning check, which then cannot pass V15.1.2 either. Recorded as a Later entry on ADR-037.
+     **Done the same day** (DESIGN, "Dependencies `sv` does not read are named, and hold back the credit"; ADR-037,
+     Later).
   3. **"Debug mode off" and "generic error messages" are credited from a 404 alone.** (`docs/GAP-ANALYSIS.md`, 1.6.)
      `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
      (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
@@ -229,6 +234,9 @@ another session is not a claim.
      OSV download address per ecosystem and the folder layout in `sv audit`'s message and the guide. A command that
      downloads them (`sv advisories fetch`) would change what `sv` connects to: only as a decision with its own
      record (ADR-027's rule).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+     backlog"), in branch `claude/securevibe-e2-osv-addresses`: the addresses and the folder layout only, in `sv
+     audit`'s message, the report's gap, and the guide. Nothing that downloads.
   25. **Silent failures while setting up.** (`docs/GAP-ANALYSIS.md`, 5.3.) Each claimable on its own: (a) a "did it
      connect" step for every tool in the guide, and a coding rule telling the AI tool to stop and say so when the
      `securevibe_` tools are missing; (b) the container form of `sv review` in the guide, and an `.mcp.json` example
@@ -7948,3 +7956,21 @@ done: `docs/adr/ADR-018.md`.
 - **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
   faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
   own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.
+
+- **The three untried sentences, tried.** Asked for by the owner on 7 October 2026 ("go ahead with the small trial",
+  "All three, about $13.50"): `password-rules` naming `zxcvbn`, `production-server`'s SQLite sentence, and
+  `isolate-the-window`'s sentence on Python's own error pages, by `docs/prompts/library-trial/sentences-protocol.md`.
+  **Claimed on 7 October 2026 by session paper-facts**, in branch `claude/sentences`. Read on `main` just before this
+  claim: no other session had claimed it.
+- **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
+  (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
+  trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
+  October 2026 did for the loop trials. **Claimed on 7 October 2026 by session paper-facts**, after the trial above.
+- **A second review of all of `sv`'s documentation, and the paper's figures and analyses.** Asked for by the owner on 7
+  October 2026 ("the deep scrub and review of the documentation to get everything up-to-date, including the figures
+  and analyses for the paper that are now out-of-date as well"). The first review (above, 6 October 2026) was done
+  before the install step (ADR-052), the record checks (ADR-053), the two checks of ADR-055, the prompt library's
+  trials, and more. Every document a person or an AI tool reads, and `docs/paper/`'s documents, figures and data,
+  read against `main`; records and DESIGN get dated entries rather than rewrites. **Claimed on 7 October 2026 by
+  session paper-facts**, after the write-up. Read on `main` just before this claim: no other session had claimed it.
+
