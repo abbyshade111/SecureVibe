@@ -1221,8 +1221,10 @@ mod tests {
 
     #[test]
     fn a_short_value_is_not_padded_into_looking_longer() {
+        // Shown whole until 8 October 2026, when the review (item 6) found a four-character password
+        // shown whole the same way: now a third of it at most, and its true length, never more.
         let secret = Secret::redact("abc");
-        assert_eq!(secret.as_str(), "abc");
+        assert_eq!(secret.as_str(), "a… (2 more characters)");
         assert_eq!(secret.length(), 3);
     }
 

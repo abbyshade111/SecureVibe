@@ -29,7 +29,9 @@ fn a_line_break_in_a_file_name_does_not_start_a_line_of_its_own() {
         "the name was not written on one line: {said}"
     );
     assert!(
-        !said.lines().any(|line| line.trim_start().starts_with(planted)),
+        !said
+            .lines()
+            .any(|line| line.trim_start().starts_with(planted)),
         "the name started a line of its own: {said}"
     );
     assert!(!said.contains(&value), "the password was printed whole");
