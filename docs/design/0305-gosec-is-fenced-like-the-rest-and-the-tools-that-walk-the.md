@@ -51,4 +51,6 @@ cache, the link, each with its control run bare), `tests/brakeman_links.rs` (the
 **Not done.** Which of gosec's rules need the analyzers is not known rule by rule, so an SSA failure withholds the
 whole clean run rather than only G407's credit. A linked folder, which neither tool entered, is refused with the
 rest: the listing does not say which kind a link is, and a tool version that does enter one would be read through
-silently if it were let in.
+silently if it were let in. And a Go file that Go's own tooling never builds (one under `testdata/`, or behind a build tag for
+another system) is listed as unread, which is true: gosec never looked at it, and the report says so rather than
+crediting it.
