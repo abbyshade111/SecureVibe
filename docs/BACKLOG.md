@@ -8584,6 +8584,9 @@ line in each item's file rather than a reading of its prose.
   of `docs/backlog/`, as the design citations do, and the paper names this file at commits that still hold it; the
   other two asks of gap item 33 are not recommended (GitHub issues would move the record out of the repository the
   paper cites; CI refusing a double claim comes free with one file per item).
+  **The owner said yes the same evening** ("can you please go ahead with the one file per backlog item when you're
+  ready?"). **Claimed 8 October 2026 by session securevibe-review**, in branch `claude/securevibe-review-backlog-files`;
+  the record is ADR-061, `Status: proposed`, to be accepted in the pull request that builds it.
 
 ## Decided, not yet written down as ADRs
 
