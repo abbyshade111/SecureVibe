@@ -295,10 +295,18 @@ pub(super) fn invented_session_check(
     carried: Option<bool>,
     out: &mut Outcome,
 ) {
+    let say = |why: String, out: &mut Outcome| out.not_assessed.push(("V7.2.1".to_owned(), why));
     let Some(confirm) = confirm else {
+        // Said, not skipped: until 8 October 2026 this returned with nothing in `out`, and the
+        // requirement went unmentioned (the architecture assessment of that day, item 8).
+        say(
+            "Whether a session value the app never issued is refused: no private page opened for \
+             a signed-in user, so there is nothing to try an invented session against."
+                .to_owned(),
+            out,
+        );
         return;
     };
-    let say = |why: String, out: &mut Outcome| out.not_assessed.push(("V7.2.1".to_owned(), why));
     if signed_in.set_at_login.is_empty() {
         say(
             "Whether a made-up session value is refused: signing in set no cookie, so there is no \

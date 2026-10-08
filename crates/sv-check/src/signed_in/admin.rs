@@ -648,9 +648,12 @@ pub(super) fn owned_checks(
     a: &SignedIn,
     out: &mut Outcome,
 ) -> Option<String> {
+    // V3.5.2 is named with the other two at each early return: the preflight check runs on the
+    // record created here, so a return before it leaves that unasked too (the architecture
+    // assessment of 8 October 2026, item 8).
     let Some(owned) = &users.owned else {
         out.not_assessed.push((
-            "V8.2.2, V3.5.1".to_owned(),
+            "V8.2.2, V3.5.1, V3.5.2".to_owned(),
             "Another user's records, and requests from another site: securevibe.toml lists no \
              `owned` record under [stack.run.users]."
                 .to_owned(),
@@ -674,7 +677,7 @@ pub(super) fn owned_checks(
     let read_path = created.as_ref().and_then(|r| record_path(owned, r));
     let Some(read_path) = read_path.filter(|_| accepted(&created)) else {
         out.not_assessed.push((
-            "V8.2.2, V3.5.1".to_owned(),
+            "V8.2.2, V3.5.1, V3.5.2".to_owned(),
             format!(
                 "Creating a record as the first user did not work ({}), or did not say where it \
                  went, so there is nothing to ask another user to read.",
@@ -688,7 +691,7 @@ pub(super) fn owned_checks(
     let as_a = http.send(&get("owned-a", &read_path, &session));
     if !holds_marker(&as_a) {
         out.not_assessed.push((
-            "V8.2.2, V3.5.1".to_owned(),
+            "V8.2.2, V3.5.1, V3.5.2".to_owned(),
             format!(
                 "The first user could not read back the record they created at {read_path} ({}), \
                  so another user being refused it would prove nothing.",
