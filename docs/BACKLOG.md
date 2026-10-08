@@ -155,6 +155,8 @@ another session is not a claim.
      trigger starts, and nothing elsewhere), and a third-party action pinned to a tag or branch rather than a commit
      (citing nothing, as `config.workflow-token-permissions` does). Both only ever findings, so no ADR is proposed. The
      corroborators half is not claimed.
+     **The workflows half done the same day** (DESIGN, "A stranger's text in a workflow's commands, and actions not
+     pinned to a commit").
   17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
      (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
      (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
