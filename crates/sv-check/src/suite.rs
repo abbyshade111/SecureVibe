@@ -511,8 +511,9 @@ fn beats(candidate: &NamedTest, incumbent: &NamedTest) -> bool {
     mine > theirs || (mine == theirs && candidate.line < incumbent.line)
 }
 
+#[track_caller]
 fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -548,7 +549,7 @@ fn mismatch(test: &NamedTest, requirement_id: &str, description: &str) -> Findin
               this does not take the credit away. Recording it as a false alarm in \
               securevibe.toml, to stop seeing it, leaves the credit standing too."
                 .into(),
-    }
+    })
 }
 
 fn first_sentence(text: &str) -> String {

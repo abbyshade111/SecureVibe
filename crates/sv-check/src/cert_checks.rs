@@ -229,8 +229,9 @@ pub fn check(listing: &Listing, report: &mut ConfigReport) {
     }
 }
 
+#[track_caller]
 fn finding(file: &str, line: usize, what: &str, does: &str) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -265,7 +266,7 @@ fn finding(file: &str, line: usize, what: &str, does: &str) -> Finding {
               development, keep it in a file named for development (`.env.development`, \
               `Dockerfile.dev`), which `sv` leaves out."
             .into(),
-    }
+    })
 }
 
 #[cfg(test)]

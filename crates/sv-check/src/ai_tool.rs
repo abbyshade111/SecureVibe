@@ -414,8 +414,9 @@ pub fn hidden_characters(listing: &Listing, report: &mut ConfigReport) {
     }
 }
 
+#[track_caller]
 fn hidden_finding(entry: &Entry, line: usize, count: usize, kinds: &[&str]) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -451,7 +452,7 @@ fn hidden_finding(entry: &Entry, line: usize, count: usize, kinds: &[&str]) -> F
         fix: "Open the file in an editor that shows hidden characters (or run `cat -v` on it), \
               remove them, and find out where the text came from before trusting the rest of it."
             .into(),
-    }
+    })
 }
 
 #[cfg(test)]
