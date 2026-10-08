@@ -274,6 +274,7 @@ another session is not a claim.
      framework switches that turn request-forgery protection off (Django's `csrf_exempt`, Flask-WTF's
      `WTF_CSRF_ENABLED = False`, Spring's `csrf().disable()`, Rails' `skip_forgery_protection`, and their like; V3.5.1),
      only ever a finding. Read on `main` just before this claim: no other session had claimed it.
+     **CSRF protection switched off done the same day** (DESIGN, "Protection against forged requests switched off").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
