@@ -1,7 +1,8 @@
-# The trials, 5 to 7 October 2026
+# The trials, 5 to 8 October 2026
 
 After the cut-off, the project turned from building `sv` to asking whether it changes what an AI coding tool builds.
-Nine trials were run in three days: **464 builds, $150.53** of the owner's API credit. Each was run to a protocol
+Ten trials were run in four days: **485 builds, $156.69** of the owner's API credit (the tenth, on 8 October, added
+here that day). Each was run to a protocol
 written before any build, and each has its own write-up, results files, scripts and scorers in `docs/prompts/`. This
 file brings them together for the paper; `figure-trials.html` shows every pasted-prompt comparison, and is made from
 the trials' committed results by `trials/make_figure.py`, so it cannot drift from them. Where a result was corrected
@@ -12,7 +13,7 @@ record. They also fall after the paper's cut-off (`157ddc3`), so nothing in the 
 
 ## How a trial is made
 
-- **The builder:** Claude Code, run headless in a fresh folder, with Claude Sonnet 5.5 or Claude Haiku 4.5, told the
+- **The builder:** Claude Code, run headless in a fresh folder, with Claude Sonnet 5.5 or Claude Haiku 4.5 (and, in the tenth, Claude Haiku 5.5), told the
   owner is away so it should not stop to ask. Nobody answered it during a build.
 - **The brief:** a short description an owner might write. Until the recipe trial, a club app (sign-in, private
   notes, a booking, an AI assistant, an admin page) in Python's standard library; from the recipe trial, a recipe
@@ -39,7 +40,8 @@ record. They also fall after the paper's cut-off (`157ddc3`), so nothing in the 
 | Revision trial | 7 Oct | 110 | $35.28 | Do the reviews' revisions keep working, and do five new prompts work? | `library-trial/revision.md` |
 | Recipe trial | 7 Oct | 40 | $18.09 | A Flask brief that tempts the prompts never fairly tried | `library-trial/recipe.md` |
 | Three sentences | 7 Oct | 30 | $10.59 | Do the three sentences added from the trials work? | `library-trial/sentences.md` |
-| **All** | | **464** | **$150.53** | | |
+| Haiku 5.5 | 8 Oct | 21 | $6.16 | Does Claude Haiku 5.5 build apps that can be tested, where Haiku 4.5 could not? (20 builds and a smoke build) | `library-trial/haiku55.md` |
+| **All** | | **485** | **$156.69** | | |
 
 ## What they found
 
@@ -70,6 +72,28 @@ record. They also fall after the paper's cut-off (`157ddc3`), so nothing in the 
   checked behind the fence. Haiku mostly could not be tried: 3 of its 10 apps crashed on faults trying them would have
   shown, and 2 pinned versions that do not exist.
 
+## The tenth trial: Claude Haiku 5.5 (8 October)
+
+Through the first nine, Claude Haiku 4.5 was the model whose apps could least often be tested, so most of its
+comparisons had no reading. When Claude Haiku 5.5 was released the owner asked whether those problems remained. Ten
+builds of each model on the recipe brief, one Claude Code (2.1.293) for both, each model named by its full id, by a
+protocol fixed before any build with the same kind of rule as the prompts (`library-trial/haiku55-protocol.md`).
+
+| On the recipe brief | Haiku 4.5 | Haiku 5.5 |
+|---|---|---|
+| A settings file `sv` could read | 8 of 10 | 10 of 10 |
+| The install step failed | 3 | 0 |
+| Started under `sv run` | 3 | 9 |
+| `sv` signed in | 0 | 8 |
+| Cost a build | $0.48 | $0.125 |
+
+Started: **shown** by its rule. Signed in: **not shown**, as the rule allowed one failure and there were two, though it
+went from none to eight. Haiku 4.5's failures were the earlier ones again (templates left broken, package versions that
+do not exist, a settings section in the wrong form, seed scripts that crashed); Haiku 5.5's one was a library called
+with an argument it does not have. With nothing pasted, Haiku 5.5 had none of the twelve problems the recipe brief
+tempts, so there was nothing for a prompt arm to fix. The trial also found `sv`'s SQL code rule flagging safe code in
+every Haiku 5.5 app (a sort column chosen from a fixed list), fixed the same day (backlog 215, ADR-018, Later).
+
 ## What they changed in `sv`
 
 ADR-044 (the shown prompts reach the builder, and since 7 October at the start of every build); the specification's
@@ -89,12 +113,17 @@ passwords, and the cross-site check on the signed-in pages). Each record says wh
   stopped a Sonnet arm at $0.65; the owner chose to go on at $0.80. And the credit itself ran out partway through the
   revision trial: 38 builds failed on billing, were set aside, and were run again once the owner had topped it up (its
   Amendment 1).
+- **Read the signed-in count, not only the failures.** The scorers counted a started app as signed in unless `sv`
+  said signing in had failed, which also counted apps whose seed crashed or that described no sign-in. Found by the
+  Haiku 5.5 trial before its results merged (its Amendment 1), then recounted for every earlier trial from the
+  committed run summaries (backlog 214): four builds changed (three in the revision trial, one in the recipe trial),
+  and no verdict, arm or harm flag moved.
 - **Check the claim against the code before writing it down.** Three statements were corrected before they reached
   anyone, and one after: the recipe trial first reported `same-site-redirects` as not reached, when the sign-in
   redirect is asked automatically; `library-trial/recipe.md` carries the dated correction.
 
 ## What they cannot show
 
-The builders were two models of one vendor, through one tool, from briefs written for the trials; ten builds an arm is
+The builders were three models of one vendor, through one tool, from briefs written for the trials; ten builds an arm is
 enough to see a problem that is common go away, not to measure a small effect, and a prompt with no reading is
 untested, not useless. `sv`'s checks are the measure throughout, so a fault no check reaches cannot be seen to change.
