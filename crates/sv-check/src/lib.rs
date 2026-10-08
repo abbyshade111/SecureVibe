@@ -46,6 +46,7 @@ pub mod review;
 pub mod rich_text;
 pub mod running;
 pub mod sbom;
+pub mod script;
 pub mod seal;
 pub mod secrets;
 pub mod signed;

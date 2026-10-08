@@ -583,181 +583,48 @@ impl DockerBackend {
             });
         }
 
-        // 4. The probes, while the app is up and the fence is in place. A request that gets no
-        //    answer is left out rather than recorded as an empty response: "the app said nothing"
-        //    and "the app has no Content-Security-Policy" are not the same sentence. So is one the
-        //    app's rate limiter was still answering after waiting as it asked: its page is not the
-        //    app's (`ask_anonymously`).
-        let (probe_responses, probes_rate_limited) = sv_check::signed_in::ask_anonymously(
-            &mut DockerHttp {
-                backend: self,
-                via: &via,
-                app: &app,
-                port: plan.port,
-                mail: None,
-                provider: None,
-                browser: None,
-                model: None,
+        // 4. The script (`sv_check::script`): the anonymous questions, the signed-in suites, the
+        //    sign-in through the test provider, the app as an MCP server, the fetch, the AI feature
+        //    with its kill switch, and whether the app is still up; in that order, written against
+        //    what only this harness can do (`DockerRun`). Since 8 October 2026; before, it was here.
+        let accounts = plan.users.as_ref().map(crate::accounts_for);
+        let harness = DockerRun {
+            backend: self,
+            via: &via,
+            app: &app,
+            switched_off: &switched_off,
+            app_args: &app_args,
+            plan,
+            mail,
+            provider,
+            browser,
+            model,
+        };
+        let sv_check::script::Outcome {
+            probe_responses,
+            probes_rate_limited,
+            signed_in,
+            oidc,
+            mcp_server,
+            fetch,
+            ai,
+            liveness,
+        } = sv_check::script::run(
+            &harness,
+            &sv_check::script::Plan {
+                users: plan.users.as_ref(),
+                policy: &plan.policy,
+                oidc: plan.oidc.as_ref(),
+                ai: plan.ai.as_ref(),
+                mcp_server: plan.mcp_server.as_ref(),
+                fetch: plan.fetch.as_ref(),
+                health_path: &plan.health_path,
+                slow: plan.slow,
+                accounts: accounts.as_ref(),
+                mcp_token: mcp_token.as_deref(),
             },
             probes,
         );
-        let mut liveness = vec![self.liveness(
-            &via,
-            &app,
-            plan,
-            "the questions asked as somebody not signed in",
-        )];
-
-        // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
-        //     those see the app as a stranger first; before the tests, which may change its data.
-        let accounts = plan.users.as_ref().map(crate::accounts_for);
-        let signed_in = plan.users.as_ref().zip(accounts.as_ref()).map(|pair| {
-            let model = model.filter(|host| self.model_ready(&via, host));
-            self.signed_in(&via, &app, (mail, browser, model), plan, pair)
-        });
-
-        // 4c. Signing in through the test provider, when the app signs in through another service.
-        //     A provider that never came up leaves `provider` empty, and the check says so.
-        let oidc = plan.oidc.as_ref().map(|section| {
-            let mut http = DockerHttp {
-                backend: self,
-                via: &via,
-                app: &app,
-                port: plan.port,
-                mail: None,
-                provider: provider.filter(|host| self.provider_ready(&via, host)),
-                browser: None,
-                model: None,
-            };
-            sv_check::oidc::run(&mut http, section)
-        });
-
-        // 4c'. The app as an MCP server, when securevibe.toml says where it answers.
-        let mcp_server = plan.mcp_server.as_ref().map(|section| {
-            let mut http = DockerHttp {
-                backend: self,
-                via: &via,
-                app: &app,
-                port: plan.port,
-                mail: None,
-                provider: None,
-                browser: None,
-                model: None,
-            };
-            sv_check::mcp_server::run(&mut http, section, mcp_token.as_deref())
-        });
-
-        // 4c''. A feature that fetches an address a person gives it, pointed at the test model's
-        //      server, which records each fetch.
-        let fetch = plan.fetch.as_ref().map(|section| {
-            let ready = model.filter(|host| self.model_ready(&via, host));
-            let canary = ready.map(|host| format!("http://{host}:{MODEL_PORT}"));
-            let mut http = DockerHttp {
-                backend: self,
-                via: &via,
-                app: &app,
-                port: plan.port,
-                mail: None,
-                provider: None,
-                browser: None,
-                model: ready,
-            };
-            let context = sv_check::fetch::Context {
-                signed_in: plan
-                    .users
-                    .as_ref()
-                    .zip(accounts.as_ref())
-                    .map(|(users, accounts)| (users, &accounts.b)),
-                canary: canary.as_deref(),
-            };
-            sv_check::fetch::run(&mut http, section, &context)
-        });
-
-        // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
-        //     Last of the questions, as the second test user when it needs one: nothing after it
-        //     depends on that user's session.
-        let ai = plan.ai.as_ref().map(|section| {
-            let mut http = DockerHttp {
-                backend: self,
-                via: &via,
-                app: &app,
-                port: plan.port,
-                mail: None,
-                provider: None,
-                browser: None,
-                model: model.filter(|host| self.model_ready(&via, host)),
-            };
-            let signed_in = plan
-                .users
-                .as_ref()
-                .zip(accounts.as_ref())
-                .map(|(users, accounts)| (users, &accounts.b));
-            let context = sv_check::ai::Context {
-                signed_in,
-                policy: &plan.policy,
-                health: &plan.health_path,
-                seeded: plan.users.as_ref().is_some_and(|u| u.seed.is_some()),
-                owner: accounts.as_ref().map(|accounts| &accounts.a),
-            };
-            let (mut outcome, markers) = sv_check::ai::run(&mut http, section, &context);
-            // Then what the app wrote down about it, read after the questions, as the signed-in
-            // suite reads its own markers.
-            let log = self.app_log(&app);
-            sv_check::ai::logged(&markers, &log, &mut outcome);
-
-            // C9.6.1: a second copy of the app with the kill switch on, beside the first, so the
-            // first and the declared tests are left as they were.
-            let started = match &section.kill_switch {
-                Some(switch) if markers.model_reached => {
-                    self.start_switched_off(&app_args, &app, &switched_off, &plan.image, switch)
-                        && self.wait_until_ready(&via, &switched_off, plan)
-                        && match (section.signed_in, plan.users.as_ref(), accounts.as_ref()) {
-                            (true, Some(users), Some(accounts)) => {
-                                users.seed.as_ref().is_none_or(|seed| {
-                                    self.seed(&switched_off, seed, accounts).is_ok()
-                                })
-                            }
-                            _ => true,
-                        }
-                }
-                _ => false,
-            };
-            let mut http = DockerHttp {
-                backend: self,
-                via: &via,
-                app: &switched_off,
-                port: plan.port,
-                mail: None,
-                provider: None,
-                browser: None,
-                model,
-            };
-            sv_check::ai::kill_switch(
-                &mut http,
-                section,
-                &context,
-                &markers,
-                started,
-                &mut outcome,
-            );
-            let _ = self.docker(&["rm", "-f", &switched_off]);
-            outcome
-        });
-
-        // Still up after everything else it was asked, while the sidecar can still ask it.
-        if signed_in.is_some()
-            || oidc.is_some()
-            || ai.is_some()
-            || mcp_server.is_some()
-            || fetch.is_some()
-        {
-            liveness.push(self.liveness(
-                &via,
-                &app,
-                plan,
-                "the signed-in, sign-in, and AI questions as well",
-            ));
-        }
 
         // Nothing after this point sends a request, so the sidecar goes now rather than waiting on
         // the tests, which can take as long as they like. The mail server with it: nothing reads it
@@ -860,6 +727,100 @@ impl DockerBackend {
             liveness,
             installed,
         })
+    }
+}
+
+/// What only this harness can do for the run's script (`sv_check::script::Services`): a way to the
+/// app with the helpers the run has, the helpers' readiness, the app's log, the seed, the second
+/// copy of the app for the kill-switch check, and a look at whether the app is still up. Each is
+/// a Docker call; the order they are made in is the script's.
+struct DockerRun<'a> {
+    backend: &'a DockerBackend,
+    via: &'a Via<'a>,
+    app: &'a str,
+    /// The name the kill-switch copy is started under.
+    switched_off: &'a str,
+    /// The app's own arguments, which the copy differs from only in its name and one setting.
+    app_args: &'a [String],
+    plan: &'a RunPlan,
+    mail: Option<&'a str>,
+    provider: Option<&'a str>,
+    browser: Option<&'a str>,
+    model: Option<&'a str>,
+}
+
+impl sv_check::script::Services for DockerRun<'_> {
+    fn http<'s>(
+        &'s self,
+        target: sv_check::script::Target,
+        with: sv_check::script::With,
+    ) -> Box<dyn sv_check::signed_in::Http + 's> {
+        use sv_check::script::{Model, Target};
+        Box::new(DockerHttp {
+            backend: self.backend,
+            via: self.via,
+            app: match target {
+                Target::App => self.app,
+                Target::SwitchedOff => self.switched_off,
+            },
+            port: self.plan.port,
+            mail: self.mail.filter(|_| with.mail),
+            provider: self
+                .provider
+                .filter(|_| with.provider)
+                .filter(|host| self.backend.provider_ready(self.via, host)),
+            browser: self.browser.filter(|_| with.browser),
+            model: match with.model {
+                Model::None => None,
+                Model::IfAnswering => self
+                    .model
+                    .filter(|host| self.backend.model_ready(self.via, host)),
+                Model::AsStarted => self.model,
+            },
+        })
+    }
+
+    fn model_canary(&self) -> Option<String> {
+        self.model
+            .filter(|host| self.backend.model_ready(self.via, host))
+            .map(|host| format!("http://{host}:{MODEL_PORT}"))
+    }
+
+    fn app_log(&self) -> String {
+        self.backend.app_log(self.app)
+    }
+
+    fn seed(
+        &self,
+        target: sv_check::script::Target,
+        seed: &str,
+        accounts: &sv_check::signed_in::Accounts,
+    ) -> Result<(), String> {
+        let container = match target {
+            sv_check::script::Target::App => self.app,
+            sv_check::script::Target::SwitchedOff => self.switched_off,
+        };
+        self.backend.seed(container, seed, accounts)
+    }
+
+    fn start_switched_off(&self, setting: &str) -> bool {
+        self.backend.start_switched_off(
+            self.app_args,
+            self.app,
+            self.switched_off,
+            &self.plan.image,
+            setting,
+        ) && self
+            .backend
+            .wait_until_ready(self.via, self.switched_off, self.plan)
+    }
+
+    fn remove_switched_off(&self) {
+        let _ = self.backend.docker(&["rm", "-f", self.switched_off]);
+    }
+
+    fn liveness(&self, after: &str) -> sv_check::running::Liveness {
+        self.backend.liveness(self.via, self.app, self.plan, after)
     }
 }
 
@@ -1358,66 +1319,6 @@ fn mail_text(message: &str) -> Option<String> {
     let value: serde_json::Value = serde_json::from_str(message).ok()?;
     let part = |name: &str| value.get(name).and_then(|v| v.as_str()).unwrap_or("");
     Some(format!("{}\n{}", part("Text"), part("HTML")))
-}
-
-impl DockerBackend {
-    /// Makes the accounts, then asks what they can do.
-    fn signed_in(
-        &self,
-        via: &Via,
-        app: &str,
-        (mail, browser, model): (Option<&str>, Option<&str>, Option<&str>),
-        plan: &RunPlan,
-        (users, accounts): (&sv_manifest::UsersSection, &sv_check::signed_in::Accounts),
-    ) -> sv_check::signed_in::Outcome {
-        let mut http = DockerHttp {
-            backend: self,
-            via,
-            app,
-            port: plan.port,
-            mail,
-            provider: None,
-            browser,
-            model,
-        };
-        if !users.problems().is_empty() {
-            // Nothing is run or asked; the suite says what is missing.
-            return sv_check::signed_in::run(&mut http, users, accounts, true, &plan.policy);
-        }
-        let seeded = match &users.seed {
-            Some(seed) => match self.seed(app, seed, accounts) {
-                Ok(()) => true,
-                Err(why) => {
-                    return sv_check::signed_in::Outcome {
-                        not_assessed: vec![(
-                            "V8.2.1, V8.2.2, V7.2.4, V7.4.1, V3.5.1, V3.3.2, V3.3.4".to_owned(),
-                            why,
-                        )],
-                        ..Default::default()
-                    };
-                }
-            },
-            None => false,
-        };
-        let mut out = sv_check::signed_in::run_with(
-            &mut http,
-            users,
-            accounts,
-            seeded,
-            &plan.policy,
-            plan.slow,
-        );
-
-        // Last of all, and only after everything the probes do: whether the app wrote any of it
-        // down. Reading the log earlier would be reading it before the events happened.
-        let log = self.app_log(app);
-        let logged = sv_check::logs::evaluate(&out.log_markers, &log);
-        out.findings.extend(logged.findings);
-        out.verified.extend(logged.verified);
-        out.not_assessed.extend(logged.not_assessed);
-        out.steps.extend(logged.steps);
-        out
-    }
 }
 
 impl DockerBackend {

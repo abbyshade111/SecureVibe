@@ -8148,6 +8148,10 @@ another session is not a claim.
      `Http` plus a `Services` struct, so it runs against the fake app without Docker and the Docker-only residue is
      the fence, limits, teardown, and install (branch `claude/securevibe-review-run-script`). Both refactors; the
      records that govern the files get their "unchanged, because" lines.
+     **Second half done the same day** (DESIGN, "The run's script is in `sv-check`, and runs without Docker"):
+     `sv_check::script::run` against the trait `Services`, which `sv-run`'s `DockerRun` implements over Docker;
+     `run_after_cleanup` from 568 lines to 430, the fence, the helpers, the app, the install step, the tests, and
+     the teardown; the script's own tests show the order against a harness that answers nothing.
   5. **A two-page `docs/ARCHITECTURE.md`.** There is no ten-minute map: DESIGN.md is 13,084 lines in 281 dated
      sections and its opening still describes "a second version beside v1 in `agnostic/`"; CLAUDE.md's eight-line
      Layout paragraph is the nearest thing. Lift it from text that exists: the chain listing, scan, resolve, bucket,

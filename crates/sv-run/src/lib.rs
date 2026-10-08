@@ -1021,19 +1021,33 @@ mod tests {
             spec.contains("after the") && spec.contains("app answers on `health`, never before"),
             "the spec says when the seed runs"
         );
+        // The harness waits for the health path, then hands the app to the script (8 October
+        // 2026, `sv_check::script`), whose signed-in stage is where the seed is run.
         let docker = include_str!("docker.rs");
         let healthy = docker
             .find("let healthy = self.wait_until_ready(&via, &app, plan);")
             .expect("the run waits for the app's health path");
-        let seeded = docker
-            .find("self.signed_in(&via, &app,")
-            .expect("the signed-in stage, which runs the seed");
-        assert!(healthy < seeded, "the seed runs after the health check");
-        let in_signed_in = &docker[docker.find("fn signed_in(").unwrap()..];
+        let script = docker
+            .find("sv_check::script::run(")
+            .expect("the script, which runs the seed");
+        assert!(healthy < script, "the script runs after the health check");
+        let script = include_str!("../../sv-check/src/script.rs");
+        let in_signed_in = &script[script.find("\nfn signed_in(").unwrap()..];
+        let in_signed_in = &in_signed_in[..in_signed_in[1..]
+            .find("\nfn ")
+            .map_or(in_signed_in.len(), |n| n + 1)];
         assert!(
-            in_signed_in[..in_signed_in.find("\n    fn ").unwrap_or(in_signed_in.len())]
-                .contains("self.seed(app, seed, accounts)"),
+            in_signed_in.contains("services.seed(Target::App, seed, accounts)"),
             "the signed-in stage is where the seed is run"
+        );
+        // And the seed comes after the anonymous questions, which see the app as a stranger.
+        let anonymous = script
+            .find("ask_anonymously(")
+            .expect("the anonymous questions");
+        let seeded = script.find("services.seed(Target::App").unwrap();
+        assert!(
+            anonymous < seeded,
+            "the seed runs after the anonymous questions"
         );
     }
 
