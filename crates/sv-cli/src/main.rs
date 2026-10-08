@@ -34,6 +34,7 @@ macro_rules! print {
 mod brief;
 mod bundle;
 mod exit;
+mod history;
 mod mcp;
 mod parts;
 mod plan;
@@ -130,6 +131,7 @@ fn run() -> Result<i32> {
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
         "dashboard" => finished(cmd_dashboard(rest)),
+        "history" => finished(history::command(rest)),
         "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
         "bundle" => finished(cmd_bundle(rest)),
         "mcp" => finished(mcp::cmd_mcp(rest)),
@@ -281,6 +283,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &["--out"],
         help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     securevibe-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
+    },
+    Command {
+        name: "history",
+        word: Some("ACTION..."),
+        flags: &["--all"],
+        valued: &[],
+        help: "  sv history on|off|status|forget FOLDER|forget --all\n                     keep a small record of each sv report run, for sv dashboard to show\n                     how an app changes; off until you turn it on, kept outside every\n                     app's folder, readable only by you, and never your code\n",
     },
     Command {
         name: "mcp",
@@ -2356,8 +2365,11 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         }
     }
     if folders.is_empty() {
+        folders = history::apps();
+    }
+    if folders.is_empty() {
         bail!(
-            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html"
+            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html (with history on, `sv history on`, it shows every app whose runs were kept)"
         );
     }
     let Some(out) = out else {
@@ -2383,6 +2395,7 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         let report_html = reports.join("report.html");
         apps.push(sv_report::dashboard::App {
             report_html: report_html.is_file().then_some(report_html),
+            runs: history::runs(&folder),
             folder,
             summary,
         });
@@ -5486,6 +5499,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
     held.written();
     drop(held);
 
+    // History, when the person keeps it (ADR-057): after the report is written, never instead of it.
+    let kept = sv_report::dashboard::Run::of(&report).map(|run| history::keep(&app_dir, &run));
+
     let c = &report.counts;
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
     for name in &written {
@@ -5605,6 +5621,13 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
+    match kept {
+        Some(Ok(Some(_))) => println!(
+            "Kept a record of this run in your history (`sv history off` stops it; `sv dashboard` shows it)."
+        ),
+        Some(Err(e)) => eprintln!("History is on, and this run could not be kept: {e:#}"),
+        _ => {}
+    }
     exit::explain(status, &reasons)
         .iter()
         .for_each(|l| println!("{l}"));
