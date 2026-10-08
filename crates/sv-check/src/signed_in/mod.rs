@@ -843,15 +843,43 @@ pub fn run_with(
     policy: &sv_manifest::PolicySection,
     slow: bool,
 ) -> Outcome {
-    let mut patient = Patient::new(http);
+    run_within(
+        http,
+        users,
+        accounts,
+        seeded,
+        policy,
+        slow,
+        &std::cell::Cell::new(0),
+    )
+}
+
+/// `run_with`, with the waiting for a limiter counted against `spent`, the run's one budget.
+pub fn run_within(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    seeded: bool,
+    policy: &sv_manifest::PolicySection,
+    slow: bool,
+    spent: &std::cell::Cell<u64>,
+) -> Outcome {
+    let mut patient = Patient::within(http, spent);
     patient.login_path = users
         .login
         .as_ref()
         .map(|login| login.path.split('?').next().unwrap_or_default().to_owned());
     let mut out = run_checks(&mut patient, users, accounts, seeded, policy, slow);
-    withhold_what_rests_on_a_crash(&patient.crashed, &mut out);
+    patient.settle(&mut out);
+    out
+}
+
+/// What a limiter that kept answering after the wait means for `out` (ADR-021): said once; the
+/// sign-ins it refused named; every credit not assessed, since a refusal may have been the
+/// limiter's; the findings kept, with a note.
+fn settle_limited(patient: &mut Patient<'_>, out: &mut Outcome) {
     if patient.still_limited.is_empty() {
-        return out;
+        return;
     }
     let limited = patient.still_limited.join(", ");
     out.steps.push(format!(
@@ -900,7 +928,6 @@ pub fn run_with(
             ),
         ));
     }
-    out
 }
 
 /// The passes the signed-in checks credit because the app refused something, and the requests
@@ -1150,6 +1177,74 @@ fn withhold_what_rests_on_a_crash(crashed: &[(String, String)], out: &mut Outcom
     out.findings = kept;
 }
 
+/// What came back to a question, before any check reads it (ADR-021): the app's own answer, or one
+/// of the three things that are not one. Every check that reads whether the app answered reads it
+/// through here (`answer_of`), so the rule is written once. Until 8 October 2026 it was written in
+/// seven places with three definitions, one of them missing the limiter's 503 (the architecture
+/// assessment of that day, item 6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Answer<'a> {
+    /// The app answered the question: a status below 500 that is not a limiter's.
+    Answered(&'a ProbeResponse),
+    /// Nothing came back, or nothing that was HTTP.
+    Silent,
+    /// A server error that is not the limiter's: the app failed, which says nothing about whether
+    /// it would have let the request through.
+    Crashed(u16),
+    /// A rate limiter's: 429, or 503 with `Retry-After`. The request was stopped before it reached
+    /// the check it was asking about. `retry_after` is what the app asks to wait, in seconds.
+    Limited { status: u16, retry_after: u64 },
+}
+
+impl<'a> Answer<'a> {
+    /// The app's own answer, when there is one.
+    pub fn answered(self) -> Option<&'a ProbeResponse> {
+        match self {
+            Answer::Answered(r) => Some(r),
+            _ => None,
+        }
+    }
+
+    /// Whether a rate limiter answered in the app's place.
+    pub fn is_limited(self) -> bool {
+        matches!(self, Answer::Limited { .. })
+    }
+
+    /// Whether the app crashed or did not answer: not a refusal, and not the limiter's either.
+    pub fn is_crash_or_silence(self) -> bool {
+        matches!(self, Answer::Silent | Answer::Crashed(_))
+    }
+}
+
+/// How a crash or a silence is written down for `RESTS_ON_A_REFUSAL`: the status, or "no answer".
+fn crash_of(response: Option<&ProbeResponse>) -> Option<String> {
+    match answer_of(response) {
+        Answer::Silent => Some("no answer".to_owned()),
+        Answer::Crashed(status) => Some(status.to_string()),
+        Answer::Answered(_) | Answer::Limited { .. } => None,
+    }
+}
+
+/// What `response` is, by the one rule (ADR-021).
+pub fn answer_of(response: Option<&ProbeResponse>) -> Answer<'_> {
+    let Some(r) = response else {
+        return Answer::Silent;
+    };
+    if let Some(retry_after) = rate_limited(r) {
+        return Answer::Limited {
+            status: r.status,
+            retry_after,
+        };
+    }
+    if r.status == 0 {
+        return Answer::Silent;
+    }
+    if r.status >= 500 {
+        return Answer::Crashed(r.status);
+    }
+    Answer::Answered(r)
+}
+
 /// Seconds to wait before asking again, when `response` is a rate limiter's rather than an answer to
 /// the question: 429, or 503 with `Retry-After`. The app's own `Retry-After` in seconds, at most a
 /// minute; five seconds when it gives none, or gives a date.
@@ -1181,7 +1276,17 @@ pub fn ask_anonymously(
     http: &mut dyn Http,
     requests: &[ProbeRequest],
 ) -> (Vec<ProbeResponse>, Vec<String>) {
-    let mut patient = Patient::new(http);
+    ask_anonymously_within(http, requests, &std::cell::Cell::new(0))
+}
+
+/// `ask_anonymously`, with the waiting for a limiter counted against `spent`, the seconds already
+/// waited in this run: one budget for the whole run (`MOST_WAITING`), not one per suite.
+pub fn ask_anonymously_within(
+    http: &mut dyn Http,
+    requests: &[ProbeRequest],
+    spent: &std::cell::Cell<u64>,
+) -> (Vec<ProbeResponse>, Vec<String>) {
+    let mut patient = Patient::within(http, spent);
     let answers = requests
         .iter()
         .filter_map(|request| patient.send(request))
@@ -1199,7 +1304,7 @@ pub fn ask_anonymously(
 /// asks and at most a minute, and the request sent once more. Not for a request whose id says it is
 /// a guess, or part of a burst (`burst-`): those checks send requests on purpose to see the limiter
 /// answer, and a wait would both change what they measure and send one more than they count.
-struct Patient<'a> {
+pub struct Patient<'a> {
     inner: &'a mut dyn Http,
     /// Requests the limiter was still answering after the wait, as "id (status)".
     still_limited: Vec<String>,
@@ -1207,8 +1312,9 @@ struct Patient<'a> {
     login_path: Option<String>,
     /// Of `still_limited`, the sign-ins: requests other than GET to `login_path`, by id.
     limited_sign_ins: Vec<String>,
-    /// Seconds waited so far, against `MOST_WAITING`.
-    waited: u64,
+    /// Seconds waited so far in this run, against `MOST_WAITING`: shared with the other suites of
+    /// the run when made with `within`, so the run as a whole waits at most that long.
+    waited: WaitedSoFar<'a>,
     /// Requests answered with a server error (5xx) or not answered at all: (request id, status or
     /// "no answer").
     crashed: Vec<(String, String)>,
@@ -1217,18 +1323,56 @@ struct Patient<'a> {
 /// All the waiting one run does for a rate limiter. Each wait is at most a minute, but a limiter
 /// answering every request would otherwise hold a run up for a minute a request; past this, a
 /// limited answer is recorded as the limiter's without waiting.
-const MOST_WAITING: u64 = 300;
+pub const MOST_WAITING: u64 = 300;
+
+/// The seconds a run has spent waiting for a limiter: this suite's own count, or the run's, shared.
+enum WaitedSoFar<'a> {
+    Own(u64),
+    Shared(&'a std::cell::Cell<u64>),
+}
+
+impl WaitedSoFar<'_> {
+    fn get(&self) -> u64 {
+        match self {
+            WaitedSoFar::Own(n) => *n,
+            WaitedSoFar::Shared(cell) => cell.get(),
+        }
+    }
+
+    fn add(&mut self, seconds: u64) {
+        match self {
+            WaitedSoFar::Own(n) => *n += seconds,
+            WaitedSoFar::Shared(cell) => cell.set(cell.get() + seconds),
+        }
+    }
+}
 
 impl<'a> Patient<'a> {
-    fn new(inner: &'a mut dyn Http) -> Self {
+    pub fn new(inner: &'a mut dyn Http) -> Self {
         Patient {
             inner,
             still_limited: Vec::new(),
             login_path: None,
             limited_sign_ins: Vec::new(),
-            waited: 0,
+            waited: WaitedSoFar::Own(0),
             crashed: Vec::new(),
         }
+    }
+
+    /// As `new`, with the waiting counted against `spent`, shared by every suite of the run.
+    pub fn within(inner: &'a mut dyn Http, spent: &'a std::cell::Cell<u64>) -> Self {
+        let mut patient = Patient::new(inner);
+        patient.waited = WaitedSoFar::Shared(spent);
+        patient
+    }
+
+    /// What the limiter and the crashes left, said in `out` as every suite says it: the credits a
+    /// limiter that kept answering puts in doubt become not assessed, the findings are kept with a
+    /// note, and what rests on a request that crashed is withheld (ADR-021). Called once a suite is
+    /// done asking.
+    pub fn settle(&mut self, out: &mut Outcome) {
+        withhold_what_rests_on_a_crash(&self.crashed, out);
+        settle_limited(self, out);
     }
 }
 
@@ -1242,7 +1386,7 @@ impl Patient<'_> {
         let Some(wait) = first.as_ref().and_then(rate_limited) else {
             return first;
         };
-        if self.waited + wait > MOST_WAITING {
+        if self.waited.get() + wait > MOST_WAITING {
             if let Some(r) = &first {
                 self.still_limited.push(format!(
                     "{} ({}, not waited for: {MOST_WAITING} seconds already spent waiting)",
@@ -1252,7 +1396,7 @@ impl Patient<'_> {
             }
             return first;
         }
-        self.waited += wait;
+        self.waited.add(wait);
         self.inner.wait(wait);
         let second = self.inner.send(request);
         if let Some(r) = second.as_ref().filter(|r| rate_limited(r).is_some()) {
@@ -1278,12 +1422,7 @@ impl Http for Patient<'_> {
         let answer = self.answer(request);
         // A crash, or no answer at all, is not the app refusing. Recorded for every request,
         // the guesses included, and read against `RESTS_ON_A_REFUSAL` once the run is over.
-        let crashed = match &answer {
-            None => Some("no answer".to_owned()),
-            Some(r) if r.status >= 500 && rate_limited(r).is_none() => Some(r.status.to_string()),
-            Some(_) => None,
-        };
-        if let Some(status) = crashed {
+        if let Some(status) = crash_of(answer.as_ref()) {
             self.crashed.push((request.id.clone(), status));
         }
         answer
@@ -1293,12 +1432,7 @@ impl Http for Patient<'_> {
         // Not waited out: a limiter's answer to a copy sent together is part of what was asked.
         let answers = self.inner.send_together(requests)?;
         for (request, answer) in requests.iter().zip(&answers) {
-            let crashed = match answer {
-                None => Some("no answer".to_owned()),
-                Some(r) if r.status >= 500 => Some(r.status.to_string()),
-                Some(_) => None,
-            };
-            if let Some(status) = crashed {
+            if let Some(status) = crash_of(answer.as_ref()) {
                 self.crashed.push((request.id.clone(), status));
             }
         }
@@ -1771,6 +1905,47 @@ mod fake_app;
 mod tests {
     use super::fake_app::*;
     use super::*;
+
+    #[test]
+    fn one_rule_says_what_an_answer_is() {
+        // ADR-021, in one place since 8 October 2026: the limiter's two shapes, a crash, silence,
+        // and an answer. The 503 with `Retry-After` is the case one of the seven copies missed.
+        let with = |status: u16, headers: &[(&str, &str)]| ProbeResponse {
+            id: "q".to_owned(),
+            status,
+            headers: headers
+                .iter()
+                .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+                .collect(),
+            body: String::new(),
+        };
+        assert_eq!(answer_of(None), Answer::Silent);
+        assert_eq!(answer_of(Some(&with(0, &[]))), Answer::Silent);
+        assert_eq!(answer_of(Some(&with(500, &[]))), Answer::Crashed(500));
+        assert_eq!(answer_of(Some(&with(503, &[]))), Answer::Crashed(503));
+        assert_eq!(
+            answer_of(Some(&with(503, &[("retry-after", "7")]))),
+            Answer::Limited {
+                status: 503,
+                retry_after: 7
+            }
+        );
+        assert_eq!(
+            answer_of(Some(&with(429, &[]))),
+            Answer::Limited {
+                status: 429,
+                retry_after: 5
+            }
+        );
+        let ok = with(403, &[]);
+        assert_eq!(answer_of(Some(&ok)), Answer::Answered(&ok));
+        assert!(answer_of(Some(&with(429, &[]))).is_limited());
+        assert!(answer_of(Some(&with(502, &[]))).is_crash_or_silence());
+        assert!(!answer_of(Some(&with(429, &[]))).is_crash_or_silence());
+        assert_eq!(crash_of(Some(&with(502, &[]))).as_deref(), Some("502"));
+        assert_eq!(crash_of(None).as_deref(), Some("no answer"));
+        assert_eq!(crash_of(Some(&with(429, &[]))), None);
+    }
     use std::collections::BTreeMap;
 
     #[test]

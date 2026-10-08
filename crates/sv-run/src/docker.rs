@@ -80,8 +80,16 @@ const MOST_CPUS: u64 = 2;
 
 /// How long the sidecar may live if nothing removes it. It is removed as soon as the probes are
 /// done, and by the teardown whatever happens; this is the bound for a run that dies without either,
-/// so a crash cannot leave a container behind on the owner's machine for longer than this.
-const SIDECAR_SECONDS: u64 = 900;
+/// so a crash cannot leave a container behind on the owner's machine for longer than this. Made of
+/// what the run's questions take and the whole of the waiting a run may do for a rate limiter
+/// (`sv_check::signed_in::MOST_WAITING`, one budget for every suite since 8 October 2026), so a
+/// run that waits as long as it may still has its sidecar at the end (ADR-025, Later, 8 October
+/// 2026; until then the two numbers were set apart, and a run could outlive its sidecar, after
+/// which every request read as "no answer" and nothing said why).
+const SIDECAR_SECONDS: u64 = SIDECAR_QUESTIONS_SECONDS + sv_check::signed_in::MOST_WAITING;
+
+/// What the questions themselves are allowed, before any waiting for a limiter.
+const SIDECAR_QUESTIONS_SECONDS: u64 = 600;
 
 pub struct DockerBackend {
     binary: String,
@@ -95,6 +103,9 @@ pub struct DockerBackend {
     run: std::sync::Mutex<Option<String>>,
     /// How far the containers' clock is ahead of this computer's, in seconds, measured once (`clock_offset`).
     clock_offset: OnceLock<i64>,
+    /// The first request that found the sidecar gone, when one did: the request's id and what
+    /// Docker said. Every request after it reads as "no answer", and the run says why.
+    sidecar_lost: std::sync::Mutex<Option<String>>,
 }
 
 /// The label naming the one run a container or network belongs to. The owner label says which
@@ -116,7 +127,33 @@ impl DockerBackend {
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
             clock_offset: OnceLock::new(),
+            sidecar_lost: std::sync::Mutex::new(None),
         }
+    }
+
+    /// Whether `out`, from a request that failed with `code`, says the container it was sent
+    /// through is gone (the sidecar ended, or was removed), and if so writes it down once: the
+    /// difference between the app not answering and nothing being there to ask it (ADR-025,
+    /// Later, 8 October 2026).
+    fn note_if_sidecar_lost(&self, request_id: &str, code: i32, out: &str) -> bool {
+        if code == 0 || !sidecar_gone(out) {
+            return false;
+        }
+        if let Ok(mut lost) = self.sidecar_lost.lock()
+            && lost.is_none()
+        {
+            *lost = Some(format!(
+                "the container the questions are sent from was gone when `{request_id}` was sent \
+                 ({})",
+                first_line(out).trim()
+            ));
+        }
+        true
+    }
+
+    /// What `note_if_sidecar_lost` wrote down, if anything, for the run's outcome.
+    fn sidecar_lost(&self) -> Option<String> {
+        self.sidecar_lost.lock().ok().and_then(|l| l.clone())
     }
 
     /// How far the clock the app's containers read is ahead of this computer's, in seconds, asked of the
@@ -726,6 +763,7 @@ impl DockerBackend {
             left_over_removed,
             liveness,
             installed,
+            sidecar_lost: self.sidecar_lost(),
         })
     }
 }
@@ -2056,6 +2094,7 @@ mod tests {
             cpus: OnceLock::new(),
             run: std::sync::Mutex::new(None),
             clock_offset: OnceLock::new(),
+            sidecar_lost: std::sync::Mutex::new(None),
         };
         let err = backend.available().unwrap_err();
         match err {
@@ -2498,6 +2537,11 @@ impl DockerBackend {
 }
 
 /// Turns a raw HTTP response into the shape the probes read.
+/// Whether Docker's answer to an `exec` says the container is not there to run it in.
+fn sidecar_gone(out: &str) -> bool {
+    out.contains("No such container") || out.contains("is not running")
+}
+
 fn parse_response(id: &str, raw: &str) -> Option<sv_check::probes::ProbeResponse> {
     // A header block ends at the first blank line; tolerate a server that uses bare newlines.
     let (head, body) = raw
@@ -2609,6 +2653,9 @@ impl DockerBackend {
         let (code, out) = self
             .inside_fence_with_input(via, &["sh", "-c", &script], &raw)
             .ok()?;
+        if self.note_if_sidecar_lost(&request.id, code, &out) {
+            return None;
+        }
         if code != 0 && out.trim().is_empty() {
             return None;
         }
@@ -2627,10 +2674,11 @@ impl DockerBackend {
         let (input, sizes, which) = together_input(requests, app)?;
         let mark = at_once_mark();
         let script = at_once_script(app, port, &sizes, &which, &mark);
-        let (_, out) = self
+        let (code, out) = self
             .inside_fence_with_input(via, &["sh", "-c", &script], &input)
             .ok()?;
-        if !out.contains(&mark) {
+        let first = requests.first().map_or("", |r| r.id.as_str());
+        if self.note_if_sidecar_lost(first, code, &out) || !out.contains(&mark) {
             return None;
         }
         let ids: Vec<&str> = requests.iter().map(|r| r.id.as_str()).collect();
@@ -2641,6 +2689,50 @@ impl DockerBackend {
 #[cfg(test)]
 mod probe_tests {
     use super::*;
+
+    #[test]
+    fn a_lost_sidecar_is_told_from_a_silent_app() {
+        // ADR-025, Later, 8 October 2026: Docker's answer to an `exec` into a container that is
+        // gone is written down once, with the first request that met it; a request that failed
+        // some other way, or did not fail, writes nothing.
+        let backend = DockerBackend::new();
+        assert_eq!(backend.sidecar_lost(), None);
+        assert!(!backend.note_if_sidecar_lost("probe-1", 0, "No such container: sv-1-probe"));
+        assert!(!backend.note_if_sidecar_lost("probe-1", 1, "HTTP/1.1 500 Internal Server Error"));
+        assert_eq!(
+            backend.sidecar_lost(),
+            None,
+            "a crash is the app's, not the sidecar's"
+        );
+        assert!(backend.note_if_sidecar_lost(
+            "probe-2",
+            1,
+            "Error response from daemon: No such container: sv-1-probe\n"
+        ));
+        let lost = backend.sidecar_lost().expect("written down");
+        assert!(
+            lost.contains("`probe-2`") && lost.contains("No such container"),
+            "{lost}"
+        );
+        assert!(backend.note_if_sidecar_lost(
+            "probe-3",
+            1,
+            "Error response from daemon: container sv-1-probe is not running\n"
+        ));
+        assert_eq!(
+            backend.sidecar_lost().as_deref(),
+            Some(lost.as_str()),
+            "only the first"
+        );
+        assert_eq!(
+            SIDECAR_SECONDS, 900,
+            "the same life as before, now built from the budget"
+        );
+        assert_eq!(
+            SIDECAR_SECONDS,
+            SIDECAR_QUESTIONS_SECONDS + sv_check::signed_in::MOST_WAITING
+        );
+    }
 
     #[test]
     fn a_stack_trace_below_the_cut_is_kept_and_found() {

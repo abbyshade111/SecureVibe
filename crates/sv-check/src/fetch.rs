@@ -260,9 +260,9 @@ pub fn run(http: &mut dyn Http, section: &FetchSection, ctx: &Context) -> Outcom
     }
     // Credited only on an answer of the app's own: no answer, a crash (5xx), or a limiter's says
     // nothing about whether it chose not to follow.
-    let answered = answer.as_ref().is_some_and(|r| {
-        r.status != 0 && r.status < 500 && crate::signed_in::rate_limited(r).is_none()
-    });
+    let answered = crate::signed_in::answer_of(answer.as_ref())
+        .answered()
+        .is_some();
     out.steps.push(format!(
         "gave it an address that answers with a redirect ({}): {}",
         status(&answer),
