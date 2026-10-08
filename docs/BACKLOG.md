@@ -8241,15 +8241,18 @@ another session is not a claim.
      NoAnswer { Silent, Crashed, Limited }>` makes a 5xx body unreadable as a refusal unless a check chooses to.
      Changes what a request's answer counts as: a Later entry on ADR-021. The four suites then gain limiter waits,
      so item 7 goes with it.
+     **Claimed 8 October 2026 by session securevibe-review**, with item 7 (branch `claude/securevibe-review-one-answer`).
   7. **The probe sidecar's life is a fixed 900 s** (`docker.rs:84`), not derived from the request budget: 300 s of
      limiter waiting plus the AI suite's fixed waits can outlive it, after which every request reads as "no answer"
      and nothing names the sidecar. Tie it to the budget and have `probe` tell "container gone" from "app silent".
      A Later entry on ADR-025.
+     **Claimed 8 October 2026 by session securevibe-review**, with item 6 (the same branch).
   8. **A check cannot be made to say what it asked.** A check is `fn(.., out: &mut Outcome)` and nothing requires it
      to touch `out`: about 200 hand-written `not_assessed.push` sites, and four early returns with none
      (`sessions.rs:711`, fixed on 8 October; `sessions.rs:298`, `passwords.rs:1318`, `signin.rs:618`). Cheapest: a
      `#[must_use]` guard per rule whose drop records "asked and never answered", plus one test that every rule's ids
      land in exactly one bucket on the correct app and on the all-flaws app. Fuller: checks return a `Verdict`.
+     **Claimed 8 October 2026 by session securevibe-review**, the cheaper form first (branch `claude/securevibe-review-asked-and-answered`).
   9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
      `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
      real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
@@ -8275,6 +8278,7 @@ another session is not a claim.
      sibling `*_tests.rs` files and new DESIGN sections per topic cut that further. Split the tests out of the seven
      modules over 3,000 lines (`ast.rs`, `ai.rs`, `probes.rs`, `adapters.rs`, `secrets.rs`, `production.rs`,
      `sbom.rs`; 40 to 65% of each is tests), then `ast.rs` and `sbom.rs` along their seams.
+     **Claimed 8 October 2026 by session securevibe-review**: the CLAUDE.md line, and the tests split out of the seven modules (branch `claude/securevibe-review-tests-apart`).
   12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
      unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
      (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability
