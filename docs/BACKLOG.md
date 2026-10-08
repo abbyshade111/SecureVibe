@@ -639,6 +639,11 @@ another session is not a claim.
      all ten withhold by design with "not assessed" or no credit, and each already has a test asserting so. Step 2
      becomes: those checks mark where they withhold, so the census sees it. Breaks: nothing written, and a test's
      own finding counted, each failed `crates/sv-check/tests/withheld_log.rs`.
+     **Step 2 claimed the same day by session securevibe-e2**, at the owner's word ("yes, please go ahead with step
+     2"), in branch `claude/securevibe-e2-withhold-step2`: a marker, `verified::withheld`, that a check calls where it
+     gives no credit without a finding ("not assessed", or nothing), written to the same `.withheld` log, and put in
+     the ten checks the first count listed, so the tests they already have are seen; and the gate's decision record
+     written as proposed.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
