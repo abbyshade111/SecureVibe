@@ -105,6 +105,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-059](ADR-059.md) | Every check that gives credit is seen withholding it in the test suite, or the build fails |
 | [ADR-060](ADR-060.md) | One file per design entry, so two pull requests stop colliding in the design record |
 | [ADR-061](ADR-061.md) | One file per backlog item, with a status line, so what is open is data and two claims meet only on their own item |
+| [ADR-063](ADR-063.md) | StackVet's logo is the code bracket, in terracotta, as the owner chose |
 
 ## Where v1's records disagree with what v1 built
 
