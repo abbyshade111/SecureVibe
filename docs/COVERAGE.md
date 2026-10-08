@@ -104,7 +104,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V6.5.3 | L2 | Reads the code: `ast.insecure-random-for-code` (sv only ever as a finding: `ast.insecure-random-for-code`) |
 | V8.2.1 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`) |
 | V8.2.2 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.other-users-data` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`) |
-| V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`) |
+| V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`, `probe.app-token-placeholder-key`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`, `probe.app-token-placeholder-key`) |
 | V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.3 | L2 | Reads the code: `ast.token-audience-not-checked` (sv only ever as a finding: `ast.token-audience-not-checked`) |
 | V10.1.1 | L2 | Reads the code: `ast.token-in-browser-storage`; Signed in: `probe.token-in-browser-storage` (sv only ever as a finding: `ast.token-in-browser-storage`, `probe.token-in-browser-storage`) |
@@ -188,7 +188,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V6.3.8 | L3 | Signed in: `probe.reset-reveals-account` (sv only ever as a finding: `probe.reset-reveals-account`) |
 | V6.4.1 | L1 | Signed in: `probe.activation-code-guessable`, `probe.activation-link-reusable` (sv only ever as a finding: `probe.activation-code-guessable`, `probe.activation-link-reusable`) |
 | V6.4.2 | L1 | Signed in: `probe.password-hints` (sv only ever as a finding: `probe.password-hints`) |
-| V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |
+| V6.4.3 | L2 | Signed in: `probe.reset-reusable`, `probe.reset-keeps-old-password`, `probe.reset-code-guessable`, `probe.reset-code-in-answer` (sv only ever as a finding: `probe.reset-code-guessable`, `probe.reset-code-in-answer`, `probe.reset-keeps-old-password`, `probe.reset-reusable`) |
 | V6.5.1 | L2 | Signed in: `probe.totp-reused`, `probe.email-code-reusable` |
 | V6.5.4 | L2 | Signed in: `probe.email-code-short` (sv only ever as a finding: `probe.email-code-short`) |
 | V6.5.5 | L2 | Signed in: `probe.email-code-long-lived`, `probe.totp-old-code-accepted` |
@@ -209,7 +209,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V8.2.2 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.other-users-data` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`) |
 | V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
 | V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
-| V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`) |
+| V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`, `probe.app-token-placeholder-key`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`, `probe.app-token-placeholder-key`) |
 | V9.1.2 | L1 | Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` |
 | V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.1 | L1 | Signed in: `probe.app-token-expired-accepted`; Outside tools: `semgrep` (semgrep only ever as a finding: `jwt-tokenvalidationparameters-no-expiry-validation`) |

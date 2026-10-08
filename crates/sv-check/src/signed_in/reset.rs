@@ -163,6 +163,7 @@ pub(super) fn reset_checks(
         return;
     };
     reset_code_check(&codes, out);
+    code_in_answer_check([&first, &second], &codes, &reset.request.path, out);
 
     let set = |http: &mut dyn Http, new: &str, label: &str| {
         let values = Values {
@@ -280,6 +281,67 @@ pub(super) fn reset_checks(
     ));
 }
 
+/// The shortest code looked for in an answer. A shorter one could turn up in a page by chance (a
+/// year, a count), and is reported as guessable whatever the answer says.
+const SHORTEST_CODE_LOOKED_FOR: usize = 6;
+
+/// Whether the answer to a reset request carries a code the email did (V6.4.3): in its body, as
+/// far as the run keeps of it, or in a header such as `Location`. Only a code standing on its own
+/// counts, not one inside a longer run of letters and digits. Never credit: the run keeps only the
+/// start of each answer, so a code further on would not be seen.
+fn code_in_answer_check(
+    answers: [&Option<ProbeResponse>; 2],
+    codes: &[String],
+    path: &str,
+    out: &mut Outcome,
+) {
+    let stands_alone = |text: &str, code: &str| {
+        text.match_indices(code).any(|(at, _)| {
+            let before = text[..at].chars().next_back();
+            let after = text[at + code.len()..].chars().next();
+            !before.is_some_and(|c| c.is_ascii_alphanumeric())
+                && !after.is_some_and(|c| c.is_ascii_alphanumeric())
+        })
+    };
+    let found = answers
+        .iter()
+        .filter_map(|a| a.as_ref())
+        .find_map(|answer| {
+            codes
+                .iter()
+                .filter(|code| code.chars().count() >= SHORTEST_CODE_LOOKED_FOR)
+                .find_map(|code| {
+                    if stands_alone(&answer.body, code) {
+                        Some("its body".to_owned())
+                    } else {
+                        answer
+                            .headers
+                            .iter()
+                            .find(|(_, value)| stands_alone(value, code))
+                            .map(|(name, _)| format!("its `{name}` header"))
+                    }
+                })
+        });
+    out.steps.push(format!(
+        "looked for the code from the email in the answers to the reset requests: {}",
+        match &found {
+            Some(place) => format!("found, in {place}"),
+            None => "not found".to_owned(),
+        }
+    ));
+    if let Some(place) = found {
+        out.findings.push(finding(
+            &RESET_CODE_IN_ANSWER,
+            "A password reset hands its code to whoever asked",
+            Severity::Critical,
+            format!(
+                "The answer to a password reset request through {path} carried, in {place}, the same \
+                 code the reset email sent to the account. Whoever asks for a reset can read it there."
+            ),
+        ));
+    }
+}
+
 /// Whether a reset code could be guessed: too short to hold 20 bits, or counting up.
 ///
 /// The floor is the one ASVS sets for codes sent out of band (V6.5.4), which names six random
@@ -331,11 +393,12 @@ mod tests {
     // --------------------------------------------------------------------------------------------
     // Password reset, through the mail sink
 
-    const RESET_RULES: [&str; 4] = [
+    const RESET_RULES: [&str; 5] = [
         RESET_REUSABLE.rule_id,
         RESET_KEEPS_OLD.rule_id,
         RESET_CODE_GUESSABLE.rule_id,
         RESET_REVEALS_ACCOUNT.rule_id,
+        RESET_CODE_IN_ANSWER.rule_id,
     ];
 
     fn reset_findings(o: &Outcome) -> Vec<&str> {
@@ -368,6 +431,7 @@ mod tests {
             "the password the reset set signed in",
             "the password from before the reset was refused",
             "the password the used code tried to set was refused",
+            "looked for the code from the email in the answers to the reset requests: not found",
         ] {
             assert!(steps.contains(step), "{step}:\n{steps}");
         }
@@ -688,5 +752,99 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    #[test]
+    fn a_code_in_the_answer_is_found_whichever_way_the_account_was_made() {
+        // Only the first answer carries the code, so the two answers for the account differ
+        // between themselves, and the account check rightly sets that difference aside.
+        let flaws = Flaws {
+            reset_code_in_answer: true,
+            ..Default::default()
+        };
+        for o in [run_against(flaws, &users()), run_signing_up(flaws)] {
+            assert_eq!(
+                reset_findings(&o),
+                vec![RESET_CODE_IN_ANSWER.rule_id],
+                "{:?}",
+                o.steps
+            );
+        }
+    }
+
+    #[test]
+    fn a_code_in_the_answer_is_reported_without_printing_it() {
+        let o = run_against(
+            Flaws {
+                reset_code_in_answer: true,
+                ..Default::default()
+            },
+            &users(),
+        );
+        let found: Vec<&Finding> = o
+            .findings
+            .iter()
+            .filter(|f| f.rule_id == RESET_CODE_IN_ANSWER.rule_id)
+            .collect();
+        assert_eq!(found.len(), 1, "{:?}", o.steps);
+        assert!(
+            found[0].description.contains("in its body"),
+            "{}",
+            found[0].description
+        );
+        assert!(!verified_ids(&o).contains(&RESET_CODE_IN_ANSWER.rule_id));
+        // The code the email carried is in no finding and no step: setup first, that a code was
+        // read from the email at all.
+        let steps = o.steps.join("\n");
+        assert!(steps.contains("2 emails arrived"), "{steps}");
+        let said = format!("{:?}{steps}", o.findings);
+        assert!(!said.contains("reset_token="), "{said}");
+        assert!(
+            !said
+                .split(|c: char| !c.is_ascii_alphanumeric())
+                .any(|w| w.len() == 32 && w.chars().all(|c| c.is_ascii_hexdigit())),
+            "a code-shaped word was printed: {said}"
+        );
+    }
+
+    #[test]
+    fn a_code_is_found_on_its_own_in_a_body_or_a_header_and_not_inside_a_longer_word() {
+        let answer = |body: &str, headers: &[(&str, &str)]| {
+            Some(ProbeResponse {
+                id: "reset-request-1".to_owned(),
+                status: 200,
+                headers: headers
+                    .iter()
+                    .map(|(n, v)| ((*n).to_owned(), (*v).to_owned()))
+                    .collect(),
+                body: body.to_owned(),
+            })
+        };
+        let code = vec!["a1b2c3d4e5".to_owned()];
+        let check = |a: Option<ProbeResponse>, codes: &[String]| {
+            let mut out = Outcome::default();
+            code_in_answer_check([&a, &None], codes, "/forgot", &mut out);
+            (
+                rule_ids(&out).len(),
+                out.findings.first().map(|f| f.description.clone()),
+            )
+        };
+        let (n, said) = check(answer(r#"{"ok":true,"token":"a1b2c3d4e5"}"#, &[]), &code);
+        assert_eq!(n, 1);
+        assert!(said.unwrap().contains("in its body"));
+        let (n, said) = check(
+            answer("", &[("location", "/reset?token=a1b2c3d4e5")]),
+            &code,
+        );
+        assert_eq!(n, 1);
+        assert!(said.unwrap().contains("`location` header"));
+        // Inside a longer run of letters and digits is not the code standing alone.
+        assert_eq!(check(answer("xa1b2c3d4e5", &[]), &code).0, 0);
+        assert_eq!(check(answer("a1b2c3d4e59", &[]), &code).0, 0);
+        // A code shorter than six characters is not looked for: it could be there by chance.
+        let short = vec!["4821".to_owned()];
+        assert_eq!(check(answer("Request 4821 today.", &[]), &short).0, 0);
+        // A crashed request has no answer to read.
+        assert_eq!(check(None, &code).0, 0);
     }
 }

@@ -13589,3 +13589,56 @@ origin, no credentials, `credentials: false`, `allowedOrigins` with one site, `W
 each caught: flask-cors' list of origins ignored, its credentials not required, JavaScript's credentials not required or
 `false` counted, Fastify missed, TypeScript never matched, Spring's credentials not required, its setters missed, its
 annotation missed, and ASP.NET Core's credentials not required.
+
+## A reset code handed back in the reset request's own answer (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.5; BACKLOG, item 13, its part (d)). An AI-written reset sometimes
+answers the request with the code it just emailed, in a JSON field, a debugging comment, or a redirect: then anybody who
+knows an email address can reset that account, without the email. The reset check already followed the email through;
+it never looked at what the request itself answered.
+
+`probe.reset-code-in-answer`, in `crates/sv-check/src/signed_in/reset.rs`, runs once the check has found the code in
+the email: it looks for each code the emails carried in the answers to the two reset requests for the account, in the
+body as far as the run keeps it and in every header (a `Location` carrying the link, say). Only a code standing on its
+own counts, not one inside a longer run of letters and digits, and a code shorter than six characters is not looked
+for, since it could be in a page by chance (such a code is already reported as guessable). A match is a critical
+finding citing V6.4.3, saying where the code was and never the code. No match is never credit: the run keeps only the
+start of each answer.
+
+The fake app the signed-in tests use gained a switch, `reset_code_in_answer`, that writes the code into a comment in
+the answer to an address's first reset request only. One request is all an attacker needs, so the first answer is the
+one that must be read; the switch's single first answer is what shows the check reads it.
+
+Tests: four in `reset.rs`. The clean run says it looked and found nothing; the switch is found whether the account was
+seeded or made by sign-up, and only the new rule fires (the two answers for the account differ between themselves, so
+the account-revealing check sets that aside); the finding and the steps never hold the code; and a unit test shows a
+code found alone in a body or a header, not inside a longer word, not when shorter than six characters, and not in a
+crashed request. Six guards broken in turn, each caught: the check never called, headers not read, a code inside a
+longer word counted, short codes looked for, the first answer not read, and no match credited. The last-but-one was not
+caught at first, while the fake app wrote the code into every answer; it is caught since the switch writes it only
+into the first.
+
+## A sign-in token signed with a placeholder secret (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.5; BACKLOG, item 13, its part (f)). AI-written apps often copy the
+secret their tutorial used: jwt.io's `your-256-bit-secret`, `secret`, `changeme`, `keyboard cat`. A token signed with
+one of those can be written by anybody, as any user. The signed-in checks already asked whether the app checks its
+token's signature (V9.1.1), whether it takes `alg: none` (V9.1.2), and where it takes its key from (V9.1.3); none asked
+whether the key itself was one anybody knows.
+
+`probe.app-token-placeholder-key`, in `crates/sv-check/src/signed_in/tokens.rs`, takes the app's own sign-in token,
+when it is a JWT signed with a shared secret (HS256, HS384, or HS512), and signs its first two parts with each of 45
+placeholder secrets in turn, comparing the result with the token's signature. It runs offline, from the token alone,
+and sends the app nothing; it runs even when no private page was shown, since it needs none. A match is a critical
+finding citing V9.1.1, naming the secret only as `sv`'s secrets scan names a credential, by its first four characters
+and its length. No match is never credit: a secret not on the list may still be guessed. A token signed with a key
+pair (RS256, ES256, and the like) has no shared secret, and is left alone.
+
+The fake app the signed-in tests use gained a switch, `jwt_placeholder_key`, that signs its tokens with jwt.io's
+example secret, made from pieces so the test file holds no secret whole.
+
+Tests: three in `tokens.rs`. The fake app with the switch is caught whichever way the token travels, with the secret
+never written whole in the finding or the run's steps, and its other token checks still credited; the fake app with
+its own key is checked (the step says so) and not reported or credited; HS384 and HS512 tokens are caught, and an
+RS256 one is not checked. Six guards broken in turn, each caught: the check never called, jwt.io's example left off
+the list, HS384 signed as HS256, the secret printed whole, key pairs checked too, and no match credited.
