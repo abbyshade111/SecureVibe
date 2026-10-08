@@ -250,6 +250,9 @@ pub fn scan_listing_app(
             }
             continue;
         };
+        if ecosystems::not_for_technology(language) {
+            continue;
+        }
         let contents = match entry.read_text() {
             Ok(contents) => contents,
             // A source file that cannot be read — or is over the size limit — is a hole in the

