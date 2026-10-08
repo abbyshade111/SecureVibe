@@ -354,6 +354,8 @@ another session is not a claim.
      with what varies between identical requests set aside). A difference is a finding citing V6.3.8; none credits
      nothing. Run just before the guessing check, and not judged when any answer was a rate limit. Sign-up's half of
      (c) stays unclaimed. Read on `main` just before this claim: no other session had claimed (c).
+     **(d) done the same day** (DESIGN, "A reset code handed back in the reset request's own answer"):
+     `probe.reset-code-in-answer`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
