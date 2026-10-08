@@ -204,8 +204,9 @@ pub fn evaluate(
 }
 
 /// Somebody checked and it failed. A failure reported never overstates the app, whoever saw it.
+#[track_caller]
 fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -241,7 +242,7 @@ fn problem(check: &crate::human::HumanCheck, how: &str, on: Day, who: &str) -> F
              saw. How to check: {}",
             check.how.split_whitespace().collect::<Vec<_>>().join(" ")
         ),
-    }
+    })
 }
 
 #[cfg(test)]

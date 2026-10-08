@@ -386,7 +386,7 @@ fn scan_piece(
             if looks_like_placeholder(value) {
                 continue;
             }
-            out.push(Finding {
+            out.push(crate::finding::found(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -408,7 +408,7 @@ fn scan_piece(
                 description: rule.description.clone(),
                 impact: rule.impact.clone(),
                 fix: rule.fix.clone(),
-            });
+            }));
         }
     }
 
@@ -517,7 +517,7 @@ fn url_password_findings(
         if !keep.contains(&password.start()) {
             continue;
         }
-        out.push(Finding {
+        out.push(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -547,7 +547,7 @@ fn url_password_findings(
             fix: "Change the password on the service, then keep the whole address in .env (or a \
                   secret store) and read it from there, as `DATABASE_URL` usually is."
                 .into(),
-        });
+        }));
     }
     out
 }
@@ -885,7 +885,7 @@ fn assignment_findings(
                     .to_owned(),
             )
         };
-        out.push(Finding {
+        out.push(crate::finding::found(Finding {
             also_reported_by: Vec::new(),
             fingerprint: String::new(),
             earlier_fingerprints: Vec::new(),
@@ -913,7 +913,7 @@ fn assignment_findings(
             }
             .into(),
             fix,
-        });
+        }));
     }
     out
 }

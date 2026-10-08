@@ -2215,7 +2215,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     default,
                 });
             }
-            out.push(Finding {
+            out.push(crate::finding::found(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -2266,7 +2266,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 },
                 impact: compiled.rule.impact.clone(),
                 fix: compiled.rule.fix.clone(),
-            });
+            }));
         }
     }
     out.sort_by(|a, b| {
@@ -7041,6 +7041,30 @@ mod tests {
         ("ast.csrf-protection-off", "javascript", "export default { kit: { csrf: { checkOrigin: true } } };", false),
         ("ast.csrf-protection-off", "typescript", "export default defineConfig({ security: { checkOrigin: false } });", true),
         ("ast.csrf-protection-off", "typescript", "const options = { strict: false };", false),
+        // A template built from a value (gap analysis, item 11).
+        ("ast.template-built-from-value", "python", "def hello():\n    name = request.args.get('name')\n    return render_template_string(f'<h1>Hello {name}</h1>')", true),
+        ("ast.template-built-from-value", "python", "def page(body):\n    return flask.render_template_string('<main>' + body + '</main>')", true),
+        ("ast.template-built-from-value", "python", "def page(src):\n    return env.from_string(src).render()", true),
+        ("ast.template-built-from-value", "python", "def hello():\n    return render_template_string('<h1>Hello {{ name }}</h1>', name=request.args.get('name'))", false),
+        ("ast.template-built-from-value", "python", "PAGE = '<h1>{{ title }}</h1>'\n\ndef page():\n    return render_template_string(PAGE, title='Home')", false),
+        ("ast.template-built-from-value", "python", "def page(name):\n    return render_template('page.html', name=name)", false),
+        ("ast.template-built-from-value", "javascript", "app.get('/', (req, res) => res.send(ejs.render(req.query.tpl, {})));", true),
+        ("ast.template-built-from-value", "javascript", "const t = Handlebars.compile(source);", true),
+        ("ast.template-built-from-value", "javascript", "const t = _.template(`<b>${req.body.name}</b>`);", true),
+        ("ast.template-built-from-value", "javascript", "const t = Handlebars.compile('<b>{{name}}</b>');", false),
+        ("ast.template-built-from-value", "javascript", "res.render(view, { name });", false),
+        ("ast.template-built-from-value", "typescript", "const html: string = nunjucks.renderString(input, { user });", true),
+        ("ast.template-built-from-value", "typescript", "const html: string = nunjucks.renderString('Hi {{ user }}', { user });", false),
+        ("ast.template-built-from-value", "ruby", "def show\n  render html: ERB.new(params[:t]).result(binding)\nend", true),
+        ("ast.template-built-from-value", "ruby", "def show\n  Liquid::Template.parse(params[:t]).render\nend", true),
+        ("ast.template-built-from-value", "ruby", "def show\n  ERB.new('<%= @name %>').result(binding)\nend", false),
+        ("ast.template-built-from-value", "ruby", "def show\n  User.new(params[:user])\nend", false),
+        ("ast.template-built-from-value", "php", "<?php\n$html = $twig->createTemplate($_GET['t'])->render([]);", true),
+        ("ast.template-built-from-value", "php", "<?php\n$html = $twig->createTemplate('Hello {{ name }}')->render(['name' => $n]);", false),
+        ("ast.template-built-from-value", "csharp", "class A { string M(string input) { return Template.Parse(input).Render(); } }", true),
+        ("ast.template-built-from-value", "csharp", "class A { string M() { return Template.Parse(\"Hello {{ name }}\").Render(); } }", false),
+        ("ast.template-built-from-value", "csharp", "class A { int M(string input) { return int.Parse(input); } }", false),
+        ("ast.template-built-from-value", "csharp", "class A { DateTime M(string input) { return DateTime.Parse(input); } }", false),
         // Cross-origin settings that let any site in with credentials (gap analysis, item 11).
         ("ast.cors-any-origin-with-credentials", "python", "app = Flask(__name__)\nCORS(app, supports_credentials=True)", true),
         ("ast.cors-any-origin-with-credentials", "python", "app = Flask(__name__)\nflask_cors.CORS(app, supports_credentials=True)", true),

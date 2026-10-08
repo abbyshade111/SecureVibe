@@ -85,10 +85,33 @@ pub struct Check {
     pub fails_when: String,
 }
 
+/// How many builds a prompt's status was decided on: with the prompt, and without it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub struct Builds {
+    pub with: u32,
+    pub without: u32,
+}
+
+impl Builds {
+    /// "on 10 builds with it and 10 without".
+    pub fn words(self) -> String {
+        format!(
+            "on {} build{} with it and {} without",
+            self.with,
+            if self.with == 1 { "" } else { "s" },
+            self.without
+        )
+    }
+}
+
 /// How a prompt was tried.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Tested {
     pub date: String,
+    /// The builds its status was decided on, so a prompt shown on one pair does not read the same as
+    /// one shown on ten (`docs/GAP-ANALYSIS.md`, 4.6). Every prompt shown to work has it.
+    #[serde(default)]
+    pub builds: Option<Builds>,
     pub brief: String,
     pub builder: String,
     pub result: String,
@@ -108,6 +131,21 @@ pub struct Prompt {
     pub inspired_by: String,
     pub tested: Option<Tested>,
     pub status: Status,
+}
+
+impl Prompt {
+    /// Its status in words, as every copy of it says it: "Shown to work, on 10 builds with it and 10
+    /// without.", "Tried, not shown to work.", or "Not tried yet.".
+    pub fn status_sentence(&self) -> String {
+        match self.status {
+            Status::Shown => match self.tested.as_ref().and_then(|t| t.builds) {
+                Some(builds) => format!("Shown to work, {}.", builds.words()),
+                None => "Shown to work.".to_owned(),
+            },
+            Status::NotShown => "Tried, not shown to work.".to_owned(),
+            Status::Untested => "Not tried yet.".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -219,11 +257,8 @@ impl Prompts {
             out.push_str(&format!("\n### {}\n\n", p.title));
             let result = p.tested.as_ref().map(|t| t.result.as_str()).unwrap_or("");
             out.push_str(&match p.status {
-                Status::Shown => format!("**Shown to work.** {result}\n\n"),
-                Status::NotShown => {
-                    format!("**Tried, not shown to work.** {result}\n\n")
-                }
-                Status::Untested => "**Not tried yet.**\n\n".to_owned(),
+                Status::Untested => format!("**{}**\n\n", p.status_sentence()),
+                _ => format!("**{}** {result}\n\n", p.status_sentence()),
             });
             for line in p.prompt.lines() {
                 out.push_str(&format!("> {line}\n"));
@@ -288,11 +323,7 @@ impl Prompts {
         }
         for (p, ids) in offered {
             out.push_str(&format!("\n### {}\n\n", p.title));
-            out.push_str(match p.status {
-                Status::Shown => "**Shown to work.**\n\n",
-                Status::NotShown => "**Tried, not shown to work.**\n\n",
-                Status::Untested => "**Not tried yet.**\n\n",
-            });
+            out.push_str(&format!("**{}**\n\n", p.status_sentence()));
             out.push_str(&format!(
                 "For: {}.\n\n",
                 ids.iter()
