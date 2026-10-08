@@ -85,7 +85,8 @@ DNS resolver one question about that name. And with `install = true`, the instal
 packages from PyPI or npm before the run; the report says when it did. Advisory data is something you download and point it at; the list
 of packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
 Outside tools you turn on with `--tools` are other people's programs, and semgrep fetches its rules the first
-time it runs. `sv run` starts containers, and Docker downloads any image it does not have yet.
+time it runs; gosec is started so that it cannot download your app's modules or run a C compiler, and a tool that
+would read through a link in your app is not run while the link is there. `sv run` starts containers, and Docker downloads any image it does not have yet.
 
 `sv run` also asks the running app questions as somebody who has not signed in: among them, what headers
 and cookies it sends, what it says when asked for a page that is not there, whether it accepts a site it has
