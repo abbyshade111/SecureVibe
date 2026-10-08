@@ -117,6 +117,7 @@ pub(super) fn reset_checks(
         &account.user,
         &nobody,
         &reset.request.path,
+        &RESET_REQUEST,
         out,
     );
 

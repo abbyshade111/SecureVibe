@@ -494,6 +494,10 @@ pub(super) struct Flaws {
     pub(super) reset_counting_codes: bool,
     /// A reset for an address with no account is answered 404.
     pub(super) reset_reveals_by_status: bool,
+    /// A sign-in for an address with no account is answered 404, not 403.
+    pub(super) signin_reveals_by_status: bool,
+    /// A sign-in for an address with no account says so; a wrong password says that instead.
+    pub(super) signin_reveals_by_words: bool,
     /// A reset for an address with no account is answered in different words.
     pub(super) reset_reveals_by_words: bool,
     /// The reset email carries its code where the default patterns do not look.
@@ -1286,6 +1290,18 @@ impl FakeApp {
                     }
                     if self.flaws.locks_out_after.is_some() {
                         *self.failures.entry(key).or_insert(0) += 1;
+                    }
+                    let known = self.users.contains_key(email);
+                    if !known && self.flaws.signin_reveals_by_status {
+                        return Some(Self::respond(404, vec![], "no"));
+                    }
+                    if self.flaws.signin_reveals_by_words {
+                        let words = if known {
+                            "Wrong password."
+                        } else {
+                            "No account has that email."
+                        };
+                        return Some(Self::respond(403, vec![], words));
                     }
                     return Some(Self::respond(403, vec![], "no"));
                 }
