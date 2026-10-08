@@ -281,8 +281,6 @@ another session is not a claim.
      not read every file it was given" check (`unread_files`) which of them a loaded rule reads, so a template no
      rule reads is not called unread. Changes what `sv` gives an outside tool: ADR-018, Later. Added 7 October 2026
      when the first half was built.
-     **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
-     in `crates/sv-check/tests/unread_files.rs`.
      **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
      `claude/securevibe-e9-semgrep-files`. Since item 14 (8 October) templates and notebooks are handed to Semgrep
      already. Measured with semgrep 1.180.0: Semgrep leaves out, without a word, a handed file no loaded rule reads,
@@ -291,6 +289,8 @@ another session is not a claim.
      `web.config`, `*.tf`); and count a handed file as unread only when a loaded rule in the map reads it (its
      language's extensions, as Semgrep's own parsers take them, or its `paths.include`), so the check stays right
      when a pack changes.
+     **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
+     in `crates/sv-check/tests/unread_files.rs`.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
