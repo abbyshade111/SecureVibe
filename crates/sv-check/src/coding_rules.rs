@@ -71,8 +71,12 @@ pub struct CodingRules {
 
 /// The markers around the section `sv` writes into `AGENTS.md`. Everything outside them is the
 /// owner's, and a later run replaces only what is between them.
-pub const BEGIN: &str = "<!-- securevibe:coding-rules:begin -->";
-pub const END: &str = "<!-- securevibe:coding-rules:end -->";
+pub const BEGIN: &str = sv_frameworks::names::RULES_BEGIN;
+pub const END: &str = sv_frameworks::names::RULES_END;
+/// The markers before the rename (ADR-062): a block between them is found, and rewritten between
+/// the new ones.
+const OLD_BEGIN: &str = sv_frameworks::names::OLD_RULES_BEGIN;
+const OLD_END: &str = sv_frameworks::names::OLD_RULES_END;
 
 impl CodingRules {
     pub fn load(path: &Path) -> Result<CodingRules> {
@@ -192,9 +196,18 @@ impl CodingRules {
         let Some(existing) = existing else {
             return Ok(block);
         };
-        match (existing.find(BEGIN), existing.find(END)) {
+        // The block is found under either pair of markers, and always rewritten under the new.
+        let (found_begin, found_end, end_len) = match (existing.find(BEGIN), existing.find(END)) {
+            (None, None) => (
+                existing.find(OLD_BEGIN),
+                existing.find(OLD_END),
+                OLD_END.len(),
+            ),
+            (begin, end) => (begin, end, END.len()),
+        };
+        match (found_begin, found_end) {
             (Some(begin), Some(end)) if begin < end => {
-                let after = end + END.len();
+                let after = end + end_len;
                 let rest = existing[after..]
                     .strip_prefix('\n')
                     .unwrap_or(&existing[after..]);

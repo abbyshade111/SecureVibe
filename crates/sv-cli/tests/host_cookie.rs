@@ -103,8 +103,11 @@ fn a_host_prefixed_cookie_signs_the_browser_in_and_a_weakened_start_is_warned_ab
         .output()
         .expect("sv runs");
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
-    let report = std::fs::read_to_string(app.join("securevibe-report/compliance.md"))
-        .unwrap_or_else(|e| panic!("no report ({e}): {stderr}"));
+    let report = std::fs::read_to_string(
+        app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("compliance.md"),
+    )
+    .unwrap_or_else(|e| panic!("no report ({e}): {stderr}"));
     if !docker_ok() {
         println!("no container backend here; checking the honest-absence path instead");
         assert!(!report.contains("signed in a real browser"), "{report}");

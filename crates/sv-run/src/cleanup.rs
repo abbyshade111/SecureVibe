@@ -9,7 +9,10 @@
 //! `sv` on another machine that shares the Docker daemon, and everything that is not `sv`'s.
 
 /// The label on everything a run starts: `<machine>:<process id>`.
-pub const OWNER_LABEL: &str = "org.securevibe.owner";
+pub const OWNER_LABEL: &str = sv_frameworks::names::OWNER_LABEL;
+/// The label before the rename (ADR-062): a container or network left by a run under the old name
+/// is still this machine's leftover, and is still removed.
+pub const OLD_OWNER_LABEL: &str = sv_frameworks::names::OLD_OWNER_LABEL;
 
 /// This process, as what it starts is labeled.
 pub fn owner() -> String {
@@ -118,7 +121,7 @@ mod tests {
             vec![
                 "run",
                 "--label",
-                "org.securevibe.owner=laptop:42",
+                "org.stackvet.owner=laptop:42",
                 "-d",
                 "--name",
                 "x",
@@ -131,7 +134,7 @@ mod tests {
                 "network",
                 "create",
                 "--label",
-                "org.securevibe.owner=laptop:42",
+                "org.stackvet.owner=laptop:42",
                 "--internal",
                 "n"
             ]
@@ -141,7 +144,7 @@ mod tests {
             vec![
                 "create",
                 "--label",
-                "org.securevibe.owner=laptop:42",
+                "org.stackvet.owner=laptop:42",
                 "busybox"
             ]
         );

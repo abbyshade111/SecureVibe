@@ -32,7 +32,7 @@ pub const INSTALLED_MARK: &str = ".sv-installed";
 pub const INSTALL_TMPFS: &str = "/tmp:size=1g";
 /// The label on every volume this step makes, so a person can list or remove them all at once
 /// (`docker volume ls --filter label=securevibe.deps`).
-pub const VOLUME_LABEL: &str = "securevibe.deps";
+pub const VOLUME_LABEL: &str = sv_frameworks::names::VOLUME_LABEL;
 
 /// Which package manager an app's dependency files are for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -37,10 +37,12 @@ fn reported(root: &Path, example: &str) -> PathBuf {
         .join(example);
     let to = root.join(example);
     copy(&from, &to);
-    std::fs::remove_dir_all(to.join("securevibe-report")).ok();
+    std::fs::remove_dir_all(to.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)).ok();
     let (code, said) = sv(&["report", s(&to)]);
     assert!(
-        to.join("securevibe-report/report.json").is_file(),
+        to.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.json")
+            .is_file(),
         "the setup: sv report wrote a report ({code:?}): {said}"
     );
     to
@@ -79,7 +81,11 @@ fn the_page_shows_each_app_as_its_report_left_it() {
         .iter()
         .map(|a| {
             serde_json::from_str(
-                &std::fs::read_to_string(a.join("securevibe-report/report.json")).unwrap(),
+                &std::fs::read_to_string(
+                    a.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                        .join("report.json"),
+                )
+                .unwrap(),
             )
             .unwrap()
         })
@@ -106,7 +112,10 @@ fn the_page_shows_each_app_as_its_report_left_it() {
         }
         assert!(page.contains(&format!("The {} requirements that apply", c["applicable"])));
     }
-    assert!(page.contains("no report.json in its securevibe-report folder yet"));
+    assert!(page.contains(&format!(
+        "no report.json in its {} folder yet",
+        sv_scan::ecosystems::DEFAULT_REPORT_DIR
+    )));
     assert!(page.contains("Open the full report"));
     // Fetches nothing: no script, and no address but the reports' own files.
     assert!(!page.contains("<script"), "a script on the page");
@@ -177,9 +186,10 @@ fn what_a_report_says_reaches_the_page_as_text_and_never_as_markup() {
     // The app's name comes from securevibe.toml, which the AI coding tool writes.
     let root = scratch("escape");
     let app = root.join("odd");
-    std::fs::create_dir_all(app.join("securevibe-report")).unwrap();
+    std::fs::create_dir_all(app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)).unwrap();
     std::fs::write(
-        app.join("securevibe-report/report.json"),
+        app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.json"),
         r#"{"app_name":"<img src=x onerror=alert(1)>","target_level":1,
             "counts":{"applicable":1,"not_verified":1},
             "findings":[{"severity":"high","title":"<script>alert(2)</script>"}],

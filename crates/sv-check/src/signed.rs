@@ -35,7 +35,7 @@ pub const TRUSTED_FILE: &str = "allowed_signers";
 pub const TRUSTED_VARIABLE: &str = "SV_TRUSTED_SEALS";
 
 /// The namespace every seal is signed under, so a signature made for anything else never counts.
-pub const NAMESPACE: &str = "securevibe-review";
+pub const NAMESPACE: &str = sv_frameworks::names::SIGNATURE_NAMESPACE;
 
 /// What a signed seal is made over, apart from anything `review-key` seals.
 const DOMAIN: &str = "sv review seal v3\n";

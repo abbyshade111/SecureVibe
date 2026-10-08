@@ -8,6 +8,7 @@ license.workspace = true
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+sv-frameworks = { path = "../sv-frameworks" }
 sv-manifest = { path = "../sv-manifest" }
 sv-check = { path = "../sv-check" }
 # The install volume's name is a SHA-256 over the dependency files (ADR-052); already a dependency of sv-check.
