@@ -461,6 +461,16 @@ another session is not a claim.
      "Weekly decision-record review", with the repository attached and three thousand commits of history, and one
      routine that wakes it on Mondays at 8:45, New York time, with the same instructions and a first step that brings
      the checkout up to date. Both old routines are turned off, not deleted. Its first run is due 12 October.
+     **Still needed: a setup script for the review's environment** (added 8 October 2026, at the owner's asking: "can
+     you add to the backlog that the weekly decision-record review needs a setup script as well"). Step 7 of the
+     review runs `cargo fmt`, `cargo clippy`, `cargo test --workspace`, and `tools/adr_check.py --self-test`, and a
+     fresh cloud session has no promise of the Rust toolchain this repository pins, its `clippy` and `rustfmt`, or
+     Python 3. The environment's setup script, which runs before each new session starts, should install those, so
+     the review can run its checks rather than report that it could not. The script lives in the environment's
+     settings (the cloud environment menu, then Edit, then Setup script), which only the owner can change; a session
+     can draft it. A test firing on 8 October also showed that a routine fired by hand starts a fresh session without
+     the repository rather than waking the review's own session; whether the Monday run wakes the right one is to be
+     checked after 12 October.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
