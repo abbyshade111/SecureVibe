@@ -498,6 +498,11 @@ another session is not a claim.
      both copies updated together; a version held to by its commit's own image; and `docker image prune` for the
      old ones. Breaks: the image renamed in step 1, the update's pull renamed, and the per-commit image no longer
      pushed by the workflow each failed `crates/sv-cli/tests/guide_update.rs`.
+     **(a) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-did-it-connect`: a "did it connect" step for every tool in the
+     guide, the one that works in any tool being to ask it to list the `securevibe_` tools it can call; and the
+     instruction to stop and say so when they are missing, in the prompt the guide gives and in the rules `sv rules`
+     writes into `AGENTS.md`, which a tool reads whether or not SecureVibe is connected.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
