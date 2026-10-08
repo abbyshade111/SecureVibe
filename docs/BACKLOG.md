@@ -251,6 +251,10 @@ another session is not a claim.
      out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
      pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
      folder can be deleted.
+     **(h) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please go ahead"), in
+     branch `claude/securevibe-e2-readme-first`: the README's opening sends somebody who is not a programmer to
+     `docs/GETTING-STARTED.md` first, `tools/install.sh` builds with `--locked`, and the guide says which build
+     folder can be deleted afterwards, how large it is, and that deleting it does not remove `sv`.
      **(f) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-init-redirect`: when `sv init`'s output goes straight into a
      file, it prints only the starter `securevibe.toml`, which `sv` can read, and says on screen that the
@@ -7993,6 +7997,18 @@ done: `docs/adr/ADR-018.md`.
   `isolate-the-window`'s sentence on Python's own error pages, by `docs/prompts/library-trial/sentences-protocol.md`.
   **Claimed on 7 October 2026 by session paper-facts**, in branch `claude/sentences`. Read on `main` just before this
   claim: no other session had claimed it.
+  **Done the same day** (`docs/prompts/library-trial/sentences.md`): 30 builds, $10.59. All three shown: `password-rules`
+  0 of 10 (10 of 10 without, 8 of 10 with the earlier text), marked shown by the owner; `production-server` 0 of 9 and
+  no locked database; `isolate-the-window` 0 of 9 on Haiku (7 of 7 without, 4 of 10 with the earlier text). No harm.
+- **Changing and deleting another user's record can be credited when the request never reached a route.** Found on 8
+  October 2026 by the second documentation review: `update` and `delete` under `owned` are POSTed as forms unless they
+  say otherwise, and the specification does not say they can (`method`, `json`). For an app whose route is `PUT` or
+  `DELETE`, the second user's request answers 405, the first user's record is unchanged, and that is read as a refusal,
+  so V8.2.2 is credited in full (`crates/sv-check/src/signed_in/admin.rs`, ADR-053). A refusal should count only when
+  the same request, sent by the record's owner, does change or delete it. **Claimed on 8 October 2026 by session
+  paper-facts**, at the owner's word ("go ahead with ... the deep scrub and review of the documentation"), in branch
+  `claude/owned-control`, with a Later entry on ADR-053. Read on `main` just before this claim: no other session had
+  claimed it.
 - **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
