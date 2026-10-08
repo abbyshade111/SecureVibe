@@ -37,6 +37,110 @@ fn guess_once(
     http.send(&req).map_or(0, |r| r.status)
 }
 
+/// The sign-in a run asked, as `reveals_account_check` names it.
+const SIGN_IN_WITH_A_WRONG_PASSWORD: AskedAbout<'static> = AskedAbout {
+    rule: &SIGNIN_REVEALS_ACCOUNT,
+    title: "Sign-in tells anyone whether an address has an account",
+    what: "A sign-in with a wrong password",
+};
+
+/// Whether a failed sign-in tells an address with an account from one without (V6.3.8).
+///
+/// Two sign-ins with a wrong password for an account that exists, and one for an address that has
+/// none, each in a fresh session with the page's anti-forgery token, compared by
+/// `reveals_account_check` as the reset check compares its answers: the pair shows what varies
+/// between identical attempts, and only a difference beyond it counts. The account is one made for
+/// it when there is a sign-up, and B's otherwise; two wrong passwords are far below any limit.
+///
+/// Run last, after the guessing check: anywhere before it, these three wrong passwords used up
+/// part of a limit that counts by address, and the guessing check then misread it (five of its
+/// tests went red). A limit still refusing here (429), or no answer at all, leaves the comparison
+/// unjudged, and the step says why; `a_run_signs_in_no_more_often_than_the_spec_says` lets these
+/// alone follow the guesses. A crashed attempt is read as no answer by `RAISED_ON_A_REFUSAL`. Only ever a
+/// finding: answers that look alike can still differ in time.
+pub(super) fn signin_reveals_account_check(
+    http: &mut dyn Http,
+    users: &UsersSection,
+    accounts: &Accounts,
+    out: &mut Outcome,
+) {
+    let Some(login) = users.login.as_ref() else {
+        return;
+    };
+    let account = match &users.signup {
+        Some(signup) => {
+            let account = Account {
+                user: format!("revealed.{}", accounts.a.user),
+                password: format!(
+                    "Rv-{}-1aZ!",
+                    accounts.b.password.chars().take(12).collect::<String>()
+                ),
+            };
+            sign_up(http, users, signup, "revealed", &account);
+            account
+        }
+        None => accounts.b.clone(),
+    };
+    let nobody = format!("nobody.revealed.{}", accounts.a.user);
+    let wrong = |user: &str| Account {
+        user: user.to_owned(),
+        password: "Wrong-Password-For-This-Probe-2!".to_owned(),
+    };
+    let first = guess_answer(http, login, &wrong(&account.user), "reveal-1");
+    let second = guess_answer(http, login, &wrong(&account.user), "reveal-2");
+    let stranger = guess_answer(http, login, &wrong(&nobody), "reveal-nobody");
+    let status = |r: &Option<ProbeResponse>| r.as_ref().map_or(0, |r| r.status);
+    let statuses = [status(&first), status(&second), status(&stranger)];
+    let limited = statuses.iter().any(|s| *s == 429 || *s == 0);
+    out.steps.push(format!(
+        "signed in with a wrong password as {} twice ({}, {}) and as an address with no account \
+         ({}){}",
+        account.user,
+        statuses[0],
+        statuses[1],
+        statuses[2],
+        if limited {
+            ": not compared, since an attempt was refused as too many or not answered"
+        } else {
+            ""
+        }
+    ));
+    if limited {
+        return;
+    }
+    reveals_account_check(
+        [&first, &second, &stranger],
+        &account.user,
+        &nobody,
+        &login.path,
+        &SIGN_IN_WITH_A_WRONG_PASSWORD,
+        out,
+    );
+}
+
+/// One wrong sign-in attempt in a fresh session, with the page's anti-forgery token, and the
+/// answer it got.
+fn guess_answer(
+    http: &mut dyn Http,
+    login: &RequestTemplate,
+    wrong: &Account,
+    id: &str,
+) -> Option<ProbeResponse> {
+    let mut session = Session::default();
+    let mut csrf = None;
+    if let Some(page) = http.send(&get(&format!("{id}-page"), &login.path, &session)) {
+        session.absorb(&page);
+        csrf = csrf_token(&page, &session);
+    }
+    let values = Values {
+        user: &wrong.user,
+        password: &wrong.password,
+        csrf,
+        ..Default::default()
+    };
+    http.send(&request(id, login, &values, &session))
+}
+
 /// Whether the limit on guessing believes an address the client made up (V15.3.4).
 ///
 /// Called once the brute-force check has seen the app refuse. Two more wrong attempts, each
@@ -1694,6 +1798,146 @@ mod tests {
         assert!(
             why.is_some_and(|w| w.contains("no limit would slow")),
             "{why:?}"
+        );
+    }
+
+    // -------------------------------------------------------------------------------------------
+    // A failed sign-in that tells which accounts exist (V6.3.8)
+    // -------------------------------------------------------------------------------------------
+
+    fn reveals(o: &Outcome) -> Vec<&str> {
+        finding_ids(o)
+            .into_iter()
+            .filter(|id| id.ends_with("-reveals-account"))
+            .collect()
+    }
+
+    #[test]
+    fn a_sign_in_that_answers_alike_is_compared_and_not_reported() {
+        let o = run_against(Flaws::default(), &users());
+        assert_eq!(reveals(&o), Vec::<&str>::new(), "{:?}", o.steps);
+        assert!(!verified_ids(&o).contains(&SIGNIN_REVEALS_ACCOUNT.rule_id));
+        // Setup: the three attempts were made and answered, so the quiet means something.
+        assert!(
+            o.steps.iter().any(|s| s
+                == "signed in with a wrong password as b@example.test twice (403, 403) and as an \
+                    address with no account (403)"),
+            "{:?}",
+            o.steps
+        );
+    }
+
+    #[test]
+    fn a_sign_in_that_tells_which_accounts_exist_is_found_either_way_it_does() {
+        for flaws in [
+            Flaws {
+                signin_reveals_by_status: true,
+                ..Default::default()
+            },
+            Flaws {
+                signin_reveals_by_words: true,
+                ..Default::default()
+            },
+        ] {
+            for o in [
+                run_against(flaws, &users()),
+                super::super::tests::run_signing_up(flaws),
+            ] {
+                assert_eq!(
+                    reveals(&o),
+                    vec![SIGNIN_REVEALS_ACCOUNT.rule_id],
+                    "{:?}",
+                    o.steps
+                );
+                let f = o
+                    .findings
+                    .iter()
+                    .find(|f| f.rule_id == SIGNIN_REVEALS_ACCOUNT.rule_id)
+                    .unwrap();
+                assert!(
+                    f.description
+                        .starts_with("A sign-in with a wrong password to /login"),
+                    "{}",
+                    f.description
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_limit_still_refusing_everyone_leaves_the_sign_in_uncompared() {
+        // The guessing check leaves a limit that counts by address refusing every attempt, so the
+        // three answers say nothing about accounts, however differently the app would answer.
+        let out = run_with(
+            Flaws {
+                locks_out_after: Some(3),
+                limits_by_address: true,
+                signin_reveals_by_status: true,
+                ..Flaws::default()
+            },
+            &policy(Some(3)),
+        );
+        assert!(!finding_ids(&out).contains(&SIGNIN_REVEALS_ACCOUNT.rule_id));
+        assert!(
+            out.steps
+                .iter()
+                .any(|s| s.contains("twice (429, 429)") && s.contains("not compared")),
+            "{:?}",
+            out.steps
+        );
+    }
+
+    /// The fake app, with the one request named answered as a limit refusing it (429).
+    struct LimitedOnce {
+        app: FakeApp,
+        refuse: &'static str,
+    }
+
+    impl Http for LimitedOnce {
+        fn send(&mut self, r: &ProbeRequest) -> Option<ProbeResponse> {
+            if r.id == self.refuse {
+                return Some(ProbeResponse {
+                    id: r.id.clone(),
+                    status: 429,
+                    headers: Vec::new(),
+                    body: "too many attempts".into(),
+                });
+            }
+            self.app.send(r)
+        }
+        fn now(&mut self) -> u64 {
+            self.app.now()
+        }
+        fn wait(&mut self, seconds: u64) {
+            self.app.wait(seconds);
+        }
+    }
+
+    #[test]
+    fn one_attempt_refused_as_too_many_is_not_read_as_an_account_told_apart() {
+        // A limit that refuses only the third attempt answers the real account's pair alike and
+        // the address with none differently, which is exactly what an app telling them apart does.
+        let acc = accounts();
+        let mut app = FakeApp::new(Flaws::default());
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        let mut http = LimitedOnce {
+            app,
+            refuse: "reveal-nobody",
+        };
+        let mut out = Outcome::default();
+        signin_reveals_account_check(&mut http, &users(), &acc, &mut out);
+        assert!(out.findings.is_empty(), "{:?}", out.findings);
+        assert_eq!(
+            out.steps,
+            vec![
+                "signed in with a wrong password as b@example.test twice (403, 403) and as an \
+                 address with no account (429): not compared, since an attempt was refused as too \
+                 many or not answered"
+                    .to_owned()
+            ]
         );
     }
 }
