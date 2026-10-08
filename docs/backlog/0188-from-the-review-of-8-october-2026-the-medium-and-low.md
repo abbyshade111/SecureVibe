@@ -111,6 +111,14 @@ high were built the same day (the entry above this one's predecessor). Each of t
    ADR-027, Later): a header value or redirect address is quoted on one line and cut at 200 characters, and still read
    whole; a host name outside ASCII is refused with a sentence asking for its `xn--` form; and every exit goes through
    `exit::exit_with`, which a test now holds. The rest of item 6 is open.
+   **Three more of its parts claimed 8 October 2026 by session paper-facts**, at the owner's word ("please pick a
+   backlog item when you're ready"), from the roadmap (Phase 1, item 1, the next unclaimed in its order), in branch
+   `claude/low-three`: the install volume's name made from a SHA-256 of what it holds rather than FNV-1a
+   (`install.rs`, `volume_name`); `image` refused unless it reads as a Docker image reference, so a value that starts
+   with `-` or holds a space can never reach `docker run` as an option (with the reason in plain words); and
+   `report.html` given a Content-Security-Policy that allows its own inline style by hash and nothing else, no script,
+   no fetch, no form. Confirmed on `main` just before this claim: none of the three is done, and no other session had
+   claimed them. The rest of item 6 stays open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
