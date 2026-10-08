@@ -17,7 +17,14 @@ are for; and the scorer gave a verdict from "0 of 0" before it was corrected.
 | A settings file `sv` could read | 8 of 9 | 10 of 10 |
 | Install step: failed (a pinned version that does not exist) | 2 | 0 |
 | Started under `sv run` | 2 | 10 |
-| `sv` signed in | 1 | 10 |
+| `sv` signed in | 0 (first given as 1) | 10 |
+
+*Recounted on 8 October 2026* (backlog 214; `recount_signed_in.py`): the one Haiku app counted as signed in had a seed
+command that crashed, so `sv` had no accounts to sign in as; the scorer counted it because nothing said signing in had
+failed. Corrected, `sv` signed in to no Haiku app, and the five prompts whose check needs signing in
+(`password-rules`, `same-site-redirects`, `check-every-request`, `changes-from-own-pages`, `files-under-own-names`)
+were asked of no Haiku build: 0 of 0, where `recipe-stage1.json` records 0 of 1. An arm needed at least 5 asked, so no
+arm and no verdict moves.
 
 **The install step's first real use worked**: every Sonnet app's packages were downloaded in the separate container
 and the apps ran fenced. Its two refusals were right, and named the cause: Haiku pinned `pytest-junit==1.0.1` and a
