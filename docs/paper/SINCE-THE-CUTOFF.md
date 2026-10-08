@@ -3,7 +3,7 @@
 The rest of this appendix stops at the cut-off, `main` at `157ddc3` (11:37 on 4 October 2026, Eastern time), and its
 numbers are true there. This file records what changed in `sv` after it: first up to `main` at `4c3c5e0` (16:30 the
 same day), as it was written that evening, and then, added on 8 October 2026, up to `main` at `01b10f60` (05:07 on 8
-October). The other files keep their cut-off figures and point here; the trials of 5 to 7 October are in `TRIALS.md`. Nothing below was measured the way the cut-off's
+October). The other files keep their cut-off figures and point here; the trials of 5 to 8 October are in `TRIALS.md`. Nothing below was measured the way the cut-off's
 analyses were; it is a record of what was built, from the merges, `docs/BACKLOG.md`, and `docs/DESIGN.md`.
 
 ## In numbers
