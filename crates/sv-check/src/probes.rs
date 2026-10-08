@@ -2622,7 +2622,7 @@ mod tests {
         assert!(credited(&answers).is_empty());
         // No answer to a bad body at all: nothing credited, and no gap claimed for a question
         // nobody asked.
-        assert!(credited(&[missing.clone()]).is_empty());
+        assert!(credited(std::slice::from_ref(&missing)).is_empty());
         assert_eq!(error_answer_gap(&[missing]), None);
     }
 
