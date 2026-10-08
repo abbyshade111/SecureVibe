@@ -429,6 +429,12 @@ pub(crate) struct Loaded {
     pub threat_rules: sv_report::threats::ThreatRules,
     pub secret_rules: SecretRules,
     pub ast_rules: ast::AstRules,
+    /// The outside tools `sv` can run, or why `adapters.json` could not be read. Read here once
+    /// for a report rather than three times (the review of 8 October 2026, item 7), and kept as a
+    /// result rather than failing the load: only `--tools` needs the tools, so a broken file stops
+    /// that run and is said in the report of every other (item 6), where it used to list no tools
+    /// at all and say nothing.
+    pub adapters: std::result::Result<sv_check::adapters::Adapters, String>,
 }
 
 impl Loaded {
@@ -445,6 +451,8 @@ impl Loaded {
             .with_atlas()?,
             secret_rules: SecretRules::load(&secret_rules_path())?,
             ast_rules: ast::AstRules::load(&ast_rules_path())?,
+            adapters: sv_check::adapters::Adapters::load(&adapters_path())
+                .map_err(|e| format!("{e:#}")),
         })
     }
 }
@@ -462,6 +470,30 @@ fn ast_rules_path() -> PathBuf {
 /// Per-language security tools `sv` can run.
 fn adapters_path() -> PathBuf {
     sv_frameworks::data::file("adapters.json")
+}
+
+/// The outside tools in `adapters`, by the names a person knows them by and once each, joined into
+/// a sentence: "Bandit, gosec, Brakeman, Semgrep, and CodeQL". Two adapters of one tool for two
+/// languages, "CodeQL (Python)" and "CodeQL (JavaScript and TypeScript)", are one name. Until
+/// 8 October 2026 the report wrote its own list, which a tool added to the file never reached:
+/// Semgrep, which reads every language, was missing from it (the review of that day, item 7).
+fn tool_names(adapters: &sv_check::adapters::Adapters) -> String {
+    let mut names: Vec<&str> = Vec::new();
+    for adapter in adapters.all() {
+        let name = adapter
+            .name
+            .split_once(" (")
+            .map_or(adapter.name.as_str(), |(name, _)| name);
+        if !names.contains(&name) {
+            names.push(name);
+        }
+    }
+    match names.as_slice() {
+        [] => "no outside tools".to_owned(),
+        [one] => (*one).to_owned(),
+        [two @ .., last] if two.len() == 1 => format!("{} and {last}", two[0]),
+        [rest @ .., last] => format!("{}, and {last}", rest.join(", ")),
+    }
 }
 
 /// Well-known credential formats.
@@ -3932,6 +3964,7 @@ fn assemble_report_saying(
         config_rules,
         threat_rules,
         secret_rules,
+        adapters,
         ..
     } = loaded;
     // The same reading of the app `sv check` makes (`static_scan`): one walk of the folder, shared
@@ -4165,7 +4198,7 @@ fn assemble_report_saying(
     // recorded as not run, with how to install it — never as having found nothing.
     let mut tool_gaps = Vec::new();
     if options.run_tools {
-        let adapters = sv_check::adapters::Adapters::load(&adapters_path())?;
+        let adapters = adapters.as_ref().map_err(|e| anyhow::anyhow!("{e}"))?;
         let languages: Vec<String> = scan_report.languages.iter().cloned().collect();
         let not_holding = adapters.not_holding(|condition| ctx.get(condition));
         // Ctrl-C while a tool runs stops the tool and everything it started, and the run ends
@@ -4175,12 +4208,12 @@ fn assemble_report_saying(
         sv_run::catch_interrupts();
         sv_check::adapters::stop_when(sv_run::interrupted);
         let outcome = sv_check::adapters::run_all_in(
-            &adapters,
+            adapters,
             listing,
             &languages,
             &not_holding,
             &sv_check::adapters::scratch_dir(),
-            &loaded.secret_rules,
+            secret_rules,
         );
         // What the tools got to before then is not a report of the app, so nothing is written.
         if sv_run::interrupted() {
@@ -4191,7 +4224,7 @@ fn assemble_report_saying(
             report_lock::let_go_of_all();
             exit::exit_with(exit::INTERRUPTED);
         }
-        examined.extend(adapters_examined(&adapters, &languages, &outcome));
+        examined.extend(adapters_examined(adapters, &languages, &outcome));
         findings.extend(outcome.findings);
         tool_verified = outcome.verified;
         for (id, why) in outcome.not_run {
@@ -4201,22 +4234,36 @@ fn assemble_report_saying(
             });
         }
     } else {
-        if let Ok(adapters) = sv_check::adapters::Adapters::load(&adapters_path()) {
-            for adapter in adapters.all() {
-                examined.push(sv_report::Examined::not_run(
-                    format!("{}.", adapter.id),
-                    "outside tools run only with --tools",
-                ));
+        match adapters {
+            Ok(adapters) => {
+                for adapter in adapters.all() {
+                    examined.push(sv_report::Examined::not_run(
+                        format!("{}.", adapter.id),
+                        "outside tools run only with --tools",
+                    ));
+                }
+                tool_gaps.push(sv_report::Gap {
+                    what: "the security tool this language already has".to_owned(),
+                    why: format!(
+                        "{} {} each know their languages far better than the handful of rules \
+                         built in here.",
+                        options.why_no_tools,
+                        tool_names(adapters)
+                    ),
+                });
             }
+            // Which tools there are is not known, so none is named, and the report says why
+            // rather than listing no outside tools as though there were none.
+            Err(why) => tool_gaps.push(sv_report::Gap {
+                what: "the security tool this language already has".to_owned(),
+                why: format!(
+                    "{} Which outside tools sv can run is not known either: {} could not be read \
+                     ({why}).",
+                    options.why_no_tools,
+                    adapters_path().display()
+                ),
+            }),
         }
-        tool_gaps.push(sv_report::Gap {
-            what: "the security tool this language already has".to_owned(),
-            why: format!(
-                "{} bandit, gosec, brakeman, and CodeQL each know their languages far better than \
-                 the handful of rules built in here.",
-                options.why_no_tools
-            ),
-        });
     }
 
     // Every limit `sv` knows about, said out loud. This list existing is the difference between a
@@ -5609,6 +5656,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         advisories_dir,
     } = parse_report_args(args, "a directory")?;
     let advisories_given = advisories_dir.is_some();
+    // Loaded before the report and kept after it, so the exit status is decided from the same
+    // reading of `adapters.json` the report was made from.
+    let loaded = Loaded::load()?;
     let out_dir = out.unwrap_or_else(|| app_dir.join("securevibe-report"));
     // Taken before the run, and held until its report is written, so a second run at the same time
     // is refused at once rather than replacing this one's report when it finishes (BACKLOG, "What the
@@ -5636,7 +5686,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
                     run_tools,
                     advisories_dir,
                 ),
-                &Loaded::load()?,
+                &loaded,
             )
         },
         &mut |note| eprintln!("{note}\n"),
@@ -5746,7 +5796,7 @@ fn cmd_report(args: &[String]) -> Result<i32> {
             sv_report::threats::count_line(&report.threats)
         );
     }
-    let gaps = report_gaps(&report, run_tools, advisories_given);
+    let gaps = report_gaps(&report, &loaded.adapters, run_tools, advisories_given);
     let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
     // What was asked for and did not all run is said here whatever the exit status: by default it
     // does not change the status (ADR-029), and a run that ends quietly reads as one where it ran.
@@ -5783,7 +5833,12 @@ fn cmd_report(args: &[String]) -> Result<i32> {
 /// running app was asked for and none ran; with `--tools`, a tool that did not run or ran only in
 /// part, and with `--advisories`, a comparison that did not cover the whole app (`sv audit`'s 2),
 /// which count only with `--fail-on not-assessed`, being partial rather than absent.
-fn report_gaps(report: &sv_report::Report, run_tools: bool, advisories: bool) -> exit::Gaps {
+fn report_gaps(
+    report: &sv_report::Report,
+    adapters: &std::result::Result<sv_check::adapters::Adapters, String>,
+    run_tools: bool,
+    advisories: bool,
+) -> exit::Gaps {
     let mut gaps = exit::Gaps {
         could_not_run: report.could_not_run.clone(),
         partly: report.partly_read.clone(),
@@ -5793,8 +5848,10 @@ fn report_gaps(report: &sv_report::Report, run_tools: bool, advisories: bool) ->
             "--run was given and the app could not be started: {why}"
         ));
     }
+    // With `--tools` the report was made only if these were read, so they are here.
     let tools: Vec<String> = if run_tools {
-        sv_check::adapters::Adapters::load(&adapters_path())
+        adapters
+            .as_ref()
             .map(|a| a.all().iter().map(|t| format!("{}.", t.id)).collect())
             .unwrap_or_default()
     } else {
@@ -6660,3 +6717,6 @@ mod bundle_backstop_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod adapters_once_tests;

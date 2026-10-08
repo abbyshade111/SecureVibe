@@ -143,6 +143,8 @@ high were built the same day (the entry above this one's predecessor). Each of t
    its reason; the typed passphrase zeroed; the DNS id from the operating system's randomness; the bundle's report in
    a private folder; a Content-Security-Policy tag on both pages; the volume's name a SHA-256. With the no-sidecar
    fallback's done note, item 6 is closed, apart from the broken `adapters.json` claimed in #1104.
+   **That one done the same day** (`docs/design/0309-the-outside-tools-read-once-and-named-from-their-file-8.md`): without
+   `--tools`, a broken `adapters.json` is said in the report, with why it could not be read. The rest of item 6 is open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
@@ -164,6 +166,10 @@ high were built the same day (the entry above this one's predecessor). Each of t
    and handed to what needs it, and the sentence naming the outside tools made from that file, so Semgrep is named.
    Confirmed on `main` just before this claim: neither is done, and no other session had claimed either.
    `assemble_report_saying`'s length stays open.
+   **Those two done the same day** (the same design entry): `adapters.json` read once, with the rest of `sv`'s data, and
+   that copy handed to the run, the list of tools not run, and the exit status; and the sentence naming the outside
+   tools made from the file, so it reads "Bandit, gosec, Brakeman, Semgrep, and CodeQL". `assemble_report_saying`'s
+   length is open.
    **`assemble_report_saying`'s length claimed 8 October 2026 by session securevibe-review**, from the roadmap (Phase
    1, item 1, the last part of its last sub-item), in branch `claude/securevibe-review-assemble`: the 1,576-line
    function (`main.rs` lines 3909 to 5485 on `main` at `a49d856a`) split along the stages it already names
