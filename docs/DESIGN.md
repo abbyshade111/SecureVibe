@@ -12751,6 +12751,25 @@ the short version's banned list, and the bars to their place before the tally; f
 at least one of them. At phone width the page still scrolls sideways, as it did before, because of the
 requirements table further down; the bars fit.
 
+
+### `sv dashboard`: one page for several apps (8 October 2026, ADR-057)
+
+The second step of the dashboard. `sv dashboard FOLDER... --out FILE.html` reads the `report.json` already in each
+app's `securevibe-report` folder and writes one page (`crates/sv-report/src/dashboard.rs`): a view of every app, in
+alphabetical order, with the two bars and its findings by severity, and one view per app with what was not examined,
+the two bars, its findings worst first, and a link to its full `report.html`. The views are sections shown by the
+address's `#` (CSS `:target`), so there is still no script, and the page fetches nothing.
+
+It checks nothing itself and says so; each app's part gives the date of its report, the level, what kind of run it was,
+and the `sv` that made it, so a stale report does not pass for today's. The apps are never ranked or added up. Every
+number is one the report states, and what a report says (the app's name, which the AI coding tool writes into
+`securevibe.toml`, and every finding's title) reaches the page escaped, as text. It writes only the file it is given:
+not through a link, not over a folder, not over a file without the page's own mark, and not inside an app, where the
+next check would read it as the app's code. `--out` has no default, because any default would be a place the person
+did not choose.
+
+Tried on copies of the five example apps and a folder with no report; the page in light and dark, and at phone width
+with no sideways scroll. Six deliberate breaks each failed a test (backlog, dashboard build item 2).
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
