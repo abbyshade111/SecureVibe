@@ -622,6 +622,19 @@ another session is not a claim.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("that sounds good, yes, please
+     proceed"), in three steps, each its own pull request, of which this claim covers the first:
+     (1) *measure*, in branch `claude/securevibe-e2-withhold-census`: each finding a check makes in the code that
+     ships is written, with the check's id and the place in the code, to a log beside the credit log
+     (`SV_CREDIT_LOG` plus `.withheld`), and `tools/coverage.py --withheld` lists every check the suite saw credit and
+     never saw withhold; a list, failing nothing; (2) *fill the gaps*, a test for each check on that list in which
+     the thing it guards is broken and it says no, in batches the owner hears about first; (3) *the gate*: the list
+     empty, or down to named exceptions each with its reason, and `--credits` failing on any crediting check with no
+     withholding test. **Status: proposed**, for (3): it changes what CI enforces, so its record (a new decision
+     record, governing `tools/coverage.py`'s census) is written as proposed with step 2 and accepted in the pull
+     request that builds the gate. "Not assessed" as a way of withholding is counted from step 2 if the list shows
+     checks that can only withhold that way.
+
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
      on `main`; list the remote branches already merged into `main` for the owner, who decides whether any is
