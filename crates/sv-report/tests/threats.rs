@@ -455,10 +455,6 @@ fn report_with_threats(findings: Vec<sv_check::Finding>) -> sv_report::Report {
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
-        documented: &[],
-        attested: &[],
-        stated: &[],
-        by_hand: &[],
         human: None,
         threats: Some((&r, &ctx)),
     })
@@ -559,10 +555,6 @@ fn without_threat_rules_the_report_has_no_threat_section() {
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
-        documented: &[],
-        attested: &[],
-        stated: &[],
-        by_hand: &[],
         human: None,
         threats: None,
     });
@@ -783,10 +775,6 @@ fn the_report_lists_atlas_references_for_a_reviewer_only_where_ai_threats_apply(
             manual_only: Default::default(),
             named_in_tests: Default::default(),
             not_for_tests: Default::default(),
-            documented: &[],
-            attested: &[],
-            stated: &[],
-            by_hand: &[],
             human: None,
             threats: Some((r, &ctx)),
         })

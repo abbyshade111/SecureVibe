@@ -5102,6 +5102,13 @@ fn assemble_report_saying(
         .chain(decisions.stated.iter())
         .cloned()
         .collect();
+    // A person's word goes to the report in the one list with the checks, each credit saying
+    // which tier it rests on (`sv_check::Tier`, set where it was made); the report reads the tier,
+    // not the list (8 October 2026).
+    verified.extend(documented);
+    verified.extend(attested);
+    verified.extend(by_hand);
+    verified.extend(stated);
 
     // The Appendix C requirements the coding rules given to this app come from, for the report's
     // section on how the app is built with AI. The same rules `sv rules` would write.
@@ -5281,10 +5288,6 @@ fn assemble_report_saying(
         manual_only,
         named_in_tests,
         not_for_tests,
-        documented: &documented,
-        attested: &attested,
-        stated: &stated,
-        by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
     });
