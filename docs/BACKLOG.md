@@ -8096,6 +8096,12 @@ another session is not a claim.
      added to one and not the other is a silent difference between what the person gets and what the AI tool gets.
      One pipeline, a `ReportOptions::reading_only(caller)` for the eight hand-written "why not run" triples, and one
      list the three report-file-name lists derive from (branch `claude/securevibe-review-mcp-split`).
+     **Second half done the same day** (DESIGN, "The MCP server in a folder, and one way to write a report folder"):
+     `mcp.rs` is the folder `mcp/` (nine files, the tests their own); `report_folder::write_report_folder` is the
+     one sequence `sv report` and `securevibe_write_report` both call; `ReportOptions::reading_only` and `asked_of`
+     replace the seven hand-written triples (the MCP server's three sentences written over `reading_only`'s); and
+     the five file names are `sv_scan::ecosystems::REPORT_FILES`, which the folder names, the seal's list, and the
+     MCP server's resources derive from, with `sv-cli`'s table of renderers held to it by the compiler.
   3. **`sv check` and `sv report` can exit differently on the same folder.** `cmd_check` runs the same five scanners
      but never `merge_same_place`, the test-code and bundled-library marks, or `review::apply`, and its exit code
      counts every finding, where `sv report`'s counts the findings left after a person's recorded false alarms. So
