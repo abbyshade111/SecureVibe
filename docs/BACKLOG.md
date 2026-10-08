@@ -519,6 +519,13 @@ another session is not a claim.
      of `sv review` itself, for someone who has only Docker, and a whole `.mcp.json` for the AI tool's container
      that passes the list of trusted keys as `SV_TRUSTED_SEALS` rather than mounting the key folder, so the private
      signing key never enters the container the AI tool drives. Held to the README and the code by a test.
+     **(b) done the same day** (`docs/GETTING-STARTED.md`, step 5; README, "Setting a finding aside"): the container
+     `sv review`, with the folder made first; and a whole `.mcp.json` that mounts the list of trusted keys alone,
+     read-only, rather than the key folder. Mounting the one file rather than passing `SV_TRUSTED_SEALS`, because
+     the list's line holds quotation marks a person would have to escape by hand in JSON, and because `sv review`
+     adds to the same file, so the container sees each new app. Breaks: the whole folder given to the AI tool's
+     container, the list not made first, and an empty list each failed `crates/sv-cli/tests/review_container.rs`,
+     whose third test makes natively what that container sees and shows a signed answer still counts.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
