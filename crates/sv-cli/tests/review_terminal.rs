@@ -266,3 +266,101 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     let edited = report(&app, &config);
     assert!(edited.contains("does not match what it says"), "{edited}");
 }
+
+/// `sv review` on `app`, typing `typed` at its terminal.
+fn review_typing(typed: &str, app: &Path, config: &Path) -> std::process::Output {
+    Command::new("python3")
+        .arg("-c")
+        .arg(PTY)
+        .arg(typed)
+        .arg(env!("CARGO_BIN_EXE_sv"))
+        .arg("review")
+        .arg(app)
+        .env("XDG_CONFIG_HOME", config)
+        .env_remove(sv_check::signed::TRUSTED_VARIABLE)
+        .output()
+        .expect("python3 runs")
+}
+
+/// A link planted in the app at a name `sv review` writes is refused before anything is asked,
+/// and the file it points at is left as it was: the rule `sv notes` and `sv rules` follow (deep
+/// review S3), which `sv review` did not until the review of 8 October 2026 (its item 3).
+#[cfg(unix)]
+#[test]
+fn a_link_at_a_file_it_writes_is_refused_before_anything_is_asked() {
+    let s = scratch("links");
+    let app = s.0.join("app");
+    let config = s.0.join("config");
+    let no_staging_left = |app: &Path| {
+        let left: Vec<String> = std::fs::read_dir(app)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|n| n.contains(".sv-"))
+            .collect();
+        assert!(left.is_empty(), "staging files left behind: {left:?}");
+    };
+
+    // The manifest held outside the app and linked from inside it. The link is real: it reads
+    // as the manifest.
+    let manifest = proposal(&app);
+    let precious = s.0.join("precious.toml");
+    std::fs::write(&precious, &manifest).unwrap();
+    std::fs::remove_file(app.join("securevibe.toml")).unwrap();
+    std::os::unix::fs::symlink(&precious, app.join("securevibe.toml")).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(app.join("securevibe.toml")).unwrap(),
+        manifest,
+        "the setup: the link reads as the manifest"
+    );
+    let run = review_typing("\nowner\n", &app, &config);
+    let said = String::from_utf8_lossy(&run.stdout);
+    assert!(!run.status.success(), "it went through: {said}");
+    assert!(said.contains("is a link to somewhere else"), "{said}");
+    assert_eq!(
+        std::fs::read_to_string(&precious).unwrap(),
+        manifest,
+        "the file the link points at was written over"
+    );
+    assert!(
+        std::fs::symlink_metadata(app.join("securevibe.toml"))
+            .unwrap()
+            .file_type()
+            .is_symlink(),
+        "the link was removed rather than refused"
+    );
+    assert!(!config.exists(), "nothing was asked: no key was made");
+    no_staging_left(&app);
+
+    // The notes file, with the manifest real again.
+    std::fs::remove_file(app.join("securevibe.toml")).unwrap();
+    proposal(&app);
+    let notes = s.0.join("precious-notes.md");
+    std::fs::write(&notes, "keep me\n").unwrap();
+    std::os::unix::fs::symlink(&notes, app.join("security-notes.md")).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(app.join("security-notes.md")).unwrap(),
+        "keep me\n",
+        "the setup: the link reads as the notes file"
+    );
+    let run = review_typing("\nowner\n", &app, &config);
+    let said = String::from_utf8_lossy(&run.stdout);
+    assert!(!run.status.success(), "it went through: {said}");
+    assert!(said.contains("is a link to somewhere else"), "{said}");
+    assert_eq!(std::fs::read_to_string(&notes).unwrap(), "keep me\n");
+    assert!(
+        std::fs::symlink_metadata(app.join("security-notes.md"))
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
+    assert!(!config.exists(), "nothing was asked: no key was made");
+    no_staging_left(&app);
+
+    // Without the links, it records as it always did, leaving no staging file behind.
+    std::fs::remove_file(app.join("security-notes.md")).unwrap();
+    let run = review_typing("\nowner\n", &app, &config);
+    let said = String::from_utf8_lossy(&run.stdout);
+    assert!(run.status.success(), "{said}");
+    assert!(said.contains("Recorded 1 of 1"), "{said}");
+    no_staging_left(&app);
+}
