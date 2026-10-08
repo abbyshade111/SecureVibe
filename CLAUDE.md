@@ -14,15 +14,17 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 ## Layout
 
 - `crates/` — the Rust workspace: `sv-frameworks` (the standards and which requirements apply), `sv-manifest`,
-  `sv-scan` (language-agnostic scanners: secrets, configuration, lockfiles, tree-sitter rules), `sv-run` (starts the app
-  behind the network fence), `sv-check` (the checks), `sv-report` (the reports), `sv-cli` (the `sv` binary and its MCP server).
+  `sv-scan` (reads the app's files, package manifests and lockfiles, and answers which technologies it uses), `sv-run`
+  (starts the app behind the network fence, and the install step before it), `sv-check` (the checks: secrets,
+  configuration, the tree-sitter rules, the probes, the outside tools' adapters), `sv-report` (the reports), `sv-cli`
+  (the `sv` binary and its MCP server).
 - `data/` — the OWASP frameworks (`data/frameworks`), the knowledge files (`data/knowledge`) and `sv`'s own JSON beside
   them. `data/README.md` says what each file is and what reads it; add a line there with any new file.
   Every run-time read goes through `sv_frameworks::data` (ADR-036): `SV_DATA_DIR` (the whole folder), then beside
   the program, then the folder it was compiled in (`env!("CARGO_MANIFEST_DIR")` plus `../../data`), which the Docker
   image keeps at the same path. A test fails on `CARGO_MANIFEST_DIR` anywhere else outside a test module.
 - `docs/` — design, backlog, coverage, getting started, threat modeling, and `docs/paper/`.
-- `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `codeql_suites.py`,
+- `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `semgrep_rule_map.py`, `codeql_suites.py`,
   `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`) and one shell script,
   `install.sh`, which installs `sv` with its data outside the build folder; each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
@@ -30,16 +32,18 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 
 - Formatting, lints and tests, as CI runs them (`.github/workflows/rust.yml`):
   `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --workspace`.
-- `docs/COVERAGE.md` is generated: after changing a rule, an adapter map or a hard-coded citation, run
-  `python3 tools/coverage.py`; a test fails while the document is out of date.
+- `docs/COVERAGE.md`, `docs/REQUIREMENTS.md` and `data/reach.json` are generated: after changing a rule, an adapter
+  map or a hard-coded citation, run `python3 tools/coverage.py`, which rewrites all three; a test fails while any is out
+  of date.
 - CI also runs the tests with `SV_CREDIT_LOG` set, then `python3 tools/coverage.py --credits <that file>`, which fails
   when a check credits that is listed as only ever a finding, or never credits and is not listed.
 - `tools/pwned_passwords.py` has no test and needs the network: run it outside the Claude Code sandbox, whose proxy cuts
   the reads short.
 - Tests that start the app under test need a container backend (Docker or Colima); without one they assert the
-  honest-absence path and say which branch they took.
+  honest-absence path and say which branch they took. In CI, `SV_REQUIRE_BACKEND=1` makes a missing backend a failure.
 - Rust builds inside the Claude Code sandbox cannot write `~/.cargo`; the error names a cache path and is misleading.
-  Run cargo in the user's Terminal panel.
+  Set `CARGO_HOME` and `CARGO_TARGET_DIR` to folders under the sandbox's temporary folder, or run cargo in the user's
+  Terminal panel.
 
 ## Rules that hold everywhere
 

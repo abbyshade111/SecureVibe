@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Writes docs/COVERAGE.md: which requirements any check in `sv` can speak to, and what it needs to run.
+"""Writes docs/COVERAGE.md: which requirements any check in `sv` can speak to, and what it needs to run;
+with it, docs/REQUIREMENTS.md (every requirement and its checks) and data/reach.json.
 
-    python3 tools/coverage.py            # rewrite docs/COVERAGE.md
-    python3 tools/coverage.py --check    # fail if docs/COVERAGE.md is not what this would write
+    python3 tools/coverage.py            # rewrite all three
+    python3 tools/coverage.py --check    # fail if any of the three is not what this would write
     python3 tools/coverage.py --credits LOG  # fail if the suite's credits disagree with the lists below
 
 Everything is read from where the checks themselves keep their citations, so the document cannot
