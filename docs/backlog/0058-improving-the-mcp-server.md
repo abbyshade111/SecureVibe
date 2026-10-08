@@ -1,6 +1,6 @@
 # Improving the MCP server
 
-**Status:** partly done: 5 of 6 parts done, 0 claimed, 1 open, as its markers read on 8 October 2026
+**Status:** done, 8 October 2026
 
 Proposed on 3 October 2026 by session securevibe-e2, at the owner's asking, and put
 here by the owner's word. **Not claimed; each can be claimed on its own.** None is measured yet.
@@ -24,6 +24,8 @@ here by the owner's word. **Not claimed; each can be claimed on its own.** None 
    `examples/flask-booking` took 0.13 seconds, and three MCP calls on it 0.2 seconds together; only a folder the
    size of this repository took long (6 seconds). A kept report would save little for the apps `sv` is for, and one
    kept past a change to the app would say something no longer true.
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3): the measurement above is
+   this part's outcome, so it is marked here in the words the backlog board reads; the board had counted it open.
 3. **Declare the shape of each tool's structured result** (`outputSchema`, in the 2025-06-18 protocol), so a
    client can rely on it. None is declared now.
    **Claimed on 3 October 2026 by session securevibe-e2**, at the owner's asking to continue with the backlog, in

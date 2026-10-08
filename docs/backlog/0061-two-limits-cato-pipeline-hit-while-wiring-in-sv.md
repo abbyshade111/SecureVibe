@@ -1,6 +1,6 @@
 # Two limits cato-pipeline hit while wiring in `sv`
 
-**Status:** partly done: 3 of 4 parts done, 0 claimed, 1 open, as its markers read on 8 October 2026
+**Status:** done, 8 October 2026
 
 Found on 28 September 2026 by a session on the owner's
 cato-pipeline project, while integrating `sv` (cato's ADR 0009), with `sv` built from `main` at `5117b0a`, and
@@ -77,6 +77,6 @@ fail-closed behavior; the cost is in what they block. **Each numbered item can b
    the owner's asking to pick a backlog item, in branch `claude/securevibe-e2-which-lockfile`.
    **Done the same day:** one lockfile is still read, in the same order, and the others are named in the bill
    of materials (a CycloneDX property), in `sv sbom`'s output, and in the report as a gap. `advisory.` is
-   `partly` in `examined`, and the clean "nothing found" claim is withheld, so `sv audit` exits 2 rather than
-   0. Six tests; each of eight guards, broken in turn, turns its own test red. See DESIGN, "Two lockfiles of
+   `partly` in `examined`, and the clean "nothing found" claim is withheld, so `sv audit` exits 2 rather than 0.
+   Six tests; each of eight guards, broken in turn, turns its own test red. See DESIGN, "Two lockfiles of
    one kind".

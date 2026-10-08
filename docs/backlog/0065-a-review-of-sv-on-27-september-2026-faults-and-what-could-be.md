@@ -1,6 +1,6 @@
 # A review of `sv` on 27 September 2026: faults, and what could be faster
 
-**Status:** partly done: 9 of 13 parts done, 0 claimed, 1 open, as its markers read on 8 October 2026
+**Status:** partly done: parts 9, 11, and 13, each in part (see their notes)
 
 By session securevibe-e8, at
 the owner's asking ("review sv and add any issues you find or ways to improve or optimize"). Read: the
@@ -127,6 +127,11 @@ every change, and the first is the reason.
    times. Fix: one walk that yields the file list once and is handed to each check, one bill of
    materials passed down, and one lowercasing per file. This is the change that would matter on a large
    app; measure on one before and after.
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: all
+   three are overtaken. The folder is walked once (`sv_scan::files::Listing`, item 1's note above, DESIGN "One
+   walk of the app"), and the six readers take that one listing; `sv-scan/src/lib.rs` lowercases each file once,
+   before the loop over signatures; and `sbom::build` is called once per command (`sv run`, `sv sbom`), the report
+   and `sv check` taking the bill of materials they built rather than making another.
 8. **Regexes compiled inside hot loops.** `logs.rs` compiles four patterns per log line
    (`common_format`, `timestamp`, `has_place`, lines 231-320), `ai.rs:1080` one per (line, word) pair,
    `secrets.rs:268` and `:331` one per file, `signed_in.rs:4336-4355` one per page. `probes.rs:1222`
