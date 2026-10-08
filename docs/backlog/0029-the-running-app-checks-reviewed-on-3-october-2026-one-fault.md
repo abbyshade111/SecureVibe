@@ -1,6 +1,6 @@
 # The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add
 
-**Status:** partly done: 5 of 16 parts done, 0 claimed, 1 open, as its markers read on 8 October 2026
+**Status:** partly done: parts 1, 3, 4, 7 to 10, and 13 to 15, each in part (see their notes)
 
 By session
 securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
@@ -47,6 +47,8 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    of the others (V3.5.3); and the V2.2.2 check is only ever a finding by design. A test
    (`a_reset_that_works_once_is_followed_through_and_faults_nothing`) holds the reset's no-credit decision, and it
    went red when the credit was tried.
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3): the withdrawal above is
+   this part's outcome, so it is marked here in the words the backlog board reads; the board had counted it open.
 3. **The stranger checks credit headers from one answer.** Security headers, cookies, and content types are
    credited from the answer on the health path, which is often a small JSON status reply rather than a page
    anyone sees. Judge every page the run fetched (the home page, the signed-in private pages) and credit only

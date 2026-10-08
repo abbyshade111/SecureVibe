@@ -125,6 +125,19 @@ high were built the same day (the entry above this one's predecessor). Each of t
    list below, whose code it shares, in branch `claude/securevibe-e2-adapters-once`: a broken `adapters.json` said in
    the report without `--tools` too, rather than silently listing no outside tools. Confirmed on `main` just before
    this claim: not done, and no other session had claimed it. The rest of item 6 stays open.
+   **The rest of item 6 claimed 8 October 2026 by session securevibe-review**, from the roadmap (Phase 1, item 1, the
+   next unclaimed in its order), in branch `claude/securevibe-review-low-rest`, as one pull request of small fixes:
+   `image` in `[stack.run]` held to Docker's reference grammar before it is put on a command line, so a value that
+   is a flag (`--privileged`) or carries a space is refused with its reason; the typed passphrase zeroized once used
+   (`review.rs`); the DNS transaction id drawn from the operating system's randomness rather than the process id
+   (`live_tls.rs`); the bundle's scratch folder recorded (ADR-017, Later) or moved beside what the bundle writes;
+   a Content-Security-Policy meta tag on `report.html` and the dashboard; and the install volume's name made with
+   SHA-256. The no-sidecar fallback is done already: since `d77f82dc` (8 October, "The hardening in one place")
+   `fence_args` and `prepared` give it the same flags, labels, and limits as the sidecar, so it gets a done note
+   and no build. Confirmed on `main` just before this claim: none of the six is done (`live_tls.rs` still forms
+   the id from `std::process::id()`, `volume_name` still uses FNV-1a, no `Content-Security-Policy` in `sv-report`,
+   no `zeroize` in `sv-cli`, no image grammar check in `sv-run`), and the only other claims on item 6 are the parts
+   above and the broken `adapters.json` in #1104.
    **That one done the same day** (`docs/design/0309-the-outside-tools-read-once-and-named-from-their-file-8.md`): without
    `--tools`, a broken `adapters.json` is said in the report, with why it could not be read. The rest of item 6 is open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
