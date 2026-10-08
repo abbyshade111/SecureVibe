@@ -40,6 +40,23 @@ another session is not a claim.
      program is found through `PATH` by `sv` first, a relative entry is skipped, one under the app folder is refused
      as not run, saying which and why, and the report names the program's path.
 
+- **A dashboard view for `sv`: explore it.** Asked for by the owner on 8 October 2026 ("explore building out a
+  dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `compliance.md`, `security.md`,
+  `report.json`) and nothing that shows an app at a glance, several runs over time, or several apps side by side. The
+  exploration is a written proposal, `docs/DASHBOARD.md`, and nothing is built from it without the owner's decision:
+  1. **What a dashboard could show**, from what `sv` already records: one run at a glance, one app's runs over time,
+     several apps together. What each needs that `sv` does not keep today (a run's history, for one).
+  2. **How it could be delivered**: a page written beside the report, a command that writes one page for several
+     reports, or a page served while `sv` runs. Each against `sv`'s rules: no network connection of its own, nothing
+     fetched from the internet by the page, nothing written into the app's folder that is not already, and plain
+     language.
+  3. **How it stays honest**: a not-assessed requirement is never drawn as a pass, a count never reads as a grade,
+     and a chart says what it leaves out, the same as the reports (the short version's banned words).
+  4. **A recommendation**, with a first step small enough to build and test, and the questions only the owner can
+     answer. Status: proposed. Anything that changes what `sv` writes or serves is a decision with its own record.
+  **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("can you add an item to the backlog,
+  or take it yourself"), in branch `claude/securevibe-e2-dashboard`: the proposal only.
+
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
   October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
   numbered item is one finding of `docs/GAP-ANALYSIS.md`, by its section number there, where the evidence is;
@@ -8047,6 +8064,10 @@ done: `docs/adr/ADR-018.md`.
   paper-facts**, at the owner's word ("go ahead with ... the deep scrub and review of the documentation"), in branch
   `claude/owned-control`, with a Later entry on ADR-053. Read on `main` just before this claim: no other session had
   claimed it.
+  **Done the same day** (ADR-053, Later): the first user sends the same request at a second record of their own, and
+  the second user's request counts as refused only when the owner's own changes or deletes theirs; otherwise V8.2.2 is
+  checked in part, naming the request and `method`. The specification says how to give `method`, `json`,
+  `token-field` and `id-field`.
 - **A write-up of every trial and phase.** Asked for by the owner on 7 October 2026: the loop pilot, the loop arms
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
