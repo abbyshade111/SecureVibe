@@ -101,8 +101,18 @@ fn run() -> Result<i32> {
     match command.name {
         "init" => {
             println!("{}", spec::STARTER_MANIFEST);
-            println!("{}", spec::INSTRUCTIONS);
-            print!("{}", prompts_at_start());
+            if stdout_is_a_file() {
+                // `sv init > securevibe.toml`: the instructions after the starter file are prose,
+                // and would make the file one `sv` cannot read (gap analysis 5.3).
+                eprintln!(
+                    "Wrote only the starter securevibe.toml, because the output went into a file. \
+                     The instructions for your AI coding tool were left out: run `sv init` \
+                     without `>` to read them, or let your AI coding tool call securevibe_spec."
+                );
+            } else {
+                println!("{}", spec::INSTRUCTIONS);
+                print!("{}", prompts_at_start());
+            }
             Ok(exit::CLEAN)
         }
         "scope" => finished(cmd_scope(rest.first().map(PathBuf::from))),
@@ -2291,6 +2301,25 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         .iter()
         .for_each(|l| println!("{l}"));
     Ok(status)
+}
+
+/// Whether standard output goes straight into a file, as with `sv init > securevibe.toml`, rather
+/// than to a terminal or a pipe.
+fn stdout_is_a_file() -> bool {
+    #[cfg(unix)]
+    {
+        use std::os::fd::AsFd;
+        std::io::stdout()
+            .as_fd()
+            .try_clone_to_owned()
+            .map(std::fs::File::from)
+            .and_then(|f| f.metadata())
+            .is_ok_and(|m| m.is_file())
+    }
+    #[cfg(not(unix))]
+    {
+        false
+    }
 }
 
 /// Writes the list of what the app ships.
