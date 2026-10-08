@@ -1751,6 +1751,10 @@ impl Fixed {
         let mut uses = Vec::new();
         identifiers_named(function, name, source, &mut uses);
         uses.into_iter().all(|use_| {
+            // The use being judged: what reaches the call is the list as it stands there.
+            if use_ == node {
+                return true;
+            }
             let parent = use_.parent();
             // Its one binding, `name = [...]`.
             if parent.is_some_and(|p| {
