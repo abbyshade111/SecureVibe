@@ -210,6 +210,18 @@ pub fn read_target(raw: &str) -> Result<Target, String> {
     if host.contains(['{', '}', '\\', ' ']) {
         return Err("that address has characters no host name has".to_owned());
     }
+    // A name with letters outside ASCII (`bücher.example`) is looked up, and connected to, by its
+    // `xn--` form. Taken as typed, the one lookup `sv` makes and the address curl is held to by
+    // `--resolve` would be for a name curl never asks for, and the hold would not hold (the review
+    // of 8 October 2026, item 6).
+    if !host.is_ascii() {
+        return Err(
+            "that host name has letters outside plain ASCII: give its xn-- form, which is the \
+             name your browser actually connects to (copying the address from its address bar \
+             gives it)"
+                .to_owned(),
+        );
+    }
     // An IPv6 address is written in brackets, and its colons are not a port.
     let name = match host.strip_prefix('[') {
         Some(rest) => rest.split(']').next().unwrap_or_default(),
@@ -905,49 +917,53 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
             format!("{} sent no Strict-Transport-Security header.", target.https),
             &target.host,
         )),
-        (true, Some(value)) => match read_hsts(value) {
-            None => out.findings.push(finding(
-                &WEAK_HSTS,
-                format!(
-                    "{} sent Strict-Transport-Security: {value}, which has no max-age a browser \
-                     can read, so browsers ignore it.",
-                    target.https
-                ),
-                &target.host,
-            )),
-            Some(hsts) if hsts.max_age < HSTS_YEAR => out.findings.push(finding(
-                &WEAK_HSTS,
-                format!(
-                    "{} sent Strict-Transport-Security: {value}. {}",
-                    target.https,
-                    if hsts.max_age == 0 {
-                        "A max-age of 0 tells browsers to forget the site's HTTPS-only policy."
-                            .to_owned()
-                    } else {
-                        format!(
-                            "A max-age of {} seconds is less than the year (31536000 seconds) \
-                             V3.4.1 asks for.",
-                            hsts.max_age
-                        )
-                    }
-                ),
-                &target.host,
-            )),
-            Some(hsts) if !hsts.include_subdomains => out.not_assessed.push((
-                "V3.4.1".to_owned(),
-                format!(
-                    "{} sent Strict-Transport-Security: {value}. That is a year or more, which is \
-                     what level 1 asks; from level 2, V3.4.1 also asks for includeSubDomains, which \
-                     it does not carry. Which level applies is yours to say, so it is not credited.",
-                    target.https
-                ),
-            )),
-            Some(_) => out.verified.push(Verified::new(
-                NO_HSTS.rule_id,
-                NO_HSTS.requirement_ids,
-                format!("{} sent Strict-Transport-Security: {value}", target.https),
-            )),
-        },
+        (true, Some(raw)) => {
+            // Quoted on one line and cut short; read whole.
+            let value = crate::finding::quoted(raw);
+            match read_hsts(raw) {
+                None => out.findings.push(finding(
+                    &WEAK_HSTS,
+                    format!(
+                        "{} sent Strict-Transport-Security: {value}, which has no max-age a browser \
+                         can read, so browsers ignore it.",
+                        target.https
+                    ),
+                    &target.host,
+                )),
+                Some(hsts) if hsts.max_age < HSTS_YEAR => out.findings.push(finding(
+                    &WEAK_HSTS,
+                    format!(
+                        "{} sent Strict-Transport-Security: {value}. {}",
+                        target.https,
+                        if hsts.max_age == 0 {
+                            "A max-age of 0 tells browsers to forget the site's HTTPS-only policy."
+                                .to_owned()
+                        } else {
+                            format!(
+                                "A max-age of {} seconds is less than the year (31536000 seconds) \
+                                 V3.4.1 asks for.",
+                                hsts.max_age
+                            )
+                        }
+                    ),
+                    &target.host,
+                )),
+                Some(hsts) if !hsts.include_subdomains => out.not_assessed.push((
+                    "V3.4.1".to_owned(),
+                    format!(
+                        "{} sent Strict-Transport-Security: {value}. That is a year or more, which is \
+                         what level 1 asks; from level 2, V3.4.1 also asks for includeSubDomains, which \
+                         it does not carry. Which level applies is yours to say, so it is not credited.",
+                        target.https
+                    ),
+                )),
+                Some(_) => out.verified.push(Verified::new(
+                    NO_HSTS.rule_id,
+                    NO_HSTS.requirement_ids,
+                    format!("{} sent Strict-Transport-Security: {value}", target.https),
+                )),
+            }
+        }
     }
 
     // 3. Cookies set over HTTPS, and whether they carry the `__Host-` prefix.
@@ -1024,7 +1040,7 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
                             "{api}, asked over plain HTTP as a program asks (accepting JSON, \
                              with no browser's headers), answered {} and sent it on to {}.",
                             answer.status,
-                            answer.header("location").map_or("", str::trim)
+                            crate::finding::quoted(answer.header("location").map_or("", str::trim))
                         ),
                         &target.host,
                     ));
@@ -1083,9 +1099,10 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
             out.not_assessed.push((
                 "V12.2.1".to_owned(),
                 format!(
-                    "{} redirects to {elsewhere}, which is a different host from the one you gave. \
+                    "{} redirects to {}, which is a different host from the one you gave. \
                      Nothing here follows that: this only ever asks the address you named.",
-                    target.http
+                    target.http,
+                    crate::finding::quoted(elsewhere)
                 ),
             ));
         }
@@ -1100,9 +1117,10 @@ pub fn run(http: &mut dyn Fetch, target: &Target) -> Outcome {
                  do.",
                 target.http,
                 plain.status,
-                plain
-                    .header("location")
-                    .map_or("no address at all", str::trim),
+                plain.header("location").map_or_else(
+                    || "no address at all".to_owned(),
+                    |l| crate::finding::quoted(l.trim())
+                ),
                 target.host
             ),
         )),
@@ -1528,3 +1546,6 @@ mod curl_tests;
 
 #[cfg(test)]
 mod error_answer_tests;
+
+#[cfg(test)]
+mod quoted_tests;

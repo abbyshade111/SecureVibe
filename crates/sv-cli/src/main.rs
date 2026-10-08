@@ -1691,7 +1691,7 @@ fn probe_the_running_app(
             "Stopped with Ctrl-C. The app's containers and network were removed; nothing was written."
         );
         report_lock::let_go_of_all();
-        std::process::exit(130);
+        exit::exit_with(exit::INTERRUPTED);
     }
     Ok((outcome.map_err(|e| e.explain())?, plan))
 }
@@ -4182,7 +4182,7 @@ fn assemble_report_saying(
                  nothing was written."
             );
             report_lock::let_go_of_all();
-            std::process::exit(130);
+            exit::exit_with(exit::INTERRUPTED);
         }
         examined.extend(adapters_examined(&adapters, &languages, &outcome));
         findings.extend(outcome.findings);

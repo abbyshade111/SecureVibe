@@ -1891,7 +1891,7 @@ fn version_disclosed(responses: &[ProbeResponse]) -> Option<Finding> {
                 && value.chars().any(|c| c.is_ascii_digit())
                 && value.contains('.')
             {
-                let said = format!("{name}: {value}");
+                let said = format!("{name}: {}", crate::finding::quoted(value));
                 if !seen.contains(&said) {
                     seen.push(said);
                 }
@@ -1998,3 +1998,6 @@ fn csp_reporting(home: &ProbeResponse) -> Option<Finding> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod quoted_tests;

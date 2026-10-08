@@ -107,6 +107,10 @@ high were built the same day (the entry above this one's predecessor). Each of t
    `main.rs` ends with 130 after Ctrl-C go through `exit::exit_with`, so what was printed is out first (one of them
    added by this session's own Ctrl-C fix). Confirmed on `main` just before this claim: none of the three is done,
    and no other session had claimed them. The rest of item 6 stays open.
+   **Those three done the same day** (`docs/design/0308-three-low-findings-header-values-a-host-outside-ascii-and.md`;
+   ADR-027, Later): a header value or redirect address is quoted on one line and cut at 200 characters, and still read
+   whole; a host name outside ASCII is refused with a sentence asking for its `xn--` form; and every exit goes through
+   `exit::exit_with`, which a test now holds. The rest of item 6 is open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
