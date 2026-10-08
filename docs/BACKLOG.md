@@ -9,6 +9,30 @@ another session is not a claim.
 
 ## Next
 
+- **A private page for the owner to read all of `sv`'s documentation.** Asked for by the owner on 8 October 2026
+  ("build out a private page (just for me on this computer) that makes it easy for me to navigate through all the
+  documentation and view it"). `docs/` holds a dozen long documents, 40-odd decision records, `docs/paper/`, and
+  `docs/prompts/`, plus `README.md`, `CLAUDE.md`, and `data/README.md`, all as Markdown, which reads poorly as plain
+  text and has no way to move between documents. To build:
+  1. **A script in `tools/`** that turns every document into one set of pages the owner opens in a browser: a list of
+     every document by section (getting started, design, decisions, the paper), each document's own headings as a
+     table of contents, links between documents that work, and a search box if one can be had without a script
+     fetching anything.
+  2. **Private and on this computer only.** Written outside the repository (`~/securevibe-docs/`, say) or into a
+     folder git ignores, never committed and never published, and fetching nothing from the internet, as `sv`'s own
+     pages do. Run again to bring it up to date after a pull.
+  3. **A Markdown reader that needs no download**: Python's standard library has none, and neither `markdown` nor
+     `pandoc` is installed here, so either a small reader in the script, enough for these documents (headings, lists,
+     tables, code, links), or a dependency, which is a decision with its own record.
+  4. **Nothing that has no place in it:** the documents are already public, so nothing new is exposed, but the page
+     must not pick up anything outside them (no `.env`, nothing in `target/`, nothing from the owner's apps).
+  Questions for the owner before it is built: a folder of its own in the home folder, or inside the repository but
+  ignored by git; and whether the paper's drafts belong in it.
+  **The owner's answers, 8 October 2026:** "home folder for the docs page, and do not include the paper drafts
+  please". So the pages are written to a folder of their own in the home folder (`~/securevibe-docs/`), and
+  `docs/paper/` is left out. These are the owner's decisions; their record (a new ADR, governing the script) is
+  written as `Status: proposed` with the claim, and accepted in the pull request that builds it.
+
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
   outside tools and the CLI, and the test suite; `cargo fmt`, `clippy`, and 2,355 tests clean). The areas the 4
@@ -101,6 +125,11 @@ another session is not a claim.
      with every count in words, and no script. Breaks: a part one too large, "not verified" in the checked color, the
      ones that do not apply left out, the bars left off the page, and empty parts kept, each failed a test.
   2. **`sv dashboard`**, one page for the app folders it is given (2).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please start on the sv dashboard
+     command next"), in branch `claude/securevibe-e2-dashboard-command`: `sv dashboard <app folders> --out <file>`
+     reads the `report.json` already in each app's `securevibe-report` folder and writes one page, every app in
+     alphabetical order with its own page beside it, made the way `report.html` is (no script, nothing fetched). It
+     writes only the file it is told to, and never over a file it did not make. Accepts this part of ADR-057.
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
