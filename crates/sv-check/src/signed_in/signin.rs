@@ -558,10 +558,26 @@ pub(super) fn sign_out_on_get_check(
     out: &mut Outcome,
 ) {
     let (Some(confirm), Some(logout)) = (confirm, &users.logout) else {
+        // Said, not skipped (the architecture assessment of 8 October 2026, item 8).
+        out.not_assessed.push((
+            SIGN_OUT_ON_GET.requirement_ids.join(", "),
+            if users.logout.is_none() {
+                "Whether a plain link signs the user out: securevibe.toml sets no `logout` under \
+                 [stack.run.users]."
+            } else {
+                "Whether a plain link signs the user out: no private page opened for a signed-in \
+                 user, so a session ended by it could not be told from one that never worked."
+            }
+            .to_owned(),
+        ));
         return;
     };
     let mut quiet = Vec::new();
     let Some(signed_in) = sign_in(http, users, "get-logout", account, &mut quiet) else {
+        out.not_assessed.push((
+            SIGN_OUT_ON_GET.requirement_ids.join(", "),
+            "Whether a plain link signs the user out: signing in for it did not work.".to_owned(),
+        ));
         return;
     };
     if !ok(&http.send(&get(
@@ -616,6 +632,16 @@ pub(super) fn default_account_check(
     out: &mut Outcome,
 ) {
     let Some(confirm) = confirm else {
+        // Said, not skipped (the architecture assessment of 8 October 2026, item 8): only ever a
+        // finding, so a run that could not try it says so rather than reading as four tries that
+        // all failed.
+        out.not_assessed.push((
+            DEFAULT_ACCOUNT.requirement_ids.join(", "),
+            "Whether an account with a name and password everybody knows signs in: no private \
+             page opened for a signed-in user, so a sign-in that worked could not be told from \
+             one that did not."
+                .to_owned(),
+        ));
         return;
     };
     let mut opened = Vec::new();
@@ -664,9 +690,28 @@ pub(super) fn password_in_url_check(
     out: &mut Outcome,
 ) {
     let (Some(confirm), Some(login)) = (confirm, &users.login) else {
+        // Said, not skipped (the architecture assessment of 8 October 2026, item 8).
+        out.not_assessed.push((
+            PASSWORD_IN_URL.requirement_ids.join(", "),
+            if users.login.is_none() {
+                "Whether a password in the address signs the user in: securevibe.toml sets no \
+                 `login` under [stack.run.users]."
+            } else {
+                "Whether a password in the address signs the user in: no private page opened for \
+                 a signed-in user, so a sign-in that worked could not be told from one that did \
+                 not."
+            }
+            .to_owned(),
+        ));
         return;
     };
     if login.form.is_empty() || !login.method.eq_ignore_ascii_case("POST") {
+        out.not_assessed.push((
+            PASSWORD_IN_URL.requirement_ids.join(", "),
+            "Whether a password in the address signs the user in: the sign-in request is not a \
+             POST of a form, so there is no form to move into the address."
+                .to_owned(),
+        ));
         return;
     }
     let mut session = Session::default();
@@ -723,18 +768,22 @@ pub(super) fn logout_check(
     confirm: Option<String>,
     out: &mut Outcome,
 ) {
+    // V14.3.1 with it: whether signing out clears the browser's storage is read from the sign-out
+    // answer (`clear_site_data_check`), so a sign-out not tried leaves that unseen too.
     let Some(logout) = &users.logout else {
         out.not_assessed.push((
-            "V7.4.1".to_owned(),
-            "Whether signing out ends the session: securevibe.toml lists no `logout`.".to_owned(),
+            "V7.4.1, V14.3.1".to_owned(),
+            "Whether signing out ends the session, and clears what the browser kept: \
+             securevibe.toml lists no `logout`."
+                .to_owned(),
         ));
         return;
     };
     let Some(path) = confirm else {
         out.not_assessed.push((
-            "V7.4.1".to_owned(),
-            "Whether signing out ends the session: nothing showed the session working in the first \
-             place, so its ending would show nothing."
+            "V7.4.1, V14.3.1".to_owned(),
+            "Whether signing out ends the session, and clears what the browser kept: nothing \
+             showed the session working in the first place, so its ending would show nothing."
                 .to_owned(),
         ));
         return;

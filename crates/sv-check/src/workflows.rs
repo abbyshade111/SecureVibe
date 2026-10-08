@@ -435,6 +435,7 @@ fn jobs(workflow: &Value) -> Vec<(&str, &Value)> {
     }
 }
 
+#[track_caller]
 fn finding(
     rule_id: &str,
     title: String,
@@ -445,7 +446,7 @@ fn finding(
     text: [String; 3],
 ) -> Finding {
     let [description, impact, fix] = text;
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -464,7 +465,7 @@ fn finding(
         description,
         impact,
         fix,
-    }
+    })
 }
 
 fn at(file: &str, line: usize) -> Location {

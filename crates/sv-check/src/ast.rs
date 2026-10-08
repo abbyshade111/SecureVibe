@@ -2215,7 +2215,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                     default,
                 });
             }
-            out.push(Finding {
+            out.push(crate::finding::found(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -2266,7 +2266,7 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
                 },
                 impact: compiled.rule.impact.clone(),
                 fix: compiled.rule.fix.clone(),
-            });
+            }));
         }
     }
     out.sort_by(|a, b| {

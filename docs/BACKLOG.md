@@ -634,6 +634,11 @@ another session is not a claim.
      record, governing `tools/coverage.py`'s census) is written as proposed with step 2 and accepted in the pull
      request that builds the gate. "Not assessed" as a way of withholding is counted from step 2 if the list shows
      checks that can only withhold that way.
+     **Step 1 done the same day** (DESIGN, "And what it withholds"): `finding::found` at the 45 places a finding is
+     made, and `tools/coverage.py --withheld`. First count: 125 checks seen crediting, 115 seen withholding, 10 not;
+     all ten withhold by design with "not assessed" or no credit, and each already has a test asserting so. Step 2
+     becomes: those checks mark where they withhold, so the census sees it. Breaks: nothing written, and a test's
+     own finding counted, each failed `crates/sv-check/tests/withheld_log.rs`.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
@@ -8255,17 +8260,26 @@ another session is not a claim.
      Changes what a request's answer counts as: a Later entry on ADR-021. The four suites then gain limiter waits,
      so item 7 goes with it.
      **Claimed 8 October 2026 by session securevibe-review**, with item 7 (branch `claude/securevibe-review-one-answer`).
+     **Done the same day** (ADR-021, Later, 8 October 2026; DESIGN, "One rule for what an answer is, and one wait for
+     the whole run"): `answer_of`, the seven places through it, `Patient` around the OIDC, MCP, and fetch suites with
+     one budget for the run; the AI suite left as it is, with why.
   7. **The probe sidecar's life is a fixed 900 s** (`docker.rs:84`), not derived from the request budget: 300 s of
      limiter waiting plus the AI suite's fixed waits can outlive it, after which every request reads as "no answer"
      and nothing names the sidecar. Tie it to the budget and have `probe` tell "container gone" from "app silent".
      A Later entry on ADR-025.
      **Claimed 8 October 2026 by session securevibe-review**, with item 6 (the same branch).
+     **Done the same day** (ADR-025, Later, 8 October 2026): `SIDECAR_SECONDS` built from `MOST_WAITING`, and a lost
+     sidecar named in the run's output and the report (`RunOutcome::sidecar_lost`).
   8. **A check cannot be made to say what it asked.** A check is `fn(.., out: &mut Outcome)` and nothing requires it
      to touch `out`: about 200 hand-written `not_assessed.push` sites, and four early returns with none
      (`sessions.rs:711`, fixed on 8 October; `sessions.rs:298`, `passwords.rs:1318`, `signin.rs:618`). Cheapest: a
      `#[must_use]` guard per rule whose drop records "asked and never answered", plus one test that every rule's ids
      land in exactly one bucket on the correct app and on the all-flaws app. Fuller: checks return a `Verdict`.
      **Claimed 8 October 2026 by session securevibe-review**, the cheaper form first (branch `claude/securevibe-review-asked-and-answered`).
+     **The cheaper form done the same day** (DESIGN, "A check says what it asked, in every configuration"): the
+     five silent returns and the two lists that named too few, and `asked_tests.rs`, which runs the suite three
+     ways and holds every requirement named on the correct app to be named in each; it found V14.3.1 and V3.5.2
+     beyond the three the assessment named. The guard per check is not built.
   9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
      `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
      real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for

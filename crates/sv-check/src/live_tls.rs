@@ -65,8 +65,9 @@ const NOT_PRELOADED: Rule = Rule {
           site's top-level domain and submit it at hstspreload.org.",
 };
 
+#[track_caller]
 fn finding(rule: &Rule, host: &str, description: String) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -92,7 +93,7 @@ fn finding(rule: &Rule, host: &str, description: String) -> Finding {
         description,
         impact: rule.impact.to_owned(),
         fix: rule.fix.to_owned(),
-    }
+    })
 }
 
 /// Asks the two questions. `preload` is the text of Chromium's list, when the owner gave one.

@@ -115,11 +115,14 @@ pub(super) fn once_check(
     // turned away.
     let unanswered = answers
         .iter()
-        .filter(|a| a.as_ref().is_none_or(|r| r.status >= 500))
+        .filter(|a| super::answer_of(a.as_ref()).is_crash_or_silence())
         .count();
     // Nor is a limiter's answer: a copy it turned away never reached the action, so the race was
     // run between fewer copies than were sent.
-    let limited = answers.iter().flatten().filter(|r| r.status == 429).count();
+    let limited = answers
+        .iter()
+        .filter(|a| super::answer_of(a.as_ref()).is_limited())
+        .count();
     out.steps.push(format!(
         "sent {} to {} {AT_ONCE} times at the same instant, {each} as A and {each} as B: {by_a} of \
          A's went through and {by_b} of B's, {unanswered} crashed or did not answer, {limited} were \
