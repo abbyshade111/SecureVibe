@@ -306,8 +306,9 @@ impl Who {
 
 /// The owner, or the tool that wrote the code, says the control is not there. For a missing control
 /// either is the best authority there is: nobody overstates an app by saying it lacks something.
+#[track_caller]
 fn said_no(question: &Question, who: &Who) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -353,12 +354,13 @@ fn said_no(question: &Question, who: &Who) -> Finding {
              as no so the report keeps saying this is outstanding.",
             question.where_means
         ),
-    }
+    })
 }
 
 /// A pointer that leads nowhere reads as evidence and is not, which is worse than none.
+#[track_caller]
 fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -390,12 +392,13 @@ fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
             "Point `where` at {}, or remove it and leave the answer as yes on its own.",
             question.where_means
         ),
-    }
+    })
 }
 
 /// A decision made before the code, and the code has come without the file it was to be in.
+#[track_caller]
 fn never_built(question: &Question, path: &str, who: &Who) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -434,7 +437,7 @@ fn never_built(question: &Question, path: &str, who: &Who) -> Finding {
              outstanding.",
             question.where_means
         ),
-    }
+    })
 }
 
 #[cfg(test)]

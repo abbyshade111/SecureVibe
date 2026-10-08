@@ -758,6 +758,7 @@ fn seriousness(advisory: &Advisory) -> (u8, Severity) {
     }
 }
 
+#[track_caller]
 fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding {
     // The advisory's own rating, computed from its CVSS vector rather than guessed from the words in
     // it. Where there is no vector this can score, the seriousness shown is a placeholder and the
@@ -784,7 +785,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
     } else {
         format!("{} ({})", advisory.id, advisory.aliases.join(", "))
     };
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -844,7 +845,7 @@ fn finding_for(component: &Component, advisory: &Advisory, due: &Due) -> Finding
              actually ships.",
             component.name
         ),
-    }
+    })
 }
 
 /// A calendar day, counted from 1 January 1970. Enough date arithmetic for a deadline and no more.
