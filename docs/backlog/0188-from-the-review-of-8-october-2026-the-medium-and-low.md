@@ -170,3 +170,12 @@ high were built the same day (the entry above this one's predecessor). Each of t
    that copy handed to the run, the list of tools not run, and the exit status; and the sentence naming the outside
    tools made from the file, so it reads "Bandit, gosec, Brakeman, Semgrep, and CodeQL". `assemble_report_saying`'s
    length is open.
+   **`assemble_report_saying`'s length claimed 8 October 2026 by session securevibe-review**, from the roadmap (Phase
+   1, item 1, the last part of its last sub-item), in branch `claude/securevibe-review-assemble`: the 1,576-line
+   function (`main.rs` lines 3909 to 5485 on `main` at `a49d856a`) split along the stages it already names
+   (`STAGES`, which the MCP server reports) into a module of its own, one function per stage with the state they
+   pass between them in one struct, and nothing else changed: the same report, the same stage names in the same
+   order, and the same words. Held by the verdict snapshots (`crates/sv-cli/tests/verdicts.rs`), which fail on any
+   change to what the example apps' reports say, and by the existing MCP tests of the stage names. Confirmed on
+   `main` just before this claim: the function is still one body, and no other session had claimed it (#1108
+   touches `main.rs` elsewhere; this build starts once it has merged, so the two do not meet).
