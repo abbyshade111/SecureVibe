@@ -134,13 +134,12 @@ another session is not a claim.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
-     **Note, 7 October 2026 (session securevibe-e2), before anyone claims it:** naming these as unread code is a
-     decision, not a wording fix. A language counted as unread holds back every clean result of `sv`'s own code
-     rules (`clean_rules` in `crates/sv-check/src/ast.rs`) and makes `sv check` and `sv report` exit 2 (`exit.rs`,
-     "nothing here reads …"), so every Rails, Express-with-EJS, or Jinja app would lose all code-rule credit and
-     its CI would go red. Propose it as an ADR (`Status: proposed`) and put the choice to the owner first, perhaps
-     with a middle way: list the templates as unread in the report without holding back rules that cannot see
-     into them.
+     **The owner's decision, 7 October 2026:** each kind read for what it can hold (ADR-054). **Claimed the same day
+     by session securevibe-e9** ("yes, go ahead with item 14 as you recommended"), in branch
+     `claude/securevibe-e9-templates`: notebooks read as Python; templates embedding a general-purpose language named
+     as unread code; logic-free templates read as pages; `.sql` named and holding nothing back. **`Status: proposed`:
+     ADR-054.** Reading Astro's header and EJS's blocks is a second pull request.
+
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
@@ -151,6 +150,8 @@ another session is not a claim.
      taken from gitleaks' rules rather than recalled, for those whose keys carry a prefix of their own (a provider whose
      keys are plain letters and digits is named as not looked for, since a pattern for it would match ordinary text).
      A notebook's escaped JSON is not part of this. More formats find more and credit nothing new, so no ADR is proposed.
+     **Done the same day** (DESIGN, "Passwords in web addresses, and the key formats of the providers AI-built apps
+     use"): `secrets.password-in-url`, and ten provider formats.
   16. **Smaller static gaps: workflows, and where infrastructure and CI files are looked for.**
      (`docs/GAP-ANALYSIS.md`, 3.8.) Workflows: a pull request's title or branch pasted into a `run:` line, and
      third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
@@ -245,6 +246,10 @@ another session is not a claim.
   30. **The fence tests pass without testing the fence when there is no container backend.** (`docs/GAP-ANALYSIS.md`,
      7.2.) `SV_REQUIRE_BACKEND=1`, set in `rust.yml`, turns each test's "no container backend here" branch into a
      failure, so a broken Docker on the runner turns CI red.
+     **Claimed on 7 October 2026 by session securevibe-e9**, at the owner's word ("feel free to pick another item from
+     the backlog whenever you're ready"), in branch `claude/securevibe-e9-require-backend`: one test that, with
+     `SV_REQUIRE_BACKEND=1`, fails when no container backend answers, and `rust.yml` setting it for the test job, so the
+     38 "no container backend here" branches can no longer all pass on a runner whose Docker broke.
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
