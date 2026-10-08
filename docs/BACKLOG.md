@@ -227,6 +227,9 @@ another session is not a claim.
      OSV download address per ecosystem and the folder layout in `sv audit`'s message and the guide. A command that
      downloads them (`sv advisories fetch`) would change what `sv` connects to: only as a decision with its own
      record (ADR-027's rule).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+     backlog"), in branch `claude/securevibe-e2-osv-addresses`: the addresses and the folder layout only, in `sv
+     audit`'s message, the report's gap, and the guide. Nothing that downloads.
   25. **Silent failures while setting up.** (`docs/GAP-ANALYSIS.md`, 5.3.) Each claimable on its own: (a) a "did it
      connect" step for every tool in the guide, and a coding rule telling the AI tool to stop and say so when the
      `securevibe_` tools are missing; (b) the container form of `sv review` in the guide, and an `.mcp.json` example
