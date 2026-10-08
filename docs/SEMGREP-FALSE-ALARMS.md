@@ -16,6 +16,13 @@ runs (268 true, 164 false, 8 unsure), and 391 of the 555 false alarms came from 
 discussed by name, such as `unsafe-dynamic-method`, `generic-api-key`, `prohibit-jquery-html`, and
 `html-in-template-string`, are in none of those packs. (Added 6 October 2026.)
 
+**What has changed since, and what has not (added 8 October 2026).** Since ADR-054, `sv`'s own code rules read
+notebooks as Python and read templates that cannot run code as pages; templates that embed a language are named as
+unread. That is `sv`'s own rules, not Semgrep: `sv` still hands Semgrep only the files it handed it here, so the
+templates and the nginx and `web.config` files some loaded rules read are still not given to it. Handing them over is
+backlog item 34, claimed by session securevibe-e9 on 8 October 2026. Every number below is still the 4 October
+measurement.
+
 ## The short version
 
 - **Clean, well-kept apps are quiet under option C.** Eleven real apps and `sv`'s five examples gave

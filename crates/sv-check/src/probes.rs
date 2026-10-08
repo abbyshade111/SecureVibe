@@ -316,6 +316,71 @@ pub fn unassessed_requirements(signed_in_ran: bool) -> Vec<(&'static str, &'stat
     out
 }
 
+/// The hosted backend an app's packages show, when it has one: Firebase or Supabase, named with the
+/// first package that shows it (gap analysis, item 10, its fourth part).
+///
+/// An app built with Lovable, Bolt, and the like often signs people in and keeps their data with one
+/// of these, reached from the browser. Behind the network fence the app cannot reach it, so asking
+/// the running app says nothing about who can read or change that data, however much else it says.
+pub fn hosted_backend(components: &[crate::sbom::Component]) -> Option<(&'static str, String)> {
+    components.iter().find_map(|c| {
+        let name = c.name.to_ascii_lowercase();
+        let service = if name == "firebase"
+            || name == "firebase-admin"
+            || name == "pyrebase4"
+            || name.starts_with("@firebase/")
+            || name.starts_with("@react-native-firebase/")
+            || name.starts_with("firebase_")
+        {
+            "Firebase"
+        } else if name == "supabase"
+            || name.starts_with("@supabase/")
+            || name.starts_with("supabase_")
+        {
+            "Supabase"
+        } else {
+            return None;
+        };
+        Some((service, c.name.clone()))
+    })
+}
+
+/// What asking the running app could not reach when the app's sign-in and data are hosted, or `None`
+/// when its packages show no hosted backend.
+pub fn hosted_backend_gap(components: &[crate::sbom::Component]) -> Option<(&'static str, String)> {
+    let (service, package) = hosted_backend(components)?;
+    let rules = if service == "Firebase" {
+        "its rules files (`firestore.rules`, `storage.rules`, `database.rules.json`)"
+    } else {
+        "the policies in `supabase/migrations/`"
+    };
+    Some((
+        "V8, V6",
+        format!(
+            "The app uses {service} (`{package}`), and the network fence keeps the running app from \
+             reaching it, so nothing here signed in through {service} or read or changed the data it \
+             holds. Who can reach which records there is decided by {service} itself: `sv check` \
+             reads {rules} for rules left open, and nothing tested them running."
+        ),
+    ))
+}
+
+/// Everything asking the running app could not reach, as requirement ids and why, in the order
+/// `sv run` prints them and the report lists them: one list, so the two cannot say different things.
+pub fn running_app_gaps(
+    signed_in_ran: bool,
+    responses: &[ProbeResponse],
+    components: &[crate::sbom::Component],
+) -> Vec<(&'static str, String)> {
+    let mut out: Vec<(&'static str, String)> = unassessed_requirements(signed_in_ran)
+        .into_iter()
+        .map(|(ids, why)| (ids, why.to_owned()))
+        .collect();
+    out.extend(error_answer_gap(responses));
+    out.extend(hosted_backend_gap(components));
+    out
+}
+
 /// What is fixed about a check: everything except the words describing this particular answer.
 ///
 /// Grouped rather than passed one by one, so adding a field to a finding does not add a parameter to
@@ -4022,5 +4087,54 @@ mod tests {
     fn iis_naming_its_framework_is_not_a_version() {
         let missing = response("missing", 404, &[("X-Powered-By", "ASP.NET")], "not found");
         assert!(evaluate(&[good_home(), missing]).is_empty());
+    }
+
+    fn component(name: &str, ecosystem: &str) -> crate::sbom::Component {
+        crate::sbom::Component {
+            name: name.to_owned(),
+            version: "1.0.0".to_owned(),
+            ecosystem: ecosystem.to_owned(),
+            source: crate::sbom::VersionSource::Locked,
+        }
+    }
+
+    #[test]
+    fn a_hosted_backend_in_the_packages_is_named_as_out_of_reach() {
+        for (name, ecosystem, service) in [
+            ("@supabase/supabase-js", "npm", "Supabase"),
+            ("@supabase/ssr", "npm", "Supabase"),
+            ("supabase", "PyPI", "Supabase"),
+            ("firebase", "npm", "Firebase"),
+            ("@react-native-firebase/auth", "npm", "Firebase"),
+            ("firebase-admin", "PyPI", "Firebase"),
+        ] {
+            let packages = [component("react", "npm"), component(name, ecosystem)];
+            let (ids, why) = hosted_backend_gap(&packages).expect(name);
+            assert_eq!(ids, "V8, V6", "{name}");
+            assert!(why.contains(&format!("uses {service} (`{name}`)")), "{why}");
+            let rules = if service == "Firebase" {
+                "firestore.rules"
+            } else {
+                "supabase/migrations/"
+            };
+            assert!(why.contains(rules), "{why}");
+        }
+        // Packages that only share a word with them, and an app with none, name no gap.
+        for name in ["supabase-mock", "firebase-tools-lite", "flask", "express"] {
+            assert_eq!(
+                hosted_backend_gap(&[component(name, "npm")]),
+                None,
+                "{name}"
+            );
+        }
+        assert_eq!(hosted_backend_gap(&[]), None);
+        // The list `sv run` and the report both print carries it, after the others.
+        let gaps = running_app_gaps(false, &[], &[component("@supabase/supabase-js", "npm")]);
+        assert_eq!(gaps.last().map(|g| g.0), Some("V8, V6"), "{gaps:?}");
+        assert_eq!(gaps.len(), unassessed_requirements(false).len() + 1);
+        assert_eq!(
+            running_app_gaps(true, &[], &[]).len(),
+            unassessed_requirements(true).len()
+        );
     }
 }

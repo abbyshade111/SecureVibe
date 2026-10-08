@@ -40,8 +40,8 @@ One sequence runs across both versions of SecureVibe, so a number always means o
 
 ## v1's records that `sv` still cites
 
-Two of v1's decisions are rules `sv` keeps. `DESIGN.md` lists both among "the rules that carry over word
-for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source files:
+Two of v1's decisions are rules `sv` keeps. `DESIGN.md` restates both among "the rules that carry over" (the
+evidence-tier rule without its number), and ADR-012 is also cited by number in `DESIGN.md`, in three source files, and in two tests:
 
 - **ADR-006, evidence tiers.** AI review alone is never a pass, and a requirement only a person can check
   never passes on its own.

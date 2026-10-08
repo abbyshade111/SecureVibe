@@ -9,6 +9,30 @@ another session is not a claim.
 
 ## Next
 
+- **A private page for the owner to read all of `sv`'s documentation.** Asked for by the owner on 8 October 2026
+  ("build out a private page (just for me on this computer) that makes it easy for me to navigate through all the
+  documentation and view it"). `docs/` holds a dozen long documents, 40-odd decision records, `docs/paper/`, and
+  `docs/prompts/`, plus `README.md`, `CLAUDE.md`, and `data/README.md`, all as Markdown, which reads poorly as plain
+  text and has no way to move between documents. To build:
+  1. **A script in `tools/`** that turns every document into one set of pages the owner opens in a browser: a list of
+     every document by section (getting started, design, decisions, the paper), each document's own headings as a
+     table of contents, links between documents that work, and a search box if one can be had without a script
+     fetching anything.
+  2. **Private and on this computer only.** Written outside the repository (`~/securevibe-docs/`, say) or into a
+     folder git ignores, never committed and never published, and fetching nothing from the internet, as `sv`'s own
+     pages do. Run again to bring it up to date after a pull.
+  3. **A Markdown reader that needs no download**: Python's standard library has none, and neither `markdown` nor
+     `pandoc` is installed here, so either a small reader in the script, enough for these documents (headings, lists,
+     tables, code, links), or a dependency, which is a decision with its own record.
+  4. **Nothing that has no place in it:** the documents are already public, so nothing new is exposed, but the page
+     must not pick up anything outside them (no `.env`, nothing in `target/`, nothing from the owner's apps).
+  Questions for the owner before it is built: a folder of its own in the home folder, or inside the repository but
+  ignored by git; and whether the paper's drafts belong in it.
+  **The owner's answers, 8 October 2026:** "home folder for the docs page, and do not include the paper drafts
+  please". So the pages are written to a folder of their own in the home folder (`~/securevibe-docs/`), and
+  `docs/paper/` is left out. These are the owner's decisions; their record (a new ADR, governing the script) is
+  written as `Status: proposed` with the claim, and accepted in the pull request that builds it.
+
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
   outside tools and the CLI, and the test suite; `cargo fmt`, `clippy`, and 2,355 tests clean). The areas the 4
@@ -34,10 +58,19 @@ another session is not a claim.
      `--tools`. Branch `claude/securevibe-review-brakeman-config`: a `{config}` placeholder that `sv` fills with an
      empty settings file in the tool's private folder, passed as `-c`, so the app's file is never read. The spirit of
      ADR-032 (a program the app names is not run): a Later entry there.
+     **Done the same day, and the finding corrected** (DESIGN, "The outside tools run no program an app's repository
+     names", the paragraph "Brakeman's settings file"; ADR-032, Later, 8 October 2026): tried with Brakeman 8.1.0,
+     the settings file could *not* make Brakeman load Ruby, since Brakeman has ignored `additional_checks_path`
+     there since 3.6.2 (2017) unless asked to allow it; the review's "high" was wrong. What was built is the smaller
+     thing that stood: Brakeman now reads an empty settings file of `sv`'s own and never the app's, so a clean run
+     over an app with `config/brakeman.yml` is credited rather than withheld.
   3. **`sv review` writes `securevibe.toml` and `security-notes.md` through a link the app planted, and not
      atomically** (`crates/sv-cli/src/review.rs`, `save_text`): the one writer left on a plain write after S3 fixed
      `sv notes` and `sv rules`. Branch `claude/securevibe-review-links`: `refuse_link` and `write_without_following`,
-     and a test in `writing_through_links.rs` that plants the link and shows the file it points at left alone.
+     and a test that plants the link and shows the file it points at left alone.
+     **Done the same day** (DESIGN, "Writing nothing through a link", the `sv review` paragraph): both names looked
+     at before anything is asked, a link at either refused, and each file written under a new name renamed into
+     place; the test lives in `review_terminal.rs`, which has the terminal `sv review` needs.
   4. **A `--tools` program is whatever `PATH` says, and `PATH` can point inside the app** (`crates/sv-check/src/adapters.rs`
      spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
      `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the
@@ -92,6 +125,11 @@ another session is not a claim.
      with every count in words, and no script. Breaks: a part one too large, "not verified" in the checked color, the
      ones that do not apply left out, the bars left off the page, and empty parts kept, each failed a test.
   2. **`sv dashboard`**, one page for the app folders it is given (2).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please start on the sv dashboard
+     command next"), in branch `claude/securevibe-e2-dashboard-command`: `sv dashboard <app folders> --out <file>`
+     reads the `report.json` already in each app's `securevibe-report` folder and writes one page, every app in
+     alphabetical order with its own page beside it, made the way `report.html` is (no script, nothing fetched). It
+     writes only the file it is told to, and never over a file it did not make. Accepts this part of ADR-057.
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
@@ -214,6 +252,12 @@ another session is not a claim.
      claimed it. The run summary's line stays open.
      **The third part done the same day** (DESIGN, "A server's key under a name the browser is given"):
      `config.secret-under-public-name`.
+     **The run summary's line (the fourth part) claimed 8 October 2026 by session securevibe-e9** ("choose the next
+     backlog item"), in branch `claude/securevibe-e9-hosted-gap`: when the bill of materials shows a Firebase or
+     Supabase package, `sv run` and the report name sign-in and the hosted data as not assessed by asking the running
+     app. Read on `main` just before this claim: no other session had claimed it.
+     **The fourth part done the same day** (DESIGN, "A hosted backend is named as out of the running app's reach").
+     With it, every part of item 10 is done.
   11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
      finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
      `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
@@ -447,6 +491,16 @@ another session is not a claim.
      "Weekly decision-record review", with the repository attached and three thousand commits of history, and one
      routine that wakes it on Mondays at 8:45, New York time, with the same instructions and a first step that brings
      the checkout up to date. Both old routines are turned off, not deleted. Its first run is due 12 October.
+     **Still needed: a setup script for the review's environment** (added 8 October 2026, at the owner's asking: "can
+     you add to the backlog that the weekly decision-record review needs a setup script as well"). Step 7 of the
+     review runs `cargo fmt`, `cargo clippy`, `cargo test --workspace`, and `tools/adr_check.py --self-test`, and a
+     fresh cloud session has no promise of the Rust toolchain this repository pins, its `clippy` and `rustfmt`, or
+     Python 3. The environment's setup script, which runs before each new session starts, should install those, so
+     the review can run its checks rather than report that it could not. The script lives in the environment's
+     settings (the cloud environment menu, then Edit, then Setup script), which only the owner can change; a session
+     can draft it. A test firing on 8 October also showed that a routine fired by hand starts a fresh session without
+     the repository rather than waking the review's own session; whether the Monday run wakes the right one is to be
+     checked after 12 October.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
@@ -8141,6 +8195,8 @@ done: `docs/adr/ADR-018.md`.
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
   October 2026 did for the loop trials. **Claimed on 7 October 2026 by session paper-facts**, after the trial above.
+  **Done the same day:** nine trials, 464 builds, $150.53 in all, in a Word document and a PDF of ten pages with four
+  figures, given to the owner and kept with its data and scripts on the owner's drive, outside the repository.
 - **A second review of all of `sv`'s documentation, and the paper's figures and analyses.** Asked for by the owner on 7
   October 2026 ("the deep scrub and review of the documentation to get everything up-to-date, including the figures
   and analyses for the paper that are now out-of-date as well"). The first review (above, 6 October 2026) was done
@@ -8148,4 +8204,10 @@ done: `docs/adr/ADR-018.md`.
   trials, and more. Every document a person or an AI tool reads, and `docs/paper/`'s documents, figures and data,
   read against `main`; records and DESIGN get dated entries rather than rewrites. **Claimed on 7 October 2026 by
   session paper-facts**, after the write-up. Read on `main` just before this claim: no other session had claimed it.
+  **Part 1 done on 8 October 2026:** the documents a person or an AI tool reads, each sentence checked against the
+  code: README, GETTING-STARTED, PROMPTS and the prompt library's notes, design-time prompts, CLAUDE.md, the data
+  README, PARTIAL-CHECKS (63 of the 382 now have a check, recounted), SEMGREP-FALSE-ALARMS and THREAT-MODELING (dated
+  notes), the decision-record index, the CodeQL workflow's comments, the examples, and the Governs lines of ADR-044
+  and ADR-045. One fault in `sv` itself was found and fixed on its own (the item above). Still to do: the wording
+  inside the code (the specification, the MCP tools' descriptions, the help), and the paper.
 
