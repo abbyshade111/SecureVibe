@@ -1,6 +1,6 @@
 # The earlier trials' "signed in" may be too high
 
-**Status:** open
+**Status:** claimed by paper-facts, 8 October 2026
 
 Found on 8 October 2026 by the Haiku 5.5 trial's Amendment 1 (`docs/prompts/library-trial/haiku55.md`):
 `score_revision.py`'s `signed_in()`, used by the revision, recipe and sentences scorers, counts a started app as
