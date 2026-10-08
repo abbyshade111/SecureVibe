@@ -373,6 +373,8 @@ another session is not a claim.
      `probe.reset-code-in-answer`.
      **(f) done the same day** (DESIGN, "A sign-in token signed with a placeholder secret"):
      `probe.app-token-placeholder-key`.
+     **(c) through sign-in done the same day** (DESIGN, "A failed sign-in that tells which accounts exist"):
+     `probe.signin-reveals-account`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
@@ -671,6 +673,14 @@ another session is not a claim.
      gives no credit without a finding ("not assessed", or nothing), written to the same `.withheld` log, and put in
      the ten checks the first count listed, so the tests they already have are seen; and the gate's decision record
      written as proposed.
+     **Step 2 done the same day** (DESIGN, "Step 2: a credit not given is written down too"; ADR-059, proposed):
+     `verified::unless_credited` in the ten checks. Break: the marker writing nothing failed
+     `crates/sv-check/tests/withheld_log.rs`.
+     **Step 3 claimed the same day by session securevibe-e2**, at the owner's word ("go ahead with step 3 when it's
+     merged"), in branch `claude/securevibe-e2-withhold-gate`: `tools/coverage.py --credits` fails on any check the
+     suite saw credit and never saw withhold, with a named list of exceptions for any that cannot be made to, each
+     with its reason; a check that every place in shipping code that builds a finding hands it through
+     `finding::found`; and ADR-059 accepted.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed
@@ -8308,6 +8318,10 @@ another session is not a claim.
      `#[must_use]` guard per rule whose drop records "asked and never answered", plus one test that every rule's ids
      land in exactly one bucket on the correct app and on the all-flaws app. Fuller: checks return a `Verdict`.
      **Claimed 8 October 2026 by session securevibe-review**, the cheaper form first (branch `claude/securevibe-review-asked-and-answered`).
+     **The cheaper form done the same day** (DESIGN, "A check says what it asked, in every configuration"): the
+     five silent returns and the two lists that named too few, and `asked_tests.rs`, which runs the suite three
+     ways and holds every requirement named on the correct app to be named in each; it found V14.3.1 and V3.5.2
+     beyond the three the assessment named. The guard per check is not built.
   9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
      `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
      real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
@@ -8334,6 +8348,9 @@ another session is not a claim.
      modules over 3,000 lines (`ast.rs`, `ai.rs`, `probes.rs`, `adapters.rs`, `secrets.rs`, `production.rs`,
      `sbom.rs`; 40 to 65% of each is tests), then `ast.rs` and `sbom.rs` along their seams.
      **Claimed 8 October 2026 by session securevibe-review**: the CLAUDE.md line, and the tests split out of the seven modules (branch `claude/securevibe-review-tests-apart`).
+     **Done the same day** (CLAUDE.md, the claim bullet; DESIGN, "The tests of the seven largest modules live beside
+     them"): the rule written down, and the eleven test modules of the seven files moved to `src/<module>/<name>.rs`,
+     verbatim. Not done: `ast.rs` and `sbom.rs` along their seams.
   12. **Smaller seams in the pipeline.** `Signature.condition` in `sv-scan` is a `String` skipped at run time when
      unknown (`sv-scan/src/lib.rs:297`), where the `Condition` enum refuses unknown names everywhere else: type it
      (ADR-015 governs both data files; one line). `not_for_tests` (`main.rs:4492-4510`) decides an applicability

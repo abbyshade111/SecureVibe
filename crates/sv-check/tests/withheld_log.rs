@@ -73,6 +73,24 @@ fn a_finding_is_written_down_with_the_place_that_made_it_and_only_the_checks_own
         written,
         format!("probe.security-headers\t{}:{line}\n", file!())
     );
+    // A check that withholds without a finding: written down when it gave no credit, and not when it did.
+    let none_line = line!() + 1;
+    sv_check::verified::unless_credited("probe.clear-site-data", &[]);
+    let credited = [sv_check::Verified::new(
+        "probe.clear-site-data",
+        &["V14.3.1"],
+        "a test's own".to_owned(),
+    )];
+    sv_check::verified::unless_credited("probe.clear-site-data", &credited);
+    let written = std::fs::read_to_string(dir.join("credits.log.withheld")).unwrap();
+    assert_eq!(
+        written,
+        format!(
+            "probe.security-headers\t{f}:{line}\nprobe.clear-site-data\t{f}:{none_line}\n",
+            f = file!()
+        ),
+        "withheld once, when not credited"
+    );
     // And into the suite's own log, when there is one, for the census to leave out: made here, by a test.
     if let Some(ci) = ci {
         unsafe { std::env::set_var("SV_CREDIT_LOG", ci) };

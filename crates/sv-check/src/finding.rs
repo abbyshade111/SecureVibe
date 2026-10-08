@@ -221,7 +221,7 @@ pub fn found(finding: Finding) -> Finding {
 }
 
 #[cfg(debug_assertions)]
-fn withheld_census(check_id: &str, at: &std::panic::Location) {
+pub(crate) fn withheld_census(check_id: &str, at: &std::panic::Location) {
     use std::io::Write;
     let Some(log) = std::env::var_os("SV_CREDIT_LOG") else {
         return;

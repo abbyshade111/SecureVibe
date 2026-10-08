@@ -1148,6 +1148,7 @@ fn sessions_after_change(open_after: Option<bool>, path: &str, out: &mut Outcome
                 .to_owned(),
         )),
     }
+    crate::verified::unless_credited(CHANGE_ENDS_SESSIONS.rule_id, &out.verified);
 }
 
 /// V6.3.7: whether an email reached the account holder after the password was changed, as
@@ -1175,9 +1176,25 @@ fn email_after_change(mail: Option<(usize, usize)>, path: &str, out: &mut Outcom
                 .to_owned(),
         )),
     }
+    crate::verified::unless_credited(CHANGE_NOTIFIED.rule_id, &out.verified);
 }
 
-/// Whether the answer to a reset request tells an address with an account from one without.
+/// What a request that may tell an address with an account from one without is, for the finding:
+/// the rule it raises, its title, and how the request is named in its description.
+pub(super) struct AskedAbout<'a> {
+    pub(super) rule: &'a Rule,
+    pub(super) title: &'a str,
+    pub(super) what: &'a str,
+}
+
+/// The reset request, as `reveals_account_check` names it.
+pub(super) const RESET_REQUEST: AskedAbout<'static> = AskedAbout {
+    rule: &RESET_REVEALS_ACCOUNT,
+    title: "Password reset tells anyone whether an address has an account",
+    what: "A reset request",
+};
+
+/// Whether the answer to a request tells an address with an account from one without.
 ///
 /// Two requests for the same account show what changes between identical requests — a token in
 /// a hidden field, a time — and all of that is set aside first; the address itself is replaced
@@ -1188,19 +1205,21 @@ pub(super) fn reveals_account_check(
     user: &str,
     nobody: &str,
     path: &str,
+    asked: &AskedAbout,
     out: &mut Outcome,
 ) {
     let [Some(first), Some(second), Some(stranger)] = answers else {
         return;
     };
+    let what = asked.what;
     if first.status == second.status && stranger.status != first.status {
         out.findings.push(finding(
-            &RESET_REVEALS_ACCOUNT,
-            "Password reset tells anyone whether an address has an account",
+            asked.rule,
+            asked.title,
             Severity::Medium,
             format!(
-                "A reset request to {path} was answered {} for an address with an account and {} \
-                 for one without.",
+                "{what} to {path} was answered {} for an address with an account and {} for one \
+                 without.",
                 first.status, stranger.status
             ),
         ));
@@ -1221,13 +1240,13 @@ pub(super) fn reveals_account_check(
     );
     if a == b && c != a && first.status == stranger.status {
         out.findings.push(finding(
-            &RESET_REVEALS_ACCOUNT,
-            "Password reset tells anyone whether an address has an account",
+            asked.rule,
+            asked.title,
             Severity::Medium,
             format!(
-                "A reset request to {path} was answered in different words, or sent somewhere \
-                 different, for an address with an account than for one without, where two \
-                 requests for the same account were answered alike."
+                "{what} to {path} was answered in different words, or sent somewhere different, \
+                 for an address with an account than for one without, where two requests for the \
+                 same account were answered alike."
             ),
         ));
     }
@@ -1316,6 +1335,14 @@ pub(super) fn delete_account_check(
         return;
     };
     let Some(confirm) = confirm else {
+        // Said, not skipped (the architecture assessment of 8 October 2026, item 8).
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether deleting an account ends its sessions: no private page opened for a \
+             signed-in user, so whether a deleted account's session still opens one cannot be \
+             tried."
+                .to_owned(),
+        ));
         return;
     };
     let spare = &accounts.spare;
@@ -2341,6 +2368,34 @@ mod tests {
     }
 
     #[test]
+    fn a_status_is_judged_only_when_two_requests_for_the_same_account_agree() {
+        let answer = |status: u16| {
+            Some(ProbeResponse {
+                id: String::new(),
+                status,
+                headers: Vec::new(),
+                body: "no".to_owned(),
+            })
+        };
+        let judged = |first: u16, second: u16, stranger: u16| {
+            let mut out = Outcome::default();
+            reveals_account_check(
+                [&answer(first), &answer(second), &answer(stranger)],
+                "a@x.test",
+                "n@x.test",
+                "/login",
+                &RESET_REQUEST,
+                &mut out,
+            );
+            out.findings.len()
+        };
+        // The pair agrees and the address with no account is answered otherwise: told apart.
+        assert_eq!(judged(403, 403, 404), 1);
+        // The pair disagrees with itself, so a third status that differs shows nothing.
+        assert_eq!(judged(403, 401, 404), 0);
+    }
+
+    #[test]
     fn wording_is_judged_only_when_two_requests_for_the_same_account_agree() {
         let answer = |status: u16, body: &str| {
             Some(ProbeResponse {
@@ -2358,6 +2413,7 @@ mod tests {
                 "a@x.test",
                 "n@x.test",
                 "/forgot",
+                &RESET_REQUEST,
                 &mut out,
             );
             out.findings.len()

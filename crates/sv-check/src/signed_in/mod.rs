@@ -1097,6 +1097,7 @@ const RAISED_ON_A_REFUSAL: &[(&str, &[&str])] = &[
         &["signup-long", "login-long", "private-long"],
     ),
     (RESET_REVEALS_ACCOUNT.rule_id, &["reset-request-"]),
+    (SIGNIN_REVEALS_ACCOUNT.rule_id, &["reveal-"]),
     (NO_BRUTE_FORCE_LIMIT.rule_id, &["guess-"]),
 ];
 
@@ -1843,6 +1844,10 @@ fn run_checks(
     brute_force_check(http, users, accounts, policy, &mut out);
     // And codes after passwords: both set out to be refused, and this one is the newer.
     email_code_guessing(http, users, accounts, confirm.as_deref(), policy, &mut out);
+    // The only sign-ins after the guesses: three wrong passwords would use up part of a limit that
+    // counts by address before the guessing check, and here a limit still refusing leaves them
+    // uncompared rather than misread.
+    signin_reveals_account_check(http, users, accounts, &mut out);
 
     out
 }
@@ -1893,6 +1898,8 @@ pub(crate) fn sign_up(
     answer
 }
 
+#[cfg(test)]
+mod asked_tests;
 #[cfg(test)]
 mod fake_app;
 
@@ -2372,9 +2379,15 @@ mod tests {
         u.admin = Vec::new();
         u.admin_actions = Vec::new();
         let o = run_against(Flaws::default(), &u);
-        let said: Vec<&str> = o.not_assessed.iter().map(|(ids, _)| ids.as_str()).collect();
-        for ids in ["V7.4.1", "V8.2.2, V3.5.1", "V8.2.1", "V3.3.1"] {
-            assert!(said.contains(&ids), "{ids} not named: {said:?}");
+        // Each id named in one of the lists, whatever else that list names beside it: since
+        // 8 October 2026 the sign-out line names V14.3.1 with V7.4.1, and the owned line V3.5.2.
+        let said: Vec<&str> = o
+            .not_assessed
+            .iter()
+            .flat_map(|(ids, _)| ids.split(", "))
+            .collect();
+        for id in ["V7.4.1", "V8.2.2", "V3.5.1", "V8.2.1", "V3.3.1"] {
+            assert!(said.contains(&id), "{id} not named: {said:?}");
         }
     }
 
@@ -3336,12 +3349,19 @@ mod crash_tests {
                 .map(|(id, _, _)| id.as_str())
                 .collect();
             // The password-guessing check's wrong passwords are meant to meet the limit, and come
-            // last of all the sign-ins, so a limit that stops them takes nothing else with it.
+            // last of all the sign-ins, so a limit that stops them takes nothing else with it. The
+            // one exception is the check on whether a failed sign-in tells accounts apart
+            // (`reveal-`), whose three wrong passwords come after, and which leaves its answers
+            // uncompared when a limit refuses them.
             let first_guess = sign_ins.iter().position(|id| id.starts_with("guess-"));
             if let Some(first) = first_guess {
                 guesses_seen = true;
+                let after: Vec<&&str> = sign_ins[first..]
+                    .iter()
+                    .skip_while(|id| id.starts_with("guess-"))
+                    .collect();
                 assert!(
-                    sign_ins[first..].iter().all(|id| id.starts_with("guess-")),
+                    after.iter().all(|id| id.starts_with("reveal-")),
                     "{}: a sign-in after the guesses: {sign_ins:?}",
                     scenario.name
                 );

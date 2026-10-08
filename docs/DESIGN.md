@@ -10762,6 +10762,13 @@ given. So the next step is the census seeing that, not new tests: each of those 
 withholds, and the gate follows once the list is empty. Breaks: `found` writing nothing, and the census counting a
 finding a test built, each failed `crates/sv-check/tests/withheld_log.rs`.
 
+**Step 2: a credit not given is written down too (8 October 2026).** Each of the ten calls
+`verified::unless_credited(check, &verified)` where it has run, once: when no credit from it is among them, it
+withheld, and a debug build writes that to the same `.withheld` log, with the place that called it. It decides
+nothing and changes nothing in a release build. The place is after the check's own branches, never inside one,
+so it cannot be skipped by the branch that withholds; a check that never ran (a setup it needed was missing)
+returns before it and is not counted as withholding. The gate this leads to is ADR-059, proposed.
+
 The first two are now listed, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md` mark them as "only ever as a finding".
 The third has its test (`an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not`). The census
 agrees with every tree-sitter rule's flag as it was. No report changes: the reports never credited any of these.
@@ -13635,3 +13642,79 @@ never written whole in the finding or the run's steps, and its other token check
 its own key is checked (the step says so) and not reported or credited; HS384 and HS512 tokens are caught, and an
 RS256 one is not checked. Six guards broken in turn, each caught: the check never called, jwt.io's example left off
 the list, HS384 signed as HS256, the secret printed whole, key pairs checked too, and no match credited.
+
+## A failed sign-in that tells which accounts exist (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.5; BACKLOG, item 13, the sign-in half of its part (c)). A sign-in
+that answers "no account has that email" for one address and "wrong password" for another tells anybody which
+addresses have accounts (V6.3.8). The reset check already asked this of the reset request; nothing asked it of
+sign-in.
+
+`probe.signin-reveals-account`, in `crates/sv-check/src/signed_in/signin.rs`, makes two sign-ins with a wrong password
+for an account that exists (one made for it through sign-up, or B's) and one for an address with none, each in a fresh
+session with the page's anti-forgery token. The answers are compared by the reset check's `reveals_account_check`, now
+given the rule and its wording (`AskedAbout`): the real account's pair shows what varies between identical attempts,
+and only a status, or words, or a redirect that differ beyond that count. A difference is a medium finding citing
+V6.3.8; none is never credit, since answers alike can still differ in how long they take.
+
+Where it runs was found by the tests, not chosen. Anywhere before the guessing check, its three wrong passwords used up
+part of a limit that counts by address, and five of the guessing check's tests went red; the run is budgeted to stay
+under such a limit until then. So it runs last, after the guessing check, and is the one exception
+`a_run_signs_in_no_more_often_than_the_spec_says` allows to follow the guesses. A limit still refusing there (429), or
+no answer, leaves the three answers uncompared, and the step says so; a crashed attempt is set aside through
+`RAISED_ON_A_REFUSAL`, after `a_crash_on_a_correct_app_raises_no_finding` showed a crash on the "no account" attempt
+read as a different answer.
+
+The fake app gained two switches, `signin_reveals_by_status` (404 for an address with no account) and
+`signin_reveals_by_words` (different words for each).
+
+Tests: five in `signin.rs` and one in `passwords.rs`. The clean app is compared (the step shows three 403s) and not
+reported or credited; both switches are found, whether the account was seeded or made by sign-up, and only by this
+rule; a limit the guessing check left refusing leaves the answers uncompared; one attempt alone refused as too many is
+not read as accounts told apart; and a unit test shows a status judged only when the pair agrees. Six guards broken in
+turn, each caught: the check never called, a 429 not set aside, a crash not set aside, the pair's statuses not
+compared, the words not compared, and the same account used for all three. The pair's statuses were caught only after
+the unit test was added, since no scenario made the pair disagree.
+
+## A check says what it asked, in every configuration (8 October 2026)
+
+Item 8 of the architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October
+2026"), in its cheaper form. A check of the running app is `fn(.., out: &mut Outcome)`, and nothing makes it touch
+`out`: when there was no private page to confirm a session against, five checks returned without a word (the invented
+session, deleting an account, the default accounts, signing out by a plain link, the password in the address), the
+sign-out check named V7.4.1 but not the V14.3.1 it reads from the same answer, and the owned-record checks named their
+two requirements but not the preflight check's (V3.5.2) that runs on the record they create. Each of those requirements
+was then missing from the report: neither credited, nor found, nor not assessed, which reads as "fine" to anybody
+counting.
+
+The fuller form, a guard per check whose drop records "asked and never answered", is not built; this is the test that
+makes the fault visible: `every_configuration_of_the_suite_names_every_requirement_the_correct_app_does`
+(`crates/sv-check/src/signed_in/asked_tests.rs`) runs the signed-in suite against the fake app three ways, correct,
+with its private pages open and its sign-in broken (so no page confirms a session), and with many flaws, and holds
+every requirement the correct app's run names, in any of the three buckets, to be named again in the other two. It
+found the two it names above that the assessment had not (V14.3.1 and V3.5.2); with the seven places fixed it passes,
+and it runs in under a second, the three runs side by side. A check that goes silent in a configuration it covers fails
+it by requirement id. What it does not cover: a configuration it does not run (a check that goes silent only with, say,
+an admin section and no owned record), which the fuller form would; add the configuration when such a case is found.
+
+The older test `what_is_not_listed_is_named_as_not_assessed` looked for a requirement by the whole list it was named in
+("V8.2.2, V3.5.1"); it looks for each id as a member now, so a list that names one more does not read as the first gone.
+
+## The tests of the seven largest modules live beside them (8 October 2026)
+
+Item 11 of the architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October
+2026"). The three merge conflicts of that day were all one shape: two sessions appending to the same place, a claim at
+the top of the backlog's "Next" section, a test at the end of a module's `mod tests`, a paragraph on the same DESIGN
+section. The backlog's rule is in CLAUDE.md now (append the claim at the end, merge it before building, a test in a
+sibling file, a DESIGN section of its own). And the test modules of the seven modules over 3,000 lines, `ast.rs`,
+`ai.rs`, `probes.rs`, `adapters.rs`, `secrets.rs`, `production.rs`, and `sbom.rs` (40 to 65% of each was tests), are
+files of their own: `src/<module>/<name>.rs` for each `mod <name>` that was inside, declared where it was
+(`#[cfg(test)] mod tests;`), its body moved verbatim and the code reindented by `rustfmt`. Nothing in a test changed:
+`use super::*` means what it meant, since the module's place in the tree is the same. The seven files are 15,400
+lines where they were 31,200.
+
+What held it: `cargo test -p sv-check` (every test passes as it did), and the source-reading tests in `sv-cli`
+(`moved.rs`, which since the MCP split knows a whole file can be a test module, and `decision_records.rs`, which names
+tests by function, not by file). Not done: splitting `ast.rs` and `sbom.rs` along their own seams, which the item also
+names; the tests out of the way is what makes that a smaller change.
+
