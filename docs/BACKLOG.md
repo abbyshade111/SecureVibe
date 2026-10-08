@@ -479,6 +479,10 @@ another session is not a claim.
      says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
      the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
      the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
+     **(d) done the same day** (DESIGN, "`sv`'s own next step, outside the fence"): an error that carries `sv`'s
+     next step ends with "What to do: …" outside the fence, and what went wrong stays inside it; the preflight's
+     missing-file error names `securevibe_spec`, not `sv init`. Breaks: the next step fenced again, and the
+     preflight's own check removed, each failed a test written for it.
      **(e) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-image-update`: a section of the guide on keeping SecureVibe up
      to date, both the container image the AI tool runs and a copy built on this computer, how to tell which
@@ -8113,7 +8117,10 @@ another session is not a claim.
      profile setting made each of its suite runs cheaper.
   2. **Two pure refactors in the harness and the MCP server.** The hardening flags (`--read-only --cap-drop ALL
      --security-opt no-new-privileges`) are written out 12 times in `docker.rs` and once in `install.rs`; they belong
-     in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`). `mcp.rs`
+     in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`).
+     **The first half done the same day** (DESIGN, "The hardening in one place"; ADR-019, Later, 8 October 2026):
+     `HARDENING` put on in `prepared` for every `run` and `create`, the eleven copies and `install.rs`'s gone, and the
+     no-sidecar fallback through `prepared` too, so it gains the limits and the run label it lacked. `mcp.rs`
      is 7,202 lines in one file, 62% tests, with natural seams (protocol, confinement, resources, the tool catalog,
      check rendering, report writing, the other tools); and the report-writing sequence (claim, assemble, manifest
      changed, refuse older, write, seal, written) is in `cmd_report` and again in `write_report_into`, so a step
