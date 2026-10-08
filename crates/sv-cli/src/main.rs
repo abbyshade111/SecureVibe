@@ -1678,7 +1678,26 @@ fn anonymous_requests(plan: &RunPlan) -> Vec<probes::ProbeRequest> {
     ));
     let (admin_pages, private_files) = more_questions(plan);
     requests.extend(sv_check::running::requests(&admin_pages, &private_files));
+    requests.extend(probes::error_requests(
+        &plan.health_path,
+        &body_routes(plan.users.as_ref()),
+    ));
     requests
+}
+
+/// The routes securevibe.toml names that read a body, as `(method, path)`: where a body that does
+/// not parse is sent, signed out, to see the app's error answers (ADR-056).
+fn body_routes(users: Option<&sv_manifest::UsersSection>) -> Vec<(String, String)> {
+    let Some(users) = users else {
+        return Vec::new();
+    };
+    users
+        .signup
+        .iter()
+        .chain(users.login.iter())
+        .chain(users.owned.iter().map(|o| &o.create))
+        .map(|t| (t.method.clone(), t.path.clone()))
+        .collect()
 }
 
 /// The admin pages securevibe.toml names, and the files in the app's folder that should never be
@@ -1854,6 +1873,9 @@ fn cmd_run(args: &[String]) -> Result<i32> {
             println!("\nNot assessed by these probes:");
             for (requirements, why) in probes::unassessed_requirements(outcome.signed_in.is_some())
             {
+                println!("  {requirements} — {why}");
+            }
+            if let Some((requirements, why)) = probes::error_answer_gap(&outcome.probe_responses) {
                 println!("  {requirements} — {why}");
             }
             for (requirements, why) in &signed_in_not_assessed {
@@ -3940,6 +3962,14 @@ fn assemble_report_saying(
                         why: why.to_owned(),
                     });
                 }
+                if let Some((requirements, why)) =
+                    probes::error_answer_gap(&outcome.probe_responses)
+                {
+                    gaps.push(sv_report::Gap {
+                        what: format!("{requirements}, by asking the running app"),
+                        why,
+                    });
+                }
                 match &outcome.tests {
                     Some(result) if result.stopped_after.is_some() => {
                         let after = result.stopped_after.unwrap_or(sv_run::TEST_LIMIT);
@@ -5786,6 +5816,35 @@ fn shown_files(files: &[String]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_bad_body_goes_to_the_routes_the_manifest_names() {
+        // ADR-056: the routes that read a body are where the app's code can be made to fail.
+        let example = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../examples/notes-with-users/securevibe.toml");
+        let manifest = sv_manifest::Manifest::load(&example).expect("the example loads");
+        let users = manifest.stack.run.users.as_ref().expect("it has users");
+        let routes = body_routes(Some(users));
+        let login = users.login.as_ref().expect("it signs in");
+        assert!(
+            routes.contains(&(login.method.clone(), login.path.clone())),
+            "{routes:?}"
+        );
+        let create = &users.owned.as_ref().expect("it has an owned record").create;
+        assert!(
+            routes.contains(&(create.method.clone(), create.path.clone())),
+            "{routes:?}"
+        );
+        let ids: Vec<String> = probes::error_requests("/health", &routes)
+            .into_iter()
+            .map(|r| r.id)
+            .collect();
+        assert!(
+            ids.contains(&format!("bad-body POST {}", login.path)),
+            "{ids:?}"
+        );
+        assert!(body_routes(None).is_empty());
+    }
 
     #[test]
     fn a_decisions_finding_reaches_the_reviews_and_goes_with_its_running_app_finding() {
