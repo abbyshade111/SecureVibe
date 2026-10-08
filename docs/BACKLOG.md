@@ -8298,6 +8298,10 @@ another session is not a claim.
      `#[must_use]` guard per rule whose drop records "asked and never answered", plus one test that every rule's ids
      land in exactly one bucket on the correct app and on the all-flaws app. Fuller: checks return a `Verdict`.
      **Claimed 8 October 2026 by session securevibe-review**, the cheaper form first (branch `claude/securevibe-review-asked-and-answered`).
+     **The cheaper form done the same day** (DESIGN, "A check says what it asked, in every configuration"): the
+     five silent returns and the two lists that named too few, and `asked_tests.rs`, which runs the suite three
+     ways and holds every requirement named on the correct app to be named in each; it found V14.3.1 and V3.5.2
+     beyond the three the assessment named. The guard per check is not built.
   9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
      `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
      real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for
