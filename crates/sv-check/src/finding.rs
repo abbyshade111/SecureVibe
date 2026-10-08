@@ -56,9 +56,12 @@ pub struct Secret {
 impl Secret {
     /// Keeps the first four characters and says how much was dropped. Four is enough to match a key
     /// against the one in a password manager, and far short of enough to authenticate with.
+    ///
+    /// Never more than a third of the value, though: four characters of a four-character password in
+    /// a web address were the whole of it (the review of 8 October 2026, item 6).
     pub fn redact(value: &str) -> Self {
-        let visible: String = value.chars().take(4).collect();
         let total = value.chars().count();
+        let visible: String = value.chars().take(4.min(total / 3)).collect();
         let hidden = total.saturating_sub(visible.chars().count());
         Secret {
             redacted: if hidden == 0 {

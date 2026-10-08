@@ -38,6 +38,17 @@ impl Server {
                 &resolved.join(name),
                 "Make it a file of the app's own, and ask again.",
             )?;
+            // A pipe under one of these names is read for ever, and with it this server's one
+            // thread for answering (the review of 8 October 2026, item 6). Only a plain file is read.
+            if let Ok(meta) = std::fs::symlink_metadata(resolved.join(name))
+                && !meta.is_file()
+                && !meta.is_dir()
+            {
+                anyhow::bail!(
+                    "{name} in {asked} is not an ordinary file (it is a pipe, a device, or a socket), \
+                     so it is not read. Make it a file of the app's own, and ask again."
+                );
+            }
         }
         Ok(resolved)
     }
