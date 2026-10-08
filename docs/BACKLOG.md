@@ -134,6 +134,11 @@ another session is not a claim.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
      `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
      `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
+     **The owner's decision, 7 October 2026:** each kind read for what it can hold (ADR-054). **Claimed the same day
+     by session securevibe-e9** ("yes, go ahead with item 14 as you recommended"), in branch
+     `claude/securevibe-e9-templates`: notebooks read as Python; templates embedding a general-purpose language named
+     as unread code; logic-free templates read as pages; `.sql` named and holding nothing back. **`Status: proposed`:
+     ADR-054.** Reading Astro's header and EJS's blocks is a second pull request.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
@@ -144,6 +149,8 @@ another session is not a claim.
      taken from gitleaks' rules rather than recalled, for those whose keys carry a prefix of their own (a provider whose
      keys are plain letters and digits is named as not looked for, since a pattern for it would match ordinary text).
      A notebook's escaped JSON is not part of this. More formats find more and credit nothing new, so no ADR is proposed.
+     **Done the same day** (DESIGN, "Passwords in web addresses, and the key formats of the providers AI-built apps
+     use"): `secrets.password-in-url`, and ten provider formats.
   16. **Smaller static gaps: workflows, and where infrastructure and CI files are looked for.**
      (`docs/GAP-ANALYSIS.md`, 3.8.) Workflows: a pull request's title or branch pasted into a `run:` line, and
      third-party actions pinned to a tag rather than a commit (finding only). Corroborators: match `Dockerfile`,
