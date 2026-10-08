@@ -139,6 +139,9 @@ another session is not a claim.
      `claude/securevibe-e9-templates`: notebooks read as Python; templates embedding a general-purpose language named
      as unread code; logic-free templates read as pages; `.sql` named and holding nothing back. **`Status: proposed`:
      ADR-054.** Reading Astro's header and EJS's blocks is a second pull request.
+     **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
+     tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
+     Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,

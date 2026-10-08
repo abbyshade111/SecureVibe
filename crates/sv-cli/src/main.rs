@@ -2136,6 +2136,23 @@ fn cmd_check(args: &[String]) -> Result<i32> {
             println!("  it and read: a script with no end, or a `javascript:` link. A page whose");
             println!("  script is written normally is read like any other file.");
         }
+        if !code.unread_templates.is_empty() {
+            // ADR-054: a template that holds code keeps the rules from a clean result, so the owner is
+            // told which files did it.
+            println!(
+                "  Templates with code in them, which `sv` does not read yet: {}.",
+                shown_files(&code.unread_templates)
+            );
+        }
+    }
+    if !code.sql_files.is_empty() {
+        println!(
+            "\nNot read by the rules that read code: {} ({} SQL file{}). They hold nothing back: the\n\
+             rules against queries built by hand look at how the app's code builds a query.",
+            shown_files(&code.sql_files),
+            code.sql_files.len(),
+            if code.sql_files.len() == 1 { "" } else { "s" }
+        );
     }
 
     if !code.unparsed_files.is_empty() {
@@ -4247,9 +4264,25 @@ fn assemble_report_saying(
     if !code.unread_languages.is_empty() {
         let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
         names.sort_unstable();
+        let mut why =
+            "`sv` has no parser for these, so the rules that read code did not run on them"
+                .to_owned();
+        if !code.unread_templates.is_empty() {
+            why.push_str(&format!(
+                "; the templates are {}",
+                shown_files(&code.unread_templates)
+            ));
+        }
         gaps.push(sv_report::Gap {
             what: format!("code written in {}", names.join(", ")),
-            why: "`sv` has no parser for these, so the rules that read code did not run on them"
+            why,
+        });
+    }
+    if !code.sql_files.is_empty() {
+        gaps.push(sv_report::Gap {
+            what: format!("the SQL in {}", shown_files(&code.sql_files)),
+            why: "no rule reads a file of SQL. Nothing is held back for it: the rules against \
+                  queries built by hand look at how the app's code builds a query"
                 .to_owned(),
         });
     }
@@ -5690,6 +5723,15 @@ fn untaught_gaps(untaught: &[sv_check::ast::Untaught]) -> Vec<sv_report::Gap> {
             ),
         })
         .collect()
+}
+
+/// Up to five files, in backquotes, and how many more there are.
+fn shown_files(files: &[String]) -> String {
+    let mut shown: Vec<String> = files.iter().take(5).map(|f| format!("`{f}`")).collect();
+    if files.len() > 5 {
+        shown.push(format!("and {} more", files.len() - 5));
+    }
+    shown.join(", ")
 }
 
 #[cfg(test)]
