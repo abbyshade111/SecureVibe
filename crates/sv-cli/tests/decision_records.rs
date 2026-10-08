@@ -251,9 +251,16 @@ fn the_index_lists_every_record() {
     let mut sorted = numbers.clone();
     sorted.sort_unstable();
     sorted.dedup();
-    assert_eq!(numbers, sorted, "the index's rows are not one each, in order: {numbers:?}");
+    assert_eq!(
+        numbers, sorted,
+        "the index's rows are not one each, in order: {numbers:?}"
+    );
     let (first, last) = (rows[0].0, rows[rows.len() - 1].0);
-    assert_eq!(last - first + 1, rows.len(), "something other than a row breaks the index's table");
+    assert_eq!(
+        last - first + 1,
+        rows.len(),
+        "something other than a row breaks the index's table"
+    );
 }
 
 #[test]
