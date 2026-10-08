@@ -139,6 +139,10 @@ another session is not a claim.
      `claude/securevibe-e9-templates`: notebooks read as Python; templates embedding a general-purpose language named
      as unread code; logic-free templates read as pages; `.sql` named and holding nothing back. **`Status: proposed`:
      ADR-054.** Reading Astro's header and EJS's blocks is a second pull request.
+     **The second pull request claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"; the
+     owner approved it with item 14 on 7 October), in branch `claude/securevibe-e9-astro-ejs`: Astro's `---` header read
+     as TypeScript and its markup as a page; EJS's `<% %>`, `<%= %>`, and `<%- %>` blocks read as JavaScript at their
+     own lines. A file whose code is not all taken out stays unread. Recorded as a "Later" entry on ADR-054.
      **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
      tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
      Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
