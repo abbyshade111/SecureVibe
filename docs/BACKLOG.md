@@ -146,6 +146,9 @@ another session is not a claim.
      **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
      tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
      Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
+     **The second half done 8 October 2026** (DESIGN, "Astro's header and EJS's tags read as code"; ADR-054, Later):
+     Astro's header, `{…}`, and scripts read as TypeScript, and EJS's tags as one JavaScript program, each at its own
+     lines. `.pug`, `.erb`, `.jsp`, `.cshtml`, and `.razor` are still unread code.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
@@ -180,6 +183,8 @@ another session is not a claim.
      `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
      design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
      keep the standing line that no tool can make this judgment.
+     **Claimed on 8 October 2026 by session securevibe-e2**, with item 20, at the owner's word ("feel free to pick
+     another item from the backlog"), in branch `claude/securevibe-e2-loop-lessons`.
   19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
      condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
      start command's file. A change to ADR-031: a Later entry.
@@ -187,6 +192,8 @@ another session is not a claim.
      rewrite working code to silence a finding" and "name a requirement in a test only where the test proves it": add
      both to `data/coding-rules.json`, and the second to the brief's test line (`brief.rs`) and the spec's test
      section.
+     **Claimed on 8 October 2026 by session securevibe-e2**, with item 18, in branch
+     `claude/securevibe-e2-loop-lessons`.
   21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
      how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
      `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
@@ -276,6 +283,14 @@ another session is not a claim.
      when the first half was built.
      **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
      in `crates/sv-check/tests/unread_files.rs`.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
+     `claude/securevibe-e9-semgrep-files`. Since item 14 (8 October) templates and notebooks are handed to Semgrep
+     already. Measured with semgrep 1.180.0: Semgrep leaves out, without a word, a handed file no loaded rule reads,
+     and a `generic` rule with no `paths.include` reads every file; the packs `sv` runs load 45 such rules, so today
+     every handed file is read. The plan: hand the configuration files a rule in the map names (`*.conf`,
+     `web.config`, `*.tf`); and count a handed file as unread only when a loaded rule in the map reads it (its
+     language's extensions, as Semgrep's own parsers take them, or its `paths.include`), so the check stays right
+     when a pack changes.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
@@ -7893,17 +7908,25 @@ done: `docs/adr/ADR-018.md`.
   trial: the stranger `Origin` goes to `/` alone (`crates/sv-check/src/probes.rs`, the `cors` request), so a JSON API
   that lets any site read it, the case the check exists for, is never asked. Ask the app's listed private pages and
   API addresses too, signed in where they need it.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
 - **`probe.common-password-accepted` rests on one word.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: it tries `123qweasdzxc` alone, so a list written from memory passes when it happens to hold that word (one of
   443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
   credit in part (ADR-053).
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
 - **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: of 10 Sonnet apps, 8 did not list their return-address pages under `redirects`, 7 did not declare their upload,
   and only one listed its search page with a term, so those checks did not reach what the brief tempted. The
   specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`: the specification's wording. Read on `main` just before this claim: no other session had claimed it.
 - **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
   its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install
   step can give the app).
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`: the prompt's wording, untried. Read on `main` just before this claim: no other session had claimed it.
 - **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
   faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
   own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.

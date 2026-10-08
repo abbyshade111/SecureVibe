@@ -348,6 +348,12 @@ pub struct HtmlScan {
 /// unquoted value ends at whitespace or `>`; `/` separates attributes as a space does; a comment and
 /// the body of a `<textarea>` hold no tags.
 pub fn html_fragments(source: &str) -> HtmlScan {
+    page_fragments(source, false)
+}
+
+/// `html_fragments`, with every `<script>` read as TypeScript when `typescript_scripts` is set: an
+/// Astro page's scripts are, whatever their tag says, since Astro compiles them as TypeScript.
+fn page_fragments(source: &str, typescript_scripts: bool) -> HtmlScan {
     let mut out = HtmlScan::default();
     let markup = match read_markup(source) {
         Ok(markup) => markup,
@@ -365,7 +371,11 @@ pub fn html_fragments(source: &str) -> HtmlScan {
         accounted += count_schemes(body);
         if !body.trim().is_empty() {
             out.fragments.push(Fragment {
-                language: script.language,
+                language: if typescript_scripts {
+                    "typescript"
+                } else {
+                    script.language
+                },
                 code: body.to_owned(),
                 line_offset: line_of(script.body.start),
             });
@@ -1947,7 +1957,9 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
         parameter_destinations: Vec::new(),
     };
     let mut broken = Vec::new();
-    let tsx = language == "typescript" && relative.to_lowercase().ends_with(".tsx");
+    // An Astro page's code is TypeScript whose `{…}` may hold JSX, as a `.tsx` file's does.
+    let lower = relative.to_lowercase();
+    let tsx = language == "typescript" && (lower.ends_with(".tsx") || lower.ends_with(".astro"));
     let Some(grammar) = grammar(if tsx { "tsx" } else { language }) else {
         return unread;
     };
@@ -3267,18 +3279,22 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
         }
         _ => source,
     };
-    let page = html_fragments(markup);
+    let astro = relative.to_ascii_lowercase().ends_with(".astro");
+    let page = page_fragments(markup, astro);
     if page.left_behind.is_some() {
         scan.unread_languages.insert("html".to_owned());
         return;
     }
-    // Template code is in the language of the page's scripts: TypeScript when one says so.
-    let language = if page.fragments.iter().any(|f| f.language == "typescript") {
+    // Template code is in the language of the page's scripts: TypeScript when one says so. An Astro
+    // page's header, template, and scripts are all TypeScript, which Astro compiles them as.
+    let language = if astro || page.fragments.iter().any(|f| f.language == "typescript") {
         "typescript"
     } else {
         "javascript"
     };
     let mut fragments = page.fragments;
+    // The grammar each piece is tried with: an Astro `{…}` may hold JSX.
+    let grammar = if astro { "tsx" } else { language };
     let mut whole = true;
     match template {
         None => {}
@@ -3289,7 +3305,7 @@ fn read_page(rules: &AstRules, relative: &str, source: &str, scan: &mut AstScan)
             let (read, unread): (Vec<_>, Vec<_>) = t
                 .pieces
                 .into_iter()
-                .partition(|p| parses_cleanly(language, &p.code));
+                .partition(|p| parses_cleanly(grammar, &p.code));
             whole = unread.is_empty();
             // A backstop against this and `template_holds_code` drifting apart: a page that holds
             // template code and gave none up was not read.
@@ -3532,6 +3548,33 @@ fn notebook_python(source: &str) -> Result<NotebookCode, NotebookUnread> {
 /// a check on it.
 fn template_holds_code(relative: &str, source: &str) -> bool {
     let lower = relative.to_lowercase();
+    if lower.ends_with(".ejs") {
+        // Any tag but a comment, `<%#`, or a literal `<%`, written `<%%`.
+        static EJS: OnceLock<regex::Regex> = OnceLock::new();
+        let ejs = EJS.get_or_init(|| regex::Regex::new(r"<%[^#%]").expect("a fixed pattern"));
+        return ejs.is_match(source);
+    }
+    if lower.ends_with(".astro") {
+        let markup = match astro_frontmatter(source) {
+            None => source.to_owned(),
+            Some(Err(_)) => return true,
+            Some(Ok((body, span))) => {
+                if !source[body].trim().is_empty() {
+                    return true;
+                }
+                blank_out(source, &[span])
+            }
+        };
+        let Ok(ranges) = outside_code_elements(&markup) else {
+            return true;
+        };
+        // Any `{` but one opening a comment, `{/* … */}`.
+        static EXPRESSION: OnceLock<regex::Regex> = OnceLock::new();
+        let expression = EXPRESSION.get_or_init(|| {
+            regex::Regex::new(r"\{\s*(?:[^/\s]|/[^*]|$)").expect("a fixed pattern")
+        });
+        return ranges.into_iter().any(|r| expression.is_match(&markup[r]));
+    }
     let svelte = lower.ends_with(".svelte");
     if !svelte && !lower.ends_with(".vue") {
         return false;
@@ -3575,9 +3618,162 @@ fn template_code(relative: &str, source: &str) -> Option<Result<Template, String
         Some(svelte_template(source))
     } else if lower.ends_with(".vue") {
         Some(vue_template(source))
+    } else if lower.ends_with(".astro") {
+        Some(astro_template(source))
+    } else if lower.ends_with(".ejs") {
+        Some(ejs_template(source))
     } else {
         None
     }
+}
+
+/// An Astro page's `---` header: where its code is, and where the header is with both fences. `None`
+/// for a page with none; an error for a header that is never closed.
+#[allow(clippy::type_complexity)]
+fn astro_frontmatter(
+    source: &str,
+) -> Option<Result<(std::ops::Range<usize>, std::ops::Range<usize>), String>> {
+    let start = source.len() - source.trim_start().len();
+    let rest = source[start..].strip_prefix("---")?;
+    if !rest.starts_with(['\n', '\r']) {
+        return None;
+    }
+    let body = start + 3;
+    let Some(j) = source[body..].find("\n---") else {
+        return Some(Err("a `---` header with no `---` to close it".to_owned()));
+    };
+    let end = body + j;
+    Some(Ok((body..end, start..end + 4)))
+}
+
+/// The code in an Astro page: its `---` header, read as TypeScript where it is, and every `{…}` in
+/// its markup outside its scripts, styles, and comments, which Astro runs as an expression (a `{…}`
+/// may hold JSX: `{items.map((i) => <li>{i}</li>)}`). The page's scripts are read by `html_fragments`.
+fn astro_template(source: &str) -> Result<Template, String> {
+    let mut out = Template::default();
+    let markup = match astro_frontmatter(source) {
+        None => source.to_owned(),
+        Some(result) => {
+            let (body, span) = result?;
+            if !source[body.clone()].trim().is_empty() {
+                out.pieces.push(TemplatePiece {
+                    code: source[body.clone()].to_owned(),
+                    at: body.start,
+                });
+            }
+            out.spans.push(span.clone());
+            blank_out(source, &[span])
+        }
+    };
+    let mut next = 0;
+    for range in outside_code_elements(&markup)? {
+        let mut at = range.start.max(next);
+        while at < range.end {
+            let Some(i) = markup[at..range.end].find('{') else {
+                break;
+            };
+            let open = at + i;
+            let close = closing_brace(&markup, open)
+                .ok_or_else(|| "a `{` with no `}` to close it".to_owned())?;
+            let inner = source[open + 1..close].trim();
+            let comment = inner.starts_with("/*") && inner.ends_with("*/");
+            if !inner.is_empty() && !comment {
+                let code = match inner.strip_prefix("...") {
+                    // A spread of attributes, `<Card {...props} />`.
+                    Some(e) => format!("({{...{e}}});"),
+                    None => format!("({inner});"),
+                };
+                out.pieces.push(TemplatePiece { code, at: open + 1 });
+            }
+            out.spans.push(open..close + 1);
+            at = close + 1;
+        }
+        next = at;
+    }
+    Ok(out)
+}
+
+/// The code in an EJS page's tags, as the one JavaScript program EJS compiles them into, each line
+/// where it is in the page: `<% code %>` as it is, `<%= value %>` and `<%- value %>` as the value
+/// they write out, and `<%# … %>` not at all. Each tag starts a statement, as in EJS's own output, so
+/// `<% if (a) { %> … <% } %>` reads as `if (a) { … }`.
+///
+/// EJS ends each `<% %>` with a line break, and the program here cannot add lines without moving
+/// every line after it, so a `//` comment in one with another tag after it on the same line would
+/// hide that tag's code. Such a page is not read in full.
+fn ejs_template(source: &str) -> Result<Template, String> {
+    fn blank(into: &mut String, text: &str) {
+        into.extend(text.chars().map(|c| if c == '\n' { '\n' } else { ' ' }));
+    }
+    let mut out = Template::default();
+    let mut program = String::with_capacity(source.len());
+    let mut any = false;
+    let mut comment_open_on = None;
+    let line_of = |at: usize| source[..at].matches('\n').count();
+    let mut at = 0;
+    while let Some(i) = source[at..].find("<%") {
+        let open = at + i;
+        blank(&mut program, &source[at..open]);
+        let after = &source[open + 2..];
+        if after.starts_with('%') {
+            // `<%%`, a literal `<%` in the page.
+            blank(&mut program, "<%%");
+            at = open + 3;
+            continue;
+        }
+        if comment_open_on == Some(line_of(open)) {
+            return Err(
+                "a `//` comment in a `<% %>` with another tag after it on its line".to_owned(),
+            );
+        }
+        let mark = after.chars().next().filter(|c| "=-#_".contains(*c));
+        let body_start = open + 2 + mark.map_or(0, |_| 1);
+        let Some(j) = source[body_start..].find("%>") else {
+            return Err("a `<%` with no `%>` to close it".to_owned());
+        };
+        let mut body_end = body_start + j;
+        // `-%>` and `_%>` trim the white space after the tag.
+        if body_end > body_start && source[..body_end].ends_with(['-', '_']) {
+            body_end -= 1;
+        }
+        let close = body_start + j + 2;
+        let body = &source[body_start..body_end];
+        let opener = &source[open..body_start];
+        let closer = &source[body_end..close];
+        match mark {
+            Some('#') => blank(&mut program, &source[open..close]),
+            Some('=') | Some('-') => {
+                // `<%=` is three characters: `;(` and a space.
+                program.push_str(";( ");
+                program.push_str(body);
+                program.push(')');
+                blank(&mut program, &closer[1..]);
+                any = true;
+            }
+            _ => {
+                program.push(';');
+                blank(&mut program, &opener[1..]);
+                program.push_str(body);
+                blank(&mut program, closer);
+                any = true;
+                comment_open_on = body
+                    .rsplit('\n')
+                    .next()
+                    .filter(|l| l.contains("//"))
+                    .map(|_| line_of(close));
+            }
+        }
+        out.spans.push(open..close);
+        at = close;
+    }
+    blank(&mut program, &source[at..]);
+    if any {
+        out.pieces.push(TemplatePiece {
+            code: program,
+            at: 0,
+        });
+    }
+    Ok(out)
 }
 
 /// Every `{…}` in a Svelte page outside its scripts, styles, and comments: Svelte reads each as an
@@ -3980,6 +4176,104 @@ mod tests {
 
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn astro_and_ejs_code_is_read_at_its_own_lines() {
+        // ADR-054, Later: the code in an Astro page and in an EJS page is read, each `eval` on line 4
+        // of its page, found there, with the page fully read.
+        let rules = rules();
+        let read = |name: &str, source: &str| {
+            let mut scan = AstScan::default();
+            read_page(&rules, name, source, &mut scan);
+            scan
+        };
+        let head = "---\nimport Card from './Card.astro';\nconst items: string[] = [];\n";
+        // A header two lines long with its closing fence, so the markup starts on line 4.
+        let short = "---\nconst items: string[] = [];\n---\n";
+        for (name, page) in [
+            // The header, as TypeScript.
+            (
+                "Header.astro",
+                format!("{head}const x: string = eval(Astro.url.search);\n---\n<p>{{x}}</p>\n"),
+            ),
+            // A `{…}` in the markup, with JSX in it.
+            (
+                "Expression.astro",
+                format!("{short}<ul>{{items.map((i) => <li>{{eval(i)}}</li>)}}</ul>\n"),
+            ),
+            ("Attribute.astro", format!("{short}<a href={{eval(next)}}>x</a>\n")),
+            ("Spread.astro", format!("{short}<Card {{...eval(p)}} />\n")),
+            // A script, which Astro compiles as TypeScript.
+            (
+                "Script.astro",
+                "<p>x</p>\n<script>\n  const n: number = 1;\n  eval(location.hash);\n</script>\n"
+                    .to_owned(),
+            ),
+            // No header at all.
+            ("Bare.astro", "<main>\n  <h1>Hi</h1>\n</main>\n{eval(x)}\n".to_owned()),
+            ("Code.ejs", "<html>\n<body>\n<p>x</p>\n<% eval(code) %>\n</body>\n".to_owned()),
+            ("Escaped.ejs", "<ul>\n<li>a</li>\n<li>b</li>\n<%= eval(name) %>\n</ul>\n".to_owned()),
+            ("Raw.ejs", "<ul>\n<li>a</li>\n<li>b</li>\n<%- eval(body) -%>\n</ul>\n".to_owned()),
+            // One program across the tags, as EJS compiles it.
+            (
+                "Block.ejs",
+                "<% if (user) { %>\n  <p>Hi</p>\n<% } else { %>\n  <p><%= eval(guest) %></p>\n<% } %>\n"
+                    .to_owned(),
+            ),
+            (
+                "Loop.ejs",
+                "<ul>\n<% items.forEach(function (item) { %>\n  <li><%= item %></li>\n<% eval(item) }) %>\n</ul>\n"
+                    .to_owned(),
+            ),
+            // A tag in a page's script is blanked there, and the script around it read.
+            (
+                "Script.ejs",
+                "<p>x</p>\n<script>\n  var data = <%- JSON.stringify(data) %>;\n  eval(location.hash);\n</script>\n"
+                    .to_owned(),
+            ),
+        ] {
+            let scan = read(name, &page);
+            assert!(scan.unparsed_files.is_empty(), "{name}: {page}");
+            assert!(scan.unread_languages.is_empty(), "{name}: {page}");
+            let found: Vec<_> = scan
+                .findings
+                .iter()
+                .map(|f| (f.rule_id.as_str(), f.location.line))
+                .collect();
+            assert_eq!(found, [("ast.dynamic-code-execution", 4)], "{name}: {page}");
+        }
+
+        // What runs nothing is read as nothing: an EJS comment, a literal `<%`, and an Astro comment.
+        for (name, page) in [
+            ("Comment.ejs", "<%# eval(x) %>\n<p><%%= not code %></p>\n"),
+            ("Comment.astro", "---\n---\n<p>{/* eval(x) */}</p>\n"),
+            (
+                "Plain.astro",
+                "---\nconst title = 'Hi';\n---\n<h1>{title}</h1>\n",
+            ),
+            (
+                "Plain.ejs",
+                "<h1><%= title %></h1>\n<% if (a) { %>x<% } %>\n",
+            ),
+        ] {
+            let scan = read(name, page);
+            assert!(scan.unparsed_files.is_empty(), "{name}: {page}");
+            assert!(scan.unread_languages.is_empty(), "{name}: {page}");
+            assert!(scan.findings.is_empty(), "{name}: {:?}", scan.findings);
+        }
+
+        // What cannot all be taken out leaves the page not fully read.
+        for (name, page) in [
+            ("Open.ejs", "<p><% eval(x) </p>\n"),
+            // EJS ends the first tag's line, so its comment does not hide `eval`; here it would.
+            ("Comment.ejs", "<% let a = 1 // note %><% eval(x) %>\n"),
+            ("Open.astro", "---\nconst a = 1;\n<p>{a}</p>\n"),
+            ("Brace.astro", "---\n---\n<p>{eval(x)</p>\n"),
+        ] {
+            let scan = read(name, page);
+            assert_eq!(scan.unparsed_files, [name], "{name}: {page}");
+        }
+    }
 
     #[test]
     fn template_code_is_read_as_code() {
