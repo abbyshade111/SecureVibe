@@ -5,8 +5,8 @@
 
 use std::collections::BTreeSet;
 use std::path::PathBuf;
-use sv_check::Verified;
 use sv_check::{Confidence, Finding, Location, Severity};
+use sv_check::{Tier, Verified};
 use sv_frameworks::applicability::{Buckets, NotApplicable, NotAssessed};
 use sv_frameworks::{Condition, Frameworks, Source};
 use sv_report::{Gap, Inputs, RunStatus, Status, build};
@@ -45,6 +45,16 @@ fn finding(rule_id: &str, requirement_ids: &[&str]) -> Finding {
     }
 }
 
+/// The credits of a person's word, each resting on the tier its list is for, beside the checks:
+/// what `sv report` hands the report since 8 October 2026 (`sv_check::Tier`).
+fn tiered(by_word: &[(&[Verified], Tier)], checks: &[Verified]) -> Vec<Verified> {
+    let mut all: Vec<Verified> = checks.to_vec();
+    for (credits, tier) in by_word {
+        all.extend(credits.iter().cloned().map(|v| v.resting_on(*tier)));
+    }
+    all
+}
+
 fn inputs<'a>(
     frameworks: &'a Frameworks,
     buckets: &'a Buckets,
@@ -74,10 +84,6 @@ fn inputs<'a>(
         manual_only: Default::default(),
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
-        documented: &[],
-        attested: &[],
-        stated: &[],
-        by_hand: &[],
         human: None,
         threats: None,
     }
@@ -184,11 +190,14 @@ fn name_mismatch(requirement_id: &str) -> Finding {
 }
 
 fn a_passing_test_for(ids: &[&str]) -> Vec<Verified> {
-    vec![Verified::new(
-        "app-tests",
-        ids,
-        "the app's own test at tests/test_app.py:3, in a suite that passed".to_owned(),
-    )]
+    vec![
+        Verified::new(
+            "app-tests",
+            ids,
+            "the app's own test at tests/test_app.py:3, in a suite that passed".to_owned(),
+        )
+        .resting_on(Tier::AppTested),
+    ]
 }
 
 fn status_of(report: &sv_report::Report, id: &str) -> Status {
@@ -579,9 +588,8 @@ fn each_chapter_counts_what_applies_and_what_does_not_in_its_own_columns() {
         &["V2.2.2"],
         "securevibe.toml: your AI coding tool answered yes.".to_owned(),
     )];
-    let mut given = inputs(&f, &buckets, vec![], &verified);
-    given.stated = &stated;
-    let report = build(given);
+    let all = tiered(&[(&stated, Tier::Stated)], &verified);
+    let report = build(inputs(&f, &buckets, vec![], &all));
     // Setup, asserted: each requirement landed where this test put it, and knows its chapter.
     assert_eq!(
         (
@@ -1114,10 +1122,6 @@ fn report_for_folder(files: &[(&str, &str)]) -> sv_report::Report {
         manual_only,
         named_in_tests: Default::default(),
         not_for_tests: Default::default(),
-        documented: &[],
-        attested: &[],
-        stated: &[],
-        by_hand: &[],
         human: None,
         threats: None,
     })
@@ -1420,9 +1424,8 @@ mod documented {
             applicable: vec!["V6.1.1".into(), "V8.1.1".into()],
             ..Default::default()
         };
-        let mut inputs = inputs(&f, &buckets, findings, verified);
-        inputs.documented = documented;
-        build(inputs)
+        let all = tiered(&[(documented, Tier::Documented)], verified);
+        build(inputs(&f, &buckets, findings, &all))
     }
 
     fn status_of(report: &Report, id: &str) -> Status {
@@ -1549,10 +1552,11 @@ mod attested {
             applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
             ..Default::default()
         };
-        let mut inputs = inputs(&f, &buckets, vec![], verified);
-        inputs.attested = attested;
-        inputs.documented = documented;
-        build(inputs)
+        let all = tiered(
+            &[(attested, Tier::Attested), (documented, Tier::Documented)],
+            verified,
+        );
+        build(inputs(&f, &buckets, vec![], &all))
     }
 
     fn status_of(report: &Report, id: &str) -> Status {
@@ -1639,10 +1643,8 @@ mod attested {
             applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
             ..Default::default()
         };
-        let mut inputs = inputs(&f, &buckets, vec![], &[]);
-        inputs.attested = attested;
-        inputs.stated = stated;
-        build(inputs)
+        let all = tiered(&[(stated, Tier::Stated), (attested, Tier::Attested)], &[]);
+        build(inputs(&f, &buckets, vec![], &all))
     }
 
     #[test]
@@ -1720,11 +1722,15 @@ mod attested {
             applicable: vec!["V8.3.1".into(), "V2.2.2".into()],
             ..Default::default()
         };
-        let mut inputs = inputs(&f, &buckets, vec![], verified);
-        inputs.by_hand = by_hand;
-        inputs.attested = attested;
-        inputs.documented = documented;
-        build(inputs)
+        let all = tiered(
+            &[
+                (by_hand, Tier::ByHand),
+                (attested, Tier::Attested),
+                (documented, Tier::Documented),
+            ],
+            verified,
+        );
+        build(inputs(&f, &buckets, vec![], &all))
     }
 
     #[test]
@@ -1959,10 +1965,9 @@ mod only_you {
             ..Default::default()
         };
         let (notes, design, human) = catalogs();
-        let mut i = inputs(&f, &buckets, vec![], &[]);
+        let all = tiered(&[(stated, Tier::Stated), (attested, Tier::Attested)], &[]);
+        let mut i = inputs(&f, &buckets, vec![], &all);
         i.human = Some((&notes, &design, &human));
-        i.stated = stated;
-        i.attested = attested;
         build(i)
     }
 
@@ -2000,10 +2005,10 @@ mod only_you {
             ..Default::default()
         };
         let (notes, design, human) = catalogs();
-        let hand = [Verified::new("hand.checked", &["V12.2.2"], "seen".into())];
-        let mut i = inputs(&f, &buckets, vec![], &[]);
+        let hand =
+            [Verified::new("hand.checked", &["V12.2.2"], "seen".into()).resting_on(Tier::ByHand)];
+        let mut i = inputs(&f, &buckets, vec![], &hand);
         i.human = Some((&notes, &design, &human));
-        i.by_hand = &hand;
         let checked = build(i);
         assert!(
             !checked.questions_for_you.iter().any(|q| q.id == "V12.2.2"),
@@ -2052,10 +2057,10 @@ mod only_you {
             "design.stated-by-ai",
             &[ones[0]],
             "securevibe.toml".to_owned(),
-        )];
-        let mut i = inputs(&f, &buckets, vec![], &[]);
+        )
+        .resting_on(Tier::Stated)];
+        let mut i = inputs(&f, &buckets, vec![], &stated);
         i.human = Some((&notes, &design, &human));
-        i.stated = &stated;
         let report = build(i);
         let asked: Vec<&str> = report
             .questions_for_you

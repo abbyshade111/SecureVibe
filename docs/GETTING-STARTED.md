@@ -121,6 +121,26 @@ with SecureVibe yet**, so if it does not work, tell us:
 
 - **Cursor:** `.cursor/mcp.json` in the app's folder, with the same `mcpServers` block as for Claude, above.
 
+### Did it connect?
+
+Check before you start building, in whichever tool you use. If SecureVibe is not connected, the tool
+does not say so: it simply builds without it, and nothing gets checked. In the tool's chat, ask:
+
+> Which `securevibe_` tools can you call? List their names.
+
+It should list thirteen, among them `securevibe_spec` and `securevibe_check`. If it lists none, or says it
+has no such tools, SecureVibe is not connected. Then, in this order: make sure Docker is running (step
+1); check the app folder's path in the settings file, in all three places; and restart the tool, since
+most read their MCP settings only when they start. In Claude Code, `/mcp` lists each server and
+whether it connected. In VS Code, **MCP: List Servers → securevibe → Show Output** says why it did
+not start.
+
+If the tool stops mentioning SecureVibe later, ask again: after a restart, Docker may not have
+started yet.
+The prompt in step 4 tells the tool to stop and tell you when the tools are missing, and the rules
+file below (`sv rules`) says the same to any tool that reads `AGENTS.md`, so a tool that finds them
+gone later should say so rather than carry on.
+
 ### A tool without MCP
 
 Every step still works by copying and pasting. Instead of the tool calling SecureVibe, you run it in a
@@ -144,7 +164,8 @@ Open the app's folder in your AI tool and paste this, with your app described at
 > I want to build: *(describe the app in a few sentences: who uses it, what they do, what it keeps
 > about them)*.
 >
-> We are using SecureVibe to check it as we go. Before writing any code:
+> We are using SecureVibe to check it as we go. If you cannot call the `securevibe_` tools, stop
+> and tell me before writing any code: it means SecureVibe is not connected. Before writing any code:
 > 1. Call `securevibe_spec` and write `securevibe.toml` for this app, from what it will really do.
 >    Its capability lines start commented out: answer each one you can with true or false, and
 >    **leave a line commented out rather than guessing `false`**. A line left out is reported as not

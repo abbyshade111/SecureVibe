@@ -511,6 +511,11 @@ another session is not a claim.
      guide, the one that works in any tool being to ask it to list the `securevibe_` tools it can call; and the
      instruction to stop and say so when they are missing, in the prompt the guide gives and in the rules `sv rules`
      writes into `AGENTS.md`, which a tool reads whether or not SecureVibe is connected.
+     **(a) done the same day** (`docs/GETTING-STARTED.md`, "Did it connect?" and step 4; ADR-017, Later): ask the tool
+     to list the `securevibe_` tools, with the count held to what the server lists, and what to check when it lists
+     none; the prompt and `AGENTS.md` both tell the tool to stop and say so. Breaks: the line left out of
+     `AGENTS.md`, the prompt's line removed, and the count in the guide wrong each failed
+     `crates/sv-cli/tests/did_it_connect.rs`.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
@@ -8171,6 +8176,8 @@ another session is not a claim.
      `Http` plus a `Services` struct, so it runs against the fake app without Docker and the Docker-only residue is
      the fence, limits, teardown, and install (branch `claude/securevibe-review-run-script`). Both refactors; the
      records that govern the files get their "unchanged, because" lines.
+     **First half done the same day** (DESIGN, "The tier is on the value"): `sv_check::Tier` on `Verified`, set
+     where each credit is made; `Inputs` has one list; `sv_report::status_of` with a unit test per tier.
   5. **A two-page `docs/ARCHITECTURE.md`.** There is no ten-minute map: DESIGN.md is 13,084 lines in 281 dated
      sections and its opening still describes "a second version beside v1 in `agnostic/`"; CLAUDE.md's eight-line
      Layout paragraph is the nearest thing. Lift it from text that exists: the chain listing, scan, resolve, bucket,

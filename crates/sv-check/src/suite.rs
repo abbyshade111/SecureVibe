@@ -28,7 +28,7 @@
 
 use crate::finding::{Confidence, Finding, Location, Severity};
 use crate::junit::TestCase;
-use crate::verified::Verified;
+use crate::verified::{Tier, Verified};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
@@ -479,7 +479,7 @@ pub fn credit(
                     test.file, test.line
                 ),
             },
-        ));
+        ).resting_on(Tier::AppTested));
         for id in &ids {
             let Some(description) = describe(id) else {
                 continue;
