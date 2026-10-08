@@ -236,6 +236,31 @@ fn the_index_lists_every_record() {
         .filter(|link| !index.contains(link.as_str()))
         .collect();
     assert!(missing.is_empty(), "not in docs/adr/README.md: {missing:?}");
+    // And as a table a reader can use: one row each, in order, with no blank line breaking it. A row
+    // added twice, or a blank line that ends the table early, passed the check above on 7 October 2026.
+    let lines: Vec<&str> = index.lines().collect();
+    let rows: Vec<(usize, u32)> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(i, l)| {
+            let rest = l.strip_prefix("| [ADR-")?;
+            Some((i, rest.get(..3)?.parse().ok()?))
+        })
+        .collect();
+    let numbers: Vec<u32> = rows.iter().map(|(_, n)| *n).collect();
+    let mut sorted = numbers.clone();
+    sorted.sort_unstable();
+    sorted.dedup();
+    assert_eq!(
+        numbers, sorted,
+        "the index's rows are not one each, in order: {numbers:?}"
+    );
+    let (first, last) = (rows[0].0, rows[rows.len() - 1].0);
+    assert_eq!(
+        last - first + 1,
+        rows.len(),
+        "something other than a row breaks the index's table"
+    );
 }
 
 #[test]
