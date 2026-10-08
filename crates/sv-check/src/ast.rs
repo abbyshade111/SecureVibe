@@ -112,6 +112,14 @@ pub struct AstRule {
     /// either beside the real thing is how a rule teaches people to skip it.
     #[serde(default)]
     pub safe_argument_patterns: BTreeMap<String, String>,
+    /// When true, an argument pieced together (`"<p>" + escape(name)`, `` `<p>${escape(name)}</p>` ``,
+    /// `f"<p>{escape(name)}</p>"`) is safe when every piece is fixed text or matches
+    /// `safeArgumentPatterns`, rather than only when the whole of it matches.
+    ///
+    /// HTML is written by joining fixed markup to escaped values, so a rule that looked only at
+    /// the whole would report every page built the safe way beside the one that is not.
+    #[serde(default)]
+    pub safe_argument_pieces_read: bool,
     /// Per language, what the `@kw` capture's text must match for the call to be reported: the name
     /// of a keyword argument the danger depends on.
     ///
@@ -172,6 +180,13 @@ pub struct AstRule {
     pub function_names_read: bool,
     /// One tree-sitter query per language. A language absent here is one this rule says nothing about.
     pub queries: BTreeMap<String, String>,
+    /// Patterns added to the `typescript` query for files that may hold JSX (`.tsx`, `.astro`).
+    ///
+    /// TypeScript's own grammar has no JSX, so a query naming `jsx_attribute` would not compile
+    /// for a `.ts` file, and the rule would stop claiming anything there. JavaScript's grammar
+    /// reads JSX in every file, so its patterns go in its own query.
+    #[serde(default)]
+    pub jsx_query: Option<String>,
     /// Languages `sv` reads that have nothing for this rule to find, each with the reason.
     ///
     /// Go has no `eval`, and a Go file cannot hide one. Without this entry a Go file would stop the
@@ -982,10 +997,18 @@ impl AstRules {
                     rule.id
                 );
             }
-            let tsx = rule
-                .queries
-                .get("typescript")
-                .map(|source| LazyQuery::new(grammar("tsx").expect("tsx is compiled in"), source));
+            anyhow::ensure!(
+                rule.jsx_query.is_none() || rule.queries.contains_key("typescript"),
+                "rule {} has a jsxQuery and no typescript query to add it to",
+                rule.id
+            );
+            let tsx = rule.queries.get("typescript").map(|source| {
+                let source = match &rule.jsx_query {
+                    Some(jsx) => format!("{source}\n{jsx}"),
+                    None => source.clone(),
+                };
+                LazyQuery::new(grammar("tsx").expect("tsx is compiled in"), &source)
+            });
             compiled.push(Compiled {
                 rule,
                 queries,
@@ -1198,6 +1221,63 @@ fn safe_in_every_branch(
                 })
         }
     }
+}
+
+/// Whether every piece of a value built by joining text is fixed text or matches `pattern`: the
+/// two sides of a `+`, each `${…}` of a template string, each `{…}` of a Python f-string, and each
+/// value a choice can give. Anything else is judged whole, by `pattern`.
+fn safe_in_every_piece(
+    node: tree_sitter::Node,
+    source: &[u8],
+    pattern: &regex::Regex,
+    fixed: &Fixed,
+) -> bool {
+    if is_literal(node, source, fixed) {
+        return true;
+    }
+    if let Some(branches) = choice_branches(node, source) {
+        return !branches.is_empty()
+            && branches
+                .into_iter()
+                .all(|branch| safe_in_every_piece(branch, source, pattern, fixed));
+    }
+    let named = || {
+        let mut cursor = node.walk();
+        node.named_children(&mut cursor)
+            .filter(|c| c.kind() != "comment")
+            .collect::<Vec<_>>()
+    };
+    let operator = node
+        .child_by_field_name("operator")
+        .and_then(|o| o.utf8_text(source).ok());
+    let pieces: Vec<tree_sitter::Node> = match node.kind() {
+        "binary_expression" | "binary_operator" if operator == Some("+") => named(),
+        "parenthesized_expression" => named(),
+        // `${…}` holds its expression; the text between them is fixed.
+        "template_string" => named()
+            .into_iter()
+            .filter(|c| c.kind() == "template_substitution")
+            .flat_map(|c| {
+                let mut cursor = c.walk();
+                c.named_children(&mut cursor).collect::<Vec<_>>()
+            })
+            .collect(),
+        // An f-string's `{…}` is an `interpolation` whose `expression` is the value.
+        "string" if named().iter().any(|c| c.kind() == "interpolation") => named()
+            .into_iter()
+            .filter(|c| c.kind() == "interpolation")
+            .filter_map(|c| c.child_by_field_name("expression"))
+            .collect(),
+        _ => {
+            return node
+                .utf8_text(source)
+                .is_ok_and(|text| pattern.is_match(text));
+        }
+    };
+    !pieces.is_empty()
+        && pieces
+            .into_iter()
+            .all(|piece| safe_in_every_piece(piece, source, pattern, fixed))
 }
 
 /// The values a choice can give; `None` when the node is not a choice between values, and none at
@@ -2152,6 +2232,9 @@ pub fn read_file(rules: &AstRules, language: &str, relative: &str, source: &str)
             }
             if let Some(pattern) = compiled.safe_argument.get(language)
                 && match arg_node {
+                    Some(arg) if compiled.rule.safe_argument_pieces_read => {
+                        safe_in_every_piece(arg, source.as_bytes(), pattern, &fixed)
+                    }
                     Some(arg) => safe_in_every_branch(arg, source.as_bytes(), pattern, &fixed),
                     None => arg_text.is_some_and(|text| pattern.is_match(text)),
                 }
@@ -4152,3 +4235,6 @@ fn joined(source: &str, pieces: &[TemplatePiece]) -> String {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod html_tests;

@@ -2004,6 +2004,80 @@
         "c": "C web programs have no common framework with a debug mode switched on in code; a debug build is the compiler's setting, not the code's.",
         "cpp": "C++ web programs have no common framework with a debug mode switched on in code; a debug build is the compiler's setting, not the code's."
       }
+    },
+    {
+      "id": "ast.html-from-value",
+      "title": "A value is put on the page as HTML, without escaping",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.2.1"
+      ],
+      "cwe": [
+        "CWE-79"
+      ],
+      "description": "Text that is not fixed in the code is handed to the browser as HTML rather than as text: React's `dangerouslySetInnerHTML={{ __html: … }}`; an element's `innerHTML` or `outerHTML` set, or `insertAdjacentHTML` and `document.write` called, with a value; Express's `res.send` or `res.end` of HTML pieced together from a value; or Python's `Markup(…)` and Django's `mark_safe(…)` wrapped around a value, which tells the template engine not to escape it. Where the value came from a visitor, whatever markup they typed becomes part of the page.",
+      "impact": "Anyone who can get text into that value (a name, a comment, a link) can add a script to the page. It runs as the app for whoever views it: it can read what they see, act as them, and send their data elsewhere. This is cross-site scripting, the commonest flaw in web apps.",
+      "fix": "Put the value on the page as text, not HTML: in React, `{value}` rather than `dangerouslySetInnerHTML`; in the browser, `textContent` rather than `innerHTML`; on the server, a template that escapes by default (`res.render`, `render_template`) rather than HTML joined by hand. Where HTML really must come from a value (a rich-text editor, Markdown), clean it with a sanitizer first (`DOMPurify.sanitize(html)`, `bleach.clean(html)`), or escape each value (`escapeHtml(name)`, `escape(name)`) as it is joined.",
+      "literalArgumentIsSafe": true,
+      "safeArgumentPiecesRead": true,
+      "findingsOnly": true,
+      "queries": {
+        "python": "(call function: [(identifier) @fn (attribute attribute: (identifier) @fn)] arguments: (argument_list . (_) @arg)) @hit",
+        "javascript": "(assignment_expression left: (member_expression property: (property_identifier) @fn) @mod right: (_) @arg) @hit\n(augmented_assignment_expression left: (member_expression property: (property_identifier) @fn) @mod right: (_) @arg) @hit\n(call_expression function: (member_expression property: (property_identifier) @fn) @mod arguments: (arguments . (_) @arg)) @hit\n(jsx_attribute (property_identifier) @fn (jsx_expression (object (pair key: (property_identifier) @mod value: (_) @arg)))) @hit",
+        "typescript": "(assignment_expression left: (member_expression property: (property_identifier) @fn) @mod right: (_) @arg) @hit\n(augmented_assignment_expression left: (member_expression property: (property_identifier) @fn) @mod right: (_) @arg) @hit\n(call_expression function: (member_expression property: (property_identifier) @fn) @mod arguments: (arguments . (_) @arg)) @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn) arguments: (argument_list . (_) @arg)) @hit",
+        "ruby": "[(call method: (identifier) @fn arguments: (argument_list . (_) @arg)) (call receiver: (_) @arg method: (identifier) @fn !arguments)] @hit"
+      },
+      "jsxQuery": "(jsx_attribute (property_identifier) @fn (jsx_expression (object (pair key: (property_identifier) @mod value: (_) @arg)))) @hit",
+      "functionPatterns": {
+        "python": "^(Markup|mark_safe|SafeString)$",
+        "javascript": "^(innerHTML|outerHTML|insertAdjacentHTML|write|writeln|send|end|dangerouslySetInnerHTML)$",
+        "typescript": "^(innerHTML|outerHTML|insertAdjacentHTML|write|writeln|send|end|dangerouslySetInnerHTML)$",
+        "go": "^HTML$",
+        "ruby": "^(raw|html_safe)$"
+      },
+      "modulePatterns": {
+        "javascript": "(?s)^(__html|.+\\.(innerHTML|outerHTML|insertAdjacentHTML)|((window|globalThis)\\.)?document\\.(write|writeln)|(res|response)\\.(send|end))$",
+        "typescript": "(?s)^(__html|.+\\.(innerHTML|outerHTML|insertAdjacentHTML)|((window|globalThis)\\.)?document\\.(write|writeln)|(res|response)\\.(send|end))$",
+        "go": "^template$"
+      },
+      "argumentPositions": {
+        "javascript": {
+          "^insertAdjacentHTML$": 1
+        },
+        "typescript": {
+          "^insertAdjacentHTML$": 1
+        }
+      },
+      "argumentsForCommonNames": {
+        "javascript": {
+          "^(send|end)$": "<[A-Za-z!/]"
+        },
+        "typescript": {
+          "^(send|end)$": "<[A-Za-z!/]"
+        }
+      },
+      "safeArgumentPatterns": {
+        "python": "(?s)^((markupsafe|flask|html|jinja2|django\\.utils\\.html)\\.)?(escape|conditional_escape|format_html|render_template|render_to_string|bleach\\.clean|nh3\\.clean)\\(.*\\)$",
+        "javascript": "(?s)^((DOMPurify|dompurify|purify)\\.sanitize|sanitizeHtml|sanitizeHTML|escapeHtml|escapeHTML|escape|he\\.(encode|escape)|(_|lodash)\\.escape|filterXSS|xss)\\(.*\\)$",
+        "typescript": "(?s)^((DOMPurify|dompurify|purify)\\.sanitize|sanitizeHtml|sanitizeHTML|escapeHtml|escapeHTML|escape|he\\.(encode|escape)|(_|lodash)\\.escape|filterXSS|xss)\\(.*\\)$",
+        "go": "(?s)^(template\\.HTMLEscapeString|html\\.EscapeString)\\(.*\\)$",
+        "ruby": "(?s)^(sanitize|h|html_escape|ERB::Util\\.(html_escape|h)|CGI\\.escapeHTML|Rack::Utils\\.escape_html)\\(.*\\)$"
+      },
+      "looksFor": "a value put on the page as HTML without escaping: in JavaScript and TypeScript, React's `dangerouslySetInnerHTML`, `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, and Express's `res.send` or `res.end` of HTML joined to a value; in Python, `Markup(…)` and `mark_safe(…)` around a value; in Go, `template.HTML(…)` of a value; in Ruby, `raw(…)` and `.html_safe` on a value. HTML built in one place and sent in another, a template's own `| safe` or `{!! !!}`, and Vue's `v-html` are not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "c": "C has no common web framework whose pages this rule can speak to.",
+        "cpp": "C++ has no common web framework whose pages this rule can speak to.",
+        "csharp": "Not looked for in C# yet: `Html.Raw(…)` and `new HtmlString(…)`. The rule only ever reports, so finding none in C# credits nothing either way.",
+        "dart": "Not looked for in Dart yet: `Html(data: …)` and `setInnerHtml`. The rule only ever reports, so finding none in Dart credits nothing either way.",
+        "java": "Not looked for in Java yet: a servlet writing a value to its response, and `th:utext` in Thymeleaf. The rule only ever reports, so finding none in Java credits nothing either way.",
+        "kotlin": "Not looked for in Kotlin yet: a value written into a response as HTML. The rule only ever reports, so finding none in Kotlin credits nothing either way.",
+        "php": "Not looked for in PHP yet: `echo` or `print` of a value into a page, and Blade's `{!! !!}`. The rule only ever reports, so finding none in PHP credits nothing either way.",
+        "rust": "Not looked for in Rust yet: `Html(format!(…))` and a template's `|safe`. The rule only ever reports, so finding none in Rust credits nothing either way.",
+        "shell": "Shell scripts build no web pages this rule can speak to.",
+        "swift": "Not looked for in Swift yet: a value written into a response as HTML, and a web view's `loadHTMLString`. The rule only ever reports, so finding none in Swift credits nothing either way."
+      }
     }
   ]
 }
