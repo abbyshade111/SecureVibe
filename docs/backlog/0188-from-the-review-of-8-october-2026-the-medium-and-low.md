@@ -107,6 +107,10 @@ high were built the same day (the entry above this one's predecessor). Each of t
    `main.rs` ends with 130 after Ctrl-C go through `exit::exit_with`, so what was printed is out first (one of them
    added by this session's own Ctrl-C fix). Confirmed on `main` just before this claim: none of the three is done,
    and no other session had claimed them. The rest of item 6 stays open.
+   **Those three done the same day** (`docs/design/0308-three-low-findings-header-values-a-host-outside-ascii-and.md`;
+   ADR-027, Later): a header value or redirect address is quoted on one line and cut at 200 characters, and still read
+   whole; a host name outside ASCII is refused with a sentence asking for its `xn--` form; and every exit goes through
+   `exit::exit_with`, which a test now holds. The rest of item 6 is open.
    **One more of its parts claimed 8 October 2026 by session securevibe-e2**, with item 7's `Adapters::load` and tool
    list below, whose code it shares, in branch `claude/securevibe-e2-adapters-once`: a broken `adapters.json` said in
    the report without `--tools` too, rather than silently listing no outside tools. Confirmed on `main` just before

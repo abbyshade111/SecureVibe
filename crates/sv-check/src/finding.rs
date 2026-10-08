@@ -211,6 +211,26 @@ pub const WORTH_A_LOOK: &[&str] = &[
     "semgrep.ruby.rails.security.audit.xss.templates.var-in-href.var-in-href",
 ];
 
+/// The most of one value from an app's answer (a header, mostly) a finding quotes.
+pub const QUOTED_CHARS: usize = 200;
+
+/// `value` as a finding quotes it: on one line, and cut at `QUOTED_CHARS` characters with how long
+/// it was in all. The app chooses its headers: one of 100 KB quoted whole would bury the report,
+/// and a line break in one would start a line of its own in it (the review of 8 October 2026,
+/// item 6).
+pub fn quoted(value: &str) -> String {
+    let one_line: String = value
+        .chars()
+        .map(|c| if c.is_control() { ' ' } else { c })
+        .collect();
+    let count = one_line.chars().count();
+    if count <= QUOTED_CHARS {
+        return one_line;
+    }
+    let kept: String = one_line.chars().take(QUOTED_CHARS).collect();
+    format!("{kept}… ({count} characters in all)")
+}
+
 /// A finding a check made, as it leaves the check. In a debug build (the test suite), with
 /// `SV_CREDIT_LOG` set, it is written to that file's sibling `SV_CREDIT_LOG.withheld` as one line: the
 /// check's id and the place in the code that made it, the caller's when the maker is a helper marked
@@ -630,6 +650,9 @@ pub(crate) fn reads_code(f: &Finding) -> bool {
     ];
     f.location.line > 0 && !ELSEWHERE.iter().any(|p| f.rule_id.starts_with(p))
 }
+
+#[cfg(test)]
+mod quoted_tests;
 
 #[cfg(test)]
 mod tests {

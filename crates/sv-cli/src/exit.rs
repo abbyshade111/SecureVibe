@@ -44,6 +44,9 @@ pub fn worse(a: i32, b: i32) -> i32 {
     }
 }
 
+/// Stopped with Ctrl-C: the usual code for it.
+pub const INTERRUPTED: i32 = 130;
+
 /// Ends the process with `code`, once what was printed is out.
 pub fn exit_with(code: i32) -> ! {
     use std::io::Write;
