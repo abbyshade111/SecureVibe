@@ -509,6 +509,11 @@ another session is not a claim.
      guide, the one that works in any tool being to ask it to list the `securevibe_` tools it can call; and the
      instruction to stop and say so when they are missing, in the prompt the guide gives and in the rules `sv rules`
      writes into `AGENTS.md`, which a tool reads whether or not SecureVibe is connected.
+     **(a) done the same day** (`docs/GETTING-STARTED.md`, "Did it connect?" and step 4; ADR-017, Later): ask the tool
+     to list the `securevibe_` tools, with the count held to what the server lists, and what to check when it lists
+     none; the prompt and `AGENTS.md` both tell the tool to stop and say so. Breaks: the line left out of
+     `AGENTS.md`, the prompt's line removed, and the count in the guide wrong each failed
+     `crates/sv-cli/tests/did_it_connect.rs`.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).

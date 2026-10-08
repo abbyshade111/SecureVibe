@@ -1240,6 +1240,17 @@ impl RulesForApp {
         self.rules
             .markdown(&given, if topic.is_none() { self.withheld } else { 0 })
     }
+
+    /// Every rule given, as `sv rules` writes them into `AGENTS.md`.
+    pub fn agents_markdown(&self) -> String {
+        let given: Vec<&sv_check::coding_rules::Rule> = self
+            .rules
+            .rules
+            .iter()
+            .filter(|r| self.given.contains(&r.id))
+            .collect();
+        self.rules.agents_markdown(&given, self.withheld)
+    }
 }
 
 /// Reads the coding rules and leaves out those whose every cited requirement does not apply to the
@@ -1404,7 +1415,7 @@ fn cmd_rules(args: &[String]) -> Result<()> {
         bail!("{} is not a folder", app_dir.display());
     }
     let found = coding_rules_for(&app_dir)?;
-    let section = found.markdown(None);
+    let section = found.agents_markdown();
     if print {
         print!("{section}");
         return Ok(());
