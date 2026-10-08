@@ -156,6 +156,10 @@ another session is not a claim.
      --all`; and in `sv dashboard`, each app's runs over time, set against the last run that can be compared (same
      kind, level, `securevibe.toml`, and `sv`), and otherwise said not to be compared and why. No requirement is ever
      credited from history, and the reports never read it. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "History: each app over time"; ADR-057, Later): the command, the record kept by
+     `sv report`, the over-time view, and `sv dashboard` with no folders. Breaks: history always on, a record others
+     can read, no limit on how many are kept, every run compared whatever its kind, history's text not escaped on
+     the page, and `forget` that deletes nothing, each failed a test (`crates/sv-cli/tests/history.rs`).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
@@ -295,6 +299,11 @@ another session is not a claim.
      The `none` algorithm and the other rules of this item stay open. Read on `main` just before this claim: no other
      session had claimed any part of this item.
      **The unverified token done the same day** (DESIGN, "A token read with its signature check switched off").
+     **CSRF protection switched off claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-csrf-off`: a code rule, `ast.csrf-protection-off`, for the
+     framework switches that turn request-forgery protection off (Django's `csrf_exempt`, Flask-WTF's
+     `WTF_CSRF_ENABLED = False`, Spring's `csrf().disable()`, Rails' `skip_forgery_protection`, and their like; V3.5.1),
+     only ever a finding. Read on `main` just before this claim: no other session had claimed it.
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -8105,6 +8114,12 @@ another session is not a claim.
      added to one and not the other is a silent difference between what the person gets and what the AI tool gets.
      One pipeline, a `ReportOptions::reading_only(caller)` for the eight hand-written "why not run" triples, and one
      list the three report-file-name lists derive from (branch `claude/securevibe-review-mcp-split`).
+     **Second half done the same day** (DESIGN, "The MCP server in a folder, and one way to write a report folder"):
+     `mcp.rs` is the folder `mcp/` (nine files, the tests their own); `report_folder::write_report_folder` is the
+     one sequence `sv report` and `securevibe_write_report` both call; `ReportOptions::reading_only` and `asked_of`
+     replace the seven hand-written triples (the MCP server's three sentences written over `reading_only`'s); and
+     the five file names are `sv_scan::ecosystems::REPORT_FILES`, which the folder names, the seal's list, and the
+     MCP server's resources derive from, with `sv-cli`'s table of renderers held to it by the compiler.
   3. **`sv check` and `sv report` can exit differently on the same folder.** `cmd_check` runs the same five scanners
      but never `merge_same_place`, the test-code and bundled-library marks, or `review::apply`, and its exit code
      counts every finding, where `sv report`'s counts the findings left after a person's recorded false alarms. So

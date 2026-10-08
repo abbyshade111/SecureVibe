@@ -24,6 +24,7 @@ const COMMANDS: &[&str] = &[
     "review",
     "bundle",
     "dashboard",
+    "history",
     "mcp",
 ];
 

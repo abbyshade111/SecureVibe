@@ -34,10 +34,13 @@ macro_rules! print {
 mod brief;
 mod bundle;
 mod exit;
+mod history;
 mod mcp;
 mod parts;
 mod plan;
 mod preflight;
+mod report_files;
+mod report_folder;
 mod report_lock;
 mod report_seal;
 mod review;
@@ -130,6 +133,7 @@ fn run() -> Result<i32> {
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
         "dashboard" => finished(cmd_dashboard(rest)),
+        "history" => finished(history::command(rest)),
         "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
         "bundle" => finished(cmd_bundle(rest)),
         "mcp" => finished(mcp::cmd_mcp(rest)),
@@ -281,6 +285,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &["--out"],
         help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     securevibe-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
+    },
+    Command {
+        name: "history",
+        word: Some("ACTION..."),
+        flags: &["--all"],
+        valued: &[],
+        help: "  sv history on|off|status|forget FOLDER|forget --all\n                     keep a small record of each sv report run, for sv dashboard to show\n                     how an app changes; off until you turn it on, kept outside every\n                     app's folder, readable only by you, and never your code\n",
     },
     Command {
         name: "mcp",
@@ -570,16 +581,7 @@ pub(crate) fn plan_for(app_dir: &Path, report: &sv_report::Report) -> Result<pla
 /// The options a plan's report is built with: nothing started and no tool run, since a plan reads
 /// the brief and needs no code.
 pub(crate) fn plan_options() -> ReportOptions {
-    ReportOptions {
-        run_the_app: false,
-        slow: false,
-        run_tools: false,
-        why_not_run: "`sv plan` does not start the app.".to_owned(),
-        why_no_tools: "`sv plan` does not run other people's tools.".to_owned(),
-        advisories: None,
-        why_no_advisories: "`sv plan` does not compare packages with known vulnerabilities."
-            .to_owned(),
-    }
+    ReportOptions::reading_only("`sv plan`")
 }
 
 /// The features a brief can be written for (`sv brief`, `securevibe_before`).
@@ -1474,15 +1476,7 @@ fn cmd_questions(path: Option<PathBuf>) -> Result<()> {
     }
     let report = assemble_report(
         &app_dir,
-        &ReportOptions {
-            run_the_app: false,
-            slow: false,
-            run_tools: false,
-            why_not_run: "".to_owned(),
-            why_no_tools: "".to_owned(),
-            advisories: None,
-            why_no_advisories: "".to_owned(),
-        },
+        &ReportOptions::reading_only("`sv questions`"),
         &Loaded::load()?,
     )?;
     println!(
@@ -2356,8 +2350,11 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         }
     }
     if folders.is_empty() {
+        folders = history::apps();
+    }
+    if folders.is_empty() {
         bail!(
-            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html"
+            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html (with history on, `sv history on`, it shows every app whose runs were kept)"
         );
     }
     let Some(out) = out else {
@@ -2383,6 +2380,7 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         let report_html = reports.join("report.html");
         apps.push(sv_report::dashboard::App {
             report_html: report_html.is_file().then_some(report_html),
+            runs: history::runs(&folder),
             folder,
             summary,
         });
@@ -2937,18 +2935,7 @@ fn cmd_bundle(args: &[String]) -> Result<()> {
 
     let report = assemble_report(
         &app_abs,
-        &ReportOptions {
-            run_the_app,
-            slow,
-            run_tools,
-            why_not_run: "`sv bundle` does not start the app unless you pass --run.".to_owned(),
-            why_no_tools: "`sv bundle` does not run other people's tools unless you pass --tools."
-                .to_owned(),
-            advisories: advisories_dir,
-            why_no_advisories: "`sv bundle` compares against known vulnerabilities only when you \
-                                pass --advisories DIR."
-                .to_owned(),
-        },
+        &ReportOptions::asked_of("`sv bundle`", run_the_app, slow, run_tools, advisories_dir),
         &Loaded::load()?,
     )?;
     let command = format!("sv bundle {}", args.join(" "));
@@ -3297,13 +3284,10 @@ fn write_report(report: &sv_report::Report, out_dir: &Path) -> Result<Written> {
         sv_scan::ecosystems::REPORT_MARKER,
         REPORT_MARKER_TEXT.to_owned(),
     );
-    let written = [
-        ("report.html", sv_report::html::page(report)),
-        ("compliance.md", sv_report::markdown::compliance(report)),
-        ("security.md", sv_report::markdown::security(report)),
-        ("findings.sarif", sv_report::sarif::render(report)),
-        ("report.json", sv_report::json::to_string(report)),
-    ];
+    let written: Vec<(&'static str, String)> = report_files::REPORT_FILES
+        .iter()
+        .map(|file| (file.name, (file.render)(report)))
+        .collect();
     // Every name is looked at before any is written, so a refusal leaves the folder as it was.
     for (name, _) in std::iter::once(&marker).chain(&written) {
         refuse_link(&out_dir.join(name), REPORT_LINK)?;
@@ -3313,9 +3297,7 @@ fn write_report(report: &sv_report::Report, out_dir: &Path) -> Result<Written> {
         write_without_following(out_dir, name, contents.as_bytes())
             .with_context(|| format!("writing {name}"))?;
     }
-    Ok(Written {
-        contents: written.into(),
-    })
+    Ok(Written { contents: written })
 }
 
 /// Refuses to write a report into a folder that holds anything but `sv`'s own files, unless `sv` marked
@@ -3475,6 +3457,51 @@ struct ReportOptions {
     advisories: Option<PathBuf>,
     /// Said in the report when there was no database to compare with.
     why_no_advisories: String,
+}
+
+impl ReportOptions {
+    /// Nothing started, no tool run, and no database read, for a caller that never does any of
+    /// them: `caller` is how the report names it ("`sv plan`"). Until 8 October 2026 each caller
+    /// wrote its own three sentences and three `false`s; the MCP server's sentences, which say what
+    /// the person can do instead, are written over these with the struct-update syntax.
+    fn reading_only(caller: &str) -> Self {
+        Self {
+            run_the_app: false,
+            slow: false,
+            run_tools: false,
+            why_not_run: format!("{caller} does not start the app."),
+            why_no_tools: format!("{caller} does not run other people's tools."),
+            advisories: None,
+            why_no_advisories: format!(
+                "{caller} does not compare packages with known vulnerabilities."
+            ),
+        }
+    }
+
+    /// What a command with the `--run`, `--slow`, `--tools`, and `--advisories` flags was asked
+    /// for, and, for each it was not, how it is asked: `caller` is the command ("`sv report`").
+    fn asked_of(
+        caller: &str,
+        run_the_app: bool,
+        slow: bool,
+        run_tools: bool,
+        advisories: Option<PathBuf>,
+    ) -> Self {
+        Self {
+            run_the_app,
+            slow,
+            run_tools,
+            why_not_run: format!("{caller} does not start the app unless you pass --run."),
+            why_no_tools: format!(
+                "{caller} does not run other people's tools unless you pass --tools."
+            ),
+            advisories,
+            why_no_advisories: format!(
+                "{caller} compares against known vulnerabilities only when you pass --advisories \
+                 DIR."
+            ),
+        }
+    }
 }
 
 /// Everything `sv report` knows about an app, built once for every caller.
@@ -5475,49 +5502,34 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         .chain(args.iter().map(String::as_str))
         .collect::<Vec<_>>()
         .join(" ");
-    let held = claim_report_folder(
+    let elsewhere = "give this run a folder of its own with --out";
+    let report_folder::ReportFolder {
+        report, written, ..
+    } = report_folder::write_report_folder(
+        &app_dir,
         &out_dir,
         &command,
-        "give this run a folder of its own with --out",
+        elsewhere,
         false,
-    )?;
-    for note in &held.notes {
-        eprintln!("{note}\n");
-    }
-
-    let mut report = assemble_report(
-        &app_dir,
-        &ReportOptions {
-            run_the_app,
-            slow,
-            run_tools,
-            why_not_run: "`sv report` does not start the app unless you pass --run.".to_owned(),
-            why_no_tools: "`sv report` does not run other people's tools unless you pass --tools."
-                .to_owned(),
-            advisories: advisories_dir,
-            why_no_advisories: "`sv report` compares against known vulnerabilities only when you \
-                                pass --advisories DIR."
-                .to_owned(),
+        || {
+            assemble_report(
+                &app_dir,
+                &ReportOptions::asked_of(
+                    "`sv report`",
+                    run_the_app,
+                    slow,
+                    run_tools,
+                    advisories_dir,
+                ),
+                &Loaded::load()?,
+            )
         },
-        &Loaded::load()?,
+        &mut |note| eprintln!("{note}\n"),
     )?;
+    let written = written.names();
 
-    if let Some((note, gap)) = report_lock::manifest_changed(&report, &app_dir) {
-        eprintln!("{note}\n");
-        report.gaps.push(gap);
-    }
-    report_lock::refuse_older(
-        &report,
-        &out_dir,
-        "give this run a folder of its own with --out",
-    )?;
-    let report_written = write_report(&report, &out_dir)?;
-    let written = report_written.names();
-    for note in seal_report_folder(&out_dir, &report_written).1 {
-        eprintln!("{note}\n");
-    }
-    held.written();
-    drop(held);
+    // History, when the person keeps it (ADR-057): after the report is written, never instead of it.
+    let kept = sv_report::dashboard::Run::of(&report).map(|run| history::keep(&app_dir, &run));
 
     let c = &report.counts;
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
@@ -5638,6 +5650,13 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
+    match kept {
+        Some(Ok(Some(_))) => println!(
+            "Kept a record of this run in your history (`sv history off` stops it; `sv dashboard` shows it)."
+        ),
+        Some(Err(e)) => eprintln!("History is on, and this run could not be kept: {e:#}"),
+        _ => {}
+    }
     exit::explain(status, &reasons)
         .iter()
         .for_each(|l| println!("{l}"));
@@ -6493,15 +6512,7 @@ mod writing_through_links_tests {
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../examples/flask-booking");
         let report = super::assemble_report(
             &app,
-            &super::ReportOptions {
-                run_the_app: false,
-                slow: false,
-                run_tools: false,
-                why_not_run: String::new(),
-                why_no_tools: String::new(),
-                advisories: None,
-                why_no_advisories: String::new(),
-            },
+            &super::ReportOptions::reading_only("a test"),
             &super::Loaded::load().unwrap(),
         )
         .unwrap();

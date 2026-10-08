@@ -12787,6 +12787,26 @@ did not choose.
 
 Tried on copies of the five example apps and a folder with no report; the page in light and dark, and at phone width
 with no sideways scroll. Six deliberate breaks each failed a test (backlog, dashboard build item 2).
+
+### History: each app over time (8 October 2026, ADR-057)
+
+The third step of the dashboard. History is off until the person types `sv history on`, which writes a file of their
+own beside the review key; `securevibe.toml` cannot turn it on, because the AI coding tool writes that file. While it is
+on, each `sv report` at a terminal keeps one small record of the run (`crates/sv-cli/src/history.rs`) outside every app's
+folder, in `~/.local/share/securevibe/history`, readable only by the person: the counts, the kind of run, the level, the
+`sv` that made it, the `securevibe.toml` fingerprint, and each finding's fingerprint, severity, rule, and title. Not the
+finding's description, not where it was found, not a line of the app, and not a credential, even shortened. An app's
+folder is often a public git repository, and a dated list of its weaknesses does not belong there.
+
+`sv dashboard` then shows each app's runs, newest first. A run is set against the last earlier run of the same kind,
+level, `securevibe.toml`, and `sv`, and the page lists what changed: findings that appeared or went away, by fingerprint,
+and each count that moved. A run with no such earlier run says why it is not compared; without that, the first full run
+after a plain one would look like the app getting worse. Given no folders, `sv dashboard` shows every app whose runs were
+kept. At most 100 runs are kept for each app; `sv history forget` deletes one app's, or all of them.
+
+History is a convenience, never evidence: the reports never read it and nothing is credited from it, and the test that
+plants text in a record checks that `report.html` does not show it. An AI coding tool runs as the same person and could
+rewrite it, which is why it is kept out of the app's folder and why nothing rests on it.
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
@@ -13270,3 +13290,39 @@ Measured here, four CPUs:
 The crash sweep is not changed: its scenarios already run on scoped threads, and the profile setting is what made each
 of the suite runs it needs cheaper. Not done: splitting the sweep across scenarios as well, which on four CPUs would
 gain little.
+
+## The MCP server in a folder, and one way to write a report folder (8 October 2026)
+
+The architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October 2026", item 2,
+second half) named two costs in `crates/sv-cli`. `mcp.rs` was 7,202 lines in one file, 62% of them tests, with seams
+nobody had cut. And the sequence that writes a report folder (the folder claimed, the report built, a changed manifest
+noted, an older report refused, the files written, the folder sealed, the claim released) was written out twice, in
+`cmd_report` for `sv report` and in `write_report_into` for the MCP server's `securevibe_write_report`, so a guard added
+to one and not the other was a silent difference between what the person gets at a terminal and what their AI coding
+tool gets. Each of the lock (ADR-041), the seal (ADR-034), and the refusal of an older report had been added to both by
+hand.
+
+Three changes, none to what `sv` writes:
+
+- **`mcp.rs` is the folder `mcp/`.** `mod.rs` keeps the server, its state, and the request dispatch; `protocol.rs` the
+  JSON-RPC reading and replies; `confine.rs` the path confinement below the root; `resources.rs` the report folders
+  offered as resources; `catalog.rs` the tool and prompt lists; `check_text.rs` the text of a check for the tool;
+  `report_writing.rs` the `securevibe_write_report` tool; `tools.rs` the other tools; and `tests.rs` the tests, as they
+  were. Nothing moved changed; the decision records that named `mcp.rs` name the new files.
+- **One sequence for a report folder**, `report_folder::write_report_folder`, called by `sv report` and by the MCP
+  server. What differs between the two is passed in: how the report is built, what the lock names the run, where a
+  second run is told to write instead, and what is done with what `sv` says on the way (printed before the wait at a
+  terminal, collected for the reply by the server). Its own tests show the claim is on the folder while the report is
+  being built and gone once it is written, that a report from an older run does not replace a newer one, and that a
+  build that fails leaves no folder behind. With the refusal of an older report removed on purpose, the second of these
+  failed, and no test had before: the two copies had been held together by nothing but care.
+- **One table of the five report files** (`report_files::REPORT_FILES`: each name, what kind of file it is, and how it
+  is rendered), which `write_report` writes in order, the seal covers (`report_seal::SEALED`), and the MCP server offers
+  as resources. The names were written out four times, held together by a test. `sv-scan`'s walk needs them too, to
+  leave a report folder out, and that crate cannot see `sv-cli`, so the names are its (`REPORT_FILES` in
+  `ecosystems.rs`, from which `REPORT_FOLDER_NAMES` is built) and the table in `sv-cli` is held to them by the compiler:
+  a name that differs between the two does not build.
+
+Also: `ReportOptions::reading_only(caller)` and `ReportOptions::asked_of(caller, ...)` replace the seven places that
+each wrote the three "why not run" sentences and three `false`s by hand; the MCP server writes its three sentences, which
+say what the person can do instead, over `reading_only`'s.

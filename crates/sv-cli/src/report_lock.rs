@@ -27,8 +27,8 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// The lock's name in the report folder. A dot name, beside the marker, so a listing hides it.
-pub const LOCK_NAME: &str = ".securevibe-report.lock";
+/// The lock's name in the report folder, from the one list of the folder's names.
+pub const LOCK_NAME: &str = sv_scan::ecosystems::REPORT_LOCK;
 
 /// The record of a run that started at `started` and read `manifest` as its `securevibe.toml`.
 pub fn run_record(started: SystemTime, manifest: &[u8]) -> sv_report::RunRecord {
