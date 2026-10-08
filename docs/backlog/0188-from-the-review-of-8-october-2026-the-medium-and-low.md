@@ -105,3 +105,7 @@ high were built the same day (the entry above this one's predecessor). Each of t
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
    `docs/prompts/library-trial/recipe-summaries.txt`; `assemble_report_saying` is 1,585 lines and
    `Adapters::load` runs three times per report; `main.rs` hard-codes the tool list and omits semgrep.
+   **The spellings and the home path claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1,
+   item 1, last in its order), in branch `claude/securevibe-e2-housekeeping`: the British spellings in files a person
+   reads made American, and the home path in `recipe-summaries.txt` replaced by `~`. History is not rewritten, so
+   the path stays in earlier commits. `assemble_report_saying`, `Adapters::load`, and the tool list stay open.
