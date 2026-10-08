@@ -1335,6 +1335,14 @@ pub(super) fn delete_account_check(
         return;
     };
     let Some(confirm) = confirm else {
+        // Said, not skipped (the architecture assessment of 8 October 2026, item 8).
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether deleting an account ends its sessions: no private page opened for a \
+             signed-in user, so whether a deleted account's session still opens one cannot be \
+             tried."
+                .to_owned(),
+        ));
         return;
     };
     let spare = &accounts.spare;

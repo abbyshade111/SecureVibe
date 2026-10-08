@@ -1899,6 +1899,8 @@ pub(crate) fn sign_up(
 }
 
 #[cfg(test)]
+mod asked_tests;
+#[cfg(test)]
 mod fake_app;
 
 #[cfg(test)]
@@ -2377,9 +2379,15 @@ mod tests {
         u.admin = Vec::new();
         u.admin_actions = Vec::new();
         let o = run_against(Flaws::default(), &u);
-        let said: Vec<&str> = o.not_assessed.iter().map(|(ids, _)| ids.as_str()).collect();
-        for ids in ["V7.4.1", "V8.2.2, V3.5.1", "V8.2.1", "V3.3.1"] {
-            assert!(said.contains(&ids), "{ids} not named: {said:?}");
+        // Each id named in one of the lists, whatever else that list names beside it: since
+        // 8 October 2026 the sign-out line names V14.3.1 with V7.4.1, and the owned line V3.5.2.
+        let said: Vec<&str> = o
+            .not_assessed
+            .iter()
+            .flat_map(|(ids, _)| ids.split(", "))
+            .collect();
+        for id in ["V7.4.1", "V8.2.2", "V3.5.1", "V8.2.1", "V3.3.1"] {
+            assert!(said.contains(&id), "{id} not named: {said:?}");
         }
     }
 
