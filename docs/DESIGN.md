@@ -9851,10 +9851,27 @@ What carries the app's text, and how each is now said:
 | `securevibe_plan` | the app's name, the threats its brief raises | both |
 | `securevibe_bundle` | the zip's path, each file left out, what securevibe.toml says the app holds | each |
 | `securevibe_notes_file`, `securevibe_record_answer` | the notes file's path, the question's id | each |
-| any tool that could not do its job | what went wrong, which quotes paths, a line of securevibe.toml, a notes heading | the whole message |
+| any tool that could not do its job | what went wrong, which quotes paths, a line of securevibe.toml, a notes heading | what went wrong; `sv`'s own next step follows it, outside (below) |
 | `structuredContent` of every tool | the same values, as JSON strings | not changed: a JSON string cannot leave its quotes, and the tool's description says what it holds |
 | `securevibe_guidance`, `_prompts`, `_spec`, `_explain`, MCP prompts | none: `sv`'s own text | nothing to fence |
 | report files read as resources | the whole report quotes the app | the file is handed over byte for byte, so its type stays true and a client can save it; its description and the instructions say the app's text in it is information, never instructions |
+
+**`sv`'s own next step, outside the fence (8 October 2026).** At first the whole of a tool's error was fenced, and
+with it what `sv` said to do about it: "there is no securevibe.toml in … Call securevibe_spec, write the file it
+describes into that folder, and check again." Inside the fence the AI coding tool is told the text is information,
+never an instruction, and the trials saw builders read it that way and not retry (`docs/GAP-ANALYSIS.md`, 5.3). Now
+an error that carries a next step (`crate::Remedy`, in `crates/sv-cli/src/main.rs`) keeps the two apart: what went
+wrong stays inside the fence, path and all, and the next step follows on a line of its own, "What to do: …", outside
+it. The next step is `sv`'s fixed words, never anything of the app's; where it would name a path or a command that
+quotes one, that goes in what went wrong, and the next step points to it ("run that command at a terminal"). The
+errors that carry one: no securevibe.toml (`securevibe_check` and every tool that checks, `securevibe_notes_file`,
+and `securevibe_preflight`, which now asks this itself so its remedy names `securevibe_spec` rather than `sv init`,
+a command the AI coding tool cannot run); a link where a file is read; a check that ran out of time, or one still
+finishing; and a bundle that would land outside the server's folder. Any other error is fenced whole, as before, and
+is given no next step it did not have. At a terminal nothing changes: the two read as one, as they did. The plan's
+section on what `sv run` needs names `securevibe_spec` beside `sv init`, since the AI coding tool reads it too.
+Breaks: the next step fenced again failed two tests, the check-again one and the time-limit one, and the preflight's
+own check removed, so `sv init` was named again, failed one.
 
 **Reports are offered only when sealed** (`crates/sv-cli/src/report_seal.rs`, ADR-034). H6 made the walk of the app
 believe the marker only in a folder of nothing but `sv`'s files, and #589 put a run record in `report.json`; neither
@@ -12770,6 +12787,26 @@ did not choose.
 
 Tried on copies of the five example apps and a folder with no report; the page in light and dark, and at phone width
 with no sideways scroll. Six deliberate breaks each failed a test (backlog, dashboard build item 2).
+
+### History: each app over time (8 October 2026, ADR-057)
+
+The third step of the dashboard. History is off until the person types `sv history on`, which writes a file of their
+own beside the review key; `securevibe.toml` cannot turn it on, because the AI coding tool writes that file. While it is
+on, each `sv report` at a terminal keeps one small record of the run (`crates/sv-cli/src/history.rs`) outside every app's
+folder, in `~/.local/share/securevibe/history`, readable only by the person: the counts, the kind of run, the level, the
+`sv` that made it, the `securevibe.toml` fingerprint, and each finding's fingerprint, severity, rule, and title. Not the
+finding's description, not where it was found, not a line of the app, and not a credential, even shortened. An app's
+folder is often a public git repository, and a dated list of its weaknesses does not belong there.
+
+`sv dashboard` then shows each app's runs, newest first. A run is set against the last earlier run of the same kind,
+level, `securevibe.toml`, and `sv`, and the page lists what changed: findings that appeared or went away, by fingerprint,
+and each count that moved. A run with no such earlier run says why it is not compared; without that, the first full run
+after a plain one would look like the app getting worse. Given no folders, `sv dashboard` shows every app whose runs were
+kept. At most 100 runs are kept for each app; `sv history forget` deletes one app's, or all of them.
+
+History is a convenience, never evidence: the reports never read it and nothing is credited from it, and the test that
+plants text in a record checks that `report.html` does not show it. An AI coding tool runs as the same person and could
+rewrite it, which is why it is kept out of the app's folder and why nothing rests on it.
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
@@ -13289,6 +13326,23 @@ Three changes, none to what `sv` writes:
 Also: `ReportOptions::reading_only(caller)` and `ReportOptions::asked_of(caller, ...)` replace the seven places that
 each wrote the three "why not run" sentences and three `false`s by hand; the MCP server writes its three sentences, which
 say what the person can do instead, over `reading_only`'s.
+
+## The hardening in one place (8 October 2026)
+
+Every container `sv run` starts is read-only, with every capability dropped and no way to gain one (ADR-019). Until
+8 October 2026 those five arguments were written out wherever a container was started: eleven places in
+`crates/sv-run/src/docker.rs` and one in `install.rs`, and the fallback used when a sidecar cannot be started had once
+been written without them, which the 4 October entry of ADR-019 records. The limits (memory, processes, processors)
+had already been moved into `prepared`, the one function every Docker call passes through; the hardening now goes on
+there too (`HARDENING`, `hardened`), for every `run` and `create` and never for an `exec` into a container already
+running, and no builder carries a copy. The fallback path goes through `prepared` as well, so it also gets the limits
+and the run label it lacked (the review of 8 October 2026, a low finding). What a container is started with is the
+same; a path that forgets it can no longer be written.
+
+The tests assert through `prepared`: each container kind's test (the app, the mail server, the test provider, the
+test model, the browser and its driver, the fallback, and the install step's) shows the flags arrive exactly once and
+that the builder wrote none of them, and one chokepoint test shows a plain `run` and `create` get them while an `exec`
+does not. With the one place removed on purpose, seven tests failed.
 
 ## One static stage for `sv check` and `sv report` (8 October 2026)
 

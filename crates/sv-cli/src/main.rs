@@ -33,6 +33,7 @@ macro_rules! print {
 mod brief;
 mod bundle;
 mod exit;
+mod history;
 mod mcp;
 mod parts;
 mod plan;
@@ -132,6 +133,7 @@ fn run() -> Result<i32> {
         "audit" => cmd_audit(rest),
         "report" => cmd_report(rest),
         "dashboard" => finished(cmd_dashboard(rest)),
+        "history" => finished(history::command(rest)),
         "review" => finished(review::cmd_review(rest.first().map(PathBuf::from))),
         "bundle" => finished(cmd_bundle(rest)),
         "mcp" => finished(mcp::cmd_mcp(rest)),
@@ -233,7 +235,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &["--slow"],
         valued: &[],
-        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n                     exit status: 0 the app ran; 2 not assessed: it could not be started\n                     or never answered; 3 sv itself failed (no securevibe.toml, a bad manifest)\n",
+        help: "  sv run [PATH] [--slow]\n                     start the app behind the network fence, check it answers, ask it\n                     questions as a stranger and as the test users, and run its tests;\n                     with `install = true` it first downloads the packages the app names,\n                     in a container that sees only the dependency files;\n                     --slow also waits out the session timeouts you state,\n                     and ten minutes before using an emailed sign-in code\n                     exit status: 0 the app ran; 2 not assessed: it could not be started\n                     or never answered; 3 sv itself failed (no securevibe.toml, a bad manifest)\n",
     },
     Command {
         name: "check",
@@ -261,7 +263,7 @@ const COMMANDS: &[Command] = &[
         word: Some("PATH"),
         flags: &["--run", "--slow", "--tools"],
         valued: &["--out", "--advisories", "--fail-on"],
-        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/securevibe-report unless --out says where\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no securevibe.toml, a bad manifest, no such folder)\n",
+        help: "  sv report [PATH] [--out DIR] [--run [--slow]] [--tools] [--advisories DIR] [--fail-on WHAT]\n                     write the reports: what applies, what was found, what nobody has answered,\n                     into PATH/securevibe-report unless --out says where; --run starts the app\n                     as `sv run` does, downloading its packages first with `install = true`\n                     --fail-on also fails for attention[:SEVERITY] (a finding at SEVERITY\n                     or worse: critical, high, medium, low (the default), or info),\n                     not-assessed (also a symbolic link not followed, a tool --tools could\n                     not run, or an --advisories comparison that did not cover the app),\n                     or any (both), several separated by commas\n                     exit status: 0 finished; 1 needs attention (only with --fail-on);\n                     2 not assessed: a check could not run, no file of the app was read,\n                     or --run was given and the app could not be started;\n                     3 sv itself failed (no securevibe.toml, a bad manifest, no such folder)\n",
     },
     Command {
         name: "review",
@@ -283,6 +285,13 @@ const COMMANDS: &[Command] = &[
         flags: &[],
         valued: &["--out"],
         help: "  sv dashboard FOLDER... --out FILE.html\n                     one page for several apps, from the report already in each one's\n                     securevibe-report folder: every app in alphabetical order, and each\n                     app's own view; it checks nothing itself, and writes only FILE.html\n",
+    },
+    Command {
+        name: "history",
+        word: Some("ACTION..."),
+        flags: &["--all"],
+        valued: &[],
+        help: "  sv history on|off|status|forget FOLDER|forget --all\n                     keep a small record of each sv report run, for sv dashboard to show\n                     how an app changes; off until you turn it on, kept outside every\n                     app's folder, readable only by you, and never your code\n",
     },
     Command {
         name: "mcp",
@@ -2384,8 +2393,11 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         }
     }
     if folders.is_empty() {
+        folders = history::apps();
+    }
+    if folders.is_empty() {
         bail!(
-            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html"
+            "`sv dashboard` needs the app folders to show, for example: sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html (with history on, `sv history on`, it shows every app whose runs were kept)"
         );
     }
     let Some(out) = out else {
@@ -2411,6 +2423,7 @@ fn cmd_dashboard(args: &[String]) -> Result<()> {
         let report_html = reports.join("report.html");
         apps.push(sv_report::dashboard::App {
             report_html: report_html.is_file().then_some(report_html),
+            runs: history::runs(&folder),
             folder,
             summary,
         });
@@ -3402,15 +3415,48 @@ fn is_staging(name: &str, ours: &[&str]) -> bool {
 /// Refuses a path that is a link, whatever it points to, saying so in the owner's terms and saying
 /// what to do instead.
 fn refuse_link(path: &Path, what_to_do: &str) -> Result<()> {
-    if let Ok(meta) = std::fs::symlink_metadata(path) {
-        anyhow::ensure!(
-            !meta.file_type().is_symlink(),
-            "{} is a link to somewhere else, so sv does not read or write through it. {what_to_do}",
-            path.display()
-        );
+    if let Ok(meta) = std::fs::symlink_metadata(path)
+        && meta.file_type().is_symlink()
+    {
+        return Err(Remedy::error(
+            format!(
+                "{} is a link to somewhere else, so sv does not read or write through it.",
+                path.display()
+            ),
+            what_to_do,
+        ));
     }
     Ok(())
 }
+
+/// What went wrong, and what `sv` itself says to do about it, kept apart. The MCP server fences what
+/// went wrong as the app's text, since it quotes the app as often as not, and writes the next step
+/// outside the fence as `sv`'s own words, which an AI coding tool reading a fenced instruction as
+/// information did not act on (`docs/GAP-ANALYSIS.md`, 5.3). At a terminal the two read as one, as
+/// before. `next` is `sv`'s words only: nothing of the app's goes in it.
+#[derive(Debug)]
+pub(crate) struct Remedy {
+    pub problem: String,
+    pub next: String,
+}
+
+impl Remedy {
+    /// The error that carries `problem` and `next`.
+    pub fn error(problem: impl Into<String>, next: impl Into<String>) -> anyhow::Error {
+        anyhow::Error::new(Remedy {
+            problem: problem.into(),
+            next: next.into(),
+        })
+    }
+}
+
+impl std::fmt::Display for Remedy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.problem, self.next)
+    }
+}
+
+impl std::error::Error for Remedy {}
 
 /// What to do about a link where a report file or folder goes.
 const REPORT_LINK: &str = "Remove the link, or give a folder of your own with --out.";
@@ -5504,6 +5550,9 @@ fn cmd_report(args: &[String]) -> Result<i32> {
     )?;
     let written = written.names();
 
+    // History, when the person keeps it (ADR-057): after the report is written, never instead of it.
+    let kept = sv_report::dashboard::Run::of(&report).map(|run| history::keep(&app_dir, &run));
+
     let c = &report.counts;
     println!("Wrote {} files to {}:", written.len(), out_dir.display());
     for name in &written {
@@ -5623,6 +5672,13 @@ fn cmd_report(args: &[String]) -> Result<i32> {
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
+    match kept {
+        Some(Ok(Some(_))) => println!(
+            "Kept a record of this run in your history (`sv history off` stops it; `sv dashboard` shows it)."
+        ),
+        Some(Err(e)) => eprintln!("History is on, and this run could not be kept: {e:#}"),
+        _ => {}
+    }
     exit::explain(status, &reasons)
         .iter()
         .for_each(|l| println!("{l}"));

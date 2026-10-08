@@ -138,7 +138,7 @@ def main():
         prompts = replies[6]["result"]
         prompts_text = prompts["content"][0]["text"]
         check(prompts["isError"] is False and "**Shown to work.**" in prompts_text
-              and "**Not tested:**" in prompts_text,
+              and "**Tried, not shown to work.**" in prompts_text,
               "securevibe_prompts gives the prompt library, each prompt marked")
         guidance = replies[5]["result"]
         rules_text = guidance["content"][0]["text"]
