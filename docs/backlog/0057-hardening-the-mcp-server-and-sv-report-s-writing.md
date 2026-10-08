@@ -1,7 +1,6 @@
 # Hardening the MCP server, and `sv report`'s writing
 
-**Status:** open
-
+**Status:** done, by its own batch notes, read again on 8 October 2026 after a reviewer's comment on the split
 Found on 3 October 2026 by session securevibe-e2, at the
 owner's asking to look at the MCP server, each reproduced against the built `sv mcp` in a scratch folder.
 **Items 1 to 3 claimed the same day by session securevibe-e2**, at the owner's word ("go ahead"), in branch

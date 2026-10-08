@@ -36,23 +36,17 @@ searching `docs/backlog/` for it, or `python3 tools/backlog.py show <number>` pr
 a done note rather than a build.
 
 **Phase 1: close what is known to be broken.** Safety and honesty first; each numbered sub-item is claimable on
-its own.
+its own. The two reviews of the code merged 1 to 6 October and the MCP hardening list, which the first version of
+this section put here as 41 findings with none claimed, are done by their own notes: each names several parts at
+once ("Items 1 to 3 done the same day"), which the board at the split read as open. A reviewer caught it on 8
+October, and their files say `done` now.
 
-1. "A review of the code merged on 1 to 4 October 2026, for faults": 24 findings, several rated high, none claimed
-   as of 8 October. First the false passes and the high ones (1, 12, 13, 14, 18, 19), then the rest in order; 8 and
-   11 wait on the owner (ADR-026). Items 4 and 7 were overtaken on 8 October by "One rule for what an answer is"
-   (ADR-021, Later): verify on `main` and write the done note.
-2. "A review of the code merged on 5 and 6 October 2026, for faults": 17 findings, none claimed. First the false
-   passes and the missed secrets (2, 5, 10, 11, 12, 13), then the rest.
-3. "From the review of 8 October 2026: the medium and low findings, for any session to pick up", in the order 4
+1. "From the review of 8 October 2026: the medium and low findings, for any session to pick up", in the order 4
    (the planted report marker), 2 (the npm download addresses and the linked dependency file), 1 (Ctrl-C under
    `--tools`), 3 (gosec, CodeQL, and the links the tools follow), 5 (the honesty gaps), 6 (the low ones), 7 (the
    spellings and the home path). The first three are the last known ways `sv` writes or fetches where it was not asked.
-4. "Hardening the MCP server, and `sv report`'s writing": 7 items from 6 October, none claimed. Items 1, 3, and 6
-   look done by later work (the link rule of ADR-041's fixes, the fence, the 1 MiB cap and the 50-second limit):
-   verify on `main` and write the done notes; build 2, 4, 5, and 7.
-5. "Found by the documentation review (6 October 2026), in `sv` itself": items 1 and 3 to 7.
-6. The smaller open parts of the older reviews: "A review of `sv` on 27 September 2026" (the one open part),
+2. "Found by the documentation review (6 October 2026), in `sv` itself": items 1 and 3 to 7.
+3. The smaller open parts of the older reviews: "A review of `sv` on 27 September 2026" (the one open part),
    "The running-app checks, reviewed on 3 October 2026" (its open part and the ten partly done), "Two blind spots
    found testing the prompt library", "Three false alarms on code that does the safe thing" (item 3), "Two limits
    cato-pipeline hit" (its open part), and "Improving the MCP server" (its open part).

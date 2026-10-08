@@ -200,6 +200,14 @@ listed apart, below this item.
    `probe.app-token-placeholder-key`.
    **(c) through sign-in done the same day** (DESIGN, "A failed sign-in that tells which accounts exist"):
    `probe.signin-reveals-account`.
+   **(c), through sign-up, claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever
+   you're ready"), in branch `claude/securevibe-e9-signup-reveals`: an account made for it, then two sign-ups with its
+   address and one with an address nobody has, compared by the same `reveals_account_check`. A difference is a finding
+   citing V6.3.8; none credits nothing. Never with A's or B's address, since an app that lets a second sign-up replace
+   an account would change a password the other checks rely on. Read on `main` just before this claim: no other session
+   had claimed it.
+   **(c) through sign-up done the same day**
+   (`docs/design/0301-a-sign-up-that-tells-which-accounts-exist-8-october-2026.md`): `probe.signup-reveals-account`.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
