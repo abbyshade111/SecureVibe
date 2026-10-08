@@ -297,6 +297,7 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
                     .push(("V16.3.1".to_owned(), elsewhere(missing)));
             }
         }
+        crate::verified::unless_credited("probe.authentication-logged", &out.verified);
     } else {
         out.not_assessed.push((
             "V16.3.1".to_owned(),
@@ -385,6 +386,7 @@ pub fn evaluate(markers: &Markers, log: &str) -> LogOutcome {
             elsewhere("The refused request this run made was not in the app's output."),
         ));
     }
+    crate::verified::unless_credited("probe.authorization-failure-logged", &out.verified);
     out
 }
 
@@ -458,6 +460,7 @@ fn format_check(line: &str, out: &mut LogOutcome) {
             ));
         }
     }
+    crate::verified::unless_credited("probe.log-common-format", &out.verified);
 }
 
 /// A timestamp on a log line, and whether it says what time zone it is in.
@@ -568,6 +571,7 @@ fn metadata_checks(line: &str, named: bool, out: &mut LogOutcome) {
             ),
         )),
     }
+    crate::verified::unless_credited("probe.log-line-metadata", &out.verified);
 
     match &when {
         Some(t) if t.zoned => out.verified.push(crate::Verified::new(

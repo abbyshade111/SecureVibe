@@ -644,6 +644,9 @@ another session is not a claim.
      gives no credit without a finding ("not assessed", or nothing), written to the same `.withheld` log, and put in
      the ten checks the first count listed, so the tests they already have are seen; and the gate's decision record
      written as proposed.
+     **Step 2 done the same day** (DESIGN, "Step 2: a credit not given is written down too"; ADR-059, proposed):
+     `verified::unless_credited` in the ten checks. Break: the marker writing nothing failed
+     `crates/sv-check/tests/withheld_log.rs`, and the census then listed the ten again.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed

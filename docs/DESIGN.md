@@ -10762,6 +10762,13 @@ given. So the next step is the census seeing that, not new tests: each of those 
 withholds, and the gate follows once the list is empty. Breaks: `found` writing nothing, and the census counting a
 finding a test built, each failed `crates/sv-check/tests/withheld_log.rs`.
 
+**Step 2: a credit not given is written down too (8 October 2026).** Each of the ten calls
+`verified::unless_credited(check, &verified)` where it has run, once: when no credit from it is among them, it
+withheld, and a debug build writes that to the same `.withheld` log, with the place that called it. It decides
+nothing and changes nothing in a release build. The place is after the check's own branches, never inside one,
+so it cannot be skipped by the branch that withholds; a check that never ran (a setup it needed was missing)
+returns before it and is not counted as withholding. The gate this leads to is ADR-059, proposed.
+
 The first two are now listed, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md` mark them as "only ever as a finding".
 The third has its test (`an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not`). The census
 agrees with every tree-sitter rule's flag as it was. No report changes: the reports never credited any of these.
