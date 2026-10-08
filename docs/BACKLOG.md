@@ -9,6 +9,23 @@ another session is not a claim.
 
 ## Next
 
+- **A dashboard view for `sv`: explore it.** Asked for by the owner on 8 October 2026 ("explore building out a
+  dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `compliance.md`, `security.md`,
+  `report.json`) and nothing that shows an app at a glance, several runs over time, or several apps side by side. The
+  exploration is a written proposal, `docs/DASHBOARD.md`, and nothing is built from it without the owner's decision:
+  1. **What a dashboard could show**, from what `sv` already records: one run at a glance, one app's runs over time,
+     several apps together. What each needs that `sv` does not keep today (a run's history, for one).
+  2. **How it could be delivered**: a page written beside the report, a command that writes one page for several
+     reports, or a page served while `sv` runs. Each against `sv`'s rules: no network connection of its own, nothing
+     fetched from the internet by the page, nothing written into the app's folder that is not already, and plain
+     language.
+  3. **How it stays honest**: a not-assessed requirement is never drawn as a pass, a count never reads as a grade,
+     and a chart says what it leaves out, the same as the reports (the short version's banned words).
+  4. **A recommendation**, with a first step small enough to build and test, and the questions only the owner can
+     answer. Status: proposed. Anything that changes what `sv` writes or serves is a decision with its own record.
+  **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("can you add an item to the backlog,
+  or take it yourself"), in branch `claude/securevibe-e2-dashboard`: the proposal only.
+
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
   October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
   numbered item is one finding of `docs/GAP-ANALYSIS.md`, by its section number there, where the evidence is;
