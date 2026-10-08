@@ -251,6 +251,10 @@ another session is not a claim.
      out of what a redirect writes to a file; (g) no "Checked and fine" block when nothing was read; (h) the README
      pointing a non-programmer to the guide first, `--locked` in `tools/install.sh`, and the guide saying the build
      folder can be deleted.
+     **(h) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please go ahead"), in
+     branch `claude/securevibe-e2-readme-first`: the README's opening sends somebody who is not a programmer to
+     `docs/GETTING-STARTED.md` first, `tools/install.sh` builds with `--locked`, and the guide says which build
+     folder can be deleted afterwards, how large it is, and that deleting it does not remove `sv`.
      **(f) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-init-redirect`: when `sv init`'s output goes straight into a
      file, it prints only the starter `securevibe.toml`, which `sv` can read, and says on screen that the
