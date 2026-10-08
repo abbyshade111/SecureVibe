@@ -109,3 +109,10 @@ high were built the same day (the entry above this one's predecessor). Each of t
    item 1, last in its order), in branch `claude/securevibe-e2-housekeeping`: the British spellings in files a person
    reads made American, and the home path in `recipe-summaries.txt` replaced by `~`. History is not rewritten, so
    the path stays in earlier commits. `assemble_report_saying`, `Adapters::load`, and the tool list stay open.
+   **Those two done the same day**: fifteen British spellings made American in workflows, a code comment, the gap
+   analysis, two decision records, four backlog items, and a trial protocol; and the home path in
+   `recipe-summaries.txt` replaced by `~`. Left as they are, saying why: the OWASP standards' own text in
+   `data/frameworks` (and `docs/REQUIREMENTS.md`, made from it), quoted word for word; `common-passwords.txt`, a list
+   of data; "cancellation", which is American too; identifiers such as test names; this item's own quotation of the
+   words; and `docs/prompts/trial-4/recipe-brief.md`, which is the brief the trial gave its builders as given, so its
+   "recognise" stays, as a record of what they read.
