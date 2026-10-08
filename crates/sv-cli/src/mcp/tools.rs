@@ -17,22 +17,20 @@ impl Server {
         app_dir: &Path,
         progress: &Progress,
     ) -> Result<sv_report::Report> {
-        anyhow::ensure!(
-            app_dir.join("securevibe.toml").exists(),
-            "there is no securevibe.toml in {}. Call securevibe_spec, write the file it describes \
-             into that folder, and check again.",
-            app_dir.display()
-        );
+        needs_manifest(app_dir, "check again")?;
         let mut last = self
             .last_check
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if last.as_ref().is_some_and(|check| !check.is_finished()) {
-            anyhow::bail!(
-                "the last check ran out of time and is still finishing, so no other is started \
-                 beside it. Nothing was assessed. Ask again in a minute, or ask the person to run {}.",
-                at_a_terminal(&app_dir.to_string_lossy(), "")
-            );
+            return Err(crate::Remedy::error(
+                format!(
+                    "the last check ran out of time and is still finishing, so no other is started \
+                     beside it. Nothing was assessed. At a terminal, with no time limit: {}.",
+                    at_a_terminal(&app_dir.to_string_lossy(), "")
+                ),
+                "Ask again in a minute, or ask the person to run that command at a terminal.",
+            ));
         }
         let (send, receive) = std::sync::mpsc::channel();
         let loaded = std::sync::Arc::clone(&self.loaded);
@@ -71,13 +69,17 @@ impl Server {
                 }
                 report
             }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => anyhow::bail!(
-                "the check did not finish within {} seconds, so nothing was assessed: this is not a \
-                 pass and not a failure. The folder may be very large; check a smaller folder with \
-                 `path`, or ask the person to run {}, which has no time limit.",
-                self.time_limit.as_secs_f64(),
-                at_a_terminal(&app_dir.to_string_lossy(), "")
-            ),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => Err(crate::Remedy::error(
+                format!(
+                    "the check did not finish within {} seconds, so nothing was assessed: this is \
+                     not a pass and not a failure. The folder may be very large. At a terminal, with \
+                     no time limit: {}.",
+                    self.time_limit.as_secs_f64(),
+                    at_a_terminal(&app_dir.to_string_lossy(), "")
+                ),
+                "Check a smaller folder with `path`, or ask the person to run that command at a \
+                 terminal.",
+            )),
             Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                 anyhow::bail!("the check stopped before it finished, so nothing was assessed")
             }
@@ -130,6 +132,8 @@ impl Server {
     /// What `sv run` will need, looked for in the code, with nothing run (ADR-035).
     pub(super) fn preflight(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
+        // Asked here, so the remedy names the tool the AI coding tool has, not `sv init`.
+        needs_manifest(&app_dir, "ask for the preflight again")?;
         let (items, ahead, unread) = crate::preflight::of(&app_dir)?;
         Ok(json!({
             "content": [{
@@ -342,12 +346,7 @@ impl Server {
     /// Makes or refreshes security-notes.md, so the tool can write the owner's decisions into it.
     pub(super) fn notes_file(&self, args: &Value) -> Result<Value> {
         let app_dir = self.app_dir(args)?;
-        anyhow::ensure!(
-            app_dir.join("securevibe.toml").exists(),
-            "there is no securevibe.toml in {}. Call securevibe_spec, write the file it describes \
-             into that folder, and try again.",
-            app_dir.display()
-        );
+        needs_manifest(&app_dir, "try again")?;
         // The one file this writes is inside a folder already held to the root, but the file itself
         // could be a link to somewhere else, and writing follows it. Refused before anything is
         // written, the same care `securevibe_write_report` takes with its folder.
@@ -447,15 +446,19 @@ impl Server {
         // Beside the app means in its parent, which has to be inside the root: when the app is the root itself,
         // the parent is somewhere this server was not started for.
         let parent = app_dir.parent().map(Path::to_path_buf).unwrap_or_default();
-        anyhow::ensure!(
-            app_dir != self.root && parent.starts_with(&self.root),
-            "the bundle is written beside the app, and beside {} would be outside {}, the folder this server \
-             was started for. Start the server for the folder that holds the app, or ask the person to run \
-             {} in a terminal.",
-            app_dir.display(),
-            self.root.display(),
-            this_sv_running("bundle", &app_dir.to_string_lossy())
-        );
+        if app_dir == self.root || !parent.starts_with(&self.root) {
+            return Err(crate::Remedy::error(
+                format!(
+                    "the bundle is written beside the app, and beside {} would be outside {}, the \
+                     folder this server was started for. At a terminal: {}.",
+                    app_dir.display(),
+                    self.root.display(),
+                    this_sv_running("bundle", &app_dir.to_string_lossy())
+                ),
+                "Start the server for the folder that holds the app, or ask the person to run that \
+                 command in a terminal.",
+            ));
+        }
         // Resolved through links, so a `-securevibe-bundle.zip` that is a link to somewhere else is refused
         // before anything is written.
         let zip = crate::bundle::resolve_for_writing(
