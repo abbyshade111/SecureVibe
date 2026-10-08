@@ -138,10 +138,25 @@ fn moderate(port: u16, input: &str) -> bool {
         .expect("a verdict")
 }
 
+/// Whether Node is here to run the test model. Where CI says a container backend must be here
+/// (`SV_REQUIRE_BACKEND=1`), Node must be too: without it every test here passed while checking
+/// nothing (the review of 8 October 2026, item 5), as the fence tests did without Docker.
+fn node_here() -> bool {
+    if Command::new("node").arg("--version").output().is_ok() {
+        return true;
+    }
+    assert!(
+        std::env::var("SV_REQUIRE_BACKEND").as_deref() != Ok("1"),
+        "SV_REQUIRE_BACKEND=1 and there is no Node here, so the test model could not be run and \
+         every test of it would have passed checking nothing"
+    );
+    println!("no Node here; the test model cannot be run, so nothing is checked");
+    false
+}
+
 #[test]
 fn the_test_model_does_what_the_ai_checks_rely_on() {
-    if Command::new("node").arg("--version").output().is_err() {
-        println!("no Node here; the test model cannot be run, so nothing is checked");
+    if !node_here() {
         return;
     }
     let (_server, port) = start().expect("the test model starts under Node");
@@ -442,8 +457,7 @@ fn post(port: u16, path: &str, body: serde_json::Value) -> serde_json::Value {
 fn the_test_model_answers_in_the_shape_the_app_asked_for() {
     // ADR-042: an ordinary reply fits the shape asked for, BADSHAPE breaks it, and what was seen
     // says which shape was asked for.
-    if Command::new("node").arg("--version").output().is_err() {
-        println!("no Node here; the test model cannot be run, so nothing is checked");
+    if !node_here() {
         return;
     }
     let (_server, port) = start().expect("the test model starts under Node");

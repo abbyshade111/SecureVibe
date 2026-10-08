@@ -71,6 +71,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    was never seen crediting, beside the per-check test it has (a Later entry on ADR-059); and the model-provider
    test fails without `node` when `SV_REQUIRE_BACKEND` is set. Confirmed on `main` just before this claim: none of
    the three is done, and no other session had claimed this part.
+   **Done the same day** (`docs/design/0306-three-honesty-gaps-from-the-review-of-8-october-8-october.md`; ADR-059,
+   Later): a manifest that cannot be read or understood is said not compared, on screen, in the report, and in the
+   CycloneDX document, the bill of materials still complete; the census fails a cited requirement never seen
+   credited; and the test model's tests fail without `node` when `SV_REQUIRE_BACKEND=1`. The findings log the review
+   also asked for is the census of what checks withhold (ADR-059).
 6. Low: a FIFO named `securevibe.toml` hangs the MCP server's serving thread (`app_dir` refuses links only);
    `Secret::redact` keeps four characters whatever the length, so a 4-character URL password is shown whole (show
    `min(4, len/3)`); `redact_text` masks only listed names, and `authorization`, `bearer`, `cookie`, `session`,

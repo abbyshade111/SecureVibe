@@ -122,6 +122,12 @@ impl Disagreement {
 
     /// The sentence a person reads about the packages that could not be compared.
     pub fn explain_not_compared(&self) -> String {
+        if let Some(why) = &self.comparison.whole {
+            return format!(
+                "{why}, so whether it asks for the versions `{}` has was not compared, and is not known",
+                self.lockfile
+            );
+        }
         let n = self.comparison.not_compared.len();
         let shown: Vec<String> = self
             .comparison
@@ -435,13 +441,34 @@ fn read_ecosystem(app_dir: &Path, eco: &DetectedEcosystem, sbom: &mut Sbom) {
         // beside it (DESIGN, "When a manifest and its lockfile disagree").
         // A requirements.txt that is its own lockfile has nothing else to be compared with.
         let manifest_name = sv_scan::ecosystems::file_name(&eco.manifest);
-        if lockfile_path != eco.manifest
-            && let Some(manifest) = read(manifest_name)
-            && let Some(comparison) = crate::manifest_lock::compare(
-                manifest_name,
-                &manifest,
-                compared_with.as_deref().unwrap_or(&pairs),
-            )
+        // A manifest that cannot be read, or one of a kind compared here that cannot be understood, is
+        // a comparison not made, and said so: left out, it read as the two agreeing.
+        let not_made = |why: String| crate::manifest_lock::Comparison {
+            whole: Some(why),
+            ..Default::default()
+        };
+        let comparison = if lockfile_path == eco.manifest {
+            None
+        } else {
+            match read(manifest_name) {
+                None => Some(not_made(format!("`{}` could not be read", eco.manifest))),
+                Some(manifest) => match crate::manifest_lock::compare(
+                    manifest_name,
+                    &manifest,
+                    compared_with.as_deref().unwrap_or(&pairs),
+                ) {
+                    Some(comparison) => Some(comparison),
+                    None if crate::manifest_lock::compares(manifest_name) => {
+                        Some(not_made(format!(
+                            "`{}` could not be understood (it is not written as `sv` reads one)",
+                            eco.manifest
+                        )))
+                    }
+                    None => None,
+                },
+            }
+        };
+        if let Some(comparison) = comparison
             && comparison != crate::manifest_lock::Comparison::default()
         {
             sbom.disagreements.push(Disagreement {
@@ -1406,7 +1433,7 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
                 value: disagreement.explain(),
             });
         }
-        if !disagreement.comparison.not_compared.is_empty() {
+        if disagreement.comparison.not_all_compared() {
             properties.push(Property {
                 name: format!("securevibe:manifest-not-compared:{}", disagreement.project),
                 value: disagreement.explain_not_compared(),
@@ -1528,3 +1555,6 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod not_compared_tests;
