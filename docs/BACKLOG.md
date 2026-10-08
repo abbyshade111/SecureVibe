@@ -7886,17 +7886,25 @@ done: `docs/adr/ADR-018.md`.
   trial: the stranger `Origin` goes to `/` alone (`crates/sv-check/src/probes.rs`, the `cors` request), so a JSON API
   that lets any site read it, the case the check exists for, is never asked. Ask the app's listed private pages and
   API addresses too, signed in where they need it.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
 - **`probe.common-password-accepted` rests on one word.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: it tries `123qweasdzxc` alone, so a list written from memory passes when it happens to hold that word (one of
   443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
   credit in part (ADR-053).
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
 - **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: of 10 Sonnet apps, 8 did not list their return-address pages under `redirects`, 7 did not declare their upload,
   and only one listed its search page with a term, so those checks did not reach what the brief tempted. The
   specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`: the specification's wording. Read on `main` just before this claim: no other session had claimed it.
 - **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
   its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install
   step can give the app).
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`: the prompt's wording, untried. Read on `main` just before this claim: no other session had claimed it.
 - **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
   faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
   own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.
