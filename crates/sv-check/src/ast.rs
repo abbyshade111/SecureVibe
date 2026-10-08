@@ -4838,7 +4838,7 @@ mod tests {
         // names the rule as one that could not run, and the clean-result gate stays shut.
         let rules = rules_from(ONE_RULE).expect("loads: nothing checks the query text at load");
         assert!(rules.compile_all().is_err());
-        let read = read_file(rules, "python", "src/app.py", "x = 1\n");
+        let read = read_file(&rules, "python", "src/app.py", "x = 1\n");
         assert_eq!(read.broken.len(), 1, "{:?}", read.broken);
         assert_eq!(read.broken[0].rule_id, "test.rule");
         assert_eq!(read.broken[0].language, "python");
@@ -4848,7 +4848,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("app.py"), "x = 1\n").unwrap();
         std::fs::write(dir.join("b.py"), "y = 2\n").unwrap();
-        let scan = scan_dir(rules, &dir);
+        let scan = scan_dir(&rules, &dir);
         std::fs::remove_dir_all(&dir).ok();
         assert_eq!(scan.files_parsed, 2);
         assert_eq!(
