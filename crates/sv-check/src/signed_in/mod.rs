@@ -2310,6 +2310,8 @@ mod check_guard_tests;
 mod fake_app;
 #[cfg(test)]
 mod resignup_tests;
+#[cfg(test)]
+mod storage_check_tests;
 
 #[cfg(test)]
 mod tests {
