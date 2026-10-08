@@ -360,7 +360,7 @@ running app (`--run`, with an `ai` section). The rest are semgrep's and CodeQL's
 - C10.4.5: found failing by sv's `probe.mcp-server-no-size-limit`.
 - C11.2.2: settled by `probe.ai-rate-unlimited`.
 - C11.3.2: found failing by sv's `probe.ai-raw-response-exposed`.
-- AC.12.1: settled by `config.workflow-runs-fork-code`.
+- AC.12.1: settled by `config.workflow-runs-fork-code`; and found failing by sv's `config.workflow-untrusted-text-in-run`.
 - C12.1.1: settled by `probe.ai-call-log-session`.
 - C12.1.3: settled by `probe.ai-call-log-incomplete`.
 - AC.12.2: settled by `config.workflow-checkout-keeps-token`.
