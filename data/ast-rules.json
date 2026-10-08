@@ -1548,6 +1548,50 @@
       }
     },
     {
+      "id": "ast.csrf-protection-off",
+      "title": "Protection against forged requests is switched off",
+      "severity": "medium",
+      "confidence": "medium",
+      "requirementIds": [
+        "V3.5.1"
+      ],
+      "cwe": [
+        "CWE-352"
+      ],
+      "description": "The code switches off the framework's protection against cross-site request forgery: `@csrf_exempt` in Django or `@csrf.exempt` in Flask-WTF; `WTF_CSRF_ENABLED = False` in Flask-WTF; `skip_forgery_protection` or `skip_before_action :verify_authenticity_token` in Rails; `csrf().disable()` in Spring Security; `[IgnoreAntiforgeryToken]` or `DisableAntiforgery()` in ASP.NET Core; or `checkOrigin: false` in SvelteKit or Astro.",
+      "impact": "While somebody is signed in, any other website they visit can make their browser send a request to this app, and the app carries it out as theirs: changing their email address or password, sending a payment, or deleting their data.",
+      "fix": "Turn the protection back on. If the switch is there because a form or a fetch failed without it, send the framework's anti-forgery token with that request instead (`{% csrf_token %}` in Django, `csrf_token()` in Flask-WTF, `csrf_meta_tags` in Rails). Switching it off is safe only for an API that signs people in with a token in a header rather than a cookie; if that is why, say so to whoever reads this finding.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "[(decorator) @fn (call function: [(identifier) (attribute)] @fn) (assignment) @fn (pair) @fn (keyword_argument) @fn] @hit",
+        "ruby": "[(call) @fn (body_statement (identifier) @fn)] @hit",
+        "java": "(method_invocation) @fn @hit",
+        "csharp": "[(attribute name: (identifier) @fn) (invocation_expression function: (member_access_expression name: (identifier) @fn))] @hit",
+        "javascript": "(pair) @fn @hit",
+        "typescript": "(pair) @fn @hit"
+      },
+      "functionPatterns": {
+        "python": "(^@\\s*(csrf_exempt|csrf\\.exempt)$|^csrf_exempt$|\\bWTF_CSRF_ENABLED[\"']?\\]?\\s*[=:]\\s*False$)",
+        "ruby": "^(skip_forgery_protection\\b|skip_before_action\\s*\\(?\\s*:verify_authenticity_token\\b)",
+        "java": "\\bcsrf\\(\\s*(\\)\\s*\\.\\s*disable\\(\\s*\\)|\\w+\\s*->\\s*\\w+\\s*\\.\\s*disable\\(\\s*\\)\\s*\\)|[\\w.]*::disable\\s*\\))$",
+        "csharp": "^(IgnoreAntiforgeryToken|DisableAntiforgery)$",
+        "javascript": "^checkOrigin\\s*:\\s*false$",
+        "typescript": "^checkOrigin\\s*:\\s*false$"
+      },
+      "looksFor": "the explicit switches that turn request-forgery protection off: `csrf_exempt` and `csrf.exempt` (Python), `WTF_CSRF_ENABLED = False` (Flask-WTF), `skip_forgery_protection` and `skip_before_action :verify_authenticity_token` (Rails), `csrf().disable()` in its three spellings (Spring Security), `[IgnoreAntiforgeryToken]` and `DisableAntiforgery()` (ASP.NET Core), and `checkOrigin: false` (SvelteKit, Astro); protection never turned on is not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "go": "Go's request-forgery protection (`gorilla/csrf`, `nosurf`) is added by the app, never on by default, so there is no switch that turns it off. Protection that was never added is not looked for: whether an app needs it depends on how it signs people in, which one file does not show.",
+        "rust": "No setting that switches request-forgery protection off is known for Rust's common web frameworks, so there is no switch to look for. Protection that was never turned on is not looked for either: whether an app needs it depends on how it signs people in, which one file does not show.",
+        "kotlin": "No switch is looked for in Kotlin yet: Spring Security's `csrf { disable() }` in Kotlin's own syntax is not read, only the Java spellings.",
+        "php": "Laravel's exceptions are a list of paths in a middleware or in `validateCsrfTokens(except: [...])`, and telling a webhook's path from a form's needs more than one file, so they are not looked for.",
+        "dart": "No setting that switches request-forgery protection off is known for Dart's common web frameworks, so there is no switch to look for. Protection that was never turned on is not looked for either: whether an app needs it depends on how it signs people in, which one file does not show.",
+        "swift": "No setting that switches request-forgery protection off is known for Swift's common web frameworks, so there is no switch to look for. Protection that was never turned on is not looked for either: whether an app needs it depends on how it signs people in, which one file does not show.",
+        "c": "No setting that switches request-forgery protection off is known for C's common web frameworks, so there is no switch to look for. Protection that was never turned on is not looked for either: whether an app needs it depends on how it signs people in, which one file does not show.",
+        "cpp": "No setting that switches request-forgery protection off is known for C++'s common web frameworks, so there is no switch to look for. Protection that was never turned on is not looked for either: whether an app needs it depends on how it signs people in, which one file does not show.",
+        "shell": "Shell scripts serve no web forms this rule can speak to."
+      }
+    },
+    {
       "id": "ast.cors-any-origin-with-credentials",
       "title": "Any website may call the app with its visitors' cookies",
       "severity": "high",
