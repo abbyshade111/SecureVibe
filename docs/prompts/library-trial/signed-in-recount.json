@@ -1,0 +1,1221 @@
+{
+ "trials": {
+  "prompt library": {
+   "comparisons": {
+    "password-hashing": {
+     "kind": "static",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 4
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 7,
+       "asked": 8,
+       "problem": 2
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 4
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 7,
+       "asked": 8,
+       "problem": 2
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "secrets-in-the-environment": {
+     "kind": "static",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 7
+      },
+      "arm": {
+       "started": 3,
+       "signed_in": 3,
+       "asked": 4,
+       "problem": 1
+      },
+      "verdict": "shown",
+      "harm": [
+       "signed in 3 against 6"
+      ]
+     },
+     "new": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 7
+      },
+      "arm": {
+       "started": 3,
+       "signed_in": 3,
+       "asked": 4,
+       "problem": 1
+      },
+      "verdict": "shown",
+      "harm": [
+       "signed in 3 against 6"
+      ]
+     }
+    },
+    "security-headers": {
+     "kind": "running",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 6
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 6
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     }
+    },
+    "design-limits": {
+     "kind": "signed-in",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 5
+      },
+      "arm": {
+       "started": 3,
+       "signed_in": 2,
+       "asked": 2,
+       "problem": 2
+      },
+      "verdict": "not shown",
+      "harm": [
+       "signed in 2 against 6"
+      ]
+     },
+     "new": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 5
+      },
+      "arm": {
+       "started": 3,
+       "signed_in": 2,
+       "asked": 2,
+       "problem": 2
+      },
+      "verdict": "not shown",
+      "harm": [
+       "signed in 2 against 6"
+      ]
+     }
+    },
+    "sessions-hard-to-steal": {
+     "kind": "signed-in",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 4
+      },
+      "arm": {
+       "started": 5,
+       "signed_in": 4,
+       "asked": 4,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 4
+      },
+      "arm": {
+       "started": 5,
+       "signed_in": 4,
+       "asked": 4,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "private-pages-no-store": {
+     "kind": "signed-in",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 5
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 5
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     }
+    },
+    "ai-feature-guard": {
+     "kind": "running",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 9,
+       "signed_in": 9,
+       "asked": 9,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 9,
+       "signed_in": 9,
+       "asked": 9,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     }
+    }
+   },
+   "mismatches": []
+  },
+  "delivery, part B": {
+   "comparisons": {
+    "sonnet:ai-feature-guard": {
+     "kind": "running",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "sonnet:security-headers": {
+     "kind": "running",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "sonnet:private-pages-no-store": {
+     "kind": "signed-in",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "sonnet:secrets-in-the-environment": {
+     "kind": "static",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 9
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 9
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "haiku:security-headers": {
+     "kind": "running",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 9,
+       "problem": 9
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 5,
+       "asked": 6,
+       "problem": 2
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 9,
+       "problem": 9
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 5,
+       "asked": 6,
+       "problem": 2
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "haiku:private-pages-no-store": {
+     "kind": "signed-in",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 7,
+       "problem": 3
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 5,
+       "asked": 5,
+       "problem": 2
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 7,
+       "problem": 3
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 5,
+       "asked": 5,
+       "problem": 2
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "haiku:secrets-in-the-environment": {
+     "kind": "static",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 9,
+       "problem": 8
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 5,
+       "asked": 9,
+       "problem": 4
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 9,
+       "problem": 8
+      },
+      "arm": {
+       "started": 6,
+       "signed_in": 5,
+       "asked": 9,
+       "problem": 4
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    }
+   },
+   "mismatches": []
+  },
+  "prompts at the start": {
+   "comparisons": {
+    "sonnet:ai-feature-guard": {
+     "kind": "running",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 8,
+       "problem": 8
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 9
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 8,
+       "problem": 8
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 9
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "sonnet:security-headers": {
+     "kind": "running",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "sonnet:private-pages-no-store": {
+     "kind": "signed-in",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "sonnet:secrets-in-the-environment": {
+     "kind": "static",
+     "recorded_verdict": "works",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 9
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "works",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 9
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "works",
+      "harm": []
+     }
+    },
+    "haiku:security-headers": {
+     "kind": "running",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 8,
+       "asked": 10,
+       "problem": 1
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 8,
+       "asked": 10,
+       "problem": 1
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "haiku:private-pages-no-store": {
+     "kind": "signed-in",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 8,
+       "asked": 8,
+       "problem": 3
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 8,
+       "asked": 8,
+       "problem": 3
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "haiku:secrets-in-the-environment": {
+     "kind": "static",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 8,
+       "asked": 10,
+       "problem": 1
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 10,
+       "problem": 4
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 8,
+       "asked": 10,
+       "problem": 1
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 10,
+       "problem": 4
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    }
+   },
+   "mismatches": []
+  },
+  "revision": {
+   "comparisons": {
+    "limits-without-asking@haiku": {
+     "kind": "signed-in",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 5,
+       "problem": 4
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 5,
+       "problem": 4
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 6,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "production-server@haiku": {
+     "kind": "running",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 7
+      },
+      "arm": {
+       "started": 8,
+       "signed_in": 7,
+       "asked": 8,
+       "problem": 8
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 7
+      },
+      "arm": {
+       "started": 8,
+       "signed_in": 7,
+       "asked": 8,
+       "problem": 8
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "isolate-the-window@haiku": {
+     "kind": "running",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 7
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 4
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 7
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 9,
+       "asked": 10,
+       "problem": 4
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "security-contact@haiku": {
+     "kind": "none",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 8,
+       "problem": 8
+      },
+      "arm": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 9,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 8,
+       "problem": 8
+      },
+      "arm": {
+       "started": 9,
+       "signed_in": 7,
+       "asked": 9,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     }
+    },
+    "secrets-in-the-environment@haiku": {
+     "kind": "static",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 8,
+       "problem": 4
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 8,
+       "problem": 4
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 1
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "security-headers@haiku": {
+     "kind": "running",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 0
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 6,
+       "asked": 7,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 0
+      },
+      "arm": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 7,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "git-from-the-start@haiku": {
+     "kind": "static",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 8,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 6,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 7,
+       "signed_in": 5,
+       "asked": 8,
+       "problem": 0
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 6,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "ai-feature-guard@sonnet": {
+     "kind": "running",
+     "recorded_verdict": "no reading",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 3
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 3
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "no reading",
+      "harm": []
+     }
+    },
+    "isolate-the-window@sonnet": {
+     "kind": "running",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     }
+    }
+   },
+   "mismatches": []
+  },
+  "recipe, stage 2": {
+   "comparisons": {
+    "password-rules@sonnet": {
+     "kind": "signed-in",
+     "recorded_verdict": "not shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 8
+      },
+      "verdict": "not shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 10
+      },
+      "arm": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 8
+      },
+      "verdict": "not shown",
+      "harm": []
+     }
+    },
+    "production-server@sonnet": {
+     "kind": "running",
+     "recorded_verdict": "shown",
+     "old": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 5
+      },
+      "arm": {
+       "started": 9,
+       "signed_in": 9,
+       "asked": 9,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     },
+     "new": {
+      "base": {
+       "started": 10,
+       "signed_in": 10,
+       "asked": 10,
+       "problem": 5
+      },
+      "arm": {
+       "started": 9,
+       "signed_in": 9,
+       "asked": 9,
+       "problem": 0
+      },
+      "verdict": "shown",
+      "harm": []
+     }
+    }
+   },
+   "mismatches": []
+  },
+  "recipe, stage 1": {
+   "haiku": {
+    "recorded": 1,
+    "old": 1,
+    "new": 0
+   },
+   "sonnet": {
+    "recorded": 10,
+    "old": 10,
+    "new": 10
+   }
+  },
+  "three sentences": {
+   "password-rules@sonnet": {
+    "recorded": 10,
+    "old": 10,
+    "new": 10,
+    "builds": 10
+   },
+   "production-server@sonnet": {
+    "recorded": 9,
+    "old": 9,
+    "new": 9,
+    "builds": 10
+   },
+   "isolate-the-window@haiku": {
+    "recorded": 6,
+    "old": 6,
+    "new": 6,
+    "builds": 10
+   }
+  }
+ }
+}

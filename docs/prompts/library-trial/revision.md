@@ -40,6 +40,13 @@ no prompt pasted, which still has the shown prompts at the start of its specific
 by three or more; no median of running-app checks answered fell by five or more; no app refused to start for a key
 `sv run` cannot give it, and none refused its own forms.
 
+*Recounted on 8 October 2026* (backlog 214; `recount_signed_in.py`, `signed-in-recount.json`): the scorer counted a
+started app as signed in unless `sv` said signing in had failed, so three Haiku builds that set no `[stack.run.users]`,
+which `sv` therefore never signed in to, were counted as signed in. Corrected, one arm each signs in once less:
+`isolate-the-window` 9 of 10 (not 10), `secrets-in-the-environment` 5 (not 6), `security-headers` 5 (not 6). None of
+those prompts' checks needs signing in, so no count of builds asked or with the problem moves, no verdict moves, and
+there is still no harm by the rule.
+
 ## What lies under the verdicts
 
 - **The prompts at the start are doing the work for the revised four.** In the loop trials' item 6, before any prompt

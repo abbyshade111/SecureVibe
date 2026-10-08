@@ -23,7 +23,7 @@ shown:** the control failed it in all 10 and Haiku 5.5 in 2, and the rule allows
 the largest change in the table, and it still does not meet the rule fixed before the run. **Readable settings, no
 reading:** the control failed it in only 2, too few to show a change. (Signed in as corrected by Amendment 1; first
 scored as 2 and 9.) For comparison, the
-recipe trial's Haiku 4.5 builds (another Claude Code, an older `sv`, not counted): 8 readable, 2 started, 1 signed in by the earlier test (Amendment 1).
+recipe trial's Haiku 4.5 builds (another Claude Code, an older `sv`, not counted): 8 readable, 2 started, 0 signed in (first given as 1; recounted with the corrected test, backlog 214).
 
 Why each failed, from `sv`'s own words in each report:
 
