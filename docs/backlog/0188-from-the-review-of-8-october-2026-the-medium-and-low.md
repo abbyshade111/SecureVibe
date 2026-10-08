@@ -115,6 +115,8 @@ high were built the same day (the entry above this one's predecessor). Each of t
    list below, whose code it shares, in branch `claude/securevibe-e2-adapters-once`: a broken `adapters.json` said in
    the report without `--tools` too, rather than silently listing no outside tools. Confirmed on `main` just before
    this claim: not done, and no other session had claimed it. The rest of item 6 stays open.
+   **That one done the same day** (`docs/design/0309-the-outside-tools-read-once-and-named-from-their-file-8.md`): without
+   `--tools`, a broken `adapters.json` is said in the report, with why it could not be read. The rest of item 6 is open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
@@ -136,3 +138,7 @@ high were built the same day (the entry above this one's predecessor). Each of t
    and handed to what needs it, and the sentence naming the outside tools made from that file, so Semgrep is named.
    Confirmed on `main` just before this claim: neither is done, and no other session had claimed either.
    `assemble_report_saying`'s length stays open.
+   **Those two done the same day** (the same design entry): `adapters.json` read once, with the rest of `sv`'s data, and
+   that copy handed to the run, the list of tools not run, and the exit status; and the sentence naming the outside
+   tools made from the file, so it reads "Bandit, gosec, Brakeman, Semgrep, and CodeQL". `assemble_report_saying`'s
+   length is open.
