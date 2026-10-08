@@ -120,19 +120,21 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   a section in `DESIGN.md`. Until 8 October 2026 every session added to the end of one file, and any two open pull
   requests then conflicted there (`docs/adr/ADR-060.md`). A branch from before that mends its conflict with the steps
   at the top of the script.
-- Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a message
-  to another session does not count: a session that is not running never receives it, and one that is will not see it again
-  after its context is summarized. On 20 September 2026 two sessions each read the backlog, each correctly saw an item
-  unclaimed, and both built it.
-  Append the claim at the end of the "Next" section, never at its top, and merge the claim's pull request before building
-  on it: on 8 October 2026 every session inserted at the top, so a branch an hour old conflicted with `main` there, and the
-  same conflict was resolved three times at a 20-minute CI round each. For the same reason a new test goes in a sibling
-  test file (`src/<module>/tests.rs`, or one of its own) rather than at the end of a module's `mod tests`, and a new DESIGN
-  section is a section of its own rather than a paragraph on an existing one.
+- **Claim a backlog item before starting it, and commit that claim on its own.** An item is a file under
+  `docs/backlog/` whose third line is its status (ADR-061): `python3 tools/backlog.py claim <number> --by <session>`
+  sets it and refuses an item another session holds; `done <number>` marks it finished (`--remains "..."` when part
+  stays open); `new "Its title"` adds one; `list --open` prints what is open. Merge the claim's pull request before
+  building on it. Saying so in a message to another session does not count: a session that is not running never
+  receives it, and one that is will not see it again after its context is summarized. On 20 September 2026 two
+  sessions each read the backlog, each correctly saw an item unclaimed, and both built it; on 8 October 2026 every
+  session added to the same one file and conflicted with every other, which is why the items are files now. For the
+  same reason a new test goes in a sibling test file (`src/<module>/tests.rs`, or one of its own) rather than at the
+  end of a module's `mod tests`. A branch from before the split mends its `docs/BACKLOG.md` conflict with the steps
+  at the top of `tools/backlog.py`.
 - **The roadmap at the top of `docs/BACKLOG.md` says what comes next.** With no word from the owner, take the first
   unclaimed sub-item there in its phase order, claim it, and land it before taking the next. `python3 tools/backlog.py
-  list --open` prints every item with anything open, read from the items' own markers, so the file need not be read
-  whole; `summary` prints the counts. Check the item against `main` first: some were overtaken by later work and want
+  list --open` prints every open item from the status line each carries, `summary` the counts, and `show <number>`
+  one item. Check the item against `main` first: some were overtaken by later work and want
   a done note, not a build.
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
   `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different identity, so git

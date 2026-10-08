@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Brings `main` into the current branch, and settles the one kind of conflict every session resolved by hand.
 
-Every claim and every done note is an addition to docs/BACKLOG.md, and any two open pull requests add to the same
-place, so a branch an hour old conflicts with `main` there (docs/adr/ADR-060.md took the same conflict out of the
-design record by making each entry a file). On 8 October 2026 every such conflict was resolved the same way, by hand,
-at the cost of a CI round each: both sides kept, `main`'s first. This script does that, and nothing else:
+Until 8 October 2026 every claim and every done note was an addition to docs/BACKLOG.md, and any two open pull
+requests added at the same place, so a branch an hour old conflicted with `main` there; each such conflict was
+resolved the same way, by hand, at the cost of a CI round: both sides kept, `main`'s first. ADR-060 and ADR-061 then
+made each design entry and each backlog item a file, and what is left for this script is any Markdown file where
+both sides still add at the same place (a line in docs/adr/README.md's index, for one). It does that, and nothing
+else:
 
 - It merges `origin/main` into the current branch (fetching first), with Git asked to show the merge base in each
   conflict (`diff3`), and leaves the merge for you to commit, so the commit carries your message and trailers.
