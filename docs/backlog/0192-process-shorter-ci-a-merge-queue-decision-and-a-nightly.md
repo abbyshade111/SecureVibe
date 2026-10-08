@@ -16,3 +16,7 @@ claimable on its own, and the second is the owner's to decide.
    --credits`, and the example apps re-scored, with the counts compared to the night before and a one-line note
    when anything changed. The pieces exist; the comparison does not. The weekly decision-record review's routine
    ("A weekly review of the decision records") is the model.
+   **Part 3 claimed 8 October 2026 by session securevibe-review**, at the owner's word ("can you help me set up the
+   nightly routine you proposed"), in branch `claude/securevibe-review-nightly`, in the form of a `schedule` trigger
+   on `rust.yml` (ADR-051, Later) rather than a Claude routine, since CI already runs every piece with Docker; parts
+   1 and 2 stay open.
