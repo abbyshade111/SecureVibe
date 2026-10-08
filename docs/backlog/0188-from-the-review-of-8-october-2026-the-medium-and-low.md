@@ -111,6 +111,14 @@ high were built the same day (the entry above this one's predecessor). Each of t
    ADR-027, Later): a header value or redirect address is quoted on one line and cut at 200 characters, and still read
    whole; a host name outside ASCII is refused with a sentence asking for its `xn--` form; and every exit goes through
    `exit::exit_with`, which a test now holds. The rest of item 6 is open.
+   **Two more of its parts claimed 8 October 2026 by session securevibe-e9**, from the roadmap (Phase 1, item 1, the
+   next unclaimed in its order; the broken `adapters.json` is claimed by securevibe-e2 in #1104), in branch
+   `claude/securevibe-e9-image`: `[stack.run] image` is held to Docker's reference grammar before anything starts, so
+   a value beginning with `-`, which `docker run` would read as one of its own options, or with a space or a shell
+   character, is refused in plain words; and a done note for "the no-sidecar fallback bypasses `prepared`", which was
+   overtaken: `fence_args` has sent the fallback through `prepared` since the hardening was moved there earlier on
+   8 October (`docker.rs`, its comment says so). Confirmed on `main` just before this claim: `RunPlan::from_manifest`
+   takes the image as written, and no other session had claimed either part.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
