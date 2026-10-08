@@ -154,12 +154,21 @@ pub struct ScanReport {
     pub code_set_apart: (usize, usize),
     /// The folders in the app that one of those matched, and so were not looked in for evidence.
     pub set_apart: BTreeSet<String>,
+    /// Conditions found only inside those folders, each with the file or manifest that showed it
+    /// (gap analysis, item 19). Not read as a "no": whether the app itself does it is a question,
+    /// so `as_corroborator` answers nothing for them.
+    pub found_only_apart: Vec<(Condition, String)>,
 }
 
 impl ScanReport {
     /// The scanner as a corroborator, in the shape `sv_manifest::resolve` expects.
     pub fn as_corroborator(&self) -> impl Fn(Condition) -> Option<bool> + '_ {
-        move |c| self.answers.iter().find(|a| a.condition == c)?.value
+        move |c| {
+            if self.found_only_apart.iter().any(|(found, _)| *found == c) {
+                return None;
+            }
+            self.answers.iter().find(|a| a.condition == c)?.value
+        }
     }
 }
 
@@ -308,6 +317,31 @@ pub fn scan_listing_app(
             pattern: "two or more services with their own `build:`".to_owned(),
             file,
         };
+    }
+
+    // What the app shows only inside the folders set apart (gap analysis, item 19). Listing the one
+    // folder that holds the app's AI client turned the AI requirements to "does not apply"; now each
+    // such condition is named, and not read as a "no".
+    if !not_the_app.is_empty() {
+        let whole = scan_listing_app(listing, signatures, &[])?;
+        for found in whole.answers.iter().filter(|a| a.value == Some(true)) {
+            let here = report
+                .answers
+                .iter()
+                .find(|a| a.condition == found.condition)
+                .and_then(|a| a.value);
+            if here == Some(true) {
+                continue;
+            }
+            let shown_by = match &found.evidence {
+                Evidence::Source { file, .. } => file.clone(),
+                Evidence::Dependency { name, manifest } => format!("{name}, in {manifest}"),
+                Evidence::File { path } => path.clone(),
+                Evidence::Language { language } => format!("code in {language}"),
+                _ => continue,
+            };
+            report.found_only_apart.push((found.condition, shown_by));
+        }
     }
     Ok(report)
 }
