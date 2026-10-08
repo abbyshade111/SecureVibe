@@ -493,6 +493,11 @@ another session is not a claim.
      to date, both the container image the AI tool runs and a copy built on this computer, how to tell which
      version each is, and that the AI tool picks up a new image only when it starts the server again. Held to the
      workflow that publishes the image by a test.
+     **(e) done the same day** (`docs/GETTING-STARTED.md`, "Keeping SecureVibe up to date"): `docker pull` again, then
+     restart the AI tool or its SecureVibe server; `--version` on each copy, with the commit it was built from;
+     both copies updated together; a version held to by its commit's own image; and `docker image prune` for the
+     old ones. Breaks: the image renamed in step 1, the update's pull renamed, and the per-commit image no longer
+     pushed by the workflow each failed `crates/sv-cli/tests/guide_update.rs`.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
