@@ -8154,6 +8154,11 @@ another session is not a claim.
      the pipeline's stages, the nine statuses in order (`sv-report/src/lib.rs:44-88`), the five rule mechanisms and
      where a new one goes, the four citation gates, the exit codes, and `data/README.md`. Held to files that exist,
      as `decision_records.rs` holds the records. **Claimed with items 1 to 4 by session securevibe-review.**
+     **Done the same day**: `docs/ARCHITECTURE.md` (the crates in the order a run passes through them, the stages
+     of `sv report`, the nine statuses, the five kinds of rule and the four citation gates, the exit codes, the MCP
+     server, the rules that hold everywhere, and where to look), held to files that exist by
+     `crates/sv-cli/tests/architecture_map.rs`; DESIGN.md's opening says it is the dated record and points here;
+     CLAUDE.md's layout line names it first.
   6. **One answer type for `send`.** The "a crash or a limiter is not an answer" rule exists in seven places with
      three definitions (`signed_in/mod.rs:1282`, `sessions.rs:274`, `fetch.rs:264`, `burst.rs:153`, `once.rs:118`,
      `ai.rs:1932`, `mcp_server.rs:199`, the last missing the 503-with-Retry-After case `rate_limited` knows), and the
