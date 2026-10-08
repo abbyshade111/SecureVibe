@@ -55,7 +55,7 @@
     probe.app-token-expired-accepted: -
 
 == haiku-none-2
-== haiku-none-2 (exit 3, no report: Error: no securevibe.toml in /Users/abigail/sv-recipe/runs/haiku-none-2. Run `sv init` and give the spec to your AI coding tool.)
+== haiku-none-2 (exit 3, no report: Error: no securevibe.toml in ~/sv-recipe/runs/haiku-none-2. Run `sv init` and give the spec to your AI coding tool.)
 
 == haiku-none-3
 == haiku-none-3 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. It stopped with an error: TypeError: CSRFProtect.protect() takes 1 positional argument but 2 were given That error is why: fix it, and run this again. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})

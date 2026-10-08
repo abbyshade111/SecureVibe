@@ -13,7 +13,7 @@
 # 2026 this workflow was running on every push to main and every pull request, and passing.
 #
 # Two things learnt on 23 September 2026, by running it rather than reading about it:
-#  - Suppression comments are NOT honoured by these packs. `// codeql[js/...]` and `// lgtm[js/...]` on the
+#  - Suppression comments are NOT honored by these packs. `// codeql[js/...]` and `// lgtm[js/...]` on the
 #    flagged line (harness.ts and http.ts, headers.ts as the control) left every alert in place. A deliberate
 #    choice is therefore recorded two ways: the reason in a comment beside the code, and a dismissal with the
 #    same reason in the Security tab. Neither alone is enough.

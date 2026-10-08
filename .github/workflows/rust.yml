@@ -32,7 +32,7 @@ permissions:
   contents: read
 
 # Every commit on main is tested (ADR-051): there the group is the commit, so no run waits behind
-# another. With one group for all of main, GitHub kept only the newest waiting run and cancelled the
+# another. With one group for all of main, GitHub kept only the newest waiting run and canceled the
 # rest, whatever cancel-in-progress said: 19 of 50 runs on main on 7 October 2026 never finished. On
 # any other branch a newer push still cancels a run still going, since only a pull request's newest
 # commit can be merged. Publishing has a group of its own below.
@@ -116,7 +116,7 @@ jobs:
     # workflow's own token, which lasts for this run only.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [test, image]
-    # One publish at a time. A publish already going is never cancelled; one waiting behind it is
+    # One publish at a time. A publish already going is never canceled; one waiting behind it is
     # replaced by a newer one, which only skips an image already out of date.
     concurrency:
       group: rust-publish-main

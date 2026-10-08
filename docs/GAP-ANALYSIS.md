@@ -35,7 +35,7 @@ places:
    their signature, open cross-origin settings, mass assignment. And it never reads the access rules of the hosted
    backends many AI-built apps use (Supabase, Firebase).
 4. **The project's own safety nets have holes.** Only "Decision records" is a required check before merging into
-   `main`: the tests are not, and 19 of the last 50 test runs on `main` were cancelled before they finished. The
+   `main`: the tests are not, and 19 of the last 50 test runs on `main` were canceled before they finished. The
    network-fence tests pass without testing anything when no container backend is present.
 
 The ten things most worth doing first are at the end ("Where to start").
@@ -321,7 +321,7 @@ OAuth (V10) 6 of 29, data protection (V14) 2 of 9, configuration (V13) 3 of 13, 
 
 **7.1 The tests are not required before merging, and many runs on `main` never finish (high; checked).** The only
 required check on `main` is "Decision records", and "up to date with `main` before merging" is off. Of the last 50
-test runs on `main`, 19 were cancelled (a newer run replaces a queued one), 2 failed, 28 passed, and 1 was running,
+test runs on `main`, 19 were canceled (a newer run replaces a queued one), 2 failed, 28 passed, and 1 was running,
 so about 4 in 10 commits on `main` are never tested; `rust.yml`'s comment says every run on `main` finishes. Two
 pull requests merged on 7 October with a failing test job (#871 and #873). *Proposal, the owner's call (repository
 settings):* make the test and image jobs required, consider "up to date before merging" or a merge queue, and give
@@ -355,7 +355,7 @@ Ordered by how much each would change what the owner can trust, against what it 
 a record or the owner's yes first.
 
 1. **The app's own tests in a tier of their own** (1.1). *Decision.*
-2. **Require the test job before merging, and stop cancelling `main`'s runs** (7.1). *Owner's yes (repository settings).*
+2. **Require the test job before merging, and stop canceling `main`'s runs** (7.1). *Owner's yes (repository settings).*
 3. **Credit Semgrep's any-language rules only for files it scanned** (1.2).
 4. **Read git history for committed key files**, and stop crediting V13.3.1 from the current list alone (1.3).
 5. **Make `sv run` work for apps that install packages**: fix the example and the starter now (3.1); an image-build

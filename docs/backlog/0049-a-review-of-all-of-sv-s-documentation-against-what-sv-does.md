@@ -30,7 +30,7 @@ one per group of documents, and each correction written here checked against the
   work; V13.3.1's wording.
 - `docs/THREAT-MODELING.md`: built, not proposed; 115 citations of 101 requirements; a "Since" section (v1
   archived, MT-03 not built, `sv plan`'s threats, an answer never settles a threat, ATLAS).
-- `docs/SEMGREP-FALSE-ALARMS.md`: the licence's non-commercial condition; option C is not what `sv` runs (440 of
+- `docs/SEMGREP-FALSE-ALARMS.md`: the license's non-commercial condition; option C is not what `sv` runs (440 of
   the 868 findings, and 164 of the 555 false alarms, from rules it runs); `SKIP_DIRS` since H6; the CSV's name;
   which recommendations are built.
 - `docs/PARTIAL-CHECKS.md`: 57 of the 382 have gained a check; `signed_in.rs` is a folder.
