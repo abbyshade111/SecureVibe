@@ -256,6 +256,10 @@ another session is not a claim.
      file, it prints only the starter `securevibe.toml`, which `sv` can read, and says on screen that the
      instructions for the AI coding tool were left out and how to see them. Status: proposed, as a "Later" entry
      on ADR-017 (what lands in the owner's folder), accepted in the pull request that builds it.
+     **(f) done the same day** (ADR-017, "Later, 8 October 2026"; DESIGN, "`sv init` into a file"): into a file,
+     `sv init` writes only the starter, which `sv scope` then reads, and says on screen what it left out; through a
+     pipe, everything as before. Breaks: the file never recognized, and every output treated as a file, each failed
+     the new test.
      **(c), its first two parts, claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please
      continue to work off the backlog"), in branch `claude/securevibe-e2-tools-on-screen`: `sv report --tools` says on
      screen which tools did not run and why, whatever its exit status, and the install hint reads as a sentence for
