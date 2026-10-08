@@ -386,7 +386,7 @@ The record of 20 September does not name the commits checked, so the two are not
 ### Not mappable
 
 - **v1's golden-app baselines** (`evals/baselines/*.json`) record only counts by severity, not which rule fired.
-- **The friend's health app** survives only as "at risk on AC-02 and MT-06". AC-02 and MT-06 are v1's compliance
+- **The health-tracking app built for a friend** survives only as "at risk on AC-02 and MT-06". AC-02 and MT-06 are v1's compliance
   control ids, and the record gives no findings.
 - **The owner's first app built with `sv`** is recorded for `sv`'s faults, not the app's. The two findings it names
   (a regular expression's `exec` reported as a shell command, and a test's `query` reported as hand-built SQL) were

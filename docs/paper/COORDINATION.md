@@ -264,7 +264,7 @@ are lower bounds.
   conflicts may have been the file being regenerated rather than a real clash.
 - **Messages between sessions are not in the repository.** They carried the early agreements and claims, some of
   the collisions, and, from 28 September, the work sent from cato-pipeline, which the owner carried by hand. One cost of
-  that showed after the cut-off: the rule that the friend's health app is anonymous lived in one session's memory, so
+  that showed after the cut-off: the rule that the health-tracking app built for a friend is anonymous lived in one session's memory, so
   the session writing the comparison study put the name back into the paper that morning. It was taken out again
   (#591, #606), and the rule is now in `CLAUDE.md`, where every session reads it.
 - **Transcripts.** Securevibe-e10's transcript is on this machine (the `loadonce` worktree), and so are the
