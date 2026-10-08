@@ -385,6 +385,168 @@ fn the_real_codeql_finds_the_same_things_when_it_is_installed() {
     );
 }
 
+/// The ADR-032 way, for CodeQL (the review of 8 October 2026, item 3): an app's own scripts
+/// planted where a tool might run them, and a link, then a look at what happened. Nothing did:
+/// with CodeQL 2.27.2, building the database ran no `preinstall`, `postinstall`, or `prepare`
+/// script from `package.json` (a TypeScript app with a `tsconfig.json`, where the extractor
+/// might have installed types), nor a `sitecustomize.py`, `usercustomize.py`, or `setup.py`, and
+/// the linked file was in neither report nor source archive. So the entries carry no guard and
+/// no `follows_links`, and this is what keeps that honest when a newer CodeQL is installed.
+#[test]
+fn the_real_codeql_runs_nothing_the_app_plants_and_follows_no_link() {
+    let javascript = real("codeql-javascript");
+    if !adapters::is_installed(&javascript) {
+        println!("codeql is not installed here; the real run is skipped");
+        return;
+    }
+    let dir = scratch("planted");
+    let adapters = Adapters::load(&real_adapters()).unwrap();
+    let marks = dir.join("marks");
+    std::fs::create_dir_all(&marks).unwrap();
+    let mark = |name: &str| marks.join(name).display().to_string();
+
+    // JavaScript, with TypeScript: three npm scripts that would each leave a mark.
+    let js = dir.join("js");
+    std::fs::create_dir_all(&js).unwrap();
+    std::fs::write(
+        js.join("package.json"),
+        format!(
+            r#"{{ "name": "app", "version": "1.0.0", "main": "server.js",
+  "scripts": {{ "preinstall": "touch {}", "postinstall": "touch {}", "prepare": "touch {}" }},
+  "dependencies": {{ "express": "^4.0.0" }},
+  "devDependencies": {{ "typescript": "^5.0.0", "@types/node": "^20.0.0" }} }}
+"#,
+            mark("npm-preinstall"),
+            mark("npm-postinstall"),
+            mark("npm-prepare")
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        js.join("server.js"),
+        "const express = require('express');\nconst app = express();\n\
+         app.get('/', (req, res) => { res.send('<h1>' + req.query.name + '</h1>'); });\n\
+         app.listen(3000);\n",
+    )
+    .unwrap();
+    std::fs::write(
+        js.join("extra.ts"),
+        "import * as fs from 'fs';\nexport function read(p: string): string { return fs.readFileSync(p, 'utf8'); }\n",
+    )
+    .unwrap();
+    std::fs::write(
+        js.join("tsconfig.json"),
+        "{ \"compilerOptions\": { \"strict\": true, \"module\": \"commonjs\", \"target\": \"es2020\" }, \"include\": [\"*.ts\"] }\n",
+    )
+    .unwrap();
+    let outside_js = dir.join("outside.js");
+    std::fs::write(
+        &outside_js,
+        "const cp = require('child_process');\nmodule.exports = (req) => cp.exec('ls ' + req.query.dir);\n",
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(&outside_js, js.join("linked.js")).unwrap();
+    let out = adapters::run_all(
+        &adapters,
+        &js,
+        &["javascript".to_owned(), "typescript".to_owned()],
+        &Default::default(),
+        &dir,
+        &secret_rules(),
+    );
+    let codeql_not_run: Vec<_> = out
+        .not_run
+        .iter()
+        .filter(|(id, _)| id.starts_with("codeql"))
+        .collect();
+    assert!(codeql_not_run.is_empty(), "{codeql_not_run:?}");
+    assert!(
+        out.findings
+            .iter()
+            .any(|f| f.rule_id == "codeql-javascript.js/reflected-xss"),
+        "the app's own code is read: {:?}",
+        out.findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+    );
+    assert!(
+        !out.findings
+            .iter()
+            .any(|f| f.location.file.contains("linked.js")),
+        "nothing through the link: {:?}",
+        out.findings
+    );
+
+    // Python: start-up files Python runs when it finds them, and a `setup.py`.
+    let py = dir.join("py");
+    std::fs::create_dir_all(&py).unwrap();
+    for name in ["sitecustomize.py", "usercustomize.py"] {
+        std::fs::write(
+            py.join(name),
+            format!("open({:?}, 'w').write('ran')\n", mark(name)),
+        )
+        .unwrap();
+    }
+    std::fs::write(
+        py.join("setup.py"),
+        format!(
+            "open({:?}, 'w').write('ran')\nfrom setuptools import setup\nsetup(name='app')\n",
+            mark("setup.py")
+        ),
+    )
+    .unwrap();
+    std::fs::write(
+        py.join("app.py"),
+        "import subprocess\nfrom flask import Flask, request\napp = Flask(__name__)\n\
+         @app.route('/run')\ndef run():\n    return subprocess.check_output('ls ' + request.args['d'], shell=True)\n",
+    )
+    .unwrap();
+    let outside_py = dir.join("outside.py");
+    std::fs::write(
+        &outside_py,
+        "import pickle\ndef load(b): return pickle.loads(b)\n",
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(&outside_py, py.join("linked.py")).unwrap();
+    let out = adapters::run_all(
+        &adapters,
+        &py,
+        &["python".to_owned()],
+        &Default::default(),
+        &dir,
+        &secret_rules(),
+    );
+    let codeql_not_run: Vec<_> = out
+        .not_run
+        .iter()
+        .filter(|(id, _)| id.starts_with("codeql"))
+        .collect();
+    assert!(codeql_not_run.is_empty(), "{codeql_not_run:?}");
+    assert!(
+        out.findings
+            .iter()
+            .any(|f| f.rule_id == "codeql-python.py/command-line-injection"),
+        "{:?}",
+        out.findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+    );
+    assert!(
+        !out.findings
+            .iter()
+            .any(|f| f.location.file.contains("linked.py")),
+        "{:?}",
+        out.findings
+    );
+
+    let left: Vec<_> = std::fs::read_dir(&marks)
+        .unwrap()
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .collect();
+    assert!(
+        left.is_empty(),
+        "CodeQL ran something the app planted: {left:?}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn the_python_findings_carry_the_rules_severity_and_weakness_too() {
     let out = run(
