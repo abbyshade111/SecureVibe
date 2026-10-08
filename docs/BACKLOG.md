@@ -28,6 +28,10 @@ another session is not a claim.
      must not pick up anything outside them (no `.env`, nothing in `target/`, nothing from the owner's apps).
   Questions for the owner before it is built: a folder of its own in the home folder, or inside the repository but
   ignored by git; and whether the paper's drafts belong in it.
+  **The owner's answers, 8 October 2026:** "home folder for the docs page, and do not include the paper drafts
+  please". So the pages are written to a folder of their own in the home folder (`~/securevibe-docs/`), and
+  `docs/paper/` is left out. These are the owner's decisions; their record (a new ADR, governing the script) is
+  written as `Status: proposed` with the claim, and accepted in the pull request that builds it.
 
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
