@@ -28,7 +28,8 @@ fi
 if [ -n "${SV_BINARY:-}" ]; then
     binary=$SV_BINARY
 else
-    cargo build --release --manifest-path "$repository/Cargo.toml" -p sv-cli
+    # --locked: the versions in Cargo.lock, the ones every test ran with, and never newer ones chosen today.
+    cargo build --release --locked --manifest-path "$repository/Cargo.toml" -p sv-cli
     binary="$repository/target/release/sv"
 fi
 

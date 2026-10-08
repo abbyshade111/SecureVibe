@@ -3485,6 +3485,31 @@ fn not_the_app_gaps(manifest: &Manifest, scan: &sv_scan::ScanReport) -> Vec<sv_r
             why,
         });
     }
+    // What only the folders set apart show (gap analysis, item 19): not read as a "no", so each is a
+    // question, unless securevibe.toml answers it.
+    let claims = manifest.claims();
+    for (condition, shown_by) in &scan.found_only_apart {
+        let claimed = claims
+            .iter()
+            .find(|(c, _)| c == condition)
+            .and_then(|(_, v)| *v);
+        let answer = match claimed {
+            Some(true) => "securevibe.toml says it does, so its requirements apply".to_owned(),
+            Some(false) => "securevibe.toml says it does not, and that answer stands; if the app \
+                            itself does, change the answer"
+                .to_owned(),
+            None => "nothing else answers it, so its requirements wait on that question rather \
+                     than being set aside"
+                .to_owned(),
+        };
+        gaps.push(sv_report::Gap {
+            what: format!("whether the app itself has `{}`", condition.name()),
+            why: format!(
+                "The only sign of it is {shown_by}, in a folder securevibe.toml says is not the app \
+                 (`[repository] not-the-app`), so it is not counted as a \"no\": {answer}."
+            ),
+        });
+    }
     if !refused.is_empty() {
         gaps.push(sv_report::Gap {
             what: "entries in `[repository] not-the-app` that were refused".to_owned(),
