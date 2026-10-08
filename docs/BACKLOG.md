@@ -139,9 +139,16 @@ another session is not a claim.
      `claude/securevibe-e9-templates`: notebooks read as Python; templates embedding a general-purpose language named
      as unread code; logic-free templates read as pages; `.sql` named and holding nothing back. **`Status: proposed`:
      ADR-054.** Reading Astro's header and EJS's blocks is a second pull request.
+     **The second pull request claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"; the
+     owner approved it with item 14 on 7 October), in branch `claude/securevibe-e9-astro-ejs`: Astro's `---` header read
+     as TypeScript and its markup as a page; EJS's `<% %>`, `<%= %>`, and `<%- %>` blocks read as JavaScript at their
+     own lines. A file whose code is not all taken out stays unread. Recorded as a "Later" entry on ADR-054.
      **Done 8 October 2026** (DESIGN, "Templates and notebooks read for what they can hold"; ADR-054 accepted), with
      tests in `crates/sv-check/tests/clean_coverage.rs` and `crates/sv-cli/tests/templates.rs`. Still open: reading
      Astro's header and EJS's `<% %>` blocks, so that the commonest code templates stop holding every rule back.
+     **The second half done 8 October 2026** (DESIGN, "Astro's header and EJS's tags read as code"; ADR-054, Later):
+     Astro's header, `{…}`, and scripts read as TypeScript, and EJS's tags as one JavaScript program, each at its own
+     lines. `.pug`, `.erb`, `.jsp`, `.cshtml`, and `.razor` are still unread code.
   15. **The secrets scan misses passwords in web addresses and many AI-app providers.** (`docs/GAP-ANALYSIS.md`,
      3.7.) A rule for `scheme://user:password@host` (placeholders skipped; `secrets.rs` now skips any value with
      `://`); the published patterns for SendGrid, Groq, Resend, Supabase, Twilio, Mailgun, Postmark, Replicate,
@@ -252,6 +259,7 @@ another session is not a claim.
      the backlog whenever you're ready"), in branch `claude/securevibe-e9-require-backend`: one test that, with
      `SV_REQUIRE_BACKEND=1`, fails when no container backend answers, and `rust.yml` setting it for the test job, so the
      38 "no container backend here" branches can no longer all pass on a runner whose Docker broke.
+     **Done the same day** (DESIGN, "CI requires a container backend"; ADR-051, Later, 7 October 2026).
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
@@ -7886,18 +7894,26 @@ done: `docs/adr/ADR-018.md`.
   trial: the stranger `Origin` goes to `/` alone (`crates/sv-check/src/probes.rs`, the `cors` request), so a JSON API
   that lets any site read it, the case the check exists for, is never asked. Ask the app's listed private pages and
   API addresses too, signed in where they need it.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
 - **`probe.common-password-accepted` rests on one word.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: it tries `123qweasdzxc` alone, so a list written from memory passes when it happens to hold that word (one of
   443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
   credit in part (ADR-053).
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
 - **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: of 10 Sonnet apps, 7 did not declare their upload and only one listed its search page with a term, so those
   checks did not reach what the brief tempted. (First written with redirects as a third: the sign-in page's return
   address is asked without being listed, so that check did reach it.) The
   specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`: the specification's wording. Read on `main` just before this claim: no other session had claimed it.
 - **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
   its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install
   step can give the app).
+  **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
+  trial"), in branch `claude/two-samples`: the prompt's wording, untried. Read on `main` just before this claim: no other session had claimed it.
 - **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
   faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
   own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.

@@ -1954,13 +1954,11 @@ fn a_notebook_in_another_language_or_unreadable_is_not_called_read() {
 fn a_template_that_holds_code_is_named_and_keeps_every_rule_from_a_clean_result() {
     // ADR-054: each of these can hold the calls the rules look for, and no grammar here reads them.
     for (file, kind) in [
-        ("views/index.ejs", "ejs"),
         ("views/index.pug", "pug"),
         ("app/views/home.html.erb", "erb"),
         ("WEB-INF/home.jsp", "jsp"),
         ("Pages/Index.cshtml", "razor"),
         ("Shared/Nav.razor", "razor"),
-        ("src/pages/index.astro", "astro"),
     ] {
         let dir = scratch(&format!("template-{kind}"));
         std::fs::write(dir.join("app.py"), "print(1)\n").unwrap();
@@ -2042,4 +2040,52 @@ fn sql_files_are_named_and_hold_nothing_back() {
         scan.unread_languages
     );
     assert!(verified_ids(&scan.verified).contains(&"ast.sql-built-by-hand"));
+}
+
+#[test]
+fn an_astro_or_ejs_page_read_in_full_holds_nothing_back() {
+    // ADR-054, Later: their code is read, so a clean one keeps the clean result, and one with an
+    // `eval` in it is found.
+    for (file, clean, dirty) in [
+        (
+            "index.astro",
+            "---\nconst title: string = 'Hi';\n---\n<h1>{title}</h1>\n",
+            "---\nconst title: string = eval(Astro.url.search);\n---\n<h1>{title}</h1>\n",
+        ),
+        (
+            "index.ejs",
+            "<h1><%= title %></h1>\n<% if (user) { %><p>Hi</p><% } %>\n",
+            "<h1><%= title %></h1>\n<% eval(user) %>\n",
+        ),
+    ] {
+        let scan = scan_files(
+            &format!("clean-{file}"),
+            &[("app.py", "print(1)\n"), (file, clean)],
+        );
+        assert!(
+            scan.unread_languages.is_empty(),
+            "{file}: {:?}",
+            scan.unread_languages
+        );
+        assert!(
+            scan.unparsed_files.is_empty(),
+            "{file}: {:?}",
+            scan.unparsed_files
+        );
+        assert!(
+            verified_ids(&scan.verified).contains(&"ast.dynamic-code-execution"),
+            "{file}"
+        );
+        let scan = scan_files(
+            &format!("dirty-{file}"),
+            &[("app.py", "print(1)\n"), (file, dirty)],
+        );
+        assert!(
+            scan.findings
+                .iter()
+                .any(|f| f.rule_id == "ast.dynamic-code-execution" && f.location.file == file),
+            "{file}: {:?}",
+            scan.findings
+        );
+    }
 }
