@@ -104,6 +104,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-058](ADR-058.md) | A private set of pages for the owner to read `sv`'s documentation, in the home folder, without the paper |
 | [ADR-059](ADR-059.md) | Every check that gives credit is seen withholding it in the test suite, or the build fails |
 | [ADR-060](ADR-060.md) | One file per design entry, so two pull requests stop colliding in the design record |
+| [ADR-061](ADR-061.md) | One file per backlog item, with a status line, so what is open is data and two claims meet only on their own item |
 
 ## Where v1's records disagree with what v1 built
 
