@@ -27,6 +27,10 @@ another session is not a claim.
      `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
      (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
      clean. Changes what counts as evidence: a record.
+     **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
+     `claude/securevibe-e9-error-answers`: a body that does not parse, sent signed out to the routes securevibe.toml
+     names and to the health path; V16.5.1 credited only from a clean error answer, V13.4.2 only from a clean server
+     error. **`Status: proposed`: ADR-056.**
   4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
