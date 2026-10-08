@@ -115,6 +115,12 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    build (the test suite) fails there. A silent return is then impossible in a report rather than caught by a test.
    Record, proposed with this claim: ADR-021, Later (a report can now say a check fell silent). Confirmed on `main`
    just before this claim: no such wrapper, and no other session holds this part.
+   **Done the same day** (`docs/design/0310-a-check-that-asked-says-what-it-found-8-october-2026.md`; ADR-021,
+   Later): measured first, which showed that a check may rightly say nothing when its part of `securevibe.toml` is
+   not set, and may name only some of its requirements, so the guard holds what did hold. The 30 checks that speak
+   once they have asked go through `asked!`, which records "asked and never answered" and stops a test build when
+   one asked and named nothing; the 16 whose silence is their answer go through `quiet!`; a test fails on a check
+   called through neither. It found one silent return (`archive_checks`, a gzip-only upload), now fixed.
 9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
    `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the
    real script. One `stand_in` module of constants shared by clients and fakes, and a contract test for

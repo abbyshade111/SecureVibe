@@ -443,6 +443,16 @@ pub(super) fn archive_checks(
                      and no `max-unpacked-bytes` is stated"
                         .to_owned(),
                 );
+                // Not silence: nothing was sent because no stated limit applies, which leaves the
+                // question open, and the report says why (found by the guard per check, 8 October
+                // 2026).
+                out.not_assessed.push((
+                    "V5.2.3".to_owned(),
+                    "securevibe.toml says the app unpacks gzip files and states only `max-files`, \
+                     which a gzip, holding one file, cannot be over: add `max-unpacked-bytes` (the \
+                     most one may unpack to) and a gzip just over it will be sent."
+                        .to_owned(),
+                ));
             }
             continue;
         }
@@ -790,11 +800,19 @@ mod tests {
                 Some(UPLOAD_LIMIT as u64),
             ),
         );
-        assert!(found(&o).is_empty() && unassessed(&o).is_empty());
+        assert!(found(&o).is_empty());
         assert!(
             o.steps
                 .iter()
                 .any(|s| s.starts_with("sent no gzip: a gzip holds one file"))
+        );
+        // Not silence: the question is open, and the report says what would settle it.
+        assert!(
+            unassessed(&o)
+                .iter()
+                .any(|u| u.contains("add `max-unpacked-bytes`")),
+            "{:?}",
+            unassessed(&o)
         );
         // No limits at all: asked for.
         let o = run_against(

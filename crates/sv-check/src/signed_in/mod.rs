@@ -854,6 +854,139 @@ pub fn run_with(
     )
 }
 
+/// The connection the checks are handed, counting what is asked of the app through it: requests,
+/// requests sent together, and pages a browser opens. What a mock provider or the mailbox is asked
+/// is not counted, since neither is the app.
+struct Counted<'a> {
+    inner: &'a mut dyn Http,
+    asked: usize,
+}
+
+impl Http for Counted<'_> {
+    fn send(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        self.asked += 1;
+        self.inner.send(request)
+    }
+
+    fn send_together(&mut self, requests: &[ProbeRequest]) -> Option<Vec<Option<ProbeResponse>>> {
+        self.asked += requests.len();
+        self.inner.send_together(requests)
+    }
+
+    fn mail(&mut self, to: &str, at_least: usize) -> Option<Vec<String>> {
+        self.inner.mail(to, at_least)
+    }
+
+    fn now(&mut self) -> u64 {
+        self.inner.now()
+    }
+
+    fn wait(&mut self, seconds: u64) {
+        self.inner.wait(seconds)
+    }
+
+    fn provider(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        self.inner.provider(request)
+    }
+
+    fn browser(&mut self, job: &crate::browser::Job) -> Option<Vec<serde_json::Value>> {
+        self.asked += 1;
+        self.inner.browser(job)
+    }
+
+    fn model(&mut self, request: &ProbeRequest) -> Option<ProbeResponse> {
+        self.inner.model(request)
+    }
+
+    fn model_address(&mut self) -> Option<String> {
+        self.inner.model_address()
+    }
+}
+
+/// What `out` held before a check ran, and what had been asked of the app: where each list ended.
+struct Said {
+    asked: usize,
+    findings: usize,
+    verified: usize,
+    not_assessed: usize,
+}
+
+impl Said {
+    fn mark(out: &Outcome, asked: usize) -> Self {
+        Said {
+            asked,
+            findings: out.findings.len(),
+            verified: out.verified.len(),
+            not_assessed: out.not_assessed.len(),
+        }
+    }
+
+    /// The requirement ids the check named since `self`: found, credited, or not assessed.
+    fn since(&self, out: &Outcome) -> std::collections::BTreeSet<String> {
+        let mut ids = std::collections::BTreeSet::new();
+        for f in &out.findings[self.findings..] {
+            ids.extend(f.requirement_ids.iter().cloned());
+        }
+        for v in &out.verified[self.verified..] {
+            ids.extend(v.requirement_ids.iter().cloned());
+        }
+        for (list, _) in &out.not_assessed[self.not_assessed..] {
+            ids.extend(list.split(',').map(|id| id.trim().to_owned()));
+        }
+        ids.retain(|id| !id.is_empty());
+        ids
+    }
+
+    /// Holds a check that speaks once it has asked: when it asked the app anything and named none
+    /// of `speaks_to`, those are not assessed, "asked and never answered", rather than left out of
+    /// the report; and a debug build (the test suite) stops there, so the check is fixed rather
+    /// than covered for.
+    fn held(&self, out: &mut Outcome, check: &str, speaks_to: &[&str], asked: usize) {
+        if asked == self.asked {
+            return;
+        }
+        let named = self.since(out);
+        if speaks_to.iter().any(|id| named.contains(*id)) {
+            return;
+        }
+        debug_assert!(
+            false,
+            "`{check}` asked the app {} time(s) and returned without naming any of {speaks_to:?}: \
+             a finding, a credit, or a not-assessed entry with its reason",
+            asked - self.asked
+        );
+        out.not_assessed.push((
+            speaks_to.join(", "),
+            format!(
+                "A check asked the app about this and returned without saying what it found \
+                 (`{check}`), so nothing about it is known from this run."
+            ),
+        ));
+    }
+}
+
+/// Runs one check of the suite that speaks once it has asked, and holds it to that
+/// (`Said::held`): the architecture assessment of 8 October 2026, item 8, which found four checks
+/// that returned without a word. `speaks_to` is every requirement the check names.
+macro_rules! asked {
+    ($out:ident, $http:ident, $check:literal, $speaks_to:expr, $call:expr) => {{
+        let said = Said::mark(&$out, $http.asked);
+        let answer = $call;
+        said.held(&mut $out, $check, $speaks_to, $http.asked);
+        answer
+    }};
+}
+
+/// Runs one check that may ask and then say nothing, as its answer: its rules are findings only
+/// (`tools/coverage.py`, the findings-only list), or it credits only what it can show, so saying
+/// nothing means nothing was found and nothing shown. Marked, so every check in the suite is one
+/// kind or the other (`check_guard_tests`).
+macro_rules! quiet {
+    ($call:expr) => {
+        $call
+    };
+}
+
 /// `run_with`, with the waiting for a limiter counted against `spent`, the run's one budget.
 pub fn run_within(
     http: &mut dyn Http,
@@ -1478,6 +1611,11 @@ fn run_checks(
     policy: &sv_manifest::PolicySection,
     slow: bool,
 ) -> Outcome {
+    let mut counted = Counted {
+        inner: http,
+        asked: 0,
+    };
+    let http = &mut counted;
     let mut out = Outcome::default();
     let problems = users.problems();
     if !problems.is_empty() {
@@ -1650,20 +1788,31 @@ fn run_checks(
             .filter(|p| !served_anonymously.contains(p))
             .cloned()
             .collect();
-        identity_header_check(http, &accounts.a.user, &refused, &mut out);
+        quiet!(identity_header_check(
+            http,
+            &accounts.a.user,
+            &refused,
+            &mut out
+        ));
     }
 
     // 2b. The session timeouts, which mean waiting. Here, while A's password is still the one it
     //     was made with — later checks change it when there is no sign-up — and with sessions of
     //     its own, so nothing below is using them.
-    let waited = session_timeout_checks(
+    let waited = asked!(
+        out,
         http,
-        users,
-        &accounts.a,
-        confirm_path.as_deref().filter(|_| signed_in_works),
-        policy,
-        slow,
-        &mut out,
+        "session_timeout_checks",
+        &["V7.3.1", "V7.3.2"],
+        session_timeout_checks(
+            http,
+            users,
+            &accounts.a,
+            confirm_path.as_deref().filter(|_| signed_in_works),
+            policy,
+            slow,
+            &mut out
+        )
     );
     // 2c. A's session sat unused through that wait, and an app with an idle timeout has ended it:
     //     every check below would be asking with a session the app no longer knows, and reading
@@ -1686,11 +1835,17 @@ fn run_checks(
     // 3. A record A owns, read as B and as nobody; then the same request from another site. First
     //    among the signed-in checks because A reading back what A made is the second way to show
     //    the session works — the only way, when the private page turned out to be open to all.
-    let owned_read = owned_checks(http, users, accounts, &a, &mut out);
+    let owned_read = asked!(
+        out,
+        http,
+        "owned_checks",
+        &["V3.5.1", "V3.5.2", "V8.2.2", "V8.2.3", "V15.3.1"],
+        owned_checks(http, users, accounts, &a, &mut out)
+    );
 
     // 3½. Another site's Origin on the private pages, as A (ADR-055): the place a page that lets any
     //     site read it does harm, which the anonymous question to the health path never reaches.
-    cross_site::private_pages(http, users, &a, &mut out);
+    quiet!(cross_site::private_pages(http, users, &a, &mut out));
 
     // 4. The session cookie, and whether signing in made a new one, once it is shown which cookies
     //    carry the session.
@@ -1699,94 +1854,213 @@ fn run_checks(
         &a,
         confirm_path.as_deref().filter(|_| signed_in_works),
     );
-    session_checks(
-        &a,
-        signed_in_works || owned_read.is_some(),
-        carried,
-        &mut out,
+    asked!(
+        out,
+        http,
+        "session_checks",
+        &["V3.3.2", "V3.3.4", "V7.2.4"],
+        session_checks(
+            &a,
+            signed_in_works || owned_read.is_some(),
+            carried,
+            &mut out
+        )
     );
 
     // 4b. The markers the log check reads afterwards. Done here because the successful one has to
     //     be a sign-in that really worked, and the refused one a page that is really private.
-    plant_log_markers(http, users, accounts, signed_in_works, &mut out);
+    quiet!(plant_log_markers(
+        http,
+        users,
+        accounts,
+        signed_in_works,
+        &mut out
+    ));
 
     // 5. The private pages themselves, read with A's session: what they let a browser keep, and
     //    whether they show a way out. Before anything that signs another account in, so the
     //    session that opened them is the one step 2 showed working.
-    private_page_checks(http, users, &a, &mut out);
+    asked!(
+        out,
+        http,
+        "private_page_checks",
+        &[
+            "V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6", "V7.4.4", "V14.2.2", "V14.3.2"
+        ],
+        private_page_checks(http, users, &a, &mut out)
+    );
 
     // 5b. The same pages drawn in a real browser, when securevibe.toml asks for one, with A's
     //     cookies: whether the way out can be seen, and whether text typed into a form comes back
     //     as text. Here for the same reason as step 5, and it signs nobody else in.
-    crate::browser::checks(
+    asked!(
+        out,
         http,
-        users,
-        &a.session,
-        &accounts.a,
-        signed_in_works,
-        &crate::browser::token(&accounts.spare),
-        &mut out,
+        "checks",
+        &["V7.4.4"],
+        crate::browser::checks(
+            http,
+            users,
+            &a.session,
+            &accounts.a,
+            signed_in_works,
+            &crate::browser::token(&accounts.spare),
+            &mut out
+        )
     );
 
     // 6. Admin pages, as an ordinary user, confirmed against the admin.
-    admin_checks(http, users, accounts, &a, &mut out);
+    asked!(
+        out,
+        http,
+        "admin_checks",
+        &["V8.2.1", "V8.3.1"],
+        admin_checks(http, users, accounts, &a, &mut out)
+    );
 
     // 6a. Three more, each reading something the run already has or sending one more request:
     //     a session value this check invented, the rules the sign-up form states, and whether the
     //     record read back above carried fields that should not leave the server.
-    invented_session_check(
+    asked!(
+        out,
         http,
-        &a,
-        confirm_path.clone().filter(|_| signed_in_works).as_deref(),
-        carried,
-        &mut out,
+        "invented_session_check",
+        &["V7.2.1"],
+        invented_session_check(
+            http,
+            &a,
+            confirm_path.clone().filter(|_| signed_in_works).as_deref(),
+            carried,
+            &mut out
+        )
     );
-    client_side_validation_check(http, users, accounts, &mut out);
+    quiet!(client_side_validation_check(
+        http, users, accounts, &mut out
+    ));
     // 6a'. The app's own sign-in token, when it is a JWT, changed two ways and sent alone. With
     //      A's token, which nothing here changes.
-    app_token_checks(
+    asked!(
+        out,
         http,
-        &a,
-        confirm_path.clone().filter(|_| signed_in_works).as_deref(),
-        &mut out,
+        "app_token_checks",
+        &["V9.1.1", "V9.1.2", "V9.1.3"],
+        app_token_checks(
+            http,
+            &a,
+            confirm_path.clone().filter(|_| signed_in_works).as_deref(),
+            &mut out
+        )
     );
 
     // 6b. Uploads, with A's session, before anything below signs another account in. Placed here
     //     rather than at the end because it needs a working session and nothing it does disturbs
     //     one: it posts files and fetches them back.
-    upload_checks(http, users, &a, &mut out);
+    asked!(
+        out,
+        http,
+        "upload_checks",
+        &[
+            "V1.3.4", "V3.2.1", "V5.2.1", "V5.2.2", "V5.3.1", "V5.3.2", "V5.4.1", "V5.4.2",
+            "V5.4.3"
+        ],
+        upload_checks(http, users, &a, &mut out)
+    );
 
     // 6c. A flow of several steps, gone through in order with A's session and then skipped as B,
     //     signed in afresh. Neither disturbs A's session.
-    flow_checks(http, users, accounts, &a, &mut out);
+    asked!(
+        out,
+        http,
+        "flow_checks",
+        &["V2.3.1"],
+        flow_checks(http, users, accounts, &a, &mut out)
+    );
 
     // 6d. Database conditions added to values the app reads from an address, with A's session:
     //     requests that only read, which change nothing.
-    sql_injection_check(http, users, &a, owned_read.as_deref(), &mut out);
+    quiet!(sql_injection_check(
+        http,
+        users,
+        &a,
+        owned_read.as_deref(),
+        &mut out
+    ));
 
     // 7. What sign-up and sign-in let through: passwords and default accounts. These sign in as
     //    other accounts, so A's session is untouched for the sign-out below.
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
-    password_checks(http, users, accounts, confirm.as_deref(), policy, &mut out);
-    signup_reveals_account_check(http, users, accounts, &mut out);
-    signup_replaces_account_check(http, users, accounts, confirm.as_deref(), &mut out);
-    default_account_check(http, users, confirm.as_deref(), &mut out);
-    password_field_checks(http, users, Some(&a.session), &mut out);
-
-    // 8. Logging out, which ends A's session.
-    logout_check(
+    asked!(
+        out,
+        http,
+        "password_checks",
+        &[
+            "V6.2.1", "V6.2.4", "V6.2.5", "V6.2.8", "V6.2.9", "V6.2.11", "V6.2.12"
+        ],
+        password_checks(http, users, accounts, confirm.as_deref(), policy, &mut out)
+    );
+    quiet!(signup_reveals_account_check(
+        http, users, accounts, &mut out
+    ));
+    quiet!(signup_replaces_account_check(
         http,
         users,
-        &a,
-        confirm_path.filter(|_| signed_in_works).or(owned_read),
-        &mut out,
+        accounts,
+        confirm.as_deref(),
+        &mut out
+    ));
+    quiet!(default_account_check(
+        http,
+        users,
+        confirm.as_deref(),
+        &mut out
+    ));
+    asked!(
+        out,
+        http,
+        "password_field_checks",
+        &["V6.2.6", "V6.2.7", "V6.4.2"],
+        password_field_checks(http, users, Some(&a.session), &mut out)
+    );
+
+    // 8. Logging out, which ends A's session.
+    asked!(
+        out,
+        http,
+        "logout_check",
+        &["V7.4.1", "V14.3.1"],
+        logout_check(
+            http,
+            users,
+            &a,
+            confirm_path.filter(|_| signed_in_works).or(owned_read),
+            &mut out
+        )
     );
 
     // 9. Last, because each signs A in again, and an app that allows one session per user would
     //    end the one the checks above were using.
-    password_in_url_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
-    session_id_check(http, users, accounts, &a, signed_in_works, &mut out);
-    sign_out_on_get_check(http, users, &accounts.a, confirm.as_deref(), &mut out);
+    quiet!(password_in_url_check(
+        http,
+        users,
+        &accounts.a,
+        confirm.as_deref(),
+        &mut out
+    ));
+    quiet!(session_id_check(
+        http,
+        users,
+        accounts,
+        &a,
+        signed_in_works,
+        &mut out
+    ));
+    quiet!(sign_out_on_get_check(
+        http,
+        users,
+        &accounts.a,
+        confirm.as_deref(),
+        &mut out
+    ));
     // And signing out in a real browser, with a sign-in of its own: clicking the app's sign-out
     // ends that session, so it goes here, after the checks that needed A's.
     if users.browser.is_some() {
@@ -1794,63 +2068,186 @@ fn run_checks(
             .as_ref()
             .and_then(|_| sign_in(http, users, "a-browser", &accounts.a, &mut out.steps))
             .map(|s| s.session);
-        crate::browser::sign_out_check(http, users, fresh.as_ref(), &mut out);
+        asked!(
+            out,
+            http,
+            "sign_out_check",
+            &["V14.3.1"],
+            crate::browser::sign_out_check(http, users, fresh.as_ref(), &mut out)
+        );
     }
     // And what the app keeps in the browser after a sign-in through its own form: another sign-in,
     // so it goes here too.
-    crate::browser_storage::storage_check(http, users, &accounts.a, confirm.is_some(), &mut out);
+    asked!(
+        out,
+        http,
+        "storage_check",
+        &["V10.1.1", "V14.3.3"],
+        crate::browser_storage::storage_check(
+            http,
+            users,
+            &accounts.a,
+            confirm.is_some(),
+            &mut out
+        )
+    );
 
     // 9b. A private WebSocket, with a sign-in of its own that it signs out at the end: after
     //     everything that needed A's first session.
-    websocket_session_checks(http, users, &accounts.a, &mut out);
+    asked!(
+        out,
+        http,
+        "websocket_session_checks",
+        &["V4.4.2", "V4.4.3", "V4.4.4"],
+        websocket_session_checks(http, users, &accounts.a, &mut out)
+    );
     // 9b'. Where the sign-in and sign-out send the browser when given an address outside the app:
     //     sessions of their own, and nothing changed.
-    open_redirect_check(http, users, &accounts.a, &mut out);
-    page_redirect_check(http, users, &accounts.a, &mut out);
+    quiet!(open_redirect_check(http, users, &accounts.a, &mut out));
+    quiet!(page_redirect_check(http, users, &accounts.a, &mut out));
     // 9b''. The app's own sign-in token, waited out until it expires: a sign-in of its own, and
     //      before the password changes below, which can change A's.
-    app_token_expiry_check(http, users, &accounts.a, confirm.as_deref(), slow, &mut out);
+    quiet!(app_token_expiry_check(
+        http,
+        users,
+        &accounts.a,
+        confirm.as_deref(),
+        slow,
+        &mut out
+    ));
 
     // 9c. Admin actions, sent by A and then by the admin. Late, because an action changes what the
     //     app holds and the checks above have had what they needed; before the password changes
     //     below, one of which can change A's own password, and before the checks that set out to be
     //     refused and can leave the app refusing everybody, the admin included.
-    admin_action_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    asked!(
+        out,
+        http,
+        "admin_action_checks",
+        &["V8.2.1", "V8.3.1"],
+        admin_action_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
     // 9d. A role written into the sign-up form, with two accounts made for it. Before the password
     //     changes for the same reason as the admin actions.
-    role_field_check(http, users, accounts, confirm.as_deref(), &mut out);
+    quiet!(role_field_check(
+        http,
+        users,
+        accounts,
+        confirm.as_deref(),
+        &mut out
+    ));
     // 9e. The action that should go through once, sent many times at the same instant by A.
-    once_check(http, users, accounts, &mut out);
+    asked!(
+        out,
+        http,
+        "once_check",
+        &["V2.3.4"],
+        once_check(http, users, accounts, &mut out)
+    );
     // 9f. A burst of creations by B, held to the stated limit. Before the password changes, which can
     //     change B's password too (a reset); it sets out to be refused, so it waits the minute out
     //     afterwards before anything else is asked.
-    burst_check(http, users, &accounts.b, policy, &mut out);
+    asked!(
+        out,
+        http,
+        "burst_check",
+        &["V2.4.1"],
+        burst_check(http, users, &accounts.b, policy, &mut out)
+    );
     // 9g. Compressed files past the stated limits, with a sign-in of A's own: after every other
     //     upload, since an app that unpacks one may fall over; before the password changes below,
     //     which can change A's.
-    archives::archive_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    asked!(
+        out,
+        http,
+        "archive_checks",
+        &["V5.2.3"],
+        archives::archive_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
 
     // 10. Last of all, because it changes a password: with an account made for it when there is a
     //    sign-up, and with A's own when there is not.
-    change_password_checks(http, users, accounts, confirm.as_deref(), &mut out);
-    change_email_check(http, users, accounts, confirm.as_deref(), &mut out);
-    delete_account_check(http, users, accounts, confirm.as_deref(), &mut out);
-    reset_checks(http, users, accounts, confirm.as_deref(), &mut out);
-    activation_checks(http, users, accounts, confirm.as_deref(), &mut out);
-    email_code_checks(http, users, accounts, confirm.as_deref(), &mut out);
-    email_code_lifetime(http, users, accounts, confirm.as_deref(), slow, &mut out);
-    totp_checks(http, users, accounts, confirm.as_deref(), &mut out);
+    asked!(
+        out,
+        http,
+        "change_password_checks",
+        &["V6.2.2", "V6.2.3", "V6.3.7", "V7.4.3"],
+        change_password_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "change_email_check",
+        &["V7.5.1"],
+        change_email_check(http, users, accounts, confirm.as_deref(), &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "delete_account_check",
+        &["V7.4.2"],
+        delete_account_check(http, users, accounts, confirm.as_deref(), &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "reset_checks",
+        &["V6.3.8", "V6.4.3"],
+        reset_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "activation_checks",
+        &["V6.4.1"],
+        activation_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "email_code_checks",
+        &["V6.5.1", "V6.5.4", "V6.6.2", "V6.6.3"],
+        email_code_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "email_code_lifetime",
+        &["V6.5.5"],
+        email_code_lifetime(http, users, accounts, confirm.as_deref(), slow, &mut out)
+    );
+    asked!(
+        out,
+        http,
+        "totp_checks",
+        &["V6.5.1", "V6.5.5"],
+        totp_checks(http, users, accounts, confirm.as_deref(), &mut out)
+    );
 
     // 10. After everything else, without exception. This one deliberately provokes the app into
     //     refusing requests, and a limiter that counts by address rather than by account would then
     //     be refusing every check above too. Running it last means the worst it can cost is itself.
-    brute_force_check(http, users, accounts, policy, &mut out);
+    asked!(
+        out,
+        http,
+        "brute_force_check",
+        &["V6.3.1", "V15.3.4"],
+        brute_force_check(http, users, accounts, policy, &mut out)
+    );
     // And codes after passwords: both set out to be refused, and this one is the newer.
-    email_code_guessing(http, users, accounts, confirm.as_deref(), policy, &mut out);
+    asked!(
+        out,
+        http,
+        "email_code_guessing",
+        &["V6.6.3"],
+        email_code_guessing(http, users, accounts, confirm.as_deref(), policy, &mut out)
+    );
     // The only sign-ins after the guesses: three wrong passwords would use up part of a limit that
     // counts by address before the guessing check, and here a limit still refusing leaves them
     // uncompared rather than misread.
-    signin_reveals_account_check(http, users, accounts, &mut out);
+    quiet!(signin_reveals_account_check(
+        http, users, accounts, &mut out
+    ));
 
     out
 }
@@ -1903,6 +2300,8 @@ pub(crate) fn sign_up(
 
 #[cfg(test)]
 mod asked_tests;
+#[cfg(test)]
+mod check_guard_tests;
 #[cfg(test)]
 mod fake_app;
 #[cfg(test)]
