@@ -57,7 +57,10 @@ another session is not a claim.
   3. **`sv review` writes `securevibe.toml` and `security-notes.md` through a link the app planted, and not
      atomically** (`crates/sv-cli/src/review.rs`, `save_text`): the one writer left on a plain write after S3 fixed
      `sv notes` and `sv rules`. Branch `claude/securevibe-review-links`: `refuse_link` and `write_without_following`,
-     and a test in `writing_through_links.rs` that plants the link and shows the file it points at left alone.
+     and a test that plants the link and shows the file it points at left alone.
+     **Done the same day** (DESIGN, "Writing nothing through a link", the `sv review` paragraph): both names looked
+     at before anything is asked, a link at either refused, and each file written under a new name renamed into
+     place; the test lives in `review_terminal.rs`, which has the terminal `sv review` needs.
   4. **A `--tools` program is whatever `PATH` says, and `PATH` can point inside the app** (`crates/sv-check/src/adapters.rs`
      spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
      `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the

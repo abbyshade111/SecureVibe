@@ -6371,6 +6371,16 @@ following links, a report folder that is a link not refused, the folder made all
 (caught only once the test required the refusal to say it was a link, since the next check refused it by luck),
 neither checked, the escaping doing nothing, a file name not escaped, and the invisible characters let through.
 
+**`sv review` too (8 October 2026).** The review of `sv` that day found the one writer left on a plain write:
+`sv review` put `securevibe.toml` and `security-notes.md` back with `std::fs::write`, which follows a link and
+truncates before it writes, so a link the app planted at either name had the file it pointed at replaced, and a run
+cut short left the manifest empty. It now looks at both names before it asks anything, refuses a link at either the
+way `sv notes` does, and writes each file under a new name renamed into place (`write_without_following`), so a
+link put there since the look is replaced rather than written through, and the file is whole or as it was. Held by
+`a_link_at_a_file_it_writes_is_refused_before_anything_is_asked` (`crates/sv-cli/tests/review_terminal.rs`),
+whose setup shows each link reads as the file it stands for, and whose last part shows a review without links still
+records.
+
 **Not done here.** The reports written to disk carry file names as they are: `report.html` escapes them as HTML, but
 `compliance.md` and `security.md` do not escape Markdown. Items 4 to 7 of the backlog entry stay open.
 
