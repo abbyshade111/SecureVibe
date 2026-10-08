@@ -347,6 +347,20 @@ another session is not a claim.
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
+     **Claimed 8 October 2026 by session securevibe-e9** ("choose the next backlog item after that"), in branch
+     `claude/securevibe-e9-governs`. `suite.rs` is already governed (ADR-050).
+     **The governed half done the same day:** `data/applicability-v2.json` under ADR-015, `tools/coverage.py` under
+     ADR-018, and `data/human-checks.json` under ADR-022, each with a dated Later entry saying why.
+     **The weekly review, as found the same day, left to the owner:** two routines do it, "Weekly decision-record
+     review" (Mondays 8:45, New York time, made 4 October) and "Weekly ADR review" (8:59, made 28 September), both
+     enabled and next due 12 October. Each ran once, on 5 October, and each run ended after about 50 seconds with
+     about 1,800 words written, too little to read 40 records, which matches the review leaving no trace. Neither
+     routine has the repository attached, so each run would have to add it itself. Changing a routine is the owner's
+     to decide: attach the repository to one, and turn the other off.
+     **Fixed the same day, at the owner's asking** ("please do fix the routine issues"): a session made for it,
+     "Weekly decision-record review", with the repository attached and three thousand commits of history, and one
+     routine that wakes it on Mondays at 8:45, New York time, with the same instructions and a first step that brings
+     the checkout up to date. Both old routines are turned off, not deleted. Its first run is due 12 October.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.
