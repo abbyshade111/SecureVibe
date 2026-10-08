@@ -265,7 +265,23 @@ pub struct Adapters {
 ///
 /// `{database}` is a folder for a tool's own working state between `prepare` and `run`, made fresh
 /// for each run and removed afterwards.
-const PLACEHOLDERS: &[&str] = &["{dir}", "{output}", "{files}", "{scanned}", "{database}"];
+///
+/// `{config}` is an empty settings file `sv` writes for the run, in the tool's private folder, for
+/// a tool that otherwise reads one from the app's own folder (Brakeman's `config/brakeman.yml`,
+/// which can turn its checks off with no trace in the report). Given a settings file of `sv`'s, the
+/// tool reads the app's not at all.
+const PLACEHOLDERS: &[&str] = &[
+    "{dir}",
+    "{output}",
+    "{files}",
+    "{scanned}",
+    "{database}",
+    "{config}",
+];
+
+/// What `{config}` holds: a settings file with nothing in it, in the shape every YAML reader takes
+/// as an empty table.
+pub const EMPTY_SETTINGS: &str = "--- {}\n";
 
 /// How much a list of file names may add to a command line. Well inside the smallest limit of the
 /// systems this runs on (macOS allows 1 MiB for arguments and environment together).
@@ -870,6 +886,23 @@ pub fn run_one_in(
     let database = report_path.with_extension("db");
     // A database left from an earlier run would be analyzed in place of this app's code.
     std::fs::remove_dir_all(&database).ok();
+    // The empty settings file, written only for a tool that asks for one. Written now, before the
+    // report's place is checked, so a failure to write it is reported as the tool not running.
+    let settings = report_path.with_extension("settings.yml");
+    let wants_settings = run_args
+        .iter()
+        .chain(adapter.prepare.iter().flat_map(|p| &p.args))
+        .any(|a| a.contains("{config}"));
+    if wants_settings && let Err(e) = std::fs::write(&settings, EMPTY_SETTINGS) {
+        return Outcome::NotRun {
+            why: format!(
+                "{} is given a settings file of `sv`'s own so that it reads none from the app, and \
+                 that file could not be written ({}): {e}",
+                adapter.name,
+                settings.display()
+            ),
+        };
+    }
     // Only a report the tool writes in this run is read. One already there, left by an earlier run
     // or put there by somebody else, would be read as this run's.
     std::fs::remove_file(report_path).ok();
@@ -889,6 +922,7 @@ pub fn run_one_in(
             .replace("{output}", &report_path.to_string_lossy())
             .replace("{scanned}", &scanned_path.to_string_lossy())
             .replace("{database}", &database.to_string_lossy())
+            .replace("{config}", &settings.to_string_lossy())
     };
     if let Some(prepare) = &adapter.prepare {
         let mut command = Command::new(&prepare.command);
@@ -931,6 +965,7 @@ pub fn run_one_in(
 
     let output = finish(prepared(&mut command, adapter), limit);
     std::fs::remove_dir_all(&database).ok();
+    std::fs::remove_file(&settings).ok();
     let output = match output {
         Ok(output) => output,
         Err(e) => {
@@ -2181,6 +2216,43 @@ printf '{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"Other","rules":[{"
         assert!(
             credit.contains("Other (in place of Primary) over the python in this app"),
             "{credit}"
+        );
+    }
+
+    #[test]
+    fn a_tool_that_asks_for_a_settings_file_is_given_an_empty_one_of_svs_own() {
+        let dir = scratch("settings");
+        let (rule, _) = {
+            let (adapter, rule) = adapter(&dir, "unused");
+            (rule, adapter)
+        };
+        // The tool: refuses to run unless its `-c` names a file holding exactly the empty
+        // settings, outside the app, then writes a clean report.
+        let mut tool = tool(&dir, &rule, "CLEAN");
+        let text = std::fs::read_to_string(&tool.run.command).unwrap().replace(
+            "[ \"$1\" = --version ] && exit 0\n",
+            &format!(
+                "[ \"$1\" = --version ] && exit 0\n[ \"$1\" = -c ] || exit 9\n\
+                 [ \"$(cat \"$2\")\" = '{}' ] || exit 9\n\
+                 case \"$2\" in \"{}\"*) exit 9;; esac\nshift 2\n",
+                EMPTY_SETTINGS.trim_end(),
+                dir.join("app").display()
+            ),
+        );
+        std::fs::write(&tool.run.command, text).unwrap();
+        tool.run.args = vec!["-c".into(), "{config}".into(), "{output}".into()];
+        tool.finished_exits = vec![0];
+        let outcome = run(&dir, tool.clone());
+        assert_eq!(outcome.ran, ["primary"], "{:?}", outcome.not_run);
+        // The control: the same tool asked without one exits 9, which is not a finished run.
+        tool.run.args = vec!["{output}".into()];
+        let outcome = run(&dir, tool);
+        std::fs::remove_dir_all(&dir).ok();
+        assert!(outcome.ran.is_empty(), "{outcome:?}");
+        assert!(
+            outcome.not_run[0].1.contains("exit code 9"),
+            "{:?}",
+            outcome.not_run
         );
     }
 

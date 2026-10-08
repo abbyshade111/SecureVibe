@@ -30,6 +30,12 @@ another session is not a claim.
      `--tools`. Branch `claude/securevibe-review-brakeman-config`: a `{config}` placeholder that `sv` fills with an
      empty settings file in the tool's private folder, passed as `-c`, so the app's file is never read. The spirit of
      ADR-032 (a program the app names is not run): a Later entry there.
+     **Done the same day, and the finding corrected** (DESIGN, "The outside tools run no program an app's repository
+     names", the paragraph "Brakeman's settings file"; ADR-032, Later, 8 October 2026): tried with Brakeman 8.1.0,
+     the settings file could *not* make Brakeman load Ruby, since Brakeman has ignored `additional_checks_path`
+     there since 3.6.2 (2017) unless asked to allow it; the review's "high" was wrong. What was built is the smaller
+     thing that stood: Brakeman now reads an empty settings file of `sv`'s own and never the app's, so a clean run
+     over an app with `config/brakeman.yml` is credited rather than withheld.
   3. **`sv review` writes `securevibe.toml` and `security-notes.md` through a link the app planted, and not
      atomically** (`crates/sv-cli/src/review.rs`, `save_text`): the one writer left on a plain write after S3 fixed
      `sv notes` and `sv rules`. Branch `claude/securevibe-review-links`: `refuse_link` and `write_without_following`,
