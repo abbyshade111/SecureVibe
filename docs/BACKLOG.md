@@ -483,6 +483,12 @@ another session is not a claim.
      on screen before the closing line, and not again when the exit status already lists them; the hint is a
      sentence for a command and for CodeQL's steps alike. Breaks: the screen list switched off, the old hint, every
      hint quoted as a command, and the list said twice each failed a test written for it.
+     **(c)'s per-platform install hints claimed on 8 October 2026 by session securevibe-e2**, at the owner's word
+     ("please continue to work off the backlog"), in branch `claude/securevibe-e2-install-hints`: an outside tool's
+     install hint can differ on a Mac and on Linux, because `pip install` is refused by the Python Homebrew installs
+     and by recent Debian and Ubuntu; so Semgrep and gosec through Homebrew on a Mac, and Bandit (with its SARIF
+     formatter) and Semgrep through `pipx` where `pip` is refused. Only for packages checked to exist; Brakeman and
+     CodeQL keep today's hint, since Homebrew has no Brakeman and its CodeQL lacks the query packs `sv` runs.
      **(g) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
      the backlog"), in branch `claude/securevibe-e2-nothing-read`: `sv check` on a folder where no file of the app
      was read prints no "Checked and fine" block, and a finding about a file that is missing is not shown at line 1
@@ -521,6 +527,18 @@ another session is not a claim.
      none; the prompt and `AGENTS.md` both tell the tool to stop and say so. Breaks: the line left out of
      `AGENTS.md`, the prompt's line removed, and the count in the guide wrong each failed
      `crates/sv-cli/tests/did_it_connect.rs`.
+     **(b) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-review-container`: the guide's step 5 gives the container form
+     of `sv review` itself, for someone who has only Docker, and a whole `.mcp.json` for the AI tool's container
+     that passes the list of trusted keys as `SV_TRUSTED_SEALS` rather than mounting the key folder, so the private
+     signing key never enters the container the AI tool drives. Held to the README and the code by a test.
+     **(b) done the same day** (`docs/GETTING-STARTED.md`, step 5; README, "Setting a finding aside"): the container
+     `sv review`, with the folder made first; and a whole `.mcp.json` that mounts the list of trusted keys alone,
+     read-only, rather than the key folder. Mounting the one file rather than passing `SV_TRUSTED_SEALS`, because
+     the list's line holds quotation marks a person would have to escape by hand in JSON, and because `sv review`
+     adds to the same file, so the container sees each new app. Breaks: the whole folder given to the AI tool's
+     container, the list not made first, and an empty list each failed `crates/sv-cli/tests/review_container.rs`,
+     whose third test makes natively what that container sees and shows a signed answer still counts.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
@@ -8172,6 +8190,10 @@ another session is not a claim.
      `sv check --fail-on attention` can fail a CI pipeline on a finding the owner set aside. One `StaticScan` stage
      used by both. An exit code is a default that changes a conclusion: **`Status: proposed`, a Later entry on
      ADR-023**, made accepted in the pull request that builds it. Branch `claude/securevibe-review-static-scan`.
+     **Done the same day** (ADR-023, Later, 8 October 2026; DESIGN, "One static stage for `sv check` and
+     `sv report`"): `crates/sv-cli/src/static_scan.rs`, `StaticScan::read` and `settle`, called by both; `sv check`
+     applies the manifest's reviews and says what was set aside and what does not count; the test shows the two
+     exit alike before and after a review.
   4. **The tier is not on the value, and the run's script lives in the container layer.** A `Verified` lands in
      *attested*, *stated*, *by hand*, or *documented* by which slice of `Inputs` it is passed in, assembled by hand
      in `main.rs`, and *attested* is told from *stated* by a string match on the check id; an enum on `Verified` and
