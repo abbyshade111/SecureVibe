@@ -131,6 +131,26 @@ fn nothing_but_the_data_finder_reads_from_the_build_folder_at_run_time() {
             {
                 continue;
             }
+            // A whole file that is a test module, declared `#[cfg(test)] mod name;` by the file
+            // above it (`mcp/tests.rs` since 8 October 2026), may name it as a test module may.
+            let stem = path.file_stem().unwrap().to_string_lossy().into_owned();
+            let declared_for_tests = |parent: PathBuf| {
+                std::fs::read_to_string(parent).is_ok_and(|text| {
+                    let lines: Vec<&str> = text.lines().collect();
+                    lines.iter().enumerate().any(|(n, line)| {
+                        line.starts_with("#[cfg(")
+                            && line.contains("test")
+                            && lines
+                                .get(n + 1)
+                                .is_some_and(|next| *next == format!("mod {stem};"))
+                    })
+                })
+            };
+            if declared_for_tests(dir.join("mod.rs"))
+                || declared_for_tests(dir.with_extension("rs"))
+            {
+                continue;
+            }
             let text = std::fs::read_to_string(&path).unwrap();
             // Each top-level `#[cfg(test)] mod … {` (or `#[cfg(all(test, …))]`) is skipped to its closing `}` at the margin: one
             // followed by the end of the file or by another item, not by more of a string that

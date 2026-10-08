@@ -141,8 +141,9 @@ fn a_report_is_not_written_through_a_symlink_out_of_the_app() {
     assert_eq!(result["isError"], true, "{}", text(&result));
 }
 
-/// Each name `write_report_files` writes, the marker and the lock included.
-const REPORT_FILES: &[&str] = &[
+/// Each name `write_report_files` writes, the marker and the lock included, written out by hand so
+/// the list the names derive from (`sv_scan::ecosystems::REPORT_FILES`) is held to what is written.
+const FOLDER_NAMES: &[&str] = &[
     ".securevibe-report",
     crate::report_lock::LOCK_NAME,
     "report.html",
@@ -154,9 +155,9 @@ const REPORT_FILES: &[&str] = &[
 
 #[test]
 fn the_names_held_together_are_the_names_a_report_folder_holds() {
-    assert_eq!(REPORT_FILES, crate::REPORT_FOLDER_NAMES);
+    assert_eq!(FOLDER_NAMES, crate::REPORT_FOLDER_NAMES);
     // And each file a report is written as (held to `write_report_files` by the test above).
-    for (name, _) in OFFERED_FILES {
+    for ReportFile { name, .. } in &REPORT_FILES {
         assert!(crate::REPORT_FOLDER_NAMES.contains(name), "{name}");
     }
 }
@@ -208,7 +209,7 @@ fn a_report_file_that_is_a_link_is_refused_and_what_it_points_to_is_left_alone()
     // An app can carry `securevibe-report/report.json` as a link to any file the owner can
     // write; written through, that file was replaced by the report. Every name is tried, so a
     // guard that forgets one of them fails here.
-    for name in REPORT_FILES {
+    for name in FOLDER_NAMES {
         let root = scratch_app(
             &format!("linked-file-{}", name.trim_start_matches('.')),
             "flask-booking",
@@ -434,15 +435,7 @@ fn the_check_is_the_report_and_not_a_summary_of_it() {
     );
     let report = crate::assemble_report(
         &examples().join("tested-notes").canonicalize().unwrap(),
-        &crate::ReportOptions {
-            run_the_app: false,
-            slow: false,
-            run_tools: false,
-            why_not_run: String::new(),
-            why_no_tools: String::new(),
-            advisories: None,
-            why_no_advisories: String::new(),
-        },
+        &crate::ReportOptions::reading_only("a test"),
         &crate::Loaded::load().unwrap(),
     )
     .unwrap();
@@ -2196,7 +2189,7 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
         assert_eq!(result["isError"], false, "{}", text(&result));
     }
     let resources = listed(&server);
-    assert_eq!(resources.len(), 2 * OFFERED_FILES.len(), "{resources:#?}");
+    assert_eq!(resources.len(), 2 * REPORT_FILES.len(), "{resources:#?}");
     let canonical = root.canonicalize().unwrap();
     for resource in &resources {
         let uri = resource["uri"].as_str().unwrap();
@@ -2209,7 +2202,7 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
         let on_disk = std::fs::read_to_string(&path).unwrap();
         assert_eq!(resource["size"], on_disk.len(), "{uri}");
         let name = path.file_name().unwrap().to_str().unwrap();
-        let mime = OFFERED_FILES.iter().find(|(n, _)| *n == name).unwrap().1;
+        let mime = REPORT_FILES.iter().find(|f| f.name == name).unwrap().mime;
         assert_eq!(resource["mimeType"], mime, "{uri}");
         assert!(
             resource["description"]
@@ -2248,7 +2241,7 @@ fn the_files_offered_are_the_files_a_report_is_written_as() {
         )
         .unwrap();
     let written = crate::write_report_files(&report, &root.join("out")).unwrap();
-    let offered: Vec<&str> = OFFERED_FILES.iter().map(|(name, _)| *name).collect();
+    let offered: Vec<&str> = REPORT_FILES.iter().map(|f| f.name).collect();
     assert_eq!(offered, written);
 }
 
@@ -2426,7 +2419,7 @@ fn a_report_folder_named_to_break_a_line_is_listed_on_one_line() {
     );
     assert_eq!(written["isError"], false, "{}", text(&written));
     let resources = listed(&server);
-    assert_eq!(resources.len(), OFFERED_FILES.len(), "{resources:#?}");
+    assert_eq!(resources.len(), REPORT_FILES.len(), "{resources:#?}");
     for resource in resources {
         let name = resource["name"].as_str().unwrap();
         assert!(!name.contains('\n'), "{name:?}");
@@ -2469,7 +2462,7 @@ fn a_report_is_found_where_it_was_written_and_not_where_nothing_is_looked_for() 
         !names.iter().any(|n| n.contains("node_modules")),
         "{names:?}"
     );
-    assert_eq!(names.len(), OFFERED_FILES.len(), "{names:?}");
+    assert_eq!(names.len(), REPORT_FILES.len(), "{names:?}");
 }
 
 #[test]
@@ -2496,7 +2489,7 @@ fn a_stateless_client_gets_the_reports_too_with_no_caching() {
         .handle(&stateless(3, "resources/list", "2026-07-28", json!({})))
         .unwrap();
     let resources = list["result"]["resources"].as_array().unwrap();
-    assert_eq!(resources.len(), OFFERED_FILES.len(), "{list}");
+    assert_eq!(resources.len(), REPORT_FILES.len(), "{list}");
     let uri = resources[0]["uri"].as_str().unwrap();
     let reading = server
         .handle(&stateless(

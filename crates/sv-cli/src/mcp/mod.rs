@@ -29,6 +29,7 @@
 //! notifications get no reply; anything else is "method not found". No dependency beyond `serde_json`: the protocol surface this needs is small,
 //! and an SDK would be a large, fast-moving thing to trust for it.
 
+use crate::report_files::{REPORT_FILES, ReportFile};
 use anyhow::{Context, Result};
 use serde_json::{Value, json};
 use std::io::{BufRead, Write};
@@ -68,16 +69,6 @@ const UNSUPPORTED_PROTOCOL_VERSION: i64 = -32022;
 /// How long a client may keep the tool list or the discovery result before asking again. Neither
 /// changes while the server runs; an hour keeps a client from holding one past an upgrade for long.
 const CACHE_MS: u64 = 60 * 60 * 1000;
-
-/// The files of a written report that are offered as resources, with what kind of file each is. The
-/// same names `write_report_files` writes; a test holds the two lists together.
-const OFFERED_FILES: &[(&str, &str)] = &[
-    ("report.html", "text/html"),
-    ("compliance.md", "text/markdown"),
-    ("security.md", "text/markdown"),
-    ("findings.sarif", "application/sarif+json"),
-    ("report.json", "application/json"),
-];
 
 /// "Resource not found", in the versions that open with `initialize`. The stateless version answers
 /// it with "invalid params" instead (2026-07-28, "MCP error codes").
@@ -639,9 +630,6 @@ fn assemble(
     crate::assemble_report_saying(
         app_dir,
         &crate::ReportOptions {
-            run_the_app: false,
-            slow: false,
-            run_tools: false,
             why_not_run: format!(
                 "The MCP server never starts the app; the person can, with {}.",
                 at_a_terminal(&app_dir.to_string_lossy(), "--run")
@@ -650,11 +638,11 @@ fn assemble(
                 "The MCP server never runs other people's tools; the person can, with {}.",
                 at_a_terminal(&app_dir.to_string_lossy(), "--tools")
             ),
-            advisories: None,
             why_no_advisories: format!(
                 "The MCP server does not read an advisory database; the person can, with {}.",
                 at_a_terminal(&app_dir.to_string_lossy(), "--advisories DIR")
             ),
+            ..crate::ReportOptions::reading_only("The MCP server")
         },
         loaded,
         starting,

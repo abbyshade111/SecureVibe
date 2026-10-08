@@ -31,7 +31,7 @@ impl Server {
             } else {
                 shown
             };
-            for (name, mime) in OFFERED_FILES {
+            for ReportFile { name, mime, .. } in &REPORT_FILES {
                 let path = folder.join(name);
                 let Ok(meta) = std::fs::symlink_metadata(&path) else {
                     continue;
@@ -79,7 +79,8 @@ impl Server {
             .file_name()
             .and_then(|n| n.to_str())
             .unwrap_or_default();
-        let Some((name, mime)) = OFFERED_FILES.iter().find(|(n, _)| *n == name) else {
+        let Some(ReportFile { name, mime, .. }) = REPORT_FILES.iter().find(|f| f.name == name)
+        else {
             return Err(not_found("only the files of a report sv wrote are offered"));
         };
         let folder = path

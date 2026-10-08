@@ -930,16 +930,34 @@ pub const OUTPUT_DIRS: &[(&str, &[&str])] = &[
 /// left out only while it holds nothing but what `sv` writes (`is_sv_output`).
 pub const DEFAULT_REPORT_DIR: &str = "securevibe-report";
 
-/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports.
-pub const REPORT_FOLDER_NAMES: &[&str] = &[
-    REPORT_MARKER,
-    ".securevibe-report.lock",
+/// The lock `sv report` holds on the folder while it writes (`sv-cli`'s `report_lock`). A dot name,
+/// beside the marker, so a listing hides it.
+pub const REPORT_LOCK: &str = ".securevibe-report.lock";
+
+/// The five files a report is written as, in the order they are written and sealed. The one list
+/// the names of a report folder derive from: `REPORT_FOLDER_NAMES` here, and in `sv-cli` the table
+/// that says how each is rendered and what kind of file it is (`report_files`), which the compiler
+/// holds to this one, the seal (`report_seal::SEALED`), and the MCP server's resources.
+pub const REPORT_FILES: [&str; 5] = [
     "report.html",
     "compliance.md",
     "security.md",
     "findings.sarif",
     "report.json",
 ];
+
+/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports.
+pub const REPORT_FOLDER_NAMES: &[&str] = &{
+    let mut names = [""; 2 + REPORT_FILES.len()];
+    names[0] = REPORT_MARKER;
+    names[1] = REPORT_LOCK;
+    let mut i = 0;
+    while i < REPORT_FILES.len() {
+        names[2 + i] = REPORT_FILES[i];
+        i += 1;
+    }
+    names
+};
 
 /// Why a walk leaves a folder out, for the report to say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

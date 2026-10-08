@@ -1,4 +1,5 @@
-//! Writing the report folder for the AI coding tool: the lock, the check, the five files, the seal.
+//! Writing the report folder for the AI coding tool: the folder confined below the app, then the one
+//! sequence `sv report` keeps (`report_folder`).
 
 use super::*;
 
@@ -57,28 +58,25 @@ impl Server {
             app_dir.display()
         );
         let out_dir = resolved;
-        // The same lock `sv report` takes, so the owner's run at a terminal and this one cannot both
-        // write the folder (BACKLOG, "What the owner hit building family-hub", item 2).
+        // The same sequence `sv report` keeps, the same lock first, so the owner's run at a
+        // terminal and this one cannot both write the folder (BACKLOG, "What the owner hit building
+        // family-hub", item 2); what `sv` says on the way is collected for the reply.
         let elsewhere = "ask for a folder of its own with `out`";
-        let held = crate::claim_report_folder(
+        let mut notes = Vec::new();
+        let crate::report_folder::ReportFolder {
+            report,
+            written,
+            sealed,
+        } = crate::report_folder::write_report_folder(
+            app_dir,
             &out_dir,
             &format!("securevibe_write_report, through sv's MCP server (sv mcp), out \"{out}\""),
             elsewhere,
             made,
+            || self.report_for(app_dir, progress),
+            &mut |note| notes.push(note.to_owned()),
         )?;
-        let mut report = self.report_for(app_dir, progress)?;
-        let mut notes = held.notes.clone();
-        if let Some((note, gap)) = crate::report_lock::manifest_changed(&report, app_dir) {
-            notes.push(note);
-            report.gaps.push(gap);
-        }
-        crate::report_lock::refuse_older(&report, &out_dir, elsewhere)?;
-        let report_written = crate::write_report(&report, &out_dir)?;
-        let written = report_written.names();
-        let (sealed, seal_notes) = crate::seal_report_folder(&out_dir, &report_written);
-        notes.extend(seal_notes);
-        held.written();
-        drop(held);
+        let written = written.names();
         let files: Vec<String> = written
             .iter()
             .map(|name| out_dir.join(name).display().to_string())
