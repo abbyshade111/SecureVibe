@@ -469,6 +469,11 @@ another session is not a claim.
      with nothing read, `sv check` says none is listed as checked and fine and why, and a finding about a missing
      file names the file as not there rather than a line of it. Breaks: the "nothing read" test switched off, a
      missing file shown at its line, and every run treated as nothing read each failed the new test.
+     **(d) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-mcp-remedy`: when an MCP tool cannot do its job, what `sv` itself
+     says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
+     the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
+     the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
