@@ -276,8 +276,10 @@ sign them all again at one yes, without asking each question again.
 With the container, give it a terminal and somewhere to keep the key, made first so that it is yours
 (`mkdir -p ~/.config/securevibe && chmod 700 ~/.config/securevibe`; on Linux, add `--user` as below):
 `docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/securevibe":/sv-config/securevibe -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .`
-The container that writes your reports needs only the list: pass `-e SV_TRUSTED_SEALS="$(cat ~/.config/securevibe/allowed_signers)"`,
-or the same `-v` and `-e` as above.
+The container that writes your reports needs only the list, and never the key beside it: pass
+`-e SV_TRUSTED_SEALS="$(cat ~/.config/securevibe/allowed_signers)"`, or mount the list alone, read-only,
+with `-v "$HOME/.config/securevibe/allowed_signers":/sv-config/securevibe/allowed_signers:ro -e XDG_CONFIG_HOME=/sv-config`.
+For the container your AI coding tool starts, the guide (`docs/GETTING-STARTED.md`, step 5) gives the whole `.mcp.json`.
 
 ## Signing in
 

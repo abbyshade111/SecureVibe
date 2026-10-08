@@ -55,6 +55,12 @@ pub struct Adapter {
     pub run: Invocation,
     /// What to tell somebody who wants it and does not have it.
     pub install: String,
+    /// The same, for one kind of computer (`macos`, `linux`, as Rust names them), where the general
+    /// hint fails there: `pip install` is refused by the Python Homebrew installs on a Mac and by recent
+    /// Debian and Ubuntu (PEP 668). Each is the middle of a sentence, `run `…``. Given only for a
+    /// package checked to exist where it says (`docs/GAP-ANALYSIS.md`, 5.3).
+    #[serde(default)]
+    pub install_on: BTreeMap<String, String>,
     #[serde(default)]
     pub note: String,
     /// Run from inside this directory rather than passing it as an argument.
@@ -852,7 +858,7 @@ impl Programs {
                     adapter.name,
                     program.display(),
                     adapter.name,
-                    install_step(&adapter.install)
+                    adapter.install_hint()
                 )),
             }
         };
@@ -870,6 +876,23 @@ impl Programs {
 
 /// How to install a tool, as the middle of a sentence: a command to type is quoted and introduced,
 /// and steps already written in words (CodeQL's download) are left as they are.
+impl Adapter {
+    /// How to install this tool on the computer `sv` is running on, as the middle of a sentence. In
+    /// `sv`'s own container the computer is not the person's, so the general hint is given.
+    pub fn install_hint(&self) -> String {
+        let here = (std::env::var_os("SV_IN_CONTAINER").is_none()).then_some(std::env::consts::OS);
+        self.install_hint_on(here)
+    }
+
+    /// How to install this tool on `os` (`macos`, `linux`), or anywhere when `None`.
+    pub fn install_hint_on(&self, os: Option<&str>) -> String {
+        match os.and_then(|os| self.install_on.get(os)) {
+            Some(hint) => hint.clone(),
+            None => install_step(&self.install),
+        }
+    }
+}
+
 fn install_step(install: &str) -> String {
     let program = install.split_whitespace().next().unwrap_or("");
     if ["pip", "pip3", "pipx", "go", "gem", "npm", "brew", "cargo"].contains(&program) {
@@ -979,7 +1002,7 @@ pub fn run_one_in(
                      {subject} in this app the way it would have. To install it, {}; then run \
                      this again.{also}",
                     adapter.name,
-                    install_step(&adapter.install)
+                    adapter.install_hint()
                 ),
             };
         }
@@ -2181,6 +2204,73 @@ mod presence_tests {
                 adapter.id
             );
         }
+    }
+
+    #[test]
+    fn the_install_hint_is_the_one_for_this_kind_of_computer() {
+        // Gap analysis 5.3: `pip install` is refused by Homebrew's Python and by recent Debian and
+        // Ubuntu, so the general hint fails on most of the computers `sv` runs on.
+        let adapters =
+            Adapters::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"))
+                .unwrap();
+        let tool = |id: &str| adapters.all().iter().find(|a| a.id == id).unwrap();
+        let semgrep = tool("semgrep");
+        assert_eq!(
+            semgrep.install_hint_on(Some("macos")),
+            "run `brew install semgrep`"
+        );
+        assert!(
+            semgrep
+                .install_hint_on(Some("linux"))
+                .starts_with("run `pipx install semgrep`")
+        );
+        assert_eq!(semgrep.install_hint_on(None), "run `pip install semgrep`");
+        assert_eq!(
+            semgrep.install_hint_on(Some("windows")),
+            "run `pip install semgrep`"
+        );
+        assert_eq!(
+            tool("gosec").install_hint_on(Some("macos")),
+            "run `brew install gosec`"
+        );
+        assert!(
+            tool("gosec")
+                .install_hint_on(Some("linux"))
+                .starts_with("run `go install")
+        );
+        for os in [Some("macos"), Some("linux"), None] {
+            // Bandit writes no report `sv` reads without its SARIF formatter, wherever it is.
+            assert!(
+                tool("bandit")
+                    .install_hint_on(os)
+                    .contains("bandit-sarif-formatter"),
+                "{os:?}"
+            );
+        }
+        let mut given = 0;
+        for adapter in adapters.all() {
+            for (os, hint) in &adapter.install_on {
+                given += 1;
+                assert!(
+                    ["macos", "linux"].contains(&os.as_str()),
+                    "{}: {os}",
+                    adapter.id
+                );
+                assert!(hint.starts_with("run `"), "{}: {hint}", adapter.id);
+                // `pip install` is what these hints are there to avoid.
+                assert!(!hint.contains("pip install"), "{}: {hint}", adapter.id);
+            }
+        }
+        assert!(given >= 5, "the setup: hints for more than one tool");
+        // Homebrew has no Brakeman, and its CodeQL has no query packs: no hint was made up for them.
+        assert!(tool("brakeman").install_on.is_empty());
+        assert!(
+            adapters
+                .all()
+                .iter()
+                .filter(|a| a.id.starts_with("codeql"))
+                .all(|a| a.install_on.is_empty())
+        );
     }
 
     #[test]
