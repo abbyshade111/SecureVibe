@@ -62,6 +62,12 @@ high were built the same day (the entry above this one's predecessor). Each of t
    per check, not per requirement: a check citing two ids whose tests only ever credit one passes; also fail on
    `ids - got`, and mirror a findings log. `model_provider.rs` passes silently without `node`: honor
    `SV_REQUIRE_BACKEND` there.
+   **Claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, the next unclaimed in its
+   order), in branch `claude/securevibe-e2-honesty-gaps`: all three parts. A manifest-versus-lockfile comparison that
+   could not be made is named as not made, with the file; the credit census fails a requirement a check cites and
+   was never seen crediting, beside the per-check test it has (a Later entry on ADR-059); and the model-provider
+   test fails without `node` when `SV_REQUIRE_BACKEND` is set. Confirmed on `main` just before this claim: none of
+   the three is done, and no other session had claimed this part.
 6. Low: a FIFO named `securevibe.toml` hangs the MCP server's serving thread (`app_dir` refuses links only);
    `Secret::redact` keeps four characters whatever the length, so a 4-character URL password is shown whole (show
    `min(4, len/3)`); `redact_text` masks only listed names, and `authorization`, `bearer`, `cookie`, `session`,
