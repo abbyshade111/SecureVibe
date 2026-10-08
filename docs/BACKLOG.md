@@ -8150,6 +8150,8 @@ done: `docs/adr/ADR-018.md`.
   (item 3), the loop at scale (item 6), the prompt-library trial, the delivery test, the at-start test, the revision
   trial, the recipe trial, and the three sentences, in one document with tables and figures, as the Word document of 6
   October 2026 did for the loop trials. **Claimed on 7 October 2026 by session paper-facts**, after the trial above.
+  **Done the same day:** nine trials, 464 builds, $150.53 in all, in a Word document and a PDF of ten pages with four
+  figures, given to the owner and kept with its data and scripts on the owner's drive, outside the repository.
 - **A second review of all of `sv`'s documentation, and the paper's figures and analyses.** Asked for by the owner on 7
   October 2026 ("the deep scrub and review of the documentation to get everything up-to-date, including the figures
   and analyses for the paper that are now out-of-date as well"). The first review (above, 6 October 2026) was done
@@ -8157,4 +8159,10 @@ done: `docs/adr/ADR-018.md`.
   trials, and more. Every document a person or an AI tool reads, and `docs/paper/`'s documents, figures and data,
   read against `main`; records and DESIGN get dated entries rather than rewrites. **Claimed on 7 October 2026 by
   session paper-facts**, after the write-up. Read on `main` just before this claim: no other session had claimed it.
+  **Part 1 done on 8 October 2026:** the documents a person or an AI tool reads, each sentence checked against the
+  code: README, GETTING-STARTED, PROMPTS and the prompt library's notes, design-time prompts, CLAUDE.md, the data
+  README, PARTIAL-CHECKS (63 of the 382 now have a check, recounted), SEMGREP-FALSE-ALARMS and THREAT-MODELING (dated
+  notes), the decision-record index, the CodeQL workflow's comments, the examples, and the Governs lines of ADR-044
+  and ADR-045. One fault in `sv` itself was found and fixed on its own (the item above). Still to do: the wording
+  inside the code (the specification, the MCP tools' descriptions, the help), and the paper.
 

@@ -5,8 +5,9 @@ A review made on 28 September 2026, against `main` that day, of the 382 ASVS 5.0
 something useful even when it cannot settle the requirement), a question for `securevibe.toml`, or says plainly that no
 useful check exists. **These are proposals, not built checks, and most are not verified.** Each is built the usual way:
 claimed in `docs/BACKLOG.md`, with a control, and broken on purpose to see it caught. This file is a snapshot; it is not
-regenerated when checks change, so `docs/REQUIREMENTS.md` is what says what is checked now. By 6 October 2026, 57 of
-these 382 had gained a check of some kind, all of them from the "Partial check" proposals. Some were built under other
+regenerated when checks change, so `docs/REQUIREMENTS.md` is what says what is checked now. By 8 October 2026, 63 of
+these 382 had gained a check of some kind (22 can be checked, 38 can only be found failing, 3 a check helps with),
+all of them from the "Partial check" proposals. Some were built under other
 names than proposed here, and `crates/sv-check/src/signed_in.rs`, named below many times, is now a folder,
 `crates/sv-check/src/signed_in/`.
 

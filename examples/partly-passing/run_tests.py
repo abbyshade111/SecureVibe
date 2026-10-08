@@ -1,7 +1,8 @@
 """Runs the suite and writes a JUnit XML report, which is what `sv` reads.
 
-`python:3.12-slim` has unittest and nothing else, and the container has no network to install a
-runner from, so this writes the report itself. A real app passes `--junitxml` to pytest, or uses
+`python:3.12-slim` has unittest and nothing else, and the fenced container cannot download a runner,
+so this writes the report itself. (`install = true` could install pytest from a pinned requirements.txt
+before the run, ADR-052; this example keeps to the standard library.) A real app passes `--junitxml` to pytest, or uses
 gotestsum, jest-junit or surefire — `sv` only cares that JUnit XML lands where securevibe.toml
 says it will, and that it is somewhere the runner can actually write.
 """
