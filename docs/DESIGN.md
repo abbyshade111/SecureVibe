@@ -792,6 +792,12 @@ Three decisions, each a way of not lying:
   is the whole reason the adapters are a data file with a gap attached rather than a shell script: a
   script that skips a missing binary produces a report identical to one where the tool ran and found
   nothing, and the second is the one everybody assumes.
+  Until 8 October 2026 that *not run* was only in the reports: with no tool installed, `sv report
+  --tools` printed nothing about them and exited 0, the default (ADR-029). It now says on screen which tools
+  did not run and why, each once, whatever the exit status (backlog item 25(c)). The hint reads as a
+  sentence either way: "To install it, run `pip install semgrep`; then run this again", and for CodeQL,
+  whose install is steps in words, "To install it, download the CodeQL bundle …" rather than a quoted
+  command that is not one (`install_step` in `crates/sv-check/src/adapters.rs`).
 - **SARIF and nothing else.** One output parser that is trusted is worth more than five that are nearly
   right. A tool that cannot emit SARIF is not listed yet rather than parsed by guesswork — which is why
   bandit's install line names two packages, since its SARIF formatter is a separate one.
