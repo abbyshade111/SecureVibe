@@ -311,6 +311,11 @@ another session is not a claim.
      claim: no other session had claimed it.
      **A template built from a value done the same day** (DESIGN, "A page template built from a value"); Jinja's bare
      `Template(...)` is left out, since it cannot be told from Python's own `string.Template`.
+     **Cross-origin settings that let any site in with credentials claimed 8 October 2026 by session securevibe-e9**
+     ("pick your next backlog item whenever you're ready"), in branch `claude/securevibe-e9-cors`: a code rule,
+     `ast.cors-any-origin-with-credentials`, for CORS settings that accept every origin and send cookies too
+     (flask-cors, Express's and Fastify's `cors`, Spring, ASP.NET Core; V3.4.2), only ever a finding. Read on `main`
+     just before this claim: no other session had claimed it.
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
@@ -481,6 +486,20 @@ another session is not a claim.
      says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
      the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
      the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
+     **(d) done the same day** (DESIGN, "`sv`'s own next step, outside the fence"): an error that carries `sv`'s
+     next step ends with "What to do: …" outside the fence, and what went wrong stays inside it; the preflight's
+     missing-file error names `securevibe_spec`, not `sv init`. Breaks: the next step fenced again, and the
+     preflight's own check removed, each failed a test written for it.
+     **(e) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-image-update`: a section of the guide on keeping SecureVibe up
+     to date, both the container image the AI tool runs and a copy built on this computer, how to tell which
+     version each is, and that the AI tool picks up a new image only when it starts the server again. Held to the
+     workflow that publishes the image by a test.
+     **(e) done the same day** (`docs/GETTING-STARTED.md`, "Keeping SecureVibe up to date"): `docker pull` again, then
+     restart the AI tool or its SecureVibe server; `--version` on each copy, with the commit it was built from;
+     both copies updated together; a version held to by its commit's own image; and `docker image prune` for the
+     old ones. Breaks: the image renamed in step 1, the update's pull renamed, and the per-commit image no longer
+     pushed by the workflow each failed `crates/sv-cli/tests/guide_update.rs`.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
