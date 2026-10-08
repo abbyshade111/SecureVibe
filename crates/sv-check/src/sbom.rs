@@ -245,6 +245,12 @@ pub fn build_in(listing: &sv_scan::files::Listing) -> Sbom {
     for declaration in sv_scan::ecosystems::python_declarations_in(listing) {
         read_declaration(app_dir, &declaration, &mut sbom);
     }
+    // Dependencies in an ecosystem `sv` does not read (gap analysis, item 2): named, so the list is
+    // not taken for complete and V15.2.1 is not credited on the rest.
+    for unread in sv_scan::ecosystems::unread_declarations_in(listing) {
+        sbom.unread
+            .push((unread.name.to_owned(), unread_reason(&unread)));
+    }
     sbom.components.sort_by(|a, b| {
         a.ecosystem
             .cmp(&b.ecosystem)
@@ -595,6 +601,19 @@ fn read_declaration(
         ),
     };
     sbom.unread.push(("Python".into(), why));
+}
+
+/// Why an ecosystem `sv` does not read is not in the list, in the words the report uses.
+pub fn unread_reason(unread: &sv_scan::ecosystems::UnreadDeclaration) -> String {
+    let lockfile = match &unread.lockfile {
+        Some(lockfile) => format!(", nor its lockfile `{lockfile}`"),
+        None => String::new(),
+    };
+    format!(
+        "`{}` declares {} dependencies, and `sv` does not read that file{lockfile}, so none of \
+         its packages is listed or compared with known vulnerabilities",
+        unread.path, unread.name
+    )
 }
 
 /// Names the packages a lockfile lists with no version, as not listed. They are installed all the

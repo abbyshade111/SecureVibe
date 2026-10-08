@@ -121,6 +121,105 @@ pub const ECOSYSTEMS: &[EcosystemDef] = &[
     },
 ];
 
+/// An ecosystem whose dependency files `sv` does not read (gap analysis, item 2): found, so that its
+/// packages are named as unread rather than absent.
+pub struct UnreadEcosystemDef {
+    /// What a person calls it.
+    pub name: &'static str,
+    /// The files that declare its dependencies. A `*` stands for a part of the name that varies
+    /// (`*.csproj`), and is never empty.
+    pub manifests: &'static [&'static str],
+    /// Its own lockfiles, named in the message when one is beside a manifest.
+    pub lockfiles: &'static [&'static str],
+}
+
+/// Before these were found, a .NET app was told "No package manifest was found", and a mixed app had
+/// V15.2.1 credited on its npm half while an old Newtonsoft.Json sat pinned in its `.csproj`.
+pub const UNREAD_ECOSYSTEMS: &[UnreadEcosystemDef] = &[
+    UnreadEcosystemDef {
+        name: ".NET (NuGet)",
+        manifests: &[
+            "*.csproj",
+            "*.fsproj",
+            "*.vbproj",
+            "packages.config",
+            "Directory.Packages.props",
+        ],
+        lockfiles: &["packages.lock.json"],
+    },
+    UnreadEcosystemDef {
+        name: "Dart (pub)",
+        manifests: &["pubspec.yaml"],
+        lockfiles: &["pubspec.lock"],
+    },
+    UnreadEcosystemDef {
+        name: "Swift (Swift Package Manager)",
+        manifests: &["Package.swift"],
+        lockfiles: &["Package.resolved"],
+    },
+    UnreadEcosystemDef {
+        name: "Elixir (Mix)",
+        manifests: &["mix.exs"],
+        lockfiles: &["mix.lock"],
+    },
+    UnreadEcosystemDef {
+        name: "Deno",
+        manifests: &["deno.json", "deno.jsonc"],
+        lockfiles: &["deno.lock"],
+    },
+];
+
+/// One file declaring dependencies `sv` does not read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnreadDeclaration {
+    /// The ecosystem's name, as `UNREAD_ECOSYSTEMS` gives it.
+    pub name: &'static str,
+    /// The file, as a path from the app folder.
+    pub path: String,
+    /// Its ecosystem's lockfile beside it, when there is one.
+    pub lockfile: Option<String>,
+}
+
+/// Whether a file name matches a pattern with at most one `*`, which stands for at least one
+/// character.
+fn name_matches(pattern: &str, name: &str) -> bool {
+    match pattern.split_once('*') {
+        None => pattern == name,
+        Some((head, tail)) => {
+            name.len() > head.len() + tail.len() && name.starts_with(head) && name.ends_with(tail)
+        }
+    }
+}
+
+/// Every file in the app that declares dependencies in an ecosystem `sv` does not read, in path
+/// order.
+pub fn unread_declarations_in(listing: &crate::files::Listing) -> Vec<UnreadDeclaration> {
+    let names: BTreeSet<&str> = listing.app_files().map(|f| f.relative.as_str()).collect();
+    let mut out = Vec::new();
+    for file in listing.app_files() {
+        let name = file.file_name();
+        let Some(eco) = UNREAD_ECOSYSTEMS
+            .iter()
+            .find(|e| e.manifests.iter().any(|m| name_matches(m, name)))
+        else {
+            continue;
+        };
+        let dir = file.relative.rsplit_once('/').map_or("", |(dir, _)| dir);
+        let lockfile = eco
+            .lockfiles
+            .iter()
+            .map(|l| join(dir, l))
+            .find(|l| names.contains(l.as_str()));
+        out.push(UnreadDeclaration {
+            name: eco.name,
+            path: file.relative.clone(),
+            lockfile,
+        });
+    }
+    out.sort_by(|a, b| a.path.cmp(&b.path));
+    out
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DetectedEcosystem {
     pub name: String,

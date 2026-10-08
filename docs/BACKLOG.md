@@ -26,6 +26,8 @@ another session is not a claim.
      **Claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item"), in branch
      `claude/securevibe-e9-unread-ecosystems`: each named in the bill of materials as unread, which holds back
      V15.2.1, and in the pinning check, which then cannot pass V15.1.2 either. Recorded as a Later entry on ADR-037.
+     **Done the same day** (DESIGN, "Dependencies `sv` does not read are named, and hold back the credit"; ADR-037,
+     Later).
   3. **"Debug mode off" and "generic error messages" are credited from a 404 alone.** (`docs/GAP-ANALYSIS.md`, 1.6.)
      `probe.error-detail-leak` credits V13.4.2 and V16.5.1 from a missing page's answer. Provoke a real error
      (malformed JSON to a create request, a non-number id) and credit only when an error answer was seen and was
@@ -34,6 +36,8 @@ another session is not a claim.
      `claude/securevibe-e9-error-answers`: a body that does not parse, sent signed out to the routes securevibe.toml
      names and to the health path; V16.5.1 credited only from a clean error answer, V13.4.2 only from a clean server
      error. **`Status: proposed`: ADR-056.**
+     **Done the same day** (DESIGN, "An error answer is credited only when the app was made to give one"; ADR-056,
+     accepted).
   4. **One read earns "checked" for one user reaching another's data (V8.2.2).** (`docs/GAP-ANALYSIS.md`, 1.7.) Have
      user B also open every private page and the record's list (A's marker there is a finding); optional `update` and
      `delete` templates under `[stack.run.users] owned` that B sends and A reads back; and "checked in part" wording
@@ -233,6 +237,11 @@ another session is not a claim.
      **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
      backlog"), in branch `claude/securevibe-e2-osv-addresses`: the addresses and the folder layout only, in `sv
      audit`'s message, the report's gap, and the guide. Nothing that downloads.
+     **Done on 8 October 2026** (session securevibe-e2): `sv audit` with no database names the OSV zip for each
+     kind of package the app uses and how to lay the folder out; the report's gap names the same addresses; and
+     `docs/GETTING-STARTED.md` has a table of all six, held to the code by a test. Breaks: a wrong address format
+     failed three tests; the report not naming the address, the audit message not saying how, and a row missing
+     from the guide each failed the test written for it. Nothing downloads.
   25. **Silent failures while setting up.** (`docs/GAP-ANALYSIS.md`, 5.3.) Each claimable on its own: (a) a "did it
      connect" step for every tool in the guide, and a coding rule telling the AI tool to stop and say so when the
      `securevibe_` tools are missing; (b) the container form of `sv review` in the guide, and an `.mcp.json` example

@@ -2510,3 +2510,52 @@ fn a_requirements_file_under_another_name_is_judged_for_pinning() {
     ]);
     assert!(elsewhere.is_empty(), "{elsewhere:?}");
 }
+
+#[test]
+fn dependency_files_sv_does_not_read_are_found() {
+    // Gap analysis, item 2: each is named, with its lockfile when one is beside it, and nothing in
+    // a folder `sv` leaves out, or a name that only contains a manifest's, is taken for one.
+    let dir = std::env::temp_dir().join(format!("sv-unread-eco-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    for file in [
+        "Api/Api.csproj",
+        "Api/packages.lock.json",
+        "mobile/pubspec.yaml",
+        "mobile/pubspec.lock",
+        "Package.swift",
+        "mix.exs",
+        "deno.jsonc",
+        "node_modules/x/x.csproj",
+        "notes.csproj.txt",
+        ".csproj",
+        "README.md",
+    ] {
+        let path = dir.join(file);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, "x").unwrap();
+    }
+    let found = sv_scan::ecosystems::unread_declarations_in(&sv_scan::files::Listing::of(&dir));
+    std::fs::remove_dir_all(&dir).ok();
+    let got: Vec<(&str, &str, Option<&str>)> = found
+        .iter()
+        .map(|u| (u.name, u.path.as_str(), u.lockfile.as_deref()))
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (
+                ".NET (NuGet)",
+                "Api/Api.csproj",
+                Some("Api/packages.lock.json")
+            ),
+            ("Swift (Swift Package Manager)", "Package.swift", None),
+            ("Deno", "deno.jsonc", None),
+            ("Elixir (Mix)", "mix.exs", None),
+            (
+                "Dart (pub)",
+                "mobile/pubspec.yaml",
+                Some("mobile/pubspec.lock")
+            ),
+        ]
+    );
+}

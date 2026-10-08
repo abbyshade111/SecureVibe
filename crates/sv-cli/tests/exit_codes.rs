@@ -421,6 +421,12 @@ fn audit_keeps_0_1_and_2_and_its_errors_are_now_3() {
 
     assert_eq!(clean, Some(0), "{clean_said}");
     assert_eq!(no_database, Some(2), "{no_database_said}");
+    // Not assessed says where the list it needs is, for this app's own kind of package.
+    assert!(
+        no_database_said
+            .contains("npm: https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
+        "{no_database_said}"
+    );
     assert!(found_said.contains("qs 6.5.0"), "{found_said}");
     assert_eq!(found, Some(1), "{found_said}");
     assert_eq!(bad_manifest, Some(3), "{bad_manifest_said}");

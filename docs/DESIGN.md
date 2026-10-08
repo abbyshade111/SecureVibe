@@ -2494,6 +2494,16 @@ network at all** — an air-gapped review, a CI runner with egress rules, a lapt
 
 So getting the data is the owner's step, done deliberately and visible in their shell history.
 
+**Where to get it, named (8 October 2026, backlog item 24).** Until then the step said "download an OSV export"
+and not where, which left the check out of reach for somebody who is not a programmer (`docs/GAP-ANALYSIS.md`,
+5.2). `sv audit` without a database, and the report's gap about known vulnerabilities, now name the OSV zip
+for each kind of package the app uses (`osv_download` in `crates/sv-check/src/advisories.rs`), and `sv audit`
+adds the folder layout: one folder per download under `osv`, which works because the reader walks every
+folder under the one it is given. The guide (`docs/GETTING-STARTED.md`) carries the same addresses as a table,
+and a test fails when the table and `osv_download` disagree. A kind of package with no download is named as
+one `sv` does not compare yet. Nothing downloads: a `sv advisories fetch` would change what `sv` connects to,
+and would need a decision record of its own (ADR-027's rule).
+
 ### No data is not a clean result
 
 With no database, `audit` reports **not assessed** and says what to do about it. It never prints "no known
@@ -12902,4 +12912,57 @@ Tests: `crates/sv-check/tests/unread_files.rs` (`a_file_no_loaded_rule_reads_is_
 `a_configuration_file_a_rule_names_is_handed_over_and_must_be_read`, `which_files_a_loaded_rule_reads`), with the
 stand-in for Semgrep the file already had. Each guard was broken in turn and a test went red: every handed file
 counted, the configuration files not handed, the JavaScript parser without TypeScript, and the loaded set ignored.
+
+## Dependencies `sv` does not read are named, and hold back the credit (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 1.5; BACKLOG, item 2; ADR-037, Later). `sv` reads the dependency files
+of npm, Python, Go, Rust, Ruby, PHP, and Java. A .NET, Dart, Swift, Elixir, or Deno app's were not even found: a .NET
+app was told "No package manifest was found", and a mixed app had V15.2.1 (no component with a known vulnerability)
+credited on its npm half while an old Newtonsoft.Json was pinned in its `.csproj`.
+
+- **Found, not read.** `unread_declarations_in` (`crates/sv-scan/src/ecosystems.rs`) finds `*.csproj`, `*.fsproj`,
+  `*.vbproj`, `packages.config`, `Directory.Packages.props`, `pubspec.yaml`, `Package.swift`, `mix.exs`, `deno.json`,
+  and `deno.jsonc` anywhere `sv` reads, naming the ecosystem's lockfile when one is beside it. Reading them is not
+  part of this.
+- **The bill of materials** names each as unread: "`Api/Api.csproj` declares .NET (NuGet) dependencies, and `sv` does
+  not read that file, so none of its packages is listed or compared with known vulnerabilities". The list is then not
+  complete, which already holds back V15.2.1 and raises "The list of what this app ships is not complete".
+- **The pinning check** says which file declares dependencies it does not read, and does not pass while one is there,
+  so V15.1.2 is not credited on the ecosystems it did read.
+
+Tests: `dependency_files_sv_does_not_read_are_found` (`crates/sv-scan/tests/scan.rs`) and
+`dependencies_sv_does_not_read_are_named_and_never_pass` (`crates/sv-check/src/config.rs`), each ecosystem beside a
+locked npm app and alone, with the locked npm app alone as the control. Five guards broken in turn, each caught: not
+named in the bill of materials, the pinning check passing beside one, "No package manifest" when alone, a `*` that may
+match nothing, and Deno left out.
+
+## An error answer is credited only when the app was made to give one (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 1.6; BACKLOG, item 3; ADR-056). `probe.error-detail-leak` asked the
+running app for a page that does not exist, and when the answer carried no stack trace it credited V16.5.1 (errors
+answered with a generic message) and V13.4.2 (debug mode off). It did so in 177 of about 190 trial builds that
+started. Frameworks show their traces when the app's code fails, not when a page is missing, so a clean 404 showed
+neither.
+
+- **The app is made to fail, without changing anything.** Signed out, `sv` sends `{"sv-probe": `, which is not JSON,
+  marked as JSON, to the health path, the root, and the routes securevibe.toml names that read a body: `signup`,
+  `login`, and `owned`'s `create` (`bad_body_request` and `error_requests` in `crates/sv-check/src/probes.rs`;
+  `body_routes` in `crates/sv-cli/src/main.rs`). A body that does not parse creates nothing. To a sign-in route it is
+  one failed sign-in naming no account.
+- **What is credited.** V16.5.1, only when at least one answer was an error the app produced (400, 422, or 500 to 599
+  other than 501) and no answer, the missing page included, carried a trace. V13.4.2, only when one of them was a
+  server error: Flask answers a body it cannot read with a plain 400 whether debug mode is on or off, and a debug page
+  shows on a failure. The credit names each request and its status.
+- **What is found.** A trace in any answer to the body: "An error answer shows how the app is built", naming each
+  request and what it showed. Express's default error handler prints the stack of a body it cannot parse in
+  development, which the missing page never showed.
+- **What the report says otherwise.** No error drawn: "V16.5.1, V13.4.2" is a gap, naming the requests answered
+  without one. Only refusals: "V13.4.2" is (`error_answer_gap`).
+
+Most apps lose both credits from the missing page alone. Tests: `an_error_answer_is_credited_only_when_the_app_was_made_to_give_one`
+and `a_bad_body_goes_to_each_route_that_reads_one_once` in `probes.rs`; `a_bad_body_goes_to_the_routes_the_manifest_names`
+in `main.rs`; and `sv-run`'s trace-keeping test, whose control now needs an error answer. Six guards were broken in turn
+and a test went red each time: a 404 counted as an error, debug mode credited from a 400, the missing page not held to
+the rule, a trace in an error answer not found, the old credit from the missing page alone, and no routes taken from
+the manifest.
 
