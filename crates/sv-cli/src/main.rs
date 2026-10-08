@@ -4,7 +4,6 @@ use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_check::advisories;
 use sv_check::ast;
-use sv_check::config::check_dir_in;
 use sv_check::probes;
 use sv_check::sbom;
 use sv_check::secrets::{SecretRules, scan_dir};
@@ -41,6 +40,7 @@ mod preflight;
 mod report_lock;
 mod report_seal;
 mod review;
+mod static_scan;
 
 /// Runs the command, and ends with its status: 3 for any error `sv` could not get past, whichever
 /// command met it, so a pipeline can tell "`sv` did not run" from anything a run found (DESIGN, "Exit
@@ -1982,67 +1982,77 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     // and `sv` cannot read stops the run, as it stops `sv report`. Until 7 October 2026 it was not
     // read at all, so a broken one finished with 0 at a terminal (gap analysis 5.1).
     let manifest_path = app_dir.join("securevibe.toml");
-    if manifest_path.is_file() {
-        Manifest::load(&manifest_path)?;
-    }
-    // One walk of the folder, shared by every check below (DESIGN, "One walk of the app").
-    let listing = sv_scan::files::Listing::of(&app_dir);
-    let rules = SecretRules::load(&secret_rules_path())?;
-    let scan = sv_check::secrets::scan_listing(&rules, &listing);
-    let bill_of_materials = sbom::build_in(&listing);
-    let config = check_dir_in(&listing, &bill_of_materials);
-    let ast_rules = ast::AstRules::load(&ast_rules_path())?;
-    let code = ast::scan_listing(&ast_rules, &listing);
-    let gaps = exit::Gaps::of_files(&listing, &scan, &code);
+    let manifest = if manifest_path.is_file() {
+        Some(Manifest::load(&manifest_path)?)
+    } else {
+        None
+    };
+    // The same reading of the app `sv report` makes, and the same findings counted at the end
+    // (`static_scan`; ADR-023, Later, 8 October 2026): what the manifest sets apart, what a person
+    // set aside through `sv review`, one finding per line.
+    let loaded = Loaded::load()?;
+    let not_the_app = manifest
+        .as_ref()
+        .map(|m| m.not_the_app().0)
+        .unwrap_or_default();
+    let static_scan = static_scan::StaticScan::read(&app_dir, &not_the_app, &loaded, &|_| {})?;
+    let static_scan::StaticScan {
+        listing,
+        secrets,
+        config,
+        code,
+        ..
+    } = &static_scan;
+    let gaps = static_scan.file_gaps();
 
     println!(
         "Read {} file{} looking for credentials, against {} known formats plus the assignment rule.\n\
          Parsed {} of them against {} rules that read the code itself.",
-        scan.coverage.files_read,
-        if scan.coverage.files_read == 1 {
+        secrets.coverage.files_read,
+        if secrets.coverage.files_read == 1 {
             ""
         } else {
             "s"
         },
-        rules.len(),
+        loaded.secret_rules.len(),
         code.files_parsed,
-        ast_rules.len()
+        loaded.ast_rules.len()
     );
 
     // What was not read comes before what was found. A short list of findings under a long list of
     // skipped files is a different result from a short list of findings.
-    if !scan.coverage.skipped.is_empty() {
+    if !secrets.coverage.skipped.is_empty() {
         println!(
             "\n{} file{} not read, so nothing is claimed about {}:",
-            scan.coverage.skipped.len(),
-            if scan.coverage.skipped.len() == 1 {
+            secrets.coverage.skipped.len(),
+            if secrets.coverage.skipped.len() == 1 {
                 " was"
             } else {
                 "s were"
             },
-            if scan.coverage.skipped.len() == 1 {
+            if secrets.coverage.skipped.len() == 1 {
                 "it"
             } else {
                 "them"
             }
         );
-        for (file, why) in scan.coverage.skipped.iter().take(10) {
+        for (file, why) in secrets.coverage.skipped.iter().take(10) {
             println!("  {file} — {why}");
         }
-        if scan.coverage.skipped.len() > 10 {
-            println!("  … and {} more", scan.coverage.skipped.len() - 10);
+        if secrets.coverage.skipped.len() > 10 {
+            println!("  … and {} more", secrets.coverage.skipped.len() - 10);
         }
     }
     // Named too, so nobody goes looking for them: these hold no text for a credential to be in.
-    if !scan.coverage.no_written_text.is_empty() {
-        let n = scan.coverage.no_written_text.len();
+    if !secrets.coverage.no_written_text.is_empty() {
+        let n = secrets.coverage.no_written_text.len();
         println!(
             "\n{n} file{} not read, being {} that hold{} no text a person writes:",
             if n == 1 { " was" } else { "s were" },
             if n == 1 { "one" } else { "ones" },
             if n == 1 { "s" } else { "" }
         );
-        for (file, what) in scan.coverage.no_written_text.iter().take(10) {
+        for (file, what) in secrets.coverage.no_written_text.iter().take(10) {
             println!("  {file} — {what}");
         }
         if n > 10 {
@@ -2236,26 +2246,36 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         }
     }
 
-    let mut findings = scan.findings;
-    findings.extend(config.findings);
-    findings.extend(sbom::incompleteness_finding(&bill_of_materials));
-    findings.extend(code.findings.clone());
+    // What this run looked at, for a review entry that matches nothing to say whether its rule
+    // looked: the five scanners, and nothing else runs here.
+    let mut examined = vec![sv_report::Examined::ran("sbom.")];
+    examined.extend(static_scan.examined());
+    let seals = sv_check::seal::Checker::for_app(&app_dir);
+    let reviews = manifest
+        .as_ref()
+        .map(|m| m.finding_review.as_slice())
+        .unwrap_or_default();
+    let settled = static_scan::settle(
+        &app_dir,
+        reviews,
+        static_scan.findings(),
+        &static_scan,
+        &examined,
+        &loaded,
+        &seals,
+        &[],
+    );
+    let mut findings = settled.findings;
     findings.sort_by(|a, b| {
         a.severity
             .cmp(&b.severity)
             .then_with(|| a.location.file.cmp(&b.location.file))
             .then_with(|| a.location.line.cmp(&b.location.line))
     });
-    let scan = sv_check::SecretScan {
-        findings,
-        coverage: scan.coverage,
-        verified: scan.verified,
-    };
 
     // Exactly one of these speaks: the finding above when the list is short of something, this
     // when it is not. A document cannot be both an incomplete list and a good inventory.
-    let mut passed = config.passed.clone();
-    passed.extend(sbom::completeness_verified(&bill_of_materials));
+    let passed = static_scan.passed();
     if !passed.is_empty() && gaps.read_nothing() {
         // A check that found nothing in no files is not one that found the app fine.
         println!(
@@ -2271,8 +2291,31 @@ fn cmd_check(args: &[String]) -> Result<i32> {
         }
     }
 
-    let (status, reasons) = gaps.status(fail_on, scan.findings.iter().map(|f| f.severity));
-    if scan.findings.is_empty() {
+    // What a person set aside, and what in [[finding-review]] does not count, said as the report
+    // says it: nothing is dropped quietly (ADR-023).
+    if !settled.set_aside.is_empty() {
+        println!("\nIn securevibe.toml, through `sv review`:");
+        for s in &settled.set_aside {
+            let (what, listed) = if s.verdict == "false-alarm" {
+                ("a false alarm", "not listed below")
+            } else {
+                ("an accepted risk", "still listed and counted below")
+            };
+            println!(
+                "  {} in {}: {what}, by {} on {} ({listed}): {}",
+                s.finding.rule_id, s.finding.location.file, s.by, s.on, s.why
+            );
+        }
+    }
+    if !settled.not_counted.is_empty() {
+        println!("\nNot counted in [[finding-review]], so each finding stands:");
+        for why in &settled.not_counted {
+            println!("  {why}");
+        }
+    }
+
+    let (status, reasons) = gaps.status(fail_on, findings.iter().map(|f| f.severity));
+    if findings.is_empty() {
         println!(
             "\nNo credentials found in what was read. That is not the same as none being there: these \n\
              rules know a list of well-known formats and one heuristic, and a credential in a shape \n\
@@ -2286,10 +2329,10 @@ fn cmd_check(args: &[String]) -> Result<i32> {
 
     println!(
         "\n{} thing{} to look at:",
-        scan.findings.len(),
-        if scan.findings.len() == 1 { "" } else { "s" }
+        findings.len(),
+        if findings.len() == 1 { "" } else { "s" }
     );
-    for f in &scan.findings {
+    for f in &findings {
         // A finding about a file that is missing, such as no SECURITY.md, names the file it
         // would be, not a line of it.
         let place = if app_dir.join(&f.location.file).symlink_metadata().is_ok() {
@@ -3753,32 +3796,28 @@ fn assemble_report_saying(
     let Loaded {
         frameworks,
         config_rules,
-        signatures,
         threat_rules,
         secret_rules,
-        ast_rules,
+        ..
     } = loaded;
-    // One walk of the folder, shared by every check in this report (DESIGN, "One walk of the app").
-    stage(0);
-    let listing = sv_scan::files::Listing::of(app_dir);
-    stage(1);
-    let scan_report = scan_for(&manifest, &listing, signatures)?;
+    // The same reading of the app `sv check` makes (`static_scan`): one walk of the folder, shared
+    // by every check in this report (DESIGN, "One walk of the app"), the languages and packages,
+    // the keys and passwords, the configuration, and the code. The bill of materials knows what
+    // actually came out of each ecosystem, which is the difference between "this list is
+    // approximate" and "this list is empty"; built once and handed to the lockfile check and the
+    // findings below.
+    let static_scan =
+        static_scan::StaticScan::read(app_dir, &manifest.not_the_app().0, loaded, &stage)?;
+    let static_scan::StaticScan {
+        listing,
+        scan_report,
+        bill_of_materials,
+        secrets,
+        config,
+        code,
+    } = &static_scan;
     let (ctx, resolved) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
     let buckets = bucket(frameworks, config_rules, &ctx, manifest.target_level());
-
-    // The report used to reason about dependencies from the scan alone, which knows only whether a
-    // lockfile is missing. The bill of materials knows what actually came out of each ecosystem,
-    // and that is the difference between "this list is approximate" and "this list is empty".
-    // Building it reads manifests and lockfiles; it opens no network connection. Built once, here,
-    // and handed to the lockfile check and the findings below.
-    stage(2);
-    let bill_of_materials = sbom::build_in(&listing);
-    stage(3);
-    let secrets = sv_check::secrets::scan_listing(secret_rules, &listing);
-    stage(4);
-    let config = check_dir_in(&listing, &bill_of_materials);
-    stage(5);
-    let code = ast::scan_listing(ast_rules, &listing);
     stage(6);
     let mut findings_from_advisories = Vec::new();
 
@@ -3842,7 +3881,7 @@ fn assemble_report_saying(
                 });
             } else {
                 let mut result = advisories::audit_against(
-                    &bill_of_materials,
+                    bill_of_materials,
                     &database,
                     manifest.policy.fix_within_days.as_ref(),
                     advisories::Day::today(),
@@ -3985,7 +4024,7 @@ fn assemble_report_saying(
     // against V15.1.2, complete is evidence for it, and exactly one of the two says anything. The
     // report used to read only its gaps, so a lockfile it could take nothing from was left to the
     // lockfile check, which saw a lockfile and passed it.
-    findings.extend(sbom::incompleteness_finding(&bill_of_materials));
+    findings.extend(sbom::incompleteness_finding(bill_of_materials));
     findings.extend(code.findings.iter().cloned());
 
     // The language's own tool, where there is one and it is here. A tool that is not installed is
@@ -3997,7 +4036,7 @@ fn assemble_report_saying(
         let not_holding = adapters.not_holding(|condition| ctx.get(condition));
         let outcome = sv_check::adapters::run_all_in(
             &adapters,
-            &listing,
+            listing,
             &languages,
             &not_holding,
             &sv_check::adapters::scratch_dir(),
@@ -4189,7 +4228,7 @@ fn assemble_report_saying(
                         // credit one on the strength of a name somebody chose for other reasons.
                         let known: std::collections::BTreeSet<&str> =
                             frameworks.requirements.keys().map(String::as_str).collect();
-                        let named = sv_check::suite::tests_naming_requirements_in(&listing, &known);
+                        let named = sv_check::suite::tests_naming_requirements_in(listing, &known);
                         let describe = |id: &str| {
                             frameworks
                                 .requirements
@@ -4464,7 +4503,7 @@ fn assemble_report_saying(
             ),
         });
     }
-    gaps.extend(not_the_app_gaps(&manifest, &scan_report));
+    gaps.extend(not_the_app_gaps(&manifest, scan_report));
     for (id, why) in &config.not_assessed {
         gaps.push(sv_report::Gap {
             what: format!("the check `{id}`"),
@@ -4548,7 +4587,7 @@ fn assemble_report_saying(
         });
     }
     gaps.extend(untaught_gaps(&code.untaught));
-    examined.extend(file_checks_examined(&listing, &code, &secrets, &config));
+    examined.extend(static_scan.examined());
     if !scan_report.unread_extensions.is_empty() {
         let mut exts: Vec<&str> = scan_report
             .unread_extensions
@@ -4583,14 +4622,14 @@ fn assemble_report_saying(
                 .to_owned(),
         });
     }
-    gaps.extend(dependency_gaps(&bill_of_materials));
+    gaps.extend(dependency_gaps(bill_of_materials));
     gaps.extend(advisory_gaps);
 
     // Everything that ran, looked at what it needed to, and found nothing wrong. Each of these
     // fails closed on its own coverage, so the list is short on an app `sv` could not read fully —
     // which is the honest shape for it to have.
     let mut verified = config.passed.clone();
-    verified.extend(sbom::completeness_verified(&bill_of_materials));
+    verified.extend(sbom::completeness_verified(bill_of_materials));
     verified.extend(secrets.verified.iter().cloned());
     verified.extend(code.verified.iter().cloned());
     verified.extend(probe_verified.iter().cloned());
@@ -5104,15 +5143,6 @@ fn assemble_report_saying(
         .flat_map(|r| r.cites.keys().cloned())
         .collect();
 
-    // The same weakness on the same line, reported by two tools, is one thing to fix.
-    let mut findings = sv_check::finding::merge_same_place(findings);
-    // Rust keeps its unit tests beside the code, so the file's name cannot say which is which.
-    sv_check::finding::mark_rust_test_code(app_dir, &mut findings);
-    // What the manifest says is not the app is listed with test and sample code.
-    // As the scan used it: none when the list would have set apart all the app's code (ADR-031).
-    sv_check::finding::mark_not_the_app(&scan_report.not_the_app, &mut findings);
-    // A copy of another project's library kept in the app is listed apart, named for it.
-    sv_check::bundled::mark_bundled_libraries(app_dir, &mut findings);
     examined.push(match &run_status {
         // Started is still only part of what the app could be asked: what sits behind a sign-in
         // it could not reach, and the requirements no question reaches, are in the gaps.
@@ -5152,26 +5182,18 @@ fn assemble_report_saying(
     // What a person set aside, matched by the fingerprint the report prints beside each finding.
     // An entry that matches nothing says whether its rule looked this time (deep review R3), so
     // `examined` is complete before this.
-    let lookup = ReviewLookup {
+    // Merged, marked, the decisions and then the reviews applied, one per line: as `sv check`
+    // counts them too (`static_scan::settle`).
+    let reviewed = static_scan::settle(
         app_dir,
-        examined: &examined,
-        listing: &listing,
-        code: &code,
-        secrets: &secrets,
-        ast_rules,
-        secret_rules,
-    };
-    let reviewed = decisions_then_reviews(findings, &safe_defaults.decided, |mut findings| {
-        sv_check::review::fill_fingerprints(app_dir, &mut findings);
-        sv_check::review::apply(
-            app_dir,
-            &manifest.finding_review,
-            findings,
-            sv_check::advisories::Day::today().unwrap_or(sv_check::advisories::Day(0)),
-            &seals,
-            &|rule, file| lookup.looked(rule, file),
-        )
-    });
+        &manifest.finding_review,
+        findings,
+        &static_scan,
+        &examined,
+        loaded,
+        &seals,
+        &safe_defaults.decided,
+    );
     let findings = reviewed.findings;
     if !safe_defaults.unreadable.is_empty() {
         gaps.push(sv_report::Gap {
@@ -5239,7 +5261,7 @@ fn assemble_report_saying(
     }
     let mut report = sv_report::build(sv_report::Inputs {
         on_the_internet: manifest.app.deployment == sv_manifest::Deployment::Internet,
-        ai_tool: sv_check::ai_tool::read(&listing),
+        ai_tool: sv_check::ai_tool::read(listing),
         app_name: if manifest.app.name.is_empty() {
             "This app"
         } else {
@@ -5282,7 +5304,7 @@ fn assemble_report_saying(
         .and_then(|text| sv_report::read_reach(&text))
         .with_context(|| format!("reading {}", reach_path.display()))?;
     report.not_run_this_time = sv_report::not_run_this_time(&report, &reach, options.run_tools);
-    let file_gaps = exit::Gaps::of_files(&listing, &secrets, &code);
+    let file_gaps = static_scan.file_gaps();
     report.could_not_run = file_gaps.could_not_run;
     report.partly_read = file_gaps.partly;
     report.run_record = Some(run_record);
@@ -5719,89 +5741,6 @@ fn adapters_examined(
             }
         })
         .collect()
-}
-
-/// The checks that read the app's files, per family. Each one read only part of the app when a
-/// symbolic link was not followed; the rules that read code, also when a file was not opened or
-/// did not parse, or a language had no parser; a single code rule, when it could not run or had
-/// not been taught a language here.
-fn file_checks_examined(
-    listing: &sv_scan::files::Listing,
-    code: &sv_check::ast::AstScan,
-    secrets: &sv_check::secrets::SecretScan,
-    config: &sv_check::config::ConfigReport,
-) -> Vec<sv_report::Examined> {
-    let family = |rules: &str, short: Vec<String>| {
-        if short.is_empty() {
-            sv_report::Examined::ran(rules)
-        } else {
-            sv_report::Examined::partly(rules, short.join("; "))
-        }
-    };
-    let mut links: Vec<String> = if listing.links.is_empty() {
-        Vec::new()
-    } else {
-        vec![format!(
-            "{} symbolic link(s) in the app were not followed",
-            listing.links.len()
-        )]
-    };
-    if !listing.special.is_empty() {
-        links.push(format!(
-            "{} entry(s) in the app that are not ordinary files were not opened",
-            listing.special.len()
-        ));
-    }
-
-    let mut code_short = links.clone();
-    if !code.unread_files.is_empty() {
-        code_short.push(format!(
-            "{} file(s) in a language the rules read were not opened",
-            code.unread_files.len()
-        ));
-    }
-    if !code.unread_languages.is_empty() {
-        let mut names: Vec<&str> = code.unread_languages.iter().map(String::as_str).collect();
-        names.sort_unstable();
-        code_short.push(format!("no parser for {}", names.join(", ")));
-    }
-    if !code.unparsed_files.is_empty() {
-        code_short.push(format!(
-            "{} file(s) did not parse cleanly",
-            code.unparsed_files.len()
-        ));
-    }
-    let mut examined = vec![family("ast.", code_short)];
-    for broken in &code.broken_queries {
-        examined.push(sv_report::Examined::partly(
-            broken.rule_id.clone(),
-            format!(
-                "its query for {} would not compile: {}",
-                broken.language, broken.why
-            ),
-        ));
-    }
-    for untaught in &code.untaught {
-        examined.push(sv_report::Examined::partly(
-            untaught.rule_id.clone(),
-            format!("it has not been taught {}", untaught.languages.join(", ")),
-        ));
-    }
-
-    let mut secrets_short = links.clone();
-    if !secrets.coverage.skipped.is_empty() {
-        secrets_short.push(format!(
-            "{} file(s) were not read",
-            secrets.coverage.skipped.len()
-        ));
-    }
-    examined.push(family("secrets.", secrets_short));
-
-    examined.push(family("config.", links));
-    for (id, why) in &config.not_assessed {
-        examined.push(sv_report::Examined::not_run(id.clone(), why.clone()));
-    }
-    examined
 }
 
 /// The decisions held to the running app (`sv_check::decisions::not_held_to`), then what a person
