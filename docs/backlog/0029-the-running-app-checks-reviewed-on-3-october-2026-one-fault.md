@@ -1,6 +1,6 @@
 # The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add
 
-**Status:** partly done: parts 1, 3, 4, 7 to 10, and 13 to 15, each in part (see their notes)
+**Status:** partly done: parts 3 (cookies a signed-in page sets, pages the run does not ask for), 9 (C9.1.1's per-tool quotas), 13 (a limit kept by a proxy in production), 14 (a run against a real app), and 15 (tar, 7z, and rar; archives whose stated sizes are false)
 
 By session
 securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
@@ -34,6 +34,10 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    credits is counted"). The first census found three more: `probe.password-hints` (V6.4.2) and
    `secrets.credential-assignment` (V13.2.3) never credit and are now listed, and `probe.cors-any-origin` credits
    but no test reached it, which one now does.
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the test
+   this part asked for exists. CI runs the suite with `SV_CREDIT_LOG` and then `tools/coverage.py --credits`, which
+   fails when a check credits and is listed as only ever a finding, or never credits and is not listed, so the next
+   such check is caught by what it does, not by reading its code.
 2. **Finding-only checks that already have a control, and could give credit.** The reset link used once and then
    refused (V6.4.3); the old password refused after a reset while the new one works (V6.4.3); the activation link
    refused the second time (V6.4.1); a WebSocket refused after sign-out where it opened before (V4.4.3); signing
@@ -77,6 +81,9 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    minutes with `sv run --slow`; a longer-lived token leaves V9.2.1 not assessed, saying so. Twenty-four guards
    broken in turn, each caught (one only after a test was added). V9.1.3 and the `jku`/`kid` forms not done, at
    the owner's word.
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: V9.1.3
+   and the `jku` and `kid` forms were built later, under "V9.1.3: a token must not choose where the app gets its keys"
+   (`docs/backlog/0026-…`), with a key server inside the fence; that item is done.
 5. **Text reflected into a page without encoding (V1.2.1, V1.2.3; level 1).** A unique marker with `<"'` in a
    query parameter on every page the run visits: echoed raw is a finding, echoed encoded is credit for that page,
    and the marker appearing at all is the control.
@@ -110,6 +117,9 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    requests that change data, JSON bodies, and conditions read by timing or by error messages.
    **The owner's decision, 6 October 2026, on what is not done:** keep the probe as it is, reading only, on
    `sv`'s own copy of the app (ADR-038): no requests that change data and no JSON bodies ("I agree with all your recommendations", 6 October 2026).
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: the
+   owner's decision of 6 October 2026 above keeps the probe as it is, so what it leaves out is decided, and nothing
+   here waits on a build.
 8. **Open redirect (V3.7.2).** The sign-in flow's own return parameter, and `next`, `redirect`, `returnTo`, given
    a foreign address; a `Location` header pointing there is the finding.
    **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking to continue with the backlog,
@@ -126,6 +136,9 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    signed in as A; only ever a finding.
    **Done on 7 October 2026** (DESIGN, "Open redirects outside the sign-in flow, on the pages `redirects` names"):
    `page_redirect_check`, the same outside address and nine parameters, one finding under `probe.open-redirect`.
+   **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`:
+   redirects outside the sign-in flow were built on 7 October 2026, as the note above says. A run against a real app
+   is a trial, which the owner asks for when wanted, not a build.
 9. **An AI agent with no limit (C9.1.2, level 1; C9.1.1).** The test model asks for a tool again on every turn;
    credit when the app stops within a bound, a finding when it is still going after, say, 50 rounds.
    **Claimed on 3 October 2026 by session securevibe-e9**, at the owner's asking, in branch
@@ -179,6 +192,9 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     **Done the same day** (DESIGN, "Later, 7 October 2026: a service that answers nothing"). The test model's
     `HANG` holds a message unanswered for 40 seconds; `probe.ai-service-hang-handled` judges the app as claimed. Run
     with Node against the real test model script; not run end to end under Docker here.
+    **Settled 8 October 2026** (session securevibe-e2, from the roadmap, Phase 1 item 3), read against `main`: both
+    parts the note names are built: the malformed structured answer (C7.1.1, ADR-042, 6 October 2026) and the service
+    that answers nothing (7 October 2026), each as the notes above say.
 11. **Another user's documents reaching the AI (C5.2.2, C5.2.4, C8.1.3).** A marker planted in one user's
     document, then a chat as another user; the marker arriving at the test model is the finding. The same shape
     as `probe.ai-tool-reads-others-records`. Proposed in `docs/PARTIAL-CHECKS.md` for C5.2.2.
