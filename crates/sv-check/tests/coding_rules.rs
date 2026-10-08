@@ -178,3 +178,21 @@ fn markers_somebody_broke_are_refused_rather_than_guessed_at() {
         );
     }
 }
+
+#[test]
+fn the_ai_tool_is_told_not_to_rewrite_working_code_to_silence_a_finding() {
+    // Gap analysis 4.4: a lesson of the owner's first build, when working code was removed to make
+    // a false alarm go away. It rides on the rule against weakening a check, whose citations fit it.
+    let all = rules();
+    let rule = all
+        .rules
+        .iter()
+        .find(|r| r.id == "never-weaken-a-check")
+        .expect("the rule is there");
+    assert!(
+        rule.rule
+            .contains("Never rewrite working code just to make a finding go away"),
+        "{}",
+        rule.rule
+    );
+}

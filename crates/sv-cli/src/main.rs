@@ -4519,14 +4519,30 @@ fn assemble_report_saying(
     // A review by a person is the one thing that section can ask for, and no tool can do it, so
     // what it says is repeated here, where what was not examined is listed. Its words are not read
     // for a yes or a no, and credit nothing.
+    // Who wrote it is said, from the section's own `Written by:` line: a section the AI coding tool
+    // wrote, saying no person need look, read as the owner's own judgment (gap analysis 4.2).
     if let Some(said) = decisions_text
         .as_deref()
         .and_then(|text| sv_check::decisions::section(text, sv_check::decisions::BRING_IN_A_PERSON))
     {
+        let writer = decisions_text.as_deref().and_then(|text| {
+            sv_check::decisions::section_writer(text, sv_check::decisions::BRING_IN_A_PERSON)
+        });
+        let whose = match writer.as_deref() {
+            Some(w) if w.eq_ignore_ascii_case(sv_check::notes::BY_OWNER) => {
+                "in a section marked as written by you".to_owned()
+            }
+            Some(w) if w.eq_ignore_ascii_case(sv_check::notes::BY_AI_TOOL) => {
+                "in a section your AI coding tool wrote".to_owned()
+            }
+            _ => "in a section that does not say who wrote it, so it counts as your AI coding \
+                  tool's"
+                .to_owned(),
+        };
         gaps.push(sv_report::Gap {
             what: "a person's security review of the design".to_owned(),
             why: format!(
-                "No tool can make it. Your {} says, under \"{}\": \"{said}\"",
+                "No tool can make it. Your {} says, under \"{}\", {whose}: \"{said}\"",
                 sv_check::decisions::FILE,
                 sv_check::decisions::BRING_IN_A_PERSON
             ),
