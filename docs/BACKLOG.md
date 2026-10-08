@@ -356,6 +356,8 @@ another session is not a claim.
      (c) stays unclaimed. Read on `main` just before this claim: no other session had claimed (c).
      **(d) done the same day** (DESIGN, "A reset code handed back in the reset request's own answer"):
      `probe.reset-code-in-answer`.
+     **(f) done the same day** (DESIGN, "A sign-in token signed with a placeholder secret"):
+     `probe.app-token-placeholder-key`.
      **(c) through sign-in done the same day** (DESIGN, "A failed sign-in that tells which accounts exist"):
      `probe.signin-reveals-account`.
   14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
