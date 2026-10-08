@@ -20,6 +20,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
 4. A planted `.securevibe-report` marker lets `securevibe_write_report` replace five named files in any app
    subfolder (`main.rs`, `refuse_someone_elses_folder`: a marker alone counts for writing). Require
    `is_sv_output` or a proven seal, else "give an empty folder".
+   **Claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, first in its order), in
+   branch `claude/securevibe-e2-report-marker`: a folder with the marker counts as `sv`'s own only when what is in it
+   shows it is (`is_sv_output`), so a marker alone no longer lets a report replace files there. Confirmed on `main`
+   just before this claim: `refuse_someone_elses_folder` lets any marked folder through, and no other session had
+   claimed this part.
 5. Honesty gaps: an unreadable lockfile or unparseable manifest silently drops the manifest-versus-lockfile
    comparison (`sbom.rs:281, 437`; `manifest_lock.rs` returning `None`), so an unsaid comparison reads as
    agreement: an `unread` entry naming the file. The credit census (`tools/coverage.py`, `check_credits`) checks
