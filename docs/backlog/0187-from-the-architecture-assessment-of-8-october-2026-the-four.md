@@ -118,8 +118,8 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    **Done the same day** (`docs/design/0310-a-check-that-asked-says-what-it-found-8-october-2026.md`; ADR-021,
    Later): measured first, which showed that a check may rightly say nothing when its part of `securevibe.toml` is
    not set, and may name only some of its requirements, so the guard holds what did hold. The 30 checks that speak
-   once they have asked go through `asked!`, which records "asked and never answered" and stops a test build when
-   one asked and named nothing; the 16 whose silence is their answer go through `quiet!`; a test fails on a check
+   once they have asked go through `asked!`, which records "asked and never answered", and stops sv-check's own tests,
+   when one asked and named nothing; the 16 whose silence is their answer go through `quiet!`; a test fails on a check
    called through neither. It found one silent return (`archive_checks`, a gzip-only upload), now fixed.
 9. **The stand-in protocol is defined twice**: the JS owns it (`/_sv/health`, `/_sv/mode`, `/_sv/keys/<tag>`,
    `SV-PROBE-<KIND>-<tag>`) and the Rust clients and fakes repeat it as strings; only `model_provider.rs` runs the

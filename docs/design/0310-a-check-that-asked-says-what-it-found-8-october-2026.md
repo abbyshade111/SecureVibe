@@ -20,8 +20,8 @@ show, so saying nothing means nothing was found.
 **The guard.** Each of the 30 is called through `asked!`, with the requirements it speaks to. A connection wrapper
 (`Counted`) counts what is asked of the app (requests, requests sent together, pages a browser opens; not the mock
 provider or the mailbox). When a check asked anything and named none of its requirements, they are recorded as not
-assessed, "asked and never answered", naming the check, so a silent return cannot leave them out of a report; and a
-debug build, which the test suite is, stops there, so the check is fixed rather than covered for. The 16 are called
+assessed, "asked and never answered", naming the check, so a silent return cannot leave them out of a report; and sv-check's own tests, against the fake app, stop there, so
+the check is fixed rather than covered for. The 16 are called
 through `quiet!`, which marks them as checks whose silence is an answer, and a test reads `run_checks` and fails on
 a check called through neither.
 
@@ -32,12 +32,18 @@ nothing about V5.2.3. Its test asserted the silence. It now says V5.2.3 is not a
 
 Not done: the guard cannot see inside the 16 quiet checks, and the lists of requirements are written beside the
 calls, not read from the rules, so a check that gains a rule needs its list extended (a requirement it names beyond
-its list does not trip the guard). The release build's fallback, the not-assessed entry, is not run by any test,
-since a test build stops at the assertion first.
+its list does not trip the guard).
+
+**What CI found.** The first version stopped any debug build there. The workspace's tests build `sv` in debug and, in
+CI, run it against real apps in Docker; that run failed twice at its tests while every test passed here, with no
+Docker, and its log could not be read from the session. The likeliest reading is that a real app made a check fall
+silent that the fake app never does. The stop is now `cfg!(test)`: sv-check's own tests, where every path is known.
+A real run, debug or release, records the requirements as "asked and never answered", naming the check, so which
+check it was will be in the report of that run. Not confirmed: that this was the cause, until CI passes.
 
 Tests: five in `crates/sv-check/src/signed_in/check_guard_tests.rs` (every check called is one kind or the other; a
 check that names what it asked about, or asked nothing, is left alone; one that asked and named only another
-requirement stops a test build; the connection counts what is asked of the app and nothing else), and the archive
+requirement stops sv-check's own tests; the connection counts what is asked of the app and nothing else), and the archive
 test's new assertion. Six guards broken in turn, each caught: the guard never firing (1 test), sends not counted (1),
 what was named ignored (342), a check called bare (1), the archive silence put back (1), and the same with the
 archive test's own assertion also removed, which the guard alone stops, naming the check and V5.2.3.

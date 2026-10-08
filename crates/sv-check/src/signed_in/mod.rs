@@ -939,8 +939,8 @@ impl Said {
 
     /// Holds a check that speaks once it has asked: when it asked the app anything and named none
     /// of `speaks_to`, those are not assessed, "asked and never answered", rather than left out of
-    /// the report; and a debug build (the test suite) stops there, so the check is fixed rather
-    /// than covered for.
+    /// the report; and sv-check's own tests stop there, so the check is fixed rather than
+    /// covered for.
     fn held(&self, out: &mut Outcome, check: &str, speaks_to: &[&str], asked: usize) {
         if asked == self.asked {
             return;
@@ -949,12 +949,16 @@ impl Said {
         if speaks_to.iter().any(|id| named.contains(*id)) {
             return;
         }
-        debug_assert!(
-            false,
-            "`{check}` asked the app {} time(s) and returned without naming any of {speaks_to:?}: \
-             a finding, a credit, or a not-assessed entry with its reason",
-            asked - self.asked
-        );
+        // sv-check's own tests stop here, against the fake app, where every check's every path is
+        // known. Not any debug build: `sv` built for the workspace's tests runs real apps in
+        // Docker, and there a silent check is said in the report rather than ending the run.
+        if cfg!(test) {
+            panic!(
+                "`{check}` asked the app {} time(s) and returned without naming any of \
+                 {speaks_to:?}: a finding, a credit, or a not-assessed entry with its reason",
+                asked - self.asked
+            );
+        }
         out.not_assessed.push((
             speaks_to.join(", "),
             format!(
