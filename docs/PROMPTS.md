@@ -120,6 +120,14 @@ could not run.
 
 *What it showed (7 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt no security contact in 8 of the 8 builds `sv` could read; with it in 0 of 9. A security contact says how to report a problem, nothing about how secure the app is, and `sv` credits no requirement for it. No harm. Shown by the owner's decision of 7 October 2026 (`docs/prompts/library-trial/revision.md`). Suggested by the reviews in `docs/prompts/reviews/`.
 
+### Run under a production server, and say no version numbers
+
+> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both. With SQLite, run one worker, or create the tables before the workers start, so two workers never set up the same database at once.
+
+*Requirements:* ASVS V4.1.1, V13.4.6.
+
+*What it showed (7 October 2026, Sonnet 5.5, the recipe brief, ten builds with it and ten without):* Without the prompt the server's version was given away in 5 of the 10 builds (Flask's development server); with it in 0 of 9, every build serving through gunicorn. One of the ten did not start, its two gunicorn workers setting up the same SQLite file at once; its last sentence, on SQLite, was added afterwards from that build and is not yet tried. Shown by the owner's decision of 7 October 2026 (`docs/prompts/library-trial/recipe.md`).
+
 ## Not yet shown to work
 
 **Not tested.** Each of these asks for something sound, and every build that used one did what it asked. But the
@@ -214,17 +222,13 @@ check the result with `sv` as you would anything else.
 
 *Not tested:* No reading by the trial's rule (7 October 2026, Haiku 4.5): without the prompt the problem was there in 4 of the 5 builds `sv` could sign in to, one short of the five the rule needs; with it in 1 of 6. Builds 1, 4 and 7 each wrote the limits into `security-notes.md` (`docs/prompts/library-trial/revision.md`).
 
-### Run under a production server, and say no version numbers
+### Refuse short and common passwords, and keep each one exactly as typed
 
-> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both.
+> When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each.
 
-*Requirements:* ASVS V4.1.1, V13.4.6.
+*Requirements:* ASVS V6.2.1, V6.2.4, V6.2.8.
 
-*Not tested:* Not shown (7 October 2026, Haiku 4.5): a problem in 7 of 7 builds without the prompt and 8 of 8 with it. The missing or wrong `Content-Type` went (3 of 7 without, 0 of 8 with); the server's version stayed in every build, because the brief asks for Python's standard library and its built-in server sends its version unless the request handler's `server_version` and `sys_version` are set, which the prompt did not say then; its last sentence, added on 7 October 2026, says it, and is not yet tried (`docs/prompts/library-trial/revision.md`).
-
-## Not tried yet
-
-Written on 6 October 2026, with three others now above, for the commonest problems the loop trials found that no prompt covered (`docs/prompts/loop-scale/README.md`, "Findings by group"). It was left out of the prompt-library trial (`docs/prompts/library-trial/`): the trial's app seldom tempted this shortcut (in 2 of 8 Haiku builds and none of 10 Sonnet builds without any prompt), so it could not have shown anything. It needs an app that does.
+*Not tested:* Not shown (7 October 2026, Sonnet 5.5, the recipe brief): a common password accepted in 10 of 10 builds without the prompt and 8 of 10 with it. Every build with it wrote a common-password list, from memory; `sv` tries one word, and the two lists that held it passed. To try next: naming a pinned package that ships a real list (`docs/prompts/library-trial/recipe.md`).
 
 ### Accept changes only from the app's own pages
 
@@ -232,15 +236,7 @@ Written on 6 October 2026, with three others now above, for the commonest proble
 
 *Requirements:* ASVS V3.5.1.
 
-*Not tested:* not tried yet.
-
-### Refuse short and common passwords, and keep each one exactly as typed
-
-> When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each.
-
-*Requirements:* ASVS V6.2.1, V6.2.4, V6.2.8.
-
-*Not tested:* not tried yet. Suggested by the reviews in `docs/prompts/reviews/` (7 October 2026).
+*Not tested:* No reading (7 October 2026, Sonnet 5.5, the recipe brief): every build without the prompt already refused a change from another site (`docs/prompts/library-trial/recipe.md`).
 
 The same prompts, with the checks behind them, are in `data/prompts.json`.
 

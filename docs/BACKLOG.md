@@ -7874,3 +7874,26 @@ done: `docs/adr/ADR-018.md`.
   builds, then an arm for each prompt whose problem the baseline found in at least 5 of 10, by the rule fixed in
   `docs/prompts/library-trial/recipe-protocol.md`. **Claimed on 7 October 2026 by session paper-facts**, in branch
   `claude/recipe-trial`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (`docs/prompts/library-trial/recipe.md`): 40 builds, $18.09. `production-server` shown on
+  Sonnet (5 of 10, then 0 of 9) and marked shown by the owner; `password-rules` not shown (10 of 10, then 8 of 10);
+  six prompts no reading, done right unprompted; four not reached by their checks. The install step worked for every
+  Sonnet app; Haiku's apps mostly did not start, as its builders could not try a Flask app they could not install.
+
+- **`probe.cors-any-origin` asks only the health path.** Found on 7 October 2026 by session paper-facts, in the recipe
+  trial: the stranger `Origin` goes to `/` alone (`crates/sv-check/src/probes.rs`, the `cors` request), so a JSON API
+  that lets any site read it, the case the check exists for, is never asked. Ask the app's listed private pages and
+  API addresses too, signed in where they need it.
+- **`probe.common-password-accepted` rests on one word.** Found on 7 October 2026 by session paper-facts, in the recipe
+  trial: it tries `123qweasdzxc` alone, so a list written from memory passes when it happens to hold that word (one of
+  443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
+  credit in part (ADR-053).
+- **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
+  trial: of 10 Sonnet apps, 8 did not list their return-address pages under `redirects`, 7 did not declare their upload,
+  and only one listed its search page with a term, so those checks did not reach what the brief tempted. The
+  specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
+- **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
+  its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install
+  step can give the app).
+- **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
+  faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
+  own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.

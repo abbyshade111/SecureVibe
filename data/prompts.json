@@ -95,7 +95,7 @@
         "date": "2026-10-03",
         "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
         "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "The build with the prompt followed it, running a fixed setup script and choosing its sort order from a fixed list of queries, and `ast.sql-built-by-hand` flagged both as built by hand: false alarms in the check, recorded in docs/BACKLOG.md. The build without wrote its queries in place and was not flagged. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (held to the running check, which judges a query that really takes what a person typed); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "The build with the prompt followed it, running a fixed setup script and choosing its sort order from a fixed list of queries, and `ast.sql-built-by-hand` flagged both as built by hand: false alarms in the check, recorded in docs/BACKLOG.md. The build without wrote its queries in place and was not flagged. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (held to the running check, which judges a query that really takes what a person typed); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): not reached at the sortable search, which one Sonnet 5.5 build listed with a term to ask."
       },
       "status": "not-shown"
     },
@@ -122,7 +122,7 @@
         "date": "2026-10-03",
         "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key; then a Node.js recipe app inviting the shortcut (docs/prompts/trial-2/brief.md)",
         "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "The build without already ran `notes-export` with a list of arguments and no shell; neither was flagged. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again ran `recipe-pdf` with `execFile` and a list of arguments, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md)."
+        "result": "The build without already ran `notes-export` with a list of arguments and no shell; neither was flagged. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again ran `recipe-pdf` with `execFile` and a list of arguments, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): no reading, Sonnet 5.5 credited in 10 of 10 builds without the prompt."
       },
       "status": "not-shown"
     },
@@ -147,7 +147,7 @@
         "date": "2026-10-03",
         "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
         "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "The build with the prompt saved files under a random id and opened them by the id stored in its own database, and `ast.file-path-from-value` flagged that path: a false alarm, recorded in docs/BACKLOG.md. The build without was not flagged. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (save to a folder named by a setting, since sv run makes the code's folder read-only; held to the running check); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "The build with the prompt saved files under a random id and opened them by the id stored in its own database, and `ast.file-path-from-value` flagged that path: a false alarm, recorded in docs/BACKLOG.md. The build without was not flagged. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (save to a folder named by a setting, since sv run makes the code's folder read-only; held to the running check); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): not reached, 7 of 10 Sonnet 5.5 builds not declaring their upload."
       },
       "status": "not-shown"
     },
@@ -174,7 +174,7 @@
         "date": "2026-10-06",
         "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
         "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt and ten without, each in a fresh folder with no MCP server; `sv report --run` from sv a9d6fea4 behind the network fence (docs/prompts/library-trial/)",
-        "result": "No reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8. Before this, on 2026-10-03: The build without already hashed passwords with Werkzeug's `generate_password_hash`; the build with used Argon2id. Neither was flagged. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again hashed passwords with Node's `scrypt`, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (the PBKDF2 rounds named: 23 Haiku loop builds used too few); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "No reading by the trial's rule: without the prompt a weak password hash was there in 4 of 6 builds, one short of the five the rule needs; with it in 2 of 8. Before this, on 2026-10-03: The build without already hashed passwords with Werkzeug's `generate_password_hash`; the build with used Argon2id. Neither was flagged. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again hashed passwords with Node's `scrypt`, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (the PBKDF2 rounds named: 23 Haiku loop builds used too few); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): no reading, Sonnet 5.5 credited in 10 of 10 builds without the prompt."
       },
       "status": "not-shown"
     },
@@ -199,7 +199,7 @@
         "date": "2026-10-03",
         "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key",
         "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "Both builds already checked the destination with a function of their own before redirecting, and `ast.open-redirect` flagged both: the check cannot tell a checked redirect from an unchecked one, recorded in docs/BACKLOG.md. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (held to the running check, which judges where the app really sends the browser); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees."
+        "result": "Both builds already checked the destination with a function of their own before redirecting, and `ast.open-redirect` flagged both: the check cannot tell a checked redirect from an unchecked one, recorded in docs/BACKLOG.md. Revised on 7 October 2026 after the reviews in docs/prompts/reviews/ (held to the running check, which judges where the app really sends the browser); the revised text is tried again in docs/prompts/library-trial/revision-protocol.md, and its status stands only once that trial agrees. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): not reached, 8 of 10 Sonnet 5.5 builds not listing their return-address pages under `redirects`."
       },
       "status": "not-shown"
     },
@@ -224,7 +224,7 @@
         "date": "2026-10-03",
         "brief": "a Flask and SQLite notes app with sign-in, formatted notes, search, attachments, an export command, a sign-in redirect, and a welcome email needing an API key; then a Node.js recipe app inviting the shortcut (docs/prompts/trial-2/brief.md)",
         "builder": "fresh helper agents of the same Claude model, one per build, the build without any prompt shared by all",
-        "result": "The build without escaped everything first and then allowed only bold, italics, and web links, which is safe; the build with used bleach. `config.rich-text-without-sanitizer` reads the app's declared libraries and saw no formatting in the build without at all, so its silence there was not a judgment. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again cleaned the editor's HTML with `sanitize-html` when saving it, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Since fixed (DESIGN, \"Two blind spots\"): the check now reads a manifest's declared names when there is no lockfile, and the same build with its sanitizer removed is caught."
+        "result": "The build without escaped everything first and then allowed only bold, italics, and web links, which is safe; the build with used bleach. `config.rich-text-without-sanitizer` reads the app's declared libraries and saw no formatting in the build without at all, so its silence there was not a judgment. A second brief, 4 October 2026 (`docs/prompts/trial-2/brief.md`: a Node.js recipe app whose request invites each shortcut, with the OpenAI key pasted into it, a command run on a recipe's title, and a rich-text editor): the build without the prompt again cleaned the editor's HTML with `sanitize-html` when saving it, and `sv` found nothing in any of the five builds. Putting each shortcut back into that build was caught for the key and the command; the missing sanitizer was not, because the app has no lockfile and the check reads only locked packages (an item in docs/BACKLOG.md). Since fixed (DESIGN, \"Two blind spots\"): the check now reads a manifest's declared names when there is no lockfile, and the same build with its sanitizer removed is caught. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): no reading, 9 of 10 Sonnet 5.5 builds used an HTML sanitizer without the prompt."
       },
       "status": "not-shown"
     },
@@ -278,7 +278,7 @@
         "date": "2026-10-04",
         "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
         "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
-        "result": "No build turned on cross-site access, with the prompt or without it, and probe.cors-any-origin found nothing in any of the six. The same build with `Access-Control-Allow-Origin: *` added was caught."
+        "result": "No build turned on cross-site access, with the prompt or without it, and probe.cors-any-origin found nothing in any of the six. The same build with `Access-Control-Allow-Origin: *` added was caught. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): not reached, its check asking only `/` and not the JSON API the brief asks for."
       },
       "status": "not-shown"
     },
@@ -304,7 +304,7 @@
         "date": "2026-10-04",
         "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
         "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
-        "result": "Every build answered an error with a plain page, and probe.error-detail-leak credited all six. The same build changed to show a stack trace was caught."
+        "result": "Every build answered an error with a plain page, and probe.error-detail-leak credited all six. The same build changed to show a stack trace was caught. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): no reading, and a weak one, its check credited from a missing page's answer alone."
       },
       "status": "not-shown"
     },
@@ -334,7 +334,7 @@
         "date": "2026-10-04",
         "brief": "the club app the design-time prompts were tried on (docs/prompts/trial/brief.md): Python's standard library, sign-in, private notes, one seat to book, an assistant, and an admin page",
         "builder": "fresh helper agents of the same Claude model, one per build, each in a folder of its own; two builds without any prompt; `sv report --run` behind the network fence, signed in as two members and an admin",
-        "result": "Both builds without the prompt already refused private pages to a visitor, one member's note to another, and the admin page and action to a member, and all four checks credited all six builds. The same build with the admin page opened to members was caught."
+        "result": "Both builds without the prompt already refused private pages to a visitor, one member's note to another, and the admin page and action to a member, and all four checks credited all six builds. The same build with the admin page opened to members was caught. With the recipe brief (7 October 2026, docs/prompts/library-trial/recipe.md): no reading, Sonnet 5.5 credited in 10 of 10 builds without the prompt, V8.2.2 in full (reading, listing, changing and deleting refused)."
       },
       "status": "not-shown"
     },
@@ -384,7 +384,13 @@
         "fails_when": "probe.cross-site-request-accepted is a finding"
       },
       "inspired_by": "the guide's Security fundamentals: protect against cross-site request forgery; reworded and made checkable on 6 October 2026, from the loop trials' item 6",
-      "status": "untested"
+      "status": "not-shown",
+      "tested": {
+        "date": "2026-10-07",
+        "brief": "the recipe club (docs/prompts/trial-4/recipe-brief.md): Flask with pinned packages and `install = true`, sign-up, sign-in with a return address, private recipes with edit and delete, formatted text, search with sorting, photo upload, an export, a JSON API, and an admin page, with sv's specification at the top and a sentence saying the owner is away",
+        "builder": "headless Claude Code 2.1.286 with Claude Sonnet 5.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, packages refused on the computer and installed by sv; `sv report --run` from sv 9833eacc (docs/prompts/library-trial/recipe.md)",
+        "result": "No reading by the trial's rule: Sonnet 5.5 credited in 10 of 10 builds without the prompt, so there was nothing for it to fix."
+      }
     },
     {
       "id": "private-pages-no-store",
@@ -489,12 +495,18 @@
         "fails_when": "any of the three is a finding"
       },
       "inspired_by": "the reviews in docs/prompts/reviews/ (7 October 2026); OWASP ASVS 5.0 V6.2",
-      "status": "untested"
+      "status": "not-shown",
+      "tested": {
+        "date": "2026-10-07",
+        "brief": "the recipe club (docs/prompts/trial-4/recipe-brief.md): Flask with pinned packages and `install = true`, sign-up, sign-in with a return address, private recipes with edit and delete, formatted text, search with sorting, photo upload, an export, a JSON API, and an admin page, with sv's specification at the top and a sentence saying the owner is away",
+        "builder": "headless Claude Code 2.1.286 with Claude Sonnet 5.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, packages refused on the computer and installed by sv; `sv report --run` from sv 9833eacc (docs/prompts/library-trial/recipe.md)",
+        "result": "Not shown by the trial's rule: a common password accepted in 10 of 10 builds without the prompt and 8 of 10 with it; no build accepted a short password or changed one. Every build with the prompt wrote a common-password list and refused what was on it, from memory, with no network: sv's check tries one word, `123qweasdzxc`, and the two lists that held it passed (1,406 and 443 entries) while the eight that did not failed (one of 20,340 lines). To try next: naming a pinned package that ships a real list."
+      }
     },
     {
       "id": "production-server",
       "title": "Run under a production server, and say no version numbers",
-      "prompt": "Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both.",
+      "prompt": "Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both. With SQLite, run one worker, or create the tables before the workers start, so two workers never set up the same database at once.",
       "requirements": [
         "V4.1.1",
         "V13.4.6"
@@ -510,12 +522,12 @@
         "fails_when": "either is a finding"
       },
       "inspired_by": "the reviews in docs/prompts/reviews/ (7 October 2026): version numbers were in 29 of 34 Haiku loop builds' answers",
-      "status": "not-shown",
+      "status": "shown",
       "tested": {
         "date": "2026-10-07",
-        "brief": "the loop trials' club app as an owner would describe it (docs/prompts/trial-3/plain-brief.md), with sv's specification at the top of the request and a sentence saying the owner is away: Python's standard library, sign-in, private notes, an assistant that calls an OpenAI-compatible service, and an admin page",
-        "builder": "headless Claude Code 2.1.286 with Claude Haiku 4.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, and the prompts shown to work at the start of the specification in both; `sv report --run` from sv eebb24d9 behind the network fence (docs/prompts/library-trial/revision.md)",
-        "result": "Not shown by the trial's rule: without the prompt 7 of 7 builds that started had a problem, with it 8 of 8. The missing or wrong Content-Type went (3 of 7 without, 0 of 8 with); the server version did not, in any build of any arm, because the brief asks for Python's standard library and its built-in server sends its version unless the request handler's server_version and sys_version are set, which the prompt does not say. No harm. On 7 October 2026 a sentence for Python's built-in server was added, from this trial's finding; it is not yet tried."
+        "brief": "the recipe club (docs/prompts/trial-4/recipe-brief.md): Flask with pinned packages and `install = true`, sign-up, sign-in with a return address, private recipes with edit and delete, formatted text, search with sorting, photo upload, an export, a JSON API, and an admin page, with sv's specification at the top and a sentence saying the owner is away",
+        "builder": "headless Claude Code 2.1.286 with Claude Sonnet 5.5, ten builds with the prompt pasted and ten without, each in a fresh folder with no MCP server, `git` allowed, packages refused on the computer and installed by sv; `sv report --run` from sv 9833eacc (docs/prompts/library-trial/recipe.md)",
+        "result": "Without the prompt the server's version was given away in 5 of the 10 builds (Flask's development server); with it in 0 of 9, every build serving through gunicorn: shown by the trial's rule (Fisher's exact test, p = 0.03). One of the ten did not start, its two gunicorn workers setting up the same SQLite file at once; one in ten is below the harm rule. Shown by the owner's decision of 7 October 2026. Its last sentence, on SQLite, was added afterwards from that one build and is not yet tried. Before this, on 7 October 2026 with the club app (Python's standard library only), not shown: the built-in server's version, which the sentence before the SQLite one now covers."
       }
     },
     {

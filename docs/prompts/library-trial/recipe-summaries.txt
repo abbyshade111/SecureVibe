@@ -1,0 +1,1243 @@
+== haiku-none-1
+== haiku-none-1 (exit 2, run {'state': 'could-not-start', 'why': "The app started but never answered on its health path within 60s. It stopped with an error: RuntimeError: Either 'SQLALCHEMY_DATABASE_URI' or 'SQLALCHEMY_BINDS' must be set. That error is why: fix it, and run this again. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure."})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-10
+== haiku-none-10 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. Its last output was: ERROR: No matching distribution found for Flask==3.0.0 Its build step (`pip install -r requirements.txt`) ran inside the fence, where nothing can be downloaded and the file system is read-only apart from /tmp, so a step that installs packages cannot work there: set `install = true` under [stack.run] to have `sv` install them before the run, or install them into the image. One common cause: an app listening on 127.0.0.1 or localhost answers only from inside its own container, and `sv` asks it from a second container on the fenced network. Have it listen on 0.0.0.0 (every address) at the port in $PORT. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-2
+== haiku-none-2 (exit 3, no report: Error: no securevibe.toml in /Users/abigail/sv-recipe/runs/haiku-none-2. Run `sv init` and give the spec to your AI coding tool.)
+
+== haiku-none-3
+== haiku-none-3 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. It stopped with an error: TypeError: CSRFProtect.protect() takes 1 positional argument but 2 were given That error is why: fix it, and run this again. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-4
+== haiku-none-4 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: Signing in as the first test user did not open /my-recipes — the sign-in request, the accounts, or the page is not what securevibe.toml says — so nothing here c
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: This needs a page only a signed-in user should see, listed under `private` in [stack.run.users], to be refused to somebody who has not signed in.
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-5
+== haiku-none-5 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.1: The seed command in securevibe.toml failed (exit 1): Traceback (most recent call last):. With no accounts there is nobody to sign in as.
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-6
+== haiku-none-6 (exit 2, run {'state': 'could-not-start', 'why': "Installing the app's packages from PyPI before the run did not finish: it ended with: Downloading pytest-7.4.3-py3-none-any.whl.metadata (7.9 kB) / ERROR: Could not find a version that satisfies the requirement pytest-junit==1.0.1 (from versions: none) / ERROR: No matching distribution found for pytest-junit==1.0.1. The install takes only ready-made packages and runs none of their own install code, so a package that needs either cannot be installed this way: build an image with the packages in it and name it with `image` instead. The app was not started, so everything that needs it running is reported as not assessed."})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-7
+== haiku-none-7 (exit 3, no report:     53 | [finding-review] /        | ^^^^^^^^^^^^^^^^ /     invalid type: map, expected a sequence (in [finding-review]))
+
+== haiku-none-8
+== haiku-none-8 (exit 2, run {'state': 'could-not-start', 'why': "The app started but never answered on its health path within 60s. It stopped with an error: AssertionError: The setup method 'after_request' can no longer be called on the application. It has already handled its first request, any changes will not be applied consistently. Its build step (`pip install -r requirements.txt`) ran inside the fence, where nothing can be downloaded and the file system is read-only apart from /tmp, so a step that installs packages cannot work there: set `install = true` under [stack.run] to have `sv` install them before the run, or install them into the image. That error is why: fix it, and run this again. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure."})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== haiku-none-9
+== haiku-none-9 (exit 2, run {'state': 'could-not-start', 'why': "Installing the app's packages from PyPI before the run did not finish: it ended with: Downloading pytest_flask-1.3.0-py3-none-any.whl.metadata (14 kB) / ERROR: Could not find a version that satisfies the requirement pytest-junitxml==1.8.1 (from versions: none) / ERROR: No matching distribution found for pytest-junitxml==1.8.1. The install takes only ready-made packages and runs none of their own install code, so a package that needs either cannot be installed this way: build an image with the packages in it and name it with `image` instead. The app was not started, so everything that needs it running is reported as not assessed."})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== sonnet-none-1
+== sonnet-none-1 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-10
+== sonnet-none-10 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-2
+== sonnet-none-2 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-3
+== sonnet-none-3 (exit 0, run {'answered': 45, 'asked': 45, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-4
+== sonnet-none-4 (exit 0, run {'answered': 45, 'asked': 45, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-5
+== sonnet-none-5 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-6
+== sonnet-none-6 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-7
+== sonnet-none-7 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-8
+== sonnet-none-8 (exit 0, run {'answered': 45, 'asked': 45, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-none-9
+== sonnet-none-9 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-1
+== sonnet-p_password_rules-1 (exit 0, run {'answered': 49, 'asked': 49, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-10
+== sonnet-p_password_rules-10 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-2
+== sonnet-p_password_rules-2 (exit 0, run {'answered': 49, 'asked': 49, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-3
+== sonnet-p_password_rules-3 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-4
+== sonnet-p_password_rules-4 (exit 0, run {'answered': 49, 'asked': 49, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-5
+== sonnet-p_password_rules-5 (exit 0, run {'answered': 50, 'asked': 50, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.2.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+      gap V16.3.2: The app wrote nothing to its output during the run, so there was nothing to read. An app that logs to a file or to a logging service writes nothing here and is 
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-6
+== sonnet-p_password_rules-6 (exit 0, run {'answered': 48, 'asked': 48, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-7
+== sonnet-p_password_rules-7 (exit 0, run {'answered': 49, 'asked': 49, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-8
+== sonnet-p_password_rules-8 (exit 0, run {'answered': 49, 'asked': 49, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_password_rules-9
+== sonnet-p_password_rules-9 (exit 0, run {'answered': 49, 'asked': 49, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'failed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-1
+== sonnet-p_production_server-1 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-10
+== sonnet-p_production_server-10 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-2
+== sonnet-p_production_server-2 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-3
+== sonnet-p_production_server-3 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-4
+== sonnet-p_production_server-4 (exit 2, run {'state': 'could-not-start', 'why': 'The app started but never answered on its health path within 60s. It stopped with an error: sqlite3.OperationalError: database is locked That error is why: fix it, and run this again. This is reported as not assessed rather than as a failure: an app that will not start under `sv` has not been shown to be insecure.'})
+  p1:
+    probe.private-page-anonymous: -
+    probe.admin-page-ordinary-user: -
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+  p2:
+    probe.action-done-twice: -
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: -
+  p4:
+    probe.error-detail-leak: -
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: -
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+
+== sonnet-p_production_server-5
+== sonnet-p_production_server-5 (exit 0, run {'answered': 48, 'asked': 48, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-6
+== sonnet-p_production_server-6 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: -
+      gap V8.2.2: The first user could not read back the record they created at /recipes/1 (302), so another user being refused it would prove nothing.
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+      gap V8.3.1: A role written into the sign-up form: the two accounts made for it could not both be shown signed in. With the extra fields that may be the app refusing fields 
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: -
+    probe.failed-sign-ins-unlimited: FOUND
+      gap V2.4.1: Whether creating records is limited: the second user could not sign in, or was not shown a private page once signed in.
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-7
+== sonnet-p_production_server-7 (exit 0, run {'answered': 48, 'asked': 48, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: credited
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-8
+== sonnet-p_production_server-8 (exit 0, run {'answered': 47, 'asked': 47, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'passed'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: FOUND
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: credited
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
+== sonnet-p_production_server-9
+== sonnet-p_production_server-9 (exit 0, run {'answered': 46, 'asked': 46, 'image': 'python:3.12-slim', 'signed_in': True, 'state': 'started', 'tests': 'not-declared'})
+  p1:
+    probe.private-page-anonymous: credited
+    probe.admin-page-ordinary-user: credited
+    probe.admin-action-ordinary-user: -
+    probe.other-users-data: credited
+      gap V8.3.1: Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no request only an admin should make was sent by an ordinary user.
+  p2:
+    probe.action-done-twice: -
+      gap V2.3.4: Whether an action can go through twice when sent twice at the same instant: securevibe.toml names no `once` action under [stack.run.users].
+  p3:
+    probe.create-rate-unlimited: credited
+    probe.failed-sign-ins-unlimited: credited
+  p4:
+    probe.error-detail-leak: credited
+    probe.ai-service-failure-handled: -
+    probe.ai-service-error-shown: -
+  p6:
+    probe.log-line-metadata: -
+    probe.log-timestamp-zoned: -
+    probe.authorization-failure-logged: -
+      gap V16.2.1: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.2.2: These are read from the line recording the refused sign-in this run made, and no such line was found, so there was no security event's metadata to read. `sv` ca
+      gap V16.3.2: The refused request this run made was not in the app's output. `sv` can only read what the app wrote to its own output inside the container, and two common reas
+  p7:
+    probe.session-idle-timeout: -
+    probe.session-lifetime: -
+    probe.logout-keeps-session: FOUND
+    probe.app-token-signature-not-checked: -
+    probe.app-token-alg-none: -
+    probe.app-token-expired-accepted: -
+      gap V7.3.1: Whether sessions time out when securevibe.toml says they should: that means waiting, so it is asked only by `sv run --slow`.
+
