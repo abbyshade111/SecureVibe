@@ -24,6 +24,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    is a link, each in plain words before anything runs. Changes what `sv` lets the networked install fetch: a Later
    entry on ADR-052. Confirmed on `main` just before this claim: `install::plan` reads neither, and no other session
    had claimed this part.
+   **Done the same day** (`docs/design/0305-the-install-step-downloads-npm-packages-only-from-the-npm.md`; ADR-052, Later): every package in
+   `package-lock.json` must come from `https://registry.npmjs.org/` with a SHA-256 or stronger `integrity`, a local
+   folder or a lockfile `sv` cannot read is refused, and a `requirements.txt`, `package.json`, or `package-lock.json`
+   that is a link is refused before it is read. Not done: a package's address is not compared with its name and
+   version.
 3. gosec fetches modules and runs the C toolchain, undeclared: `GOPROXY=off` and `CGO_ENABLED=0` in its `env`, or
    mark it `network: true` and say so in the README. CodeQL's extractors may run the app's package manager or
    `sitecustomize.py`: test it the ADR-032 way with a planted `preinstall` and `sitecustomize.py`. gosec,
