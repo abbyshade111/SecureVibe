@@ -853,14 +853,28 @@ mod tests {
         dir
     }
 
-    fn install_said(name: &str, run: &str, files: &[(&str, &str)]) -> (Vec<Answer>, String) {
+    /// The install item's answers, everything it says, and what of that it quotes as the app's text.
+    fn install_said(
+        name: &str,
+        run: &str,
+        files: &[(&str, &str)],
+    ) -> (Vec<Answer>, String, String) {
         let dir = folder(name, run, files);
         let (items, _, _) = of(&dir).expect("the preflight runs");
         std::fs::remove_dir_all(&dir).ok();
         let install: Vec<&Item> = items.iter().filter(|i| i.topic == "install").collect();
+        let quoted = install
+            .iter()
+            .flat_map(|i| &i.says)
+            .filter_map(|p| match p {
+                Part::App(t) => Some(t.as_str()),
+                Part::Sv(_) => None,
+            })
+            .collect();
         (
             install.iter().map(|i| i.answer).collect(),
             install.iter().map(|i| said(i)).collect(),
+            quoted,
         )
     }
 
@@ -870,7 +884,7 @@ mod tests {
 
     #[test]
     fn packages_with_no_install_step_are_said() {
-        let (answers, words) =
+        let (answers, words, _) =
             install_said("none", NO_INSTALL_RUN, &[("requirements.txt", PINNED)]);
         assert_eq!(answers, vec![Answer::Look], "{words}");
         assert!(
@@ -878,18 +892,20 @@ mod tests {
             "{words}"
         );
         // The control: no packages and no install, nothing to say.
-        let (answers, words) = install_said("bare", NO_INSTALL_RUN, &[("app.py", "print(1)\n")]);
+        let (answers, words, _) = install_said("bare", NO_INSTALL_RUN, &[("app.py", "print(1)\n")]);
         assert!(answers.is_empty(), "{words}");
     }
 
     #[test]
     fn the_install_step_is_judged_by_its_own_rules() {
         // Pinned, in Docker's own image: what `sv run` would install, named.
-        let (answers, words) = install_said("pinned", INSTALL_RUN, &[("requirements.txt", PINNED)]);
+        let (answers, words, _) =
+            install_said("pinned", INSTALL_RUN, &[("requirements.txt", PINNED)]);
         assert_eq!(answers, vec![Answer::Looks], "{words}");
         assert!(words.contains("requirements.txt, from PyPI"), "{words}");
         // A line with no exact version, which the install step refuses: the line is named.
-        let (answers, words) = install_said(
+        // The line is the app's own text, so it is quoted as the app's, never in `sv`'s words.
+        let (answers, words, quoted) = install_said(
             "loose",
             INSTALL_RUN,
             &[("requirements.txt", "flask>=3\ngunicorn==22.0.0\n")],
@@ -899,11 +915,15 @@ mod tests {
             words.contains("`flask>=3`") && !words.contains("gunicorn"),
             "{words}"
         );
+        assert!(
+            quoted.contains("flask>=3"),
+            "the line is not quoted as the app's: {words}"
+        );
         // package.json with no lockfile, and an image that is not Docker's own: each refused.
-        let (answers, words) = install_said("nolock", INSTALL_RUN, &[("package.json", "{}")]);
+        let (answers, words, _) = install_said("nolock", INSTALL_RUN, &[("package.json", "{}")]);
         assert_eq!(answers, vec![Answer::Look], "{words}");
         assert!(words.contains("package-lock.json"), "{words}");
-        let (answers, words) = install_said(
+        let (answers, words, _) = install_said(
             "image",
             &INSTALL_RUN.replace("python:3.12-slim", "someone/python"),
             &[("requirements.txt", PINNED)],
@@ -911,7 +931,7 @@ mod tests {
         assert_eq!(answers, vec![Answer::Look], "{words}");
         assert!(words.contains("someone/python"), "{words}");
         // Asked for with nothing to install.
-        let (answers, words) = install_said("empty", INSTALL_RUN, &[("app.py", "print(1)\n")]);
+        let (answers, words, _) = install_said("empty", INSTALL_RUN, &[("app.py", "print(1)\n")]);
         assert_eq!(answers, vec![Answer::Look], "{words}");
         assert!(words.contains("nothing to install"), "{words}");
     }
