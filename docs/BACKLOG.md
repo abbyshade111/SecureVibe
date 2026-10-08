@@ -156,6 +156,10 @@ another session is not a claim.
      --all`; and in `sv dashboard`, each app's runs over time, set against the last run that can be compared (same
      kind, level, `securevibe.toml`, and `sv`), and otherwise said not to be compared and why. No requirement is ever
      credited from history, and the reports never read it. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "History: each app over time"; ADR-057, Later): the command, the record kept by
+     `sv report`, the over-time view, and `sv dashboard` with no folders. Breaks: history always on, a record others
+     can read, no limit on how many are kept, every run compared whatever its kind, history's text not escaped on
+     the page, and `forget` that deletes nothing, each failed a test (`crates/sv-cli/tests/history.rs`).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
@@ -466,6 +470,11 @@ another session is not a claim.
      with nothing read, `sv check` says none is listed as checked and fine and why, and a finding about a missing
      file names the file as not there rather than a line of it. Breaks: the "nothing read" test switched off, a
      missing file shown at its line, and every run treated as nothing read each failed the new test.
+     **(d) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-mcp-remedy`: when an MCP tool cannot do its job, what `sv` itself
+     says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
+     the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
+     the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).

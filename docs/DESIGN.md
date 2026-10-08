@@ -12770,6 +12770,26 @@ did not choose.
 
 Tried on copies of the five example apps and a folder with no report; the page in light and dark, and at phone width
 with no sideways scroll. Six deliberate breaks each failed a test (backlog, dashboard build item 2).
+
+### History: each app over time (8 October 2026, ADR-057)
+
+The third step of the dashboard. History is off until the person types `sv history on`, which writes a file of their
+own beside the review key; `securevibe.toml` cannot turn it on, because the AI coding tool writes that file. While it is
+on, each `sv report` at a terminal keeps one small record of the run (`crates/sv-cli/src/history.rs`) outside every app's
+folder, in `~/.local/share/securevibe/history`, readable only by the person: the counts, the kind of run, the level, the
+`sv` that made it, the `securevibe.toml` fingerprint, and each finding's fingerprint, severity, rule, and title. Not the
+finding's description, not where it was found, not a line of the app, and not a credential, even shortened. An app's
+folder is often a public git repository, and a dated list of its weaknesses does not belong there.
+
+`sv dashboard` then shows each app's runs, newest first. A run is set against the last earlier run of the same kind,
+level, `securevibe.toml`, and `sv`, and the page lists what changed: findings that appeared or went away, by fingerprint,
+and each count that moved. A run with no such earlier run says why it is not compared; without that, the first full run
+after a plain one would look like the app getting worse. Given no folders, `sv dashboard` shows every app whose runs were
+kept. At most 100 runs are kept for each app; `sv history forget` deletes one app's, or all of them.
+
+History is a convenience, never evidence: the reports never read it and nothing is credited from it, and the test that
+plants text in a record checks that `report.html` does not show it. An AI coding tool runs as the same person and could
+rewrite it, which is why it is kept out of the app's folder and why nothing rests on it.
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
