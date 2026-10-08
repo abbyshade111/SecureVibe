@@ -927,12 +927,14 @@ pub const OUTPUT_DIRS: &[(&str, &[&str])] = &[
 ];
 
 /// Where `sv report` writes when not told otherwise. Like any folder carrying `REPORT_MARKER`, it is
-/// left out only while it holds nothing but what `sv` writes (`is_sv_output`).
-pub const DEFAULT_REPORT_DIR: &str = "securevibe-report";
+/// left out only while it holds nothing but what `sv` writes (`is_sv_output`). The name, and the
+/// marker's and the lock's, are the product's (`sv_frameworks::names`, ADR-062); a folder carrying
+/// the old names is still `sv`'s own.
+pub const DEFAULT_REPORT_DIR: &str = sv_frameworks::names::REPORT_DIR;
 
 /// The lock `sv report` holds on the folder while it writes (`sv-cli`'s `report_lock`). A dot name,
 /// beside the marker, so a listing hides it.
-pub const REPORT_LOCK: &str = ".securevibe-report.lock";
+pub const REPORT_LOCK: &str = sv_frameworks::names::REPORT_LOCK;
 
 /// The five files a report is written as, in the order they are written and sealed. The one list
 /// the names of a report folder derive from: `REPORT_FOLDER_NAMES` here, and in `sv-cli` the table
@@ -946,14 +948,17 @@ pub const REPORT_FILES: [&str; 5] = [
     "report.json",
 ];
 
-/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports.
+/// Every name `sv` writes in a report folder: the marker, the lock, their old forms (a report folder
+/// from before the rename holds those), and the five reports.
 pub const REPORT_FOLDER_NAMES: &[&str] = &{
-    let mut names = [""; 2 + REPORT_FILES.len()];
+    let mut names = [""; 4 + REPORT_FILES.len()];
     names[0] = REPORT_MARKER;
     names[1] = REPORT_LOCK;
+    names[2] = sv_frameworks::names::OLD_REPORT_MARKER;
+    names[3] = sv_frameworks::names::OLD_REPORT_LOCK;
     let mut i = 0;
     while i < REPORT_FILES.len() {
-        names[2 + i] = REPORT_FILES[i];
+        names[4 + i] = REPORT_FILES[i];
         i += 1;
     }
     names
@@ -978,10 +983,17 @@ pub fn marker_refused(dir: &Path) -> bool {
 }
 
 fn claims_to_be_report(dir: &Path) -> bool {
-    dir.join(REPORT_MARKER).is_file()
-        || dir
-            .file_name()
-            .is_some_and(|n| n.to_string_lossy() == DEFAULT_REPORT_DIR)
+    has_report_marker(dir)
+        || dir.file_name().is_some_and(|n| {
+            let name = n.to_string_lossy();
+            name == DEFAULT_REPORT_DIR || name == sv_frameworks::names::OLD_REPORT_DIR
+        })
+}
+
+/// Whether the folder carries `sv`'s marker, under its name or the name it had before the rename
+/// (ADR-062): both are `sv`'s own writing.
+pub fn has_report_marker(dir: &Path) -> bool {
+    dir.join(REPORT_MARKER).is_file() || dir.join(sv_frameworks::names::OLD_REPORT_MARKER).is_file()
 }
 
 /// Every entry is one of the names `sv` writes, compared without regard to capitals, and each is a
@@ -1023,7 +1035,7 @@ pub const EDITOR_DIRS: &[&str] = &[".idea", ".vscode"];
 /// read back as part of the app, and while a page no code rule could fully read was there, nothing was
 /// claimed, so the requirements checked fell from 9 to 1. A folder name alone does not do it, since
 /// `--out` takes any name.
-pub const REPORT_MARKER: &str = ".securevibe-report";
+pub const REPORT_MARKER: &str = sv_frameworks::names::REPORT_MARKER;
 
 /// Whether a walk of the app should leave this folder out: installed dependencies, build output
 /// beside the manifest that explains it, version control, editor settings, or a report `sv` wrote.

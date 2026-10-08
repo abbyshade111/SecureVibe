@@ -89,12 +89,38 @@ impl Key {
         Ok(Key { bytes })
     }
 
-    /// Where the key is kept: `$XDG_CONFIG_HOME/securevibe`, or `~/.config/securevibe`. `None`
-    /// when neither can be told.
+    /// Where the key is kept: `$XDG_CONFIG_HOME/stackvet`, or `~/.config/stackvet`. `None` when
+    /// neither can be told. Until the rename (ADR-062) the folder was `securevibe`: while the new
+    /// folder does not exist and the old one does, the old one is used, and `old_folder_in_use`
+    /// says so, for the command to tell the person; nothing moves a key.
     pub fn folder() -> Option<PathBuf> {
         if let Some(folder) = FOLDER_FOR_TESTS.get() {
             return Some(folder.clone());
         }
+        let config = Self::config_root()?;
+        let new = config.join(sv_frameworks::names::CONFIG_DIR);
+        let old = config.join(sv_frameworks::names::OLD_CONFIG_DIR);
+        if !new.is_dir() && old.is_dir() {
+            return Some(old);
+        }
+        Some(new)
+    }
+
+    /// The old config folder and the new one, when the old is the one in use (`folder`): the
+    /// command says so once and names the move. `None` when the new folder is in use, or neither
+    /// can be told.
+    pub fn old_folder_in_use() -> Option<(PathBuf, PathBuf)> {
+        if FOLDER_FOR_TESTS.get().is_some() {
+            return None;
+        }
+        let config = Self::config_root()?;
+        let new = config.join(sv_frameworks::names::CONFIG_DIR);
+        let old = config.join(sv_frameworks::names::OLD_CONFIG_DIR);
+        (!new.is_dir() && old.is_dir()).then_some((old, new))
+    }
+
+    /// `$XDG_CONFIG_HOME`, or `~/.config`, when either can be told.
+    fn config_root() -> Option<PathBuf> {
         let config = std::env::var_os("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .filter(|p| p.is_absolute())
@@ -104,7 +130,7 @@ impl Key {
                     .filter(|p| p.is_absolute())
                     .map(|home| home.join(".config"))
             })?;
-        Some(config.join("securevibe"))
+        Some(config)
     }
 
     /// The key in `folder`: `Ok(None)` when there is none, `Err` when there is something there

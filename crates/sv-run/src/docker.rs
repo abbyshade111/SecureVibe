@@ -111,7 +111,7 @@ pub struct DockerBackend {
 /// The label naming the one run a container or network belongs to. The owner label says which
 /// process made it, for the next run's cleanup after a crash; this one says which run, so a
 /// teardown removes only that run's and never another's (the deep review of 4 October 2026, S10).
-const RUN_LABEL: &str = "org.securevibe.run";
+const RUN_LABEL: &str = sv_frameworks::names::RUN_LABEL;
 
 impl Default for DockerBackend {
     fn default() -> Self {
@@ -246,12 +246,6 @@ impl DockerBackend {
     /// process was killed outright. What it removed, by name.
     fn remove_leftovers(&self) -> Vec<String> {
         let machine = crate::cleanup::this_machine();
-        let filter = format!("label={}", crate::cleanup::OWNER_LABEL);
-        let format = format!(
-            "{{{{.Names}}}}\t{{{{.Label \"{}\"}}}}",
-            crate::cleanup::OWNER_LABEL
-        );
-        let network_format = format.replace(".Names", ".Name");
         let left = |args: &[&str]| -> Vec<String> {
             match self.docker(args) {
                 Ok((0, out)) => out
@@ -266,21 +260,28 @@ impl DockerBackend {
             }
         };
         let mut removed = Vec::new();
-        for name in left(&["ps", "-a", "--filter", &filter, "--format", &format]) {
-            if matches!(self.docker_cleanup(&["rm", "-f", &name]), Ok((0, _))) {
-                removed.push(name);
+        // Under the label a run writes now, and under the one runs wrote before the rename
+        // (ADR-062): a leftover is a leftover under either.
+        for label in [crate::cleanup::OWNER_LABEL, crate::cleanup::OLD_OWNER_LABEL] {
+            let filter = format!("label={label}");
+            let format = format!("{{{{.Names}}}}\t{{{{.Label \"{label}\"}}}}");
+            let network_format = format.replace(".Names", ".Name");
+            for name in left(&["ps", "-a", "--filter", &filter, "--format", &format]) {
+                if matches!(self.docker_cleanup(&["rm", "-f", &name]), Ok((0, _))) {
+                    removed.push(name);
+                }
             }
-        }
-        for name in left(&[
-            "network",
-            "ls",
-            "--filter",
-            &filter,
-            "--format",
-            &network_format,
-        ]) {
-            if matches!(self.docker_cleanup(&["network", "rm", &name]), Ok((0, _))) {
-                removed.push(name);
+            for name in left(&[
+                "network",
+                "ls",
+                "--filter",
+                &filter,
+                "--format",
+                &network_format,
+            ]) {
+                if matches!(self.docker_cleanup(&["network", "rm", &name]), Ok((0, _))) {
+                    removed.push(name);
+                }
             }
         }
         removed
