@@ -37,6 +37,11 @@ another session is not a claim.
   documents git tracks, `docs/paper/` and the example apps left out, with a small Markdown reader of its own and a
   search box over an index written into the page. Its record is ADR-058, proposed here and accepted in the pull
   request that builds it.
+  **Done the same day** (ADR-058, accepted): `python3 tools/docs_page.py` writes 87 documents to `~/securevibe-docs/`,
+  with the search box working and nothing fetched. Breaks: the paper left in, the search index not escaped, a folder
+  that was not its own written into, a place inside the repository allowed, every file in its folder removed on a
+  rerun, and code not escaped, each failed a test (`crates/sv-cli/tests/docs_page.rs`, which also runs its
+  `--self-test`).
 
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
