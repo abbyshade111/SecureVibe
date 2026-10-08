@@ -599,6 +599,7 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
             },
         ));
     }
+    crate::verified::unless_credited(MIX_UP.rule_id, &out.verified);
     if still_works {
         same_email_check(http, section, &mut out);
     } else {

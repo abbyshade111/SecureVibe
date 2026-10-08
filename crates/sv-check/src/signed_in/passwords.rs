@@ -1148,6 +1148,7 @@ fn sessions_after_change(open_after: Option<bool>, path: &str, out: &mut Outcome
                 .to_owned(),
         )),
     }
+    crate::verified::unless_credited(CHANGE_ENDS_SESSIONS.rule_id, &out.verified);
 }
 
 /// V6.3.7: whether an email reached the account holder after the password was changed, as
@@ -1175,6 +1176,7 @@ fn email_after_change(mail: Option<(usize, usize)>, path: &str, out: &mut Outcom
                 .to_owned(),
         )),
     }
+    crate::verified::unless_credited(CHANGE_NOTIFIED.rule_id, &out.verified);
 }
 
 /// What a request that may tell an address with an account from one without is, for the finding:

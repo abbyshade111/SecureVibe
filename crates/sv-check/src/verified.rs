@@ -101,6 +101,21 @@ impl Verified {
     }
 }
 
+/// Where a check that withholds without a finding has run: when `verified` holds no credit from it, it
+/// withheld, saying "not assessed" or nothing, and in a debug build that is written to the census of
+/// findings beside the credits (`finding::found`), with the place that called this. A check that says
+/// no with a finding is seen there already; one that says no without one is seen only through this
+/// (backlog item 32). It decides nothing and changes nothing: a release build does nothing here.
+#[track_caller]
+pub fn unless_credited(check_id: &str, verified: &[Verified]) {
+    #[cfg(debug_assertions)]
+    if !verified.iter().any(|v| v.check_id == check_id) {
+        crate::finding::withheld_census(check_id, std::panic::Location::caller());
+    }
+    #[cfg(not(debug_assertions))]
+    let _ = (check_id, verified);
+}
+
 /// In a debug build (the test suite), with `SV_CREDIT_LOG` set, each credit is added to that file as
 /// one line: the check, its requirements, and the place in the code that gave it.
 /// `tools/coverage.py --credits` reads the file, to tell which checks the suite saw give credit.
