@@ -3719,6 +3719,18 @@ Tested with a real backend (`crates/sv-run/tests/install.rs`): a fixture that im
 shows the installed version, and reuses the download on a second run; without the step it fails, naming `six`. Six
 safeguards were broken in turn and each was caught, one of them only by the test with a real backend.
 
+**Only in Docker's own `python` and `node` images (8 October 2026).** The review of `sv` that day found the hole the
+record's "no package's own code runs" did not close: the `sh`, `pip`, or `npm` that run in the install container are
+the *image's*, and `image` is whatever `securevibe.toml` names. An app that named an image of its own had that image's
+code run with the internet, the owner's local network, and the container backend's bridge address reachable, which is
+what the fence exists to deny; the hardening (read-only, no capabilities, an empty environment) kept the host's files
+out of reach, not the network. Now `install::official_image` admits only Docker's own `python` or `node` images (with
+or without a tag, a digest, or Docker Hub's own prefix), and `plan` refuses any other image before the folder is looked
+at, naming the image and the route that stays: build the packages into your own image and leave `install` out. Those
+two images are also the only ones where the packages are sure to fit the interpreter the app then runs them with.
+Held by `the_install_runs_only_in_dockers_own_python_or_node_images` (`sv_run::install`), with nine names admitted
+and twelve refused, `--privileged` among them.
+
 ## Another user's records: lists, changes, deletions, and "checked in part" (ADR-053)
 
 V8.2.2 was *checked* when the second test user was refused one read of one record the first user made (gap analysis
