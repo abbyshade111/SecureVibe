@@ -9,6 +9,55 @@ another session is not a claim.
 
 ## Next
 
+- **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
+  readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
+  outside tools and the CLI, and the test suite; `cargo fmt`, `clippy`, and 2,355 tests clean). The areas the 4
+  October deep review fixed held. Four findings rated high, **all four claimed on 8 October 2026 by session
+  securevibe-review**, at the owner's word ("Yes please, go ahead"), one pull request each; read on `main` just before
+  this claim, none was claimed by another session. The rest of that review (ten medium, sixteen low) is in the owner's
+  hands to add here as they choose.
+  1. **The install step runs the manifest's own image with the network open** (`crates/sv-run/src/install.rs`,
+     `docker.rs`). ADR-052 says no package's own code runs there, and that holds; but the `sh`, `pip`, and `npm` that
+     run are the image's, and `image` is whatever `securevibe.toml` names, so an app that names its own image runs
+     that image's code with the internet, the owner's LAN, and the container backend's bridge reachable. Branch
+     `claude/securevibe-review-install-image`: `install = true` is honored only when `image` is one of Docker's own
+     `python` or `node` images, which is also the only case where the packages fit the interpreter that runs them;
+     any other image is refused in plain words, naming the route that stays (build the packages into your own
+     image). Changes what `sv` runs with the network open: a Later entry on ADR-052.
+     **Done the same day** (DESIGN, "Packages installed before the run, outside the fence", the paragraph "Only in
+     Docker's own `python` and `node` images"; ADR-052, Later, 8 October 2026): `install::official_image`, and `plan`
+     refusing any other image before the folder is read. Not done: a terminal confirmation for other images, since
+     the MCP server has no terminal to ask at; building the packages into your own image stays the route.
+  2. **Brakeman reads `config/brakeman.yml` from the app, and that file can name Ruby files Brakeman loads**
+     (`data/adapters.json`, the brakeman entry passes no config of its own; `additional_checks_path` is a documented
+     option whose `*.rb` files Brakeman requires). A Rails app handed to the owner runs Ruby on their computer under
+     `--tools`. Branch `claude/securevibe-review-brakeman-config`: a `{config}` placeholder that `sv` fills with an
+     empty settings file in the tool's private folder, passed as `-c`, so the app's file is never read. The spirit of
+     ADR-032 (a program the app names is not run): a Later entry there.
+  3. **`sv review` writes `securevibe.toml` and `security-notes.md` through a link the app planted, and not
+     atomically** (`crates/sv-cli/src/review.rs`, `save_text`): the one writer left on a plain write after S3 fixed
+     `sv notes` and `sv rules`. Branch `claude/securevibe-review-links`: `refuse_link` and `write_without_following`,
+     and a test in `writing_through_links.rs` that plants the link and shows the file it points at left alone.
+  4. **A `--tools` program is whatever `PATH` says, and `PATH` can point inside the app** (`crates/sv-check/src/adapters.rs`
+     spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
+     `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the
+     program is found through `PATH` by `sv` first, a relative entry is skipped, one under the app folder is refused
+     as not run, saying which and why.
+     **Done the same day** (DESIGN, "The outside tools run no program an app's repository names", the paragraph
+     "The program itself"): `adapters::located`, with a program found nowhere still run by name, so "not installed"
+     reads as it did. Not done: naming the program's path in the report, since the path can hold the owner's home
+     folder and a report may be shared; the refusal names it instead.
+
+
+- **The MCP time-limit test races its own check.** Found on 8 October 2026 by session securevibe-e9, in a full
+  `cargo test --workspace` run: `mcp::tests::a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_on`
+  (`crates/sv-cli/src/mcp.rs`) asserts the check that ran out of time is still running, then calls again and expects
+  "still finishing". Under load the check ends between the two, and the second call times out instead. It passed 5
+  of 5 times alone. **Claimed the same day by session securevibe-e9** ("go ahead and fix the test race next"), in
+  branch `claude/securevibe-e9-mcp-race`: a gate, only in tests, holds the check open until the test lets it go.
+  **Done the same day:** `Hold` in `mcp.rs`, which the check waits at before it hands back its report. With a
+  three-second pause put between the two calls, the test passed with the gate and failed without it, as in the full
+  run.
 - **A dashboard view for `sv`: explore it.** Asked for by the owner on 8 October 2026 ("explore building out a
   dashboard view for sv"). Today `sv` writes one report per run (`report.html`, `compliance.md`, `security.md`,
   `report.json`) and nothing that shows an app at a glance, several runs over time, or several apps side by side. The
@@ -25,6 +74,26 @@ another session is not a claim.
      answer. Status: proposed. Anything that changes what `sv` writes or serves is a decision with its own record.
   **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("can you add an item to the backlog,
   or take it yourself"), in branch `claude/securevibe-e2-dashboard`: the proposal only.
+  **Proposal written the same day:** `docs/DASHBOARD.md`. It recommends, first, one bar at the top of `report.html`
+  showing the requirements that apply by what stands behind each, with "not verified" in its own color and the numbers
+  written beside it; then `sv dashboard` for several apps, with its own decision record; and history over time last,
+  once the owner has chosen where it is kept. Four questions wait for the owner at the end of the proposal.
+  **The owner's answers, the same day**, after a mock-up: for the owner now and optional for anyone; views of every app
+  on this computer, one app in detail, and over time; history if it can be kept safely; a page in the browser first.
+  Recorded in `docs/DASHBOARD.md` (its last four sections) and ADR-057 (proposed). Four build items follow, each to be
+  claimed on its own:
+  1. **The bar at the top of `report.html`** (`docs/DASHBOARD.md`, "Build order", 1).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("Yes, please go ahead when you're
+     ready"), in branch `claude/securevibe-e2-glance-bar`. The owner also asked for how many requirements do not
+     apply: a second, thinner bar shows where every requirement `sv` knows went (apply, do not apply, could not be
+     placed, above the level, counted apart), apart from the first, so the ones that do not apply are never mixed
+     with the evidence for the ones that do. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "The short version opens with two bars"; ADR-057, Later): both bars, to scale,
+     with every count in words, and no script. Breaks: a part one too large, "not verified" in the checked color, the
+     ones that do not apply left out, the bars left off the page, and empty parts kept, each failed a test.
+  2. **`sv dashboard`**, one page for the app folders it is given (2).
+  3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
+  4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
   October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
@@ -134,6 +203,17 @@ another session is not a claim.
      admin key under a `NEXT_PUBLIC_`, `VITE_`, `EXPO_PUBLIC_`, or `REACT_APP_` name; and, when the dependencies show
      such a service, a line in the run summary that its sign-in and data are outside what the fence can test. Each
      part can be claimed on its own.
+     **The rules files and the migrations (the first two parts) claimed 8 October 2026 by session securevibe-e9**
+     ("choose the next backlog item"), in branch `claude/securevibe-e9-hosted-rules`: findings only, crediting nothing.
+     The public-name key and the run summary's line stay open.
+     **Those two parts done the same day** (DESIGN, "Firebase rules and Supabase migrations are read"):
+     `config.firebase-rules-open`, `config.supabase-table-without-rls`, and `config.supabase-policy-allows-all`.
+     **The public-name key (the third part) claimed 8 October 2026 by session securevibe-e9** ("choose the next
+     backlog item"), in branch `claude/securevibe-e9-public-keys`: a secret, service-role, or admin key under a name
+     the build hands to the browser, only ever a finding. Read on `main` just before this claim: no other session had
+     claimed it. The run summary's line stays open.
+     **The third part done the same day** (DESIGN, "A server's key under a name the browser is given"):
+     `config.secret-under-public-name`.
   11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
      finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
      `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
@@ -347,6 +427,20 @@ another session is not a claim.
   31. **The files that decide what counts as evidence are governed by no record.** (`docs/GAP-ANALYSIS.md`, 7.3.) Add
      `crates/sv-check/src/suite.rs`, `data/applicability-v2.json`, `data/human-checks.json`, and `tools/coverage.py`
      to the Governs lists of the records they carry out, and confirm the weekly decision-record review runs.
+     **Claimed 8 October 2026 by session securevibe-e9** ("choose the next backlog item after that"), in branch
+     `claude/securevibe-e9-governs`. `suite.rs` is already governed (ADR-050).
+     **The governed half done the same day:** `data/applicability-v2.json` under ADR-015, `tools/coverage.py` under
+     ADR-018, and `data/human-checks.json` under ADR-022, each with a dated Later entry saying why.
+     **The weekly review, as found the same day, left to the owner:** two routines do it, "Weekly decision-record
+     review" (Mondays 8:45, New York time, made 4 October) and "Weekly ADR review" (8:59, made 28 September), both
+     enabled and next due 12 October. Each ran once, on 5 October, and each run ended after about 50 seconds with
+     about 1,800 words written, too little to read 40 records, which matches the review leaving no trace. Neither
+     routine has the repository attached, so each run would have to add it itself. Changing a routine is the owner's
+     to decide: attach the repository to one, and turn the other off.
+     **Fixed the same day, at the owner's asking** ("please do fix the routine issues"): a session made for it,
+     "Weekly decision-record review", with the repository attached and three thousand commits of history, and one
+     routine that wakes it on Mondays at 8:45, New York time, with the same instructions and a first step that brings
+     the checkout up to date. Both old routines are turned off, not deleted. Its first run is due 12 October.
   32. **Every check that can credit should be seen not crediting somewhere in the suite.** (`docs/GAP-ANALYSIS.md`,
      7.4.) Extend `tools/coverage.py --credits` (and the census) so a check that credits in the test suite must also
      be seen giving a finding or "not assessed" there, turning "break your own rule" into a CI gate.

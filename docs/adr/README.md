@@ -100,6 +100,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-054](ADR-054.md) | Templates and notebooks are read for what they can hold, and never pass silently |
 | [ADR-055](ADR-055.md) | Two checks stop resting on one sample: cross-site access asks the private pages, and a common password is three |
 | [ADR-056](ADR-056.md) | An error answer is credited only when the app was made to give one, and it was clean |
+| [ADR-057](ADR-057.md) | A dashboard for `sv`, optional, with history kept only when the owner asks, outside the app's folder (proposed) |
 
 ## Where v1's records disagree with what v1 built
 

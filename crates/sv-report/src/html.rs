@@ -19,8 +19,12 @@ pub fn escape(text: &str) -> String {
 }
 
 const STYLE: &str = "\
-:root { color-scheme: light dark; --edge: #d8d8d8; --dim: #666; --bad: #a11; --unknown: #8a6d00; }
-@media (prefers-color-scheme: dark) { :root { --edge: #333; --dim: #999; --bad: #f77; --unknown: #d9a900; } }
+:root { color-scheme: light dark; --edge: #d8d8d8; --dim: #666; --bad: #a11; --unknown: #8a6d00;
+  --seg-checked: #127a74; --seg-part: #6fb3ac; --seg-tested: #4b4fb8; --seg-word: #d6b34a; --seg-none: #c9ced8;
+  --seg-none-line: #aeb4c0; --seg-apply: #4a5262; --seg-out: #e4e7ec; --seg-ai: #a995cc; }
+@media (prefers-color-scheme: dark) { :root { --edge: #333; --dim: #999; --bad: #f77; --unknown: #d9a900;
+  --seg-checked: #3fb8ae; --seg-part: #2b7f78; --seg-tested: #9a9dff; --seg-word: #8a7124; --seg-none: #4a5260;
+  --seg-none-line: #646c7a; --seg-apply: #b9c0cc; --seg-out: #2a2f38; --seg-ai: #6c5a8f; } }
 body { font: 16px/1.6 system-ui, sans-serif; margin: 0 auto; max-width: 62rem; padding: 2rem 1rem; }
 h1 { font-size: 1.7rem; margin-bottom: .2rem; }
 h2 { font-size: 1.25rem; margin-top: 2.4rem; border-bottom: 1px solid var(--edge); padding-bottom: .3rem; }
@@ -51,6 +55,24 @@ details > summary { cursor: pointer; color: var(--dim); }
 details.bulk { margin-top: 2.4rem; border-top: 1px solid var(--edge); padding-top: .8rem; }
 details.bulk > summary strong { color: inherit; }
 code { font-family: ui-monospace, monospace; font-size: .9em; }
+.glance { margin: .9rem 0; }
+.glance p { margin: .2rem 0; }
+.bar { display: flex; height: 1.4rem; border: 1px solid var(--edge); border-radius: 3px; overflow: hidden; }
+.bar.thin { height: .8rem; }
+.bar span { min-width: 2px; }
+.key, .bluf ul.key { list-style: none; padding: 0; margin: .4rem 0 0; display: flex; flex-wrap: wrap; gap: .2rem 1.1rem; font-size: .9em; }
+.key i { display: inline-block; width: .8rem; height: .8rem; border: 1px solid var(--edge); border-radius: 2px; margin-right: .35rem; vertical-align: -.05rem; }
+.seg-needs-attention { background: var(--bad); }
+.seg-checked { background: var(--seg-checked); }
+.seg-checked-in-part { background: var(--seg-part); }
+.seg-app-tested { background: var(--seg-tested); }
+.seg-documented, .seg-attested, .seg-stated, .seg-by-hand { background: var(--seg-word); }
+.seg-not-verified { background: repeating-linear-gradient(135deg, var(--seg-none) 0 6px, var(--seg-none-line) 6px 8px); }
+.seg-apply { background: var(--seg-apply); }
+.seg-not-apply { background: var(--seg-none); }
+.seg-unplaced { background: repeating-linear-gradient(135deg, var(--seg-word) 0 6px, var(--seg-out) 6px 8px); }
+.seg-above { background: var(--seg-out); }
+.seg-ai { background: var(--seg-ai); }
 ";
 
 /// The class a status is shown with, in the tables and the requirement lists alike.
@@ -66,6 +88,118 @@ fn status_class(status: Status) -> &'static str {
         Status::ByHand => "by-hand",
         Status::NotVerified => "not-verified",
     }
+}
+
+/// A status as a few words beside its color, for the bar's key.
+fn short_label(status: Status) -> &'static str {
+    match status {
+        Status::NeedsAttention => "need attention",
+        Status::Checked => "checked by an automated check",
+        Status::CheckedInPart => "checked in part",
+        Status::AppTested => "tested only by the app's own tests",
+        Status::Documented => "answered in your security notes",
+        Status::ByHand => "checked by you by hand",
+        Status::Attested => "rest on your answer",
+        Status::Stated => "rest on your AI coding tool's answer",
+        Status::NotVerified => "not verified by anything",
+    }
+}
+
+/// One bar, drawn to scale: each part's share of the bar is its count's share of the total,
+/// because each part grows by its count. Parts with nothing in them are left out of the bar and
+/// the key alike. The key under it gives every count in words, so the picture is never the only
+/// place a number is.
+fn bar(class: &str, aria: &str, parts: &[(&str, usize, String)]) -> String {
+    let mut s = format!(
+        "<div class=\"bar{class}\" role=\"img\" aria-label=\"{}\">",
+        escape(aria)
+    );
+    for (seg, n, label) in parts.iter().filter(|(_, n, _)| *n > 0) {
+        s.push_str(&format!(
+            "<span class=\"seg-{seg}\" style=\"flex-grow: {n}\" title=\"{n} {}\"></span>",
+            escape(label)
+        ));
+    }
+    s.push_str("</div>\n<ul class=\"key\">");
+    for (seg, n, label) in parts.iter().filter(|(_, n, _)| *n > 0) {
+        s.push_str(&format!(
+            "<li><i class=\"seg-{seg}\"></i><strong>{n}</strong> {}</li>",
+            escape(label)
+        ));
+    }
+    s.push_str("</ul>\n");
+    s
+}
+
+/// The report at a glance: the requirements that apply, by what stands behind each, and apart
+/// from them, where every requirement `sv` knows went, the ones that do not apply among them
+/// (`docs/DASHBOARD.md`; ADR-057). No score and no percentage: two bars, to scale, with every
+/// count written beside them. The two are kept apart so the requirements that do not apply are
+/// never drawn in among the evidence for the ones that do.
+pub fn glance(report: &Report) -> String {
+    let c = &report.counts;
+    let mut s = String::from("<div class=\"glance\">\n");
+    if c.applicable > 0 {
+        let parts: Vec<(&str, usize, String)> = c
+            .by_status()
+            .iter()
+            .map(|&(status, n)| (status_class(status), n, short_label(status).to_owned()))
+            .collect();
+        let aria = parts
+            .iter()
+            .filter(|(_, n, _)| *n > 0)
+            .map(|(_, n, label)| format!("{n} {label}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        s.push_str(&format!(
+            "<p><strong>The {} {} that apply, by what stands behind each</strong></p>\n",
+            c.applicable,
+            if c.applicable == 1 {
+                "requirement"
+            } else {
+                "requirements"
+            }
+        ));
+        s.push_str(&bar("", &aria, &parts));
+    }
+    let parts: Vec<(&str, usize, String)> = vec![
+        ("apply", c.applicable, "apply to this app".to_owned()),
+        (
+            "not-apply",
+            c.not_applicable,
+            "do not apply to it, from what securevibe.toml says about the app".to_owned(),
+        ),
+        (
+            "unplaced",
+            c.not_assessed,
+            "could not be placed: nobody has answered the question that decides".to_owned(),
+        ),
+        (
+            "above",
+            c.out_of_level,
+            format!("are above ASVS level {}", report.target_level),
+        ),
+        (
+            "ai",
+            c.ai_process,
+            "are about how the app is built with an AI coding tool, counted apart".to_owned(),
+        ),
+    ];
+    let total: usize = parts.iter().map(|(_, n, _)| n).sum();
+    if total > 0 {
+        let aria = parts
+            .iter()
+            .filter(|(_, n, _)| *n > 0)
+            .map(|(_, n, label)| format!("{n} {label}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        s.push_str(&format!(
+            "<p><strong>All {total} requirements, and where each went</strong></p>\n"
+        ));
+        s.push_str(&bar(" thin", &aria, &parts));
+    }
+    s.push_str("</div>\n");
+    s
 }
 
 pub fn page(report: &Report) -> String {
@@ -117,6 +251,7 @@ pub fn page(report: &Report) -> String {
         }
         b.push_str("</ul>\n");
     }
+    b.push_str(&glance(report));
     b.push_str("<p>Of the requirements that apply to this app:</p>\n<ul class=\"tally\">\n");
     for (label, n) in crate::bluf::counted(report) {
         b.push_str(&format!(
@@ -757,6 +892,169 @@ mod tests {
         assert_eq!(escape("<"), "&lt;");
         assert_eq!(escape("&lt;"), "&amp;lt;");
         assert!(!escape("&<").contains("&amp;amp;"));
+    }
+
+    /// Every `flex-grow` in the bars of `html`, in order: the first bar's, then the second's.
+    fn grows(html: &str) -> Vec<Vec<usize>> {
+        html.split("<div class=\"bar")
+            .skip(1)
+            .map(|bar| {
+                bar.split("</div>")
+                    .next()
+                    .unwrap()
+                    .split("flex-grow: ")
+                    .skip(1)
+                    .map(|n| n.split('"').next().unwrap().parse().unwrap())
+                    .collect()
+            })
+            .collect()
+    }
+
+    fn counted(f: impl FnOnce(&mut crate::Counts)) -> Report {
+        let mut r = report(false, false, false);
+        f(&mut r.counts);
+        r
+    }
+
+    #[test]
+    fn each_bar_is_drawn_to_scale_from_the_counts_written_beside_it() {
+        // Clinic booking's plain run of 8 October 2026, and a run with every status in it.
+        let clinic = counted(|c| {
+            c.applicable = 240;
+            c.checked = 10;
+            c.not_verified = 230;
+            c.not_applicable = 179;
+            c.not_assessed = 24;
+            c.out_of_level = 153;
+            c.ai_process = 44;
+        });
+        let all = counted(|c| {
+            (
+                c.needs_attention,
+                c.checked,
+                c.checked_in_part,
+                c.app_tested,
+            ) = (1, 2, 3, 4);
+            (
+                c.documented,
+                c.by_hand,
+                c.attested,
+                c.stated,
+                c.not_verified,
+            ) = (5, 6, 7, 8, 9);
+            c.applicable = 45;
+            c.not_applicable = 2;
+        });
+        for (r, first, second) in [
+            (&clinic, vec![10, 230], vec![240, 179, 24, 153, 44]),
+            (&all, (1..=9).collect(), vec![45, 2]),
+        ] {
+            let html = glance(r);
+            let bars = grows(&html);
+            assert_eq!(bars, vec![first.clone(), second.clone()], "{html}");
+            // Each bar's parts add up to what it says it shows, and every count is in words too.
+            assert_eq!(first.iter().sum::<usize>(), r.counts.applicable);
+            for n in first.iter().chain(&second) {
+                assert!(
+                    html.contains(&format!("<strong>{n}</strong>")),
+                    "{n}: {html}"
+                );
+            }
+            assert!(html.contains(&format!(
+                "All {} requirements",
+                second.iter().sum::<usize>()
+            )));
+        }
+        let html = glance(&clinic);
+        assert!(html.contains("The 240 requirements that apply"), "{html}");
+        assert!(
+            html.contains("<strong>179</strong> do not apply to it"),
+            "the owner asked to see how many do not apply: {html}"
+        );
+    }
+
+    #[test]
+    fn what_is_not_verified_is_drawn_as_exactly_that() {
+        let r = counted(|c| {
+            c.applicable = 12;
+            c.needs_attention = 1;
+            c.checked = 3;
+            c.not_verified = 8;
+        });
+        let html = glance(&r);
+        let first = html.split("<div class=\"bar thin").next().unwrap();
+        assert!(
+            first.contains("<span class=\"seg-not-verified\" style=\"flex-grow: 8\" title=\"8 not verified by anything\">"),
+            "{first}"
+        );
+        assert!(
+            first.contains("class=\"seg-checked\" style=\"flex-grow: 3\""),
+            "{first}"
+        );
+        // Its color is its own: not the color of anything that was checked or answered.
+        let rule = STYLE
+            .lines()
+            .find(|l| l.starts_with(".seg-not-verified"))
+            .unwrap();
+        for other in [
+            "--seg-checked",
+            "--seg-part",
+            "--seg-tested",
+            "--seg-word",
+            "--bad",
+        ] {
+            assert!(!rule.contains(other), "{rule}");
+        }
+    }
+
+    #[test]
+    fn the_bars_say_nothing_that_reads_as_a_verdict_or_a_score() {
+        let r = counted(|c| {
+            c.applicable = 3;
+            c.checked = 3;
+            c.not_applicable = 1;
+        });
+        let html = glance(&r).to_lowercase();
+        // Whole words, as the short version's own test reads them: `securevibe.toml` is a name.
+        let words: Vec<&str> = html.split(|ch: char| !ch.is_alphanumeric()).collect();
+        for word in [
+            "pass",
+            "passed",
+            "secure",
+            "secured",
+            "compliant",
+            "safe",
+            "score",
+            "grade",
+        ] {
+            assert!(!words.contains(&word), "{word}: {html}");
+        }
+        for text in ["%", "<script", "http"] {
+            assert!(!html.contains(text), "{text}: {html}");
+        }
+        // Nothing applies, nothing counted: no bar with nothing in it, and no part of size zero.
+        let none = glance(&counted(|c| c.not_applicable = 5));
+        assert!(!none.contains("that apply, by what stands"), "{none}");
+        assert!(!none.contains("flex-grow: 0"), "{none}");
+        assert!(
+            glance(&report(false, false, false))
+                .matches("class=\"bar")
+                .count()
+                == 0
+        );
+    }
+
+    #[test]
+    fn the_bars_open_the_short_version_before_its_tally() {
+        let r = counted(|c| {
+            c.applicable = 2;
+            c.not_verified = 2;
+        });
+        let page = page(&r);
+        let bars = page.find("class=\"glance\"").expect("no bars on the page");
+        let tally = page.find("Of the requirements that apply").unwrap();
+        let bluf = page.find("class=\"bluf\"").unwrap();
+        assert!(bluf < bars && bars < tally);
     }
 
     fn report(undecided: bool, elsewhere: bool, excluded: bool) -> Report {

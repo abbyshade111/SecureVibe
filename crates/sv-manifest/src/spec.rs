@@ -36,9 +36,11 @@ health = "/"              # a path that returns 200 once the app is up
 #   packages. With `install = true`, `sv` installs them first, in a separate container that is
 #   given only requirements.txt (every line pinned, `name==1.2.3`), or package.json with
 #   package-lock.json, never the app's code, and that runs none of the packages' own install
-#   code; then the fenced app gets them read-only. A package that has no ready-made download, or
-#   needs its install script, cannot be installed this way: build an image with it and name it
-#   with `image`. Leave it out and nothing is downloaded.
+#   code; then the fenced app gets them read-only. Only with one of Docker's own `python` or
+#   `node` images (`python:3.12-slim`, `node:22-alpine`): that container can reach the internet,
+#   and in any other image what it runs is whatever that image's author put there. A package that
+#   has no ready-made download, or needs its install script, cannot be installed this way: build
+#   an image with it and name it with `image`. Leave it out and nothing is downloaded.
 #   `seed`, `admin`, and the other keys about signing in go under [stack.run.users], further down,
 #   never here: uncomment that table's own header line too, or they land in this table and `sv`
 #   refuses the file.
