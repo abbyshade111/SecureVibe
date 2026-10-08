@@ -1931,6 +1931,8 @@ fn a_ruby_load_on_something_that_is_not_a_deserialiser_is_not_reported() {
         ("ast.sql-built-by-hand", "python", "def search(db, request):\n    clauses = [\"owner_id = 1\"]\n    add_filters(clauses, request)\n    return db.execute(f\"SELECT id FROM recipes WHERE {' AND '.join(clauses)}\")\n", true),
         ("ast.sql-built-by-hand", "python", "def search(db, request, sep):\n    clauses = [\"owner_id = 1\", \"deleted = 0\"]\n    return db.execute(f\"SELECT id FROM recipes WHERE {sep.join(clauses)}\")\n", true),
         ("ast.sql-built-by-hand", "python", "def search(db, request):\n    global sort\n    sort = \"title\"\n    return db.execute(f\"SELECT id FROM recipes ORDER BY {sort}\")\n", true),
+        // A module's list may be appended to from any function: joined, it is still reported.
+        ("ast.sql-built-by-hand", "python", "CLAUSES = [\"owner_id = 1\"]\ndef add(request):\n    CLAUSES.append(\"title = '\" + request.args[\"q\"] + \"'\")\ndef search(db):\n    return db.execute(f\"SELECT id FROM recipes WHERE {' AND '.join(CLAUSES)}\")\n", true),
         ("ast.sql-built-by-hand", "javascript", "const LIST = 'SELECT * FROM notes WHERE user_id = ?';\nfunction f(db, uid) { return db.query(LIST, [uid]); }", false),
         ("ast.sql-built-by-hand", "javascript", "let sql = 'SELECT 1';\nfunction f(db, x) { sql = sql + x; return db.query(sql); }", true),
         // Item 24 of the review of 1 to 4 October: a parameter written without brackets, or

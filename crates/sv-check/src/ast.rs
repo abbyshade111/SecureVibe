@@ -1130,8 +1130,10 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
     // Python's grammar calls a list `list` (and a tuple `tuple`), JavaScript's and TypeScript's
     // `array`, so `run(["ls", "-la"], shell=True)` is a fixed command too.
     // Backlog 215, Python: `a if c else b` is fixed when both values are; `SEP.join(pieces)` when
-    // the separator is and the pieces are a list of fixed text; an f-string when everything put into
-    // it is.
+    // the separator is and the pieces are a list of fixed text written in place, or a list the
+    // function itself builds only of fixed text (`fixed_list`), never a name the file binds once,
+    // since a module's list can be appended to from any function; an f-string when everything put
+    // into it is.
     if fixed.python {
         if node.kind() == "conditional_expression"
             && let Some(branches) = choice_branches(node, source)
@@ -1153,7 +1155,8 @@ fn is_literal(node: tree_sitter::Node, source: &[u8], fixed: &Fixed) -> bool {
                 .collect();
             return is_literal(separator, source, fixed)
                 && matches!(args.as_slice(), [pieces]
-                    if is_literal(*pieces, source, fixed) || fixed.fixed_list(*pieces, source));
+                    if (matches!(pieces.kind(), "list" | "tuple") && is_literal(*pieces, source, fixed))
+                        || fixed.fixed_list(*pieces, source));
         }
         if node.kind() == "string" {
             let mut c = node.walk();
