@@ -235,6 +235,11 @@ another session is not a claim.
      (`render_template_string`); request data flowing into an outgoing request (`requests.get`, `fetch`, `http.Get`);
      a token decoded without verification, or with `none` allowed; cross-origin settings that reflect any origin with
      credentials; CSRF protection switched off; the request body passed whole to an update or create.
+     **The unverified token claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item whenever
+     you're ready"), in branch `claude/securevibe-e9-token-signature`: a code rule, `ast.token-signature-not-checked`,
+     for a token's signature check switched off where the library has a switch for it (V9.1.1), only ever a finding.
+     The `none` algorithm and the other rules of this item stay open. Read on `main` just before this claim: no other
+     session had claimed any part of this item.
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
      and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
