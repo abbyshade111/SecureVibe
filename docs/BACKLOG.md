@@ -25,6 +25,10 @@ another session is not a claim.
      answer. Status: proposed. Anything that changes what `sv` writes or serves is a decision with its own record.
   **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("can you add an item to the backlog,
   or take it yourself"), in branch `claude/securevibe-e2-dashboard`: the proposal only.
+  **Proposal written the same day:** `docs/DASHBOARD.md`. It recommends, first, one bar at the top of `report.html`
+  showing the requirements that apply by what stands behind each, with "not verified" in its own color and the numbers
+  written beside it; then `sv dashboard` for several apps, with its own decision record; and history over time last,
+  once the owner has chosen where it is kept. Four questions wait for the owner at the end of the proposal.
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
   October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each
