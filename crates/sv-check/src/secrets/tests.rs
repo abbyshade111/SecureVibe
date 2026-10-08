@@ -1550,7 +1550,8 @@ fn a_tool_s_quoted_value_with_an_apostrophe_in_it_is_redacted_whole() {
     // Two values side by side are still two: a quote with no letter after it ends the first.
     let (out, n) = redact_text(&rules(), "{'password': 'Qv7rLm2x', 'token': 'Tz9kWp4n'}");
     assert_eq!(n, 2, "{out}");
-    assert!(out.contains("'token': '[redacted: Tz9k"), "{out}");
+    // Eight characters show two: never more than a third of a value (the review of 8 October, item 6).
+    assert!(out.contains("'token': '[redacted: Tz… (6 more"), "{out}");
 }
 
 #[test]

@@ -96,6 +96,10 @@ high were built the same day (the entry above this one's predecessor). Each of t
    name or a tool's finding title is kept from starting a line of its own on screen. Confirmed on `main` just before
    this claim: none of the four is done, and no other session had claimed any part of item 6. The rest of item 6
    stays open.
+   **Those four done the same day** (`docs/design/0307-four-low-findings-from-the-review-of-8-october-8-october.md`): a short value shows at most a
+   third of itself; the names a program prints a credential under, and the token after `Bearer` or `Basic`, are
+   masked; a pipe under a name the MCP server reads is refused before it is read; and `sv check` writes a finding's
+   file and title on one line. The rest of item 6 is open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in

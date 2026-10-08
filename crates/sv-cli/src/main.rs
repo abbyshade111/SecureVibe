@@ -2365,12 +2365,20 @@ fn cmd_check(args: &[String]) -> Result<i32> {
     for f in &findings {
         // A finding about a file that is missing, such as no SECURITY.md, names the file it
         // would be, not a line of it.
+        // A file name and a tool's title are the app's words or a tool's, and a line break in either
+        // started a line that read as `sv`'s own (the review of 8 October 2026, item 6): each is
+        // written on one line, its breaks shown as `\n`.
+        let file = sv_report::one_line(&f.location.file);
         let place = if app_dir.join(&f.location.file).symlink_metadata().is_ok() {
-            format!("{}:{}", f.location.file, f.location.line)
+            format!("{file}:{}", f.location.line)
         } else {
-            format!("{} (not there)", f.location.file)
+            format!("{file} (not there)")
         };
-        println!("\n  [{}] {}\n     {place}", f.severity.name(), f.title);
+        println!(
+            "\n  [{}] {}\n     {place}",
+            f.severity.name(),
+            sv_report::one_line(&f.title)
+        );
         if let Some(secret) = &f.secret {
             println!("     found: {}", secret.as_str());
         }

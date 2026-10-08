@@ -41,6 +41,8 @@ mod catalog;
 mod check_text;
 mod confine;
 #[cfg(test)]
+mod fifo_tests;
+#[cfg(test)]
 mod marker_tests;
 mod protocol;
 mod report_writing;
