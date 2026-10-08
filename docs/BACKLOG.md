@@ -32,6 +32,17 @@ another session is not a claim.
   please". So the pages are written to a folder of their own in the home folder (`~/securevibe-docs/`), and
   `docs/paper/` is left out. These are the owner's decisions; their record (a new ADR, governing the script) is
   written as `Status: proposed` with the claim, and accepted in the pull request that builds it.
+  **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and build the docs page
+  next"), in branch `claude/securevibe-e2-docs-page`: `tools/docs_page.py`, which writes `~/securevibe-docs/` from the
+  documents git tracks, `docs/paper/` and the example apps left out, with a small Markdown reader of its own and a
+  search box over an index written into the page. Its record, a new decision record governing the script, is
+  written and accepted in the pull request that builds it (a number cited here before its record exists fails
+  `every_record_number_cited_is_a_record`).
+  **Done the same day** (ADR-058, accepted): `python3 tools/docs_page.py` writes 87 documents to `~/securevibe-docs/`,
+  with the search box working and nothing fetched. Breaks: the paper left in, the search index not escaped, a folder
+  that was not its own written into, a place inside the repository allowed, every file in its folder removed on a
+  rerun, and code not escaped, each failed a test (`crates/sv-cli/tests/docs_page.rs`, which also runs its
+  `--self-test`).
 
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
@@ -8085,6 +8096,12 @@ another session is not a claim.
      added to one and not the other is a silent difference between what the person gets and what the AI tool gets.
      One pipeline, a `ReportOptions::reading_only(caller)` for the eight hand-written "why not run" triples, and one
      list the three report-file-name lists derive from (branch `claude/securevibe-review-mcp-split`).
+     **Second half done the same day** (DESIGN, "The MCP server in a folder, and one way to write a report folder"):
+     `mcp.rs` is the folder `mcp/` (nine files, the tests their own); `report_folder::write_report_folder` is the
+     one sequence `sv report` and `securevibe_write_report` both call; `ReportOptions::reading_only` and `asked_of`
+     replace the seven hand-written triples (the MCP server's three sentences written over `reading_only`'s); and
+     the five file names are `sv_scan::ecosystems::REPORT_FILES`, which the folder names, the seal's list, and the
+     MCP server's resources derive from, with `sv-cli`'s table of renderers held to it by the compiler.
   3. **`sv check` and `sv report` can exit differently on the same folder.** `cmd_check` runs the same five scanners
      but never `merge_same_place`, the test-code and bundled-library marks, or `review::apply`, and its exit code
      counts every finding, where `sv report`'s counts the findings left after a person's recorded false alarms. So
