@@ -37,6 +37,7 @@
 
 use crate::advisories::Day;
 use crate::human::HumanChecks;
+use crate::verified::Tier;
 use crate::{Confidence, Finding, Location, Severity, Verified};
 use std::collections::BTreeMap;
 
@@ -190,11 +191,13 @@ pub fn evaluate(
             ),
         };
         if by_owner {
-            out.by_owner
-                .push(Verified::new("hand.checked", &[id.as_str()], scope));
+            out.by_owner.push(
+                Verified::new("hand.checked", &[id.as_str()], scope).resting_on(Tier::ByHand),
+            );
         } else {
-            out.stated
-                .push(Verified::new("hand.stated-by-ai", &[id.as_str()], scope));
+            out.stated.push(
+                Verified::new("hand.stated-by-ai", &[id.as_str()], scope).resting_on(Tier::Stated),
+            );
         }
     }
     out

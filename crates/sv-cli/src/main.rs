@@ -1240,6 +1240,17 @@ impl RulesForApp {
         self.rules
             .markdown(&given, if topic.is_none() { self.withheld } else { 0 })
     }
+
+    /// Every rule given, as `sv rules` writes them into `AGENTS.md`.
+    pub fn agents_markdown(&self) -> String {
+        let given: Vec<&sv_check::coding_rules::Rule> = self
+            .rules
+            .rules
+            .iter()
+            .filter(|r| self.given.contains(&r.id))
+            .collect();
+        self.rules.agents_markdown(&given, self.withheld)
+    }
 }
 
 /// Reads the coding rules and leaves out those whose every cited requirement does not apply to the
@@ -1404,7 +1415,7 @@ fn cmd_rules(args: &[String]) -> Result<()> {
         bail!("{} is not a folder", app_dir.display());
     }
     let found = coding_rules_for(&app_dir)?;
-    let section = found.markdown(None);
+    let section = found.agents_markdown();
     if print {
         print!("{section}");
         return Ok(());
@@ -5187,6 +5198,13 @@ fn assemble_report_saying(
         .chain(decisions.stated.iter())
         .cloned()
         .collect();
+    // A person's word goes to the report in the one list with the checks, each credit saying
+    // which tier it rests on (`sv_check::Tier`, set where it was made); the report reads the tier,
+    // not the list (8 October 2026).
+    verified.extend(documented);
+    verified.extend(attested);
+    verified.extend(by_hand);
+    verified.extend(stated);
 
     // The Appendix C requirements the coding rules given to this app come from, for the report's
     // section on how the app is built with AI. The same rules `sv rules` would write.
@@ -5349,10 +5367,6 @@ fn assemble_report_saying(
         manual_only,
         named_in_tests,
         not_for_tests,
-        documented: &documented,
-        attested: &attested,
-        stated: &stated,
-        by_hand: &by_hand,
         human: Some((&notes_catalog, &design_questions, &human_checks)),
         threats: Some((threat_rules, &ctx)),
     });
