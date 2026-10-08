@@ -224,11 +224,11 @@ check the result with `sv` as you would anything else.
 
 ### Refuse short and common passwords, and keep each one exactly as typed
 
-> When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each.
+> When someone chooses or changes a password, refuse one shorter than 8 characters (suggest 15 or more), and refuse one on a list of the most common passwords: keep a list of at least the top 3,000 in the app's own files, not fetched over the network, and compare in lower case. Say plainly why a password was refused. Do not require mixes of character kinds, and do not block pasting. Store and compare the password exactly as it was typed: never change its case or cut it short (if the hashing function has a length limit, as bcrypt's 72 bytes does, use Argon2id instead). Write a test for each. Rather than writing the list of common passwords yourself, use one a maintained package ships: in Python, `zxcvbn` (pinned, as `zxcvbn==4.5.0`), refusing a password it scores below 2; it knows tens of thousands of common passwords and keyboard patterns, far more than a list written from memory.
 
 *Requirements:* ASVS V6.2.1, V6.2.4, V6.2.8.
 
-*Not tested:* Not shown (7 October 2026, Sonnet 5.5, the recipe brief): a common password accepted in 10 of 10 builds without the prompt and 8 of 10 with it. Every build with it wrote a common-password list, from memory; `sv` tries one word, and the two lists that held it passed. To try next: naming a pinned package that ships a real list (`docs/prompts/library-trial/recipe.md`).
+*Not tested:* Not shown (7 October 2026, Sonnet 5.5, the recipe brief): a common password accepted in 10 of 10 builds without the prompt and 8 of 10 with it. Every build with it wrote a common-password list, from memory; `sv` tries one word, and the two lists that held it passed. Its last sentence, naming `zxcvbn`, was added from that trial and is not yet tried (`docs/prompts/library-trial/recipe.md`).
 
 ### Accept changes only from the app's own pages
 

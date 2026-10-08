@@ -70,7 +70,7 @@ impl ProbeResponse {
 /// A path that will not exist, to see what the app says when something goes wrong.
 const MISSING_PATH: &str = "/sv-probe-does-not-exist-9f2a";
 /// An origin the app has certainly never heard of.
-const STRANGER: &str = "https://sv-probe-stranger.invalid";
+pub(crate) const STRANGER: &str = "https://sv-probe-stranger.invalid";
 
 /// The requests this suite needs.
 pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
@@ -999,7 +999,7 @@ const CORS_ANY_ORIGIN: Rule = Rule {
 };
 
 /// An app that echoes back whatever Origin it is given is not enforcing one.
-fn reflected_origin(response: &ProbeResponse) -> Option<Finding> {
+pub(crate) fn reflected_origin(response: &ProbeResponse) -> Option<Finding> {
     let allowed = response.header("access-control-allow-origin")?;
     let reflects = allowed == STRANGER;
     let wildcard = allowed.trim() == "*";

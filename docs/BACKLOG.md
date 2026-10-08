@@ -189,6 +189,8 @@ another session is not a claim.
      keep the standing line that no tool can make this judgment.
      **Claimed on 8 October 2026 by session securevibe-e2**, with item 20, at the owner's word ("feel free to pick
      another item from the backlog"), in branch `claude/securevibe-e2-loop-lessons`.
+     **Done the same day** (DESIGN, "Whose "bring in a person" text it is, and two lessons for the AI tool"): the
+     report names who wrote the section, from its `Written by:` line.
   19. **`not-the-app` can switch off one capability's requirements.** (`docs/GAP-ANALYSIS.md`, 4.3.) List each
      condition found only inside a not-the-app folder as a question in the report, and refuse a folder holding the
      start command's file. A change to ADR-031: a Later entry.
@@ -198,6 +200,8 @@ another session is not a claim.
      section.
      **Claimed on 8 October 2026 by session securevibe-e2**, with item 18, in branch
      `claude/securevibe-e2-loop-lessons`.
+     **Done the same day** (the same DESIGN section): the first lesson in `never-weaken-a-check`, the second at the
+     top of the feature brief's "Tests to write".
   21. **The loop trials cannot tell fixing from dodging.** (`docs/GAP-ANALYSIS.md`, 4.5.) Add to the trial measures
      how each finding went away, and credit-seeking edits (ids added to tests, `by = "owner"`, finding reviews,
      `not-the-app` or scope changes); run an outside tool as an independent check of the loop arm.
@@ -235,6 +239,9 @@ another session is not a claim.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
+     **Done 7 October 2026 with item 27**, by session securevibe-e2 (its claim and done note are under item 27): the
+     short version's "Not run this time" line (DESIGN, "The short version says what kind of run it was, and which
+     level").
   27. **The short version does not say which level the app was held to.** (`docs/GAP-ANALYSIS.md`, 6.2.) "Held to
      ASVS level 1: N more at levels 2 and 3, and M not yet placed, are not in these numbers."
      **Items 26 and 27 claimed together on 7 October 2026 by session securevibe-e2**, at the owner's word ("please
@@ -293,6 +300,8 @@ another session is not a claim.
      `web.config`, `*.tf`); and count a handed file as unread only when a loaded rule in the map reads it (its
      language's extensions, as Semgrep's own parsers take them, or its `paths.include`), so the check stays right
      when a pack changes.
+     **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
+     in `crates/sv-check/tests/unread_files.rs`.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to
@@ -7903,7 +7912,7 @@ done: `docs/adr/ADR-018.md`.
   `claude/recipe-trial`. Read on `main` just before this claim: no other session had claimed it.
   **Done the same day** (`docs/prompts/library-trial/recipe.md`): 40 builds, $18.09. `production-server` shown on
   Sonnet (5 of 10, then 0 of 9) and marked shown by the owner; `password-rules` not shown (10 of 10, then 8 of 10);
-  six prompts no reading, done right unprompted; four not reached by their checks. The install step worked for every
+  six prompts no reading, done right unprompted; three not reached by their checks (first written as four: corrected, `same-site-redirects` was reached and done right). The install step worked for every
   Sonnet app; Haiku's apps mostly did not start, as its builders could not try a Flask app they could not install.
 
 - **`probe.cors-any-origin` asks only the health path.** Found on 7 October 2026 by session paper-facts, in the recipe
@@ -7912,23 +7921,28 @@ done: `docs/adr/ADR-018.md`.
   API addresses too, signed in where they need it.
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
   trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (ADR-055, accepted): each `private` page asked as the first user, signed in.
 - **`probe.common-password-accepted` rests on one word.** Found on 7 October 2026 by session paper-facts, in the recipe
   trial: it tries `123qweasdzxc` alone, so a list written from memory passes when it happens to hold that word (one of
   443 entries did) and fails when it does not (one of 20,340 did). Try several from across the top 3,000, or mark the
   credit in part (ADR-053).
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
   trial"), in branch `claude/two-samples`, with ADR-055 `Status: proposed`. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day** (ADR-055, accepted): three words of one shape, all three refused for the credit.
 - **Builders do not list the features `sv` can test.** Found on 7 October 2026 by session paper-facts, in the recipe
-  trial: of 10 Sonnet apps, 8 did not list their return-address pages under `redirects`, 7 did not declare their upload,
-  and only one listed its search page with a term, so those checks did not reach what the brief tempted. The
+  trial: of 10 Sonnet apps, 7 did not declare their upload and only one listed its search page with a term, so those
+  checks did not reach what the brief tempted. (First written with redirects as a third: the sign-in page's return
+  address is asked without being listed, so that check did reach it.) The
   specification could say, beside each, that the check reaches only what is listed, and the MCP brief could ask.
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
   trial"), in branch `claude/two-samples`: the specification's wording. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day:** the specification says, beside `private`, `redirects`, and `upload`, what a check reaches only when it is listed. Whether it works is for the next trial.
 - **`password-rules`: name a package with a real list.** From the recipe trial: every build followed the prompt and wrote
   its list from memory. Try the prompt naming a pinned package that ships one (`zxcvbn`, a ready-made wheel the install
   step can give the app).
   **Claimed on 7 October 2026 by session paper-facts**, at the owner's word ("go ahead with the next steps from the recipe
   trial"), in branch `claude/two-samples`: the prompt's wording, untried. Read on `main` just before this claim: no other session had claimed it.
+  **Done the same day:** the prompt names `zxcvbn==4.5.0` (a ready-made wheel); untried.
 - **A trial with packages leaves Haiku unable to try its app.** From the recipe trial: 3 of Haiku's 10 apps crashed on
   faults trying them would have shown, and 2 pinned versions that do not exist. A builder could be given a folder of its
   own to install into, with the network that needs; or the trial reads Haiku from the code alone, as this one did.

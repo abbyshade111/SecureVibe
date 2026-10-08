@@ -76,7 +76,7 @@
     {
       "id": "never-weaken-a-check",
       "topic": "checking",
-      "rule": "Never disable, skip, loosen, or delete a security check, a test, or a scanner rule to make a build pass. When you think one is wrong, say so and leave the decision to the owner.",
+      "rule": "Never disable, skip, loosen, or delete a security check, a test, or a scanner rule to make a build pass. When you think one is wrong, say so and leave the decision to the owner. Never rewrite working code just to make a finding go away either: if the code is right and the finding is wrong, say so, and the owner records it as a false alarm with `sv review`.",
       "cites": {
         "AC.4.3": "a security finding blocks the change, and bypassing the block needs an authorized human",
         "AC.8.3": "a check never disabled, as agents cannot bypass required status checks"

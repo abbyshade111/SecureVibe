@@ -51,6 +51,13 @@ fn a_brief_has_its_five_parts_and_credits_nothing() {
     assert!(said.contains("**V6.2.1**"), "{said}");
     assert!(said.contains("(`design-sign-in`"), "{said}");
     assert!(said.contains("# login  = { path = \"/login\""), "{said}");
+    // Gap analysis 4.4: the tests are asked for with the lesson of the first build, that a test names
+    // a requirement only where it proves it. The setup: there are tests to write.
+    assert!(said.contains("A test naming **"), "{said}");
+    assert!(
+        said.contains("Name a requirement in a test only where the test proves it"),
+        "{said}"
+    );
 }
 
 #[test]
