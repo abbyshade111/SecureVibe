@@ -1,8 +1,10 @@
 # A dashboard view for `sv`: a proposal
 
 **Status:** proposed, 8 October 2026, by session securevibe-e2, at the owner's request ("explore building out a
-dashboard view for sv"). Nothing is built from it until the owner decides. The backlog item is the first under
-"Next" in `docs/BACKLOG.md`.
+dashboard view for sv"). The owner agreed with the recommendations the same day and answered the questions at the
+end; their answers, and what follows from them, are in the last four sections, and the decision is ADR-057
+(proposed). Each part is built only under a claim of its own. The backlog item is the first under "Next" in
+`docs/BACKLOG.md`.
 
 ## What `sv` has today
 
@@ -103,3 +105,83 @@ an app improve, and the easiest to make misleading.
 3. **Over time:** do you want earlier runs kept, and if so where: in each app's folder, in your home folder, or not
    at all?
 4. **Is a page you open in the browser enough,** or do you want one that updates while `sv` is running?
+
+## The owner's answers (8 October 2026)
+
+After seeing a mock-up, built as `sv` would build it (no script, nothing fetched), with the five example apps' real
+counts and the earlier runs marked as made up:
+
+1. **Who it is for:** the owner for now, and an optional feature for anyone who uses `sv`.
+2. **Views:** a high-level overview, one app in detail, and every app on this computer checked by `sv`.
+3. **Over time:** wanted, if there is a safe way to keep it. The next section is the recommendation.
+4. **Live:** a page in the browser first; and what an updating page would take, with its trade-offs. The section
+   after next.
+
+"Optional for anyone" settles how it is switched on: the bar at the top of `report.html` is part of every report,
+and everything else is off until the person running `sv` turns it on, in a setting of their own
+(`~/.config/securevibe/`). Not in `securevibe.toml`: that file is written by the AI coding tool, which should not be
+the one deciding what is kept about the app's history.
+
+## Keeping history safely
+
+What could go wrong, and what the recommendation does about each:
+
+- **Publishing it.** The app's folder is often a git repository, and sometimes a public one. A dated list of an app's
+  weaknesses, committed there, is a gift to anybody looking for one. So history is kept outside every app's folder,
+  in `~/.local/share/securevibe/history/`, beside where `tools/install.sh` already puts `sv`, with permissions that
+  let only the person read it.
+- **Keeping more than it needs.** Each run adds one small record: the date, the `sv` version, the level, what kind of
+  run it was, the `securevibe.toml` fingerprint the report already carries, the counts, and for each finding its
+  fingerprint, severity, rule, and `sv`'s own title for it. Never the app's code, a file's contents, a line of it, or a
+  credential, not even its first four characters. That is enough to say what changed and no more.
+- **Growing without end.** A limit on how many runs are kept for each app (the most recent 100, say), and one command
+  that deletes an app's history, or all of it. The person can also delete the folder; nothing breaks.
+- **Being edited to look better.** An AI coding tool runs as the same person, so it could rewrite history; outside the
+  app's folder it is less in its way, not out of its reach. So history is a convenience for the person, never
+  evidence: no requirement is credited from it, and the reports never read it.
+- **Comparing what cannot be compared.** Two runs are set against each other only when they were the same kind of run,
+  at the same level, from the same `securevibe.toml`, by the same `sv`. Otherwise the page says they are not compared,
+  and why (the mock-up's 5 October run). Without this, the first full run after a plain one would look like the app
+  got worse.
+- **Which app is which.** An app is known by its folder, so a moved or renamed folder starts a new history, and the page
+  says when an app's history begins.
+
+The list of every app on this computer comes from the same place: an app is on it once a run of it has been kept.
+Without history, `sv dashboard` can still be given the app folders to show, and reads each one's latest report.
+
+## A page that updates while `sv` runs
+
+Two ways, from cheapest to dearest:
+
+1. **A page `sv` rewrites as it goes.** During a run, `sv` writes a short progress page into the report folder after
+   each step, and the page asks the browser to reload it every few seconds; when the report is written, the page
+   stops reloading and links to it. It needs no program listening for connections and no script: one line in the
+   page's head does the reloading. Costs: the page blinks at each reload; one more file written into the report
+   folder during a run (a decision with a record, as anything written into the app's folder is); and whether every
+   browser reloads a page opened from a file has to be tried, not assumed. It works the same when `sv` runs in Docker,
+   because the report folder is the app's own.
+2. **A local server**, `sv dashboard --serve`, which the page keeps a connection to and which pushes each step as it
+   happens. Smooth, and it could follow several runs at once. Costs:
+   - A program listening for connections, which `sv` has never had. Other software on the computer, and web pages open
+     in the browser, can send it requests. So it needs a secret in its address, a check of which site is asking,
+     nothing but reading, this computer only, and stopping when it is closed. Each of those is code to get right and
+     test.
+   - A script in the page, which `sv`'s pages have never had.
+   - A new dependency for serving web pages, or one written by hand.
+   - In the Docker setup, the container would have to open a port to the computer, which it does not do today.
+   - A change to what `sv` serves, and so a decision with its own record (CLAUDE.md).
+
+**Recommendation:** the first, when a live page is wanted; the second only if the first turns out not to be enough.
+
+## Build order
+
+Each a backlog item of its own, claimed before it is started, with its part of ADR-057 accepted in its pull request:
+
+1. **The bar at the top of `report.html`**, with the counts beside it and what it leaves out under it. Nothing else
+   changes.
+2. **`sv dashboard`**: one page from the reports of the app folders it is given, with every app and each app's own
+   page, written where the person says.
+3. **History**, switched on by the person, kept as above, and the over-time view on each app's page; then every app on
+   this computer listed from it.
+4. **The progress page during a run**, if wanted once the first three are in use.
+
