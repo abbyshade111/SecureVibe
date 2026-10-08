@@ -117,6 +117,12 @@ health = "/"              # a path that returns 200 once the app is up
 #   Leave it out when the app has no sign-up page: like `login`, it is a request, never true or false.
 # login  = { path = "/login",  form = { email = "{user}", password = "{password}", csrf_token = "{csrf}" } }
 # logout = { path = "/logout", form = { csrf_token = "{csrf}" } }
+#   Every request in this table is a form POSTed to `path` unless it says otherwise: add
+#   `method = "PUT"` (or "PATCH", "DELETE", "GET") where the app's route takes another method, and
+#   give `json = { ... }` in place of `form` for an API that takes JSON (each value is text). A
+#   sign-in that answers with a token in JSON rather than a cookie: `token-field` names the field.
+#   A request sent the wrong way is answered as an unknown route, and a check that needed it says
+#   it could not tell.
 # private = ["/account"]    # pages only a signed-in user should see
 #                           # A single-page app (React, Vite, and the like) sends every visitor the
 #                           # same page and fetches the data after: list the addresses it fetches
@@ -152,9 +158,14 @@ health = "/"              # a path that returns 200 once the app is up
 #   user's own records. Add `update` and `delete`, the requests that change and delete a record
 #   (`{id}` for which one, `{marker}` for the new text), and the second user tries each on the first
 #   user's record: V8.2.2 is checked only when changing or deleting was refused too, and checked in
-#   part when only reading was tried. For example, inside the braces above:
+#   part when only reading was tried. A refusal counts only when the same request, sent by the first
+#   user at a record of their own, does change or delete it, so give each the method its route takes.
+#   For example, inside the braces above:
 #   list = "/my-notes", update = { path = "/notes/{id}/edit", form = { text = "{marker}", csrf_token = "{csrf}" } },
 #   delete = { path = "/notes/{id}/delete", form = { csrf_token = "{csrf}" } }
+#   or, for a JSON API: update = { method = "PUT", path = "/api/notes/{id}", json = { text = "{marker}" } },
+#   delete = { method = "DELETE", path = "/api/notes/{id}" }. A JSON create answer's id is read from
+#   `id-field` (default `id`); without `read`, the create answer's `Location` is followed.
 # creates = [{ path = "/comments", form = { text = "{marker}", csrf_token = "{csrf}" } }]
 #   Other requests that each create a record, held to `requests-per-minute` under [policy] as
 #   `owned`'s create is; `{marker}` where a value must differ from one record to the next.

@@ -212,6 +212,9 @@ pub(super) struct Flaws {
     pub(super) idor_update: bool,
     /// Any signed-in user can delete any note (`/notes/{n}/delete`) (ADR-053).
     pub(super) idor_delete: bool,
+    /// Not a flaw of the app's: its change and delete routes take another method, so a form POSTed
+    /// to them answers 405 for everybody, the note's owner too (ADR-053, Later).
+    pub(super) writes_need_another_method: bool,
     pub(super) no_csrf_check: bool,
     /// The notes page sends `Referrer-Policy: no-referrer`. Not a flaw on its own.
     pub(super) no_referrer: bool,
@@ -2189,6 +2192,13 @@ impl FakeApp {
                 let rest = &p["/notes/".len()..];
                 let (number, action) = rest.split_once('/')?;
                 let n: usize = number.parse().ok()?;
+                if self.flaws.writes_need_another_method {
+                    return Some(Self::respond(
+                        405,
+                        vec![("Allow", "PUT, DELETE".into())],
+                        "no",
+                    ));
+                }
                 let Some((owner, _)) = self.notes.get(n.checked_sub(1)?).cloned() else {
                     return Some(Self::respond(404, vec![], "none"));
                 };
