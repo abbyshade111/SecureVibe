@@ -747,7 +747,47 @@ def check_credits(log):
                           "a test that reaches its credit")
         if got - ids:
             faults.append(f"{check} credited {', '.join(sorted(got - ids))}, which it does not cite")
+    faults += check_withheld(log)
     return faults
+
+
+# Checks that give credit and cannot be made, in a test, to withhold it, each with its reason. Empty: every
+# check the suite sees credit was seen withholding (backlog item 32, ADR-059). A check added here is one the
+# suite cannot show working; the reason says why, and it is expected to stay short.
+NEVER_WITHHELD = {}
+
+
+def check_withheld(log):
+    """ADR-059: every check the suite saw credit was also seen withholding it, by a finding
+    (`finding::found`) or through `verified::unless_credited`, in code that ships; unless it is listed in
+    `NEVER_WITHHELD` with its reason. A listed one that was seen withholding is listed for nothing."""
+    if not Path(str(log) + ".withheld").exists():
+        return [f"{log}.withheld is not there: the census of what checks withhold is written beside the credits "
+                "in a debug build (finding::found, verified::unless_credited); was the suite run in one?"]
+    _, seen, never = withheld_report(log)
+    faults = []
+    for check in never:
+        if check not in NEVER_WITHHELD:
+            faults.append(f"{check} gives credit and was never seen withholding it: add a test in which what "
+                          "it looks for is missing and it says no (a finding, or verified::unless_credited "
+                          "where it has run), or list it in NEVER_WITHHELD with the reason it cannot")
+    for check in sorted(NEVER_WITHHELD):
+        if check in seen:
+            faults.append(f"{check} is in NEVER_WITHHELD, and the suite saw it withhold: take it off the list")
+    return faults
+
+
+def unrecorded_findings():
+    """Every place in the code that ships that builds a `Finding` hands it through `finding::found`, so the
+    census sees it (ADR-059). Returns "file:line" for each that does not."""
+    out = []
+    for path, code in rust_code():
+        for m in re.finditer(r"(?<![\w:])((?:crate::|sv_check::)?(?:finding::)?Finding) \{", code):
+            before = code[max(0, m.start() - 40):m.start()]
+            if re.search(r"(struct|impl|->)\s*$", before) or re.search(r"found\(\s*$", before):
+                continue
+            out.append(f"{path.relative_to(ROOT)}:{code[:m.start()].count(chr(10)) + 1}")
+    return out
 
 
 # A check whose findings carry names of their own, one per thing found, rather than the check's: each
@@ -860,6 +900,11 @@ def main():
     aisvs = framework(ROOT / "data/frameworks/aisvs-1.0.json")
     sbd_controls = {f"SBD-{c['id']}" for d in load(ROOT / "data/frameworks/sbd-checklist-0.5.0.json")["checklistDomains"]
                     for c in d["controls"]}
+    unrecorded = unrecorded_findings()
+    if unrecorded:
+        sys.exit("a finding is built without going through finding::found, so the census of what each check "
+                 "withholds cannot see it (ADR-059); wrap it, `crate::finding::found(Finding { .. })`:\n  "
+                 + "\n  ".join(unrecorded))
     faults = check_prompts(set(asvs) | set(aisvs), sbd_controls)
     if faults:
         sys.exit("the prompt library claims what its checks do not cite:\n  " + "\n  ".join(faults))

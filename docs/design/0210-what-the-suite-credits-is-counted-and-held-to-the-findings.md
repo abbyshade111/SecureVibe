@@ -53,6 +53,17 @@ nothing and changes nothing in a release build. The place is after the check's o
 so it cannot be skipped by the branch that withholds; a check that never ran (a setup it needed was missing)
 returns before it and is not counted as withholding. The gate this leads to is ADR-059, proposed.
 
+**Step 3: the gate (8 October 2026; ADR-059).** `python3 tools/coverage.py --credits LOG`, which CI runs after the
+tests, now also fails on any check the suite saw credit and never saw withhold (`check_withheld`), unless it is
+in `NEVER_WITHHELD`, which is empty and is for a check that cannot be made to withhold in a test, with the
+reason; and on any check in that list that was seen withholding. `--check`, which a test runs, fails on any place
+in shipping code that builds a `Finding` without `finding::found` (`unrecorded_findings`), naming the file and
+line, so a new check cannot leave the census by building its findings another way. A new check that credits now
+needs a test in which it says no before it can reach `main`. Breaks: one finding in `probes.rs` built without
+`found` stopped `--check` with its line; `probe.clear-site-data`'s marker removed put it on the list of checks
+never seen withholding, and back off it when restored; and the gate switched off failed
+`crates/sv-check/tests/withheld_log.rs`, which now feeds `--credits` a check that credited and never withheld.
+
 The first two are now listed, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md` mark them as "only ever as a finding".
 The third has its test (`an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not`). The census
 agrees with every tree-sitter rule's flag as it was. No report changes: the reports never credited any of these.
