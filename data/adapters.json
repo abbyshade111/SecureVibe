@@ -240,17 +240,29 @@
           "sarif",
           "-out",
           "{output}",
-          "-quiet",
+          "-tests",
           "-track-suppressions",
           "./..."
         ]
       },
       "working_directory": "{dir}",
+      "env": {
+        "GOPROXY": "off",
+        "CGO_ENABLED": "0"
+      },
+      "follows_links": true,
+      "read_log_prefix": "Checking file: ",
+      "unfinished_when": [
+        {
+          "contains": "Error building the SSA representation",
+          "means": "its deeper analyzers, which follow values through a package's code, could not run over a package, so what they look for (among the mapped rules, G407, a hardcoded nonce or initialization vector) was not checked there. Most often the app's modules are not downloaded on this computer, and `sv` does not let it download them: run `go mod download` in the app, then this again"
+        }
+      ],
       "install": "go install github.com/securego/gosec/v2/cmd/gosec@latest",
       "install_on": {
         "macos": "run `brew install gosec`"
       },
-      "note": "gosec resolves `./...` against the working directory, so it is run from inside the app folder rather than given a path. It is run with `-track-suppressions`, so an issue on a line marked `#nosec` is still in the report, marked as suppressed; without it gosec leaves the issue out and says nothing about having done so. It exits 1 both when it finds something and when it fails (cmd/gosec/main.go), so for gosec the exit code cannot tell the two apart and the report decides.",
+      "note": "gosec resolves `./...` against the working directory, so it is run from inside the app folder rather than given a path. It is run with `-track-suppressions`, so an issue on a line marked `#nosec` is still in the report, marked as suppressed; without it gosec leaves the issue out and says nothing about having done so. It exits 1 both when it finds something and when it fails (cmd/gosec/main.go), so for gosec the exit code cannot tell the two apart and the report decides. Since 8 October 2026 it is started with `GOPROXY=off` and `CGO_ENABLED=0` (review of that day, item 3): run as before it downloaded the app's modules (46 MB for one `golang.org/x/text` dependency, in a fresh module cache) and ran the C compiler over a file that uses cgo (32 `gcc` runs, counted with a wrapper on the PATH), neither declared, and `sv` lets a tool do neither. With the modules absent its rules still read the code (shown with G401 and G501), its three analyzers do not (`Error building the SSA representation`, named in `unfinished_when`), and a file that uses cgo is left out of the build; which is why `-quiet` is gone, so that its log names each file it checked (`read_log_prefix`) and a clean run writes a report at all (with `-quiet` a clean run wrote none, so none was ever credited), and `-tests` is given, so test files are read as `sv` hands every other tool its test files. It reads a linked `.go` file in the app, and reported one pointing outside it (gosec 2.22.9), so it is not run over an app that holds a link (`follows_links`).",
       "rules": {
         "G201": {
           "what": "SQL query built with a format string",
@@ -364,6 +376,7 @@
     },
     {
       "id": "brakeman",
+      "follows_links": true,
       "name": "Brakeman",
       "language": "ruby",
       "version": {
@@ -387,7 +400,7 @@
         ]
       },
       "install": "gem install brakeman",
-      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one. Brakeman reads the first settings file it finds, `-c`'s before the app's `config/brakeman.yml`, and only that one; `-c /dev/null` is not a file, so it was skipped and the app's read, which can turn checks off (`skip_checks`) with the report not saying which ran. Since 8 October 2026 `-c {config}` names an empty settings file `sv` writes in the tool's private folder, so the app's is never read, and a clean run is credited whether or not the app has one (verified with Brakeman 8.1.0: `skip_checks` in the app's file hid BRAKE0000 without `-c`, and not with it). Brakeman itself has ignored `additional_checks_path` in a settings file since 3.6.2, unless asked with `--allow-check-paths-in-config`. Warnings in `config/brakeman.ignore` are still in the report, marked as suppressed. It exits 3 when it warns of something and 0 when it does not (lib/brakeman.rb). Any other code is reported as not run: 4 is no Rails app found, and 7 is files it could not read with nothing found, which is not a clean run.",
+      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one. Brakeman reads the first settings file it finds, `-c`'s before the app's `config/brakeman.yml`, and only that one; `-c /dev/null` is not a file, so it was skipped and the app's read, which can turn checks off (`skip_checks`) with the report not saying which ran. Since 8 October 2026 `-c {config}` names an empty settings file `sv` writes in the tool's private folder, so the app's is never read, and a clean run is credited whether or not the app has one (verified with Brakeman 8.1.0: `skip_checks` in the app's file hid BRAKE0000 without `-c`, and not with it). Brakeman itself has ignored `additional_checks_path` in a settings file since 3.6.2, unless asked with `--allow-check-paths-in-config`. Warnings in `config/brakeman.ignore` are still in the report, marked as suppressed. It exits 3 when it warns of something and 0 when it does not (lib/brakeman.rb). Any other code is reported as not run: 4 is no Rails app found, and 7 is files it could not read with nothing found, which is not a clean run. It reads a linked `.rb` file in the app and reported the SQL injection in one pointing outside it (Brakeman 8.1.0, 8 October 2026; a linked folder it did not enter), so it is not run over an app that holds a link (`follows_links`).",
       "rules": {
         "BRAKE0000": {
           "what": "SQL injection: a database query built from user input",
@@ -10554,7 +10567,7 @@
         ]
       },
       "install": "download the CodeQL bundle from https://github.com/github/codeql-action/releases, unpack it, and put its `codeql` on your PATH",
-      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline. Exit code 0 is the only finished run.",
+      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline. Exit code 0 is the only finished run. Tried on 8 October 2026 with CodeQL 2.27.2 the way ADR-032 tries a tool: building the database ran no `preinstall`, `postinstall`, or `prepare` script from the app's `package.json` (a TypeScript app with a `tsconfig.json` included), nor a planted `sitecustomize.py`, `usercustomize.py`, or `setup.py` in a Python app, and read no linked file (the database's source archive held every file but the link), so it needs neither a guard nor `follows_links`.",
       "credit_loaded_only": true,
       "rules": {
         "js/clear-text-cookie": {
@@ -10902,7 +10915,7 @@
         ]
       },
       "install": "download the CodeQL bundle from https://github.com/github/codeql-action/releases, unpack it, and put its `codeql` on your PATH",
-      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline. Exit code 0 is the only finished run.",
+      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline. Exit code 0 is the only finished run. Tried on 8 October 2026 with CodeQL 2.27.2 the way ADR-032 tries a tool: building the database ran no `preinstall`, `postinstall`, or `prepare` script from the app's `package.json` (a TypeScript app with a `tsconfig.json` included), nor a planted `sitecustomize.py`, `usercustomize.py`, or `setup.py` in a Python app, and read no linked file (the database's source archive held every file but the link), so it needs neither a guard nor `follows_links`.",
       "credit_loaded_only": true,
       "rules": {
         "py/clear-text-logging-sensitive-data": {

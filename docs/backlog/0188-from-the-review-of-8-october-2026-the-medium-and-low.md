@@ -46,6 +46,16 @@ high were built the same day (the entry above this one's predecessor). Each of t
    `sitecustomize.py` the ADR-032 way where `codeql` is installed. Changes what the tools may run and fetch, and when
    they run: a Later entry on ADR-032. Confirmed on `main` just before this claim: gosec's `env` is empty,
    `adapters.rs` reads `listing.links` nowhere, and no other session had claimed this part.
+   **Done the same day** (`docs/design/0305-gosec-is-fenced-like-the-rest-and-the-tools-that-walk-the.md`;
+   ADR-032 and ADR-018, Later): gosec starts with `GOPROXY=off` and `CGO_ENABLED=0`, shown to have downloaded 46 MB
+   of modules and started `gcc` 32 times without them; its `-quiet` is gone so its log says which files it read and a
+   clean run writes a report at all (none ever was credited before), with a file it did not read, or an analyzer run
+   that failed for want of the modules, said in the report; gosec and Brakeman, each shown to read a linked file,
+   are not run over an app that holds a link, with the links named. CodeQL 2.27.2, tried with planted `preinstall`,
+   `postinstall`, `prepare`, `sitecustomize.py`, `usercustomize.py`, and `setup.py` and a linked file, ran none and
+   read through nothing, so it carries no guard and the planted test stays. Not done: an SSA failure withholds the
+   whole clean gosec run rather than only the analyzers' rules, and a linked folder, which neither tool entered, is
+   refused with the files.
 4. A planted `.securevibe-report` marker lets `securevibe_write_report` replace five named files in any app
    subfolder (`main.rs`, `refuse_someone_elses_folder`: a marker alone counts for writing). Require
    `is_sv_output` or a proven seal, else "give an empty folder".
