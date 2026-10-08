@@ -12704,6 +12704,24 @@ ones not yet placed outside every number. Two sentences now follow the counted l
   - the wrong levels named for a level 1 app;
   - dropping either line from either format.
 
+### The short version opens with two bars (8 October 2026, ADR-057)
+
+The first step of the dashboard (`docs/DASHBOARD.md`). Under the worst findings, the short version of `report.html`
+now draws the requirements that apply as one bar, split by what stands behind each (needs attention, checked,
+checked in part, and so on to not verified), and under it a thinner bar of where every requirement `sv` knows went:
+apply, do not apply, could not be placed, above the level, and counted apart. The second is there because the owner
+asked to see how many do not apply; it is a bar of its own so that those are never drawn in among the evidence for
+the ones that do (`glance` in `crates/sv-report/src/html.rs`).
+
+Each part grows by its count, so the bars are to scale without a percentage anywhere, and a key under each gives
+every count in words; a part with nothing in it is left out of both. "Not verified" is striped in a color no checked
+or answered part uses. Like the rest of the page, the bars are markup and style alone: no script, nothing fetched.
+For the five example apps the second bar adds up to the 640 requirements `sv` loads. The tests hold the bars to
+the counts (to scale, every count in words, the parts adding up), "not verified" to its own color, the words to
+the short version's banned list, and the bars to their place before the tally; five deliberate breaks each failed
+at least one of them. At phone width the page still scrolls sideways, as it did before, because of the
+requirements table further down; the bars fit.
+
 ## Smaller report points from the gap analysis (7 October 2026)
 
 The gap analysis (`docs/GAP-ANALYSIS.md`, 6.3) found three small things.
