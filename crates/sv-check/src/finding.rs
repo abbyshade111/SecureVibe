@@ -208,6 +208,36 @@ pub const WORTH_A_LOOK: &[&str] = &[
     "semgrep.ruby.rails.security.audit.xss.templates.var-in-href.var-in-href",
 ];
 
+/// A finding a check made, as it leaves the check. In a debug build (the test suite), with
+/// `SV_CREDIT_LOG` set, it is written to that file's sibling `SV_CREDIT_LOG.withheld` as one line: the
+/// check's id and the place in the code that made it, the caller's when the maker is a helper marked
+/// `#[track_caller]`. `tools/coverage.py --withheld` reads it beside the credits, to tell which checks
+/// the suite saw credit and never saw withhold (backlog item 32). In a release build it does nothing.
+#[track_caller]
+pub fn found(finding: Finding) -> Finding {
+    #[cfg(debug_assertions)]
+    withheld_census(&finding.rule_id, std::panic::Location::caller());
+    finding
+}
+
+#[cfg(debug_assertions)]
+fn withheld_census(check_id: &str, at: &std::panic::Location) {
+    use std::io::Write;
+    let Some(log) = std::env::var_os("SV_CREDIT_LOG") else {
+        return;
+    };
+    let mut log = std::path::PathBuf::from(log).into_os_string();
+    log.push(".withheld");
+    let line = format!("{check_id}\t{}:{}\n", at.file(), at.line());
+    if let Ok(mut file) = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log)
+    {
+        let _ = file.write_all(line.as_bytes());
+    }
+}
+
 impl Finding {
     /// How sure `sv` is that this is a real problem, in the owner's words: "confirmed" when the rule
     /// is sure (or the running app was seen doing it), "likely" when it usually is, and "possible"

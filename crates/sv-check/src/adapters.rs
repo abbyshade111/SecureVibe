@@ -1835,7 +1835,7 @@ pub fn parse_sarif_relative_to(
                         .collect()
                 })
                 .unwrap_or_default();
-            out.push(Finding {
+            out.push(crate::finding::found(Finding {
                 also_reported_by: Vec::new(),
                 fingerprint: String::new(),
                 earlier_fingerprints: Vec::new(),
@@ -1903,7 +1903,7 @@ pub fn parse_sarif_relative_to(
                 } else {
                     full.to_owned()
                 },
-            });
+            }));
         }
     }
     Ok(out)

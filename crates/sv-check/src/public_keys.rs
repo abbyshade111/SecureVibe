@@ -185,12 +185,13 @@ fn base64url(text: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+#[track_caller]
 fn finding(file: &str, line: usize, name: &str, held: Option<&str>) -> Finding {
     let what = match held {
         Some(kind) => format!("is given {kind}"),
         None => "is named as a secret".to_owned(),
     };
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -228,7 +229,7 @@ fn finding(file: &str, line: usize, name: &str, held: Option<&str>) -> Finding {
               route, a server action, or a Supabase Edge Function). Then make a new key at the \
               provider and revoke this one: it has already been in the page."
                 .into(),
-    }
+    })
 }
 
 #[cfg(test)]

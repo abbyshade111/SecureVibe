@@ -295,7 +295,7 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
         ));
         return;
     }
-    report.findings.push(Finding {
+    report.findings.push(crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -329,7 +329,7 @@ pub fn check(listing: &Listing, sbom: &Sbom, report: &mut ConfigReport) {
               never used as HTML (it is stored and shown as the editor's own data), this does not \
               apply and can be set aside."
             .into(),
-    });
+    }));
 }
 
 #[cfg(test)]

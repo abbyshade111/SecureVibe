@@ -962,6 +962,15 @@ fn the_prompts_shown_to_work_are_where_every_builder_starts_and_no_others() {
                     p.id
                 );
             }
+            // With how many builds it was shown on (gap analysis 4.6).
+            if is_shown {
+                assert!(
+                    said.contains(&p.status_sentence())
+                        && p.status_sentence().contains(" with it and "),
+                    "{place}: {} without its count of builds",
+                    p.id
+                );
+            }
         }
     }
     assert!(shown >= 4, "{shown}");
@@ -1264,7 +1273,7 @@ fn prompts_for_a_requirement_say_whether_each_was_shown_to_work() {
             .nth(1)
             .unwrap_or("");
         let mark = match status(p).as_str() {
-            "shown" => "**Shown to work.**",
+            "shown" => "**Shown to work, on ",
             "not-shown" => "**Tried, not shown to work.**",
             _ => "**Not tried yet.**",
         };
@@ -3476,7 +3485,7 @@ fn the_design_time_prompts_are_offered_as_prompts_each_saying_whether_it_was_sho
         assert_eq!(offered["title"], held["title"]);
         let description = offered["description"].as_str().unwrap();
         let mark = match held["status"].as_str() {
-            Some("shown") => "Shown to work.",
+            Some("shown") => "Shown to work, on ",
             Some("not-shown") => "Tried, not shown to work.",
             _ => "Not tried yet.",
         };
@@ -3512,7 +3521,7 @@ fn a_prompt_comes_back_as_the_persons_message_with_its_mark_and_its_credit() {
             held["id"]
         );
         let mark = match held["status"].as_str() {
-            Some("shown") => "Shown to work.",
+            Some("shown") => "Shown to work, on ",
             Some("not-shown") => "Tried, not shown to work.",
             _ => "Not tried yet.",
         };

@@ -394,8 +394,9 @@ struct Rule {
     fix: &'static str,
 }
 
+#[track_caller]
 fn finding(about: &Rule, title: &str, severity: Severity, description: String) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -418,7 +419,7 @@ fn finding(about: &Rule, title: &str, severity: Severity, description: String) -
         description,
         impact: about.impact.to_owned(),
         fix: about.fix.to_owned(),
-    }
+    })
 }
 
 /// Reads the answers.

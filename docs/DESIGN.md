@@ -7687,6 +7687,19 @@ and one not tried that carries a result, so the two cannot read alike. Eight of 
 each caught; the first run found the "not tried yet" mark caught by nothing, because the library holds no untried
 prompt, so a test now makes one.
 
+**And on how many builds (8 October 2026).** "Shown to work" covered a prompt shown on one build with it and
+one without as it covered one shown on ten and ten (`docs/GAP-ANALYSIS.md`, 4.6). Each shown prompt's `tested`
+now holds `builds`, how many builds its status was decided on with it and without, and every copy says them:
+"Shown to work, on 10 builds with it and 10 without." (`Prompt::status_sentence`), in `sv prompts`, the MCP
+server's prompts and their descriptions, the offer for an app's gaps, the instructions every builder starts
+with, the feature briefs, and the plan. The counts are the trial each status was first decided on; a later
+trial that changed nothing is still told in its `result`. Of the ten coding prompts shown to work, eight were
+shown on ten and ten, and two, `settings-file-first` and `git-from-the-start`, on one and one; the three
+design prompts on one with and two without. A test holds each count to the trial's own account of who built what, so a count cannot
+be written in without one. Breaks: the count left out of the words (six tests), a count changed, and a count
+removed, each caught. Not done: saying when delivery through `sv`, rather than pasted, was not shown, the
+other half of the gap analysis's point.
+
 **A prompt's requirements are a citation, held like the others.** `tools/coverage.py`, which a test runs, already
 knows what every rule cites. It now refuses a prompt that names a requirement none of its rules cites, a rule
 that cites none of the prompt's requirements, a rule `sv` does not have, and an unknown status. Eight ways of
@@ -10725,6 +10738,30 @@ The first census found three more:
   `secrets.scan`, which names the requirements of `data/secret-rules.json`, and V13.2.3 is not one of them.
 - `probe.cors-any-origin` (V3.4.2) does credit, but no test reached it.
 
+### And what it withholds (8 October 2026)
+
+A check is known to work when it says no with the thing it guards broken, and the census above shows only that
+each says yes (backlog item 32, `docs/GAP-ANALYSIS.md`, 7.4). Its first step, measuring:
+
+- **Every finding a check makes is written down too.** Each of the 45 places in the code that ships where a check
+  makes a finding hands it through `finding::found`, which in a debug build adds a line, the check and the place in
+  the code, to a file beside the credits (`SV_CREDIT_LOG` plus `.withheld`), so CI needs no change. A helper that
+  builds findings is `#[track_caller]`, so the place is the one that called it; a finding a test builds for itself
+  is left out by the same line as a credit. A release build writes nothing.
+- **`python3 tools/coverage.py --withheld LOG`** lists every check the suite saw credit and never saw withhold. It
+  fails nothing. Two checks name each finding after what it found, `advisories` (`advisory.<id>`) and `sbom`
+  (`sbom.<what>`), and are counted under those names (`WITHHELD_UNDER`).
+
+The first count: 125 checks seen giving credit, 115 seen withholding, 10 not. Each of the ten withholds by design
+without a finding: the four log checks (`probe.authentication-logged`, `probe.authorization-failure-logged`,
+`probe.log-common-format`, `probe.log-line-metadata`), `probe.clear-site-data`, the two AI logging checks
+(`probe.ai-call-log-session`, `probe.ai-injection-logged`), `probe.oidc-issuer-not-checked`, and the two
+password-change checks say "not assessed", or simply give no credit, when what they look for is missing. Each of
+the ten already has a test asserting it is not credited when it should not be; the census cannot see a credit not
+given. So the next step is the census seeing that, not new tests: each of those checks marks the branch where it
+withholds, and the gate follows once the list is empty. Breaks: `found` writing nothing, and the census counting a
+finding a test built, each failed `crates/sv-check/tests/withheld_log.rs`.
+
 The first two are now listed, so `docs/COVERAGE.md` and `docs/REQUIREMENTS.md` mark them as "only ever as a finding".
 The third has its test (`an_app_that_names_its_own_origin_is_credited_and_one_that_says_nothing_is_not`). The census
 agrees with every tree-sitter rule's flag as it was. No report changes: the reports never credited any of these.
@@ -13465,6 +13502,34 @@ the kill-switch copy never started when the model was not reached. The test that
 about when `seed` runs to the code (`the_spec_says_the_seed_runs_after_the_health_check_and_it_does`) now reads both
 files: the health check before the script in `docker.rs`, and the seed inside the signed-in stage and after the
 anonymous questions in `script.rs`.
+
+## A page template built from a value (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.3; BACKLOG, item 11, one of its rules). A template is code: in Jinja
+or ERB, text a visitor manages to put into one runs on the server. Plain `sv check` had no rule for a template made from
+anything but fixed text; only the outside tools' rules (Semgrep's, Bandit's, Brakeman's) found it, and only when they
+are installed.
+
+`ast.template-built-from-value`, in `data/ast-rules.json`, finds a template made from text that is not fixed in the code
+(an f-string, a joined string, a value passed in): `render_template_string` and `from_string` in Python; `ejs.render`,
+`Handlebars.compile`, `pug.render`, lodash's `_.template`, and `nunjucks.renderString` in JavaScript and TypeScript;
+`ERB.new` and `Liquid::Template.parse` in Ruby; Twig's `createTemplate` in PHP; and `Template.Parse` and
+`Handlebars.Compile` in C#. High severity and medium confidence, citing V1.3.7, and only ever a finding. Fixed text, and
+a name the same file sets once to fixed text, is not reported: the engine's `literalArgumentIsSafe` decides, as it does
+for `eval`.
+
+Not looked for: Python's bare `Template(...)`, which is also the standard library's harmless `string.Template`; Go's
+`Parse`, which cannot be told from `url.Parse` by name; Java's engines, whose template text is the fourth argument or a
+reader; and a template read from a file, which is how templates are meant to be kept.
+
+Tests: twenty-three cases in the AST rules' table, each language's built template found and its fixed form left alone,
+with `render_template(...)` from a file, `res.render(view)`, `User.new(params[:user])`, `int.Parse`, and
+`DateTime.Parse` among the safe ones. Nine guards broken in turn, each caught: Python never matched, `from_string`
+missed, fixed text counted, any JavaScript object's `render` counted, TypeScript never matched, any Ruby `new` counted,
+Liquid missed, PHP never matched, and any C# `Parse` counted; the last went uncaught until the `DateTime.Parse` case
+was added, since `int.Parse` never reached the pattern. The first runs of these breaks passed when they should have
+failed: the tests were built in a second checkout sharing the first one's build folder, and ran the first checkout's
+code. Run from one checkout, they fail as they should.
 
 ## A reset code handed back in the reset request's own answer (8 October 2026)
 

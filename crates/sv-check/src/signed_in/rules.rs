@@ -8,13 +8,14 @@ pub(crate) struct Rule {
     pub(crate) fix: &'static str,
 }
 
+#[track_caller]
 pub(crate) fn finding(
     rule: &Rule,
     title: &str,
     severity: Severity,
     description: String,
 ) -> Finding {
-    Finding {
+    crate::finding::found(Finding {
         also_reported_by: Vec::new(),
         fingerprint: String::new(),
         earlier_fingerprints: Vec::new(),
@@ -37,7 +38,7 @@ pub(crate) fn finding(
         description,
         impact: rule.impact.to_owned(),
         fix: rule.fix.to_owned(),
-    }
+    })
 }
 
 pub(super) const PRIVATE_PAGE: Rule = Rule {
