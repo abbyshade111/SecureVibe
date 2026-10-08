@@ -3719,6 +3719,18 @@ Tested with a real backend (`crates/sv-run/tests/install.rs`): a fixture that im
 shows the installed version, and reuses the download on a second run; without the step it fails, naming `six`. Six
 safeguards were broken in turn and each was caught, one of them only by the test with a real backend.
 
+**Only in Docker's own `python` and `node` images (8 October 2026).** The review of `sv` that day found the hole the
+record's "no package's own code runs" did not close: the `sh`, `pip`, or `npm` that run in the install container are
+the *image's*, and `image` is whatever `securevibe.toml` names. An app that named an image of its own had that image's
+code run with the internet, the owner's local network, and the container backend's bridge address reachable, which is
+what the fence exists to deny; the hardening (read-only, no capabilities, an empty environment) kept the host's files
+out of reach, not the network. Now `install::official_image` admits only Docker's own `python` or `node` images (with
+or without a tag, a digest, or Docker Hub's own prefix), and `plan` refuses any other image before the folder is looked
+at, naming the image and the route that stays: build the packages into your own image and leave `install` out. Those
+two images are also the only ones where the packages are sure to fit the interpreter the app then runs them with.
+Held by `the_install_runs_only_in_dockers_own_python_or_node_images` (`sv_run::install`), with nine names admitted
+and twelve refused, `--privileged` among them.
+
 ## Another user's records: lists, changes, deletions, and "checked in part" (ADR-053)
 
 V8.2.2 was *checked* when the second test user was refused one read of one record the first user made (gap analysis
@@ -11032,6 +11044,20 @@ variable. Broken on purpose three ways: the guard left out and the count set to 
 `true` was not, and is not a break, since `true` turns on git's own built-in monitor, which runs no program the
 repository names. Not run with Semgrep or CodeQL themselves, which are not installed here.
 
+**The program itself (8 October 2026).** The review of `sv` that day found the hole one step earlier: an adapter's
+command is a plain name, a name is whatever `PATH` says, and the tools start in the app's folder with the owner's
+`PATH` passed on. `source .venv/bin/activate` in the app before `sv report --tools` puts the app's own
+`.venv/bin/bandit` first, and a relative entry (`.`, or an empty one between two colons) names whatever is in the
+folder a program starts in, which for the tools is the app's. Either way `sv` would have run a program the app's
+author put there, with the owner's rights, in place of the tool. Now `adapters::located` finds each program through
+`PATH` first, the way the system would, follows links, and refuses one that is inside the app or reachable only
+through a relative entry: the tool is reported as not run, saying which program and where, and what to do (install it
+outside the app; put its folder on `PATH` in full). Not even its version is asked. A program found nowhere is run by
+name as before, so a tool that is not installed still reads as not installed; on Windows, which finds programs
+through `PATHEXT` too, nothing changes. Held by `program_tests` (`PATH` given rather than read, so the process's
+own is untouched) and `a_program_inside_the_app_is_not_run_and_the_same_one_outside_is`, whose control runs the
+same script from outside the app. Broken on purpose (the inside-the-app judgment switched off): both caught.
+
 ## A lone `Pipfile.lock`, and requirements files under other names (6 October 2026)
 
 Deep review H9's last done note left two gaps open, and both are closed here.
@@ -13023,4 +13049,36 @@ Tests: `a_condition_found_only_in_a_folder_set_apart_is_named_and_not_a_no` (`cr
 `what_only_a_folder_set_apart_shows_is_a_question_not_a_no` and `a_folder_holding_the_file_the_start_command_runs_is_refused`
 (`crates/sv-cli/tests/not_the_app.rs`). Four guards broken in turn, each caught: the scan still answering "no", the
 second look not taken, the start file not refused, and an entry naming the start file itself not counted as holding it.
+
+## Firebase rules and Supabase migrations are read (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.2; BACKLOG, item 10, its first two parts). An app built with Lovable,
+Bolt, and the like often has no server of its own between the browser and the database: the browser talks to Firebase
+or Supabase directly, and their rules are the whole of its access control. Nothing read them, so a test app with
+`allow read, write: if true;` and a table with no row-level security drew no finding.
+
+`crates/sv-check/src/hosted_rules.rs`, run with the configuration checks, finds three shapes, each high severity and
+citing V8.2.2 (data reached only by who may reach it) and V8.2.1. Each only ever finds: a file without them may still let
+one user reach another's data in a way a file cannot show, so a clean reading credits nothing.
+
+- **`config.firebase-rules-open`.** In a `.rules` file that names `service cloud.firestore` or `service
+  firebase.storage`, an `allow` with no condition, `if true`, or only the date Firebase's test mode writes
+  (`request.time < timestamp.date(...)`, which lets everybody in until that day). In a `database.rules.json`, a
+  `.read` or `.write` set to `true`. Comments are taken out first, so a rule written and commented out is not read.
+- **`config.supabase-table-without-rls`.** A table a migration under `supabase/migrations/` creates in the `public`
+  schema, for which no migration turns row-level security on (`enable` or `force`). A table in another schema
+  (`auth`, a `private` one) is not reached by the browser's key and is left alone, and so is SQL outside the migrations
+  folder: a Postgres app with its own server has no reason to use row-level security.
+- **`config.supabase-policy-allows-all`.** A policy for `all`, `insert`, `update`, or `delete` whose `using` or `with
+  check` is `(true)`, naming who it lets in (`anon`, `authenticated`). A policy that lets everybody read is left alone:
+  a public list is often meant to be one.
+
+Not done: a rule whose condition never mentions `request.auth` (a helper function defined elsewhere in the file can hold
+it, and guessing would mean false alarms), and grants to `anon` as such: on a table with row-level security the policies
+decide, and on one without it the table is already found. The other two parts of item 10, a secret key under a public
+name and a line in the run's summary, are still open.
+
+Tests: five in `hosted_rules.rs`, one of them through `config::check_dir`, the path `sv check` takes. Six guards broken
+in turn, each caught: the check not called, test mode's date not counted, comments read as rules, row-level security
+never seen, a public read policy counted, and tables in any schema counted.
 

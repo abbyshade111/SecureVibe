@@ -24,6 +24,10 @@ another session is not a claim.
      `python` or `node` images, which is also the only case where the packages fit the interpreter that runs them;
      any other image is refused in plain words, naming the route that stays (build the packages into your own
      image). Changes what `sv` runs with the network open: a Later entry on ADR-052.
+     **Done the same day** (DESIGN, "Packages installed before the run, outside the fence", the paragraph "Only in
+     Docker's own `python` and `node` images"; ADR-052, Later, 8 October 2026): `install::official_image`, and `plan`
+     refusing any other image before the folder is read. Not done: a terminal confirmation for other images, since
+     the MCP server has no terminal to ask at; building the packages into your own image stays the route.
   2. **Brakeman reads `config/brakeman.yml` from the app, and that file can name Ruby files Brakeman loads**
      (`data/adapters.json`, the brakeman entry passes no config of its own; `additional_checks_path` is a documented
      option whose `*.rb` files Brakeman requires). A Rails app handed to the owner runs Ruby on their computer under
@@ -41,7 +45,11 @@ another session is not a claim.
      spawns by bare name with the owner's `PATH` passed on, in the app's folder): `source .venv/bin/activate` before
      `sv report --tools` runs the app's own `.venv/bin/bandit`. Branch `claude/securevibe-review-tool-path`: the
      program is found through `PATH` by `sv` first, a relative entry is skipped, one under the app folder is refused
-     as not run, saying which and why, and the report names the program's path.
+     as not run, saying which and why.
+     **Done the same day** (DESIGN, "The outside tools run no program an app's repository names", the paragraph
+     "The program itself"): `adapters::located`, with a program found nowhere still run by name, so "not installed"
+     reads as it did. Not done: naming the program's path in the report, since the path can hold the owner's home
+     folder and a report may be shared; the refusal names it instead.
 
 
 - **The MCP time-limit test races its own check.** Found on 8 October 2026 by session securevibe-e9, in a full
@@ -78,6 +86,11 @@ another session is not a claim.
   Recorded in `docs/DASHBOARD.md` (its last four sections) and ADR-057 (proposed). Four build items follow, each to be
   claimed on its own:
   1. **The bar at the top of `report.html`** (`docs/DASHBOARD.md`, "Build order", 1).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("Yes, please go ahead when you're
+     ready"), in branch `claude/securevibe-e2-glance-bar`. The owner also asked for how many requirements do not
+     apply: a second, thinner bar shows where every requirement `sv` knows went (apply, do not apply, could not be
+     placed, above the level, counted apart), apart from the first, so the ones that do not apply are never mixed
+     with the evidence for the ones that do. Accepts this part of ADR-057.
   2. **`sv dashboard`**, one page for the app folders it is given (2).
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
@@ -193,6 +206,8 @@ another session is not a claim.
      **The rules files and the migrations (the first two parts) claimed 8 October 2026 by session securevibe-e9**
      ("choose the next backlog item"), in branch `claude/securevibe-e9-hosted-rules`: findings only, crediting nothing.
      The public-name key and the run summary's line stay open.
+     **Those two parts done the same day** (DESIGN, "Firebase rules and Supabase migrations are read"):
+     `config.firebase-rules-open`, `config.supabase-table-without-rls`, and `config.supabase-policy-allows-all`.
   11. **Plain `sv check` has no rule for the commonest web flaws.** (`docs/GAP-ANALYSIS.md`, 3.3.) Code rules, mostly
      finding-only, each claimable on its own: cross-site-scripting sinks by framework (`dangerouslySetInnerHTML`,
      `innerHTML`, `Markup`, `| safe`, `res.send` of built HTML); a template built from a value
