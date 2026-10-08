@@ -413,6 +413,17 @@ fn scan_piece(
     }
 
     if !env_file {
+        // A password in a web address; in a `.env` file it is where it belongs, as for the
+        // assignment rule below.
+        let already: Vec<usize> = out.iter().map(|f| f.location.line).collect();
+        out.extend(
+            url_password_findings(relative, text, first_line, &keep)
+                .into_iter()
+                .filter(|f| !already.contains(&f.location.line)),
+        );
+    }
+
+    if !env_file {
         // The generic rule fires on the same line as a vendor rule whenever a key is assigned to a
         // well-named variable, which is most of the time. Two findings for one secret is noise, and the
         // vendor rule is the better of the two: it names what the credential is and how to revoke it.
@@ -431,6 +442,117 @@ fn scan_piece(
     }
     out
 }
+
+/// A password written into a web address's user part: `postgresql://admin:<password>@db.host/app`.
+/// The assignment rule passes over any value holding `://`, since an address is usually not a
+/// credential, so until 7 October 2026 a database address with its password was reported by nothing
+/// (gap analysis 3.7).
+static URL_PASSWORD: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"\b[A-Za-z][A-Za-z0-9+.\-]{1,20}://(?P<user>[^\s:/@'"`<>]+):(?P<password>[^\s@/'"`<>]+)@[A-Za-z0-9_.\-\[]"#,
+    )
+    .expect("static pattern")
+});
+
+/// Passwords the stock images and examples ship with, which local development files are full of:
+/// reported, they would bury the real ones. A password that only repeats the user name is set aside
+/// the same way (`postgres:postgres`).
+const STOCK_PASSWORDS: &[&str] = &[
+    "password",
+    "pass",
+    "passwd",
+    "secret",
+    "postgres",
+    "root",
+    "admin",
+    "changeme",
+    "test",
+    "user",
+    "guest",
+    "mysql",
+    "redis",
+    "rabbitmq",
+    "minio",
+    "minioadmin",
+];
+
+/// The password in a web address, if it is one to report: not a placeholder, a reference to a
+/// setting (`${DB_PASSWORD}`, `%(password)s`, `<password>`), a stock one, or the user name again.
+fn url_password<'t>(caps: &regex::Captures<'t>) -> Option<regex::Match<'t>> {
+    let user = caps.name("user")?.as_str();
+    let password = caps.name("password")?;
+    let p = password.as_str();
+    let lower = p.to_lowercase();
+    let reference = p.starts_with(['$', '%', '<', '{', '*'])
+        || p.contains("${")
+        || p.contains("{{")
+        || p.chars().all(|c| c == 'x' || c == 'X' || c == '*');
+    // A real password almost never spells out the word itself; an example's does
+    // (`mypassword`, `db_password`, `supersecret`).
+    let says_so = ["password", "passwd", "secret"]
+        .iter()
+        .any(|w| lower.contains(w));
+    if reference
+        || says_so
+        || looks_like_placeholder(p)
+        || STOCK_PASSWORDS.contains(&lower.as_str())
+        || lower == user.to_lowercase()
+    {
+        return None;
+    }
+    Some(password)
+}
+
+fn url_password_findings(
+    relative: &str,
+    text: &str,
+    first_line: usize,
+    keep: &std::ops::Range<usize>,
+) -> Vec<Finding> {
+    let mut out = Vec::new();
+    for caps in URL_PASSWORD.captures_iter(text) {
+        let Some(password) = url_password(&caps) else {
+            continue;
+        };
+        if !keep.contains(&password.start()) {
+            continue;
+        }
+        out.push(Finding {
+            also_reported_by: Vec::new(),
+            fingerprint: String::new(),
+            earlier_fingerprints: Vec::new(),
+            marked_test_code: false,
+            bundled_library: None,
+            outranked: None,
+            also_on_this_line: Vec::new(),
+            rule_id: URL_PASSWORD_RULE.into(),
+            title: "A password is written into a web address in a file".into(),
+            severity: Severity::High,
+            confidence: Confidence::Medium,
+            location: Location {
+                file: relative.to_owned(),
+                line: first_line - 1 + line_of(text, password.start()),
+            },
+            secret: Some(Secret::redact(password.as_str())),
+            requirement_ids: vec!["V13.3.1".into(), "SBD-AC-05".into()],
+            cwe: vec!["CWE-798".into()],
+            description: "A web address in this file carries a password in its user part \
+                          (`scheme://user:password@host`), the way a database or message queue \
+                          address is often written. A credential in a file is a secret kept in the \
+                          app's code, where anyone who can read the code, or its history, can use it."
+                .into(),
+            impact: "Anyone with the file can sign in to that service as that user: for a database, \
+                     read and change everything in it."
+                .into(),
+            fix: "Change the password on the service, then keep the whole address in .env (or a \
+                  secret store) and read it from there, as `DATABASE_URL` usually is."
+                .into(),
+        });
+    }
+    out
+}
+
+pub const URL_PASSWORD_RULE: &str = "secrets.password-in-url";
 
 /// The shapes a name given a quoted value takes across languages, each with a `name` and a `value`
 /// group. Separate patterns rather than one, because the typed shapes read a word between the name and
@@ -846,6 +968,12 @@ pub fn redact_text_in(rules: &SecretRules, relative: &str, text: &str) -> (Strin
             spans.push((value.start(), value.end()));
         }
     }
+    // A password in a web address, cut wherever it is, a `.env` file included.
+    for caps in URL_PASSWORD.captures_iter(text) {
+        if let Some(password) = url_password(&caps) {
+            spans.push((password.start(), password.end()));
+        }
+    }
     // And every shape the assignment rule reads (`:=`, `=>`, a typed declaration, a default given to
     // an environment variable), which the pattern above cuts short or misses.
     for Named { name, value, .. } in named_values(relative, text) {
@@ -1178,6 +1306,196 @@ mod tests {
 
     const MIXED: &str = "Qm7Rz2Kv9Lp4Wn8Hs3Jd6Tf1Gb5Yc0";
     const LETTERS: &str = "QmRzKvLpWnHsJdTfGbYcAeBi";
+
+    /// The key formats of the providers AI-built apps use, each as its published pattern has it
+    /// (gitleaks for SendGrid, Twilio, and Perplexity; TruffleHog for the rest, read 7 October 2026).
+    /// Each is built from pieces at run time, found once under its own rule, and kept out of the
+    /// finding; one character short, it is not a key of that format and is not reported.
+    #[test]
+    fn the_ai_app_providers_keys_are_found_by_their_own_formats() {
+        const HEX: &str = "0123456789abcdef";
+        const BASE58: &str = "QmRzKvLpWnHsJdTfGbYcAeBi123456789";
+        const LOWER: &str = "qmrzkvlpwnhsjdtf0123456789";
+        let cases: [(&str, String, String); 10] = [
+            (
+                "secrets.sendgrid-key",
+                credential_shaped(&["SG", &filler(22, MIXED), &filler(43, MIXED)], "."),
+                credential_shaped(&["SG", &filler(22, MIXED), &filler(42, MIXED)], "."),
+            ),
+            (
+                "secrets.twilio-key",
+                credential_shaped(&["SK", &filler(32, HEX)], ""),
+                credential_shaped(&["SK", &filler(31, HEX)], ""),
+            ),
+            (
+                "secrets.groq-key",
+                credential_shaped(&["gsk", &filler(52, MIXED)], "_"),
+                credential_shaped(&["gsk", &filler(51, MIXED)], "_"),
+            ),
+            (
+                "secrets.replicate-token",
+                credential_shaped(&["r8", &filler(37, MIXED)], "_"),
+                credential_shaped(&["r8", &filler(36, MIXED)], "_"),
+            ),
+            (
+                "secrets.resend-key",
+                credential_shaped(&["re", &filler(8, BASE58), &filler(24, BASE58)], "_"),
+                credential_shaped(&["re", &filler(8, BASE58), &filler(23, BASE58)], "_"),
+            ),
+            (
+                "secrets.supabase-token",
+                credential_shaped(&["sbp", &filler(40, LOWER)], "_"),
+                credential_shaped(&["sbp", &filler(39, LOWER)], "_"),
+            ),
+            (
+                "secrets.openrouter-key",
+                credential_shaped(&["sk", "or", "v1", &filler(64, HEX)], "-"),
+                credential_shaped(&["sk", "or", "v1", &filler(63, HEX)], "-"),
+            ),
+            (
+                "secrets.pinecone-key",
+                credential_shaped(&["pcsk", &filler(5, MIXED), &filler(63, MIXED)], "_"),
+                credential_shaped(&["pcsk", &filler(5, MIXED), &filler(62, MIXED)], "_"),
+            ),
+            (
+                "secrets.perplexity-key",
+                credential_shaped(&["pplx", &filler(48, MIXED)], "-"),
+                credential_shaped(&["pplx", &filler(47, MIXED)], "-"),
+            ),
+            (
+                "secrets.xai-key",
+                credential_shaped(&["xai", &filler(80, MIXED)], "-"),
+                credential_shaped(&["xai", &filler(79, MIXED)], "-"),
+            ),
+        ];
+        let rules = rules();
+        for (rule, key, short) in &cases {
+            // Not under a name that says it is a credential, so only the format can find it.
+            let text = format!("client = make_client(\"{key}\")\n");
+            let found = scan_text(&rules, "src/clients.py", &text);
+            let hits: Vec<_> = found.iter().filter(|f| f.rule_id == *rule).collect();
+            assert_eq!(hits.len(), 1, "{rule}: {found:?}");
+            assert!(hits[0].requirement_ids.contains(&"V13.3.1".to_string()));
+            let rendered = serde_json::to_string(&found).unwrap();
+            assert!(
+                !rendered.contains(&key[key.len() - 12..]),
+                "{rule}: the key reached the finding"
+            );
+            let text = format!("client = make_client(\"{short}\")\n");
+            assert!(
+                scan_text(&rules, "src/clients.py", &text)
+                    .iter()
+                    .all(|f| f.rule_id != *rule),
+                "{rule}: one character short was reported"
+            );
+        }
+    }
+
+    #[test]
+    fn a_password_in_a_web_address_is_found_and_never_shown() {
+        // Built from pieces, so no file holds an address with a password in it.
+        let password = filler(16, MIXED);
+        let address = |scheme: &str, user: &str, pw: &str| {
+            format!("{scheme}://{user}:{pw}@db.internal.example:5432/app")
+        };
+        let rules = rules();
+        for scheme in ["postgresql", "mysql", "mongodb+srv", "redis", "amqp"] {
+            let text = format!(
+                "engine = create_engine(\"{}\")\n",
+                address(scheme, "app_owner", &password)
+            );
+            let found: Vec<_> = scan_text(&rules, "src/db.py", &text)
+                .into_iter()
+                .filter(|f| f.rule_id == URL_PASSWORD_RULE)
+                .collect();
+            assert_eq!(found.len(), 1, "{scheme}");
+            assert_eq!(found[0].requirement_ids, vec!["V13.3.1", "SBD-AC-05"]);
+            let rendered = serde_json::to_string(&found).unwrap();
+            assert!(
+                !rendered.contains(&password[4..]),
+                "{scheme}: the password reached the finding"
+            );
+            let (out, n) = redact_text(&rules, &text);
+            assert_eq!(n, 1, "{scheme}");
+            assert!(
+                !out.contains(&password),
+                "{scheme}: the password was not cut"
+            );
+        }
+        // Not reported: a reference to a setting, a placeholder, a stock password, the user name
+        // again, an address with no password, and the same address in a .env file.
+        for (case, pw_or_text, file) in [
+            (
+                "a reference to a setting",
+                address("postgresql", "app", "${DB_PASSWORD}"),
+                "src/db.py",
+            ),
+            (
+                "a placeholder",
+                address("postgresql", "app", "<password>"),
+                "src/db.py",
+            ),
+            (
+                "a format blank",
+                address("postgresql", "app", "%(password)s"),
+                "src/db.py",
+            ),
+            (
+                "the user name again, a stock one",
+                address("postgresql", "postgres", "postgres"),
+                "docker-compose.yml",
+            ),
+            (
+                "a stock placeholder",
+                address("postgresql", "app", "changeme"),
+                "src/db.py",
+            ),
+            (
+                "an example password",
+                address("postgresql", "myuser", "mypassword"),
+                "README.md",
+            ),
+            (
+                "the user name again",
+                address("postgresql", "appuser", "appuser"),
+                "src/db.py",
+            ),
+            (
+                "a stock password",
+                address("mysql", "app", "root"),
+                "src/db.py",
+            ),
+            (
+                "a row of x's",
+                address("postgresql", "app", "xxxxxxxx"),
+                "src/db.py",
+            ),
+            (
+                "no password",
+                "postgresql://app@db.internal.example:5432/app".to_owned(),
+                "src/db.py",
+            ),
+            (
+                "a path with a colon",
+                "https://example.com/a:b@c".to_owned(),
+                "src/db.py",
+            ),
+            (
+                "a .env file",
+                address("postgresql", "app_owner", &password),
+                ".env",
+            ),
+        ] {
+            let text = format!("url = \"{pw_or_text}\"\n");
+            // The case's name only: the text may hold the test's password, and a message is output.
+            assert!(
+                scan_text(&rules, file, &text)
+                    .iter()
+                    .all(|f| f.rule_id != URL_PASSWORD_RULE),
+                "reported: {case} in {file}"
+            );
+        }
+    }
 
     /// OpenAI's middle marker, in two pieces, so this file does not hold a key's shape whole.
     fn openai_marker() -> String {
