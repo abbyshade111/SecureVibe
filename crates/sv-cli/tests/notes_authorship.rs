@@ -63,8 +63,10 @@ fn the_report_credits_only_what_the_owner_wrote_to_the_owner() {
     let prose =
         "Each of these is decided and written down here, with enough words to be an answer.";
     // The owner's, recorded through `sv review`, as it counts as theirs only then.
-    let (key, _) =
-        sv_check::seal::Key::load_or_make_in(&dir.join("config").join("securevibe")).unwrap();
+    let (key, _) = sv_check::seal::Key::load_or_make_in(
+        &dir.join("config").join(sv_frameworks::names::CONFIG_DIR),
+    )
+    .unwrap();
     // Sealed for this app, as `sv review` run in it seals.
     let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());
     let seal = key.seal(&sv_check::seal::as_strs(&sv_check::seal::notes_fields(

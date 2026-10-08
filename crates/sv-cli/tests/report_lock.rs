@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
-const LOCK: &str = ".securevibe-report.lock";
+const LOCK: &str = sv_scan::ecosystems::REPORT_LOCK;
 
 /// In Cargo's scratch folder beside the build, which every Mac container backend shares (see
 /// `killed_run.rs`).
@@ -174,7 +174,7 @@ fn a_second_run_is_refused_while_the_first_holds_the_folder_and_the_first_finish
         return;
     }
     let dir = app("two", "test = \"sleep 20\"");
-    let folder = dir.join("securevibe-report");
+    let folder = dir.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     let toml_before = sha256_of(&dir.join("securevibe.toml"));
 
     let mut first = start(&["--run"], &dir);
@@ -264,7 +264,7 @@ fn a_run_killed_outright_does_not_block_the_folder_and_the_next_says_so() {
         return;
     }
     let dir = app("killed", "test = \"sleep 300\"");
-    let folder = dir.join("securevibe-report");
+    let folder = dir.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     let mut first = start(&["--run"], &dir);
     let pid = first.id();
     wait_for_lock(&folder, pid, &mut first);
@@ -296,7 +296,7 @@ fn a_run_killed_outright_does_not_block_the_folder_and_the_next_says_so() {
 #[test]
 fn a_report_from_a_run_that_started_later_is_not_replaced() {
     let dir = app("older", "");
-    let folder = dir.join("securevibe-report");
+    let folder = dir.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     let first = sv(&[], &dir);
     assert!(first.status.success(), "{}", said(&first));
     let mut there = report_json(&folder);
@@ -371,7 +371,7 @@ fn a_report_from_a_run_that_started_later_is_not_replaced() {
 fn a_run_that_writes_no_report_leaves_the_folder_as_it_found_it() {
     // A securevibe.toml that does not read: the run takes the folder, then fails.
     let dir = app("failed", "");
-    let folder = dir.join("securevibe-report");
+    let folder = dir.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     std::fs::write(dir.join("securevibe.toml"), "manifest-version = [\n").unwrap();
     let failed = sv(&[], &dir);
     assert!(!failed.status.success(), "the setup: the run fails");
@@ -384,13 +384,16 @@ fn a_run_that_writes_no_report_leaves_the_folder_as_it_found_it() {
 
     // A folder already there, with a report in it, keeps everything it had and loses the lock.
     let good = app("failed-kept", "");
-    let kept = good.join("securevibe-report");
+    let kept = good.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     assert!(sv(&[], &good).status.success());
     let before = std::fs::read(kept.join("report.json")).unwrap();
     std::fs::write(good.join("securevibe.toml"), "manifest-version = [\n").unwrap();
     assert!(!sv(&[], &good).status.success());
     assert_eq!(std::fs::read(kept.join("report.json")).unwrap(), before);
-    assert!(kept.join(".securevibe-report").is_file(), "still marked");
+    assert!(
+        kept.join(sv_scan::ecosystems::REPORT_MARKER).is_file(),
+        "still marked"
+    );
     assert!(!kept.join(LOCK).exists(), "let go");
     std::fs::remove_dir_all(&dir).ok();
     std::fs::remove_dir_all(&good).ok();

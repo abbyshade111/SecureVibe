@@ -71,7 +71,7 @@ fn app_with_every_status(name: &str) -> PathBuf {
     );
     std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
 
-    let key_dir = dir.join("config").join("securevibe");
+    let key_dir = dir.join("config").join(sv_frameworks::names::CONFIG_DIR);
     let (key, _) = sv_check::seal::Key::load_or_make_in(&key_dir).unwrap();
     // Sealed for this app, as `sv review` run in it seals.
     let key = key.for_app(&sv_check::seal::App::of(&dir).unwrap());

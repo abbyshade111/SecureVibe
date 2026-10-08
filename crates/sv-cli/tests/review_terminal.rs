@@ -167,7 +167,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
         !recorded.contains(&earlier) && recorded.contains(&format!("fingerprint = \"{todays}\"")),
         "{recorded}"
     );
-    let keys = config.join("securevibe");
+    let keys = config.join(sv_frameworks::names::CONFIG_DIR);
     assert!(
         keys.join(sv_check::signed::SIGNING_KEY_FILE).is_file(),
         "the setup: a signing key was made"
@@ -250,7 +250,7 @@ fn what_a_person_records_counts_and_the_report_says_where_its_seal_was_checked()
     assert!(!for_another.contains("set it aside as a false alarm on"));
     // On a computer whose list trusts another key for this app, it is a proposal: anyone can make
     // a key and sign with it.
-    let other = s.0.join("other").join("securevibe");
+    let other = s.0.join("other").join(sv_frameworks::names::CONFIG_DIR);
     let theirs = sv_check::signed::SigningKey::make_in(&other, None).unwrap();
     sv_check::signed::trust_here(&other, &theirs, &sv_check::seal::App::of(&app).unwrap()).unwrap();
     let elsewhere = report(&app, &s.0.join("other"));

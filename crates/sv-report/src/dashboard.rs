@@ -388,10 +388,11 @@ pub fn page(apps: &[App], written: &str) -> String {
     b.push_str("<h1>Your apps, as their last reports left them</h1>\n");
     b.push_str(&format!(
         "<p class=\"note\">Written by <code>sv dashboard</code> on {}, from the report already in each app's \
-         <code>securevibe-report</code> folder. It checks nothing itself: run <code>sv report</code> on an app to \
+         <code>{}</code> folder. It checks nothing itself: run <code>sv report</code> on an app to \
          bring its part up to date. Apps are in alphabetical order, and are never ranked or added up, because apps \
          held to different levels and checked by different runs do not add.</p>\n",
-        escape(written)
+        escape(written),
+        sv_frameworks::names::REPORT_DIR
     ));
 
     b.push_str("<nav class=\"views\" aria-label=\"Views\"><a href=\"#all\">All apps</a>");

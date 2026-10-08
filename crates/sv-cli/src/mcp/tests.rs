@@ -232,8 +232,10 @@ fn a_report_is_not_written_through_a_symlink_out_of_the_app() {
 /// Each name `write_report_files` writes, the marker and the lock included, written out by hand so
 /// the list the names derive from (`sv_scan::ecosystems::REPORT_FILES`) is held to what is written.
 const FOLDER_NAMES: &[&str] = &[
-    ".securevibe-report",
+    ".stackvet-report",
     crate::report_lock::LOCK_NAME,
+    ".securevibe-report",
+    ".securevibe-report.lock",
     "report.html",
     "compliance.md",
     "security.md",
@@ -253,7 +255,9 @@ fn the_names_held_together_are_the_names_a_report_folder_holds() {
 #[test]
 fn a_report_folder_another_run_holds_is_refused_and_named_then_taken_once_free() {
     let root = scratch_app("held-folder", "flask-booking");
-    let folder = root.join("app/securevibe-report");
+    let folder = root
+        .join("app")
+        .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     std::fs::create_dir_all(&folder).unwrap();
     // The owner's `sv report` at a terminal, holding the folder the AI tool asks to write.
     let theirs = crate::report_lock::take(&folder, "sv report . --run --tools", "--out")
@@ -294,7 +298,7 @@ fn a_report_folder_another_run_holds_is_refused_and_named_then_taken_once_free()
 #[test]
 #[cfg(unix)]
 fn a_report_file_that_is_a_link_is_refused_and_what_it_points_to_is_left_alone() {
-    // An app can carry `securevibe-report/report.json` as a link to any file the owner can
+    // An app can carry `report.json` in its report folder as a link to any file the owner can
     // write; written through, that file was replaced by the report. Every name is tried, so a
     // guard that forgets one of them fails here.
     for name in FOLDER_NAMES {
@@ -306,26 +310,45 @@ fn a_report_file_that_is_a_link_is_refused_and_what_it_points_to_is_left_alone()
         std::fs::remove_dir_all(&outside).ok();
         std::fs::create_dir_all(&outside).unwrap();
         std::fs::write(outside.join("precious.txt"), "keep me\n").unwrap();
-        std::fs::create_dir_all(root.join("app/securevibe-report")).unwrap();
+        std::fs::create_dir_all(
+            root.join("app")
+                .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR),
+        )
+        .unwrap();
         std::os::unix::fs::symlink(
             outside.join("precious.txt"),
-            root.join("app/securevibe-report").join(name),
+            root.join("app")
+                .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                .join(name),
         )
         .unwrap();
         // The setup really is a way out: reading through the link reaches the file.
         assert_eq!(
-            std::fs::read_to_string(root.join("app/securevibe-report").join(name)).unwrap(),
+            std::fs::read_to_string(
+                root.join("app")
+                    .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                    .join(name)
+            )
+            .unwrap(),
             "keep me\n"
         );
 
         let server = Server::new(&root).unwrap();
         let result = call(&server, "securevibe_write_report", json!({ "path": "app" }));
         let kept = std::fs::read_to_string(outside.join("precious.txt")).unwrap();
-        let report_html_written = root.join("app/securevibe-report/report.html").is_file()
-            && !std::fs::symlink_metadata(root.join("app/securevibe-report/report.html"))
-                .unwrap()
-                .file_type()
-                .is_symlink();
+        let report_html_written = root
+            .join("app")
+            .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.html")
+            .is_file()
+            && !std::fs::symlink_metadata(
+                root.join("app")
+                    .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+                    .join("report.html"),
+            )
+            .unwrap()
+            .file_type()
+            .is_symlink();
         std::fs::remove_dir_all(&root).ok();
         std::fs::remove_dir_all(&outside).ok();
         assert_eq!(
@@ -661,7 +684,11 @@ fn a_report_is_written_only_below_the_app() {
     assert!(!wrote_outside, "a report was written outside the app");
     let written = call(&server, "securevibe_write_report", json!({}));
     assert_eq!(written["isError"], false, "{}", text(&written));
-    assert!(root.join("securevibe-report/report.html").exists());
+    assert!(
+        root.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.html")
+            .exists()
+    );
     std::fs::remove_dir_all(&root).ok();
 }
 
@@ -1162,11 +1189,17 @@ fn guidance_on_a_topic_that_does_not_exist_names_the_ones_that_do() {
 fn prompts_are_offered_for_what_the_app_s_last_report_shows_unproven() {
     let root = std::env::temp_dir().join(format!("sv-mcp-gaps-{}", std::process::id()));
     std::fs::remove_dir_all(&root).ok();
-    std::fs::create_dir_all(root.join("app/securevibe-report")).unwrap();
+    std::fs::create_dir_all(
+        root.join("app")
+            .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR),
+    )
+    .unwrap();
     std::fs::create_dir_all(root.join("bare")).unwrap();
     // A failing header requirement, a query requirement nothing showed, and one checked.
     std::fs::write(
-        root.join("app/securevibe-report/report.json"),
+        root.join("app")
+            .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.json"),
         json!({ "requirements": [
             { "id": "V3.4.3", "status": "needs-attention" },
             { "id": "V1.2.4", "status": "not-verified" },
@@ -1237,14 +1270,24 @@ fn a_report_that_is_a_link_out_of_the_app_is_not_read_for_prompts() {
     let root = std::env::temp_dir().join(format!("sv-mcp-gaps-link-{}", std::process::id()));
     let outside = std::env::temp_dir().join(format!("sv-mcp-gaps-outside-{}", std::process::id()));
     std::fs::remove_dir_all(&root).ok();
-    std::fs::create_dir_all(root.join("app/securevibe-report")).unwrap();
+    std::fs::create_dir_all(
+        root.join("app")
+            .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR),
+    )
+    .unwrap();
     std::fs::write(
         &outside,
         json!({ "requirements": [{ "id": "V3.4.3", "status": "needs-attention" }] }).to_string(),
     )
     .unwrap();
     #[cfg(unix)]
-    std::os::unix::fs::symlink(&outside, root.join("app/securevibe-report/report.json")).unwrap();
+    std::os::unix::fs::symlink(
+        &outside,
+        root.join("app")
+            .join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)
+            .join("report.json"),
+    )
+    .unwrap();
     let server = Server::new(&root).unwrap();
     let result = call(&server, "securevibe_prompts", json!({ "path": "app" }));
     std::fs::remove_dir_all(&root).ok();
@@ -2277,7 +2320,10 @@ fn a_written_report_is_offered_as_resources_and_reads_back_as_written() {
     );
 
     // Two reports, one under a name that has to be escaped to be written in a URI.
-    for out in ["securevibe-report", "reports/the 2nd one #1?%"] {
+    for out in [
+        sv_scan::ecosystems::DEFAULT_REPORT_DIR,
+        "reports/the 2nd one #1?%",
+    ] {
         let result = call(
             &server,
             "securevibe_write_report",
@@ -2386,7 +2432,7 @@ fn nothing_but_the_files_of_a_report_sv_wrote_can_be_read_as_a_resource() {
     let written = call(&server, "securevibe_write_report", json!({ "path": "app" }));
     assert_eq!(written["isError"], false, "{}", text(&written));
     let app = root.canonicalize().unwrap().join("app");
-    let report = app.join("securevibe-report");
+    let report = app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
 
     // A folder sv did not mark, holding a file of a report's name.
     std::fs::create_dir_all(app.join("unmarked")).unwrap();
@@ -3900,7 +3946,7 @@ fn a_report_is_offered_as_svs_only_when_its_seal_shows_sv_wrote_it() {
         "{}",
         text(&written)
     );
-    let real = app.join("securevibe-report");
+    let real = app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR);
     let marker = std::fs::read_to_string(real.join(sv_scan::ecosystems::REPORT_MARKER)).unwrap();
     assert!(marker.contains("seal: v1:"), "{marker}");
 

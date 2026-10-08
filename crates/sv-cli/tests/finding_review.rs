@@ -95,7 +95,7 @@ fn config() -> PathBuf {
     MADE.get_or_init(|| {
         let dir =
             std::env::temp_dir().join(format!("sv-finding-review-config-{}", std::process::id()));
-        sv_check::seal::Key::load_or_make_in(&dir.join("securevibe")).unwrap();
+        sv_check::seal::Key::load_or_make_in(&dir.join(sv_frameworks::names::CONFIG_DIR)).unwrap();
         dir
     })
     .clone()
@@ -103,7 +103,7 @@ fn config() -> PathBuf {
 
 /// The review key, sealing for the app in `dir` as `sv review` run there would.
 fn key(dir: &Path) -> sv_check::seal::AppKey {
-    sv_check::seal::Key::load_or_make_in(&config().join("securevibe"))
+    sv_check::seal::Key::load_or_make_in(&config().join(sv_frameworks::names::CONFIG_DIR))
         .unwrap()
         .0
         .for_app(&sv_check::seal::App::of(dir).unwrap())
