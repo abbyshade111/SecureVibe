@@ -269,6 +269,12 @@ sv dashboard ~/code/app-one ~/code/app-two --out ~/sv-dashboard.html
 
 It writes only that file, never inside an app's folder, and never over a file it did not make.
 
+To see how each app changes from one check to the next, turn on history once: `sv history on`. From then on, each
+`sv report` you run keeps a small record of the run in your home folder, readable only by you and never your code, and
+`sv dashboard --out ~/sv-dashboard.html` shows every app you have checked, each with its runs over time. A run is only
+compared with an earlier one of the same kind, so a quick check after a full one does not make the app look worse.
+`sv history off` stops it, and `sv history forget --all` deletes what was kept.
+
 ### Checking the packages against known vulnerabilities
 
 Whether any package the app uses has a published vulnerability is *not assessed* until you give
