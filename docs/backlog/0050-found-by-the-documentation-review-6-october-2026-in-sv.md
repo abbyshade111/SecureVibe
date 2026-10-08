@@ -1,6 +1,6 @@
 # Found by the documentation review (6 October 2026), in `sv` itself
 
-**Status:** partly done: 2 of 8 parts done, 0 claimed, 6 open, as its markers read on 8 October 2026
+**Status:** done, 8 October 2026
 
 Each was found reading a document against
 the code and confirmed in the code; each is **not claimed** and can be claimed on its own. Most important first.
@@ -53,3 +53,7 @@ exits 2 when the app never answered or could not be started, 3 when `sv` itself 
 **Both done the same day** (DESIGN, "Four of the owner's decisions of 6 October 2026"; ADR-029, Later, 6 October
 2026): `sv run` exits 2 when the app could not be run, held against real containers; the prompt says "it prints",
 and `docs/PROMPTS.md` says that one word changed after its trial.
+**Every part done, checked on `main` on 8 October 2026 by session securevibe-e2** from the roadmap (Phase 1, item 2):
+the status line read "2 of 8 parts done" because the notes above mark several parts at once ("Items 1, 3, 5, 6 …
+claimed", "Both done"), which the board does not read part by part. Checked in the code: `ast.download-piped-to-shell`
+is `findingsOnly`, and `admin-actions` make an admin (`signed_in/admin.rs`).
