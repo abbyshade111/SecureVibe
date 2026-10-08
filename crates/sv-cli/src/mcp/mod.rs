@@ -576,9 +576,17 @@ impl Server {
         // say, but it quotes the app as often as not: a path, a line of securevibe.toml that does
         // not parse, a heading in the notes, the command in a lock file anything in the app can
         // write. So the whole of it is fenced as the app's text is (deep review R9).
+        // What `sv` itself says to do next, when it says something, is its own, and stays outside the
+        // fence: inside, the AI coding tool is told to read it as information, and did not act on it.
         Ok(result.unwrap_or_else(|e| {
+            let (problem, next) = split_remedy(&e);
             tool_error(&sv_report::fence::fenced(|fence| {
-                format!("sv could not do this: {}", fence.wrap(&format!("{e:#}")))
+                let mut text = format!("sv could not do this: {}", fence.wrap(&problem));
+                if let Some(next) = &next {
+                    text.push_str("\n\nWhat to do: ");
+                    text.push_str(next);
+                }
+                text
             }))
         }))
     }

@@ -20,6 +20,94 @@ fn text(result: &Value) -> &str {
     result["content"][0]["text"].as_str().unwrap_or("")
 }
 
+/// `text` with every fenced piece of the app's text taken out: what `sv` says in its own words.
+fn sv_own_words(text: &str) -> String {
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(at) = rest.find("<app-text-") {
+        out.push_str(&rest[..at]);
+        let tag_end = rest[at..]
+            .find('>')
+            .map(|e| at + e + 1)
+            .expect("a whole tag");
+        let name = &rest[at + 1..tag_end - 1];
+        let close = format!("</{name}>");
+        let after = rest[tag_end..].find(&close).expect("a closed fence");
+        rest = &rest[tag_end + after + close.len()..];
+    }
+    out.push_str(rest);
+    out
+}
+
+#[test]
+fn what_sv_says_to_do_next_is_outside_the_fence_and_names_its_own_tool() {
+    // `docs/GAP-ANALYSIS.md`, 5.3: "Call securevibe_spec, write the file..." was fenced with the
+    // app's text, where the AI coding tool is told it is information, and the trials saw it not
+    // acted on. The path, which is the app's, stays inside; the next step is `sv`'s, outside.
+    let root = std::env::temp_dir().join(format!("sv-mcp-remedy-{}", std::process::id()));
+    std::fs::remove_dir_all(&root).ok();
+    std::fs::create_dir_all(root.join("bare")).unwrap();
+    std::fs::write(root.join("bare/app.py"), "print('hi')\n").unwrap();
+    let server = Server::new(&root).unwrap();
+    for (tool, again) in [
+        ("securevibe_check", "check again"),
+        ("securevibe_notes_file", "try again"),
+        ("securevibe_preflight", "ask for the preflight again"),
+    ] {
+        let result = call(&server, tool, json!({ "path": "bare" }));
+        let said = text(&result);
+        assert_eq!(result["isError"], true, "{tool}: {said}");
+        // The setup: the fence is there, and the path is inside it.
+        assert!(said.contains("<app-text-"), "{tool}: {said}");
+        let own = sv_own_words(said);
+        assert!(
+            !own.contains("bare"),
+            "{tool}: the path is outside the fence: {said}"
+        );
+        assert!(
+            own.contains(&format!(
+                "What to do: Call securevibe_spec, write the file it describes into that \
+                 folder, and {again}."
+            )),
+            "{tool}: {said}"
+        );
+        assert!(
+            !said.contains("sv init"),
+            "{tool}: names a command the AI coding tool cannot run: {said}"
+        );
+    }
+    // A link where a file is read: its remedy is outside too.
+    #[cfg(unix)]
+    {
+        std::fs::write(root.join("elsewhere.toml"), "").unwrap();
+        std::os::unix::fs::symlink(
+            root.join("elsewhere.toml"),
+            root.join("bare/securevibe.toml"),
+        )
+        .unwrap();
+        let result = call(&server, "securevibe_check", json!({ "path": "bare" }));
+        let own = sv_own_words(text(&result));
+        assert!(
+            own.contains("What to do: Make it a file of the app's own, and ask again."),
+            "{}",
+            text(&result)
+        );
+        assert!(!own.contains("is a link"), "{}", text(&result));
+    }
+    std::fs::remove_dir_all(&root).ok();
+    // Any other error is fenced whole, as before, with no "What to do" made up for it.
+    let server = Server::new(&examples().join("tested-notes")).unwrap();
+    let other = call(&server, "securevibe_check", json!({ "path": ".." }));
+    assert!(!text(&other).contains("What to do"), "{}", text(&other));
+    assert!(
+        sv_own_words(text(&other))
+            .trim_end()
+            .ends_with("\n\nsv could not do this:"),
+        "{}",
+        text(&other)
+    );
+}
+
 #[test]
 fn a_path_outside_the_root_is_refused_however_it_is_written() {
     // The fence. Each of these reaches the folder next to the example app.
@@ -2559,6 +2647,10 @@ fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_o
             said.contains("report"),
             "{tool}: says how to run it at a terminal: {said}"
         );
+        assert!(
+            sv_own_words(&said).contains("What to do: Check a smaller folder with `path`"),
+            "{tool}: the next step is sv's own, outside the fence: {said}"
+        );
 
         // The check runs on, and no other is started beside it. The setup is real: the check
         // that ran out of time is still running when the second call comes.
@@ -2576,6 +2668,11 @@ fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_o
         assert_eq!(beside["isError"], true, "{tool}");
         assert!(
             text(&beside).contains("still finishing"),
+            "{tool}: {}",
+            text(&beside)
+        );
+        assert!(
+            sv_own_words(text(&beside)).contains("What to do: Ask again in a minute"),
             "{tool}: {}",
             text(&beside)
         );
