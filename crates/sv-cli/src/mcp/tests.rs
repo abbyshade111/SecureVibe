@@ -1175,10 +1175,10 @@ fn prompts_for_a_requirement_say_whether_each_was_shown_to_work() {
             .split(&format!("### {title}\n\n"))
             .nth(1)
             .unwrap_or("");
-        let mark = if status(p) == "shown" {
-            "**Shown to work.**"
-        } else {
-            "**Not tested:**"
+        let mark = match status(p).as_str() {
+            "shown" => "**Shown to work.**",
+            "not-shown" => "**Tried, not shown to work.**",
+            _ => "**Not tried yet.**",
         };
         assert!(
             after.starts_with(mark),
@@ -3378,10 +3378,10 @@ fn the_design_time_prompts_are_offered_as_prompts_each_saying_whether_it_was_sho
     for (offered, held) in listed.iter().zip(&file) {
         assert_eq!(offered["title"], held["title"]);
         let description = offered["description"].as_str().unwrap();
-        let mark = if held["status"] == "shown" {
-            "Shown to work."
-        } else {
-            "Not tested:"
+        let mark = match held["status"].as_str() {
+            Some("shown") => "Shown to work.",
+            Some("not-shown") => "Tried, not shown to work.",
+            _ => "Not tried yet.",
         };
         assert!(
             description.starts_with(mark),
@@ -3414,10 +3414,10 @@ fn a_prompt_comes_back_as_the_persons_message_with_its_mark_and_its_credit() {
             "{}: the prompt's own words come first",
             held["id"]
         );
-        let mark = if held["status"] == "shown" {
-            "Shown to work."
-        } else {
-            "Not tested:"
+        let mark = match held["status"].as_str() {
+            Some("shown") => "Shown to work.",
+            Some("not-shown") => "Tried, not shown to work.",
+            _ => "Not tried yet.",
         };
         assert!(
             text[prompt.len()..].contains(mark),

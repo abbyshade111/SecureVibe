@@ -304,6 +304,11 @@ another session is not a claim.
      framework switches that turn request-forgery protection off (Django's `csrf_exempt`, Flask-WTF's
      `WTF_CSRF_ENABLED = False`, Spring's `csrf().disable()`, Rails' `skip_forgery_protection`, and their like; V3.5.1),
      only ever a finding. Read on `main` just before this claim: no other session had claimed it.
+     **A template built from a value claimed 8 October 2026 by session securevibe-e9** ("pick your next backlog item
+     whenever you're ready"), in branch `claude/securevibe-e9-template`: a code rule, `ast.template-built-from-value`,
+     for a template made from anything but fixed text (`render_template_string`, Jinja's `Template(...)` and
+     `from_string`, and their like in other languages; V1.3.7), only ever a finding. Read on `main` just before this
+     claim: no other session had claimed it.
      **CSRF protection switched off done the same day** (DESIGN, "Protection against forged requests switched off").
   12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
      Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
@@ -8104,7 +8109,10 @@ another session is not a claim.
      profile setting made each of its suite runs cheaper.
   2. **Two pure refactors in the harness and the MCP server.** The hardening flags (`--read-only --cap-drop ALL
      --security-opt no-new-privileges`) are written out 12 times in `docker.rs` and once in `install.rs`; they belong
-     in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`). `mcp.rs`
+     in `prepared`, where ADR-019 already put the limits (branch `claude/securevibe-review-hardening-once`).
+     **The first half done the same day** (DESIGN, "The hardening in one place"; ADR-019, Later, 8 October 2026):
+     `HARDENING` put on in `prepared` for every `run` and `create`, the eleven copies and `install.rs`'s gone, and the
+     no-sidecar fallback through `prepared` too, so it gains the limits and the run label it lacked. `mcp.rs`
      is 7,202 lines in one file, 62% tests, with natural seams (protocol, confinement, resources, the tool catalog,
      check rendering, report writing, the other tools); and the report-writing sequence (claim, assemble, manifest
      changed, refuse older, write, seal, written) is in `cmd_report` and again in `write_report_into`, so a step
@@ -8411,4 +8419,9 @@ done: `docs/adr/ADR-018.md`.
   `docs/paper/trials/make_figure.py`; `SINCE-THE-CUTOFF.md` carried on to `main` at `01b10f60`, counted there, with a
   correction of its own (11 records at `4c3c5e0`, not 12); the artifact index; and the health-tracking app's wording
   made the same everywhere.
+  **The wording inside the code done the same day** (ADR-035, Later): the specification (the app's own tests' status,
+  `--fail-on attention`, the `[data]` level, the tests-to-write list, `within-minutes`, the install step), the MCP
+  server's descriptions and instructions, the prompts' "Not tested" labels (now "Tried, not shown to work" and "Not
+  tried yet"), the help on the install step's download, and the feature briefs' settings; and the preflight now reads
+  the install step, by calling it. With that, the second review is done.
 

@@ -632,11 +632,79 @@ pub fn of(app_dir: &Path) -> anyhow::Result<Found> {
     );
     let manifest = Manifest::load(&manifest_path)?;
     let source = Source::of(&Listing::of(app_dir));
-    Ok((
-        preflight(&manifest, &source),
-        ahead(&manifest, &source),
-        source.unread,
-    ))
+    let mut items = preflight(&manifest, &source);
+    items.extend(install(&manifest, app_dir));
+    Ok((sorted(items), ahead(&manifest, &source), source.unread))
+}
+
+/// Whether the app's packages reach it (ADR-052), read from the files the install step reads and
+/// judged by its own rules, so the two cannot disagree. Read from the folder rather than `Source`,
+/// which leaves `.txt` files out as descriptions. `None` when the app names no packages and asks for
+/// no install.
+fn install(manifest: &Manifest, app_dir: &Path) -> Option<Item> {
+    let run = &manifest.stack.run;
+    let requirements = app_dir.join("requirements.txt").is_file();
+    let package = app_dir.join("package.json").is_file();
+    if run.install != Some(true) {
+        let named = match (requirements, package) {
+            (false, false) => return None,
+            (true, true) => "requirements.txt and package.json",
+            (true, false) => "requirements.txt",
+            (false, true) => "package.json",
+        };
+        return Some(Item::new(
+            "install",
+            Answer::Look,
+            vec![sv(format!(
+                "The app names packages in {named}, and [stack.run] does not say `install = true`. The app runs with no network, so it cannot download them itself, and an app that needs them never starts. If the image already holds them, or the app does not need them to run, ignore this."
+            ))],
+        ));
+    }
+    // The lines themselves are the app's text, so they are quoted as the app's, not in `sv`'s words.
+    if let Ok(text) = std::fs::read_to_string(app_dir.join("requirements.txt")) {
+        let loose = sv_run::install::unpinned(&text);
+        if !loose.is_empty() {
+            let lines: Vec<String> = loose.iter().take(3).map(|l| format!("`{l}`")).collect();
+            return Some(Item::new(
+                "install",
+                Answer::Look,
+                vec![
+                    sv(
+                        "`install = true` installs only exact versions (`name==1.2.3`), and these lines of requirements.txt name none: ",
+                    ),
+                    app(lines.join(", ")),
+                    sv(". `sv run` would refuse the install."),
+                ],
+            ));
+        }
+    }
+    let image = run.image.as_deref().map(str::trim).unwrap_or_default();
+    Some(match sv_run::install::plan(app_dir, image) {
+        Ok(installs) => {
+            let what: Vec<String> = installs
+                .iter()
+                .map(|i| {
+                    let files: Vec<&str> = i.files.iter().map(|(_, name)| *name).collect();
+                    format!("{}, from {}", files.join(" and "), i.ecosystem.registry())
+                })
+                .collect();
+            Item::new(
+                "install",
+                Answer::Looks,
+                vec![sv(format!(
+                    "`install = true`: the packages in {} are installed before the run, in a container that sees only those files.",
+                    what.join("; and ")
+                ))],
+            )
+        }
+        Err(why) => Item::new(
+            "install",
+            Answer::Look,
+            vec![sv(format!(
+                "`install = true`, and `sv run` would refuse the install: {why}"
+            ))],
+        ),
+    })
 }
 
 const OPENING: &str = "# Preflight: what `sv run` will need, looked for in the code\n\nNothing was run. Each answer is a reading of the app's files: \"looks right\" means what `sv run` needs was found in the text, not that it works, and \"look at this\" may be a route or a name built from parts. Nothing here is evidence for any requirement, and nothing is credited.\n";
@@ -767,6 +835,105 @@ mod tests {
                 Part::Sv(t) | Part::App(t) => t.as_str(),
             })
             .collect()
+    }
+
+    /// A folder of its own for one test, holding `files`, with the manifest `run` beside them.
+    fn folder(name: &str, run: &str, files: &[(&str, &str)]) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("sv-preflight-{name}-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("securevibe.toml"),
+            format!("manifest-version = 1\n[app]\nname = \"t\"\n{run}"),
+        )
+        .unwrap();
+        for (n, t) in files {
+            std::fs::write(dir.join(n), t).unwrap();
+        }
+        dir
+    }
+
+    /// The install item's answers, everything it says, and what of that it quotes as the app's text.
+    fn install_said(
+        name: &str,
+        run: &str,
+        files: &[(&str, &str)],
+    ) -> (Vec<Answer>, String, String) {
+        let dir = folder(name, run, files);
+        let (items, _, _) = of(&dir).expect("the preflight runs");
+        std::fs::remove_dir_all(&dir).ok();
+        let install: Vec<&Item> = items.iter().filter(|i| i.topic == "install").collect();
+        let quoted = install
+            .iter()
+            .flat_map(|i| &i.says)
+            .filter_map(|p| match p {
+                Part::App(t) => Some(t.as_str()),
+                Part::Sv(_) => None,
+            })
+            .collect();
+        (
+            install.iter().map(|i| i.answer).collect(),
+            install.iter().map(|i| said(i)).collect(),
+            quoted,
+        )
+    }
+
+    const PINNED: &str = "flask==3.1.3\ngunicorn==22.0.0\n";
+    const INSTALL_RUN: &str = "[stack.run]\nimage = \"python:3.12-slim\"\ninstall = true\nstart = \"gunicorn -b 0.0.0.0:$PORT app:app\"\nhealth = \"/\"\n";
+    const NO_INSTALL_RUN: &str = "[stack.run]\nimage = \"python:3.12-slim\"\nstart = \"gunicorn -b 0.0.0.0:$PORT app:app\"\nhealth = \"/\"\n";
+
+    #[test]
+    fn packages_with_no_install_step_are_said() {
+        let (answers, words, _) =
+            install_said("none", NO_INSTALL_RUN, &[("requirements.txt", PINNED)]);
+        assert_eq!(answers, vec![Answer::Look], "{words}");
+        assert!(
+            words.contains("`install = true`") && words.contains("requirements.txt"),
+            "{words}"
+        );
+        // The control: no packages and no install, nothing to say.
+        let (answers, words, _) = install_said("bare", NO_INSTALL_RUN, &[("app.py", "print(1)\n")]);
+        assert!(answers.is_empty(), "{words}");
+    }
+
+    #[test]
+    fn the_install_step_is_judged_by_its_own_rules() {
+        // Pinned, in Docker's own image: what `sv run` would install, named.
+        let (answers, words, _) =
+            install_said("pinned", INSTALL_RUN, &[("requirements.txt", PINNED)]);
+        assert_eq!(answers, vec![Answer::Looks], "{words}");
+        assert!(words.contains("requirements.txt, from PyPI"), "{words}");
+        // A line with no exact version, which the install step refuses: the line is named.
+        // The line is the app's own text, so it is quoted as the app's, never in `sv`'s words.
+        let (answers, words, quoted) = install_said(
+            "loose",
+            INSTALL_RUN,
+            &[("requirements.txt", "flask>=3\ngunicorn==22.0.0\n")],
+        );
+        assert_eq!(answers, vec![Answer::Look], "{words}");
+        assert!(
+            words.contains("`flask>=3`") && !words.contains("gunicorn"),
+            "{words}"
+        );
+        assert!(
+            quoted.contains("flask>=3"),
+            "the line is not quoted as the app's: {words}"
+        );
+        // package.json with no lockfile, and an image that is not Docker's own: each refused.
+        let (answers, words, _) = install_said("nolock", INSTALL_RUN, &[("package.json", "{}")]);
+        assert_eq!(answers, vec![Answer::Look], "{words}");
+        assert!(words.contains("package-lock.json"), "{words}");
+        let (answers, words, _) = install_said(
+            "image",
+            &INSTALL_RUN.replace("python:3.12-slim", "someone/python"),
+            &[("requirements.txt", PINNED)],
+        );
+        assert_eq!(answers, vec![Answer::Look], "{words}");
+        assert!(words.contains("someone/python"), "{words}");
+        // Asked for with nothing to install.
+        let (answers, words, _) = install_said("empty", INSTALL_RUN, &[("app.py", "print(1)\n")]);
+        assert_eq!(answers, vec![Answer::Look], "{words}");
+        assert!(words.contains("nothing to install"), "{words}");
     }
 
     #[test]

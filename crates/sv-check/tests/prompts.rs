@@ -77,8 +77,8 @@ fn every_prompt_is_marked_above_its_text_as_shown_or_not_tested() {
             .unwrap_or_else(|| panic!("{} is not in the text", p.title));
         let mark = match p.status {
             Status::Shown => "**Shown to work.**",
-            Status::NotShown => "**Not tested:** tried, and not shown to work.",
-            Status::Untested => "**Not tested:** not tried yet.",
+            Status::NotShown => "**Tried, not shown to work.**",
+            Status::Untested => "**Not tried yet.**",
         };
         assert!(
             after.starts_with(mark),
