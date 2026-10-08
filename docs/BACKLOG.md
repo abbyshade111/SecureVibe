@@ -131,6 +131,16 @@ another session is not a claim.
      alphabetical order with its own page beside it, made the way `report.html` is (no script, nothing fetched). It
      writes only the file it is told to, and never over a file it did not make. Accepts this part of ADR-057.
   3. **History**, switched on by the person and kept outside every app's folder, and the over-time view (3).
+     **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off the
+     backlog"), in branch `claude/securevibe-e2-history`, as ADR-057 and `docs/DASHBOARD.md` ("Keeping history safely")
+     set it out: `sv history on` and `sv history off` (a setting in the person's own `~/.config/securevibe/`, never in
+     `securevibe.toml`); while it is on, each `sv report` at the terminal adds one small record for the app under
+     `~/.local/share/securevibe/history/`, readable only by the person (the counts, the kind of run, the level, the
+     `sv` version, the `securevibe.toml` fingerprint, and each finding's fingerprint, severity, rule, and title; no
+     code, no file's contents, no credential), at most 100 for each app; `sv history forget FOLDER` and `sv history forget
+     --all`; and in `sv dashboard`, each app's runs over time, set against the last run that can be compared (same
+     kind, level, `securevibe.toml`, and `sv`), and otherwise said not to be compared and why. No requirement is ever
+     credited from history, and the reports never read it. Accepts this part of ADR-057.
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
