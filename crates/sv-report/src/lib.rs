@@ -1357,6 +1357,13 @@ pub struct Inputs<'a> {
     pub set_aside: Vec<sv_check::review::SetAside>,
     pub reviews_not_counted: Vec<String>,
     /// Everything that ran, looked at what it needed to, and found nothing wrong.
+    ///
+    /// Every credit, whatever it rests on: a check of `sv`'s own, the app's tests, or a person's
+    /// word (`sv_check::Tier`). Until 8 October 2026 a person's word came in four lists of its own,
+    /// "because this is a person's written decision and everything in `verified` is a machine
+    /// reading the app", and a credit landed in a tier by which list it was in. Each credit says
+    /// now, and `status_of` reads it; folding a person's word into *checked* is still the one
+    /// mistake the tiers exist to prevent, and is still impossible: nothing here changes a tier.
     pub verified: &'a [sv_check::Verified],
     /// What was not examined, and why — from every checker that knows it fell short.
     pub gaps: Vec<Gap>,
@@ -1368,20 +1375,6 @@ pub struct Inputs<'a> {
     /// Requirements an application's own tests cannot show: ones that ask for documentation, a
     /// deployment setting, or a development process. Left out of the tests to write, and counted.
     pub not_for_tests: BTreeSet<String>,
-    /// The requirements the owner answered in the security notes, each with where the answer is.
-    ///
-    /// Kept apart from `verified` rather than folded in, because this is a person's written
-    /// decision and everything in `verified` is a machine reading the app. Folding them together
-    /// would be the one mistake this tier exists to prevent.
-    pub documented: &'a [sv_check::Verified],
-    /// Design questions the owner answered `yes`. The weakest evidence here, and still not evidence
-    /// about the app: see `sv_check::design`.
-    pub attested: &'a [sv_check::Verified],
-    /// Design questions the AI coding tool answered `yes`, or that nobody said the owner answered.
-    /// A tier below `attested`: see `sv_check::design`.
-    pub stated: &'a [sv_check::Verified],
-    /// Checks the owner made by hand and recorded, current. See `sv_check::hand`.
-    pub by_hand: &'a [sv_check::Verified],
     /// The three catalogs of what a person can do about a requirement no check settles. Absent
     /// leaves the checklist out of the report.
     pub human: Option<(
@@ -1442,12 +1435,60 @@ pub fn mark_outranked(
     }
 }
 
+/// What a requirement's evidence comes to, worst first. A finding beats every credit: one check
+/// being happy says nothing about what another one found, and the report must never let the
+/// happier of two answers hide the other. Then the credits by tier (`sv_check::Tier`), the strongest
+/// that is there: a check of `sv`'s own (*checked*, or *checked in part* when every check behind it
+/// tried only part of what the requirement asks, ADR-053), the app's own tests, a person's written
+/// answer, a check by hand, the owner's `yes`, the tool's `yes`. A finding set aside as a false
+/// alarm (`set_aside_here`) stops counting and says nothing for the requirement either: the rule saw
+/// something there, and a person's word that it was wrong does not show the protection is in place,
+/// so no check's clean run and no test can make it *checked* or *tested*; a person's word still can
+/// be what it is.
+pub fn status_of(
+    has_findings: bool,
+    set_aside_here: bool,
+    credits: &[(sv_check::Tier, bool)],
+) -> Status {
+    use sv_check::Tier;
+    let of = |tier: Tier| credits.iter().filter(move |(t, _)| *t == tier);
+    if has_findings {
+        Status::NeedsAttention
+    } else if of(Tier::Checked).count() > 0 && !set_aside_here {
+        if of(Tier::Checked).all(|(_, in_part)| *in_part) {
+            Status::CheckedInPart
+        } else {
+            Status::Checked
+        }
+    } else if of(Tier::AppTested).count() > 0 && !set_aside_here {
+        Status::AppTested
+    } else if of(Tier::Documented).count() > 0 {
+        Status::Documented
+    } else if of(Tier::ByHand).count() > 0 {
+        Status::ByHand
+    } else if of(Tier::Attested).count() > 0 {
+        Status::Attested
+    } else if of(Tier::Stated).count() > 0 {
+        Status::Stated
+    } else {
+        Status::NotVerified
+    }
+}
+
 pub fn build(inputs: Inputs<'_>) -> Report {
+    // A machine's reading of the app and a person's word, apart: the first is what the checks,
+    // the counterparts, and the requirements set aside are read from; the second is read by tier.
+    let (checks, by_word): (Vec<sv_check::Verified>, Vec<sv_check::Verified>) = inputs
+        .verified
+        .iter()
+        .cloned()
+        .partition(|v| v.tier.is_a_check());
+    let checks = checks.as_slice();
     let mut inputs = inputs;
     mark_outranked(
         &mut inputs.findings,
         &inputs.buckets.applicable,
-        inputs.verified,
+        checks,
         &inputs.manual_only,
     );
     let describe = |id: &str| {
@@ -1474,16 +1515,24 @@ pub fn build(inputs: Inputs<'_>) -> Report {
         information.dedup();
         // The app's own tests are kept apart from `sv`'s checks (ADR-050): written by the AI coding
         // tool, they are a tier of their own, never *checked*.
-        let (tested, satisfied): (Vec<CheckedBy>, Vec<CheckedBy>) = inputs
-            .verified
+        let about_this = |v: &&sv_check::Verified| v.requirement_ids.iter().any(|r| r == id);
+        let as_checked_by = |v: &sv_check::Verified| CheckedBy {
+            check_id: v.check_id.clone(),
+            scope: v.scope.clone(),
+            in_part: v.in_part,
+        };
+        let tested: Vec<CheckedBy> = checks
             .iter()
-            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
-            .map(|v| CheckedBy {
-                check_id: v.check_id.clone(),
-                scope: v.scope.clone(),
-                in_part: v.in_part,
-            })
-            .partition(|c| c.check_id == sv_check::suite::CHECK_ID);
+            .filter(about_this)
+            .filter(|v| v.tier == sv_check::Tier::AppTested)
+            .map(as_checked_by)
+            .collect();
+        let satisfied: Vec<CheckedBy> = checks
+            .iter()
+            .filter(about_this)
+            .filter(|v| v.tier == sv_check::Tier::Checked)
+            .map(as_checked_by)
+            .collect();
         let (checked_by, mut supported_by) = if inputs.manual_only.contains(id) {
             (Vec::new(), satisfied)
         } else {
@@ -1505,7 +1554,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .get(id)
             .map(|r| r.counterparts.as_slice())
             .unwrap_or_default();
-        for v in inputs.verified {
+        for v in checks {
             for counterpart in counterparts {
                 if v.requirement_ids.iter().any(|r| r == counterpart)
                     && !supported_by.iter().any(|c| c.check_id == v.check_id)
@@ -1520,77 +1569,57 @@ pub fn build(inputs: Inputs<'_>) -> Report {
                 }
             }
         }
-        let by_hand: Vec<CheckedBy> = inputs
-            .by_hand
-            .iter()
-            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
-            .map(|v| CheckedBy {
-                check_id: v.check_id.clone(),
-                scope: v.scope.clone(),
-                in_part: false,
-            })
+        // A person's word about this requirement, by the tier each credit says it rests on.
+        let word = |tiers: &[sv_check::Tier]| -> Vec<(sv_check::Tier, CheckedBy)> {
+            by_word
+                .iter()
+                .filter(|v| tiers.contains(&v.tier))
+                .filter(|v| v.requirement_ids.iter().any(|r| r == id))
+                .map(|v| {
+                    (
+                        v.tier,
+                        CheckedBy {
+                            check_id: v.check_id.clone(),
+                            scope: v.scope.clone(),
+                            in_part: false,
+                        },
+                    )
+                })
+                .collect()
+        };
+        let by_hand: Vec<CheckedBy> = word(&[sv_check::Tier::ByHand])
+            .into_iter()
+            .map(|(_, c)| c)
             .collect();
-        let attested_by: Vec<CheckedBy> = inputs
-            .attested
-            .iter()
-            .chain(inputs.stated.iter())
-            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
-            .map(|v| CheckedBy {
-                check_id: v.check_id.clone(),
-                scope: v.scope.clone(),
-                in_part: false,
-            })
+        let attested: Vec<(sv_check::Tier, CheckedBy)> =
+            word(&[sv_check::Tier::Attested, sv_check::Tier::Stated]);
+        let documented_by: Vec<CheckedBy> = word(&[sv_check::Tier::Documented])
+            .into_iter()
+            .map(|(_, c)| c)
             .collect();
-        let documented_by: Vec<CheckedBy> = inputs
-            .documented
-            .iter()
-            .filter(|v| v.requirement_ids.iter().any(|r| r == id))
-            .map(|v| CheckedBy {
-                check_id: v.check_id.clone(),
-                scope: v.scope.clone(),
-                in_part: false,
-            })
-            .collect();
-        // A finding beats a satisfied check: one check being happy says nothing about what another
-        // one found, and the report must never let the happier of two answers hide the other. An
-        // answer in the notes comes last of the three, because it is the owner's word about the app
-        // rather than anything read from it.
         // A finding set aside as a false alarm stops counting, and says nothing for the requirement
-        // either: the rule saw something there, and a person's word that it was wrong does not show
-        // the protection is in place. So no other check's clean run can make it *checked*. The
-        // exception is a finding that never withheld the credit: a person's word that the test does
-        // match its requirement is the advice that finding gives, and following it must not cost
-        // the credit the finding said it left alone.
+        // either (`status_of`). The exception is a finding that never withheld the credit: a
+        // person's word that the test does match its requirement is the advice that finding gives,
+        // and following it must not cost the credit the finding said it left alone.
         let set_aside_here = inputs.set_aside.iter().any(|s| {
             s.verdict == sv_check::review::FALSE_ALARM
                 && s.finding.withholds_credit()
                 && s.finding.requirement_ids.iter().any(|r| r == id)
         });
-        let status = if !findings.is_empty() {
-            Status::NeedsAttention
-        } else if !checked_by.is_empty() && !set_aside_here {
-            // Every check behind it tried only part of what it asks (ADR-053): said so, and below
-            // *checked*, so the counts do not read as more than was tried.
-            if checked_by.iter().all(|c| c.in_part) {
-                Status::CheckedInPart
-            } else {
-                Status::Checked
-            }
-        } else if !tested_by.is_empty() && !set_aside_here {
-            Status::AppTested
-        } else if !documented_by.is_empty() {
-            Status::Documented
-        } else if !by_hand.is_empty() {
-            Status::ByHand
-        } else if attested_by.iter().any(|c| {
-            c.check_id == "design.attested" || c.check_id == sv_check::confirm::DESIGN_CONFIRMED
-        }) {
-            Status::Attested
-        } else if !attested_by.is_empty() {
-            Status::Stated
-        } else {
-            Status::NotVerified
-        };
+        let credits: Vec<(sv_check::Tier, bool)> = checked_by
+            .iter()
+            .map(|c| (sv_check::Tier::Checked, c.in_part))
+            .chain(tested_by.iter().map(|_| (sv_check::Tier::AppTested, false)))
+            .chain(
+                documented_by
+                    .iter()
+                    .map(|_| (sv_check::Tier::Documented, false)),
+            )
+            .chain(by_hand.iter().map(|_| (sv_check::Tier::ByHand, false)))
+            .chain(attested.iter().map(|(tier, _)| (*tier, false)))
+            .collect();
+        let status = status_of(!findings.is_empty(), set_aside_here, &credits);
+        let attested_by: Vec<CheckedBy> = attested.into_iter().map(|(_, c)| c).collect();
         let (description, chapter) = describe(id);
         requirements.push(RequirementLine {
             id: id.clone(),
@@ -1742,8 +1771,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
             .then_with(|| a.rule_id.cmp(&b.rule_id))
     });
 
-    let satisfied_elsewhere: Vec<SatisfiedElsewhere> = inputs
-        .verified
+    let satisfied_elsewhere: Vec<SatisfiedElsewhere> = checks
         .iter()
         .filter(|v| {
             !v.requirement_ids
@@ -2037,6 +2065,123 @@ fn question_for(condition: Condition) -> &'static str {
 /// questions on 27 September 2026), so a finer order would have nothing to sort.
 fn stake(level: u8) -> u8 {
     u8::from(level != 1)
+}
+
+#[cfg(test)]
+mod status_of_tests {
+    use super::{Status, status_of};
+    use sv_check::Tier;
+
+    const ALL: [Tier; 6] = [
+        Tier::Checked,
+        Tier::AppTested,
+        Tier::Documented,
+        Tier::ByHand,
+        Tier::Attested,
+        Tier::Stated,
+    ];
+
+    fn status_of_tier(tier: Tier) -> Status {
+        match tier {
+            Tier::Checked => Status::Checked,
+            Tier::AppTested => Status::AppTested,
+            Tier::Documented => Status::Documented,
+            Tier::ByHand => Status::ByHand,
+            Tier::Attested => Status::Attested,
+            Tier::Stated => Status::Stated,
+        }
+    }
+
+    #[test]
+    fn each_tier_alone_is_its_own_status_and_nothing_is_not_verified() {
+        assert_eq!(status_of(false, false, &[]), Status::NotVerified);
+        for tier in ALL {
+            assert_eq!(
+                status_of(false, false, &[(tier, false)]),
+                status_of_tier(tier),
+                "{tier:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_strongest_tier_there_decides_whatever_else_is_beside_it() {
+        // The order is the order of the enum: a check of sv's own, the app's tests, a written
+        // answer, a check by hand, the owner's yes, the tool's yes.
+        for (n, strongest) in ALL.iter().enumerate() {
+            let credits: Vec<(Tier, bool)> = ALL[n..].iter().map(|t| (*t, false)).collect();
+            assert_eq!(
+                status_of(false, false, &credits),
+                status_of_tier(*strongest),
+                "{credits:?}"
+            );
+            let reversed: Vec<(Tier, bool)> = credits.iter().rev().copied().collect();
+            assert_eq!(
+                status_of(false, false, &reversed),
+                status_of_tier(*strongest)
+            );
+        }
+    }
+
+    #[test]
+    fn a_finding_beats_every_credit() {
+        let every: Vec<(Tier, bool)> = ALL.iter().map(|t| (*t, false)).collect();
+        assert_eq!(status_of(true, false, &every), Status::NeedsAttention);
+        assert_eq!(status_of(true, false, &[]), Status::NeedsAttention);
+    }
+
+    #[test]
+    fn checks_that_each_tried_only_part_are_checked_in_part_and_one_whole_check_is_checked() {
+        assert_eq!(
+            status_of(
+                false,
+                false,
+                &[(Tier::Checked, true), (Tier::Checked, true)]
+            ),
+            Status::CheckedInPart
+        );
+        assert_eq!(
+            status_of(
+                false,
+                false,
+                &[(Tier::Checked, true), (Tier::Checked, false)]
+            ),
+            Status::Checked
+        );
+        // In part is only ever said of a check of sv's own; on a person's word it means nothing.
+        assert_eq!(
+            status_of(false, false, &[(Tier::Attested, true)]),
+            Status::Attested
+        );
+    }
+
+    #[test]
+    fn a_false_alarm_set_aside_stops_a_check_and_a_test_but_not_a_persons_word() {
+        // The rule saw something there; a person's word that it was wrong does not show the
+        // protection is in place, so no check's clean run makes it checked (ADR-023).
+        assert_eq!(
+            status_of(false, true, &[(Tier::Checked, false)]),
+            Status::NotVerified
+        );
+        assert_eq!(
+            status_of(false, true, &[(Tier::AppTested, false)]),
+            Status::NotVerified
+        );
+        assert_eq!(
+            status_of(
+                false,
+                true,
+                &[(Tier::Checked, false), (Tier::Documented, false)]
+            ),
+            Status::Documented
+        );
+        for tier in [Tier::Documented, Tier::ByHand, Tier::Attested, Tier::Stated] {
+            assert_eq!(
+                status_of(false, true, &[(tier, false)]),
+                status_of_tier(tier)
+            );
+        }
+    }
 }
 
 #[cfg(test)]

@@ -51,6 +51,7 @@
 //! italic lines `sv` itself writes, so a person's bold or italic line survives a rewrite as well.
 
 use crate::Verified;
+use crate::verified::Tier;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::BTreeSet;
@@ -1173,7 +1174,7 @@ pub fn evidence(
                         "{place}{}{not_covered}",
                         crate::seal::recorded_where(&sealed)
                     ),
-                )),
+                ).resting_on(Tier::Documented)),
                 Err(why) => out.stated.push(Verified::new(
                     "notes.stated-by-ai",
                     &[id.as_str()],
@@ -1182,7 +1183,7 @@ pub fn evidence(
                          as your AI coding tool's word, not a decision you made. If it is yours, run \
                          `sv review` in your own terminal to record it."
                     ),
-                )),
+                ).resting_on(Tier::Stated)),
             },
             Writer::AiTool | Writer::Unmarked => out.stated.push(Verified::new(
                 "notes.stated-by-ai",
@@ -1197,7 +1198,7 @@ pub fn evidence(
                         "it does not say who wrote it, so it counts as your AI coding tool's"
                     }
                 ),
-            )),
+            ).resting_on(Tier::Stated)),
             Writer::Unreadable => out.unreadable.push(id),
         }
     }

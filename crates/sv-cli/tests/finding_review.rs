@@ -353,6 +353,117 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     );
 }
 
+/// `sv <command> <dir> --fail-on attention:medium`: its exit status and everything it printed.
+fn exit_of(command: &str, dir: &Path) -> (i32, String) {
+    let out_dir = dir.join("report");
+    let mut sv = Command::new(env!("CARGO_BIN_EXE_sv"));
+    sv.env("XDG_CONFIG_HOME", config())
+        .arg(command)
+        .arg(dir)
+        .args(["--fail-on", "attention:medium"]);
+    if command == "report" {
+        sv.arg("--out").arg(&out_dir);
+    }
+    let out = sv.output().expect("sv runs");
+    (
+        out.status.code().expect("an exit status"),
+        format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        ),
+    )
+}
+
+#[test]
+fn sv_check_counts_what_sv_report_counts_on_the_same_folder() {
+    // ADR-023, Later, 8 October 2026. Until then `sv check` counted every finding toward its exit
+    // status and `sv report` the findings left after a person's reviews, so `sv check --fail-on
+    // attention` failed a CI pipeline on a finding the owner had set aside.
+    let dir: PathBuf = std::env::temp_dir().join(format!("sv-check-agrees-{}", std::process::id()));
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    // One finding at medium (the open redirect) and one at low (no SECURITY.md); nothing else.
+    std::fs::write(
+        dir.join("app.py"),
+        format!(
+            "from flask import Flask, redirect, request\napp = Flask(__name__)\n\n@app.route(\"/go\")\ndef go():\n{REDIRECT}\n"
+        ),
+    )
+    .unwrap();
+    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    let before = report(&dir);
+    let redirect = fingerprint(&before, "ast.open-redirect");
+    let (check_before, check_said) = exit_of("check", &dir);
+    let (report_before, _) = exit_of("report", &dir);
+    assert_eq!(
+        (check_before, report_before),
+        (1, 1),
+        "the setup: the redirect fails both at medium: {check_said}"
+    );
+    assert!(check_said.contains("[medium]"), "{check_said}");
+
+    // The owner sets the redirect aside through `sv review`; the AI coding tool proposes that the
+    // missing SECURITY.md is a false alarm, which does not count.
+    let why = "The next= value is looked up in a fixed list of our own paths before redirect.";
+    let contact = fingerprint(&before, "config.security-contact");
+    std::fs::write(
+        dir.join("securevibe.toml"),
+        format!(
+            "{MANIFEST}{}{}",
+            entry(
+                &dir,
+                "ast.open-redirect",
+                "app.py",
+                &redirect,
+                "false-alarm",
+                "owner",
+                why
+            ),
+            entry(
+                &dir,
+                "config.security-contact",
+                "SECURITY.md",
+                &contact,
+                "false-alarm",
+                "ai-tool",
+                "The app is private and nobody outside will ever report a problem to it."
+            ),
+        ),
+    )
+    .unwrap();
+    let (check_after, check_said) = exit_of("check", &dir);
+    let (report_after, report_said) = exit_of("report", &dir);
+    std::fs::remove_dir_all(&dir).ok();
+    assert_eq!(report_after, 0, "{report_said}");
+    assert_eq!(
+        check_after, report_after,
+        "sv check exits {check_after} where sv report exits {report_after}: {check_said}"
+    );
+    // Nothing is dropped quietly: the terminal says what was set aside, by whom, and why, and
+    // that the tool's proposal does not count; the redirect is no longer a thing to look at.
+    assert!(
+        check_said.contains("In securevibe.toml, through `sv review`:")
+            && check_said.contains("ast.open-redirect in app.py: a false alarm, by owner on")
+            && check_said.contains(why),
+        "{check_said}"
+    );
+    assert!(
+        check_said.contains("Not counted in [[finding-review]]")
+            && check_said.contains("the AI coding tool's proposal"),
+        "{check_said}"
+    );
+    let to_look_at = check_said
+        .split("thing to look at:")
+        .nth(1)
+        .unwrap_or_else(|| panic!("no list of things to look at:\n{check_said}"));
+    assert!(!to_look_at.contains("[medium]"), "{to_look_at}");
+    assert!(
+        to_look_at.contains("SECURITY.md (not there)"),
+        "{to_look_at}"
+    );
+}
+
 /// `securevibe_check` over MCP, as the AI coding tool calls it; the text it is given.
 fn mcp_check(app: &Path) -> String {
     mcp_reply(app)["result"]["content"][0]["text"]

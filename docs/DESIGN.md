@@ -1,8 +1,12 @@
 # SecureVibe (`sv`) — design
 
-> Written while `sv` was a second version beside v1 in `agnostic/`. On 26 September 2026 `sv` became the top of the
-> repository and v1 moved to the `v1` branch; paths written `agnostic/…` below are now at the repository root
-> (`agnostic/data/…` is `data/…`, `agnostic/Dockerfile` is `Dockerfile`), and `../data` is `data/`.
+> **This is the dated record, not the map.** Every section below was written when its decision was made, oldest
+> first, and none is rewritten afterward; what `sv` is today is the sum of them. For the ten-minute map of the crates,
+> the stages of a run, and where each rule is held, read `docs/ARCHITECTURE.md` first; for the decisions that matter
+> most, with the files each governs, `docs/adr/`. The opening sections below were written while `sv` was a second
+> version beside v1 in `agnostic/`. On 26 September 2026 `sv` became the top of the repository and v1 moved to the
+> `v1` branch; paths written `agnostic/…` below are now at the repository root (`agnostic/data/…` is `data/…`,
+> `agnostic/Dockerfile` is `Dockerfile`), and `../data` is `data/`.
 
 A second version of SecureVibe. It keeps the workflow, the checks, the compliance engine and the reports, and
 changes two things:
@@ -13343,6 +13347,83 @@ The tests assert through `prepared`: each container kind's test (the app, the ma
 test model, the browser and its driver, the fallback, and the install step's) shows the flags arrive exactly once and
 that the builder wrote none of them, and one chokepoint test shows a plain `run` and `create` get them while an `exec`
 does not. With the one place removed on purpose, seven tests failed.
+
+## Protection against forged requests switched off (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.3; BACKLOG, item 11, one of its rules). Plain `sv check` had no rule
+for the line an AI coding tool most often writes when a form or a fetch fails with "CSRF token missing": the one that
+switches the framework's request-forgery protection off.
+
+`ast.csrf-protection-off`, in `data/ast-rules.json`, finds the explicit switches: `@csrf_exempt` and `csrf_exempt(view)`
+in Django and `@csrf.exempt` in Flask-WTF; `WTF_CSRF_ENABLED = False` in Flask-WTF, however it is set (a class attribute,
+`app.config[...]`, `config.update(...)`, a dictionary); `skip_forgery_protection` and `skip_before_action
+:verify_authenticity_token` in Rails; `csrf().disable()`, `csrf(c -> c.disable())`, and `csrf(AbstractHttpConfigurer::disable)`
+in Spring Security; `[IgnoreAntiforgeryToken]` and `DisableAntiforgery()` in ASP.NET Core; and `checkOrigin: false` in
+SvelteKit and Astro. Medium severity and medium confidence, citing V3.5.1, and only ever a finding: an API that signs
+people in with a token in a header rather than a cookie has no use for the protection, and the finding's fix says so.
+
+Each language's match is judged on the whole text of the node it captures (a decorator, a call, an assignment, a pair),
+so one pattern can tell `= False` from `= True` and `skip_before_action :verify_authenticity_token` from
+`skip_before_action :authenticate_user!`. Not looked for: Rails' `allow_forgery_protection = false`, which Rails itself
+writes into every app's test settings; Laravel's lists of excepted paths, where a webhook's path cannot be told from a
+form's in one file; Spring's Kotlin syntax; and protection that was never turned on, in Go's and Express's libraries
+among others.
+
+Tests: twenty-eight cases in the AST rules' table, each switch found and its safe neighbor left alone (`@csrf_protect`,
+`= True`, the `csrf_exempt` import, a `csrf_exempt_paths` list, `before_action :verify_authenticity_token`,
+`http.cors().disable()`, `[ValidateAntiForgeryToken]`, `checkOrigin: true`). `sv check` on a small app gave one finding
+for each switched-off line and none twice. Nine guards broken in turn: the decorator never matched, `= True` counted,
+`csrf_exempt(view)` missed, any `skip_before_action` counted, Rails' bare `skip_forgery_protection` missed, any Java
+`disable()` counted, `[ValidateAntiForgeryToken]` counted, and `checkOrigin: true` counted were each caught at once; the
+ninth, `csrf_exempt` matched anywhere in the text rather than as the whole name, went uncaught until the
+`csrf_exempt_paths` case was added, and is caught now.
+
+## The tier is on the value (8 October 2026)
+
+Item 4 of the architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October
+2026"), first half. A credit (`sv_check::Verified`) landed in *attested*, *stated*, *by hand*, or *documented* by which
+of four lists it was passed to the report in, assembled by hand in `main.rs` from the design answers, the checks by
+hand, the notes, and the confirmations; the app's own tests were told from `sv`'s checks by the check's name; and the
+owner's `yes` was told from the tool's by a string match on the check id inside the report. Nothing held the four lists
+to what was in them: a credit put in the wrong list was that tier.
+
+Now each credit says what it rests on, `Verified::tier` (`sv_check::Tier`: *checked*, *tested by the app's own
+tests*, *documented*, *by hand*, *attested*, *stated*), set where the credit is made (`design.rs`, `hand.rs`,
+`notes.rs`, `confirm.rs`, `suite.rs`) and nowhere else; `Inputs` has one list; and `sv_report::status_of` decides a
+requirement's status from its findings, whether a false alarm was set aside on it, and the tiers of its credits, with a
+unit test per tier, one for the order, one for a finding, one for *checked in part* (ADR-053), and one for a false
+alarm set aside (ADR-023). What a report says is unchanged: the tier is not written into any file, since the status is
+what a reader is given. With the owner's design answer given the tool's tier on purpose, four end-to-end tests
+failed (`confirmations.rs`, `counts_add_up.rs`, and both in `owner_answers.rs`), and none of the report's own: those
+build their credits with the tier set by hand, so they hold `status_of` and `build`, and the end-to-end tests hold the
+producers. Restored, all pass.
+
+## One static stage for `sv check` and `sv report` (8 October 2026)
+
+Item 3 of the architecture assessment of 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October
+2026"). `sv check` and `sv report` each ran the five scanners that read the app's files, and then `sv check` parted
+from the report: no merging of one weakness reported twice on a line, no marks for test code, a folder the manifest
+sets apart, or a bundled library, no reviews applied, and every finding counted toward the exit status. The report
+counted the findings left after a person's reviews, so `sv check --fail-on attention` could fail a CI pipeline on a
+finding the owner had set aside, and the AI coding tool reading the failure would rewrite the code until it stopped
+(ADR-023, Later, 8 October 2026, which records the decision).
+
+`crates/sv-cli/src/static_scan.rs` holds both halves. `StaticScan::read` is the reading, in the report's first six
+stages, with what the manifest sets apart passed in (nothing, when `sv check` finds no `securevibe.toml`); its
+`findings`, `passed`, `file_gaps`, and `examined` are what the two commands used to compute each for themselves.
+`settle` is the counting: merged, marked, the decisions held to the running app and then the reviews applied, one
+finding per line, with what the run looked at passed in so an entry that matches nothing can say whether its rule
+looked. `sv report` passes everything it found (advisories, tools, the running app, the design answers) and its full
+`examined` list; `sv check` passes the five scanners' findings and the five scanners' entries, and no decisions, since
+no app ran. The terminal now says what was set aside through `sv review`, by whom and why, and which entries do not
+count, as the report does.
+
+Held by `sv_check_counts_what_sv_report_counts_on_the_same_folder` (`crates/sv-cli/tests/finding_review.rs`): both
+commands exit 1 on a medium finding and both exit 0 once the owner sets it aside; the AI coding tool's own proposal
+is listed as not counted. With `settle` taken out of `sv check` on purpose, that test fails. `sv check` loads the
+whole of `sv`'s data now (`Loaded::load`) rather than the two rule files alone, which costs it the frameworks' read
+on every run; nothing it prints about files, coverage, or gaps changed, and the exit-code tests of 4 October pass as
+they were.
 
 ## The run's script is in `sv-check`, and runs without Docker (8 October 2026)
 

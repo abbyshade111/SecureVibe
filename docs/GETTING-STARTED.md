@@ -121,6 +121,26 @@ with SecureVibe yet**, so if it does not work, tell us:
 
 - **Cursor:** `.cursor/mcp.json` in the app's folder, with the same `mcpServers` block as for Claude, above.
 
+### Did it connect?
+
+Check before you start building, in whichever tool you use. If SecureVibe is not connected, the tool
+does not say so: it simply builds without it, and nothing gets checked. In the tool's chat, ask:
+
+> Which `securevibe_` tools can you call? List their names.
+
+It should list thirteen, among them `securevibe_spec` and `securevibe_check`. If it lists none, or says it
+has no such tools, SecureVibe is not connected. Then, in this order: make sure Docker is running (step
+1); check the app folder's path in the settings file, in all three places; and restart the tool, since
+most read their MCP settings only when they start. In Claude Code, `/mcp` lists each server and
+whether it connected. In VS Code, **MCP: List Servers → securevibe → Show Output** says why it did
+not start.
+
+If the tool stops mentioning SecureVibe later, ask again: after a restart, Docker may not have
+started yet.
+The prompt in step 4 tells the tool to stop and tell you when the tools are missing, and the rules
+file below (`sv rules`) says the same to any tool that reads `AGENTS.md`, so a tool that finds them
+gone later should say so rather than carry on.
+
 ### A tool without MCP
 
 Every step still works by copying and pasting. Instead of the tool calling SecureVibe, you run it in a
@@ -144,7 +164,8 @@ Open the app's folder in your AI tool and paste this, with your app described at
 > I want to build: *(describe the app in a few sentences: who uses it, what they do, what it keeps
 > about them)*.
 >
-> We are using SecureVibe to check it as we go. Before writing any code:
+> We are using SecureVibe to check it as we go. If you cannot call the `securevibe_` tools, stop
+> and tell me before writing any code: it means SecureVibe is not connected. Before writing any code:
 > 1. Call `securevibe_spec` and write `securevibe.toml` for this app, from what it will really do.
 >    Its capability lines start commented out: answer each one you can with true or false, and
 >    **leave a line commented out rather than guessing `false`**. A line left out is reported as not
@@ -410,6 +431,48 @@ sv report /Users/you/code/my-app --run
 
 To update SecureVibe later: `cd ~/securevibe`, then `git pull`, then `sh tools/install.sh` again. It
 replaces the program and its files together.
+
+## Keeping SecureVibe up to date
+
+SecureVibe changes often, and a new container image is published each time a change is added to it.
+Your computer keeps the copy it fetched until you fetch again. To get the newest, in a terminal:
+
+```bash
+docker pull ghcr.io/abbyshade111/securevibe-sv
+```
+
+**Then restart your AI tool, or at least SecureVibe inside it.** The tool starts SecureVibe's container
+when it starts the SecureVibe server, and keeps the one it started until the server starts again. In the
+Claude desktop app, quit it and open it again; in Claude Code, end the session and start a new one. In VS Code, open the Command Palette (Cmd+Shift+P on a
+Mac, Ctrl+Shift+P elsewhere), choose "MCP: List Servers", pick `securevibe`, and choose Restart.
+
+**To see which version you have**, ask the copy itself:
+
+```bash
+docker run --rm ghcr.io/abbyshade111/securevibe-sv --version
+```
+
+It prints a line such as `sv 0.1.0 (commit 3f9c…)`, the commit being 40 letters and digits long: it is
+the exact version of SecureVibe's code the copy was built from, and is what to quote if you report a problem. If you also built SecureVibe on
+your computer (for `--run`, above), `sv --version` prints the same line for that copy.
+
+**Keep the two at the same version.** The container your AI tool uses and a copy built on your
+computer are updated separately, and two versions can disagree: a check one of them has, or a fix, the
+other may not. When you update one, update the other: `docker pull` as above, and for the copy on your
+computer, `cd ~/securevibe`, then `git pull`, then `sh tools/install.sh`. Compare the two `--version`
+lines afterwards. They can still differ for a short while after a change, because the image is
+published only once the change has passed its tests.
+
+**To stay on one version on purpose**, for example while you finish an app, use the commit's own
+image instead of the newest. Every image is also published under the commit it was built from, so
+`ghcr.io/abbyshade111/securevibe-sv:` followed by the whole commit that `--version` prints always
+means the same version. Put that name in place of
+`ghcr.io/abbyshade111/securevibe-sv` in your `.mcp.json` and in the commands above, and nothing
+changes until you change it back.
+
+**Old copies take up space.** Each `docker pull` that fetches a new version keeps the old one on your
+disk, no longer named. `docker image prune` deletes the ones no longer named, and asks first; it
+does not touch the copy you are using.
 
 ## Known problems while this is new
 

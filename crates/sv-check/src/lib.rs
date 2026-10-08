@@ -61,4 +61,4 @@ pub mod workflows;
 pub use finding::{Confidence, Finding, Location, Secret, Severity};
 pub use sbom::{Sbom, build as build_sbom, to_cyclonedx};
 pub use secrets::{SecretRules, SecretScan, scan_text};
-pub use verified::Verified;
+pub use verified::{Tier, Verified};
