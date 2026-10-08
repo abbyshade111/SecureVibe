@@ -792,6 +792,84 @@ pub(super) fn owned_checks(
         }
     }
 
+    // The control (ADR-053, Later): the second user's request leaving the record as it was counts as
+    // a refusal only when the same request, sent by the first user at a second record of their own,
+    // does change or delete it. Otherwise it may never have reached a route at all (a form POSTed
+    // where the app takes PUT, a path it does not have), and an unchanged record would show nothing.
+    // A second record, so the first stays as it was for the checks that read it later.
+    let mut controls_failed = Vec::new();
+    if changed == Some(false) || deleted == Some(false) {
+        let mut own = session.clone();
+        let control_values = Values {
+            marker: "sv-probe-control-3f7b",
+            ..Default::default()
+        };
+        let (made, _) = send_template(
+            http,
+            "owned-control-create",
+            &owned.create,
+            &control_values,
+            &mut own,
+            &users.private,
+        );
+        let control = made
+            .as_ref()
+            .filter(|_| accepted(&made))
+            .and_then(|m| Some((record_path(owned, m)?, record_id(owned, m)?)));
+        if changed == Some(false) {
+            let own_marker = "sv-probe-own-change-5e1b";
+            let works = match (&control, &owned.update) {
+                (Some((path, control_id)), Some(update)) => {
+                    let values = Values {
+                        marker: own_marker,
+                        id: control_id,
+                        ..Default::default()
+                    };
+                    send_template(
+                        http,
+                        "owned-control-update",
+                        update,
+                        &values,
+                        &mut own,
+                        &users.private,
+                    );
+                    let back = http.send(&get("owned-control-after-update", path, &session));
+                    ok(&back) && back.as_ref().is_some_and(|r| r.body.contains(own_marker))
+                }
+                _ => false,
+            };
+            if !works {
+                changed = None;
+                controls_failed.push("change");
+            }
+        }
+        if deleted == Some(false) {
+            let works = match (&control, &owned.delete) {
+                (Some((path, control_id)), Some(delete)) => {
+                    let values = Values {
+                        id: control_id,
+                        ..Default::default()
+                    };
+                    send_template(
+                        http,
+                        "owned-control-delete",
+                        delete,
+                        &values,
+                        &mut own,
+                        &users.private,
+                    );
+                    let back = http.send(&get("owned-control-after-delete", path, &session));
+                    matches!(back.as_ref().map(|r| r.status), Some(404 | 410))
+                }
+                _ => false,
+            };
+            if !works {
+                deleted = None;
+                controls_failed.push("delete");
+            }
+        }
+    }
+
     if !leaked_to.is_empty() {
         out.findings.push(finding(
             &OTHER_USERS_DATA,
@@ -878,6 +956,15 @@ pub(super) fn owned_checks(
                      gives no `update` or `delete` under `owned`, so only reading was tried, and V8.2.2 \
                      is checked in part."
                         .to_owned()
+                } else if !controls_failed.is_empty() {
+                    format!(
+                        "Whether one user can change or delete another user's records: the {} request \
+                         left the first user's own record as it was when the first user sent it too, so \
+                         it may not reach the app's route at all (a request is a form POST unless it \
+                         gives `method`, and `json` in place of `form`), and the second user's being \
+                         refused shows nothing. V8.2.2 is checked in part.",
+                        controls_failed.join(" and ")
+                    )
                 } else {
                     "Whether one user can change or delete another user's records: the first user's \
                      read-back after the second user's request said neither, so only reading is \
@@ -1225,6 +1312,39 @@ mod tests {
             "{:?}",
             o.not_assessed
         );
+    }
+
+    #[test]
+    fn a_change_or_delete_that_never_reaches_a_route_is_not_taken_for_a_refusal() {
+        // ADR-053, Later. The app's change and delete routes take another method, so the form POSTs
+        // answer 405 for everybody: the second user's request leaves the record as it was, and so
+        // does the owner's own. That is no refusal, and V8.2.2 is checked in part, saying why.
+        let o = run_against(
+            Flaws {
+                writes_need_another_method: true,
+                ..Default::default()
+            },
+            &users_full(),
+        );
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == OTHER_USERS_DATA.rule_id)
+            .expect("reading is still credited, in part");
+        assert!(credit.in_part, "{credit:?}");
+        assert!(!credit.scope.contains("not changed"), "{}", credit.scope);
+        assert!(
+            o.not_assessed.iter().any(|(r, why)| r == "V8.2.2"
+                && why.contains("change and delete request")
+                && why.contains("`method`")),
+            "{:?}",
+            o.not_assessed
+        );
+        // The control: a correct app's routes do change and delete the owner's own record, so the
+        // second user's being refused counts, and V8.2.2 is checked in full.
+        let (full, found) = other_users(Flaws::default(), &users_full());
+        assert!(found.is_empty(), "{found:?}");
+        assert!(!full.expect("credited").in_part);
     }
 
     #[test]
