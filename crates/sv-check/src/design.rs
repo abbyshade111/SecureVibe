@@ -68,6 +68,7 @@
 //! `sv review` recorded it and sealed it (`crate::seal`). Any other `by = "owner"` counts as the
 //! tool's word, one tier down, and the report says why and how to make it the owner's.
 
+use crate::verified::Tier;
 use crate::{Confidence, Finding, Location, Severity, Verified};
 use anyhow::{Context, Result};
 use serde::Deserialize;
@@ -237,15 +238,18 @@ pub fn evaluate(
                     };
                     let id = [question.id.as_str()];
                     match &who {
-                        Who::Owner(sealed) => out.attested.push(Verified::new(
-                            "design.attested",
-                            &id,
-                            format!(
-                                "securevibe.toml: you answered yes, and {named}{}. This is your \
-                                 word about the app, not a check of it.",
-                                crate::seal::recorded_where(sealed)
-                            ),
-                        )),
+                        Who::Owner(sealed) => out.attested.push(
+                            Verified::new(
+                                "design.attested",
+                                &id,
+                                format!(
+                                    "securevibe.toml: you answered yes, and {named}{}. This is \
+                                     your word about the app, not a check of it.",
+                                    crate::seal::recorded_where(sealed)
+                                ),
+                            )
+                            .resting_on(Tier::Attested),
+                        ),
                         Who::OwnerUnrecorded => out.stated.push(Verified::new(
                             "design.stated-by-ai",
                             &id,
@@ -256,7 +260,7 @@ pub fn evaluate(
                                  it as yours.",
                                 answer.recorded.as_ref().err().map_or("", String::as_str)
                             ),
-                        )),
+                        ).resting_on(Tier::Stated)),
                         Who::AiTool => out.stated.push(Verified::new(
                             "design.stated-by-ai",
                             &id,
@@ -270,7 +274,7 @@ pub fn evaluate(
                                      coding tool's. It answered"
                                 }
                             ),
-                        )),
+                        ).resting_on(Tier::Stated)),
                     }
                 }
             },
