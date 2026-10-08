@@ -451,31 +451,26 @@ fn pinned(line: &str) -> bool {
 }
 
 /// The volume for these files in this image: the same files in the same image give the same name,
-/// so a second run finds the first one's packages. Two FNV-1a passes with different starting values
-/// make 128 bits, plenty for a cache's name; a collision would only reuse the wrong cache, which the
-/// run would show by failing to import.
+/// so a second run finds the first one's packages. The name carries the first 128 bits of a SHA-256
+/// over the ecosystem, the image, and each file with its length. Until 8 October 2026 it was two
+/// FNV-1a passes, which is a checksum, not a hash anyone would struggle to collide: a dependency
+/// file written to land on another app's volume name would have had that app's packages served to
+/// this one (the review of that day, item 6). A collision in a cryptographic hash's first 128 bits
+/// is not something a file can be written for.
 pub fn volume_name(ecosystem: Ecosystem, image: &str, contents: &[Vec<u8>]) -> String {
-    let mut bytes = Vec::new();
-    bytes.extend_from_slice(ecosystem.short().as_bytes());
-    bytes.push(0);
-    bytes.extend_from_slice(image.as_bytes());
+    use sha2::Digest;
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(ecosystem.short().as_bytes());
+    hasher.update([0]);
+    hasher.update(image.as_bytes());
     for c in contents {
-        bytes.push(0);
-        bytes.extend_from_slice(&(c.len() as u64).to_le_bytes());
-        bytes.extend_from_slice(c);
+        hasher.update([0]);
+        hasher.update((c.len() as u64).to_le_bytes());
+        hasher.update(c);
     }
-    format!(
-        "sv-deps-{}-{:016x}{:016x}",
-        ecosystem.short(),
-        fnv1a(&bytes, 0xcbf2_9ce4_8422_2325),
-        fnv1a(&bytes, 0x6c62_272e_07bb_0142)
-    )
-}
-
-fn fnv1a(bytes: &[u8], start: u64) -> u64 {
-    bytes.iter().fold(start, |hash, b| {
-        (hash ^ u64::from(*b)).wrapping_mul(0x0000_0100_0000_01b3)
-    })
+    let digest = hasher.finalize();
+    let hex: String = digest[..16].iter().map(|b| format!("{b:02x}")).collect();
+    format!("sv-deps-{}-{hex}", ecosystem.short())
 }
 
 /// The app's `PATH`: the installed packages' commands first, then the image's own `PATH`.
@@ -513,6 +508,9 @@ pub fn sentence(installed: &[(Ecosystem, bool)]) -> Option<String> {
         }
     ))
 }
+
+#[cfg(test)]
+mod volume_tests;
 
 #[cfg(test)]
 mod tests {

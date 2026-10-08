@@ -20,6 +20,7 @@ use std::path::{Path, PathBuf};
 use sv_check::advisories::Day;
 use sv_check::seal::{App, Checker, Key, Sealed};
 use sv_check::signed::{Signer, SigningKey, Stored};
+use zeroize::Zeroizing;
 
 /// One entry waiting for a person.
 enum Waiting {
@@ -102,6 +103,8 @@ fn signing_key(
         Some(Stored::Ready(key)) => Ok(Some(key)),
         Some(Stored::Locked(locked)) => {
             for _ in 0..3 {
+                // Zeroed when it goes out of scope, however this returns, so the passphrase does
+                // not stay in freed memory (the review of 8 October 2026, item 6).
                 let Some(typed) = secret(
                     input,
                     out,
@@ -110,7 +113,7 @@ fn signing_key(
                         locked.fingerprint()
                     ),
                 )?
-                else {
+                .map(Zeroizing::new) else {
                     return Ok(None);
                 };
                 match locked.unlock(&typed) {
@@ -137,19 +140,23 @@ fn signing_key(
             else {
                 return Ok(None);
             };
-            let passphrase = if wanted.eq_ignore_ascii_case("yes") {
+            // Each typed passphrase is zeroed when it goes out of scope, the one kept included.
+            let passphrase: Option<Zeroizing<String>> = if wanted.eq_ignore_ascii_case("yes") {
                 loop {
-                    let Some(first) = secret(input, out, "Passphrase: ")? else {
+                    let Some(first) = secret(input, out, "Passphrase: ")?.map(Zeroizing::new)
+                    else {
                         return Ok(None);
                     };
                     if first.is_empty() {
                         writeln!(out, "  A passphrase cannot be empty.")?;
                         continue;
                     }
-                    let Some(again) = secret(input, out, "The same passphrase again: ")? else {
+                    let Some(again) =
+                        secret(input, out, "The same passphrase again: ")?.map(Zeroizing::new)
+                    else {
                         return Ok(None);
                     };
-                    if first == again {
+                    if *first == *again {
                         break Some(first);
                     }
                     writeln!(out, "  The two were not the same. Try again.")?;
@@ -157,8 +164,8 @@ fn signing_key(
             } else {
                 None
             };
-            let key =
-                SigningKey::make_in(folder, passphrase.as_deref()).map_err(anyhow::Error::msg)?;
+            let key = SigningKey::make_in(folder, passphrase.as_deref().map(String::as_str))
+                .map_err(anyhow::Error::msg)?;
             writeln!(
                 out,
                 "Made this computer's signing key, in {}, with its public half beside it. Its \

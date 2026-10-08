@@ -43,6 +43,7 @@ use sv_manifest::Manifest;
 
 pub mod cleanup;
 pub mod docker;
+pub mod image_reference;
 pub mod install;
 
 /// Why the app could not be run. Every one of these produces `not assessed`.
@@ -52,6 +53,9 @@ pub enum CannotRun {
     NoBackend { checked: String },
     /// The manifest does not say how to start the app.
     NoRunCommand { missing: Vec<String> },
+    /// `image` under `[stack.run]` is not a name Docker reads as one (`image_reference`), so it
+    /// was never put on Docker's command line, where a value beginning with a dash is an option.
+    BadImage { image: String, why: String },
     /// The backend is there but refused.
     BackendFailed { detail: String },
     /// The app was started and never became healthy. `loopback` is the loopback address its start
@@ -90,6 +94,12 @@ impl CannotRun {
                 "securevibe.toml does not say how to run this app ({} not set under [stack.run]), \
                  so everything that needs it running is reported as not assessed.",
                 missing.join(", ")
+            ),
+            CannotRun::BadImage { image, why } => format!(
+                "securevibe.toml names an image under [stack.run] that is not a name Docker \
+                 reads as one ({image:?}: {why}), so the app was not started and everything that \
+                 needs it running is reported as not assessed. Name the image as Docker does, \
+                 `python:3.12-slim` or `registry.example.com/team/app:1.0`."
             ),
             CannotRun::BackendFailed { detail } => format!(
                 "The container backend refused: {detail}. Everything that needs the app running \
@@ -435,8 +445,12 @@ impl RunPlan {
         if !missing.is_empty() {
             return Err(CannotRun::NoRunCommand { missing });
         }
+        let image = image.expect("checked above");
+        if let Some(why) = image_reference::problem(&image) {
+            return Err(CannotRun::BadImage { image, why });
+        }
         Ok(RunPlan {
-            image: image.expect("checked above"),
+            image,
             build: non_empty(&run.build),
             start: start.expect("checked above"),
             test: non_empty(&run.test),
@@ -879,6 +893,9 @@ pub fn minutes(limit: Duration) -> String {
         format!("{} seconds", limit.as_secs())
     }
 }
+
+#[cfg(test)]
+mod image_tests;
 
 #[cfg(test)]
 mod tests {

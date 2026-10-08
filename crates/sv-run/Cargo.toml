@@ -10,6 +10,8 @@ serde.workspace = true
 serde_json.workspace = true
 sv-manifest = { path = "../sv-manifest" }
 sv-check = { path = "../sv-check" }
+# The install volume's name is a SHA-256 over the dependency files (ADR-052); already a dependency of sv-check.
+sha2 = "0.11"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
