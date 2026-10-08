@@ -38,3 +38,11 @@ anyhow = "1"
 # down when a check panics (`sv-run`'s `Teardown` is a `Drop`).
 [profile.release]
 strip = true
+
+# The dependencies optimized in a debug build, `sv`'s own crates still unoptimized and debuggable.
+# Measured on 8 October 2026 (BACKLOG, "From the architecture assessment of 8 October 2026", item 1):
+# the 46 tree-sitter rule tests took 126 s with everything unoptimized and 32 s with this, since the
+# parse tables, the regular expressions, and the hashing all live in dependencies that never change
+# between test runs. The one-time cost is a longer first build of the dependencies.
+[profile.dev.package."*"]
+opt-level = 2
