@@ -174,7 +174,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V5.4.2 | L2 | Signed in: `probe.download-name-injected` |
 | V6.2.1 | L1 | Signed in: `probe.short-password-accepted` |
 | V6.2.2 | L1 | Signed in: `probe.password-change` |
-| V6.2.3 | L1 | Signed in: `probe.password-change-without-current` |
+| V6.2.3 | L1 | Signed in: `probe.password-change-without-current`, `probe.signup-replaces-account` (sv only ever as a finding: `probe.signup-replaces-account`) |
 | V6.2.4 | L1 | Signed in: `probe.common-password-accepted` |
 | V6.2.5 | L1 | Signed in: `probe.password-composition-rules` |
 | V6.2.6 | L1 | Signed in: `probe.password-field-unmasked` |

@@ -96,6 +96,9 @@ line in each item's file rather than a reading of its prose.
   requirement names sign-up itself, and V6.3.8 is about telling accounts apart, not taking them. Only ever a finding:
   the old password still working shows nothing about the app's own password change. The fake app's sign-up will keep
   accounts apart by default, with the replacing behavior behind a switch of its own.
+  **Done 8 October 2026** (session securevibe-e9): `probe.signup-replaces-account`, a critical finding citing V6.2.3
+  when signing up again with a taken address gives that account the new password; the fake app keeps accounts apart by
+  default. Design entry `docs/design/0303-a-second-sign-up-that-takes-a-taken-account-8-october-2026.md`.
 
 - **One file per design entry, so two pull requests stop colliding in `docs/DESIGN.md`.** Asked for by the owner on
   8 October 2026 ("can you implement your recommended action of one file per design entry"), after auto-merge kept
