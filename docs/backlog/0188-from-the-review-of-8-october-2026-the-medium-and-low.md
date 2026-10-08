@@ -121,6 +121,10 @@ high were built the same day (the entry above this one's predecessor). Each of t
    ADR-027, Later): a header value or redirect address is quoted on one line and cut at 200 characters, and still read
    whole; a host name outside ASCII is refused with a sentence asking for its `xn--` form; and every exit goes through
    `exit::exit_with`, which a test now holds. The rest of item 6 is open.
+   **One more of its parts claimed 8 October 2026 by session securevibe-e2**, with item 7's `Adapters::load` and tool
+   list below, whose code it shares, in branch `claude/securevibe-e2-adapters-once`: a broken `adapters.json` said in
+   the report without `--tools` too, rather than silently listing no outside tools. Confirmed on `main` just before
+   this claim: not done, and no other session had claimed it. The rest of item 6 stays open.
 7. Housekeeping: fourteen British spellings against the American standard ("cancelled" in `rust.yml`, ADR-051,
    GAP-ANALYSIS, this file, `fake_app.rs`; "honoured" in `codeql.yml`; "licence" in ADR-018 and this file;
    "labelled" here; "recognise" in `docs/prompts/trial-4`); a home path with the owner's first name in
@@ -137,3 +141,8 @@ high were built the same day (the entry above this one's predecessor). Each of t
    of data; "cancellation", which is American too; identifiers such as test names; this item's own quotation of the
    words; and `docs/prompts/trial-4/recipe-brief.md`, which is the brief the trial gave its builders as given, so its
    "recognise" stays, as a record of what they read.
+   **`Adapters::load` and the tool list claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1,
+   item 1, last in its order), in branch `claude/securevibe-e2-adapters-once`: the tools' file read once per report
+   and handed to what needs it, and the sentence naming the outside tools made from that file, so Semgrep is named.
+   Confirmed on `main` just before this claim: neither is done, and no other session had claimed either.
+   `assemble_report_saying`'s length stays open.
