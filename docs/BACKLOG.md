@@ -666,6 +666,9 @@ another session is not a claim.
      suite saw credit and never saw withhold, with a named list of exceptions for any that cannot be made to, each
      with its reason; a check that every place in shipping code that builds a finding hands it through
      `finding::found`; and ADR-059 accepted.
+     **Step 3 done the same day, and with it item 32** (DESIGN, "Step 3: the gate"; ADR-059, accepted):
+     `check_withheld` in `--credits`, `NEVER_WITHHELD` empty, and `unrecorded_findings` in `--check`. Breaks: a
+     finding built without `found`, a check's marker removed, and the gate switched off, each caught.
 
   33. **The backlog is too large to read reliably.** (`docs/GAP-ANALYSIS.md`, 7.5.) Move done items to a file of
      their own; track claims as GitHub issues with assignees, or have CI refuse a claim for an item already claimed

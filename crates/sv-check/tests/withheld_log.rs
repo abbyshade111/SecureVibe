@@ -115,5 +115,27 @@ fn a_finding_is_written_down_with_the_place_that_made_it_and_only_the_checks_own
         said.contains("1 of them were also seen withholding it, and 0 never were"),
         "{said}"
     );
+    // The gate (ADR-059): `--credits` fails on a check that credited and was never seen withholding.
+    let gate = |withheld: &str| {
+        std::fs::write(dir.join("census.log"), credit).unwrap();
+        std::fs::write(dir.join("census.log.withheld"), withheld).unwrap();
+        let out = Command::new("python3")
+            .arg("-I")
+            .arg(repo().join("tools/coverage.py"))
+            .arg("--credits")
+            .arg(dir.join("census.log"))
+            .output()
+            .expect("python3 runs");
+        String::from_utf8_lossy(&out.stderr).into_owned()
+    };
+    let never = "probe.security-headers gives credit and was never seen withholding it";
+    let failed = gate(&by_a_test);
+    assert!(failed.contains(never), "{failed}");
+    // The control: with the check's own finding, the same gate says nothing of it.
+    let passed = gate(&by_the_check);
+    assert!(
+        !passed.contains(never) && passed.contains("disagree"),
+        "the gate still fails, on the other checks this small log never credited: {passed}"
+    );
     std::fs::remove_dir_all(&dir).unwrap();
 }
