@@ -15,6 +15,9 @@ another session is not a claim.
   "still finishing". Under load the check ends between the two, and the second call times out instead. It passed 5
   of 5 times alone. **Claimed the same day by session securevibe-e9** ("go ahead and fix the test race next"), in
   branch `claude/securevibe-e9-mcp-race`: a gate, only in tests, holds the check open until the test lets it go.
+  **Done the same day:** `Hold` in `mcp.rs`, which the check waits at before it hands back its report. With a
+  three-second pause put between the two calls, the test passed with the gate and failed without it, as in the full
+  run.
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
   October 2026 ("please include everything else on the backlog for other sessions to pick up as they can"). Each

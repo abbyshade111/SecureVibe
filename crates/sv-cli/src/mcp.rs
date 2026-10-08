@@ -208,6 +208,34 @@ pub struct Server {
     time_limit: std::time::Duration,
     /// The last check, which may still be running after its time ran out.
     last_check: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
+    /// Holds a check open until a test lets it go, so a test can ask again while it is surely still
+    /// running. Only in tests: a check that ended between "still running" and the next call made
+    /// the time-limit test fail under load.
+    #[cfg(test)]
+    hold: std::sync::Arc<Hold>,
+}
+
+/// A gate a check waits at before it hands back its report, open unless a test closed it.
+#[cfg(test)]
+#[derive(Default)]
+struct Hold {
+    closed: std::sync::Mutex<bool>,
+    changed: std::sync::Condvar,
+}
+
+#[cfg(test)]
+impl Hold {
+    fn set(&self, closed: bool) {
+        *self.closed.lock().unwrap() = closed;
+        self.changed.notify_all();
+    }
+
+    fn wait(&self) {
+        let mut closed = self.closed.lock().unwrap();
+        while *closed {
+            closed = self.changed.wait(closed).unwrap();
+        }
+    }
 }
 
 /// How long a check may take, unless `--time-limit` says otherwise. Checking this whole repository
@@ -358,6 +386,8 @@ impl Server {
             loaded: std::sync::Arc::new(crate::Loaded::load()?),
             time_limit: std::time::Duration::from_secs(TIME_LIMIT_SECONDS),
             last_check: std::sync::Mutex::new(None),
+            #[cfg(test)]
+            hold: std::sync::Arc::default(),
         })
     }
 
@@ -840,6 +870,8 @@ impl Server {
         let (send, receive) = std::sync::mpsc::channel();
         let loaded = std::sync::Arc::clone(&self.loaded);
         let dir = app_dir.to_path_buf();
+        #[cfg(test)]
+        let hold = std::sync::Arc::clone(&self.hold);
         let check = std::thread::Builder::new()
             .name("sv-check".to_owned())
             .spawn(move || {
@@ -848,6 +880,8 @@ impl Server {
                     let _ = send.send(FromCheck::Starting(n, stage));
                 };
                 let report = assemble(&dir, &loaded, &starting);
+                #[cfg(test)]
+                hold.wait();
                 let _ = send.send(FromCheck::Done(Box::new(report)));
             })
             .context("the check could not be started")?;
@@ -5245,6 +5279,8 @@ mod tests {
             let mut server = Server::new(&root)
                 .unwrap()
                 .with_time_limit(std::time::Duration::from_nanos(1));
+            // Held open until the second call has been made, so it cannot end between the two.
+            server.hold.set(true);
             let late = call(&server, tool, args.clone());
             let said = text(&late).to_owned();
             assert_eq!(late["isError"], true, "{tool}: {said}");
@@ -5278,6 +5314,7 @@ mod tests {
                 "{tool}: {}",
                 text(&beside)
             );
+            server.hold.set(false);
 
             // Once it has ended, a check with time enough finishes as it always did.
             assert!(wait_for_last_check(&server), "{tool}");
