@@ -165,6 +165,136 @@
       "id": "AC.6.3",
       "title": "The AI coding tools themselves are attacked on purpose, on a schedule",
       "how": "Check whether anyone regularly tries to trick the AI tools that help build the app: a pull request, issue, or comment with a hidden instruction, a known jailbreak, or a request to add a harmful package. Write down when this was last done and what it found, and whether each finding was tracked until fixed. If it has never been done, schedule the first red-team exercise."
+    },
+    {
+      "id": "V2.2.1",
+      "title": "Input is checked against what the app expects",
+      "how": "List the places the app takes something typed or sent in that decides what happens next: an amount, a quantity, a date, a status, a role, a choice from a list. For each, try a value it should refuse: a negative or huge number, a date in the past, a word that is not one of the choices, an empty field. The app should refuse it with a message, not accept it and carry on. A form that only checks in the browser does not count: send the same value again with the browser's tools, or ask your AI coding tool to show you the check on the server."
+    },
+    {
+      "id": "V1.3.3",
+      "title": "Input is cleaned before it reaches a dangerous place",
+      "how": "Ask your AI coding tool to list every place the app passes something a person typed into another program: a shell command, a file path, an email header, a spreadsheet export, a search sent elsewhere. For each, look at what it does to the input first. It should allow only the characters that place can safely take, and cut off input that is too long. Then try one: put a semicolon, a quote mark, or a very long line into that field, and check the result is refused or harmless."
+    },
+    {
+      "id": "V1.3.5",
+      "title": "Text people write cannot run as code in the page",
+      "how": "If people can write formatted text the app shows to others (Markdown, a comment box, a profile with styling, uploaded stylesheets), try writing a script inside it: a Markdown link to `javascript:alert(1)`, or an HTML `<script>` tag inside the text. Open the page where it is shown, as another user. Nothing should pop up, and the raw tags should be shown as text or removed. If the app takes no formatted text from people, write that down; it does not apply."
+    },
+    {
+      "id": "V1.3.8",
+      "title": "Directory lookups in Java cannot be steered by input",
+      "how": "This applies only to an app written in Java or another language that runs on Java. Search the code for `InitialContext`, `lookup(`, and `ldap:`, and check that nothing a person typed reaches the name being looked up. Then check the version of the logging library: Log4j must be 2.17.1 or later, since older versions let a line of text start such a lookup. If the app has no Java in it, write that down; it does not apply."
+    },
+    {
+      "id": "V6.5.2",
+      "title": "Backup sign-in codes are stored scrambled, not as written",
+      "how": "If the app gives people backup or recovery codes to sign in with, ask your AI coding tool to show you how they are stored. Open the database (or have the tool show you a row) and look at a stored code. It should be a long scrambled value made by a password hashing function such as bcrypt or Argon2, never the code itself. Try signing in with a code the app gave you: it should still work, which shows the scrambled value is checked rather than compared as written."
+    },
+    {
+      "id": "V6.5.3",
+      "title": "Sign-in codes come from an unpredictable random source",
+      "how": "Ask your AI coding tool to show you the line that makes each sign-in code, reset code, backup code, and two-factor secret. It should use the language's secure random source (`secrets` in Python, `crypto.randomInt` or `crypto.randomBytes` in JavaScript, `SecureRandom` in Java, `crypto/rand` in Go). `random`, `Math.random`, or a code made from the time or the user's id is the wrong answer. `sv check` finds the commonest wrong ones itself; this is for any it did not."
+    },
+    {
+      "id": "V8.4.1",
+      "title": "One customer's account cannot touch another customer's data",
+      "how": "This applies when the app keeps separate organizations, teams, or customers apart (tenants). Make two test accounts in two different organizations. Sign in as the first, open something that belongs to it, and write down the address and any id in it. Sign in as the second and try that address, then try changing, deleting, or inviting someone through it. Each should be refused. Do the same with an export or a search, which often skip the check."
+    },
+    {
+      "id": "V11.6.1",
+      "title": "Keys and signatures are made with approved methods",
+      "how": "Ask your AI coding tool to list every place the app makes a key, a signing key, or a signature, and which method each uses. Look for RSA keys of at least 2048 bits (3072 is better), elliptic-curve keys on P-256 or Ed25519, and signatures made with SHA-256 or stronger. MD5, SHA-1, DSA, RSA under 2048 bits, or a key the app writes by hand from random bytes are the wrong answer. If the app makes no keys and signs nothing itself, write that down."
+    },
+    {
+      "id": "V13.3.2",
+      "title": "Each part of the app can reach only the secrets it needs",
+      "how": "List where the app's keys and passwords live (a hosting dashboard, a secrets manager, `.env` files, CI settings) and which parts of the app read each one. Check that each service, job, and person has access only to the ones it uses: the website should not hold the payment admin key, a test job should not see production keys, and a database login should not be an administrator unless it must be. `sv check` finds a CI workflow that hands every secret to a job; this covers the rest."
+    },
+    {
+      "id": "V16.3.4",
+      "title": "Unexpected errors and failed security checks are logged",
+      "how": "Open the app's logs where they are kept (the hosting dashboard, a log service, or the terminal it runs in). Then cause a few failures: stop the database briefly or give it a wrong password, send a request the app should refuse, and visit an address that makes it fail. Each should leave a line in the log saying what went wrong and when, without a password or key in it. Failures that leave no trace are the wrong answer."
+    },
+    {
+      "id": "C2.1.1",
+      "title": "Text is put into one standard form before the model reads it",
+      "how": "Ask your AI coding tool to show you what the app does to a person's text before it is sent to the model or turned into an embedding. Look for a step that puts the text into one standard form (Unicode normalization, such as NFKC) so that look-alike characters and invisible ones become plain text. If the text goes straight to the model as typed, that is the wrong answer."
+    },
+    {
+      "id": "C2.1.2",
+      "title": "Hidden or disguised instructions in input are caught",
+      "how": "Try sending the AI feature an instruction disguised so a simple filter would miss it: written in Base64, split by invisible characters, in letters from another alphabet that look like English, or inside an HTML comment. Check what the app does. It should refuse, mark the text as untrusted, or strip the disguise before the model sees it, and never follow the hidden instruction."
+    },
+    {
+      "id": "C2.1.4",
+      "title": "Input that is too long is refused, not cut short",
+      "how": "Try pasting a very long text into the AI feature, longer than the model can take (several hundred pages of text). The app should refuse it with a message saying it is too long. Cutting it short quietly and carrying on is the wrong answer, because the part cut off can be the part that mattered, such as the instructions at the end."
+    },
+    {
+      "id": "C2.1.5",
+      "title": "Input to the AI feature is held to the characters it needs",
+      "how": "Ask your AI coding tool to show you the list of characters the AI feature accepts. It should be a list of what is allowed (letters, numbers, ordinary punctuation, the languages your users write in), not a list of what is blocked. Then try sending control characters, emoji sequences, or invisible characters, and check they are refused or removed."
+    },
+    {
+      "id": "C2.2.1",
+      "title": "Prompts are screened for harmful content before the model",
+      "how": "Ask your AI coding tool to show you where each prompt is checked for violence, self-harm, hate, and sexual content before it reaches the model, and where the limits for each are set. Then try a prompt that clearly crosses one of them (a request for instructions to hurt someone, for example). It should be refused or cleaned, and the limits should be settings you can change, not words written into the code."
+    },
+    {
+      "id": "C2.2.2",
+      "title": "Content screening works in other languages too",
+      "how": "Take the harmful prompt you tried for the content screening and translate it into a language your app does not expect, such as one written in a different alphabet. Send it. The app should refuse it or mark it as not screened, rather than let it through because the screening only understood English."
+    },
+    {
+      "id": "C7.4.1",
+      "title": "Answers built from documents say which documents",
+      "how": "If the AI feature answers from your own documents or records (retrieval, often called RAG), ask it a question whose answer is in one of them. The answer should name or link the documents it came from. An answer with no sources, or with sources you cannot open, is the wrong answer."
+    },
+    {
+      "id": "C7.4.2",
+      "title": "The listed sources come from the search, not from the model",
+      "how": "Ask your AI coding tool to show you where the source list under each answer is made. It should come from the records the search actually returned (their titles, ids, or addresses), added by the app. If the model is asked to write its own sources, try asking it to cite a document that does not exist: a made-up source appearing in the list is the wrong answer."
+    },
+    {
+      "id": "C9.1.1",
+      "title": "Each tool the AI uses has limits on time and resources",
+      "how": "List the tools the AI feature can use (running code, fetching pages, reading files, querying the database). For each, ask your AI coding tool to show you its limits: how long it may run, how much memory and disk it may use, and where it may connect. Then ask the AI to do something that never ends, such as fetching a page that never answers or running an endless loop. It should be stopped after the limit, not left running."
+    },
+    {
+      "id": "C9.2.1",
+      "title": "High-impact actions wait for a person to approve them",
+      "how": "List what the AI feature can do that is hard to undo: sending money, deleting records, emailing customers, changing permissions. Ask it to do each one. The app should stop and ask a person to approve first, and the approval should be checked by the app itself, not just written in the chat. The action going ahead without a click from a person is the wrong answer."
+    },
+    {
+      "id": "C9.3.1",
+      "title": "The AI's tools run with the least access they need",
+      "how": "Ask your AI coding tool where each tool the AI can use runs, and what it can reach: which files, which database tables, which network addresses, which keys. Each should run in its own sandbox or container with only what it needs (privilege kept to the least). A tool that runs inside the app itself with all its keys and its whole database is the wrong answer."
+    },
+    {
+      "id": "C10.1.1",
+      "title": "MCP servers come from trusted sources, checked before use",
+      "how": "List the MCP servers your app or your AI coding tool uses (look in the MCP settings file, such as `.mcp.json`). For each, check where it comes from: the publisher's own registry or repository, at an exact version, with a checksum or signature that is verified when it is installed. A server fetched by name with no version, or downloaded from an unknown site, is the wrong answer. `sv check` flags servers started with no version; this covers where they come from."
+    },
+    {
+      "id": "C10.2.2",
+      "title": "The MCP server checks every access token fully",
+      "how": "If your app runs its own MCP server that other tools sign in to, ask your AI coding tool to show you where it checks the access token each request presents. It should check who issued it (issuer), who it is for (audience), that it has not expired (expiration), and what it allows (scope). Then try a token for a different service, an expired one, and one with too little scope: each should be refused."
+    },
+    {
+      "id": "C10.2.3",
+      "title": "The MCP server does not keep access tokens or passwords",
+      "how": "If your app runs its own MCP server, ask your AI coding tool to show you everything it stores: database tables, files, logs, caches. Search them for access tokens, refresh tokens, and passwords. The server should check each token and then forget it; finding tokens or user credentials stored anywhere is the wrong answer."
+    },
+    {
+      "id": "C10.3.1",
+      "title": "Remote MCP connections are encrypted and signed in",
+      "how": "If your MCP server is reached over the internet, check its address in the settings of the tool that connects to it. It should start with `https://`, and connecting without a token should be refused. Try both: open the address with `http://` in place of `https://`, and connect without signing in. Either one working is the wrong answer."
+    },
+    {
+      "id": "C10.3.2",
+      "title": "Local-only MCP connections stay on your own computer",
+      "how": "List the MCP servers set up to run as a local program (the settings show a command to start, rather than an address). Check that each runs only on your own computer or in a controlled environment you set up, never on a shared server that other people or the internet can reach. Anything that needs to be shared should use an encrypted, signed-in connection instead."
     }
   ]
 }
