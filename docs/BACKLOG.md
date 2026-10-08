@@ -289,6 +289,8 @@ another session is not a claim.
      `web.config`, `*.tf`); and count a handed file as unread only when a loaded rule in the map reads it (its
      language's extensions, as Semgrep's own parsers take them, or its `paths.include`), so the check stays right
      when a pack changes.
+     **Done 8 October 2026** (DESIGN, "Semgrep is handed the files its rules name"; ADR-018, Later), with three tests
+     in `crates/sv-check/tests/unread_files.rs`.
 
 - **From the gap analysis: the four the owner chose to do first.** "go ahead with the first four - I definitely want
   the tests required before merging and thought I had turned that on" (the owner, 7 October 2026). From the places to

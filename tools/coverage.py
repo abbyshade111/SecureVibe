@@ -581,8 +581,12 @@ def evidence():
             for q in rule["requirements"] + rule.get("findings_against", []):
                 NOT_RUN[q].add(rule_id)
         rules = {k: v for k, v in adapter["rules"].items() if loaded is None or k in loaded}
+        # A tool of every language is handed, besides the code, each file a rule of its names
+        # (`handed_files` in adapters.rs; gap analysis, item 34), so none of its rules is never
+        # handed one. A tool of one language is handed only that language's code.
         extensions = code_extensions()
-        for rule_id in [r for r, rule in rules.items() if not reads_code(rule, extensions)]:
+        for rule_id in [r for r, rule in rules.items()
+                        if adapter["language"] != "*" and not reads_code(rule, extensions)]:
             for q in rules[rule_id]["requirements"] + rules[rule_id].get("findings_against", []):
                 NEVER_HANDED[q].add(rule_id)
             del rules[rule_id]
@@ -903,14 +907,18 @@ def main():
     w(", ".join(sorted(named_elsewhere, key=lambda q: (q[0], order(q)))) + ".\n")
     never = sorted({r for rules in NEVER_HANDED.values() for r in rules})
     only_there = {q for q in NEVER_HANDED if "semgrep" not in ev[q]["tools"]}
-    w(f"{len(never)} rules that a pack loads read only files `sv` never hands semgrep: nginx's and "
-      "Scala Play's `*.conf`, `web.config`, and the like. `sv` hands it the app's code files, and a rule "
-      "none of whose files it was handed ran over nothing, so they are not counted, and a report does "
-      "not credit them (ADR-018, Later, 7 October 2026). Templates (`*.erb`, `*.ejs`, `*.pug`, `*.jsp`) "
-      "are code files since 8 October 2026 (ADR-054), so the rules for them are counted. "
-      + (f"{len(only_there)} requirements are named only by them: "
-         + ", ".join(sorted(only_there, key=lambda q: (q[0], order(q)))) + ".\n" if only_there
-         else "No requirement is named only by them, so the counts above do not change with it.\n"))
+    if never:
+        w(f"{len(never)} rules that a pack loads read only files `sv` never hands semgrep. A rule none "
+          "of whose files it was handed ran over nothing, so they are not counted, and a report does "
+          "not credit them (ADR-018, Later, 7 October 2026). "
+          + (f"{len(only_there)} requirements are named only by them: "
+             + ", ".join(sorted(only_there, key=lambda q: (q[0], order(q)))) + ".\n" if only_there
+             else "No requirement is named only by them, so the counts above do not change with it.\n"))
+    else:
+        w("Every rule a pack loads reads files `sv` hands semgrep: the app's code files, templates "
+          "among them since 8 October 2026 (ADR-054), and the other files a rule in the map names, "
+          "such as nginx's `*.conf` and `web.config`, since the same day (ADR-018, Later). A rule "
+          "credits a clean run only for an app that has a file it reads.\n")
 
     # ---- ASVS by chapter
     w("## ASVS 5.0 by chapter\n")

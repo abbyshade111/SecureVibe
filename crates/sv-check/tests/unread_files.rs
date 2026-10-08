@@ -166,7 +166,9 @@ fn a_file_it_was_given_and_did_not_read_withholds_the_clean_run() {
     assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
     let why = &outcome.not_run[0].1;
     assert!(
-        why.contains("did not read 1 of the 2 code files it was given (`tests/test_app.py`)"),
+        why.contains(
+            "did not read 1 of the 2 files it was given that a rule it loaded reads (`tests/test_app.py`)"
+        ),
         "{why}"
     );
 }
@@ -255,7 +257,7 @@ fn a_rule_for_templates_counts_only_when_a_template_was_handed_over() {
 fn unread_files_are_counted_and_the_first_few_named() {
     let given: Vec<String> = (0..8).map(|i| format!("src/m{i}.py")).collect();
     let scanned = r#"{"paths":{"scanned":["./src/m0.py","src/m1.py"]}}"#;
-    let why = adapters::unread_files(&given, Some(scanned)).unwrap();
+    let why = adapters::unread_files(&given, Some(scanned), &|_| true).unwrap();
     assert!(why.contains("did not read 6 of the 8"), "{why}");
     assert!(
         why.contains("`src/m2.py`") && why.contains("and others"),
@@ -266,9 +268,9 @@ fn unread_files_are_counted_and_the_first_few_named() {
         "a file it read is not named: {why}"
     );
     let all = r#"{"paths":{"scanned":["src/m0.py","src/m1.py","src/m2.py","src/m3.py","src/m4.py","src/m5.py","src/m6.py","src/m7.py"]}}"#;
-    assert_eq!(adapters::unread_files(&given, Some(all)), None);
+    assert_eq!(adapters::unread_files(&given, Some(all), &|_| true), None);
     assert!(
-        adapters::unread_files(&given, Some(r#"{"paths":{}}"#))
+        adapters::unread_files(&given, Some(r#"{"paths":{}}"#), &|_| true)
             .unwrap()
             .contains("does not say which")
     );
@@ -369,4 +371,128 @@ fn secret_rules() -> sv_check::secrets::SecretRules {
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/secret-rules.json"),
     )
     .expect("the secret rules load")
+}
+
+/// `run`, with more files in the app and another rule loaded.
+fn run_with(
+    name: &str,
+    rule: &str,
+    extra: &[(&str, &str)],
+    env: &[(&str, &str)],
+) -> adapters::AdapterRun {
+    let dir = scratch(name);
+    let app = app(&dir);
+    for (path, text) in extra {
+        let path = app.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, text).unwrap();
+    }
+    let mut env = env.to_vec();
+    env.push(("SV_FAKE_RULE", rule));
+    let adapters = stand_in(&dir, &env);
+    let outcome = adapters::run_all(
+        &adapters,
+        &app,
+        &["python".to_owned()],
+        &Default::default(),
+        &dir,
+        &secret_rules(),
+    );
+    std::fs::remove_dir_all(&dir).ok();
+    outcome
+}
+
+#[test]
+fn a_file_no_loaded_rule_reads_is_not_called_unread() {
+    // Gap analysis, item 34. Semgrep leaves out, without a word, a handed file no rule it loaded
+    // reads (semgrep 1.180.0). With only a Python rule loaded, a Handlebars page and a notebook were
+    // never going to be read, and the Python rule's clean run stands.
+    let extra = [
+        ("views/page.hbs", "<p>{{name}}</p>\n"),
+        ("analysis.ipynb", "{}\n"),
+    ];
+    for skip in [".hbs", ".ipynb"] {
+        let outcome = run_with("not-its-files", RULE, &extra, &[("SV_FAKE_SKIP", skip)]);
+        assert!(outcome.not_run.is_empty(), "{skip}: {:?}", outcome.not_run);
+        assert_eq!(outcome.verified.len(), 1, "{skip}");
+    }
+    // The Python file it does read, left out, still withholds it.
+    let outcome = run_with("its-files", RULE, &extra, &[("SV_FAKE_SKIP", "src/")]);
+    assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
+    assert!(
+        outcome.not_run[0].1.contains("`src/app.py`"),
+        "{:?}",
+        outcome.not_run
+    );
+}
+
+#[test]
+fn a_configuration_file_a_rule_names_is_handed_over_and_must_be_read() {
+    // Gap analysis, item 34. The nginx rule reads only `*.conf`, which is not code, so it was never
+    // handed over and ran over nothing. Now it is, and its clean run is evidence; left unread, it
+    // withholds the run.
+    const NGINX: &str = "generic.nginx.security.insecure-ssl-version.insecure-ssl-version";
+    let extra = [("deploy/site.conf", "server { listen 443 ssl; }\n")];
+    let outcome = run_with("conf-read", NGINX, &extra, &[]);
+    assert!(outcome.not_run.is_empty(), "{:?}", outcome.not_run);
+    let credited: Vec<String> = outcome
+        .verified
+        .iter()
+        .flat_map(|v| v.requirement_ids.clone())
+        .collect();
+    assert_eq!(credited, ["V12.1.1"]);
+
+    let outcome = run_with(
+        "conf-unread",
+        NGINX,
+        &extra,
+        &[("SV_FAKE_SKIP", "site.conf")],
+    );
+    assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
+    assert!(
+        outcome.not_run[0].1.contains("`deploy/site.conf`"),
+        "{:?}",
+        outcome.not_run
+    );
+
+    // Without a configuration file, the rule ran over nothing and credits nothing.
+    let outcome = run_with("conf-none", NGINX, &[], &[]);
+    assert!(outcome.verified.is_empty(), "{:?}", outcome.verified);
+}
+
+#[test]
+fn which_files_a_loaded_rule_reads() {
+    let adapters = Adapters::load(&real_adapters()).unwrap();
+    let semgrep = adapters.all().iter().find(|a| a.id == "semgrep").unwrap();
+    let reads = |rule: &str, file: &str| {
+        let loaded = std::collections::BTreeSet::from([rule.to_owned()]);
+        adapters::read_by_a_loaded_rule(semgrep, &loaded, file)
+    };
+    // A Python rule reads Python, and not a page or a notebook.
+    assert!(reads(RULE, "src/app.py"));
+    assert!(!reads(RULE, "views/page.hbs"));
+    assert!(!reads(RULE, "analysis.ipynb"));
+    // A rule of any language with no `paths.include` (Semgrep's `generic`) reads every file.
+    const ANY: &str = "generic.secrets.security.detected-aws-access-key-id-value.detected-aws-access-key-id-value";
+    assert!(reads(ANY, "views/page.ejs") && reads(ANY, "analysis.ipynb"));
+    // One with a `paths.include` reads what it names.
+    const EJS: &str =
+        "javascript.express.security.audit.xss.ejs.explicit-unescape.template-explicit-unescape";
+    assert!(reads(EJS, "views/page.ejs"));
+    assert!(!reads(EJS, "views/page.hbs"));
+    // Semgrep's JavaScript parser reads TypeScript too, and not `.mts`.
+    let js = semgrep
+        .rules
+        .iter()
+        .find(|(_, r)| r.languages == ["javascript"] && r.targets.is_empty())
+        .map(|(id, _)| id.clone())
+        .expect("a JavaScript-only rule in the map");
+    assert!(reads(&js, "src/a.ts") && !reads(&js, "src/a.mts"));
+    // A rule it did not load reads nothing.
+    let loaded = std::collections::BTreeSet::new();
+    assert!(!adapters::read_by_a_loaded_rule(
+        semgrep,
+        &loaded,
+        "src/app.py"
+    ));
 }
