@@ -8,6 +8,11 @@ high were built the same day (the entry above this one's predecessor). Each of t
    (`adapters.rs`, `process_group(0)`) and that path installs no handler, so SIGINT kills `sv` alone and the
    30-minute limit, the private folder, and the lock's `Drop` are gone. The handler `sv-run` uses, killing the
    recorded group.
+   **Claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1, item 1, third in its order), in
+   branch `claude/securevibe-e2-tools-interrupt`: while `--tools` runs, Ctrl-C (or a polite `kill`) stops the tool's
+   whole process group, so the report run ends with nothing of the tool's still running, and says the tool was
+   stopped. Confirmed on `main` just before this claim: `adapters::finish` waits on the tool with no handler
+   installed, and no other session had claimed this part.
 2. npm lockfile `resolved` URLs are not held to the registry (`install.rs`), so the install container fetches
    wherever the lockfile says; refuse unless every entry is `https://registry.npmjs.org/` with `integrity`, as
    pip's `unpinned` refuses. And a dependency file that is a symlink is followed into the networked container
