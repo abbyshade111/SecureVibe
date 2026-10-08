@@ -8610,3 +8610,8 @@ done: `docs/adr/ADR-018.md`.
   tried yet"), the help on the install step's download, and the feature briefs' settings; and the preflight now reads
   the install step, by calling it. With that, the second review is done.
 
+- **Claude Haiku 5.5 against Haiku 4.5: can its apps be tested?** Asked for by the owner on 8 October 2026 ("yes,
+  please go ahead. let's include the Haiku 4.5 control as well"): 10 builds of each on the recipe brief, by one Claude
+  Code, each model named by its full id, by `docs/prompts/library-trial/haiku55-protocol.md`, written before any
+  build. About $4.50 to $6. **Claimed on 8 October 2026 by session paper-facts**, in branch `claude/haiku55`. Read on
+  `main` just before this claim: no other session had claimed it.
