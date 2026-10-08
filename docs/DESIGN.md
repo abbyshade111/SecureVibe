@@ -915,14 +915,16 @@ tools, each of the four in the version named:
 - Semgrep 1.178.0 keeps a `// nosemgrep` result in its SARIF, marked as suppressed.
 - Brakeman 8.0.6 keeps a warning listed in `config/brakeman.ignore`, marked as suppressed and naming
   that file. `skip_checks` in `config/brakeman.yml` hides a check with no trace, and
-  `--config-file /dev/null` does not stop Brakeman reading the file.
+  `--config-file /dev/null` does not stop Brakeman reading the file. (Since 8 October 2026 it is given an empty
+  settings file of `sv`'s own instead, and reads the app's not at all: see below.)
 
 Where a tool can be made to look anyway, it is: bandit runs with `--ignore-nosec` and `--ini /dev/null`,
 gosec with `-track-suppressions`. What any tool reports as suppressed is shown as a finding, and says it
 was marked to be ignored and where, since a finding somebody chose to hide is still a finding until
 somebody has looked at why. That is the owner's decision to make with the finding in front of them, not
 one `sv` makes for them by agreeing to look away. What is left, a clean run whose report still counts
-skipped lines or an app with a Brakeman settings file (`switched_off_by` in `adapters.json`), is not
+skipped lines (and, until 8 October 2026, an app with a Brakeman settings file: `switched_off_by` in `adapters.json`,
+which no entry uses now), is not
 credited, and the report says why in the gaps.
 
 The same measurement turned up a neighbor that is not fixed here: semgrep, by default, skips files
@@ -11058,6 +11060,23 @@ through `PATHEXT` too, nothing changes. Held by `program_tests` (`PATH` given ra
 own is untouched) and `a_program_inside_the_app_is_not_run_and_the_same_one_outside_is`, whose control runs the
 same script from outside the app. Broken on purpose (the inside-the-app judgment switched off): both caught.
 
+**Brakeman's settings file (8 October 2026).** The review of `sv` that day said the app's `config/brakeman.yml`,
+which Brakeman reads on its own, could name Ruby files for Brakeman to load (`additional_checks_path`), and rated it
+high. Tried with Brakeman 8.1.0 installed for the purpose: it could not. Brakeman has ignored that setting in a
+settings file since 3.6.2 (May 2017) unless asked with `--allow-check-paths-in-config`, and a planted check file
+that writes a mark was not loaded; the same file on the command line (`--add-checks-path`) was. So the finding was
+wrong as rated, and what stood was smaller: the file can still turn checks off (`skip_checks`) with no trace in the
+report, which is why a clean run was withheld whenever the app had one, and `-c /dev/null` had not helped because
+Brakeman takes the first settings *file* it finds, `-c`'s before the app's, and `/dev/null` is not a file. Now the
+entry passes `-c {config}`, a placeholder `sv` fills with an empty settings file (`--- {}`) written in the tool's
+private folder for the run, so Brakeman reads that and the app's not at all; `switched_off_by` is gone from the
+entry, and a clean run is credited whether or not the app has a settings file. Shown with the real Brakeman
+(`crates/sv-check/tests/brakeman_settings.rs`, which says so and checks nothing where Brakeman is not installed):
+the control run without `-c` over the fixture app with a planted `skip_checks: [CheckSQL]` reported no SQL
+injection, and the run through `sv` reported it. Shown without it by a stand-in that exits 9 unless its `-c`
+names a file outside the app holding exactly the empty settings (`a_tool_that_asks_for_a_settings_file_is_given_an_empty_one_of_svs_own`),
+with the control being the same tool asked without one.
+
 ## A lone `Pipfile.lock`, and requirements files under other names (6 October 2026)
 
 Deep review H9's last done note left two gaps open, and both are closed here.
@@ -13155,3 +13174,25 @@ Tests: four in `public_keys.rs`, one of them through `config::check_dir`; the ke
 pieces. Nine guards broken in turn, each caught: the check not called, no name counted as a secret, a secret word
 counted without a key word, any token's role counted, comments read, prose read, no value shapes, a name found twice
 in one file reported twice, and a placeholder as short as `sk-your-key` taken for a key.
+
+## A hosted backend is named as out of the running app's reach (8 October 2026)
+
+From the gap analysis (`docs/GAP-ANALYSIS.md`, 3.2; BACKLOG, item 10, its fourth and last part). An app built with
+Lovable, Bolt, and the like often signs people in and keeps their data with Firebase or Supabase, reached from the
+browser. Behind the network fence the running app cannot reach either, so `sv run` asked it its questions and reported
+what it saw, and said nothing about the part of the app that decides who reads whose records.
+
+When the bill of materials shows a Firebase or Supabase package (`firebase`, `firebase-admin`, `@firebase/…`,
+`@react-native-firebase/…`, `supabase`, `@supabase/…`, and Dart's `firebase_…` and `supabase_…`, matched by name and
+never by a word inside one), `sv run`'s "Not assessed by these probes" and the report's gaps carry one more line, citing
+V8 and V6. It names the service and the package that shows it, says nothing signed in through the service or read or
+changed its data, and points to what `sv check` reads instead: Firebase's rules files, or the policies in
+`supabase/migrations/`. It is a gap, so it credits nothing and finds nothing.
+
+`probes::running_app_gaps` now makes the whole list, which `sv run` printed and the report built separately from the
+same three sources; one list means the two cannot drift apart.
+
+Tests: one in `probes.rs`. Five guards broken in turn, each caught: the line left out of the shared list, Supabase
+never recognized, Firebase never recognized, a package matched by a word inside its name (`supabase-mock`), and one
+service's rules named for the other. Not tested end to end: printing the line needs the app running, which needs a
+container backend this test suite does not have everywhere.

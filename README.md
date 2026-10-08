@@ -44,11 +44,16 @@ a time: a rule that has not been taught a language in your app claims nothing, a
 rule and the language. A script written into a web page —
 in a <script> block, an event handler or a javascript: link — is taken out and read as JavaScript, and anything found in it is reported against the page and the line it
 is really on. A page counts as unreadable only when something in it could not be taken out that way.
+Jupyter notebooks are read as Python, cell by cell. Astro and EJS pages have their code taken out and read the same
+way. Templates that cannot run code (Handlebars, Mustache, Jinja, Liquid, Twig, Nunjucks) are read as pages. While a
+`.pug`, `.erb`, `.jsp`, `.cshtml` or `.razor` file is present, no code rule claims anything, because nothing reads
+the code in those yet, and the report names the files (ADR-054).
 
-`sv check`, `sv report` and `sv audit` end with a status a CI job can act on. 3 always means `sv` itself
-failed and there is no result: a folder that is not there, an option it does not know, or, for `sv report`,
-no `securevibe.toml` or one it cannot read (`sv check` and `sv audit` run without one, and read it when it is
-there; every other command uses 3 for a failure of its own too). `sv audit` exits 0 when every package was compared
+`sv check`, `sv report`, `sv audit` and `sv run` end with a status a CI job can act on. 3 always means `sv` itself
+failed and there is no result: a folder that is not there, an option it does not know, a `securevibe.toml` that is
+there and cannot be read, or, for `sv report`, none at all (`sv check` and `sv audit` run without one, and read it
+when it is there; every other command uses 3 for a failure of its own too). `sv run` exits 2 when the app could not
+be started or never answered. `sv audit` exits 0 when every package was compared
 and none matched a known vulnerability, 1 when one did, and 2 when the comparison did not cover the whole app (no
 database, an ecosystem the database holds nothing about, or a list of packages `sv` could not complete).
 `sv check` and `sv report` exit 0 when they finished, and 2 when a check could not run: a file that could not be
@@ -68,9 +73,16 @@ vulnerability. `sv` holds itself to this every week, auditing the Rust files it 
 Running the app needs a container backend (Docker or Colima). Without one, everything that needs the app
 running reports *not assessed* — never a pass, and never a failure.
 
-`sv` opens no network connection of its own, with one exception you ask for by name: `sv probe <address>`
+`sv run` gives the app no network, so it cannot install its own packages, and an app that needs them never starts.
+Put `install = true` under `[stack.run]` and `sv` installs them first, in a container of its own that sees only the
+package list, never the app's code or its `.env`: from `requirements.txt` with every line pinned (`name==1.2.3`), or
+from `package.json` with its `package-lock.json`. It runs none of the packages' own install code, so a Python package
+with no ready-made download cannot be installed this way (ADR-052).
+
+`sv` opens no network connection of its own, with two exceptions you ask for by name. `sv probe <address>`
 sends at most four read-only requests to the address you type (five with `--api`), through `curl`, and asks this computer's own
-DNS resolver one question about that name. Advisory data is something you download and point it at; the list
+DNS resolver one question about that name. And with `install = true`, the install step above downloads the app's
+packages from PyPI or npm before the run; the report says when it did. Advisory data is something you download and point it at; the list
 of packages your app depends on is yours, and a check that quietly phones out is one you did not agree to.
 Outside tools you turn on with `--tools` are other people's programs, and semgrep fetches its rules the first
 time it runs. `sv run` starts containers, and Docker downloads any image it does not have yet.
@@ -82,8 +94,9 @@ development console open to anyone. What those questions cannot reach — anythi
 printed as *not assessed* before any finding, because a suite that only tries the front door and says
 nothing reads exactly like one that found nothing wrong.
 
-If your app has its own tests, they can count too — but only for requirements they name. Write the id
-into the test, in its name or in a comment on the line above it:
+If your app has its own tests, they can count too — but only for requirements they name. They run only when
+`sv` starts the app (`sv run`, or `sv report --run`), with the command given as `test` under `[stack.run]`.
+Write the id into the test, in its name or in a comment on the line above it:
 
 ```python
 def test_V1_2_4_search_uses_bound_parameters():   # or: # covers V1.2.4
@@ -109,16 +122,28 @@ what was **not** examined, say what each check covered when it found nothing wro
 says a requirement passed — `sv` is not able to establish
 that, so it does not claim it.
 
+Each requirement gets one of nine statuses, strongest evidence first: *needs attention* (a check found a problem),
+*checked*, *checked in part* (a check ran, but tried only part of what the requirement asks, ADR-053), *tested by
+the app's own tests*, *documented by the owner*, *checked by hand by the owner*, *attested by the owner*, *stated by
+the AI coding tool*, and *not verified*.
+
 They also list the tests worth writing: every requirement that applies and has no evidence yet, and no
-test in the app naming it, lowest level first. A passing test with the requirement's id in its name is
-the one way to give evidence about any requirement, including the many no check here can reach.
+test in the app naming it, lowest level first. A passing test that names the requirement's id is the one way
+for the app itself to add evidence about the many requirements no check here reaches. It counts as *tested by
+the app's own tests*, below *checked*, and never for a requirement about documents or how the app is run.
 
 The reports also have a threat model: what could go wrong with an app like this one, by the part of it
 each threat concerns (sign-in, stored data, the AI model, uploads, payments, and so on), with what the
 checks showed about each: found, checked in part, not verified, or not known to apply until a question
-in securevibe.toml is answered. It is made from rules, not by asking an AI, and it never calls a threat
+in securevibe.toml is answered. (For a threat, *checked in part* means some of its requirements were checked; the
+app's own tests and the owner's word never move one.) It is made from rules, not by asking an AI, and it never calls a threat
 handled, because a threat is only as settled as the requirements that answer it. See
 `docs/THREAT-MODELING.md`.
+
+They also read your AI coding tool's own files in the app's folder, in a section of their own, apart from the app's
+grade: the commands its settings run, the permissions that let it act without asking, the MCP servers it starts, and
+any characters hidden in its instruction files (`AGENTS.md`, `CLAUDE.md`, and the like) that a person reading them
+cannot see (ADR-049).
 
 ### The questions no tool can answer
 
@@ -151,8 +176,9 @@ cannot change anything. `--api /path` names an address of your app's API on the 
 request: that address over plain HTTP, asked the way a program asks, since an API should refuse plain
 HTTP rather than redirect it (ASVS V4.1.2).
 
-Ninety-odd of the requirements that apply to a typical app cannot be settled by any tool at all, and
-the report now has a section for them: **what only you can check**, with a line each saying what
+About fifty of the requirements that apply to a typical app at level 2 cannot be settled by any tool at all
+(49 and 50 for the examples `notes-with-users` and `flask-booking`, counted on 8 October 2026), and
+the report has a section for them: **what only you can check**, with a line each saying what
 doing something about it involves — write it down in the notes, answer it in `[design]`, or go and
 look at the live site and here is what at. Nothing on that list is counted as met. Doing the thing is
 what would change that, not reading about it.
@@ -170,8 +196,8 @@ well as in the browser, do the app's own parts prove who they are to each other.
 the `[design]` section of `securevibe.toml` with yes, no, or not sure, and where in the code it is
 done.
 
-Answering yes makes the requirement **attested by the owner** — the weakest thing the report says,
-and deliberately so. It is your word about the app, not a check of it, so the requirement stays on
+Answering yes makes the requirement **attested by the owner** — the weakest thing the report says of
+your own word (only the AI coding tool's answer counts for less), and deliberately so. It is your word about the app, not a check of it, so the requirement stays on
 the list of tests to write, and it cannot settle a threat. Answering **no** is the more useful
 answer: the report says plainly that the control is missing, on your own say-so. If `where` names a
 file that is not there any more, the report says that too, rather than keeping a pointer that leads
@@ -260,11 +286,16 @@ or the same `-v` and `-e` as above.
 made (a `seed` command run inside the app's container, or the app's own `signup`), how to sign in and
 out, which pages are private or admin-only, and how one user creates something another must not read.
 `sv` makes two ordinary accounts and, if you list admin pages, an admin, each with a password made for
-that run, and then asks:
+that run, and then asks, among other things:
 
 - can somebody who has not signed in open a private page? (V8.2.1)
 - can an ordinary user open an admin page? (V8.2.1)
-- can one user read what another created? (V8.2.2)
+- can one user find, read, change or delete what another created? (V8.2.2; finding it on the private pages and
+  at `list`, and changing and deleting it with `update` and `delete`, all under `owned`. When only reading was
+  tried, it is *checked in part*, never *checked*. A change or deletion that was refused counts only when the
+  owner's own request does change or delete their record, so a request that never reached a route is not taken
+  for a refusal.)
+- does a private page let another website read it, with the user signed in? (V3.4.2; only ever a finding)
 - is a request from another website accepted with the user's cookies? (V3.5.1)
 - does signing in issue a new session, and does signing out end it? (V7.2.4, V7.4.1)
 - is the session cookie out of reach of scripts and other sites? (V3.3.4, V3.3.2)
@@ -290,10 +321,16 @@ that run, and then asks:
   only ever done to an account made for it)
 - is there a password hint or secret question on the sign-up or sign-in page? (V6.4.2; only ever a
   finding)
+- with `uploads` set: are files too large, of the wrong kind, or compressed beyond the limits you state
+  refused? (V5.2.1, V5.2.3, and others)
+- with a password reset, sign-in codes sent by email, or a code from an authenticator app (`totp`) set: can a
+  reset or a code be used twice, or a code guessed? (V6.4.3, V6.5.1, V6.6.3, and others; the run gives the app a
+  mail server of its own to read the emails from)
 
 When `signup` is set, `sv` also signs up through it, whether or not `seed` made the test users, and
 asks what passwords the app accepts: one of 7 characters (V6.2.1), one of lowercase letters alone
-(V6.2.5), a common one beside a random one of the same shape (V6.2.4), and one of 83 characters
+(V6.2.5), three common ones, beside a random one of the same shape (V6.2.4; all three must be
+refused), one far down the common list that is known to be in breaches (V6.2.12), and one of 83 characters
 (V6.2.9), which is then tried with only its first 72, and the strong one with its capitals swapped, to
 see that the password is checked exactly as typed (V6.2.8). Each is compared with an
 ordinary strong password signed up first, and whether a password was accepted is told by signing in
@@ -379,7 +416,9 @@ app from it, below), `securevibe_preflight` (what `sv run` will need, read from 
 `securevibe_before` (one feature's brief before it is built, below), `securevibe_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
 `securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
-work; `sv prompts`, or `sv prompts --requirement V1.2.4`, prints them at a terminal),
+work; `sv prompts`, or `sv prompts --requirement V1.2.4`, prints them at a terminal; the ten coding prompts shown to
+work are also given in full at the end of `sv init`, `securevibe_spec`, and the server's opening instructions, since
+a prompt given where the tool starts did better than the same prompt fetched mid-build),
 `securevibe_check` (what
 applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
 its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),
@@ -415,8 +454,9 @@ before it is built: sign-in, sign-in through another service, admin pages, uploa
 or fetching a web address (`sv brief` with no feature lists them). It gives the requirements the feature brings that
 apply to the app now, and, if `securevibe.toml` does not say yet that the app has the feature, those that will apply
 once it does; the design-time prompts for the decisions to make first, in full; the coding rules that bear on it; the
-tests to write; and the settings `sv run` needs to test it, quoted from the spec. Like the plan, it writes nothing and
-credits nothing.
+tests to write; and the settings `sv run` needs to test it, quoted from the spec. With the coding prompts shown to
+work that bear on the feature, it answers before `securevibe.toml` exists too, saying that which requirements apply
+cannot be known yet. Like the plan, it writes nothing and credits nothing.
 
 **Before `--run`.** `sv preflight` (and `securevibe_preflight`, for the tool) looks in the app's files for what
 `sv run` will need from `[stack.run]`: a server listening on every address at `$PORT`, a seed that makes the test

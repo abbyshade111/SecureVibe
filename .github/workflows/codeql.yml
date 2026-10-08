@@ -9,7 +9,8 @@
 # only way to say it.
 #
 # GitHub refuses to run this workflow while default setup is still switched on. Turning it off is a repository
-# setting (Settings → Code security → CodeQL) and is the owner's to change; until then this file is inert.
+# setting (Settings → Code security → CodeQL) and is the owner's to change. It has been off since: on 8 October
+# 2026 this workflow was running on every push to main and every pull request, and passing.
 #
 # Two things learnt on 23 September 2026, by running it rather than reading about it:
 #  - Suppression comments are NOT honoured by these packs. `// codeql[js/...]` and `// lgtm[js/...]` on the
@@ -26,7 +27,7 @@
 #    keys from pieces at run time (`['sk', 'live', '…'].join('_')`) so the rule sees a key and the file holds none,
 #    and keep the fixture apps' credentials visibly fake, as they are.
 #
-# Every action is pinned to an exact commit fingerprint, as in checks.yml: a version name can be moved, a
+# Every action is pinned to an exact commit fingerprint, as in rust.yml: a version name can be moved, a
 # fingerprint cannot. The comment beside each says which release it is.
 
 name: CodeQL
@@ -55,7 +56,7 @@ jobs:
       fail-fast: false
       matrix:
         # Every language this repository runs, and only what it runs. Rust is `sv` itself. JavaScript is the three
-        # helpers `sv --run` starts beside the app under test (crates/sv-run/assets/*.mjs: a browser driver, a stand-in
+        # helpers `sv run` starts beside the app under test (crates/sv-run/assets/*.mjs: a browser driver, a stand-in
         # AI model service, and a stand-in sign-in provider); they are real code, not test inputs, and went unscanned
         # until 27 September 2026 because this comment said the only JavaScript was in fixtures. Python is the scripts
         # in tools/. The fixtures and the sample apps in examples/ are excluded below, so each leg sees only these.

@@ -368,6 +368,8 @@
       "run": {
         "command": "brakeman",
         "args": [
+          "-c",
+          "{config}",
           "--format",
           "sarif",
           "--output",
@@ -378,7 +380,7 @@
         ]
       },
       "install": "gem install brakeman",
-      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one. `config/brakeman.yml` can turn checks off (`skip_checks`), the report does not say which ran, and Brakeman cannot be told to disregard the file, so while it is present a run that finds nothing is not credited. Warnings in `config/brakeman.ignore` are still in the report, marked as suppressed. It exits 3 when it warns of something and 0 when it does not (lib/brakeman.rb). Any other code is reported as not run: 4 is no Rails app found, and 7 is files it could not read with nothing found, which is not a clean run.",
+      "note": "Brakeman only understands Rails applications. On a Ruby app that is not Rails it exits without a report, which is recorded as not run rather than as nothing found. Rule ids are Brakeman's warning codes, BRAKE plus the code in four digits, taken from lib/brakeman/warning_codes.rb in Brakeman 8.0.6 and checked on 25 September 2026 against a real SARIF run over crates/sv-check/tests/fixtures/brakeman/app, whose output is kept beside it; fifteen of the ids here appeared in that run. The ids written before that check were mostly wrong: BRAKE0002 is cross-site scripting and was mapped as SQL, BRAKE0013 is eval and was mapped as OS command injection, BRAKE0016 is file access and was mapped as SQL, BRAKE0102 is a 2016 Rails CVE and was mapped as a secret in the source, and BRAKE0000, the SQL injection code itself, was not mapped at all. Codes for individual Rails CVEs are not mapped. An id that is not mapped shows as a finding carrying no requirement rather than as a wrong one. Brakeman reads the first settings file it finds, `-c`'s before the app's `config/brakeman.yml`, and only that one; `-c /dev/null` is not a file, so it was skipped and the app's read, which can turn checks off (`skip_checks`) with the report not saying which ran. Since 8 October 2026 `-c {config}` names an empty settings file `sv` writes in the tool's private folder, so the app's is never read, and a clean run is credited whether or not the app has one (verified with Brakeman 8.1.0: `skip_checks` in the app's file hid BRAKE0000 without `-c`, and not with it). Brakeman itself has ignored `additional_checks_path` in a settings file since 3.6.2, unless asked with `--allow-check-paths-in-config`. Warnings in `config/brakeman.ignore` are still in the report, marked as suppressed. It exits 3 when it warns of something and 0 when it does not (lib/brakeman.rb). Any other code is reported as not run: 4 is no Rails app found, and 7 is files it could not read with nothing found, which is not a clean run.",
       "rules": {
         "BRAKE0000": {
           "what": "SQL injection: a database query built from user input",
@@ -622,9 +624,6 @@
           ]
         }
       },
-      "switched_off_by": [
-        "config/brakeman.yml"
-      ],
       "finished_exits": [
         0,
         3

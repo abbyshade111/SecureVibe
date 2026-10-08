@@ -161,8 +161,9 @@ Open the app's folder in your AI tool and paste this, with your app described at
 >    Record only what I actually answer as mine.
 
 More prompts like these, each for one thing SecureVibe checks, are in [the prompt library](PROMPTS.md).
-`sv prompts` prints them, and your AI tool can fetch them with `securevibe_prompts`. Each says whether it
-has been shown to work.
+The ones shown to work are already given to your AI tool, at the end of the instructions it reads first, so you
+need not paste them. The rest, not yet shown to work, are there too: `sv prompts` prints them, and your AI tool can
+fetch them with `securevibe_prompts`. Each says whether it has been shown to work.
 
 SecureVibe also helps before code is written, and its own instructions tell your AI tool when: a plan of
 what to decide before building (`securevibe_plan`, or `sv plan` at a terminal), a short brief before
@@ -209,24 +210,48 @@ have recorded it with `sv review`.
 ## 6. What you get without anything more, and what you do not
 
 With the steps above, SecureVibe reads the code, the settings, and the list of packages the app uses,
-and asks you the questions. **It does not start the app.** The checks that need a running app, such
+and asks you the questions. It lists those packages but does not compare them with known vulnerabilities:
+that needs a downloaded copy of the list of known ones, at a terminal ("Checking the packages against known
+vulnerabilities", below). **It does not start the app.** The checks that need a running app, such
 as what it sends to a browser, whether signing out really ends the session, and whether one person
-can see another's data, are reported as *not assessed*. That is honest, not a pass.
+can see another's data, are reported as *not assessed*, and so are your app's own tests, which run only when
+the app is started. That is honest, not a pass.
 
 Those checks need `sv report --run` at a terminal, with SecureVibe installed directly on your computer
 rather than in Docker, because starting your app means starting containers of its own. There is no
 download for that yet, so it means building SecureVibe yourself. The steps are at the end of this
 section, under "Installing SecureVibe on your computer, for `--run`".
 
+If your app uses packages, which most do, starting it also needs the line `install = true` under `[stack.run]` in
+`securevibe.toml`. The app runs with no internet, so it cannot fetch its own packages; this line lets SecureVibe
+download them first, in a separate box that sees only the list of packages, never your code. That download is the
+one time SecureVibe uses the internet for your app, and the report says when it did. Without it, an app that needs
+packages does not start, and everything that needs it running is *not assessed*.
+
 **Where the report is.** When your AI tool writes the report (`securevibe_write_report`), or you run
 `sv report`, it goes in a folder named `securevibe-report` inside the app's folder. Open `report.html` in
 a browser; `compliance.md` and `security.md` say the same in plain text for your AI tool.
 
+Each requirement in it has one of these words, strongest first:
+
+- *needs attention*: something was found wrong;
+- *checked*: a check of SecureVibe's own looked, and found nothing wrong in what it tried;
+- *checked in part*: a check looked at only part of what the requirement asks;
+- *tested by the app's own tests*: a test your AI tool wrote names it, and passed;
+- *documented by the owner*: you wrote down your decision;
+- *checked by hand by the owner*: you looked for yourself, and said what you saw;
+- *attested by the owner*: you said yes to a question about how the app is built;
+- *stated by the AI coding tool*: the tool answered, and you have not made the answer yours;
+- *not verified*: nothing speaks to it yet.
+
+None of them means "passed": even *checked* means one check found nothing wrong, not that the whole requirement
+is met.
+
 If you later run SecureVibe in an automatic check (CI) whenever the code changes, the number it ends with
 says what happened. 0: it finished. 2: some check could not run, such as a file it could not read or a
 language it does not read, so that run left part of the app unchecked. 3: SecureVibe itself failed (an
-option it does not know, a folder that is not there, or, for `sv report`, no `securevibe.toml` or one it
-cannot read), so there is no result at all. 1 comes only from `sv audit` (a
+option it does not know, a folder that is not there, a `securevibe.toml` it cannot read, or, for `sv report`,
+none at all), so there is no result at all. 1 comes only from `sv audit` (a
 known vulnerability) or when you ask for it: `sv check . --fail-on attention:high` stops the check when
 anything high or critical is found. Without `--fail-on`, findings alone never fail it. The README says
 exactly what each number covers.
