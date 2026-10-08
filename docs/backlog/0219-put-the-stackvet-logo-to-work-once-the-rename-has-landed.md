@@ -3,8 +3,8 @@
 **Status:** open
 
 Asked for by the owner on 8 October 2026, the day they chose the name StackVet and its logo: "a backlog item for after
-the change is complete to deploy the logo and all that." **Waits for the rename** (its decision record, and the backlog item
-the rename's session claimed): do not start it until the rename has merged, since every part below names files the rename
+the change is complete to deploy the logo and all that." **Waits for the rename** (ADR-062, and the backlog item the rename's
+session claimed): do not start it until the rename has merged, since every part below names files the rename
 changes. Written the same day by session securevibe-e2.
 
 The logo is the code bracket in terracotta: a check mark inside square brackets, and the name in JetBrains Mono Bold
