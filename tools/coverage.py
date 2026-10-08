@@ -743,6 +743,11 @@ def check_credits(log):
     return faults
 
 
+# A check whose findings carry names of their own, one per thing found, rather than the check's: each
+# finding named with the prefix is that check withholding.
+WITHHELD_UNDER = {"advisory.": "advisories", "sbom.": "sbom"}
+
+
 def withheld_report(log):
     """The checks the suite saw give credit and never saw withhold it (backlog item 32, step 1).
 
@@ -765,7 +770,11 @@ def withheld_report(log):
             source, number = at.rsplit(":", 1)
             if shipping.get(source, 0) < int(number):
                 continue
-            seen.add(parts[0])
+            check = parts[0]
+            for prefix, owner in WITHHELD_UNDER.items():
+                if columns == 2 and check.startswith(prefix):
+                    check = owner
+            seen.add(check)
         return seen
 
     credited = read(log, 3)
