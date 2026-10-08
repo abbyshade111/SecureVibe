@@ -1,0 +1,18 @@
+# Process: shorter CI, a merge queue decision, and a nightly routine on `main`
+
+**Status:** open
+
+From the same write-up; each
+claimable on its own, and the second is the owner's to decide.
+1. **Shorter CI.** The test job is one job of about ten minutes and `sv-check` is most of it: a matrix that runs
+   `sv-check` in two or three shards beside the other crates brings it to about five; docs-only pull requests skip
+   the test and image jobs behind a path filter, with a job of the required name still reporting. ADR-051 governs
+   `rust.yml`: a Later entry or an "unchanged, because" line.
+2. **A merge queue** (a repository setting, the owner's). GitHub merges a pull request that was green against an
+   older `main`, so the first test of the combination is `main`'s own; a queue tests each pull request on top of
+   the ones ahead of it, at one more CI run each. The write-up's advice: try auto-merge alone first (on since
+   8 October), and turn the queue on only if `main` goes red from an untested combination more than once a week.
+3. **A nightly routine on `main`.** The full workspace tests with a container backend, `tools/coverage.py
+   --credits`, and the example apps re-scored, with the counts compared to the night before and a one-line note
+   when anything changed. The pieces exist; the comparison does not. The weekly decision-record review's routine
+   ("A weekly review of the decision records") is the model.
