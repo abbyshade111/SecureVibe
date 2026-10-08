@@ -1931,6 +1931,11 @@ fn a_ruby_load_on_something_that_is_not_a_deserialiser_is_not_reported() {
         ("ast.sql-built-by-hand", "python", "def search(db, request):\n    clauses = [\"owner_id = 1\"]\n    add_filters(clauses, request)\n    return db.execute(f\"SELECT id FROM recipes WHERE {' AND '.join(clauses)}\")\n", true),
         ("ast.sql-built-by-hand", "python", "def search(db, request, sep):\n    clauses = [\"owner_id = 1\", \"deleted = 0\"]\n    return db.execute(f\"SELECT id FROM recipes WHERE {sep.join(clauses)}\")\n", true),
         ("ast.sql-built-by-hand", "python", "def search(db, request):\n    global sort\n    sort = \"title\"\n    return db.execute(f\"SELECT id FROM recipes ORDER BY {sort}\")\n", true),
+        // One piece of an f-string guarded and the other the request's: still reported.
+        ("ast.sql-built-by-hand", "python", "SORTABLE = {\"title\", \"created_at\"}\ndef search(db, request):\n    sort = request.args.get(\"sort\", \"title\")\n    if sort not in SORTABLE:\n        abort(400)\n    direction = request.args[\"d\"]\n    return db.execute(f\"SELECT id FROM recipes ORDER BY {sort} {direction}\")\n", true),
+        // A command list the function grows: fixed when only fixed text is added, reported when a value is.
+        ("ast.shell-command-shell-true", "python", "def run(request):\n    cmd = [\"ls\"]\n    cmd.append(request.args[\"d\"])\n    subprocess.call(cmd, shell=True)\n", true),
+        ("ast.shell-command-shell-true", "python", "def run(request):\n    cmd = [\"ls\"]\n    cmd.append(\"-la\")\n    subprocess.call(cmd, shell=True)\n", false),
         // A module's list may be appended to from any function: joined, it is still reported.
         ("ast.sql-built-by-hand", "python", "CLAUSES = [\"owner_id = 1\"]\ndef add(request):\n    CLAUSES.append(\"title = '\" + request.args[\"q\"] + \"'\")\ndef search(db):\n    return db.execute(f\"SELECT id FROM recipes WHERE {' AND '.join(CLAUSES)}\")\n", true),
         ("ast.sql-built-by-hand", "javascript", "const LIST = 'SELECT * FROM notes WHERE user_id = ?';\nfunction f(db, uid) { return db.query(LIST, [uid]); }", false),
