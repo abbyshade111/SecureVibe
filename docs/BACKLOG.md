@@ -32,6 +32,17 @@ another session is not a claim.
   please". So the pages are written to a folder of their own in the home folder (`~/securevibe-docs/`), and
   `docs/paper/` is left out. These are the owner's decisions; their record (a new ADR, governing the script) is
   written as `Status: proposed` with the claim, and accepted in the pull request that builds it.
+  **Claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("go ahead and build the docs page
+  next"), in branch `claude/securevibe-e2-docs-page`: `tools/docs_page.py`, which writes `~/securevibe-docs/` from the
+  documents git tracks, `docs/paper/` and the example apps left out, with a small Markdown reader of its own and a
+  search box over an index written into the page. Its record, a new decision record governing the script, is
+  written and accepted in the pull request that builds it (a number cited here before its record exists fails
+  `every_record_number_cited_is_a_record`).
+  **Done the same day** (ADR-058, accepted): `python3 tools/docs_page.py` writes 87 documents to `~/securevibe-docs/`,
+  with the search box working and nothing fetched. Breaks: the paper left in, the search index not escaped, a folder
+  that was not its own written into, a place inside the repository allowed, every file in its folder removed on a
+  rerun, and code not escaped, each failed a test (`crates/sv-cli/tests/docs_page.rs`, which also runs its
+  `--self-test`).
 
 - **From the review of 8 October 2026: the four things to fix first.** A read-only review of `sv` at `7371e76` (six
   readings: the container fence, `sv probe`, the MCP server and the files `sv` writes, secrets and reports, the
@@ -145,6 +156,10 @@ another session is not a claim.
      --all`; and in `sv dashboard`, each app's runs over time, set against the last run that can be compared (same
      kind, level, `securevibe.toml`, and `sv`), and otherwise said not to be compared and why. No requirement is ever
      credited from history, and the reports never read it. Accepts this part of ADR-057.
+     **Done the same day** (DESIGN, "History: each app over time"; ADR-057, Later): the command, the record kept by
+     `sv report`, the over-time view, and `sv dashboard` with no folders. Breaks: history always on, a record others
+     can read, no limit on how many are kept, every run compared whatever its kind, history's text not escaped on
+     the page, and `forget` that deletes nothing, each failed a test (`crates/sv-cli/tests/history.rs`).
   4. **A progress page during a run**, if wanted once the first three are in use (4).
 
 - **From the gap analysis of 7 October 2026: findings for any session to pick up.** Asked for by the owner on 7
@@ -461,6 +476,11 @@ another session is not a claim.
      with nothing read, `sv check` says none is listed as checked and fine and why, and a finding about a missing
      file names the file as not there rather than a line of it. Breaks: the "nothing read" test switched off, a
      missing file shown at its line, and every run treated as nothing read each failed the new test.
+     **(d) claimed on 8 October 2026 by session securevibe-e2**, at the owner's word ("please continue to work off
+     the backlog"), in branch `claude/securevibe-e2-mcp-remedy`: when an MCP tool cannot do its job, what `sv` itself
+     says to do next (call `securevibe_spec`, write the file, check again) is written outside the fence that marks
+     the app's text, and only what quotes the app (a path, a line that does not parse) stays inside it; and a remedy
+     the MCP server gives names the MCP tool, not `sv init`, which the AI tool cannot run.
   26. **The short version never says what kind of run it was.** (`docs/GAP-ANALYSIS.md`, 6.1.) One line naming what
      was not run (the running app, signed-in testing, outside tools) and how many applicable requirements only that
      could reach (`sv-report`'s short version).
@@ -8097,6 +8117,12 @@ another session is not a claim.
      added to one and not the other is a silent difference between what the person gets and what the AI tool gets.
      One pipeline, a `ReportOptions::reading_only(caller)` for the eight hand-written "why not run" triples, and one
      list the three report-file-name lists derive from (branch `claude/securevibe-review-mcp-split`).
+     **Second half done the same day** (DESIGN, "The MCP server in a folder, and one way to write a report folder"):
+     `mcp.rs` is the folder `mcp/` (nine files, the tests their own); `report_folder::write_report_folder` is the
+     one sequence `sv report` and `securevibe_write_report` both call; `ReportOptions::reading_only` and `asked_of`
+     replace the seven hand-written triples (the MCP server's three sentences written over `reading_only`'s); and
+     the five file names are `sv_scan::ecosystems::REPORT_FILES`, which the folder names, the seal's list, and the
+     MCP server's resources derive from, with `sv-cli`'s table of renderers held to it by the compiler.
   3. **`sv check` and `sv report` can exit differently on the same folder.** `cmd_check` runs the same five scanners
      but never `merge_same_place`, the test-code and bundled-library marks, or `review::apply`, and its exit code
      counts every finding, where `sv report`'s counts the findings left after a person's recorded false alarms. So
