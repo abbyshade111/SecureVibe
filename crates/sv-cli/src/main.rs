@@ -5369,12 +5369,25 @@ fn cmd_report(args: &[String]) -> Result<i32> {
             sv_report::threats::count_line(&report.threats)
         );
     }
+    let gaps = report_gaps(&report, run_tools, advisories_given);
+    let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
+    // What was asked for and did not all run is said here whatever the exit status: by default it
+    // does not change the status (ADR-029), and a run that ends quietly reads as one where it ran.
+    let unsaid: Vec<&String> = gaps
+        .partly
+        .iter()
+        .filter(|g| !reasons.iter().any(|r| r.starts_with(g.as_str())))
+        .collect();
+    if !unsaid.is_empty() {
+        println!("\nAsked for, and not all of it ran (the reports say the same):");
+        for gap in unsaid {
+            println!("  {gap}");
+        }
+    }
     println!(
         "\nOpen report.html to read it. Nothing in there says a requirement passed, because \
          nothing here can establish that."
     );
-    let gaps = report_gaps(&report, run_tools, advisories_given);
-    let (status, reasons) = gaps.status(fail_on, report.findings.iter().map(|f| f.severity));
     exit::explain(status, &reasons)
         .iter()
         .for_each(|l| println!("{l}"));

@@ -712,6 +712,17 @@ pub fn is_installed(adapter: &Adapter) -> bool {
     presence(adapter) == Presence::Ready
 }
 
+/// How to install a tool, as the middle of a sentence: a command to type is quoted and introduced,
+/// and steps already written in words (CodeQL's download) are left as they are.
+fn install_step(install: &str) -> String {
+    let program = install.split_whitespace().next().unwrap_or("");
+    if ["pip", "pip3", "pipx", "go", "gem", "npm", "brew", "cargo"].contains(&program) {
+        format!("run `{install}`")
+    } else {
+        install.to_owned()
+    }
+}
+
 /// Runs one adapter over an app folder.
 ///
 /// Never through a shell. The arguments are passed as a list, so nothing in a path can end the
@@ -796,9 +807,10 @@ pub fn run_one_in(
             return Outcome::NotRun {
                 why: format!(
                     "{} is not installed on this computer, so nothing here has checked the \
-                     {subject} in this app the way it would have. Install it with `{}` and run \
+                     {subject} in this app the way it would have. To install it, {}; then run \
                      this again.{also}",
-                    adapter.name, adapter.install
+                    adapter.name,
+                    install_step(&adapter.install)
                 ),
             };
         }
@@ -1953,6 +1965,30 @@ mod folder_tests {
 #[cfg(test)]
 mod presence_tests {
     use super::*;
+
+    #[test]
+    fn an_install_hint_reads_as_a_sentence_whether_it_is_a_command_or_steps() {
+        // Gap analysis 5.3: "Install it with `download the CodeQL bundle from …`".
+        assert_eq!(
+            install_step("pip install semgrep"),
+            "run `pip install semgrep`"
+        );
+        let codeql = "download the CodeQL bundle from https://example.org, unpack it";
+        assert_eq!(install_step(codeql), codeql);
+        // Every hint `sv` ships is one or the other, and each command is one `install_step` knows.
+        let adapters =
+            Adapters::load(&Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/adapters.json"))
+                .unwrap();
+        assert!(!adapters.all().is_empty());
+        for adapter in adapters.all() {
+            let step = install_step(&adapter.install);
+            assert!(
+                step.starts_with("run `") || step.starts_with("download "),
+                "{}: {step}",
+                adapter.id
+            );
+        }
+    }
 
     #[test]
     fn a_silent_127_is_missing_and_one_that_says_why_is_broken() {
