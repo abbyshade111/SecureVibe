@@ -36,6 +36,8 @@ SECTIONS = [
     ("Start here", lambda p: p in ("README.md", "docs/GETTING-STARTED.md")),
     ("Decision records", lambda p: p.startswith("docs/adr/")),
     ("Prompts", lambda p: p.startswith("docs/prompts/") or p == "docs/PROMPTS.md"),
+    # The design record, one entry per file (docs/adr/ADR-060.md), apart from the long documents beside it.
+    ("Design record, entry by entry", lambda p: p.startswith("docs/design/")),
     ("Design, plans, and coverage", lambda p: p.startswith("docs/")),
     ("Notes for AI coding sessions and data", lambda p: True),
 ]

@@ -1,8 +1,8 @@
 # SecureVibe (`sv`): the ten-minute map
 
 What `sv` is made of, how a run goes through it, and where each rule is held. Written 8 October 2026 for a session
-or a person opening the repository cold. `docs/DESIGN.md` is the dated record of every decision as it was made (13,000
-lines); `docs/adr/` holds the 44 decisions that matter most, each with the files it governs; this page is the map that
+or a person opening the repository cold. `docs/design/` is the dated record of every decision as it was made, one file per
+entry (nearly 300, some 13,000 lines in all); `docs/adr/` holds the 44 decisions that matter most, each with the files it governs; this page is the map that
 neither of them is. When this page and the code disagree, the code is right and this page is out of date: say so in
 the pull request that finds it.
 

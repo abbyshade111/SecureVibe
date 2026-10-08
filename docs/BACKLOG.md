@@ -23,6 +23,7 @@ another session is not a claim.
   ADR-060, proposed with this claim.
   **Claimed 8 October 2026 by session securevibe-e9**, at the owner's word, in branch
   `claude/securevibe-e9-design-entries`.
+  **Done the same day** (`docs/design/0297-one-file-per-design-entry-8-october-2026.md`; ADR-060 accepted).
 
 - **A private page for the owner to read all of `sv`'s documentation.** Asked for by the owner on 8 October 2026
   ("build out a private page (just for me on this computer) that makes it easy for me to navigate through all the
