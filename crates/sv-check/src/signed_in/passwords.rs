@@ -1148,6 +1148,7 @@ fn sessions_after_change(open_after: Option<bool>, path: &str, out: &mut Outcome
                 .to_owned(),
         )),
     }
+    crate::verified::unless_credited(CHANGE_ENDS_SESSIONS.rule_id, &out.verified);
 }
 
 /// V6.3.7: whether an email reached the account holder after the password was changed, as
@@ -1175,6 +1176,7 @@ fn email_after_change(mail: Option<(usize, usize)>, path: &str, out: &mut Outcom
                 .to_owned(),
         )),
     }
+    crate::verified::unless_credited(CHANGE_NOTIFIED.rule_id, &out.verified);
 }
 
 /// What a request that may tell an address with an account from one without is, for the finding:
@@ -1333,6 +1335,14 @@ pub(super) fn delete_account_check(
         return;
     };
     let Some(confirm) = confirm else {
+        // Said, not skipped (the architecture assessment of 8 October 2026, item 8).
+        out.not_assessed.push((
+            IDS.to_owned(),
+            "Whether deleting an account ends its sessions: no private page opened for a \
+             signed-in user, so whether a deleted account's session still opens one cannot be \
+             tried."
+                .to_owned(),
+        ));
         return;
     };
     let spare = &accounts.spare;
