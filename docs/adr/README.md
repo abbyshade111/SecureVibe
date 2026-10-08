@@ -97,7 +97,7 @@ for word", and ADR-012 is also cited by number in `DESIGN.md` and in four source
 | [ADR-051](ADR-051.md) | The tests must pass before a pull request merges into main, and every commit on main is tested |
 | [ADR-052](ADR-052.md) | Packages installed before the run, outside the fence, in a container that sees only the dependency files |
 | [ADR-053](ADR-053.md) | Another user's records are checked for reading, listing, changing, and deleting, and one read alone is "checked in part" |
-| [ADR-055](ADR-055.md) | Two checks stop resting on one sample: cross-site access asks the private pages, and a common password is three (proposed) |
+| [ADR-055](ADR-055.md) | Two checks stop resting on one sample: cross-site access asks the private pages, and a common password is three |
 | [ADR-054](ADR-054.md) | Templates and notebooks are read for what they can hold, and never pass silently |
 
 ## Where v1's records disagree with what v1 built

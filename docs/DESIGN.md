@@ -3708,6 +3708,14 @@ When only reading could be tried, the credit is *in part*, and a requirement who
 *checked in part*: its own status, below *checked*, with its own row in every count and its own words wherever counts
 are said. The report says why it is in part and what to add to make it whole.
 
+## Two checks that rested on one sample (ADR-055)
+
+The recipe trial found two checks whose answer depended on one choice of `sv`'s. The common-password check tried one
+word, so a list written from memory passed or failed by whether it held that word; it now tries three of the same
+shape from across the top 3000, sharing one random control, and credits only when all three are refused. The
+cross-site check asked only the health path, while the harm it guards against lives behind sign-in; the first test
+user now asks each private page the same question, and a page that echoes another site's Origin is a finding.
+
 ## A pretend "Sign in with Google" inside the fence
 
 An app whose people sign in through Google, Microsoft, or any other OpenID Connect provider carries
