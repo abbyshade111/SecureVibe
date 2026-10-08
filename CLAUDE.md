@@ -28,7 +28,7 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `semgrep_rule_map.py`, `codeql_suites.py`,
   `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`,
-  `docs_page.py`, `design_entry.py`) and one shell script,
+  `docs_page.py`, `design_entry.py`, `merge_main.py`) and one shell script,
   `install.sh`, which installs `sv` with its data outside the build folder; each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands
@@ -87,6 +87,19 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
 - Git is pre-approved. Commit and push to a working branch, open pull requests, and merge one into `main` once its checks
   are green, without asking first. Say what went in afterwards; a short, honest account of each change is the point, not a
   request for permission. The owner asked for this on 18 September 2026.
+- **Turn auto-merge on when you open a pull request** (a merge commit, never squash or rebase), so it merges the
+  moment its checks pass; do not sit and merge by hand. When GitHub reports a conflict, bring `main` in with
+  `python3 tools/merge_main.py`, which settles a backlog conflict where both sides added text (both kept, `main`'s
+  first) and leaves any other for you; then `git commit`, push, and leave auto-merge on. On 8 October 2026 one pull
+  request was green three times and refused three times, because another merge landed between each green run and
+  the merge by hand.
+- **One open build pull request per session.** Land it before opening the next; a claim pull request may stay open
+  beside it. Two builds open at once from one session each need `main` brought in twice as often.
+- **If `main` goes red after your merge, it is yours.** Fix it forward in a new pull request within the hour, or undo
+  your merge with a new commit, never a force-push, and say so in your report either way. GitHub merges a pull
+  request that was green against an older `main`, so the first test of the combination is `main`'s own (ADR-051).
+- Before a review or an assessment, read the day's write-ups in `docs/BACKLOG.md` (the entries "From the review of"
+  and "From the architecture assessment of"), so two sessions do not find the same thing twice.
 - Still ask first, every time: anything that spends the owner's money, anything that changes the repository's settings or
   visibility, rewriting or force-pushing history, and deleting anything. Those are the owner's money or are hard to undo, and
   the pre-approval above does not reach them.

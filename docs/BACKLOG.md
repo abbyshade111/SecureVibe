@@ -8423,6 +8423,11 @@ another session is not a claim.
   name in the tools list. No decision: nothing changes what `sv` runs, writes, or concludes.
   **Claimed 8 October 2026 by session securevibe-review**, at the owner's word, in branch
   `claude/securevibe-review-merge-script`.
+  **Done the same day** (`tools/merge_main.py`, with its self-test run by `crates/sv-cli/tests/merge_main.rs`;
+  `CLAUDE.md`, four bullets after "Git is pre-approved" and the tools list; design entry "A merge script for the
+  backlog's conflicts, and four merging rules"). The script settles a conflict in a Markdown file only when every
+  block's merge base is empty; a Rust file, or a block where both sides changed the same lines, is left as Git
+  left it, named, and the script fails. It never commits: the merge is staged for the session's own commit.
 
 ## Decided, not yet written down as ADRs
 
