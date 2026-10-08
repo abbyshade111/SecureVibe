@@ -46,6 +46,16 @@ high were built the same day (the entry above this one's predecessor). Each of t
    `sitecustomize.py` the ADR-032 way where `codeql` is installed. Changes what the tools may run and fetch, and when
    they run: a Later entry on ADR-032. Confirmed on `main` just before this claim: gosec's `env` is empty,
    `adapters.rs` reads `listing.links` nowhere, and no other session had claimed this part.
+   **Done the same day** (`docs/design/0305-gosec-is-fenced-like-the-rest-and-the-tools-that-walk-the.md`;
+   ADR-032 and ADR-018, Later): gosec starts with `GOPROXY=off` and `CGO_ENABLED=0`, shown to have downloaded 46 MB
+   of modules and started `gcc` 32 times without them; its `-quiet` is gone so its log says which files it read and a
+   clean run writes a report at all (none ever was credited before), with a file it did not read, or an analyzer run
+   that failed for want of the modules, said in the report; gosec and Brakeman, each shown to read a linked file,
+   are not run over an app that holds a link, with the links named. CodeQL 2.27.2, tried with planted `preinstall`,
+   `postinstall`, `prepare`, `sitecustomize.py`, `usercustomize.py`, and `setup.py` and a linked file, ran none and
+   read through nothing, so it carries no guard and the planted test stays. Not done: an SSA failure withholds the
+   whole clean gosec run rather than only the analyzers' rules, and a linked folder, which neither tool entered, is
+   refused with the files.
 4. A planted `.securevibe-report` marker lets `securevibe_write_report` replace five named files in any app
    subfolder (`main.rs`, `refuse_someone_elses_folder`: a marker alone counts for writing). Require
    `is_sv_output` or a proven seal, else "give an empty folder".
@@ -111,6 +121,23 @@ high were built the same day (the entry above this one's predecessor). Each of t
    ADR-027, Later): a header value or redirect address is quoted on one line and cut at 200 characters, and still read
    whole; a host name outside ASCII is refused with a sentence asking for its `xn--` form; and every exit goes through
    `exit::exit_with`, which a test now holds. The rest of item 6 is open.
+   **One more of its parts claimed 8 October 2026 by session securevibe-e2**, with item 7's `Adapters::load` and tool
+   list below, whose code it shares, in branch `claude/securevibe-e2-adapters-once`: a broken `adapters.json` said in
+   the report without `--tools` too, rather than silently listing no outside tools. Confirmed on `main` just before
+   this claim: not done, and no other session had claimed it. The rest of item 6 stays open.
+   **The rest of item 6 claimed 8 October 2026 by session securevibe-review**, from the roadmap (Phase 1, item 1, the
+   next unclaimed in its order), in branch `claude/securevibe-review-low-rest`, as one pull request of small fixes:
+   `image` in `[stack.run]` held to Docker's reference grammar before it is put on a command line, so a value that
+   is a flag (`--privileged`) or carries a space is refused with its reason; the typed passphrase zeroized once used
+   (`review.rs`); the DNS transaction id drawn from the operating system's randomness rather than the process id
+   (`live_tls.rs`); the bundle's scratch folder recorded (ADR-017, Later) or moved beside what the bundle writes;
+   a Content-Security-Policy meta tag on `report.html` and the dashboard; and the install volume's name made with
+   SHA-256. The no-sidecar fallback is done already: since `d77f82dc` (8 October, "The hardening in one place")
+   `fence_args` and `prepared` give it the same flags, labels, and limits as the sidecar, so it gets a done note
+   and no build. Confirmed on `main` just before this claim: none of the six is done (`live_tls.rs` still forms
+   the id from `std::process::id()`, `volume_name` still uses FNV-1a, no `Content-Security-Policy` in `sv-report`,
+   no `zeroize` in `sv-cli`, no image grammar check in `sv-run`), and the only other claims on item 6 are the parts
+   above and the broken `adapters.json` in #1104.
    **Two more of its parts claimed 8 October 2026 by session securevibe-e9**, from the roadmap (Phase 1, item 1, the
    next unclaimed in its order; the broken `adapters.json` is claimed by securevibe-e2 in #1104), in branch
    `claude/securevibe-e9-image`: `[stack.run] image` is held to Docker's reference grammar before anything starts, so
@@ -135,3 +162,8 @@ high were built the same day (the entry above this one's predecessor). Each of t
    of data; "cancellation", which is American too; identifiers such as test names; this item's own quotation of the
    words; and `docs/prompts/trial-4/recipe-brief.md`, which is the brief the trial gave its builders as given, so its
    "recognise" stays, as a record of what they read.
+   **`Adapters::load` and the tool list claimed 8 October 2026 by session securevibe-e2**, from the roadmap (Phase 1,
+   item 1, last in its order), in branch `claude/securevibe-e2-adapters-once`: the tools' file read once per report
+   and handed to what needs it, and the sentence naming the outside tools made from that file, so Semgrep is named.
+   Confirmed on `main` just before this claim: neither is done, and no other session had claimed either.
+   `assemble_report_saying`'s length stays open.
