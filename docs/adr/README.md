@@ -103,6 +103,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-057](ADR-057.md) | A dashboard for `sv`, optional, with history kept only when the owner asks, outside the app's folder (proposed) |
 | [ADR-058](ADR-058.md) | A private set of pages for the owner to read `sv`'s documentation, in the home folder, without the paper |
 | [ADR-059](ADR-059.md) | Every check that gives credit is seen withholding it in the test suite, or the build fails |
+| [ADR-060](ADR-060.md) | One file per design entry, so two pull requests stop colliding in the design record |
 
 ## Where v1's records disagree with what v1 built
 

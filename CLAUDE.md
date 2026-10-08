@@ -2,8 +2,9 @@
 
 SecureVibe (`sv`) is a Rust command-line tool and MCP server that checks an app written in any language against OWASP
 ASVS 5.0, AISVS 1.0 and the Secure by Design checklist, and writes reports that say plainly what was verified and what
-was not. The person builds the app in their own AI coding tool; `sv` picks up the code and grades it. `docs/DESIGN.md`
-is the design, `docs/BACKLOG.md` is what is still to do, `docs/COVERAGE.md` counts what any check can speak to.
+was not. The person builds the app in their own AI coding tool; `sv` picks up the code and grades it. The design is
+`docs/design/`, one file per dated entry (`docs/DESIGN.md` says how they are kept), `docs/BACKLOG.md` is what is still
+to do, `docs/COVERAGE.md` counts what any check can speak to.
 
 **v1 is archived, not part of this tree.** SecureVibe v1 (the app that asked questions and wrote a Node app) lived at the top
 of this repository until 26 September 2026. It is on the `v1` branch (read `ARCHIVED.md` there) and at the tags `v1-paper`
@@ -27,7 +28,7 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   threat modeling, and `docs/paper/`.
 - `tools/` — Python scripts (`coverage.py`, `pwned_passwords.py`, `semgrep_packs.py`, `semgrep_rule_map.py`, `codeql_suites.py`,
   `atlas_references.py`, `image_smoke.py`, `prompt_trial.py`, `adr_check.py`, `cvss4_tables.py`,
-  `docs_page.py`) and one shell script,
+  `docs_page.py`, `design_entry.py`) and one shell script,
   `install.sh`, which installs `sv` with its data outside the build folder; each with its purpose at the top. `examples/` — sample apps. `Dockerfile` — the container image.
 
 ## Commands
@@ -101,10 +102,20 @@ many documents cite commit hashes. A patch to v1 is made on the `v1` branch, nev
   merge until it passes, so add the line, or change the record, before asking for the merge. A pull request opened
   before 21:55 that day ran the check under its old name, `check`, and waits for "Decision records" until it is
   pushed to again or its description is edited.
+- **A design entry is a new file, never a section added to `docs/DESIGN.md`.** Write it with
+  `python3 tools/design_entry.py new "Its title (date)"`, which makes `docs/design/NNNN-its-title.md`; a test fails on
+  a section in `DESIGN.md`. Until 8 October 2026 every session added to the end of one file, and any two open pull
+  requests then conflicted there (`docs/adr/ADR-060.md`). A branch from before that mends its conflict with the steps
+  at the top of the script.
 - Claim a backlog item in `docs/BACKLOG.md` before starting it, and commit that claim on its own. Saying so in a message
   to another session does not count: a session that is not running never receives it, and one that is will not see it again
   after its context is summarized. On 20 September 2026 two sessions each read the backlog, each correctly saw an item
   unclaimed, and both built it.
+  Append the claim at the end of the "Next" section, never at its top, and merge the claim's pull request before building
+  on it: on 8 October 2026 every session inserted at the top, so a branch an hour old conflicted with `main` there, and the
+  same conflict was resolved three times at a 20-minute CI round each. For the same reason a new test goes in a sibling
+  test file (`src/<module>/tests.rs`, or one of its own) rather than at the end of a module's `mod tests`, and a new DESIGN
+  section is a section of its own rather than a paragraph on an existing one.
 - Before deleting a branch, compare its files with `main` (`git diff --stat main..<branch>`); never decide from
   `git branch --merged` alone. A commit that reached `main` by cherry-pick or rebase arrives with a different identity, so git
   calls the branch unmerged while every line of it is already there.
