@@ -60,7 +60,11 @@ def build(out, arm, model, n, budget, api):
     name = f'{model}-{label}-{n}'
     folder = os.path.join(out, name)
     os.makedirs(folder, exist_ok=False)
-    request = open(os.path.join(REPO, 'docs/prompts/trial-3/plain-brief.md')).read()
+    # The brief: the club app's unless `--brief PATH` (relative to the repository) names another, as the
+    # recipe trial does (docs/prompts/library-trial/recipe-protocol.md).
+    brief = (sys.argv[sys.argv.index('--brief') + 1] if '--brief' in sys.argv
+             else 'docs/prompts/trial-3/plain-brief.md')
+    request = open(os.path.join(REPO, brief)).read()
     if '--before-amendment-1' not in sys.argv:
         request = request.rstrip('\n') + NO_OWNER
     # Amendment 3 (item 6): every arm's request starts with `sv init`'s output, the specification.
@@ -86,10 +90,13 @@ def build(out, arm, model, n, budget, api):
            '--output-format', 'stream-json', '--verbose', '--max-budget-usd', str(budget)]
     if api:
         cmd += ['--settings', json.dumps({'apiKeyHelper': KEY_HELPER})]
+    # Never install packages on this computer: `python3 -m pip` would match `Bash(python3:*)` and write into
+    # the owner's own Python. Packages reach the app only through `sv`'s install step (ADR-052).
+    refused = ['Bash(python3 -m pip:*)', 'Bash(python3 -m ensurepip:*)', 'Bash(pip:*)', 'Bash(pip3:*)']
     if arm.endswith('hidden'):
-        hidden = [f'mcp__securevibe__securevibe_{t}' for t in SV_TOOLS
-                  if f'mcp__securevibe__securevibe_{t}' not in sv_tools]
-        cmd += ['--disallowedTools', ' '.join(hidden)]
+        refused += [f'mcp__securevibe__securevibe_{t}' for t in SV_TOOLS
+                    if f'mcp__securevibe__securevibe_{t}' not in sv_tools]
+    cmd += ['--disallowedTools', ' '.join(refused)]
     if attach:
         config = {'mcpServers': {'securevibe': {'command': SV, 'args': ['mcp', '--root', folder]}}}
         cfg = os.path.join(out, name + '.mcp.json')
