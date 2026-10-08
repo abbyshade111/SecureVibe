@@ -1769,6 +1769,7 @@ fn run_checks(
     let confirm = confirm_path.clone().filter(|_| signed_in_works);
     password_checks(http, users, accounts, confirm.as_deref(), policy, &mut out);
     signup_reveals_account_check(http, users, accounts, &mut out);
+    signup_replaces_account_check(http, users, accounts, confirm.as_deref(), &mut out);
     default_account_check(http, users, confirm.as_deref(), &mut out);
     password_field_checks(http, users, Some(&a.session), &mut out);
 
@@ -1904,6 +1905,8 @@ pub(crate) fn sign_up(
 mod asked_tests;
 #[cfg(test)]
 mod fake_app;
+#[cfg(test)]
+mod resignup_tests;
 
 #[cfg(test)]
 mod tests {

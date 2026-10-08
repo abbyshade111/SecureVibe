@@ -795,6 +795,19 @@ pub(super) const SIGNIN_REVEALS_ACCOUNT: Rule = Rule {
           right\".",
 };
 
+pub(super) const SIGNUP_REPLACES_ACCOUNT: Rule = Rule {
+    rule_id: "probe.signup-replaces-account",
+    requirement_ids: &["V6.2.3"],
+    cwe: &["CWE-620", "CWE-640"],
+    impact: "Signing up again with an address that already has an account gave that account the new \
+             password. Anybody who knows somebody's email address can take their account by signing \
+             up with it, without the old password or access to the email.",
+    fix: "When a sign-up's address already has an account, leave that account as it is: refuse the \
+          sign-up, or answer as for any sign-up and email the address's owner instead. Change a \
+          password only through the password change, which asks for the current one, or a reset \
+          sent to the address.",
+};
+
 pub(super) const SIGNUP_REVEALS_ACCOUNT: Rule = Rule {
     rule_id: "probe.signup-reveals-account",
     requirement_ids: &["V6.3.8"],
