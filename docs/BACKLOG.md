@@ -8260,11 +8260,16 @@ another session is not a claim.
      Changes what a request's answer counts as: a Later entry on ADR-021. The four suites then gain limiter waits,
      so item 7 goes with it.
      **Claimed 8 October 2026 by session securevibe-review**, with item 7 (branch `claude/securevibe-review-one-answer`).
+     **Done the same day** (ADR-021, Later, 8 October 2026; DESIGN, "One rule for what an answer is, and one wait for
+     the whole run"): `answer_of`, the seven places through it, `Patient` around the OIDC, MCP, and fetch suites with
+     one budget for the run; the AI suite left as it is, with why.
   7. **The probe sidecar's life is a fixed 900 s** (`docker.rs:84`), not derived from the request budget: 300 s of
      limiter waiting plus the AI suite's fixed waits can outlive it, after which every request reads as "no answer"
      and nothing names the sidecar. Tie it to the budget and have `probe` tell "container gone" from "app silent".
      A Later entry on ADR-025.
      **Claimed 8 October 2026 by session securevibe-review**, with item 6 (the same branch).
+     **Done the same day** (ADR-025, Later, 8 October 2026): `SIDECAR_SECONDS` built from `MOST_WAITING`, and a lost
+     sidecar named in the run's output and the report (`RunOutcome::sidecar_lost`).
   8. **A check cannot be made to say what it asked.** A check is `fn(.., out: &mut Outcome)` and nothing requires it
      to touch `out`: about 200 hand-written `not_assessed.push` sites, and four early returns with none
      (`sessions.rs:711`, fixed on 8 October; `sessions.rs:298`, `passwords.rs:1318`, `signin.rs:618`). Cheapest: a
