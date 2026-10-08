@@ -237,8 +237,23 @@ mod tests {
     use super::super::fake_app::*;
     use super::*;
 
+    /// The check alone, against a fake app holding the two accounts, rather than the whole
+    /// signed-in suite: each test here took a minute running every other check to reach this
+    /// one (8 October 2026). The suite's own scenario tests still run it in its place.
     fn run(flaws: Flaws) -> Outcome {
-        run_against(flaws, &users())
+        let acc = accounts();
+        let mut app = FakeApp::new(flaws);
+        for account in [&acc.a, &acc.b] {
+            app.users
+                .insert(account.user.clone(), (account.password.clone(), false));
+        }
+        only(&mut app, &users(), &acc)
+    }
+
+    fn only(http: &mut dyn Http, users: &UsersSection, acc: &Accounts) -> Outcome {
+        let mut out = Outcome::default();
+        once_check(http, users, acc, &mut out);
+        out
     }
 
     fn why_not(o: &Outcome) -> &str {
@@ -324,7 +339,7 @@ mod tests {
         });
         app.users
             .insert(acc.a.user.clone(), (acc.a.password.clone(), false));
-        let o = super::super::run(&mut app, &users(), &acc, true, &Default::default());
+        let o = only(&mut app, &users(), &acc);
         assert!(o.findings.iter().all(|f| f.rule_id != DONE_TWICE.rule_id));
         assert!(!verified_ids(&o).contains(&DONE_TWICE.rule_id));
         assert!(
@@ -393,7 +408,7 @@ mod tests {
                 .users
                 .insert(account.user.clone(), (account.password.clone(), false));
         }
-        let o = super::super::run(&mut app, &users(), &acc, true, &Default::default());
+        let o = only(&mut app, &users(), &acc);
         // A really signed in, so the reason below is the runner's and not a failed sign-in.
         assert!(
             o.steps.iter().any(|s| s.starts_with("signed in as ONCE")),
@@ -432,7 +447,7 @@ mod tests {
                 .users
                 .insert(account.user.clone(), (account.password.clone(), false));
         }
-        let o = super::super::run(&mut app, &users(), &acc, true, &Default::default());
+        let o = only(&mut app, &users(), &acc);
         assert!(
             o.steps
                 .iter()
@@ -490,7 +505,7 @@ mod tests {
                 .users
                 .insert(account.user.clone(), (account.password.clone(), false));
         }
-        let o = super::super::run(&mut http, &users(), &acc, true, &Default::default());
+        let o = only(&mut http, &users(), &acc);
         // The setup: both users were shown signed in, the race ran, and A got the seat.
         assert_eq!(http.seen.len(), 2, "{:?}", o.steps);
         assert_ne!(http.seen[0], http.seen[1], "two sessions, not one");
@@ -537,7 +552,7 @@ mod tests {
                 .users
                 .insert(account.user.clone(), (account.password.clone(), false));
         }
-        let o = super::super::run(&mut app, &users(), &acc, true, &Default::default());
+        let o = only(&mut app, &users(), &acc);
         assert!(!verified_ids(&o).contains(&DONE_TWICE.rule_id));
         assert!(
             why_not(&o).contains("token could not be read for the second user"),
@@ -552,7 +567,7 @@ mod tests {
     fn without_a_once_action_it_is_not_assessed() {
         let mut u = users();
         u.once = None;
-        let o = run_against(Flaws::default(), &u);
+        let o = only(&mut FakeApp::new(Flaws::default()), &u, &accounts());
         assert!(why_not(&o).contains("names no `once`"), "{}", why_not(&o));
     }
 }
