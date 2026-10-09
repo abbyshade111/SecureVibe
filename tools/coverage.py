@@ -785,12 +785,12 @@ def check_credits(log):
     requirement the check does not cite; and a requirement a crediting check cites that it was never
     seen crediting.
     """
-    shipping = {str(p.relative_to(ROOT)): code.count("\n") + 1 for p, code in rust_code()}
+    shipping = shipping_lines()
     credited = defaultdict(set)
     lines = 0
     for line in Path(log).read_text(encoding="utf-8").splitlines():
         check, ids, at = line.split("\t")
-        path, number = at.rsplit(":", 1)
+        path, number = logged_place(at)
         if shipping.get(path, 0) < int(number):
             continue
         lines += 1
@@ -846,6 +846,20 @@ def check_withheld(log):
     return faults
 
 
+def shipping_lines():
+    """Each Rust file that ships, by its path from the repository with `/` on every system, and how
+    many lines it has. The census logs name a place in the code as Rust's own `file!()` does, which
+    on Windows is written with `\\`; both sides are compared with `/` (backlog 0120). Until then, on
+    Windows, no logged place matched a file, and every log read as holding no credit."""
+    return {p.relative_to(ROOT).as_posix(): code.count("\n") + 1 for p, code in rust_code()}
+
+
+def logged_place(at):
+    """`file:line` from a census log, as (`file` with `/`, line)."""
+    path, number = at.rsplit(":", 1)
+    return path.replace("\\", "/"), number
+
+
 def unrecorded_findings():
     """Every place in the code that ships that builds a `Finding` hands it through `finding::found`, so the
     census sees it (ADR-059). Returns "file:line" for each that does not."""
@@ -855,7 +869,7 @@ def unrecorded_findings():
             before = code[max(0, m.start() - 40):m.start()]
             if re.search(r"(struct|impl|->)\s*$", before) or re.search(r"found\(\s*$", before):
                 continue
-            out.append(f"{path.relative_to(ROOT)}:{code[:m.start()].count(chr(10)) + 1}")
+            out.append(f"{path.relative_to(ROOT).as_posix()}:{code[:m.start()].count(chr(10)) + 1}")
     return out
 
 
@@ -874,7 +888,7 @@ def withheld_report(log):
     never seen withholding), each a sorted list of check ids, for the checks this script knows (the
     Rust checks and the tree-sitter rules). Fails nothing: it measures.
     """
-    shipping = {str(p.relative_to(ROOT)): code.count("\n") + 1 for p, code in rust_code()}
+    shipping = shipping_lines()
 
     def read(path, columns):
         seen = set()
@@ -883,7 +897,7 @@ def withheld_report(log):
             if len(parts) != columns:
                 continue
             at = parts[-1]
-            source, number = at.rsplit(":", 1)
+            source, number = logged_place(at)
             if shipping.get(source, 0) < int(number):
                 continue
             check = parts[0]
