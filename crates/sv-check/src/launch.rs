@@ -428,9 +428,9 @@ static ADDRESS_GIVEN: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 /// Whether a plain-HTTP address names a computer other than this one or one on its own network:
-/// loopback, private and link-local addresses, `.local` and `.internal` names, and a name with no
-/// dot (a service on the same Docker network) never leave it. A name built at run time (`${HOST}`)
-/// is not judged.
+/// loopback, private and link-local addresses, `.localhost`, `.local` and `.internal` names, and a
+/// name with no dot never leave it. A name with no dot is `localhost`, a service on the same Docker
+/// network, or one built at run time (`${HOST}`), which is not judged.
 fn leaves_the_network(address: &str) -> bool {
     let rest = &address["http://".len()..];
     let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
@@ -441,7 +441,7 @@ fn leaves_the_network(address: &str) -> bool {
         authority.split(':').next().unwrap_or("")
     }
     .to_ascii_lowercase();
-    if host.is_empty() || host.contains(['$', '{', '<', '%']) || !host.contains(['.', ':']) {
+    if !host.contains(['.', ':']) {
         return false;
     }
     if let Ok(ip) = host.parse::<std::net::IpAddr>() {
@@ -452,11 +452,7 @@ fn leaves_the_network(address: &str) -> bool {
             std::net::IpAddr::V6(v6) => !(v6.is_loopback() || v6.is_unspecified()),
         };
     }
-    !(host == "localhost"
-        || host.ends_with(".localhost")
-        || host.ends_with(".local")
-        || host.ends_with(".internal")
-        || host == "host.docker.internal")
+    !(host.ends_with(".localhost") || host.ends_with(".local") || host.ends_with(".internal"))
 }
 
 /// Every plain-HTTP MCP link to another computer in one file's text, with its line.
@@ -1274,7 +1270,10 @@ mod tests {
              const b = new StreamableHTTPClientTransport(new URL('http://localhost:3001/mcp'));\n\
              const c = new SSEClientTransport(new URL('http://mcp-server:8080/sse'));\n\
              const d = new StreamableHTTPClientTransport(new URL('http://192.168.1.4/mcp'));\n\
-             const e = new StreamableHTTPClientTransport(new URL('http://${MCP_HOST}/mcp'));\n",
+             const e = new StreamableHTTPClientTransport(new URL('http://${MCP_HOST}/mcp'));\n\
+             const f = new StreamableHTTPClientTransport(new URL('http://127.0.0.1:9000/mcp'));\n\
+             const g = new StreamableHTTPClientTransport(new URL('http://tools.localhost/mcp'));\n\
+             const h = new StreamableHTTPClientTransport(new URL('http://host.docker.internal/mcp'));\n",
         )
         .unwrap();
         fs::write(
