@@ -32,6 +32,7 @@ pub mod hosted_rules;
 pub mod human;
 pub mod junit;
 pub mod launch;
+pub mod level_hints;
 pub mod live_tls;
 pub mod logs;
 pub mod manifest_lock;
