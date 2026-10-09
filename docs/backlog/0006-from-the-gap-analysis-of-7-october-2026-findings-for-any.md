@@ -513,6 +513,18 @@ listed apart, below this item.
    other session had claimed (e).
    **(e) done the same day** (`docs/design/0331-instruction-files-that-name-sv-s-own-marks-9-october-2026.md`; ADR-049, Later, accepted): a note in the AI tool's
    section for each instruction file naming one of the marks, with its line.
+   **(c) claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new items
+   as you merge"), in branch `claude/stackvet-e9-notes-confirmed`: today an owner who agrees with a section the AI
+   coding tool wrote changes its line to `Written by: owner` and seals it, and the report then calls it *documented by
+   the owner*, with nothing left to say the tool drafted it. Instead, `sv review` offers a section still marked
+   `Written by: AI coding tool` for confirming, as it does a design answer or a check made by hand (ADR-022), and seals
+   it with who wrote it among what the seal covers, so changing the line to `owner` afterwards breaks the seal rather
+   than making the tool's draft the owner's own. Such a section counts at the documented tier and is shown as
+   "written by the AI coding tool, confirmed through sv review", never as the owner's. Sections the owner wrote, and
+   their seals, are unchanged. **`Status: proposed`: ADR-022, Later, 9 October 2026** (a person confirming a
+   security notes section the tool wrote). (a), the passphrase on by default, is left for the owner: it reverses
+   ADR-043's "offered, not required", which the owner chose. Read on `main` and the open pull requests just before
+   this claim: no other session had claimed (c).
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third
