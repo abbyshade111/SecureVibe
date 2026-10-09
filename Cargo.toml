@@ -2,6 +2,8 @@
 resolver = "3"
 members = ["crates/sv-frameworks", "crates/sv-manifest", "crates/sv-scan", "crates/sv-run", "crates/sv-check", "crates/sv-report",
     "crates/sv-cli"]
+# The fuzzing targets build on nightly Rust only, and are run apart from the tests (ADR-077).
+exclude = ["fuzz"]
 
 [workspace.package]
 version = "0.1.0"

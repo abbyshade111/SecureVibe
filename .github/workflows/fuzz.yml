@@ -1,0 +1,57 @@
+# The readers of untrusted input fuzzed (ADR-077): the MCP server's input, an app's stackvet.toml, the
+# lockfiles and test reports an app ships, and the reports outside tools write. Each target is fed
+# inputs mutated by the million for five minutes, from starting inputs the repository already holds
+# (fuzz/seed.sh); nothing is downloaded but the toolchain and cargo-fuzz.
+#
+# Weekly and by hand, not on each pull request: it tests main, and a few minutes a target on every pull
+# request would cost more than the readers change. It is not a required check. A crash fails the job and
+# its input is kept as an artifact. To fix one, add that input to the ordinary tests first and see it
+# fail, then fix the reader, so the fix is held by `cargo test` on stable Rust and the next run looks
+# for the next crash.
+#
+# Nightly Rust is used here only, because cargo-fuzz needs it; the build and the tests stay on stable.
+# Every step is pinned to an exact commit fingerprint, as in rust.yml.
+
+name: Fuzz
+
+on:
+  schedule:
+    - cron: '0 8 * * 1' # Mondays, 08:00 UTC, after the CodeQL and audit runs.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [mcp_line, manifest, lockfiles, tool_reports]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use nightly Rust, for cargo-fuzz only
+        run: rustup toolchain install nightly --profile minimal
+
+      - name: Install cargo-fuzz
+        run: cargo +nightly install cargo-fuzz --locked --version 0.13.2
+
+      - name: Seed the starting inputs from the repository
+        run: sh fuzz/seed.sh
+
+      - name: Fuzz ${{ matrix.target }} for five minutes
+        working-directory: fuzz
+        run: cargo +nightly fuzz run ${{ matrix.target }} corpus/${{ matrix.target }} -- -max_total_time=300 -rss_limit_mb=4096
+
+      - name: Keep the input that crashed it
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-crash-${{ matrix.target }}
+          path: fuzz/artifacts/${{ matrix.target }}/
+          retention-days: 30

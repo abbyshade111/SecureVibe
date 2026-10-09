@@ -68,3 +68,6 @@ a workflow of its own, and a crash found turned into an ordinary test before it 
 ADR-077.** **Part 6's plan claimed the same day by session securevibe-e9**: a written build plan for the owner, in
 this item, before anything is built; nothing is published or built from it without the owner's word. Read on `main`
 and the open pull requests just before this claim: no other session had claimed part 3 or part 6.
+**Part 3 done the same day** (`docs/design/0340-the-readers-of-untrusted-input-fuzzed-weekly-9-october-2026.md`, ADR-077 accepted): four `cargo fuzz` targets in `fuzz/`, outside the
+workspace, seeded from the repository by `fuzz/seed.sh`, and `.github/workflows/fuzz.yml` running each for five minutes
+every Monday and by hand. A minute each here found no crash; a planted one was found within two minutes.

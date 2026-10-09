@@ -2957,6 +2957,7 @@ fn counts_must_stand_as_numbers_of_their_own() {
         who: None,
         failure: None,
         tool_call: None,
+        injection_reached: None,
     };
     // 44321 and 12345 contain the counts but are not them.
     let mut o = Outcome::default();
@@ -2987,6 +2988,7 @@ fn call_markers() -> LogMarkers {
         who: None,
         failure: None,
         tool_call: None,
+        injection_reached: None,
     }
 }
 
@@ -4450,4 +4452,85 @@ fn a_tool_call_logged_with_its_argument_is_credited_in_part_and_nothing_else_is(
     let mut app = FakeChat::default();
     let (_, careful) = run(&mut app, &mcp_section(), &context(None, &NO_POLICY));
     assert!(careful.tool_call.is_some(), "{careful:?}");
+}
+
+#[test]
+fn a_flagged_injection_that_is_stopped_is_credited_in_part_and_one_passed_on_is_found() {
+    // ADR-079, C11.4.2: the injection recorded as caught, joined with whether it reached the model.
+    let caught = "2026-10-09T12:00:01Z WARN prompt injection detected abc123";
+    let with = |reached: Option<bool>| LogMarkers {
+        injection_reached: reached,
+        ..call_markers()
+    };
+    // Flagged and stopped: credited, in part.
+    let mut o = Outcome::default();
+    logged(&with(Some(false)), caught, &mut o);
+    let credit = o
+        .verified
+        .iter()
+        .find(|v| v.check_id == FLAG_NOT_GATING.rule_id)
+        .unwrap_or_else(|| panic!("{:?}", o.not_assessed));
+    assert!(credit.in_part, "{credit:?}");
+    assert!(!found(&o).contains(&FLAG_NOT_GATING.rule_id));
+    // Flagged and passed on anyway: the finding, and no credit.
+    let mut o = Outcome::default();
+    logged(&with(Some(true)), caught, &mut o);
+    assert_eq!(
+        o.findings
+            .iter()
+            .filter(|f| f.rule_id == FLAG_NOT_GATING.rule_id)
+            .count(),
+        1,
+        "{:?}",
+        o.findings
+    );
+    assert!(!credited(&o).contains(&FLAG_NOT_GATING.rule_id));
+    // Said, neither: the plain message after it did not get through; no flag recorded; no output.
+    for (markers, log, words) in [
+        (with(None), caught, "cannot be told"),
+        (
+            with(Some(false)),
+            "2026-10-09T12:00:01Z INFO GET /api/chat 200",
+            "no flag",
+        ),
+        (with(Some(true)), "", "no flag"),
+    ] {
+        let mut o = Outcome::default();
+        logged(&markers, log, &mut o);
+        assert!(!credited(&o).contains(&FLAG_NOT_GATING.rule_id), "{log}");
+        assert!(!found(&o).contains(&FLAG_NOT_GATING.rule_id), "{log}");
+        assert!(
+            why(&o, "C11.4.2").iter().any(|w| w.contains(words)),
+            "{log}: {:?}",
+            o.not_assessed
+        );
+    }
+    // End to end: a careful app that refuses the injection and writes it down is credited.
+    let careful = ask_and_read(Flaws::default(), Logs::Full);
+    assert!(
+        credited(&careful).contains(&FLAG_NOT_GATING.rule_id),
+        "{:?}",
+        careful.not_assessed
+    ); // End to end: an app that answers one message and refuses every one after it, and writes the
+    // injection down as caught, is not credited: its refusal of the injection says nothing about
+    // the flag, since the plain message after it was refused too.
+    let everything = ask_and_read(
+        Flaws {
+            one_message_only: true,
+            ..Default::default()
+        },
+        Logs::Full,
+    );
+    assert!(
+        !credited(&everything).contains(&FLAG_NOT_GATING.rule_id),
+        "{:?}",
+        everything.verified
+    );
+    assert!(
+        why(&everything, "C11.4.2")
+            .iter()
+            .any(|w| w.contains("cannot be told")),
+        "{:?}",
+        everything.not_assessed
+    );
 }
