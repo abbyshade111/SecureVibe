@@ -335,6 +335,15 @@ listed apart, below this item.
    corroborators half is not claimed.
    **The workflows half done the same day** (DESIGN, "A stranger's text in a workflow's commands, and actions not
    pinned to a commit").
+   **The corroborators half claimed 9 October 2026 by session securevibe-e2**, in branch
+   `claude/securevibe-e2-corroborators`: a file pattern written `**/name` matches that name at any depth (the app's
+   listing already leaves out `.git` and `node_modules`), used for `Dockerfile`, `Containerfile`, the compose files,
+   and `Chart.yaml` in `iac`; and `compose.yaml`, `compose.yml`, `Containerfile`, and `cdk.json` added to `iac`, and
+   `.travis.yml`, `cloudbuild.yaml`, and `.buildkite` to `ci-cd`. Both conditions take a missing file as agreeing
+   with an owner's "no", so a `deploy/Dockerfile` or a `compose.yaml` that was not looked for let a "no" stand and
+   took requirements out of the report. **`Status: proposed`: ADR-015, Later, 9 October 2026** (what a missing
+   file can agree with). Confirmed on `main` just before this claim: patterns match at the top of the folder only,
+   none of the seven names is listed, and no other session holds this half.
 17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
    (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
