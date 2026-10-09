@@ -4400,18 +4400,28 @@ fn a_tool_call_logged_with_its_argument_is_credited_in_part_and_nothing_else_is(
             .unwrap_or_else(|| panic!("{line}: {:?}", o.not_assessed));
         assert!(credit.in_part, "{credit:?}");
         assert!(credit.scope.contains(said), "{}", credit.scope);
-        assert!(credit.scope.contains("not a security-critical action"), "{}", credit.scope);
+        assert!(
+            credit.scope.contains("not a security-critical action"),
+            "{}",
+            credit.scope
+        );
     }
     // Said, never found nor credited: the tag only inside the person's logged message, the tool
     // without the tag, and nothing written at all.
     for line in [
         "received message: Could you look that up for me? SV-PROBE-MCPPLAIN-abc999 (tools: sv_lookup)",
         "2026-10-09T12:00:01Z INFO tool call sv_lookup",
+        // The tool's answer carries the tag too; a line recording only that, without the tool, is
+        // not a record of the action.
+        "2026-10-09T12:00:02Z INFO tool result: SV-MCPRESULT-abc999 The note says the meeting is at noon.",
         "",
     ] {
         let mut o = Outcome::default();
         logged(&markers, line, &mut o);
-        assert!(!credited(&o).contains(&TOOL_ACTION_LOGGED.rule_id), "{line}");
+        assert!(
+            !credited(&o).contains(&TOOL_ACTION_LOGGED.rule_id),
+            "{line}"
+        );
         assert!(!found(&o).contains(&TOOL_ACTION_LOGGED.rule_id), "{line}");
         assert!(
             why(&o, "C12.4.2")
