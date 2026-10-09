@@ -4,11 +4,12 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use sv_frameworks::paths::Canonical;
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
-        .canonicalize()
+        .canonical()
         .unwrap()
 }
 
@@ -84,7 +85,7 @@ fn every_page_offers_the_documents_and_the_backlog_one_click_away() {
             page.display()
         );
         for (name, href, _) in &found {
-            let target = page.parent().unwrap().join(href).canonicalize();
+            let target = page.parent().unwrap().join(href).canonical();
             let expected = if name == "Documents" {
                 "index.html"
             } else {
@@ -92,7 +93,7 @@ fn every_page_offers_the_documents_and_the_backlog_one_click_away() {
             };
             assert_eq!(
                 target.ok(),
-                dir.join(expected).canonicalize().ok(),
+                dir.join(expected).canonical().ok(),
                 "{}: {name} goes to {href}",
                 page.display()
             );

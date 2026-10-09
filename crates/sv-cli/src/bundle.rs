@@ -608,7 +608,7 @@ fn resolve_existing(path: &Path) -> PathBuf {
             _ => break,
         }
     }
-    let mut resolved = std::fs::canonicalize(&existing).unwrap_or(existing);
+    let mut resolved = sv_frameworks::paths::canonical(&existing).unwrap_or(existing);
     for name in rest.into_iter().rev() {
         resolved.push(name);
     }
@@ -806,7 +806,7 @@ mod tests {
     fn a_path_that_does_not_exist_yet_is_resolved_through_the_links_before_it() {
         let dir = std::env::temp_dir().join(format!("sv-resolve-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let real = std::fs::canonicalize(&dir).unwrap();
+        let real = sv_frameworks::paths::canonical(&dir).unwrap();
         assert_eq!(
             resolve_for_writing(&dir.join("new").join("out.zip")),
             real.join("new").join("out.zip")
@@ -822,7 +822,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("precious.txt"), "keep me\n").unwrap();
         std::os::unix::fs::symlink(dir.join("precious.txt"), dir.join("out.zip")).unwrap();
-        let real = std::fs::canonicalize(&dir).unwrap();
+        let real = sv_frameworks::paths::canonical(&dir).unwrap();
         let resolved = resolve_for_writing(&dir.join("out.zip"));
         std::fs::remove_dir_all(&dir).ok();
         assert_eq!(resolved, real.join("out.zip"));
