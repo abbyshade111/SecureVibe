@@ -218,3 +218,10 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    field and fails when the two lists differ in either direction. Broken three ways (a field dropped from the list,
    one the code lacks, one added to `AstRule`): each caught by that test, naming the field. The rest of item 12 is
    open.
+   **Its second part, `not_for_tests` moved, claimed 9 October 2026 by session securevibe-e9**, from the roadmap
+   (Phase 2, item 12, the next unclaimed part in its order), in branch `claude/stackvet-e9-not-for-tests`: the rule for
+   what an application's own tests cannot show (a requirement classed as documentation or deployment, the AISVS
+   appendix on the development process, and one whose own words ask for documentation) moves from
+   `requirements_for_tests` in `crates/sv-cli/src/assemble.rs` to `sv-frameworks`, beside `verification_class_for`,
+   with tests of its own there. Nothing a report concludes changes. Confirmed on `main` just before this claim: the
+   rule is still written inline in `assemble.rs`, it has no test of its own, and no other session holds this part.
