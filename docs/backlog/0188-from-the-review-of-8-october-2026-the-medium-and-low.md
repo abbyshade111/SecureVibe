@@ -1,6 +1,6 @@
 # From the review of 8 October 2026: the medium and low findings, for any session to pick up
 
-**Status:** open
+**Status:** done, 9 October 2026
 
 The four rated
 high were built the same day (the entry above this one's predecessor). Each of these can be claimed on its own.
