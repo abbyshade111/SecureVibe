@@ -53,6 +53,20 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Fetch Docker Hub's images through Google's mirror
+        # Docker Hub refuses downloads past its limits, signed in or not (ADR-051, Later, 9 October
+        # 2026). Docker's own setting sends a Docker Hub image to mirror.gcr.io, Google's copy of
+        # Docker Hub, and falls back to Docker Hub when the mirror cannot answer. Every image here is
+        # asked for by fingerprint or checked against one, so the mirror can only hand over the same
+        # bytes. The Dockerfile keeps Docker Hub's names, so Dependabot and a build by hand are as
+        # they were.
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
       # No cache step. Caching would mean pinning another third-party action, and this workspace builds from
       # scratch in well under a minute — a smaller supply-chain surface is worth more here than the seconds.
       - name: Use the toolchain this workspace needs
@@ -97,6 +111,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Fetch Docker Hub's images through Google's mirror
+        # As in the test job above (ADR-051, Later, 9 October 2026).
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
+        # ask Docker Hub at all. Before the sign-in below: signed in, the first runs could not fetch
+        # them in a second, and a fetch that fails here leaves the build to try for itself, signed in.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
+          done
 
       - name: Sign in to Docker Hub, when this run has the repository's token
         # The base images come from Docker Hub, which limits anonymous downloads: from 20:48 UTC on
@@ -200,6 +232,24 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Fetch Docker Hub's images through Google's mirror
+        # As in the test job above (ADR-051, Later, 9 October 2026).
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
+        # ask Docker Hub at all. Before the sign-in below: signed in, the first runs could not fetch
+        # them in a second, and a fetch that fails here leaves the build to try for itself, signed in.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
+          done
 
       - name: Sign in to Docker Hub, when this run has the repository's token
         # As in the image job above (ADR-051, Later, 9 October 2026).
