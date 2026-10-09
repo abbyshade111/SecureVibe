@@ -11,7 +11,7 @@ pub(super) const MAX_REQUEST_BYTES: usize = 1 << 20;
 /// Nothing a client sends ends the server or goes unanswered when it carried an id: a line too long
 /// to read, or one that is not UTF-8, gets an error in reply rather than stopping the loop, which is
 /// what `lines()` did with bytes that were not UTF-8.
-pub(super) fn serve(server: &Server, mut input: impl BufRead, output: impl Write) -> Result<()> {
+pub fn serve(server: &Server, mut input: impl BufRead, output: impl Write) -> Result<()> {
     // Written to while a request is being answered (progress), and after it (the answer).
     let output = std::cell::RefCell::new(output);
     let tell = |note: Value| {

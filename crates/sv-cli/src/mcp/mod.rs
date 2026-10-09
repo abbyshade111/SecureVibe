@@ -60,6 +60,8 @@ mod tools;
 use catalog::*;
 use check_text::*;
 use confine::*;
+/// The server's one way in, also for the fuzzing target that feeds it lines (ADR-077).
+pub use protocol::serve;
 use protocol::*;
 use resources::*;
 

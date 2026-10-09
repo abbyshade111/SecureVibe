@@ -12,3 +12,9 @@ workspace/
 .DS_Store
 .claude/
 node_modules
+
+# The fuzzing crate's own build, its growing corpora, and the crashes it keeps (ADR-077).
+/fuzz/target
+/fuzz/corpus
+/fuzz/artifacts
+/fuzz/coverage

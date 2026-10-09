@@ -729,6 +729,29 @@ pub fn incompleteness_finding(sbom: &Sbom) -> Option<Finding> {
     }))
 }
 
+/// Every lockfile reader on the same text, the way a check reads a lockfile an app hands `sv`: for
+/// the fuzzing targets (ADR-077), which call each reader by its one public door rather than widening
+/// the readers themselves. It returns nothing worth keeping; what matters is that it returns.
+#[doc(hidden)]
+pub fn read_as_every_lockfile(text: &str) {
+    let _ = from_package_lock(text);
+    let _ = from_package_table_toml(text);
+    let _ = from_pipfile_lock(text);
+    let _ = from_pipfile(text);
+    let _ = from_yarn_lock(text);
+    let _ = from_bun_lock(text);
+    let _ = from_gradle_lockfile(text);
+    let _ = from_composer_lock(text);
+    let _ = from_pnpm_lock(text);
+    let _ = from_gemfile_lock(text);
+    let _ = from_go_mod(text, Some(text));
+    let _ = from_go_mod(text, None);
+    let _ = from_go_sum(text);
+    let _ = from_pylock(text);
+    let _ = from_pinned_requirements(text);
+    let _ = from_requirements(text);
+}
+
 #[cfg(test)]
 mod tests;
 
