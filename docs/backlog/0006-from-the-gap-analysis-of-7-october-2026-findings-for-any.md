@@ -39,6 +39,18 @@ listed apart, below this item.
    both read, both off the list, each call with a case that must be found and one that must not
    (`crates/sv-check/src/ast/orm_raw_tests.rs`). TypeORM, Sequelize, Drizzle, Mongoose and the MongoDB drivers,
    Supabase's clients, Django, PyMongo, and Laravel remain, each still holding V1.2.4's credit back.
+   **The first half's second part, TypeORM, Sequelize, and Drizzle, claimed 9 October 2026 by session securevibe-e2**,
+   in branch `claude/securevibe-e2-orm-npm`: TypeORM's query builder (`where`, `andWhere`, `orWhere`, `having`,
+   `andHaving`, `orHaving`, `orderBy`, `addOrderBy`, `groupBy`, `addGroupBy`) and Sequelize's `literal`, each only
+   when the text is built in the call, so an object of conditions or fixed text is not reported; and Drizzle, whose
+   one unsafe call, `sql.raw`, the rule may already read, shown by a test before it comes off the list. `select` is
+   left out: `d3.select("#" + id)` would be a false alarm in every page that draws a chart. Each package comes off
+   `unreadPackages` only with a test of each of its calls. Confirmed on `main` just before this claim: all three are on
+   the list, and no other session holds this part.
+   **That part done the same day** (`docs/design/0324-the-sql-rule-reads-typeorm-sequelize-and-drizzle-9-october.md`):
+   all three read and off the list (`crates/sv-check/src/ast/orm_npm_tests.rs`); Drizzle's `sql` template, which keeps
+   values apart, is no longer a false alarm at `db.execute`. Mongoose and the MongoDB drivers, Supabase's clients,
+   Django, PyMongo, and Laravel remain.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
@@ -194,6 +206,22 @@ listed apart, below this item.
    and their usual siblings in Python, JavaScript and TypeScript, and Go), and not for an address built from the app's
    own settings, which is how every API client is written. Confirmed on `main` and in the open pull requests just
    before this claim: no rule reads it, and no other session holds this part.
+   **That part done the same day** (`docs/design/0324-an-outgoing-request-s-address-taken-from-the-incoming-one-9.md`):
+   `ast.fetch-address-from-request` in Python, JavaScript and TypeScript, and Go, only ever a finding, with an address
+   from the app's settings or a written-out host left alone; six guards broken in turn, each caught. Of this finding,
+   the request body passed whole to an update or create is still open.
+   **The request body passed whole to an update or create claimed 9 October 2026 by session securevibe-e9**, from the
+   roadmap (Phase 4, item 4, the last unclaimed part of this finding), in branch `claude/stackvet-e9-body-whole`: a code
+   rule, `ast.request-body-passed-whole`, only ever a finding, citing V15.3.3 (mass assignment), for the whole request
+   body handed to a model's create or update as it came (`User.create(req.body)`, `Object.assign(user, req.body)`,
+   Prisma's `data: req.body`, `new Model(req.body)`; `User(**request.json)`, `.objects.create(**request.data)`,
+   `.update(**request.get_json())`), in Python, JavaScript, and TypeScript; one field picked out of the body, or the
+   body checked by a schema first, is not reported. Confirmed on `main` and in the open pull requests just before this
+   claim: no rule reads it, and no other session holds this part.
+   **That part done the same day** (`docs/design/0325-the-whole-request-body-saved-as-it-came-9-october-2026.md`):
+   `ast.request-body-passed-whole` in Python, JavaScript, and TypeScript, only ever a finding, with the fields picked
+   out or the body checked by a schema left alone; four guards broken in turn, each caught. Every part of this finding
+   is now done.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.

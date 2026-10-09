@@ -159,8 +159,8 @@
       },
       "functionPatterns": {
         "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query)$",
-        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$",
-        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw)$",
+        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
+        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
         "go": "^(Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Raw|Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$",
         "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values|where|rewhere|order|reorder|having|group|joins|from|pluck|count_by_sql)$",
         "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query)$",
@@ -175,7 +175,9 @@
         "cpp": "^(?:std::(?:filesystem::)?|::)?(sqlite3_exec|mysql_query|mysql_real_query|PQexec)$"
       },
       "safeArgumentPatterns": {
-        "swift": "^literal\\s*:"
+        "swift": "^literal\\s*:",
+        "javascript": "^(?:sql|Prisma\\.sql)(?:`|\\.raw\\()",
+        "typescript": "^(?:sql|Prisma\\.sql)(?:`|\\.raw\\()"
       },
       "modulePatterns": {
         "shell": "^(-c|-e|--command|--execute|--query)$|\\.(db|sqlite3?)$"
@@ -201,10 +203,12 @@
       },
       "argumentsForCommonNames": {
         "javascript": {
-          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
+          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
         },
         "typescript": {
-          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
+          "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
+          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
         },
         "java": {
           "^(query|queryFor\\w+|update|batchUpdate)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
@@ -222,9 +226,6 @@
       "boundParametersLowerConfidence": true,
       "unreadPackages": {
         "npm": {
-          "typeorm": "its query builder's `where`, `andWhere`, `orWhere`, and `orderBy`",
-          "sequelize": "`Sequelize.literal` and `where` built from text",
-          "drizzle-orm": "`sql.raw`",
           "mongoose": "a `$where` written into a query",
           "mongodb": "a `$where` written into a query",
           "@supabase/supabase-js": "filter text such as `.or(...)` and `.filter(...)`"
@@ -2104,6 +2105,81 @@
         "rust": "Not looked for in Rust yet: `Html(format!(…))` and a template's `|safe`. The rule only ever reports, so finding none in Rust credits nothing either way.",
         "shell": "Shell scripts build no web pages this rule can speak to.",
         "swift": "Not looked for in Swift yet: a value written into a response as HTML, and a web view's `loadHTMLString`. The rule only ever reports, so finding none in Swift credits nothing either way."
+      }
+    },
+    {
+      "id": "ast.fetch-address-from-request",
+      "title": "An outgoing request goes to an address taken from the incoming one",
+      "severity": "high",
+      "confidence": "medium",
+      "requirementIds": [
+        "V1.3.6",
+        "V13.2.4"
+      ],
+      "cwe": [
+        "CWE-918"
+      ],
+      "findingsOnly": true,
+      "description": "The app makes a request of its own to an address it read straight from the request it was sent, so whoever sends that request chooses where the server goes.",
+      "impact": "A visitor can make the server fetch addresses only it can reach: the cloud provider's metadata service, which hands out the server's own keys, the database's admin page, or any other machine on the private network.",
+      "fix": "Do not let a request choose the address. Keep a short list of the hosts the app may fetch from and look the request's choice up in it, or take only an id and build the address from the app's own settings. Where any public address must be allowed, resolve it first and refuse private and loopback addresses, and do not follow redirects.",
+      "literalArgumentIsSafe": true,
+      "argumentNamesRead": true,
+      "queries": {
+        "python": "[(call function: (attribute object: (identifier) @mod attribute: (identifier) @fn)\n        arguments: (argument_list . (_) @arg))\n (call function: (identifier) @fn @mod\n        arguments: (argument_list . (_) @arg))] @hit",
+        "javascript": "[(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (identifier) @fn @mod\n                  arguments: (arguments . (_) @arg))] @hit",
+        "typescript": "[(call_expression function: (member_expression object: (identifier) @mod property: (property_identifier) @fn)\n                  arguments: (arguments . (_) @arg))\n (call_expression function: (identifier) @fn @mod\n                  arguments: (arguments . (_) @arg))] @hit",
+        "go": "(call_expression function: (selector_expression operand: (identifier) @mod field: (field_identifier) @fn)\n                 arguments: (argument_list . (_) @arg)) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(get|post|put|patch|delete|head|options|request|stream|urlopen)$",
+        "javascript": "^(fetch|axios|got|get|post|put|patch|delete|head|request)$",
+        "typescript": "^(fetch|axios|got|get|post|put|patch|delete|head|request)$",
+        "go": "^(Get|Post|Head|PostForm|NewRequest|NewRequestWithContext)$"
+      },
+      "modulePatterns": {
+        "python": "^(requests|httpx|urlopen)$",
+        "javascript": "^(fetch|axios|got|http|https|ky|superagent|needle)$",
+        "typescript": "^(fetch|axios|got|http|https|ky|superagent|needle)$",
+        "go": "^http$"
+      },
+      "argumentPositions": {
+        "go": {
+          "^NewRequest$": 1,
+          "^NewRequestWithContext$": 2
+        }
+      },
+        "safeArgumentPatterns": {
+        "python": "^f?[\"']https?://[^/{\"'\\s]+/",
+        "javascript": "^[`\"']https?://[^/$`\"'\\s]+/",
+        "typescript": "^[`\"']https?://[^/$`\"'\\s]+/",
+        "go": "^\"https?://[^/\"\\s]+/"
+      },
+    "argumentPatterns": {
+        "python": "\\brequest\\.(args|form|values|json|data|GET|POST|query_params|headers)\\b|\\brequest\\.get_json\\(",
+        "javascript": "\\b(req|request)\\.(query|body|params|headers)\\b|\\bctx\\.(query|params|request\\.(body|query))\\b|\\bsearchParams\\.get\\(",
+        "typescript": "\\b(req|request)\\.(query|body|params|headers)\\b|\\bctx\\.(query|params|request\\.(body|query))\\b|\\bsearchParams\\.get\\(",
+        "go": "\\.URL\\.Query\\(\\)|\\.(FormValue|PostFormValue|Query|QueryParam|Param|DefaultQuery)\\(|\\bmux\\.Vars\\("
+      },
+      "looksFor": "an outgoing request whose address is read straight from the incoming request, or from a name set from it in the same function",
+      "looksForIn": {
+        "python": "`requests` and `httpx` calls (`get`, `post`, and the rest) and `urlopen`, given a value from Flask's, Django's, or FastAPI's request (`request.args`, `request.form`, `request.json`, `request.GET`, `request.query_params`, and the like)",
+        "javascript": "`fetch`, `axios`, `got`, Node's `http` and `https`, `ky`, `superagent`, and `needle`, given a value from Express's or Koa's request (`req.query`, `req.body`, `req.params`, `ctx.query`) or a URL's `searchParams`",
+        "typescript": "`fetch`, `axios`, `got`, Node's `http` and `https`, `ky`, `superagent`, and `needle`, given a value from Express's or Koa's request (`req.query`, `req.body`, `req.params`, `ctx.query`) or a URL's `searchParams`",
+        "go": "`net/http`'s `Get`, `Post`, `Head`, `PostForm`, `NewRequest`, and `NewRequestWithContext`, given a value from the request's query or form (`r.URL.Query()`, `r.FormValue`) or a router's parameters (`mux.Vars`, Gin's and Echo's `Query` and `Param`)"
+      },
+      "nothingToFind": {
+        "ruby": "Not looked for in Ruby yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in Ruby credits nothing either way.",
+        "php": "Not looked for in PHP yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in PHP credits nothing either way.",
+        "java": "Not looked for in Java yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in Java credits nothing either way.",
+        "kotlin": "Not looked for in Kotlin yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in Kotlin credits nothing either way.",
+        "csharp": "Not looked for in C# yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in C# credits nothing either way.",
+        "rust": "Not looked for in Rust yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in Rust credits nothing either way.",
+        "swift": "Not looked for in Swift yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in Swift credits nothing either way.",
+        "dart": "Not looked for in Dart yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in Dart credits nothing either way.",
+        "c": "Not looked for in C yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in C credits nothing either way.",
+        "cpp": "Not looked for in C++ yet: an outgoing request whose address is taken from the incoming one. The rule only ever reports, so finding none in C++ credits nothing either way.",
+        "shell": "Shell scripts make no outgoing request this rule can speak to."
       }
     },
     {
