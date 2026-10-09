@@ -9,8 +9,11 @@ fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+/// Read with `\n` line endings, as a Windows checkout gives `\r\n`.
 fn read(path: &str) -> String {
-    std::fs::read_to_string(repo().join(path)).unwrap_or_else(|e| panic!("{path}: {e}"))
+    std::fs::read_to_string(repo().join(path))
+        .unwrap_or_else(|e| panic!("{path}: {e}"))
+        .replace("\r\n", "\n")
 }
 
 /// The image the publishing job pushes, from its `IMAGE:` setting.
