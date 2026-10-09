@@ -41,6 +41,14 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 SIGNED_IN = ROOT / "crates" / "sv-check" / "src" / "signed_in" / "passwords.rs"
@@ -94,7 +102,7 @@ def fetch_range(prefix: str) -> dict:
 
 def breached_constant() -> str:
     found = re.findall(
-        r'^(?:pub\(super\) )?const BREACHED: &str = "([^"\\]+)";$', SIGNED_IN.read_text(), re.M
+        r'^(?:pub\(super\) )?const BREACHED: &str = "([^"\\]+)";$', SIGNED_IN.read_text(encoding="utf-8"), re.M
     )
     if len(found) != 1:
         sys.exit(f"could not find the one `const BREACHED` in {SIGNED_IN.relative_to(ROOT)}")
@@ -110,7 +118,7 @@ def refresh(today: str) -> None:
             f"Pwned Passwords no longer lists {password!r}. Nothing was written: choose another "
             "password for V6.2.12 before the finding calls this one breached."
         )
-    old = json.loads(EVIDENCE.read_text())
+    old = json.loads(EVIDENCE.read_text(encoding="utf-8"))
     new = {
         "_comment": (
             "Why the V6.2.12 sign-up probe may call its password breached. `password` is BREACHED "
@@ -135,7 +143,7 @@ def refresh(today: str) -> None:
     # is public by design, in the source and in this file, because its whole point is that it has
     # already leaked. CodeQL reports both lines as clear-text storage and logging of sensitive data
     # (alerts 79 and 80, dismissed as false positives, 27 September 2026).
-    EVIDENCE.write_text(json.dumps(new, indent=2) + "\n")
+    write_text(EVIDENCE, json.dumps(new, indent=2) + "\n")
     was = old.get("seen")
     change = "unchanged" if was == seen else f"was {was:,}" if isinstance(was, int) else "new"
     print(f"{password}: seen {seen:,} times ({change}), checked {today}")
@@ -203,7 +211,7 @@ def sample(today: str) -> None:
         "bands": bands,
         "entries": rows,
     }
-    SAMPLE_OUT.write_text(json.dumps(out, indent=2) + "\n")
+    write_text(SAMPLE_OUT, json.dumps(out, indent=2) + "\n")
     print(f"sampled {len(rows)} of {len(lines):,} entries; {out['found']} are in breach data")
     for band in bands:
         print(

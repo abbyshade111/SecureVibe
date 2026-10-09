@@ -28,6 +28,14 @@ import sys
 import urllib.request
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 REFERENCES = ROOT / "data" / "atlas-references.json"
@@ -86,7 +94,7 @@ def main() -> None:
         help="also parse the release fully with PyYAML and compare",
     )
     args = parser.parse_args()
-    refs = json.loads(REFERENCES.read_text())
+    refs = json.loads(REFERENCES.read_text(encoding="utf-8"))
     release = args.release or refs["release"]
     text = fetch(release)
     names = technique_names(text)
@@ -113,7 +121,7 @@ def main() -> None:
     refs["release"] = release
     refs["source"] = RELEASE_URL.format(release)
     refs["techniques"] = {i: names[i] for i in cited}
-    REFERENCES.write_text(json.dumps(refs, indent=2, ensure_ascii=False) + "\n")
+    write_text(REFERENCES, json.dumps(refs, indent=2, ensure_ascii=False) + "\n")
     print(f"{len(cited)} techniques read from ATLAS {release}; wrote {REFERENCES.relative_to(ROOT)}")
 
 

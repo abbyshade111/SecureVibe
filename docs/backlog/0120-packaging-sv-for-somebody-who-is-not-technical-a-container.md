@@ -289,6 +289,13 @@ app's runs under one `.`, where `sv history forget` and the dashboard never foun
 app's real place (ADR-057, Later). The rest were tests that used names Windows refuses (a `:` or a `"`), made a
 link only Unix can make without a privilege, or expected `/` in a path Windows writes with `\`; each now uses
 what the system allows, with the reason beside it, and still runs whole on macOS and Linux.
+Eighth Windows finding, the same day: with the paths in, the Windows run gave 2,696 passed and 16 failed. Four of
+the 16 were `tools/coverage.py` failing on its first read: Python reads and writes text in the system's own encoding
+unless told otherwise, which on Windows is a code page, not UTF-8, and writes CRLF, so a file it wrote there would also
+have differed from the one committed. Every tool now says UTF-8, and writes Unix line endings through a small
+`write_text` helper that works on any Python 3 (the Mac's own may be 3.9). Run with `-X warn_default_encoding` and
+that warning made an error, the old `coverage.py --check` and `merge_main.py --self-test` fail and the new ones pass;
+`crates/sv-cli/tests/tools_text.rs` holds every tool to the explicit form.
 Ninth Windows finding, the same day: the report lock. Windows enforces a file lock, where macOS and Linux leave it
 advisory, so a second run could not read who held a folder from the locked file; and outside Unix the check that a lock
 file was still this run's compared only sizes, so a run stopped with Ctrl-C could have removed another run's lock.

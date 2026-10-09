@@ -41,6 +41,14 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 EXAMPLE = ROOT / "examples" / "tested-notes"
@@ -69,7 +77,7 @@ def check(ok, what):
 def make_app(root: Path) -> Path:
     app = root / "app"
     shutil.copytree(EXAMPLE, app, ignore=shutil.ignore_patterns("__pycache__", "stackvet-report"))
-    (app / ".env").write_text("API_KEY=not-a-real-key\n")
+    write_text((app / ".env"), "API_KEY=not-a-real-key\n")
     git = ["git", "-C", str(app), "-c", "user.name=smoke", "-c", "user.email=smoke@example.invalid"]
     subprocess.run(git[:3] + ["init", "-q"], check=True)
     subprocess.run(git + ["add", "-A"], check=True)
@@ -88,7 +96,7 @@ def session(command, calls):
     for i, (method, params) in enumerate(calls, 1):
         lines.append({"jsonrpc": "2.0", "id": i, "method": method, "params": params})
     run = subprocess.run(command, input="".join(json.dumps(m) + "\n" for m in lines),
-                         capture_output=True, text=True, timeout=600)
+                         capture_output=True, text=True, encoding="utf-8", timeout=600)
     replies = [json.loads(line) for line in run.stdout.splitlines() if line.strip()]
     if len(replies) != len(calls) + 1:
         sys.exit(f"expected {len(calls) + 1} replies, got {len(replies)}:\n{run.stdout}\n{run.stderr}")
@@ -183,7 +191,7 @@ def main():
                 check(not leaked, f"and what it held is in no entry, whatever the entry is called: {leaked}")
 
         who = subprocess.run(["docker", "run", "--rm", "--entrypoint", "id", args.image, "-u"],
-                             capture_output=True, text=True, timeout=120)
+                             capture_output=True, text=True, encoding="utf-8", timeout=120)
         check(who.returncode == 0 and who.stdout.strip() not in ("", "0"),
               f"the image runs as a user of its own, not root: {who.stdout.strip() or who.stderr.strip()}")
 
@@ -198,13 +206,13 @@ def main():
         no_net = subprocess.run(
             ["docker", "run", "--rm", "--network", "none", "--entrypoint", "sh", args.image, "-c",
              "cat /sys/class/net/*/operstate 2>/dev/null; ls /sys/class/net"],
-            capture_output=True, text=True, timeout=120)
+            capture_output=True, text=True, encoding="utf-8", timeout=120)
         check(no_net.stdout.split() == ["unknown", "lo"] or no_net.stdout.split() == ["lo"],
               f"--network none leaves only the loopback interface: {no_net.stdout.split()}")
 
         if args.commit:
             version = subprocess.run(["docker", "run", "--rm", "--network", "none", args.image, "--version"],
-                                     capture_output=True, text=True, timeout=120)
+                                     capture_output=True, text=True, encoding="utf-8", timeout=120)
             check(f"(commit {args.commit})" in version.stdout,
                   f"sv --version in the image names the commit it was built from: {version.stdout.strip()}")
 
