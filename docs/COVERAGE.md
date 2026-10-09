@@ -35,7 +35,7 @@ What each kind of check needs before it can run:
 
 | Framework | Requirements | Can settle | Can be credited | Supporting only | Nothing |
 |---|---|---|---|---|---|
-| OWASP ASVS 5.0 | 345 | 172 (50%) | 121 (35%) | 10 | 163 |
+| OWASP ASVS 5.0 | 345 | 173 (50%) | 122 (35%) | 10 | 162 |
 | OWASP AISVS 1.0 | 191 | 42 (22%) | 23 (12%) | 0 | 149 |
 | AISVS Appendix C | 68 | 3 (4%) | 2 (3%) | 0 | 65 |
 | Secure by Design checklist 0.5.0 | 36 | 0 (0%) | 0 (0%) | 11 | 25 |
@@ -47,10 +47,10 @@ A requirement reached by more than one kind of check is counted under each.
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
 | L1 | 70 | 58 | 44 | 17 | 1 | 6 | 39 | 21 | 3 |
-| L2 | 183 | 93 | 68 | 24 | 0 | 19 | 47 | 28 | 2 |
+| L2 | 183 | 94 | 69 | 24 | 0 | 20 | 47 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
-51 of the 172 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
+51 of the 173 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
 With nothing beyond plain `sv check`, 44 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
@@ -81,7 +81,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V13 Configuration | 21 | 10 | 3 | 1 | 10 |
 | V14 Data Protection | 13 | 4 | 2 | 2 | 7 |
 | V15 Secure Coding and Architecture | 21 | 12 | 7 | 0 | 9 |
-| V16 Security Logging and Error Handling | 17 | 11 | 9 | 0 | 6 |
+| V16 Security Logging and Error Handling | 17 | 12 | 10 | 0 | 5 |
 | V17 WebRTC | 12 | 0 | 0 | 0 | 12 |
 
 ## ASVS 5.0 requirement by requirement
@@ -135,7 +135,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
 | V16.5.3 | L2 | Reads the code: `ast.check-passes-on-error` (sv only ever as a finding: `ast.check-passes-on-error`) |
 
-### Settled by asking the running app (114)
+### Settled by asking the running app (115)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -250,6 +250,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V16.2.4 | L2 | Signed in: `probe.log-common-format` |
 | V16.3.1 | L2 | Signed in: `probe.authentication-logged` |
 | V16.3.2 | L2 | Signed in: `probe.authorization-failure-logged` |
+| V16.3.4 | L2 | The running app: `probe.ai-service-failure-logged` |
 | V16.5.1 | L2 | The running app: `probe.error-detail-leak`, `probe.ai-service-error-shown` (sv only ever as a finding: `probe.ai-service-error-shown`) |
 | V16.5.2 | L2 | The running app: `probe.ai-service-failure-handled` |
 | V16.5.4 | L3 | The running app: `probe.app-stopped-during-questions` (sv only ever as a finding: `probe.app-stopped-during-questions`) |

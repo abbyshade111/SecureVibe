@@ -36,7 +36,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP ASVS 5.0
 
-345 requirements: 121 can be checked, 51 can only be found failing, 10 where a check helps but a person decides, and 163 with no check.
+345 requirements: 122 can be checked, 51 can only be found failing, 10 where a check helps but a person decides, and 162 with no check.
 
 ### Level 1 (70 requirements, 44 can be checked, 14 can only be found failing)
 
@@ -185,7 +185,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **V15.2.1** Verify that the application only contains components which have not breached the documented update and remediation time frames. | Can be checked | Known vulnerabilities: `advisories`, looks for: Every package the app ships, compared with a local copy of the OSV database of known vulnerabilities<br>Outside tools: brakeman, 2 rules, its rules look for: an end-of-life Rails version: a component past its update and remediation time frames; an end-of-life Ruby version: a component past its update and remediation time frames |
 | **V15.3.1** Verify that the application only returns the required subset of fields from a data object. For example, it should not return an entire data object, as some individual fields should not be accessible to users. | Can only be found failing | Signed in: `probe.record-returns-secret-fields`, if it fails: A record handed back to the browser carries fields nobody outside the server should ever see. Whatever is in them has already left. (found failing only) |
 
-### Level 2 (183 requirements, 68 can be checked, 25 can only be found failing)
+### Level 2 (183 requirements, 69 can be checked, 25 can only be found failing)
 
 #### V1 Encoding and Sanitization
 
@@ -435,7 +435,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **V16.3.1** Verify that all authentication operations are logged, including successful and unsuccessful attempts. Additional metadata, such as the type of authentication or factors used, should also be collected. | Can be checked | Signed in: `probe.authentication-logged`, looks for: Whether the app writes down a refused sign-in the run made |
 | **V16.3.2** Verify that failed authorization attempts are logged. For L3, this must include logging all authorization decisions, including logging when sensitive data is accessed (without logging the sensitive data itself). | Can be checked | Signed in: `probe.authorization-failure-logged`, looks for: Whether the app writes down a request it refused to someone not allowed to make it |
 | **V16.3.3** Verify that the application logs the security events that are defined in the documentation and also logs attempts to bypass the security controls, such as input validation, business logic, and anti-automation. | No check | – |
-| **V16.3.4** Verify that the application logs unexpected errors and security control failures such as backend TLS failures. | No check | – |
+| **V16.3.4** Verify that the application logs unexpected errors and security control failures such as backend TLS failures. | Can be checked | The running app: `probe.ai-service-failure-logged`, if it fails: An outside service failing, which nothing in the app expected, leaves no trace to find the cause by, or to see that it keeps happening. (credited only, and only ever in part) |
 | **V16.4.1** Verify that all logging components appropriately encode data to prevent log injection. | Can be checked | Outside tools: codeql-javascript, 1 rule, its rules look for: log injection: user input written to a log without encoding, so it can forge or break log entries<br>Outside tools: codeql-python, 1 rule, its rules look for: log injection: user input written to a log without encoding, so it can forge or break log entries |
 | **V16.4.2** Verify that logs are protected from unauthorized access and cannot be modified. | No check | – |
 | **V16.4.3** Verify that logs are securely transmitted to a logically separate system for analysis, detection, alerting, and escalation. The aim is to ensure that if the application is breached, the logs are not compromised. | No check | – |

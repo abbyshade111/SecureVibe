@@ -122,6 +122,7 @@ RUST_CHECKS = {
     "probe.ai-floating-model-sent": ("running", ["C3.2.3"]),
     "probe.ai-service-error-shown": ("running", ["V16.5.1"]),
     "probe.ai-service-failure-handled": ("running", ["V16.5.2"]),
+    "probe.ai-service-failure-logged": ("running", ["V16.3.4"]),
     "probe.ai-output-shape-unchecked": ("running", ["C7.1.1"]),
     "probe.ai-agent-unbounded": ("running", ["C9.1.2"]),
     "probe.ai-tool-timeout": ("running", ["C9.1.1"]),
@@ -375,6 +376,7 @@ RUST_FINDINGS_ONLY = {
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
 # would find missing may be met some way the check cannot see, so it is left not assessed.
 RUST_CREDITS_ONLY = {
+    "probe.ai-service-failure-logged",
     "probe.password-change-ends-sessions",
     "probe.password-change-notified",
     "probe.ai-tool-timeout",
@@ -384,8 +386,9 @@ RUST_CREDITS_ONLY = {
 # their requirement asks, so a requirement they alone credit is *checked in part*, never *checked*.
 # C9.1.1 names five quotas, and a check from outside the app can time only one (ADR-064); C2.1.2's
 # smuggling is tried in one family of characters, not in encodings or look-alike letters (ADR-065).
-# V1.3.11's mail header injection is tried in one field of one kind of mail, the reset (ADR-069).
-RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected"}
+# V1.3.11's mail header injection is tried in one field of one kind of mail, the reset (ADR-069); V16.3.4's
+# logged error is one service's failure, found in the app's output (ADR-071).
+RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected", "probe.ai-service-failure-logged"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as

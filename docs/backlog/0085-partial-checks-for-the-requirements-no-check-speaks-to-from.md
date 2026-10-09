@@ -434,3 +434,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     model speaking Gemini (#1189) touches the same files and changes no question; whichever lands second merges the
     other in. **Record, `Status: proposed`: ADR-071.** Checked just before this claim: not on `main`, in no open pull
     request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "The AI service's failure in the app's own output (9 October 2026)"; ADR-071,
+    accepted). `probe.ai-service-failure-logged` credits V16.3.4 in part when the test model's deliberate failure,
+    by its own marker, is in the app's output, and says so when it is not; it never finds. Not done: other
+    unexpected errors, and security control failures such as a backend TLS failure.
