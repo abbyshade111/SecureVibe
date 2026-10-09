@@ -1,6 +1,6 @@
 # Research: could the Kaspa blockchain (kaspa.org) let a seal be checked beyond one person on one computer?
 
-**Status:** open
+**Status:** done, 9 October 2026
 
 Asked by the owner on 6 October 2026. Today `sv review` seals what a person records with an HMAC key kept in
 `~/.config/securevibe/review-key` (ADR-026), and only a computer holding that same key can check a seal. On CI,
@@ -84,3 +84,7 @@ below; this session opened KIP-14, Kaspa's payload page, and the `ssh-keygen` ma
    keys would have to be kept where the AI coding tool cannot write. Under every design, "a person, not the tool, made
    this" stays unproven, as ADR-026 says. Building it would change ADR-026 and add a dependency, so its record goes in
    the same pull request, and it needs a claim and the owner's decision first.
+
+**Closed 9 October 2026 at the owner's word:** another session answered the owner's questions on this on 8 October
+2026, and the owner asked for the item to be taken off the board ("another session answered my questions on that
+yesterday"). Nothing was built, and the item is kept as the record of the question.
