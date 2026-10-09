@@ -98,6 +98,23 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Sign in to Docker Hub, when this run has the repository's token
+        # The base images come from Docker Hub, which limits anonymous downloads: from 20:48 UTC on
+        # 9 October 2026 every image build failed in seconds, refused with "too many requests"
+        # (ADR-051, Later, 9 October 2026). A read-only token for public images, saved by the owner
+        # as DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, raises the limit. A run that is not given them
+        # (a fork's pull request) downloads anonymously, as before. The token goes in on standard
+        # input, so it is never on a command line.
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          else
+            echo "No Docker Hub token in this run: the base images are downloaded anonymously."
+          fi
+
       - name: Build the image
         run: docker build --build-arg SV_GIT_COMMIT=${{ github.sha }} -t stackvet/sv .
 
@@ -141,6 +158,10 @@ jobs:
           done
           test "$NO_MANIFEST" = failure || { echo "the Action ran on a folder with no stackvet.toml"; exit 1; }
 
+      - name: Sign out of Docker Hub
+        if: always()
+        run: docker logout
+
   publish:
     # Publishes the image to GitHub's container registry, at the owner's decision (26 September
     # 2026), as ghcr.io/abbyshade111/stackvet-sv: `latest`, and the commit it was built from. Only
@@ -176,6 +197,18 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Sign in to Docker Hub, when this run has the repository's token
+        # As in the image job above (ADR-051, Later, 9 October 2026).
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -n "$DOCKERHUB_USERNAME" ] && [ -n "$DOCKERHUB_TOKEN" ]; then
+            echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          else
+            echo "No Docker Hub token in this run: the base images are downloaded anonymously."
+          fi
 
       - name: Build the image
         # The source label ties the package to this repository on GitHub, so it is listed there and
@@ -214,6 +247,8 @@ jobs:
           push-to-registry: true
           create-storage-record: false
 
-      - name: Log out of the registry
+      - name: Log out of the registries
         if: always()
-        run: docker logout ghcr.io
+        run: |
+          docker logout ghcr.io
+          docker logout
