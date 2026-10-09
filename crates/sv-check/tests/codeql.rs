@@ -392,6 +392,8 @@ fn the_real_codeql_finds_the_same_things_when_it_is_installed() {
 /// might have installed types), nor a `sitecustomize.py`, `usercustomize.py`, or `setup.py`, and
 /// the linked file was in neither report nor source archive. So the entries carry no guard and
 /// no `follows_links`, and this is what keeps that honest when a newer CodeQL is installed.
+// Unix only: it makes symbolic links, which Windows allows only with special rights (backlog 0120).
+#[cfg(unix)]
 #[test]
 fn the_real_codeql_runs_nothing_the_app_plants_and_follows_no_link() {
     let javascript = real("codeql-javascript");
