@@ -76,13 +76,10 @@ impl std::fmt::Debug for Key {
 impl Key {
     /// A new key from the system's randomness.
     pub fn random() -> Result<Key, String> {
-        use std::io::Read;
-        let mut read = Vec::with_capacity(32);
-        std::fs::File::open("/dev/urandom")
-            .and_then(|f| f.take(32).read_to_end(&mut read))
+        // The operating system's own source on every system (see `signed::random`).
+        let mut bytes = [0u8; 32];
+        getrandom::getrandom(&mut bytes)
             .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
-        let bytes = <[u8; 32]>::try_from(read)
-            .map_err(|_| "the system's randomness gave too little".to_owned())?;
         if bytes.iter().all(|b| *b == 0) {
             return Err("the system's randomness gave only zeros".to_owned());
         }

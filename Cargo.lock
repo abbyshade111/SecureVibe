@@ -584,6 +584,7 @@ dependencies = [
  "bcrypt-pbkdf",
  "ctr",
  "ed25519-dalek",
+ "getrandom",
  "hmac",
  "regex",
  "serde",
@@ -668,6 +669,7 @@ name = "sv-run"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "getrandom",
  "libc",
  "serde",
  "serde_json",

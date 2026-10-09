@@ -249,3 +249,8 @@ only, with the reason beside it: the link test in `crates/sv-scan/src/files.rs`,
 `crates/sv-check/tests/codeql.rs`, and the whole of `crates/sv-check/tests/brakeman_links.rs` and
 `crates/sv-check/tests/gosec_fence.rs`. They still run on Mac and Linux, unchanged. What links mean for `sv` on
 Windows (whether it follows them, and whether that needs a test of its own there) is open.
+Fourth Windows finding, the same day: the full list from the next run (2,501 passed, 187 failed) showed most failures
+coming from one cause, randomness read from `/dev/urandom`, which Windows lacks; it is now read through `getrandom`
+on every system (ADR-043, Later). The rest are grouped for the next pull request: the container tests, which need
+Linux containers the Windows runner does not have; file names Windows refuses (`os error 123`); and a few others.
+

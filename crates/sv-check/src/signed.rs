@@ -210,14 +210,12 @@ fn message(app_id: &str, fields: &[&str]) -> Vec<u8> {
 
 /// `n` bytes of the system's randomness.
 pub(crate) fn random(n: usize) -> Result<Vec<u8>, String> {
-    use std::io::Read;
-    let mut buf = Vec::with_capacity(n);
-    std::fs::File::open("/dev/urandom")
-        .and_then(|f| f.take(n as u64).read_to_end(&mut buf))
+    // The operating system's own source through the `getrandom` crate: its random-number call on
+    // Linux and on a Mac, and Windows' own on Windows, where there is no /dev/urandom to open
+    // (backlog 0120).
+    let mut buf = vec![0u8; n];
+    getrandom::getrandom(&mut buf)
         .map_err(|e| format!("the system's randomness could not be read ({e})"))?;
-    if buf.len() != n {
-        return Err("the system's randomness gave too little".to_owned());
-    }
     if n >= 16 && buf.iter().all(|b| *b == 0) {
         return Err("the system's randomness gave only zeros".to_owned());
     }
