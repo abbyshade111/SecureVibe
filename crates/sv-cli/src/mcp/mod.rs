@@ -46,6 +46,8 @@ mod confine;
 #[cfg(test)]
 mod fifo_tests;
 #[cfg(test)]
+mod file_uri_tests;
+#[cfg(test)]
 mod flow_text_tests;
 #[cfg(test)]
 mod marker_tests;
