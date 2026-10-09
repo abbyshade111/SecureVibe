@@ -112,6 +112,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-066](ADR-066.md) | The MCP server: what it does and does not do for an AI coding tool, and how its text is held |
 | [ADR-067](ADR-067.md) | A session that is one fixed key, found from repeated sign-ins (V7.2.2) |
 | [ADR-068](ADR-068.md) | An MCP link to a remote server over plain HTTP, found in the app's code (C10.3.1) (proposed) |
+| [ADR-069](ADR-069.md) | A line break and a Bcc header in the address a reset is mailed to (V1.3.11) (proposed) |
 
 ## Where v1's records disagree with what v1 built
 
