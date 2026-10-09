@@ -133,6 +133,7 @@ RUST_CHECKS = {
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.ai-token-use-attributed": ("running", ["C12.2.5"]),
     "probe.ai-safety-decision-detailed": ("running", ["C12.1.2"]),
+    "probe.ai-tool-action-logged": ("running", ["C12.4.2"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
     "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
     "probe.ai-reply-carries-others-data": ("signed-in", ["C5.2.4"]),
@@ -390,6 +391,7 @@ RUST_FINDINGS_ONLY = {
 # The other way round: checks in RUST_CHECKS that only ever credit their requirement. What they
 # would find missing may be met some way the check cannot see, so it is left not assessed.
 RUST_CREDITS_ONLY = {
+    "probe.ai-tool-action-logged",
     "probe.ai-safety-decision-detailed",
     "probe.ai-token-use-attributed",
     "probe.ai-service-failure-logged",
@@ -405,8 +407,8 @@ RUST_CREDITS_ONLY = {
 # V1.3.11's mail header injection is tried in one field of one kind of mail, the reset (ADR-069); V16.3.4's
 # logged error is one service's failure, found in the app's output (ADR-071); C12.2.5's token use is seen tied
 # per user and per session, not per feature or team (ADR-073); C12.1.2's detail is read on one kind of safety
-# decision, the injection screen (ADR-074).
-RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected", "probe.ai-service-failure-logged", "probe.ai-token-use-attributed", "probe.ai-safety-decision-detailed"}
+# decision, the injection screen (ADR-074); C12.4.2's audited action is one read-only tool call (ADR-075).
+RUST_IN_PART = {"probe.ai-tool-timeout", "probe.ai-hidden-input", "probe.mail-header-injected", "probe.ai-service-failure-logged", "probe.ai-token-use-attributed", "probe.ai-safety-decision-detailed", "probe.ai-tool-action-logged"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as

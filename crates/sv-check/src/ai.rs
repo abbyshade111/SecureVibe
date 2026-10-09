@@ -1201,6 +1201,16 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
             (t.clone(), answer, seen(http, &t).unwrap_or_default())
         };
         let (plain, plain_answer, plain_seen) = probe(http, 6, "MCPPLAIN");
+        if plain_seen.mcp_called {
+            markers.tool_call = Some(plain.clone());
+        } else {
+            out.not_assessed.push((
+                "C12.4.2".to_owned(),
+                "Whether the AI's actions are audited: its call to the test tool `sv_lookup` never \
+                 reached the test MCP server, so there was no action to look for."
+                    .to_owned(),
+            ));
+        }
         let result_of =
             |t: &str, seen: &Seen| seen.tool_result.contains(&format!("SV-MCPRESULT-{t}"));
         out.steps.push(format!(
@@ -3210,6 +3220,9 @@ pub struct LogMarkers {
     /// The tag of the message the test model failed on, when the failure reached it: its error
     /// carries `SVERR` and this tag, which nothing else in the run writes (V16.3.4, ADR-071).
     pub failure: Option<String>,
+    /// The tag the MCP control question's call to `sv_lookup` carried as its argument, when the call
+    /// reached the test MCP server (C12.4.2, ADR-075).
+    pub tool_call: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -3283,6 +3296,58 @@ const CALL_LOG: Rule = Rule {
 };
 
 const INJECTION_LOGGED: &str = "probe.ai-injection-logged";
+
+/// C12.4.2 (ADR-075): only ever credited, and in part.
+const TOOL_ACTION_LOGGED: Rule = Rule {
+    rule_id: "probe.ai-tool-action-logged",
+    requirement_ids: &["C12.4.2"],
+    cwe: &["CWE-778"],
+    impact: "An action the AI took that leaves no record of what it did, with what, when and on \
+             whose say-so cannot be reviewed after something goes wrong.",
+    fix: "Write each tool call the AI makes as an audit record: the tool, its arguments, the time, \
+          the user it acted for, who approved it if anyone did, and what came of it.",
+};
+
+/// C12.4.2: a line of the app's output recording the MCP control question's call to `sv_lookup`,
+/// with the tag as its argument. A line carrying the tag only inside the person's message as it was
+/// logged records the message, not the action, and does not count. Credited in part, saying
+/// whether the line has a time; never a finding.
+fn tool_action_logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
+    let Some(tag) = &markers.tool_call else {
+        return;
+    };
+    let message_marker = format!("SV-PROBE-MCPPLAIN-{tag}");
+    let line = log.lines().find(|line| {
+        line.contains("sv_lookup") && line.replace(&message_marker, "").contains(tag.as_str())
+    });
+    match line {
+        Some(line) => out.verified.push(
+            crate::Verified::new(
+                TOOL_ACTION_LOGGED.rule_id,
+                TOOL_ACTION_LOGGED.requirement_ids,
+                format!(
+                    "a line in the app's output recording the AI's call to the test tool `sv_lookup` \
+                     with its argument{}; a read-only lookup, not a security-critical action, and no \
+                     approver or outcome was seen",
+                    if crate::logs::has_timestamp(line) {
+                        ", and when"
+                    } else {
+                        ", though not when"
+                    }
+                ),
+            )
+            .in_part(),
+        ),
+        None => out.not_assessed.push((
+            "C12.4.2".to_owned(),
+            "Whether the AI's actions are audited: no line of the app's output recorded its call to \
+             the test tool `sv_lookup` with the argument it was given. That is not a finding: actions \
+             may be audited in another system."
+                .to_owned(),
+        )),
+    }
+    crate::verified::unless_credited(TOOL_ACTION_LOGGED.rule_id, &out.verified);
+}
 
 /// C12.1.2 (ADR-074): only ever credited, and in part.
 const SAFETY_DETAIL: Rule = Rule {
@@ -3576,6 +3641,9 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
         out.not_assessed.push((ids.to_owned(), why));
     };
     failure_logged(markers, log, out);
+    if !log.trim().is_empty() {
+        tool_action_logged(markers, log, out);
+    }
     if markers.call.is_none() && markers.injection.is_none() {
         return;
     }
@@ -3594,6 +3662,7 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
         if markers.injection.is_some() {
             safety_detail(markers, None, out);
         }
+        tool_action_logged(markers, log, out);
         return;
     }
 
