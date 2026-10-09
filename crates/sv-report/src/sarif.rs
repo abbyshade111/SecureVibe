@@ -86,6 +86,11 @@ pub fn render(report: &Report) -> String {
             if !f.fingerprint.is_empty() {
                 result["partialFingerprints"] = json!({ "svFingerprint/v1": f.fingerprint });
             }
+            // SARIF's own word for what `--baseline` found (ADR-029, Later, 9 October 2026).
+            if report.baseline.is_some() {
+                result["baselineState"] =
+                    json!(if report.in_baseline(f) { "unchanged" } else { "new" });
+            }
             if let Some(s) = set_aside {
                 result["suppressions"] = json!([{
                     "kind": "external",
@@ -307,6 +312,7 @@ mod tests {
     fn empty_report(gaps: Vec<crate::Gap>) -> Report {
         Report {
             level_why: None,
+            baseline: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

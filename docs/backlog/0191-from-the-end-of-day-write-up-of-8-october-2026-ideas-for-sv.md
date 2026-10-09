@@ -19,6 +19,9 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
    with no readable `report.json`, or one made for another app, stops the run with exit 3 and says which, rather than
    quietly comparing against nothing. **`Status: proposed`: ADR-029, Later, 9 October 2026** (what exit 1 means with
    a baseline). Read on `main` and the open pull requests just before this claim: no other session had claimed it.
+   **Done the same day** (`docs/design/0338-fail-only-on-what-is-new-baseline-9-october-2026.md`; ADR-029, Later,
+   accepted): `--baseline` on `sv check` and `sv report`, the held findings marked in every report file and as
+   SARIF's `baselineState`, and a baseline that cannot be read or names another app refused with exit 3.
 2. **A corpus of known verdicts as a regression test.** The example apps and the trial apps already scored, with
    their expected counts per requirement checked in, run nightly and compared with the night before: the honesty
    rule turned into a measurement, so a change that credits more or finds less has to say why. Builds on the
@@ -39,5 +42,17 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
 5. **"Explain this requirement" from the report.** A person reading "V7.4.1 not assessed" needs the requirement's
    text, what `sv` would have checked, and what to do; the data files hold the first two. A command, or a column in
    `report.html`. A day.
+   **Claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new items as
+   you merge"), from the roadmap (Phase 4, item 6), in branch `claude/stackvet-e9-explain`. It is the first part
+   that neither spends the owner's money nor changes what is published: parts 3 and 4 add weekly CI runs or release
+   signing, so they wait for the owner. `sv explain ID [PATH]` prints:
+   - the requirement's own words, its level, and where the level comes from, as `stackvet_explain` gives them;
+   - the checks that can speak to it, and the kind of run each needs, from `data/reach.json`, which
+     `tools/coverage.py` gains a `checks` list for;
+   - what to do: the coding rules and shown-to-work prompts that cite it, or, where only a person can check it, the
+     check by hand;
+   - with an app folder, its status in that app's last report and the reason given there.
+   It reads files only and credits nothing. Read on `main` and the open pull requests just before this claim: no
+   other session had claimed part 5.
 6. **A GitHub Action wrapping the image**, so `sv report --tools` runs on each pull request of an owner's app with
    the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.

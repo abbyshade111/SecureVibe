@@ -731,6 +731,10 @@ pub struct Report {
     /// a manifest's answers, which then says nothing more than its level.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub level_why: Option<LevelWhy>,
+    /// The older report this run was compared with (`--baseline`, ADR-029, Later, 9 October 2026),
+    /// and which of this run's findings it holds. `None` without one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseline: Option<BaselineNote>,
     /// Passed in rather than read from a clock, so the same app twice produces the same bytes.
     pub generated: Option<String>,
     /// Which `sv` made this report, so whoever reads it can tell which checks it had. Without it, a
@@ -1258,6 +1262,53 @@ pub fn finding_notes(f: &sv_check::Finding) -> Vec<String> {
         ));
     }
     notes
+}
+
+/// The older report a run was compared with, and which of its findings that report holds.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct BaselineNote {
+    /// The folder, as it was given.
+    pub folder: String,
+    /// The fingerprints of this run's findings that the baseline holds.
+    pub held: Vec<String>,
+}
+
+impl Report {
+    /// Whether the baseline holds `f`. Always false without a baseline.
+    pub fn in_baseline(&self, f: &sv_check::Finding) -> bool {
+        self.baseline
+            .as_ref()
+            .is_some_and(|b| !f.fingerprint.is_empty() && b.held.contains(&f.fingerprint))
+    }
+}
+
+/// The line beside a finding the baseline holds. `None` for any other, and without a baseline.
+pub fn baseline_note(report: &Report, f: &sv_check::Finding) -> Option<String> {
+    let b = report.baseline.as_ref()?;
+    report.in_baseline(f).then(|| {
+        format!(
+            "Also in the baseline ({}): it was there before. It still counts and still needs \
+             attention; only `--fail-on` leaves it out.",
+            b.folder
+        )
+    })
+}
+
+/// One line saying what the baseline changed, for the top of the report. `None` without one.
+pub fn baseline_line(report: &Report) -> Option<String> {
+    let b = report.baseline.as_ref()?;
+    let held = report
+        .findings
+        .iter()
+        .filter(|f| report.in_baseline(f))
+        .count();
+    let new = report.findings.len() - held;
+    Some(format!(
+        "Compared with the baseline in {}: {new} finding{} new since then, {held} already there. \
+         Every finding is listed and counted below either way.",
+        b.folder,
+        if new == 1 { " is" } else { "s are" }
+    ))
 }
 
 /// The line beside a finding a person accepted as a risk: who, when, and why. `None` for any other.
@@ -1986,6 +2037,7 @@ pub fn build(inputs: Inputs<'_>) -> Report {
     };
     Report {
         level_why: None,
+        baseline: None,
         app_name: inputs.app_name.to_owned(),
         target_level: inputs.target_level,
         generated: inputs.generated,

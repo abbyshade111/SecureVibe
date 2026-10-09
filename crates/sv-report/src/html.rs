@@ -245,6 +245,9 @@ pub fn page(report: &Report) -> String {
         "<p class=\"headline\">{}</p>\n",
         escape(&crate::bluf::headline(report))
     ));
+    if let Some(line) = crate::baseline_line(report) {
+        b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&line)));
+    }
     let (worst, rest) = crate::bluf::worst_findings(report);
     if !worst.is_empty() {
         b.push_str("<ul class=\"worst\">\n");
@@ -872,6 +875,12 @@ fn finding_section(b: &mut String, report: &Report, f: &sv_check::Finding) {
     if let Some(accepted) = crate::accepted_note(report, f) {
         b.push_str(&format!("<p><strong>{}</strong></p>\n", escape(&accepted)));
     }
+    if let Some(held) = crate::baseline_note(report, f) {
+        b.push_str(&format!(
+            "<p class=\"note\"><em>{}</em></p>\n",
+            escape(&held)
+        ));
+    }
     for note in crate::finding_notes(f) {
         b.push_str(&format!("<p class=\"note\">{}</p>\n", escape(&note)));
     }
@@ -1079,6 +1088,7 @@ mod tests {
     fn report(undecided: bool, elsewhere: bool, excluded: bool) -> Report {
         Report {
             level_why: None,
+            baseline: None,
             app_name: "test".into(),
             target_level: 1,
             generated: None,

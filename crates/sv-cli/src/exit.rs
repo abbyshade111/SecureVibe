@@ -247,6 +247,17 @@ impl Gaps {
         fail_on: FailOn,
         findings: impl IntoIterator<Item = Severity>,
     ) -> (i32, Vec<String>) {
+        self.status_of(fail_on, findings, "finding(s)")
+    }
+
+    /// The same, the findings named as `what` in the reason: with `--baseline`, only the new ones
+    /// are given, and the reason says so (ADR-029, Later, 9 October 2026).
+    pub fn status_of(
+        &self,
+        fail_on: FailOn,
+        findings: impl IntoIterator<Item = Severity>,
+        what: &str,
+    ) -> (i32, Vec<String>) {
         let mut reasons = Vec::new();
         let mut code = CLEAN;
         if let Some(bar) = fail_on.attention {
@@ -255,7 +266,7 @@ impl Gaps {
             if over > 0 {
                 code = ATTENTION;
                 reasons.push(format!(
-                    "{over} finding(s) at {} or worse (--fail-on attention:{})",
+                    "{over} {what} at {} or worse (--fail-on attention:{})",
                     bar.name(),
                     bar.name()
                 ));
