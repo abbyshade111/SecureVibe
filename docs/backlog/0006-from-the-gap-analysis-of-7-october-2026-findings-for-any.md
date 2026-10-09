@@ -470,6 +470,16 @@ listed apart, below this item.
    Later, accepted): at level 1, a question under the level line naming a sign-up route or a sensitive field name the
    answers do not, with its file and line; `level_why.hints` in `report.json`. Still open of finding 17: sealing the
    scope through `sv review`.
+   **Sealing the scope through `sv review` claimed 9 October 2026 by session securevibe-e2** ("please continue to
+   work through and pick up new items as you merge"), in branch `claude/securevibe-e2-scope-seal`: `sv review` shows
+   the two answers that set the level, the audience and the data list, and asks the person to confirm them; it writes
+   a `[scope-review]` entry holding the answers as confirmed, who, the day, and a seal over all of them, as it does
+   for every other entry it records. The level line then says the answers were confirmed through `sv review` on that
+   day, where it now says nobody has confirmed them; an answer changed after it was confirmed, or a seal that does not
+   hold here, says so and reads as unconfirmed again. The level itself, and what applies at it, are unchanged: this
+   says whose word it rests on. **`Status: proposed`: ADR-024, Later, 9 October 2026** (on whose word the level
+   rests), with ADR-043's seals unchanged. Read on `main` and the open pull requests just before this claim: no other
+   session had claimed it. With it, finding 17 is done.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
