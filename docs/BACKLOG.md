@@ -91,8 +91,11 @@ backlog is worked off" (0222), "Test the weekly decision-record review from end 
 website: what stackvet.dev could look like and say" (0224). None of the three is taken while a phase above has an
 open item.
 **The owner's order of 9 October 2026, which comes first:** the record of the build loop (0006, finding 22(d),
-ADR-076), then "A deep review of sv for observability" (0226), then the website mock-ups (0224), which the owner
-asked to wait until the decisions made that day are built. The Cursor test (0222) waits for the owner, who is
+ADR-076), then "A deep review of sv for observability" (0226), done the same day, and then its findings: part 1,
+part 2, and the three the owner said yes to (A, C, and D: ADR-082, ADR-083, ADR-084), in that order; then "An
+observability dashboard, once the observability review's findings are built" (0227), which the owner asked for that
+evening to follow them; then the website mock-ups (0224), which the owner asked to wait until the decisions made that
+day are built. The Cursor test (0222) waits for the owner, who is
 looking into what Cursor needs on their side.
 
 **Process, any time, each cheap:** "Process: shorter CI, a merge queue decision, and a nightly routine on `main`",

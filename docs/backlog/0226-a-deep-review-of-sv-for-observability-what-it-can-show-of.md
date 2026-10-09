@@ -198,3 +198,13 @@ of findings with the tool or stand-in that did or did not run; history outside t
 refusing to compare runs that differ; the build-loop record's writing guarded link by link and capped, and its
 paragraph crediting nothing; a fence verified by asking Docker; test output capped and redacted; the browser naming
 the sites it was stopped from reaching; the `asked!` and `quiet!` guard.
+
+### The owner's answers, and the first claim
+
+**The owner's decisions, 9 October 2026:** "please go ahead and yes to A, C, and D as well". A is ADR-082, C is
+ADR-083, and D is ADR-084, each proposed with this note and accepted in the pull request that builds it. B and E to K
+are not yet asked.
+
+**Part 1, item 1 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead"), in branch
+`claude/crash-line-redacted`: the app's crash line and a failed install's tail put through `redact_text` before they
+leave `sv-run`, with a test that plants a key built from pieces in each and fails when it reaches the report.

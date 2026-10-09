@@ -66,6 +66,22 @@ jobs:
       - name: Lints
         run: cargo clippy --all-targets -- -D warnings
 
+      - name: Sign in to Docker Hub
+        # The tests start containers from Docker Hub's images (the app's own, busybox, node, python). Signed out, every pull counts against Docker Hub's limit for the runner's shared
+        # address, and on 9 October 2026 that limit ("429 Too Many Requests") turned main red for hours.
+        # The owner's token (secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, given 9 October
+        # 2026), handed to this step alone; where the secrets are not given (a fork's pull request),
+        # it says so and the pulls go unsigned, as before.
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub sign-in here; pulls are held to the anonymous limit."
+          else
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          fi
+
       - name: Tests
         # The fence tests need a container backend. GitHub's runners have Docker, so they run for real here;
         # where there is none they assert the honest-absence path instead and say which branch they took.
@@ -84,6 +100,10 @@ jobs:
         # listed. By 6 October 2026, 23 checks had been counted as crediting when none ever did.
         run: python3 tools/coverage.py --credits "$RUNNER_TEMP/credits.log"
 
+      - name: Sign out of Docker Hub
+        if: always()
+        run: docker logout
+
   image:
     # The container for somebody who is not going to install Rust (the Dockerfile). Built from
     # scratch here, where Docker Hub is reachable, and driven over MCP the way an AI coding tool
@@ -97,6 +117,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Sign in to Docker Hub
+        # The image is built from Docker Hub's `rust` and `debian` images. Signed out, every pull counts against Docker Hub's limit for the runner's shared
+        # address, and on 9 October 2026 that limit ("429 Too Many Requests") turned main red for hours.
+        # The owner's token (secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, given 9 October
+        # 2026), handed to this step alone; where the secrets are not given (a fork's pull request),
+        # it says so and the pulls go unsigned, as before.
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub sign-in here; pulls are held to the anonymous limit."
+          else
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          fi
 
       - name: Build the image
         run: docker build --build-arg SV_GIT_COMMIT=${{ github.sha }} -t stackvet/sv .
@@ -141,6 +177,10 @@ jobs:
           done
           test "$NO_MANIFEST" = failure || { echo "the Action ran on a folder with no stackvet.toml"; exit 1; }
 
+      - name: Sign out of Docker Hub
+        if: always()
+        run: docker logout
+
   publish:
     # Publishes the image to GitHub's container registry, at the owner's decision (26 September
     # 2026), as ghcr.io/abbyshade111/stackvet-sv: `latest`, and the commit it was built from. Only
@@ -176,6 +216,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Sign in to Docker Hub
+        # The image is built from Docker Hub's `rust` and `debian` images. Signed out, every pull counts against Docker Hub's limit for the runner's shared
+        # address, and on 9 October 2026 that limit ("429 Too Many Requests") turned main red for hours.
+        # The owner's token (secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN, given 9 October
+        # 2026), handed to this step alone; where the secrets are not given (a fork's pull request),
+        # it says so and the pulls go unsigned, as before.
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "::warning::No Docker Hub sign-in here; pulls are held to the anonymous limit."
+          else
+            printf '%s' "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          fi
 
       - name: Build the image
         # The source label ties the package to this repository on GitHub, so it is listed there and
@@ -217,3 +273,7 @@ jobs:
       - name: Log out of the registry
         if: always()
         run: docker logout ghcr.io
+
+      - name: Sign out of Docker Hub
+        if: always()
+        run: docker logout
