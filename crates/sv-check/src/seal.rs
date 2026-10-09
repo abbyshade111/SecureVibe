@@ -863,6 +863,18 @@ pub fn notes_fields(requirement: &str, prose: &str) -> Vec<String> {
     ]
 }
 
+/// The fields a section the AI coding tool wrote is sealed over when a person confirms it through
+/// `sv review` (ADR-022, Later): a domain of its own, so the seal holds only while the section still
+/// says the tool wrote it. Marked `Written by: owner` afterwards, the owner's fields are checked and
+/// this seal does not hold for them, so the tool's draft never becomes the owner's own word.
+pub fn notes_confirmed_fields(requirement: &str, prose: &str) -> Vec<String> {
+    vec![
+        "security-notes-confirmed".to_owned(),
+        requirement.trim().to_owned(),
+        prose.trim().to_owned(),
+    ]
+}
+
 /// What the reports add after "you answered yes" for an answer recorded through `sv review`.
 pub fn recorded_where(sealed: &Sealed) -> String {
     match sealed {

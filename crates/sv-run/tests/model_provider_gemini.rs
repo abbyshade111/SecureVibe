@@ -18,6 +18,25 @@ impl Drop for Server {
     }
 }
 
+/// The health answer at `port`, or nothing: while a test server is starting, a connection can be
+/// refused, or reset by another test's server stopping on the same port, and that means only "not
+/// this one yet".
+fn health(port: u16) -> String {
+    let attempt = || -> std::io::Result<String> {
+        let mut stream = TcpStream::connect(("127.0.0.1", port))?;
+        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+        write!(
+            stream,
+            "GET {} HTTP/1.0\r\nHost: sv-model\r\n\r\n",
+            stand_in::HEALTH
+        )?;
+        let mut raw = String::new();
+        stream.read_to_string(&mut raw)?;
+        Ok(raw)
+    };
+    attempt().unwrap_or_default()
+}
+
 fn start() -> Option<(Server, u16)> {
     let script = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/model-provider.mjs");
     for _ in 0..3 {
@@ -41,9 +60,9 @@ fn start() -> Option<(Server, u16)> {
                 break;
             }
             if TcpStream::connect(("127.0.0.1", port)).is_ok()
-                && call(port, "GET", stand_in::HEALTH, "")
-                    .1
-                    .contains("\"ok\":true")
+                && health(port)
+                    // Its own server's answer, not that of another test that took the port first.
+                    .contains(&format!("\"pid\":{}", server.0.id()))
             {
                 return Some((server, port));
             }

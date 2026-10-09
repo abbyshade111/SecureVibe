@@ -23,6 +23,25 @@ impl Drop for Server {
     }
 }
 
+/// The health answer at `port`, or nothing: while a test server is starting, a connection can be
+/// refused, or reset by another test's server stopping on the same port, and that means only "not
+/// this one yet".
+fn health(port: u16) -> String {
+    let attempt = || -> std::io::Result<String> {
+        let mut stream = TcpStream::connect(("127.0.0.1", port))?;
+        stream.set_read_timeout(Some(Duration::from_secs(5)))?;
+        write!(
+            stream,
+            "GET {} HTTP/1.0\r\nHost: sv-model\r\n\r\n",
+            stand_in::HEALTH
+        )?;
+        let mut raw = String::new();
+        stream.read_to_string(&mut raw)?;
+        Ok(raw)
+    };
+    attempt().unwrap_or_default()
+}
+
 /// Starts the test model on a port the system says is free, and waits until the test model
 /// itself answers there: a connection alone could be to something else that took the port first.
 /// Tried on three ports before giving up.
@@ -51,7 +70,8 @@ fn start() -> Option<(Server, u16)> {
                 break;
             }
             if TcpStream::connect(("127.0.0.1", port)).is_ok()
-                && call(port, "GET", stand_in::HEALTH, "").contains("\"ok\":true")
+                // Its own server's answer, not that of another test that took the port first.
+                && health(port).contains(&format!("\"pid\":{}", server.0.id()))
             {
                 return Some((server, port));
             }
@@ -319,6 +339,19 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
         serde_json::json!(["SV-PRIVATE-99cc"])
     );
     assert_eq!(seen(port, "4a4b")["injection_seen"], true);
+
+    // V1.2.1 through the model: a MARKUP reply carries a raw image tag that runs a line of script
+    // naming its tag, for whether the app writes the reply into its page unencoded.
+    let answer = chat(
+        port,
+        &format!("Show me a picture {}", stand_in::marker("MARKUP", "5a5b")),
+    );
+    let said = answer["choices"][0]["message"]["content"].as_str().unwrap();
+    assert!(
+        said.contains("SV-REPLY-5a5b")
+            && said.contains("<img src=x onerror=\"document.title='SVMARKUP5a5b'\">"),
+        "{said}"
+    );
 
     // C7.3.1: the moderation endpoint flags a HARM reply, records that it was asked, and flags
     // nothing else: a plain reply, or the HARM message's own words.
