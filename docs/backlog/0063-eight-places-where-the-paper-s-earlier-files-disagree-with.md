@@ -41,3 +41,7 @@ than stated:
   so. Recorded here on 4 October 2026 by session securevibe-e9, which found the claim still open.
 Also corrected while there: `COORDINATION.md` said review found fewer faults than the owner's use; it found more
 (28 against 26).
+**Its status claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new
+items as you merge"), from the roadmap (Phase 5, the paper's three items), in branch
+`claude/stackvet-e9-paper-notes`. Read against `main` just before this claim, all eight were checked and corrected on 28 September, and the `v1` patch that 7 led to merged as #396; only its status line reads as open. The item is owed a done note,
+not a build. No other session had claimed it.
