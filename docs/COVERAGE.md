@@ -90,7 +90,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.1 | L1 | Reads the code: `ast.html-from-value`; The running app: `probe.reflected-unencoded`; Signed in: `probe.stored-unencoded`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B701`, `B702`, `B703`, `B704`; gosec only ever as a finding: `G203`; sv only ever as a finding: `ast.html-from-value`, `probe.reflected-unencoded`, `probe.stored-unencoded`) |
+| V1.2.1 | L1 | Reads the code: `ast.html-from-value`; The running app: `probe.ai-reply-html-unencoded`, `probe.reflected-unencoded`; Signed in: `probe.stored-unencoded`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B701`, `B702`, `B703`, `B704`; gosec only ever as a finding: `G203`; sv only ever as a finding: `ast.html-from-value`, `probe.ai-reply-html-unencoded`, `probe.reflected-unencoded`, `probe.stored-unencoded`) |
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B610`, `B611`; sv only ever as a finding: `probe.sql-injection`) |
 | V1.2.5 | L1 | Reads the code: `ast.shell-command`, `ast.shell-command-backticks`, `ast.shell-command-shell-true`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B601`; sv only ever as a finding: `ast.shell-command-shell-true`) |
 | V1.3.1 | L1 | Reads the code: `config.rich-text-without-sanitizer` (sv only ever as a finding: `config.rich-text-without-sanitizer`) |
@@ -139,7 +139,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 | Requirement | Level | Checks |
 |---|---|---|
-| V1.2.1 | L1 | Reads the code: `ast.html-from-value`; The running app: `probe.reflected-unencoded`; Signed in: `probe.stored-unencoded`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B701`, `B702`, `B703`, `B704`; gosec only ever as a finding: `G203`; sv only ever as a finding: `ast.html-from-value`, `probe.reflected-unencoded`, `probe.stored-unencoded`) |
+| V1.2.1 | L1 | Reads the code: `ast.html-from-value`; The running app: `probe.ai-reply-html-unencoded`, `probe.reflected-unencoded`; Signed in: `probe.stored-unencoded`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B701`, `B702`, `B703`, `B704`; gosec only ever as a finding: `G203`; sv only ever as a finding: `ast.html-from-value`, `probe.ai-reply-html-unencoded`, `probe.reflected-unencoded`, `probe.stored-unencoded`) |
 | V1.2.3 | L1 | The running app: `probe.reflected-json-unescaped`; Outside tools: `brakeman` (sv only ever as a finding: `probe.reflected-json-unescaped`) |
 | V1.2.4 | L1 | Reads the code: `ast.sql-built-by-hand`; Signed in: `probe.sql-injection`; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` and 2 more (bandit only ever as a finding: `B610`, `B611`; sv only ever as a finding: `probe.sql-injection`) |
 | V1.3.4 | L2 | Signed in: `probe.uploaded-svg-keeps-script` |

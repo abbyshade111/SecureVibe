@@ -144,6 +144,20 @@ const HIDDEN: Rule = Rule {
           link's real address, or drop links whose text is an address other than their target.",
 };
 
+const REPLY_HTML: Rule = Rule {
+    rule_id: "probe.ai-reply-html-unencoded",
+    // V1.2.1 is output encoding for HTML, which a model's reply written into the page as it is
+    // fails. Only ever a finding: one reply on one page is not every place the app writes one.
+    requirement_ids: &["V1.2.1"],
+    cwe: &["CWE-79"],
+    impact: "Whatever the model writes goes into the page as HTML, and anybody who can steer the model \
+             (by what they type, or by what they saved for it to read) can make it write a script \
+             that runs in the browser of whoever reads the answer, with their session.",
+    fix: "Write the model's reply into the page as text, through the template engine's escaping or \
+          `textContent`, and if it must show formatting, turn its markdown into HTML with a renderer \
+          that drops raw HTML, then sanitize the result.",
+};
+
 const HARMFUL: Rule = Rule {
     rule_id: "probe.ai-flagged-reply-shown",
     requirement_ids: &["C7.3.1"],
@@ -1444,6 +1458,7 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
         http.wait(61);
     }
     more_questions(http, section, &mut ask, shows_replies, &mut out);
+    markup_question(http, &mut ask, &mut out);
     shape_questions(http, &mut ask, shows_replies, &mut out);
     markers.failure = failure_questions(http, &mut ask, shows_replies, &mut out);
     record_tool_questions(http, section, &mut ask, records, &mut out);
@@ -2556,6 +2571,67 @@ where
     }
 }
 
+/// The tag a MARKUP reply carries: an image whose failure to load runs a line of script naming the
+/// message's tag.
+fn markup_tag(tag: &str) -> String {
+    format!("<img src=x onerror=\"document.title='SVMARKUP{tag}'\">")
+}
+
+/// Whether `body` holds a tag opened with a raw `<img` that carries `SVMARKUP<tag>` before it closes:
+/// the reply written into the page as HTML. An escaped `&lt;img` is text, whatever its quotes.
+fn holds_raw_markup(body: &str, tag: &str) -> bool {
+    let lower = body.to_lowercase();
+    let marker = format!("svmarkup{}", tag.to_lowercase());
+    lower.match_indices("<img").any(|(at, _)| {
+        let rest = &lower[at..];
+        let end = rest.find('>').unwrap_or(rest.len());
+        rest[..end].contains(&marker)
+    })
+}
+
+/// V1.2.1 through the model: the test model's reply carries an `<img onerror>` tag, and an answer
+/// that is a page of HTML holding it as it is wrote the reply into the page unencoded.
+///
+/// Only ever a finding. An answer in JSON is not judged: the page that draws it decides, and that is
+/// asked in the browser.
+fn markup_question<F>(http: &mut dyn Http, ask: &mut F, out: &mut Outcome)
+where
+    F: FnMut(&mut dyn Http, u32, &str, &str) -> (String, Option<ProbeResponse>),
+{
+    let (t, answer) = ask(http, 40, "MARKUP", "Can you show me a picture?");
+    let html = answer.as_ref().is_some_and(|r| {
+        r.header("content-type")
+            .is_some_and(|c| c.to_lowercase().contains("html"))
+    });
+    let carried = answer
+        .as_ref()
+        .is_some_and(|r| r.body.contains(&format!("SV-REPLY-{t}")));
+    let raw = answer
+        .as_ref()
+        .is_some_and(|r| holds_raw_markup(&r.body, &t));
+    out.steps.push(format!(
+        "had the test model write an HTML tag with a script in it into a reply ({}): {}",
+        status(&answer),
+        match (carried, html, raw) {
+            (false, _, _) => "the reply was not in the answer",
+            (true, false, _) => "the answer is not a page of HTML, so it was not judged",
+            (true, true, true) => "the page held the tag as it was written",
+            (true, true, false) => "the page held it escaped, as text",
+        }
+    ));
+    if carried && html && raw {
+        out.findings.push(finding(
+            &REPLY_HTML,
+            "The model's reply is written into the page as HTML",
+            Severity::High,
+            "The test model's reply carried an image tag whose failure to load runs a line of \
+             script, and the app's answer, a page of HTML, held that tag as it was written, so a \
+             browser drawing the page runs it."
+                .to_owned(),
+        ));
+    }
+}
+
 fn more_questions<F>(
     http: &mut dyn Http,
     section: &AiSection,
@@ -3473,6 +3549,8 @@ pub fn logged(markers: &LogMarkers, log: &str, out: &mut Outcome) {
     }
 }
 
+#[cfg(test)]
+mod model_html_tests;
 #[cfg(test)]
 mod stored_injection_tests;
 #[cfg(test)]

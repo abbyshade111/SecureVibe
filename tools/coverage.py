@@ -115,6 +115,7 @@ RUST_CHECKS = {
     "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1", "C9.3.2"]),
     "probe.ai-mcp-injection-unscreened": ("running", ["C10.4.2"]),
     "probe.ai-stored-injection-unscreened": ("running", ["C2.1.3"]),
+    "probe.ai-reply-html-unencoded": ("running", ["V1.2.1"]),
     "probe.ai-input-truncated": ("running", ["C2.1.4"]),
     "probe.ai-injection-other-languages": ("running", ["C2.2.2"]),
     "probe.ai-hidden-content-passed": ("running", ["C7.3.4"]),
@@ -277,6 +278,8 @@ RUST_FINDINGS_ONLY = {
     # One stored pattern screened out, or a note the search did not hand over, is not every way of
     # writing one (gap analysis finding 13(e)).
     "probe.ai-stored-injection-unscreened",
+    # One reply on one page is not every place an app writes one (gap analysis finding 13(b)).
+    "probe.ai-reply-html-unencoded",
     # No list of what a page loads is complete, so finding none shows nothing (ADR-070).
     "config.client-tech-unsupported",
     # An `https://` address shows neither that the link is authenticated nor that it is the only one

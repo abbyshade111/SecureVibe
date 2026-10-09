@@ -320,6 +320,19 @@ fn the_test_model_does_what_the_ai_checks_rely_on() {
     );
     assert_eq!(seen(port, "4a4b")["injection_seen"], true);
 
+    // V1.2.1 through the model: a MARKUP reply carries a raw image tag that runs a line of script
+    // naming its tag, for whether the app writes the reply into its page unencoded.
+    let answer = chat(
+        port,
+        &format!("Show me a picture {}", stand_in::marker("MARKUP", "5a5b")),
+    );
+    let said = answer["choices"][0]["message"]["content"].as_str().unwrap();
+    assert!(
+        said.contains("SV-REPLY-5a5b")
+            && said.contains("<img src=x onerror=\"document.title='SVMARKUP5a5b'\">"),
+        "{said}"
+    );
+
     // C7.3.1: the moderation endpoint flags a HARM reply, records that it was asked, and flags
     // nothing else: a plain reply, or the HARM message's own words.
     chat(
