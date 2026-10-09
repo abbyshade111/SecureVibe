@@ -3,6 +3,7 @@
 
     python3 tools/codeql_suites.py                  # resolve each suite the adapters use, record it
     python3 tools/codeql_suites.py --codeql PATH    # with that `codeql` rather than the one on PATH
+    python3 tools/codeql_suites.py --only codeql-ruby   # only that adapter's suite, the rest kept as recorded
 
 `data/adapters.json` maps CodeQL queries to requirements, and each CodeQL adapter runs one suite
 (`python-security-extended.qls`, `javascript-security-extended.qls`). Whether a mapped query is in its
@@ -66,12 +67,17 @@ def query_ids(codeql: str, suite: str) -> list:
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--codeql", default="codeql", help="the codeql command (default: on PATH)")
+    parser.add_argument("--only", action="append", default=[],
+                        help="measure only this adapter's suite (repeatable); the others stay as recorded, "
+                             "for a bundle that carries only some languages' query packs")
     args = parser.parse_args()
     measured = version(args.codeql)
     today = datetime.date.today().isoformat()
     current = json.loads(SUITES.read_text()) if SUITES.exists() else {}
     suites = current.get("suites", {})
-    for suite in sorted(adapter_suites()):
+    for suite, adapter in sorted(adapter_suites().items()):
+        if args.only and adapter not in args.only:
+            continue
         rules = query_ids(args.codeql, suite)
         suites[suite] = {"measured": today, "codeql": measured, "rules": rules}
         print(f"{suite}: {len(rules)} queries")

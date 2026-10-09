@@ -245,6 +245,48 @@ fn the_python_entry_reads_its_own_report_the_same_way() {
     assert_eq!(sql.requirement_ids, vec!["V1.2.4".to_owned()]);
 }
 
+/// A real report of CodeQL 2.27.2's Ruby suite on a Rails controller (ADR-078), read the same way: each
+/// mapped query cites what its twin in the other two languages cites, and a query left unmapped
+/// (`rb/csrf-protection-not-enabled`, which a Rails app whose framework protects it by default can
+/// still raise) is shown with no requirement.
+#[test]
+fn the_ruby_entry_reads_its_own_report_the_same_way() {
+    let out = run(
+        "ruby",
+        "codeql-ruby",
+        &["ruby"],
+        &[("SV_FAKE_SARIF", &sarif("ruby-findings.sarif"))],
+    );
+    assert!(out.not_run.is_empty(), "{:?}", out.not_run);
+    let found: BTreeSet<&str> = out.findings.iter().map(|f| f.rule_id.as_str()).collect();
+    assert_eq!(
+        found,
+        BTreeSet::from([
+            "codeql-ruby.rb/code-injection",
+            "codeql-ruby.rb/command-line-injection",
+            "codeql-ruby.rb/csrf-protection-not-enabled",
+            "codeql-ruby.rb/path-injection",
+            "codeql-ruby.rb/reflected-xss",
+            "codeql-ruby.rb/regexp-injection",
+            "codeql-ruby.rb/sql-injection",
+            "codeql-ruby.rb/unsafe-deserialization",
+            "codeql-ruby.rb/url-redirection",
+        ])
+    );
+    let cites = |rule: &str| {
+        out.findings
+            .iter()
+            .find(|f| f.rule_id == format!("codeql-ruby.{rule}"))
+            .unwrap()
+            .requirement_ids
+            .clone()
+    };
+    assert_eq!(cites("rb/sql-injection"), ["V1.2.4"]);
+    assert_eq!(cites("rb/regexp-injection"), ["V1.2.9"]);
+    assert_eq!(cites("rb/unsafe-deserialization"), ["V1.5.2"]);
+    assert!(cites("rb/csrf-protection-not-enabled").is_empty());
+}
+
 #[test]
 fn a_clean_run_is_credited_only_with_the_rules_its_suite_ran() {
     let out = run(
@@ -382,6 +424,104 @@ fn the_real_codeql_finds_the_same_things_when_it_is_installed() {
             .any(|f| f.rule_id == "codeql-javascript.js/reflected-xss"),
         "{:?}",
         out.findings.iter().map(|f| &f.rule_id).collect::<Vec<_>>()
+    );
+}
+
+/// The same for Ruby (ADR-078), with the real CodeQL when it is installed: a Gemfile, a Rakefile, and
+/// two binstubs that would each leave a mark, and a link to a file outside the app. With CodeQL
+/// 2.27.2 none ran, nothing of the linked file reached a finding, and a Rails controller's SQL
+/// built from a parameter was found. Java is not offered: its build-less mode ran the app's own
+/// `gradlew`, which is why there is no entry for it.
+#[test]
+fn the_real_codeql_for_ruby_runs_nothing_the_app_plants_and_follows_no_link() {
+    let ruby = real("codeql-ruby");
+    if !adapters::is_installed(&ruby) {
+        println!("codeql is not installed here; the real run is skipped");
+        return;
+    }
+    let dir = scratch("planted-ruby");
+    let marks = dir.join("marks");
+    std::fs::create_dir_all(&marks).unwrap();
+    let mark = |name: &str| marks.join(name).display().to_string();
+    let app = dir.join("app");
+    std::fs::create_dir_all(app.join("app/controllers")).unwrap();
+    std::fs::create_dir_all(app.join("app/models")).unwrap();
+    std::fs::create_dir_all(app.join("bin")).unwrap();
+    // A Rails app as CodeQL knows one: the controller's base class and the model, each defined.
+    std::fs::write(
+        app.join("app/controllers/application_controller.rb"),
+        "class ApplicationController < ActionController::Base\nend\n",
+    )
+    .unwrap();
+    std::fs::write(
+        app.join("app/models/user.rb"),
+        "class User < ApplicationRecord\nend\n",
+    )
+    .unwrap();
+    std::fs::write(
+        app.join("Gemfile"),
+        format!(
+            "source \"https://rubygems.org\"\ngem \"rails\"\nsystem(\"touch {}\")\n",
+            mark("gemfile")
+        ),
+    )
+    .unwrap();
+    std::fs::write(app.join("Rakefile"), format!("system(\"touch {}\")\n", mark("rakefile"))).unwrap();
+    for stub in ["bundle", "setup"] {
+        let path = app.join("bin").join(stub);
+        std::fs::write(&path, format!("#!/bin/sh\ntouch {}\n", mark(stub))).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
+    }
+    std::fs::write(
+        app.join("app/controllers/users_controller.rb"),
+        "class UsersController < ApplicationController\n  def show\n    \
+         @user = User.where(\"name = '#{params[:name]}'\").first\n  end\nend\n",
+    )
+    .unwrap();
+    let outside = dir.join("outside.rb");
+    std::fs::write(
+        &outside,
+        "class Leak < ApplicationController\n  def x\n    \
+         User.where(\"id = #{params[:outside_only]}\")\n  end\nend\n",
+    )
+    .unwrap();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside, app.join("linked.rb")).unwrap();
+
+    let adapters = Adapters::load(&real_adapters()).unwrap();
+    let out = adapters::run_all(
+        &adapters,
+        &app,
+        &["ruby".to_owned()],
+        &Default::default(),
+        &dir,
+        &secret_rules(),
+    );
+    let left: Vec<String> = std::fs::read_dir(&marks)
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    std::fs::remove_dir_all(&dir).ok();
+    assert!(left.is_empty(), "the app's own scripts ran: {left:?}");
+    let not_run: Vec<_> = out
+        .not_run
+        .iter()
+        .filter(|(id, _)| id == "codeql-ruby")
+        .collect();
+    assert!(not_run.is_empty(), "{not_run:?}");
+    let sql: Vec<_> = out
+        .findings
+        .iter()
+        .filter(|f| f.rule_id == "codeql-ruby.rb/sql-injection")
+        .collect();
+    assert!(!sql.is_empty(), "the setup: the controller's SQL was found");
+    assert!(
+        sql.iter().all(|f| !f.location.file.contains("linked")),
+        "a finding in the linked file: {sql:?}"
     );
 }
 
@@ -693,7 +833,10 @@ fn an_entry_reading_several_languages_is_offered_for_each_of_them() {
         ids(&["python"]),
         BTreeSet::from(["codeql-python".to_owned()])
     );
-    assert!(ids(&["go", "ruby"]).is_empty());
+    assert_eq!(ids(&["ruby"]), BTreeSet::from(["codeql-ruby".to_owned()]));
+    // Not Go, whose database is built by building the app, and not Java, whose build-less mode
+    // still runs the app's own build wrapper and fetches its dependencies (ADR-078).
+    assert!(ids(&["go", "java", "kotlin"]).is_empty());
 }
 
 /// `sv`'s own credential rules, which redact what a tool says.

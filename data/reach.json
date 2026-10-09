@@ -528,6 +528,12 @@
     "run": "Outside tools",
     "looks_for": "HTML output built without output encoding for its context (cross-site scripting)",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "HTML output built without output encoding for its context (cross-site scripting)",
+    "finding_only": false
    }
   ],
   "V1.2.2": [
@@ -600,6 +606,12 @@
     "run": "Outside tools",
     "looks_for": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
+    "finding_only": false
    }
   ],
   "V1.2.5": [
@@ -656,6 +668,12 @@
     "run": "Outside tools",
     "looks_for": "an operating system command built from data that may be untrusted (OS command injection)",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "an operating system command built from data that may be untrusted (OS command injection); user input reaching Kernel.open, IO.read, or a similar call, which runs a command when the name starts with a pipe (|)",
+    "finding_only": false
    }
   ],
   "V1.2.6": [
@@ -701,6 +719,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "a regular expression built from user input without escaping its special characters, so they are read as metacharacters",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "a regular expression built from user input without escaping its special characters, so they are read as metacharacters",
     "finding_only": false
@@ -750,6 +774,12 @@
     "run": "Outside tools",
     "looks_for": "dynamic code execution, such as eval, on data that may be untrusted",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "dynamic code execution, such as eval, on data that may be untrusted",
+    "finding_only": false
    }
   ],
   "V1.3.4": [
@@ -793,6 +823,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "a server-side request to a URL taken from untrusted data (server-side request forgery)",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "a server-side request to a URL taken from untrusted data (server-side request forgery)",
     "finding_only": false
@@ -842,6 +878,12 @@
     "run": "Outside tools",
     "looks_for": "a format string built from untrusted input",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "a format string built from untrusted input",
+    "finding_only": false
    }
   ],
   "V1.3.11": [
@@ -873,6 +915,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "a regular expression open to exponential backtracking (ReDoS)",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "a regular expression open to exponential backtracking (ReDoS)",
     "finding_only": false
@@ -912,6 +960,12 @@
     "run": "Outside tools",
     "looks_for": "an XML parser that resolves external entities (XXE)",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "an XML parser that resolves external entities (XXE)",
+    "finding_only": false
    }
   ],
   "V1.5.2": [
@@ -947,6 +1001,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "deserialization of untrusted data into arbitrary objects",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "deserialization of untrusted data into arbitrary objects",
     "finding_only": false
@@ -1246,6 +1306,12 @@
     "run": "Outside tools",
     "looks_for": "cross-site request forgery protection turned off",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "cross-site request forgery protection turned off",
+    "finding_only": false
    }
   ],
   "V3.5.2": [
@@ -1335,6 +1401,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "a redirect to a destination taken from the request (open redirect)",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "a redirect to a destination taken from the request (open redirect)",
     "finding_only": false
@@ -1511,6 +1583,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "a file path built from user-submitted data (path traversal)",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "a file path built from user-submitted data (path traversal)",
     "finding_only": false
@@ -2348,6 +2426,12 @@
     "run": "Outside tools",
     "looks_for": "a disallowed hash function such as MD5 or SHA1",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "a disallowed hash function such as MD5 or SHA1",
+    "finding_only": false
    }
   ],
   "V11.4.2": [
@@ -2519,6 +2603,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "TLS certificate validation turned off in a client",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "TLS certificate validation turned off in a client",
     "finding_only": false
@@ -3012,6 +3102,12 @@
     "run": "Outside tools",
     "looks_for": "mass assignment: request fields bound straight onto a model",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "request parameters permitted wholesale (permit!) and passed to a model, so a request can set any field",
+    "finding_only": false
    }
   ],
   "V15.3.4": [
@@ -3108,6 +3204,12 @@
     "run": "Outside tools",
     "looks_for": "sensitive data such as credentials written to logs",
     "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
+    "run": "Outside tools",
+    "looks_for": "sensitive data such as credentials written to logs",
+    "finding_only": false
    }
   ],
   "V16.3.1": [
@@ -3143,6 +3245,12 @@
    },
    {
     "id": "codeql-python",
+    "run": "Outside tools",
+    "looks_for": "log injection: user input written to a log without encoding, so it can forge or break log entries",
+    "finding_only": false
+   },
+   {
+    "id": "codeql-ruby",
     "run": "Outside tools",
     "looks_for": "log injection: user input written to a log without encoding, so it can forge or break log entries",
     "finding_only": false
