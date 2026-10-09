@@ -538,6 +538,10 @@ listed apart, below this item.
    credited and nothing counts for more. (d), a record of the MCP calls made while building, is left for the owner:
    the backlog marks it a decision, and recording them would add to what `sv` writes. Read on `main` and the open
    pull requests just before this claim: no other session had claimed (f).
+   **(f) done the same day** (DESIGN, "Feature briefs for records, API keys, background jobs, and organizations"):
+   `sv brief` and `stackvet_before` give briefs for `owned-records`, `api-keys`, `background-jobs`, and
+   `organizations`. A brief now names only a condition that brings a requirement, so `api-keys` names none:
+   `public-api` is asked and no applicability rule keys on it. Whether it should is left open.
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third

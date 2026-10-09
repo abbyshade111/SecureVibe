@@ -459,7 +459,8 @@ so the two agree about what applies.
 
 **Before each feature.** `sv brief --feature uploads` (and `stackvet_before`, for the tool) gives one feature's brief
 before it is built: sign-in, sign-in through another service, admin pages, uploads, payments, email, an AI feature,
-or fetching a web address (`sv brief` with no feature lists them). It gives the requirements the feature brings that
+fetching a web address, records people own or share, API keys for other programs, background jobs, or several
+customer organizations in one app (`sv brief` with no feature lists them). It gives the requirements the feature brings that
 apply to the app now, and, if `stackvet.toml` does not say yet that the app has the feature, those that will apply
 once it does; the design-time prompts for the decisions to make first, in full; the coding rules that bear on it; the
 tests to write; and the settings `sv run` needs to test it, quoted from the spec. With the coding prompts shown to

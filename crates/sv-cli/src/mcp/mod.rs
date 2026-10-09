@@ -108,8 +108,9 @@ pub(crate) const INSTRUCTIONS: &str = "StackVet checks an app against OWASP ASVS
     comes in parts, each small enough to read whole: the first answer starts with what to act on \
     and ends with a list of the rest, each asked for with `section` and `page`; read the parts you \
     need. Before you build \
-    sign-in, admin pages, uploads, payments, email, an AI feature, or a feature that fetches a web \
-    address, call stackvet_before for it: the requirements that feature brings, what to decide \
+    sign-in, admin pages, uploads, payments, email, an AI feature, a feature that fetches a web \
+    address, records people own or share, API keys, background jobs, or several customer \
+    organizations, call stackvet_before for it: the requirements that feature brings, what to decide \
     first, the rules to code by, the tests to write, and what `sv run` needs, in one place. The \
     person can choose \
     the design-time prompts from this server's prompts too. If \
