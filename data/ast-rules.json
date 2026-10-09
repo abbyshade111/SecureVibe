@@ -1453,6 +1453,56 @@
       }
     },
     {
+      "id": "ast.token-none-algorithm",
+      "title": "A token check accepts tokens with no signature at all",
+      "severity": "high",
+      "confidence": "high",
+      "requirementIds": [
+        "V9.1.2"
+      ],
+      "cwe": [
+        "CWE-347"
+      ],
+      "description": "The list of algorithms a token check accepts includes `none`, the algorithm that means the token carries no signature: `algorithms=[...]` in PyJWT or python-jose, `algorithms: [...]` in Node's `jsonwebtoken`, `WithValidMethods` or `UnsafeAllowNoneSignatureType` in Go's `golang-jwt`, or `algorithm:` in ruby-jwt.",
+      "impact": "A token with no signature can be written by anybody. When the check accepts `none`, anybody can write a token saying they are any user, an administrator included, and it is accepted.",
+      "fix": "Take `none` out of the list, and name only the algorithm the app's tokens are really signed with (for example `algorithms=[\"RS256\"]` in PyJWT, `algorithms: ['RS256']` in `jsonwebtoken`, or `jwt.WithValidMethods([]string{\"RS256\"})` in Go). Return a key from Go's key function, never `jwt.UnsafeAllowNoneSignatureType`.",
+      "findingsOnly": true,
+      "queries": {
+        "python": "(keyword_argument name: (identifier) @fn value: (_) @arg) @hit",
+        "javascript": "(pair key: [(property_identifier) @fn (string (string_fragment) @fn)] value: (_) @arg) @hit",
+        "typescript": "(pair key: [(property_identifier) @fn (string (string_fragment) @fn)] value: (_) @arg) @hit",
+        "go": "[(call_expression function: (selector_expression field: (field_identifier) @fn) arguments: (argument_list . (_) @arg)) (selector_expression field: (field_identifier) @fn) @arg] @hit",
+        "ruby": "(pair key: [(hash_key_symbol) @fn (simple_symbol) @fn (string (string_content) @fn)] value: (_) @arg) @hit"
+      },
+      "functionPatterns": {
+        "python": "^(algorithms|algorithm)$",
+        "javascript": "^(algorithms)$",
+        "typescript": "^(algorithms)$",
+        "go": "^(WithValidMethods|UnsafeAllowNoneSignatureType)$",
+        "ruby": "^:?(algorithms|algorithm)$"
+      },
+      "argumentPatterns": {
+        "python": "(?i)[\"'`]none[\"'`]",
+        "javascript": "(?i)[\"'`]none[\"'`]",
+        "typescript": "(?i)[\"'`]none[\"'`]",
+        "go": "(?i)\"none\"|UnsafeAllowNoneSignatureType$",
+        "ruby": "(?i)[\"'`]none[\"'`]"
+      },
+      "looksFor": "a token check whose list of accepted algorithms includes `none`: `algorithms=` (Python's PyJWT and python-jose), `algorithms:` (Node's `jsonwebtoken`), `WithValidMethods` and `UnsafeAllowNoneSignatureType` (Go's `golang-jwt`), and `algorithm:` (ruby-jwt); a list built somewhere else and handed over by name is not looked for, so finding none credits nothing",
+      "nothingToFind": {
+        "kotlin": "No `none` setting is looked for in Kotlin yet.",
+        "php": "`firebase/php-jwt` takes no `none` algorithm, and `lcobucci/jwt` has none to accept unless a `None` signer is passed, which is not looked for yet.",
+        "dart": "No way to accept `none` is known for Dart's common token libraries, so there is nothing to look for.",
+        "swift": "No way to accept `none` is known for Swift's common token libraries, so there is nothing to look for.",
+        "c": "No way to accept `none` is known for C's common token libraries, so there is nothing to look for.",
+        "cpp": "No way to accept `none` is known for C++'s common token libraries, so there is nothing to look for.",
+        "shell": "Tokens are not checked in shell scripts in any way this rule can speak to.",
+        "rust": "Rust's `jsonwebtoken` has no `none` algorithm to accept, so there is nothing to find.",
+        "csharp": "No `none` setting is looked for in C# yet: .NET's `RequireSignedTokens = false` is read by the rule for a signature check switched off.",
+        "java": "No `none` setting is looked for in Java yet: jjwt's `unsecured()` is read by the rule for a signature check switched off."
+      }
+    },
+    {
       "id": "ast.token-key-source-from-token",
       "title": "A sign-in token is allowed to say where the key that checks it comes from",
       "severity": "high",
