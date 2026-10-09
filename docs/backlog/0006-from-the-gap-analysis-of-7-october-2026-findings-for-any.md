@@ -274,6 +274,9 @@ listed apart, below this item.
    `algorithms: [...]`, golang-jwt's `WithValidMethods` and `UnsafeAllowNoneSignatureType`, and ruby-jwt's
    `algorithm:`. A list without `none`, or `none` in an unrelated setting, is not reported. Read on `main` and the
    open pull requests just before this claim: no other session had claimed it.
+   **The `none` algorithm done the same day** (DESIGN, "A token check that accepts the none algorithm"):
+   `ast.token-none-algorithm` in Python, JavaScript and TypeScript, Go, and Ruby (`crates/sv-check/src/ast/token_none_tests.rs`),
+   only ever a finding. With it, every part of finding 11 is done.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.

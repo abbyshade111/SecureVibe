@@ -46,13 +46,13 @@ A requirement reached by more than one kind of check is counted under each.
 
 | Level | Requirements | Can settle | Can be credited | Reads the code | Known vulnerabilities | The running app | Signed in | Outside tools | Your own live site |
 |---|---|---|---|---|---|---|---|---|---|
-| L1 | 70 | 58 | 44 | 17 | 1 | 6 | 39 | 21 | 3 |
+| L1 | 70 | 58 | 44 | 18 | 1 | 6 | 39 | 21 | 3 |
 | L2 | 183 | 95 | 69 | 24 | 0 | 21 | 47 | 28 | 2 |
 | L3 | 92 | 21 | 9 | 3 | 0 | 8 | 2 | 6 | 3 |
 
 52 of the 174 ASVS requirements that can be settled can only ever be marked *needs attention*: a check can show the control missing, and finding nothing does not show it present, so a clean run credits none of them. They are counted under *Can settle* and not under *Can be credited*, and the kinds of check above count every requirement a check can settle either way.
 
-With nothing beyond plain `sv check`, 44 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
+With nothing beyond plain `sv check`, 45 ASVS requirements can be settled. 25 can be settled only by an outside tool, almost all by semgrep and CodeQL, and only for the languages their rules are written for.
 
 ### Semgrep: rules in its map that are not run
 
@@ -86,7 +86,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 
 ## ASVS 5.0 requirement by requirement
 
-### Settled by reading the code (44)
+### Settled by reading the code (45)
 
 | Requirement | Level | Checks |
 |---|---|---|
@@ -108,6 +108,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V8.2.1 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`) |
 | V8.2.2 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.owner-field-trusted`, `probe.other-users-data` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`, `probe.owner-field-trusted`) |
 | V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`, `probe.app-token-placeholder-key`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`, `probe.app-token-placeholder-key`) |
+| V9.1.2 | L1 | Reads the code: `ast.token-none-algorithm`; Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` (sv only ever as a finding: `ast.token-none-algorithm`) |
 | V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.3 | L2 | Reads the code: `ast.token-audience-not-checked` (sv only ever as a finding: `ast.token-audience-not-checked`) |
 | V10.1.1 | L2 | Reads the code: `ast.token-in-browser-storage`; Signed in: `probe.token-in-browser-storage` (sv only ever as a finding: `ast.token-in-browser-storage`, `probe.token-in-browser-storage`) |
@@ -217,7 +218,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
 | V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`, `probe.app-token-placeholder-key`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`, `probe.app-token-placeholder-key`) |
-| V9.1.2 | L1 | Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` |
+| V9.1.2 | L1 | Reads the code: `ast.token-none-algorithm`; Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` (sv only ever as a finding: `ast.token-none-algorithm`) |
 | V9.1.3 | L1 | Reads the code: `ast.token-key-source-from-token`; Signed in: `probe.app-token-key-source-followed` (sv only ever as a finding: `ast.token-key-source-from-token`, `probe.app-token-key-source-followed`) |
 | V9.2.1 | L1 | Signed in: `probe.app-token-expired-accepted`; Outside tools: `semgrep` (semgrep only ever as a finding: `jwt-tokenvalidationparameters-no-expiry-validation`) |
 | V10.1.1 | L2 | Reads the code: `ast.token-in-browser-storage`; Signed in: `probe.token-in-browser-storage` (sv only ever as a finding: `ast.token-in-browser-storage`, `probe.token-in-browser-storage`) |
