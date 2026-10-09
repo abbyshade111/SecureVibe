@@ -150,6 +150,19 @@ fn the_board_page_sorts_the_items_by_status_and_carries_the_tools_counts() {
         index.contains(&counts) && index.contains("backlog-board.html"),
         "the index links the board"
     );
+    // Every item once: a table row per item and three header rows, so an item filed under two headings, or
+    // under none, is caught by the count alone.
+    let total: usize = counts
+        .split(' ')
+        .next()
+        .unwrap()
+        .parse()
+        .expect("the summary starts with the count");
+    assert_eq!(
+        board.matches("<tr>").count(),
+        total + 3,
+        "one row per item, plus a header row per table"
+    );
     // Three headings in this order, and each item under the right one: the first open item the tool lists is
     // under "Still to come", and the first claimed one under "Being worked on".
     let at = |needle: &str| {
