@@ -549,6 +549,54 @@ pub struct RunOutcome {
     pub installed: Vec<(install::Ecosystem, bool)>,
 }
 
+impl RunOutcome {
+    /// Every suite of questions asked beyond the anonymous ones, in the order they are asked, each
+    /// with the words `sv run` puts before its steps. The one list the evidence, the report's steps,
+    /// and the printout read, so none of them can leave a suite out: the MCP-server and fetch suites'
+    /// steps once reached nobody (backlog 226, part 1, item 4). It names every field, so a suite
+    /// added to `RunOutcome` does not build until it is placed here or said not to be one.
+    pub fn asked(&self) -> Vec<(&'static str, &sv_check::signed_in::Outcome)> {
+        let RunOutcome {
+            signed_in,
+            oidc,
+            ai,
+            mcp_server,
+            fetch,
+            healthy: _,
+            tests: _,
+            fence: _,
+            probe_responses: _,
+            probes_rate_limited: _,
+            left_over_removed: _,
+            liveness: _,
+            sidecar_lost: _,
+            installed: _,
+        } = self;
+        [
+            ("as two test users", signed_in),
+            (
+                "through a test provider standing in for the one it signs in with",
+                oidc,
+            ),
+            (
+                "its AI feature, with a test model standing in for the real one",
+                ai,
+            ),
+            ("its MCP server, asked as an MCP client would", mcp_server),
+            (
+                "its feature that fetches an address, given one it should not go to",
+                fetch,
+            ),
+        ]
+        .into_iter()
+        .filter_map(|(lead, outcome)| Some((lead, outcome.as_ref()?)))
+        .collect()
+    }
+}
+
+#[cfg(test)]
+mod asked_tests;
+
 /// Two ordinary test accounts and, when asked for, an admin, each with a password made for this run.
 ///
 /// Fresh every run and never written anywhere but the app's own container: they exist to be signed
@@ -847,6 +895,17 @@ fn stop(child: &mut std::process::Child) {
         // SAFETY: a plain system call; the group is the one `run_bounded` made for this child.
         unsafe { libc::kill(-pid, libc::SIGKILL) };
     }
+    // Windows has no process groups to stop at once, and stopping the command alone leaves what it
+    // started running and holding its output open, so the reading waits until that ends by itself:
+    // 30 seconds for a `sleep 30`, or never for a suite that hangs (backlog 0120). `taskkill /T`,
+    // Windows' own, stops the command and everything it started.
+    #[cfg(windows)]
+    let _ = Command::new("taskkill")
+        .args(["/T", "/F", "/PID", &child.id().to_string()])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
     let _ = child.kill();
     let _ = child.wait();
 }

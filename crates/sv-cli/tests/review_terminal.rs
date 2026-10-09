@@ -1,6 +1,12 @@
 //! `sv review` end to end (deep review R1): it runs only in a terminal, what it records counts in
 //! the report of the app it was recorded in, on the computer whose list of trusted keys names its
 //! key and on any computer given that list (ADR-043), and the report says why anywhere else.
+//!
+//! Unix only: these tests type into `sv review` through a pseudo-terminal (Python's `pty`), which
+//! Windows does not have; there they would not run `sv` at all, and the test that looks for nothing
+//! said would pass on nothing (backlog 0120). How `sv review` behaves at a Windows console (it says
+//! the passphrase will show as it is typed, ADR-043, Later) is not tested anywhere yet.
+#![cfg(unix)]
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
