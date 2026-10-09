@@ -252,8 +252,10 @@ Why the extra step: the tool rewrites code until a warning stops, and writing `b
 file is the easiest way to stop one. `sv review` runs only in a terminal someone is typing in, which an
 AI coding tool does not have, and *signs* each entry with a key of its own, kept in your own settings
 folder (`~/.config/stackvet/review-signing-key`), outside the app. The first time, it makes the key and
-asks whether to protect it with a passphrase. With one, nothing can sign as you without it, your AI coding
-tool included, since the passphrase is only in your head; you type it each time you run `sv review`.
+asks for a passphrase to protect it with: press Enter to choose one, or type `none` to go without. With one,
+nothing can sign as you without it, your AI coding tool included, since the passphrase is only in your head;
+you type it each time you run `sv review`. Without one, every entry the key signed says so in the report, on
+the computer that holds the key.
 
 A signature is checked with the key's *public half*, which can check a signature but never make one. `sv
 review` puts that public half, with the app it may sign for, on a list of trusted keys beside the key

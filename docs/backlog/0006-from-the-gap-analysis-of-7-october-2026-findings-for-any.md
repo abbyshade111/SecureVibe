@@ -522,6 +522,10 @@ listed apart, below this item.
    entry says that cannot be told there. What counts as sealed is unchanged. **`Status: proposed`: ADR-043, Later,
    9 October 2026** (the default answer, and what a seal's entry says about its key). Read on `main` and the open
    pull requests just before this claim: no other session had claimed (a).
+   **(a) done the same day** (`docs/design/0332-a-passphrase-unless-you-say-none-9-october-2026.md`; ADR-043, Later,
+   accepted): Enter chooses a passphrase and `none` goes without; each signed entry says "a key on this computer
+   with a passphrase", "… with no passphrase, so anything that can run as you … could have signed it", or that it
+   cannot be told here.
 
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no

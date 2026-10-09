@@ -76,8 +76,8 @@ fn the_review_shows_an_escape_in_a_proposal_rather_than_sending_it() {
         .stderr(Stdio::piped())
         .spawn()
         .expect("script runs");
-    // Enter: leave the proposal as it is.
-    child.stdin.take().unwrap().write_all(b"\n").unwrap();
+    // No passphrase on the key it makes, then Enter: leave the proposal as it is.
+    child.stdin.take().unwrap().write_all(b"none\n\n").unwrap();
     let out = child.wait_with_output().unwrap();
     std::fs::remove_dir_all(&root).ok();
     let shown = String::from_utf8_lossy(&out.stdout);
