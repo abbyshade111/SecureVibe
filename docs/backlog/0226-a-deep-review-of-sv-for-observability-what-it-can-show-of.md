@@ -244,6 +244,12 @@ kept before it, and a kept file that does not read as a run is counted and said 
 run, and is not shown") rather than passed over. Breaks: without the defaults the older run vanished from the test;
 without the count, or without the sentence, its test failed.
 
+**Part 1, item 4 claimed on 9 October 2026 by session stackvet-e9**, under the owner's "continue to work off the
+backlog", in branch `claude/stackvet-e9-suite-steps`: the steps of the MCP-server and fetch suites carried to the
+report and to `sv run`'s printout as the other suites' are, with a test that fails without it. Open pull requests
+(#1305, #1308, both this session's) and the branches of the last few hours read first: none touches
+`crates/sv-cli/src/assemble.rs`, `crates/sv-check/src/mcp_server.rs`, or `crates/sv-check/src/fetch.rs`.
+
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
 unreadable, and not the whole record; and `BuildLoop::full` says when the record reached its 4 MB limit, which the
