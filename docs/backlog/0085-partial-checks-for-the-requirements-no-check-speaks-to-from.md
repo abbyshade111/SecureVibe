@@ -372,5 +372,5 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     pick up new items as you merge"), in branch `claude/static-session`: a finding when any session value, cookie or
     token, is the same at two of the three sign-ins; credited when every one differs, since V7.2.2 asks exactly that
     sessions are not one static key. The static half (a key built into the browser's code) is not part of this.
-    **Record, `Status: proposed`: ADR-066.** Checked just before this claim: not on `main`, in no open pull request,
+    **Record, `Status: proposed`: ADR-067.** Checked just before this claim: not on `main`, in no open pull request,
     and in no recent branch.
