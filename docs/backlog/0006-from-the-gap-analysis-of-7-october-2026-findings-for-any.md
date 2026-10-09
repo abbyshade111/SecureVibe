@@ -202,6 +202,10 @@ listed apart, below this item.
    and their usual siblings in Python, JavaScript and TypeScript, and Go), and not for an address built from the app's
    own settings, which is how every API client is written. Confirmed on `main` and in the open pull requests just
    before this claim: no rule reads it, and no other session holds this part.
+   **That part done the same day** (`docs/design/0324-an-outgoing-request-s-address-taken-from-the-incoming-one-9.md`):
+   `ast.fetch-address-from-request` in Python, JavaScript and TypeScript, and Go, only ever a finding, with an address
+   from the app's settings or a written-out host left alone; six guards broken in turn, each caught. Of this finding,
+   the request body passed whole to an update or create is still open.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
