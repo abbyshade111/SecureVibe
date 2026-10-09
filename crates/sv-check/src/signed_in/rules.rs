@@ -91,6 +91,21 @@ pub(super) const ROLE_FIELD: Rule = Rule {
           the rest; set a new account's role on the server, never from the request.",
 };
 
+pub(super) const OWNER_FIELD: Rule = Rule {
+    rule_id: "probe.owner-field-trusted",
+    // V15.3.3 is mass assignment: a field the create action was never meant to take. V8.2.3 is
+    // field-level access: a user writing the owner field, which no user has permission to write.
+    // V8.2.2 is data-specific access: one user putting a record into another user's data. Only ever
+    // a finding: seven guessed field names refused say nothing about an eighth.
+    requirement_ids: &["V15.3.3", "V8.2.3", "V8.2.2"],
+    cwe: &["CWE-915", "CWE-639"],
+    impact: "Anybody signed in can put a record into somebody else's account by adding one field to \
+             the request that creates it: a note, a message, or an order the other person never \
+             wrote shows as theirs.",
+    fix: "Set a new record's owner on the server, from who is signed in, and ignore or refuse an \
+          owner field in the request; take only the fields the create action is meant to set.",
+};
+
 pub(super) const OTHER_USERS_DATA: Rule = Rule {
     rule_id: "probe.other-users-data",
     requirement_ids: &["V8.2.2"],

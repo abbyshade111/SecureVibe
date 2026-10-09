@@ -156,6 +156,17 @@ listed apart, below this item.
    real backend. The starter's `build` example no longer suggests `pip install`, and an app whose build step tries
    one is told about `install = true`. Still open from the "Now" part: `examples/flask-booking`, the preflight
    warning, and the guide's page on building your own image.
+   **The rest of the "Now" part claimed 9 October 2026 by session securevibe-e2** ("please continue to work through
+   and pick up new items as you merge"), in branch `claude/securevibe-e2-build-install`: `sv preflight` warns, before
+   any run, when `build` installs packages (`pip install`, `npm install` or `ci`, `yarn`, `pnpm install`, and the
+   like), naming `install = true` and the image as the two ways that work; and `docs/GETTING-STARTED.md` says how to
+   build an image of your own that holds the packages and name it in `image`. `examples/flask-booking` is already
+   fixed (`install = true`; its `127.0.0.1` is kept on purpose for the preflight's own test), so it wants no build. A
+   warning changes no evidence, so no record is proposed. Read on `main` and the open pull requests just before this
+   claim: no other session had claimed it.
+   **That part done the same day**
+   (`docs/design/0326-a-build-step-that-downloads-packages-said-before-the-run-9.md`): the preflight's
+   `build-install` item, and "An image of your own" in `docs/GETTING-STARTED.md`. Finding 9 is done.
 10. **Supabase and Firebase access rules are never read.** (`docs/GAP-ANALYSIS.md`, 3.2.) Rules files
    (`firestore.rules`, `storage.rules`, `database.rules.json`: `if true`, no `request.auth`, no owner check);
    Supabase migrations (a table without `enable row level security`, grants to `anon`); a secret, service-role, or
@@ -292,6 +303,9 @@ listed apart, below this item.
    V8.2.2; nothing credits. A record that names no owner leaves it not assessed, saying so. `creates` and
    `change-email` stay unclaimed. Read on `main` and the open pull requests just before this claim: no other session
    had claimed (a).
+   **(a) on `owned.create` done the same day**
+   (`docs/design/0326-a-record-put-into-another-user-s-account-9-october-2026.md`; ADR-053, Later):
+   `probe.owner-field-trusted`. `creates` and `change-email` stay open.
    **(b), the stored record's half, claimed 9 October 2026 by session securevibe-e9** ("please continue to work
    through and pick up new items as you merge"), in branch `claude/stackvet-e9-stored-markup`: the first user saves a
    second `owned` record whose text carries `<"'` between the marks the reflection probes use, then opens the record
@@ -351,6 +365,8 @@ listed apart, below this item.
    took requirements out of the report. **`Status: proposed`: ADR-015, Later, 9 October 2026** (what a missing
    file can agree with). Confirmed on `main` just before this claim: patterns match at the top of the folder only,
    none of the seven names is listed, and no other session holds this half.
+   **The corroborators half done the same day** (`docs/design/0326-infrastructure-and-ci-files-at-any-depth-9-october-2026.md`;
+   ADR-015, Later, 9 October 2026, accepted), with `cloudbuild.yml` beside `cloudbuild.yaml`. Finding 16 is done.
 17. **The answers that set the app's level are the AI tool's, never sealed, and the report does not say so.**
    (`docs/GAP-ANALYSIS.md`, 4.1.) Under the level line, say why and on whose word; let `sv review` seal the scope
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
