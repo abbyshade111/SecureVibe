@@ -75,10 +75,27 @@ pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
     )
 }
 
-/// Reads one line from the terminal without showing what is typed: a passphrase.
+/// Reads one line from the terminal without showing what is typed: a passphrase. Where the terminal cannot
+/// be told to stop showing it (Windows, until StackVet can ask its console), the person is told before typing.
 fn hidden(input: &mut dyn BufRead, out: &mut dyn Write, prompt: &str) -> Result<Option<String>> {
-    // What the terminal shows is put back however this returns.
-    struct Shown(Option<libc::termios>);
+    let shown = quiet::hide_typing();
+    if !quiet::CAN_HIDE {
+        writeln!(out, "{}", quiet::CANNOT_HIDE)?;
+    }
+    let line = ask(input, out, prompt)?;
+    drop(shown);
+    writeln!(out)?;
+    Ok(line)
+}
+
+/// Turning off what the terminal shows while a passphrase is typed.
+#[cfg(unix)]
+mod quiet {
+    pub const CAN_HIDE: bool = true;
+    pub const CANNOT_HIDE: &str = "";
+
+    /// What the terminal shows is put back however this returns.
+    pub struct Shown(Option<libc::termios>);
     impl Drop for Shown {
         fn drop(&mut self) {
             if let Some(was) = self.0 {
@@ -87,21 +104,31 @@ fn hidden(input: &mut dyn BufRead, out: &mut dyn Write, prompt: &str) -> Result<
             }
         }
     }
-    let mut shown = Shown(None);
-    // SAFETY: a zeroed termios is only written into by `tcgetattr`, and used only if that succeeds.
-    let mut was: libc::termios = unsafe { std::mem::zeroed() };
-    if unsafe { libc::tcgetattr(libc::STDIN_FILENO, &mut was) } == 0 {
-        let mut quiet = was;
-        quiet.c_lflag &= !libc::ECHO;
-        // SAFETY: as above; `quiet` is the terminal's settings with echo turned off.
-        if unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &quiet) } == 0 {
-            shown.0 = Some(was);
+
+    pub fn hide_typing() -> Shown {
+        let mut shown = Shown(None);
+        // SAFETY: a zeroed termios is only written into by `tcgetattr`, and used only if that succeeds.
+        let mut was: libc::termios = unsafe { std::mem::zeroed() };
+        if unsafe { libc::tcgetattr(libc::STDIN_FILENO, &mut was) } == 0 {
+            let mut quiet = was;
+            quiet.c_lflag &= !libc::ECHO;
+            // SAFETY: as above; `quiet` is the terminal's settings with echo turned off.
+            if unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &quiet) } == 0 {
+                shown.0 = Some(was);
+            }
         }
+        shown
     }
-    let line = ask(input, out, prompt)?;
-    drop(shown);
-    writeln!(out)?;
-    Ok(line)
+}
+
+/// On Windows `sv` cannot yet ask the console to hide what is typed, so it says so instead of
+/// pretending (backlog 0120, step 2).
+#[cfg(not(unix))]
+mod quiet {
+    pub const CAN_HIDE: bool = false;
+    pub const CANNOT_HIDE: &str = "(What you type next will show on the screen: StackVet cannot hide it on \
+                                   this computer yet. Make sure nobody can see your screen.)";
+    pub fn hide_typing() {}
 }
 
 /// How `review` reads a passphrase: hidden in a terminal, as typed in a test.

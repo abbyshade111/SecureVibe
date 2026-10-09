@@ -7,6 +7,9 @@
 //! October 2026 with gosec 2.22.9 and Go 1.24.7. The one test in this file changes the process's
 //! environment (`PATH`, and where Go keeps modules), which is why it has a file of its own.
 
+// Unix only: its stand-in `gcc` is a shell script, and it makes symbolic links (backlog 0120).
+#![cfg(unix)]
+
 mod scratch;
 
 use scratch::Scratch;
