@@ -384,8 +384,8 @@ pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with t
   - If there is no code yet, write it first, before any code, for the app as it will be. It is the
     design brief: decide each answer with the person, and what you decide here is what the app is
     built to and checked against. Then, before writing the code for each feature the app will have,
-    go through its brief (`sv brief --feature …`), which includes its design-time prompts; `sv prompts`
-    lists every prompt.
+    go through the design-time prompts for it (`sv prompts` lists every one) and its brief
+    (`sv brief --feature …`), which includes them.
   - Once there is code, answer for the app as it actually is, not as it is meant to become.
 
   Three rules:

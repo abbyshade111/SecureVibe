@@ -109,6 +109,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-063](ADR-063.md) | StackVet's logo is the code bracket, in terracotta, as the owner chose |
 | [ADR-064](ADR-064.md) | A tool that does not answer, and C9.1.1 checked in part |
 | [ADR-065](ADR-065.md) | Hidden characters sent into the AI feature, for C2.1.2 and C2.1.5 |
+| [ADR-066](ADR-066.md) | The MCP server: what it does and does not do for an AI coding tool, and how its text is held |
 
 ## Where v1's records disagree with what v1 built
 

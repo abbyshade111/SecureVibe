@@ -43,6 +43,8 @@ mod confine;
 #[cfg(test)]
 mod fifo_tests;
 #[cfg(test)]
+mod flow_text_tests;
+#[cfg(test)]
 mod marker_tests;
 #[cfg(test)]
 mod old_names_tests;
@@ -222,35 +224,17 @@ pub struct Server {
     time_limit: std::time::Duration,
     /// The last check, which may still be running after its time ran out.
     last_check: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
-    /// Holds a check open until a test lets it go, so a test can ask again while it is surely still
-    /// running. Only in tests: a check that ended between "still running" and the next call made
-    /// the time-limit test fail under load.
-    #[cfg(test)]
-    hold: std::sync::Arc<Hold>,
+    /// What a check is: `assemble`, the check `sv report` makes, unless a test gives another. The
+    /// time-limit test gives one that waits until it is let go, so the test can ask again while the
+    /// check is surely still running, without checking a real app to get there.
+    check: std::sync::Arc<Check>,
 }
 
-/// A gate a check waits at before it hands back its report, open unless a test closed it.
-#[cfg(test)]
-#[derive(Default)]
-struct Hold {
-    closed: std::sync::Mutex<bool>,
-    changed: std::sync::Condvar,
-}
-
-#[cfg(test)]
-impl Hold {
-    fn set(&self, closed: bool) {
-        *self.closed.lock().unwrap() = closed;
-        self.changed.notify_all();
-    }
-
-    fn wait(&self) {
-        let mut closed = self.closed.lock().unwrap();
-        while *closed {
-            closed = self.changed.wait(closed).unwrap();
-        }
-    }
-}
+/// A check of the app in the folder, with the frameworks and rules loaded, saying each stage as it
+/// starts.
+pub(crate) type Check = dyn Fn(&Path, &crate::Loaded, &dyn Fn(usize, &'static str)) -> Result<sv_report::Report>
+    + Send
+    + Sync;
 
 /// How long a check may take, unless `--time-limit` says otherwise. Checking this whole repository
 /// takes about six seconds. Under a minute, because a client commonly gives up on a request after
@@ -310,13 +294,19 @@ impl Server {
             loaded: std::sync::Arc::new(crate::Loaded::load()?),
             time_limit: std::time::Duration::from_secs(TIME_LIMIT_SECONDS),
             last_check: std::sync::Mutex::new(None),
-            #[cfg(test)]
-            hold: std::sync::Arc::default(),
+            check: std::sync::Arc::new(assemble),
         })
     }
 
     pub fn with_time_limit(mut self, limit: std::time::Duration) -> Self {
         self.time_limit = limit;
+        self
+    }
+
+    /// The server with another check in place of `assemble`.
+    #[cfg(test)]
+    fn with_check(mut self, check: std::sync::Arc<Check>) -> Self {
+        self.check = check;
         self
     }
 
