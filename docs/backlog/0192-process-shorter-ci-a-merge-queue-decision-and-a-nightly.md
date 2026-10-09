@@ -24,3 +24,5 @@ claimable on its own, and the second is the owner's to decide.
    apps' verdicts held to a snapshot"): a `schedule` trigger on `rust.yml`, 03:17 UTC daily, running the `test` and
    `image` jobs on `main`; the `publish` job keeps its push-only condition. The comparison the write-up wanted is the
    snapshot test of the ideas item's part 2.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **part 2, the merge queue: hold off for now, as recommended.** Auto-merge alone stays; the queue is reconsidered only if `main` goes red from an untested combination of pull requests more than once a week. (On 9 October one such combination, #1246 with #1248, turned `main` red once; #1255 fixed it.)

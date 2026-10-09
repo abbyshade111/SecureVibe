@@ -1,6 +1,6 @@
 # Packaging `sv` for somebody who is not technical: a container now, a download later
 
-**Status:** partly done: the downloadable program (a build per platform in CI; on a Mac, notarizing or Homebrew)
+**Status:** claimed by securevibe-e2, 9 October 2026
 
 **The
 owner's decision, 26 September 2026: build the container now, and keep the downloadable program
@@ -174,3 +174,53 @@ only the old "not yet something this guide can make easy" sentence.
   `templates/`, is on its checks now and lands within the hour. After it I will open nothing else
   that touches `agnostic/`, `CLAUDE.md`, or CI until the move lands, so the freeze can start any time
   after that.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **look at both ways to the download on a Mac, Homebrew and Apple's notarization, and bring the findings back before anything is built or paid for.** Apple's developer program charges a yearly fee, so nothing there is bought without asking again.
+
+**What was found, 9 October 2026, by session securevibe-e2** (read from the web that day, not tried on a Mac):
+- **Homebrew has two kinds of package, and only one is held to Apple's checks.** Since 1 September 2026 Homebrew
+  disables *casks* (apps) that fail Gatekeeper, that is, that are not signed and notarized by Apple, and it removed
+  `--no-quarantine`. Its project leader said the change affects casks only, not *formulae* (command-line programs).
+  `sv` is a command-line program, so it would be a formula.
+- **A formula in a tap of `sv`'s own needs no Apple membership.** A tap is a repository named `homebrew-<name>`
+  (here, for example, `abbyshade111/homebrew-stackvet`) holding a `Formula/sv.rb` that says where the source is.
+  By default Homebrew builds it from source on the person's Mac and fetches Rust for that build itself, so the
+  person never installs Rust; the cost is a few minutes the first time. Prebuilt copies ("bottles") remove that
+  wait, but in a tap of one's own they are built by the tap's CI and attached to a release, which fits with the
+  signed releases (0191 part 4). The formula has to install `data/` beside the program, as `tools/install.sh` does
+  (ADR-036). Not checked: whether a formula's prebuilt copy on Apple Silicon needs anything beyond the ad-hoc
+  signature Rust's linker gives every program; it should be tried on the owner's Mac before the guide says so.
+- **Apple's notarization is needed only for a program downloaded straight from a web page**, which the browser
+  marks so that Gatekeeper checks it. It needs the Apple Developer Program, about US$99 a year (notarizing is then
+  free), a Developer ID certificate kept as a CI secret, and `xcrun notarytool`; a bare command-line program
+  cannot have its approval "stapled" to it, so the first run checks with Apple over the network. If the
+  membership lapses, notarizing stops.
+- **Recommendation:** a tap of `sv`'s own with a formula that builds from source first, then bottles from CI once
+  releases are signed; no Apple membership unless a plain download from stackvet.dev is wanted later. **For the
+  owner:** creating the `homebrew-stackvet` repository (a new public repository under the owner's account) is
+  asked first.
+
+Sources: [Homebrew discussion 6482](https://github.com/orgs/Homebrew/discussions/6482),
+[Hacker News, "Homebrew no longer allows bypassing Gatekeeper"](https://news.ycombinator.com/item?id=45907259),
+[sioyek issue 1666](https://github.com/ahrm/sioyek/issues/1666),
+[Apple developer forums thread 746992](https://developer.apple.com/forums/thread/746992),
+[Simon Willison, Homebrew formulas with GitHub Actions](https://til.simonwillison.net/homebrew/auto-formulas-github-actions).
+
+**The owner's decision, 9 October 2026: yes to Homebrew, and to the `homebrew-stackvet` repository; and "make sure
+there is support for Windows and Linux as well as Mac."** No Apple membership. Creating the repository from a
+session was refused by GitHub (the session's access cannot make repositories), so the owner makes it, empty and
+public, or the formula lives in this repository instead (Homebrew can tap any repository given its address, at the
+cost of fetching all of this one). What follows is the plan, each step claimed on its own:
+1. **The formula, Mac and Linux.** `Formula/sv.rb` builds `sv` from source with Rust as a build dependency and
+   installs the program with `data/` beside it in Homebrew's own folder, linking `bin/sv` to it; `sv` finds its data
+   through the link because it resolves the program's real place first (ADR-036). Homebrew runs on Linux as well, so
+   one formula serves both. Until the first release exists it builds the latest `main` (`brew install --HEAD`); a
+   stable version follows the signed releases (0191 part 4). It is tried in CI on a Mac runner and a Linux runner
+   (`brew install`, `brew test`, `brew audit`) before the guide mentions it.
+2. **Windows, found out first.** `sv` has never been built or run on Windows, and Homebrew does not run there. First a
+   CI job builds and tests `sv` on a Windows runner, to learn what breaks (paths, the `curl` that `sv probe` uses, the
+   container backend); its failures are fixed or written down. Only then a way to install it, Scoop or winget (both
+   free), chosen with what the job found. Until then the guide keeps saying plainly that Windows is untried, and that
+   the Docker route works wherever Docker Desktop does.
+3. **The guide** gains "Installing with Homebrew" for Mac and Linux once step 1 is green, and a Windows section once
+   step 2 is.

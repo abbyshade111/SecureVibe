@@ -42,3 +42,5 @@ repository. `tools/docs_page.py` leaves a `<picture>` block out, since it shows 
 markup at the top of the README's page; its self-test holds that, and removing the skip failed it. Not checked by
 hand: how the image's package page shows the labels, which needs the next push to `main` to publish the image. Parts
 2, 3, and 5 remain the owner's.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 5**, the mark in `report.html` and the dashboard, as an inline SVG so a report still opens no network connection; it changes what `sv` writes into someone's folder, so it is built with a record. Part 2, the repository's preview image, stays the owner's to upload in Settings. Part 3, what the two sites show, waits for the website mock-ups (0224). Not claimed yet.

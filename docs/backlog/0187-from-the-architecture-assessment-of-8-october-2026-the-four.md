@@ -289,3 +289,5 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    `tools/coverage.py`, held to the census as it is, rather than make `docs/COVERAGE.md` need a full test run ("agree,
    keep the coverage mirror list held to the full test count"). The record is ADR-059, "Later, 9 October 2026". Recorded
    by session securevibe-e2.
+
+**The owner's decision, 9 October 2026**, asked by session securevibe-e2 with a recommendation for each open choice: **yes to part 10's tool fold, as recommended:** `stackvet_questions` folds into `stackvet_check` and the notes-file tool into the answer-recording tool, with the old names still answering, unlisted, for a few weeks, so a flow that calls them by name (the owner's VS Code walk-through called `stackvet_questions`) keeps working while the guide and the tool count change. Not claimed yet.
