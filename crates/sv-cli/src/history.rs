@@ -60,6 +60,14 @@ pub fn is_on() -> bool {
 
 /// The folder an app's runs are kept in: a name made from the app folder's full path, so two apps
 /// with the same folder name are kept apart, and a moved folder starts a history of its own.
+/// The app's real place, which is what its history is kept under. Until 9 October 2026 the place
+/// was taken as typed, so `sv report .` kept every app's runs under one `.`, and neither `sv history
+/// forget` nor the dashboard, which both ask by the real place, found them (backlog 0120: on
+/// Windows even a full path differs from its real place, by `RUNNER~1` and the like).
+fn real_place(app: &Path) -> PathBuf {
+    sv_frameworks::paths::canonical(app).unwrap_or_else(|_| app.to_path_buf())
+}
+
 fn app_folder(history: &Path, app: &Path) -> PathBuf {
     let hex = crate::bundle::sha256(app.to_string_lossy().as_bytes());
     history.join(&hex[..16])
@@ -111,6 +119,7 @@ pub fn keep(app: &Path, run: &Run) -> Result<Option<PathBuf>> {
     }
     let history = folder().context("this computer has no home folder to keep history in")?;
     private_dir(&history)?;
+    let app = &real_place(app);
     let mine = app_folder(&history, app);
     private_dir(&mine)?;
     private_file(
@@ -151,8 +160,9 @@ fn runs_in(folder: &Path) -> Vec<(PathBuf, Run)> {
 
 /// The runs kept for the app at `app`, oldest first.
 pub fn runs(app: &Path) -> Vec<Run> {
+    let app = real_place(app);
     folder()
-        .map(|h| runs_in(&app_folder(&h, app)))
+        .map(|h| runs_in(&app_folder(&h, &app)))
         .unwrap_or_default()
         .into_iter()
         .map(|(_, r)| r)
@@ -230,7 +240,7 @@ pub fn command(args: &[String]) -> Result<()> {
             }
         }
         ["forget", app] => {
-            let app = sv_frameworks::paths::canonical(app).unwrap_or_else(|_| PathBuf::from(app));
+            let app = real_place(Path::new(app));
             match history.map(|h| app_folder(&h, &app)).filter(|f| f.exists()) {
                 Some(f) => {
                     std::fs::remove_dir_all(&f)

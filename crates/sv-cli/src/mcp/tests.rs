@@ -2399,14 +2399,27 @@ fn the_files_offered_are_the_files_a_report_is_written_as() {
 
 #[test]
 fn a_file_uri_names_exactly_the_path_it_was_made_from() {
-    for path in [
-        "/a/b/report.json",
-        "/with space/and%percent/report.html",
-        "/hash#and?query/x",
-        "/line\nbreak/r",
-        "/ünïcødé/文件/r",
-        "/a/../b",
-    ] {
+    // Absolute on the system the test runs on; the other system's form is tested in
+    // `file_uri_tests`, on every system.
+    let paths: &[&str] = if cfg!(windows) {
+        &[
+            r"C:\a\b\report.json",
+            r"C:\with space\and%percent\report.html",
+            r"D:\hash#and\x",
+            r"C:\ünïcødé\文件\r",
+            r"\\server\share\r",
+        ]
+    } else {
+        &[
+            "/a/b/report.json",
+            "/with space/and%percent/report.html",
+            "/hash#and?query/x",
+            "/line\nbreak/r",
+            "/ünïcødé/文件/r",
+            "/a/../b",
+        ]
+    };
+    for path in paths {
         let uri = file_uri(Path::new(path)).unwrap();
         assert!(
             uri.bytes()
@@ -2417,7 +2430,13 @@ fn a_file_uri_names_exactly_the_path_it_was_made_from() {
     }
     for not_one in [
         "http://example.com/report.json",
-        "file://relative/report.json",
+        // Not absolute: on Windows `file://name/...` is a network share, and a path with no drive
+        // is the one that names nothing.
+        if cfg!(windows) {
+            "file:///no/drive/report.json"
+        } else {
+            "file://relative/report.json"
+        },
         "file:///bad%zzescape",
         "file:///cut%2",
         "file:///not%FFutf8",

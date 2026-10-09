@@ -22,11 +22,15 @@ impl Server {
             if crate::report_seal::proven(&folder).is_err() {
                 continue;
             }
+            // Its parts joined by `/` on every system, so the name reads the same on Windows,
+            // where the folder's own form has `\` (backlog 0120).
             let shown = folder
                 .strip_prefix(&self.root)
                 .unwrap_or(&folder)
-                .display()
-                .to_string();
+                .components()
+                .map(|part| part.as_os_str().to_string_lossy())
+                .collect::<Vec<_>>()
+                .join("/");
             let shown = if shown.is_empty() {
                 ".".to_owned()
             } else {
@@ -219,11 +223,37 @@ pub(super) fn plain_in_uri(byte: u8) -> bool {
 }
 
 /// `file://` and the absolute path, with anything that is not plain written as `%XX`. None for a
-/// path that is not text, which a URI here cannot name.
+/// path that is not text, which a URI here cannot name. On Windows the path is written the way
+/// RFC 8089 and every AI coding tool there reads it: `C:\a\b` as `file:///C:/a/b`, and a network
+/// share `\\server\share\a` as `file://server/share/a` (backlog 0120).
 pub(super) fn file_uri(path: &Path) -> Option<String> {
-    let text = path.to_str()?;
-    let mut uri = String::from("file://");
-    for byte in text.bytes() {
+    file_uri_of(path.to_str()?, cfg!(windows))
+}
+
+/// The absolute path a `file://` URI names, or None if it is not one.
+pub(super) fn path_from_uri(uri: &str) -> Option<PathBuf> {
+    let text = path_text_from_uri(uri, cfg!(windows))?;
+    let path = PathBuf::from(text);
+    path.is_absolute().then_some(path)
+}
+
+/// `file_uri`, for either system, so the Windows form is tested on every one.
+pub(super) fn file_uri_of(text: &str, windows: bool) -> Option<String> {
+    let (mut uri, rest) = if !windows {
+        (String::from("file://"), text.to_owned())
+    } else if let Some(share) = text.strip_prefix(r"\\") {
+        (String::from("file://"), share.replace('\\', "/"))
+    } else {
+        let drive = text.as_bytes();
+        if drive.len() < 3 || !drive[0].is_ascii_alphabetic() || &drive[1..3] != b":\\" {
+            return None;
+        }
+        (
+            format!("file:///{}:", drive[0] as char),
+            text[2..].replace('\\', "/"),
+        )
+    };
+    for byte in rest.bytes() {
         if plain_in_uri(byte) {
             uri.push(byte as char);
         } else {
@@ -233,8 +263,9 @@ pub(super) fn file_uri(path: &Path) -> Option<String> {
     Some(uri)
 }
 
-/// The absolute path a `file://` URI names, or None if it is not one.
-pub(super) fn path_from_uri(uri: &str) -> Option<PathBuf> {
+/// The path text a `file://` URI names, for either system, or None if it is not one: on Windows
+/// `file:///C:/a/b` is `C:\a\b` and `file://server/share/a` is `\\server\share\a`.
+pub(super) fn path_text_from_uri(uri: &str, windows: bool) -> Option<String> {
     let rest = uri.strip_prefix("file://")?;
     let mut bytes = Vec::with_capacity(rest.len());
     let mut iter = rest.bytes();
@@ -247,8 +278,28 @@ pub(super) fn path_from_uri(uri: &str) -> Option<PathBuf> {
             bytes.push(byte);
         }
     }
-    let path = PathBuf::from(String::from_utf8(bytes).ok()?);
-    path.is_absolute().then_some(path)
+    let text = String::from_utf8(bytes).ok()?;
+    if !windows {
+        return Some(text);
+    }
+    // A backslash written into the URI would be a separator once turned around, naming another
+    // place than the one written; none of ours holds one, so none is read.
+    if text.contains('\\') {
+        return None;
+    }
+    let drive = text.as_bytes();
+    if drive.len() >= 4
+        && drive[0] == b'/'
+        && drive[1].is_ascii_alphabetic()
+        && drive[2] == b':'
+        && drive[3] == b'/'
+    {
+        Some(text[1..].replace('/', "\\"))
+    } else if !text.is_empty() && !text.starts_with('/') {
+        Some(format!(r"\\{}", text.replace('/', "\\")))
+    } else {
+        None
+    }
 }
 
 /// Whether two looks at a path saw the same file.

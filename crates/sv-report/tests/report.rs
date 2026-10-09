@@ -1151,7 +1151,13 @@ fn end_to_end_a_clean_scan_supports_the_secrets_controls_and_checks_none_of_them
 fn text_from_the_app_cannot_put_a_link_an_image_or_html_into_the_markdown_reports() {
     // R13 of the deep review. A file named to carry a link out of its code span, holding a
     // password the scan finds, and an app name that is a link and an image.
-    let name = "x`[click](javascript:alert)`.py";
+    // Windows refuses a `:` in a file name, so there the link points at a page rather than a
+    // scheme; it is a link out of the span either way (backlog 0120).
+    let name = if cfg!(windows) {
+        "x`[click](evil.example)`.py"
+    } else {
+        "x`[click](javascript:alert)`.py"
+    };
     let mut report = report_for_folder(&[(name, "DB_PASSWORD = 'q8#Vz!pL2@xR9$mK4&tW'\n")]);
     assert!(
         report.findings.iter().any(|f| f.location.file == name),

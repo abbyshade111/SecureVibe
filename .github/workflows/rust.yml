@@ -53,6 +53,28 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Fetch Docker Hub's images through Google's mirror
+        # Docker Hub refuses downloads past its limits, and on 9 October 2026 refused the sign-in below
+        # three times running, so the pulls went unsigned and were refused too (ADR-051, Later, 9
+        # October 2026). Docker's own setting sends a Docker Hub image to mirror.gcr.io, Google's copy
+        # of Docker Hub, and falls back to Docker Hub when the mirror cannot answer. The Dockerfile
+        # and the code keep Docker Hub's names, so Dependabot and a build by hand are as they were.
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
+      - name: Fetch the images the suite starts, through the mirror
+        # Before the sign-in below, so they come from the mirror; one left off this list, or one that
+        # fails here, is fetched by the suite itself, as before.
+        run: |
+          for image in busybox:1.36 axllent/mailpit:v1.31 node:22-alpine python:3.12-slim \
+                       chromedp/headless-shell:151.0.7922.109; do
+            docker pull --quiet "$image" || echo "::warning::Could not fetch $image ahead of the suite; it will try."
+          done
+
       # No cache step. Caching would mean pinning another third-party action, and this workspace builds from
       # scratch in well under a minute — a smaller supply-chain surface is worth more here than the seconds.
       - name: Use the toolchain this workspace needs
@@ -125,6 +147,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Fetch Docker Hub's images through Google's mirror
+        # Docker Hub refuses downloads past its limits, and on 9 October 2026 refused the sign-in below
+        # three times running, so the pulls went unsigned and were refused too (ADR-051, Later, 9
+        # October 2026). Docker's own setting sends a Docker Hub image to mirror.gcr.io, Google's copy
+        # of Docker Hub, and falls back to Docker Hub when the mirror cannot answer. The Dockerfile
+        # and the code keep Docker Hub's names, so Dependabot and a build by hand are as they were.
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here. Before the
+        # sign-in below: signed in, the first try of this could not fetch them. A fetch that fails
+        # warns and leaves the build to try for itself.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
+          done
 
       - name: Sign in to Docker Hub
         # The image is built from Docker Hub's `rust` and `debian` images. Signed out, every pull counts against Docker Hub's limit for the runner's shared
@@ -232,6 +276,28 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Fetch Docker Hub's images through Google's mirror
+        # Docker Hub refuses downloads past its limits, and on 9 October 2026 refused the sign-in below
+        # three times running, so the pulls went unsigned and were refused too (ADR-051, Later, 9
+        # October 2026). Docker's own setting sends a Docker Hub image to mirror.gcr.io, Google's copy
+        # of Docker Hub, and falls back to Docker Hub when the mirror cannot answer. The Dockerfile
+        # and the code keep Docker Hub's names, so Dependabot and a build by hand are as they were.
+        run: |
+          (sudo cat /etc/docker/daemon.json 2>/dev/null || echo '{}') \
+            | jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' > "$RUNNER_TEMP/daemon.json"
+          sudo cp "$RUNNER_TEMP/daemon.json" /etc/docker/daemon.json
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
+
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here. Before the
+        # sign-in below: signed in, the first try of this could not fetch them. A fetch that fails
+        # warns and leaves the build to try for itself.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
+          done
 
       - name: Sign in to Docker Hub
         # The image is built from Docker Hub's `rust` and `debian` images. Signed out, every pull counts against Docker Hub's limit for the runner's shared
