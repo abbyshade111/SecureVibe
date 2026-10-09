@@ -231,8 +231,8 @@ fn a_report_is_not_written_through_a_symlink_out_of_the_app() {
 const FOLDER_NAMES: &[&str] = &[
     ".stackvet-report",
     crate::report_lock::LOCK_NAME,
-    ".stackvet-report",
-    ".stackvet-report.lock",
+    ".securevibe-report",
+    ".securevibe-report.lock",
     "report.html",
     "compliance.md",
     "security.md",
