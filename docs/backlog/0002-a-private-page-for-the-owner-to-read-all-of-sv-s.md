@@ -36,3 +36,9 @@ with the search box working and nothing fetched. Breaks: the paper left in, the 
 that was not its own written into, a place inside the repository allowed, every file in its folder removed on a
 rerun, and code not escaped, each failed a test (`crates/sv-cli/tests/docs_page.rs`, which also runs its
 `--self-test`).
+**Parts 2 to 4 claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new
+items as you merge"), from the roadmap (Phase 4, item 5), in branch `claude/stackvet-e9-docs-page-notes`. Read
+against `main` just before this claim, they were met by part 1's build and are owed a done note, not a build:
+`tools/docs_page.py` writes to `~/stackvet-docs/` and only into a folder it marks as its own (part 2). It reads
+Markdown with a reader of its own and no dependency (part 3). It takes only the Markdown git tracks, with
+`docs/paper/`, the example apps, `target/`, and `crates/` left out (part 4). No other session had claimed them.
