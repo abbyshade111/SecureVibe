@@ -462,3 +462,12 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     `probe.ai-token-use-attributed` credits C12.2.5 in part when the line carrying the call's token counts ties
     them to the user or the session, and says so when it does not; it never finds. Not done: per feature endpoint and
     per team or workspace.
+21. **C12.1.2: why a caught prompt injection was stopped, written down with it, from the running app. Not
+    verified.** From `docs/PARTIAL-CHECKS.md`: the line `probe.ai-injection-logged` already finds recording the
+    textbook injection as caught, read for a reason and a time.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please continue when ready"), in
+    branch `claude/injection-detail`: `probe.ai-safety-decision-detailed`, credited in part when that line carries a
+    reason or category field and a time, and saying whether it names the user or session; never a finding, since the
+    detail may be recorded elsewhere. One kind of safety decision, the injection screen, is seen. **Record, `Status:
+    proposed`: ADR-074.** Checked just before this claim: not on `main`, in no open pull request, and in no recent
+    branch. The kill-switch log (C12.4.3) is left: the second copy's output is not read by anything yet.
