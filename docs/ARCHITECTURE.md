@@ -127,8 +127,8 @@ terminal command the person can run.
 - **The fence.** The app runs on a Docker network with no gateway, read-only, every capability dropped; every request
   to it is sent from inside; `sv` opens no network connection of its own but `sv probe` and the install step (ADR-019,
   ADR-027, ADR-052). Verified by asking Docker, not by trusting the flag.
-- **What `sv` writes into somebody's folder** is the report folder, `security-notes.md`, and its section of
-  `AGENTS.md`, and nothing else (ADR-017); never through a link.
+- **What `sv` writes into somebody's folder** is the report folder (the record of the build loop, ADR-076, included),
+  `security-notes.md`, and its section of `AGENTS.md`, and nothing else (ADR-017); never through a link.
 - **Every decision has a record** in the same pull request, and the "Decision records" check holds it (`docs/adr/README.md`).
 
 ## Where to look
