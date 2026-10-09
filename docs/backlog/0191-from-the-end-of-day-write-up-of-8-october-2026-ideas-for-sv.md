@@ -39,5 +39,13 @@ there, is item 8 of "From the architecture assessment of 8 October 2026" and is 
 5. **"Explain this requirement" from the report.** A person reading "V7.4.1 not assessed" needs the requirement's
    text, what `sv` would have checked, and what to do; the data files hold the first two. A command, or a column in
    `report.html`. A day.
+   **Claimed 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 4, item 6, the next part in its order
+   that needs nothing from the owner: part 3 needs a nightly toolchain in CI, and part 4 the release setup), in branch
+   `claude/securevibe-e2-explain`: `sv explain <requirement id>` (V7.4.1, C2.1.1, and the Secure by Design ids)
+   prints the requirement's own words and its level, which of `sv`'s checks can speak to it and at which tier (read
+   from `data/reach.json`, which `tools/coverage.py` writes), how to check it by hand where the hand instructions
+   have it (`data/human-checks.json`), and, where nothing automated speaks to it, that only a person can settle it.
+   The command only reads `sv`'s own data, so nothing a report concludes changes and no record is proposed. Read on
+   `main` and the open pull requests just before this claim: no other session had claimed it.
 6. **A GitHub Action wrapping the image**, so `sv report --tools` runs on each pull request of an owner's app with
    the SARIF uploaded to code scanning. Adoption more than capability; the image and the SARIF writer exist.
