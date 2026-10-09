@@ -1,4 +1,4 @@
-# SecureVibe — what is still to do
+# StackVet — what is still to do
 
 > Written under `agnostic/` and moved to the repository root on 26 September 2026 when `sv` became the top of the
 > repository; paths written `agnostic/…` in older items are now at the root (`agnostic/data/…` is `data/…`).

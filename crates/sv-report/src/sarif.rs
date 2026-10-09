@@ -120,7 +120,7 @@ pub fn render(report: &Report) -> String {
             "tool": { "driver": {
                 "name": "sv",
                 "version": report.sv.version,
-                "informationUri": "https://github.com/abbyshade111/SecureVibe",
+                "informationUri": "https://github.com/abbyshade111/StackVet",
                 "properties": { "commit": report.sv.commit },
                 "rules": rules,
             }},

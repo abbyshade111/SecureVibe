@@ -41,7 +41,7 @@ fn update_section(guide: &str) -> String {
 fn the_guide_updates_the_image_the_workflow_publishes() {
     let workflow = read(".github/workflows/rust.yml");
     let image = published_image(&workflow);
-    assert_eq!(image, "ghcr.io/abbyshade111/securevibe-sv", "the setup");
+    assert_eq!(image, "ghcr.io/abbyshade111/stackvet-sv", "the setup");
     let guide = read("docs/GETTING-STARTED.md");
     let section = update_section(&guide);
 

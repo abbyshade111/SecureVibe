@@ -6,7 +6,7 @@ marked below. A test (`crates/sv-cli/tests/data_readme.rs`) fails when a file he
 the list stays complete.
 
 `sv` reads every file here through one place (`crates/sv-frameworks/src/data.rs`, ADR-036), which looks in
-`SV_DATA_DIR` (a whole copy of this folder), then beside the program (`data`, or `../share/securevibe/data`), then
+`SV_DATA_DIR` (a whole copy of this folder), then beside the program (`data`, or `../share/stackvet/data`), then
 in the repository it was built from (`crates/<crate>/../../data`), which is what the Docker image uses.
 `tools/install.sh` puts a copy beside the program it installs.
 

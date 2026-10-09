@@ -28,7 +28,7 @@ simply missing from the tool, and nothing tells you why. After a restart, start 
 Then fetch StackVet, in a terminal:
 
 ```bash
-docker pull ghcr.io/abbyshade111/securevibe-sv
+docker pull ghcr.io/abbyshade111/stackvet-sv
 ```
 
 ## 2. Make a folder for the app, and put it in git
@@ -60,7 +60,7 @@ test that talks to it the way the tool does, not yet in the app itself.
   "command": "/opt/homebrew/bin/docker",
   "args": ["run", "-i", "--rm", "--network", "none",
            "-v", "/Users/you/code/my-app:/Users/you/code/my-app",
-           "ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "/Users/you/code/my-app"] } } }
+           "ghcr.io/abbyshade111/stackvet-sv", "mcp", "--root", "/Users/you/code/my-app"] } } }
 ```
 
 - `command` is the full path to `docker`, because an app started from the Dock often cannot find it.
@@ -107,7 +107,7 @@ The file it writes looks like this:
 
 For the container instead (not yet tried in VS Code), `command` is the full path to `docker` and `args` are
 `["run", "-i", "--rm", "--network", "none", "-v", "${workspaceFolder}:${workspaceFolder}",
-"ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "${workspaceFolder}"]`.
+"ghcr.io/abbyshade111/stackvet-sv", "mcp", "--root", "${workspaceFolder}"]`.
 
 If **MCP: Add Server…** is not in the list, check the VS Code version (*Code → About*), search Settings
 for `mcp` in case it is switched off, and, if your Copilot comes through work or school, ask whether
@@ -147,10 +147,10 @@ Every step still works by copying and pasting. Instead of the tool calling Stack
 terminal in the app's folder and paste what it prints into the chat:
 
 ```bash
-docker run --rm ghcr.io/abbyshade111/securevibe-sv init
-docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv check .
-docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv questions .
-docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/securevibe-sv rules .
+docker run --rm ghcr.io/abbyshade111/stackvet-sv init
+docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/stackvet-sv check .
+docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/stackvet-sv questions .
+docker run --rm --network none -v "$PWD":"$PWD" -w "$PWD" ghcr.io/abbyshade111/stackvet-sv rules .
 ```
 
 On Linux, add `--user "$(id -u):$(id -g)"` after `docker run` in each line, for the same reason as
@@ -218,7 +218,7 @@ mkdir -p ~/.config/stackvet && chmod 700 ~/.config/stackvet && touch ~/.config/s
 Then, each time, in a terminal in the app's folder:
 
 ```bash
-docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/stackvet":/sv-config/stackvet -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .
+docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/stackvet":/sv-config/stackvet -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/stackvet-sv review .
 ```
 
 `-it` gives it your terminal to ask its questions in, and the second `-v` lets it keep its key in that
@@ -247,7 +247,7 @@ becomes, with your own paths (this has not been tried in an AI tool yet):
            "-v", "/Users/you/code/my-app:/Users/you/code/my-app",
            "-v", "/Users/you/.config/stackvet/allowed_signers:/sv-config/stackvet/allowed_signers:ro",
            "-e", "XDG_CONFIG_HOME=/sv-config",
-           "ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "/Users/you/code/my-app"] } } }
+           "ghcr.io/abbyshade111/stackvet-sv", "mcp", "--root", "/Users/you/code/my-app"] } } }
 ```
 
 Make the file first, with the `mkdir` line above: if it is not there when the container starts, Docker
@@ -385,22 +385,22 @@ When it asks how to install, press Enter for the standard choice. Then close the
 open a new one, so it sees what was installed, and type `cargo --version`. It should print a version
 number: StackVet needs 1.95 or newer. If yours is older, `rustup update` brings it up to date.
 
-**3. Get StackVet's source code**, into a folder named `securevibe` in your home folder:
+**3. Get StackVet's source code**, into a folder named `stackvet` in your home folder:
 
 ```bash
 cd ~
-git clone https://github.com/abbyshade111/SecureVibe.git securevibe
+git clone https://github.com/abbyshade111/StackVet.git stackvet
 ```
 
 Or, without `git`: on StackVet's GitHub page, choose **Code**, then **Download ZIP**, unzip it,
-rename the folder it makes (`StackVet-main`) to `securevibe`, and move it into your home folder.
+rename the folder it makes (`StackVet-main`) to `stackvet`, and move it into your home folder.
 Built that way, `sv --version` says `commit unknown` rather than which version of the code it is, and
 updating means downloading it again.
 
 **4. Build and install it:**
 
 ```bash
-cd ~/securevibe
+cd ~/stackvet
 sh tools/install.sh
 ```
 
@@ -425,7 +425,7 @@ window and open a new one.
 
 ```bash
 sv --version
-sv check ~/securevibe/examples/flask-booking
+sv check ~/stackvet/examples/flask-booking
 ```
 
 The first prints `sv 0.1.0` and the version of the code it was built from, and on a second line the
@@ -433,20 +433,20 @@ folder of files it reads (`data: …/.local/share/stackvet/data`). The second ch
 should say what it read and what it found, not `Error`. If it says `command not found: sv`, step 5 has
 not taken effect: open a new terminal window, or look for the line at the end of `~/.zshrc`.
 
-**The installed copy does not need the `securevibe` folder.** Each time StackVet runs, it reads more
+**The installed copy does not need the `stackvet` folder.** Each time StackVet runs, it reads more
 than a dozen of its own files (the security standards and its rules). The installed copy reads the ones
 the script put beside it, so moving, renaming, or deleting the folder you built it in does not stop it.
 Use `~/.local/bin/sv` wherever a full path is asked for, as in your AI tool's settings; it stays the same
 when you build again. A copy of the program on its own, without its `data` folder beside it, falls back to
 the folder it was built in; once that is gone, it cannot find those files and says where it looked. Before 5 October 2026 the guide had you use the program in
-the build folder; if your `PATH` or your AI tool's settings name `…/securevibe/target/release/sv`, change
+the build folder; if your `PATH` or your AI tool's settings name `…/stackvet/target/release/sv`, change
 them to `~/.local/bin/sv`.
 
-**The build folder can be deleted.** Building leaves a folder named `target` inside `~/securevibe`, of 1 to 7 GB,
+**The build folder can be deleted.** Building leaves a folder named `target` inside `~/stackvet`, of 1 to 7 GB,
 which the installed copy does not use. To get the space back:
 
 ```bash
-rm -rf ~/securevibe/target
+rm -rf ~/stackvet/target
 ```
 
 That removes only the build's leftovers: `sv` keeps working, and so does your AI tool's link to it. The next
@@ -462,7 +462,7 @@ Your AI tool tells you the exact command to type. It looks like this, with your 
 sv report /Users/you/code/my-app --run
 ```
 
-To update StackVet later: `cd ~/securevibe`, then `git pull`, then `sh tools/install.sh` again. It
+To update StackVet later: `cd ~/stackvet`, then `git pull`, then `sh tools/install.sh` again. It
 replaces the program and its files together.
 
 ## Keeping StackVet up to date
@@ -471,7 +471,7 @@ StackVet changes often, and a new container image is published each time a chang
 Your computer keeps the copy it fetched until you fetch again. To get the newest, in a terminal:
 
 ```bash
-docker pull ghcr.io/abbyshade111/securevibe-sv
+docker pull ghcr.io/abbyshade111/stackvet-sv
 ```
 
 **Then restart your AI tool, or at least StackVet inside it.** The tool starts StackVet's container
@@ -482,7 +482,7 @@ Mac, Ctrl+Shift+P elsewhere), choose "MCP: List Servers", pick `stackvet`, and c
 **To see which version you have**, ask the copy itself:
 
 ```bash
-docker run --rm ghcr.io/abbyshade111/securevibe-sv --version
+docker run --rm ghcr.io/abbyshade111/stackvet-sv --version
 ```
 
 It prints a line such as `sv 0.1.0 (commit 3f9c…)`, the commit being 40 letters and digits long: it is
@@ -492,15 +492,15 @@ your computer (for `--run`, above), `sv --version` prints the same line for that
 **Keep the two at the same version.** The container your AI tool uses and a copy built on your
 computer are updated separately, and two versions can disagree: a check one of them has, or a fix, the
 other may not. When you update one, update the other: `docker pull` as above, and for the copy on your
-computer, `cd ~/securevibe`, then `git pull`, then `sh tools/install.sh`. Compare the two `--version`
+computer, `cd ~/stackvet`, then `git pull`, then `sh tools/install.sh`. Compare the two `--version`
 lines afterwards. They can still differ for a short while after a change, because the image is
 published only once the change has passed its tests.
 
 **To stay on one version on purpose**, for example while you finish an app, use the commit's own
 image instead of the newest. Every image is also published under the commit it was built from, so
-`ghcr.io/abbyshade111/securevibe-sv:` followed by the whole commit that `--version` prints always
+`ghcr.io/abbyshade111/stackvet-sv:` followed by the whole commit that `--version` prints always
 means the same version. Put that name in place of
-`ghcr.io/abbyshade111/securevibe-sv` in your `.mcp.json` and in the commands above, and nothing
+`ghcr.io/abbyshade111/stackvet-sv` in your `.mcp.json` and in the commands above, and nothing
 changes until you change it back.
 
 **Old copies take up space.** Each `docker pull` that fetches a new version keeps the old one on your

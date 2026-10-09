@@ -246,7 +246,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     );
     // Reported against the rule, with only the rule's name in the link; the accepted risk is not.
     assert!(
-        after.security.contains("[Report it against the rule](https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml&title=False%20alarm%3A%20ast.open-redirect&rule=ast.open-redirect&"),
+        after.security.contains("[Report it against the rule](https://github.com/abbyshade111/StackVet/issues/new?template=false_alarm.yml&title=False%20alarm%3A%20ast.open-redirect&rule=ast.open-redirect&"),
         "{}",
         after.security
     );
@@ -326,7 +326,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
         "{tool}"
     );
     assert!(
-        tool.contains("report it against the rule: https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml")
+        tool.contains("report it against the rule: https://github.com/abbyshade111/StackVet/issues/new?template=false_alarm.yml")
             && tool.contains(sv_report::FALSE_ALARM_TOOL_NOTE)
             && tool.contains("never file it yourself"),
         "{tool}"

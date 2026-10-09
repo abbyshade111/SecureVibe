@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you. Ideas already planned are in [docs/BACKLOG.md](https://github.com/abbyshade111/SecureVibe/blob/main/docs/BACKLOG.md); it is worth a look first.
+        Thank you. Ideas already planned are in [docs/BACKLOG.md](https://github.com/abbyshade111/StackVet/blob/main/docs/BACKLOG.md); it is worth a look first.
   - type: textarea
     id: idea
     attributes:

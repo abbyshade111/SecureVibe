@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes a private set of pages, for the owner's browser, holding all of sv's documentation.
 
-    python3 tools/docs_page.py                 # writes ~/securevibe-docs/, then open index.html
+    python3 tools/docs_page.py                 # writes ~/stackvet-docs/, then open index.html
     python3 tools/docs_page.py --out DIR       # writes DIR instead
     python3 tools/docs_page.py --self-test     # checks the Markdown reader against small samples
 
@@ -28,7 +28,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-MARK = ".securevibe-docs"
+MARK = ".stackvet-docs"
+# The marker the tool wrote until 9 October 2026 (ADR-062): a folder carrying it is still the tool's own.
+OLD_MARK = ".securevibe-docs"
 LEFT_OUT = ("docs/paper/", "examples/", "target/", "crates/", "v1/")
 
 # The sections the index lists, in order: (title, test on the document's path).
@@ -313,7 +315,7 @@ def build(out):
     out = Path(out).expanduser()
     if out.is_symlink():
         sys.exit(f"{out} is a link; nothing is written through it.")
-    if out.exists() and not (out / MARK).is_file():
+    if out.exists() and not ((out / MARK).is_file() or (out / OLD_MARK).is_file()):
         if any(out.iterdir()):
             sys.exit(f"{out} is already there and was not made by this tool, so it is left as it is. Choose --out.")
     if out.resolve().is_relative_to(ROOT):
@@ -414,7 +416,7 @@ def self_test():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--out", default="~/securevibe-docs", help="where to write the pages (default ~/securevibe-docs)")
+    parser.add_argument("--out", default="~/stackvet-docs", help="where to write the pages (default ~/stackvet-docs)")
     parser.add_argument("--self-test", action="store_true", help="check the Markdown reader and stop")
     args = parser.parse_args()
     sys.exit(self_test() if args.self_test else build(args.out))

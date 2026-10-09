@@ -37,10 +37,10 @@ not fit. So the rule-based model is already the one v1 relies on when there is n
 
 | v1 fact | In `sv` |
 |---|---|
-| sign-in, uploads, AI, AI that acts, email, payments, public API, outside services, scheduled jobs | Conditions of the same names, from securevibe.toml and corrected by the code: a Stripe package in the lockfile switches payments on whatever the manifest says (`claim-corroborators.json`) |
+| sign-in, uploads, AI, AI that acts, email, payments, public API, outside services, scheduled jobs | Conditions of the same names, from stackvet.toml and corrected by the code: a Stripe package in the lockfile switches payments on whatever the manifest says (`claim-corroborators.json`) |
 | which outside service | The package that matched, named in the evidence: `stripe`, `openai`, `@sendgrid/mail` |
 | MCP, retrieval (RAG), several services, multi-tenant, WebSockets | Conditions too; v1 had no threats for these, and they are where AI apps differ most |
-| audience, deployment, data categories | `[app]` and `[data]` in securevibe.toml |
+| audience, deployment, data categories | `[app]` and `[data]` in stackvet.toml |
 | mitigations | Not known, and this is the point: `sv` did not write the app |
 | whether each mitigation holds | The report's status for each cited requirement: *checked*, *needs attention*, or *not verified* |
 
@@ -64,7 +64,7 @@ one of four statuses, computed from the requirements it cites:
 | **Found** | any cited requirement *needs attention* | the threat is real in this app, with the finding |
 | **Checked in part** | some cited requirements *checked*, none failing | which parts were checked, and which were not |
 | **Not verified** | nothing checked, nothing found | nothing here has looked; the tests to write for it |
-| **Cannot place** | a condition it depends on is unanswered | which question to answer in securevibe.toml |
+| **Cannot place** | a condition it depends on is unanswered | which question to answer in stackvet.toml |
 
 There is no *mitigated*. A threat is never marked handled on the strength of checks that each cover
 part of a requirement, and the report says so where the table starts.
@@ -130,7 +130,7 @@ log protection for a copied database, and five weaker links dropped. The report 
 
 **Part 2 of 3, done on 25 September 2026:** a "Threats" section in `compliance.md` and `report.html`,
 after the requirements and before the tests to write: what the section can and cannot say, the parts of
-the app (each one nobody answered for is named with the question in securevibe.toml that would place
+the app (each one nobody answered for is named with the question in stackvet.toml that would place
 it), a count, and one row per threat with its status and its requirements grouped by what is known
 about them. `sv report` prints the count, and `sv mcp` gives the AI tool the found and not-verified
 threats. The data-flow outline is a list rather than the Mermaid diagram proposed above: `report.html`
@@ -176,7 +176,7 @@ part, then cannot place; within each, in the order of the parts of the app in th
   to v1 is made on its own branch. `server/src/design/threat-model.ts` is at the tag `v1-final`.
 - **The Secure by Design link (MT-03) was not built.** Nothing in `sv` ties the threat model to SBD-MT-03; only a
   design-time prompt names it, and that prompt has no check. It stays a proposal.
-- **`sv plan` and `securevibe_plan`** (ADR-030) list the threats the answers in `securevibe.toml` raise, before any
+- **`sv plan` and `stackvet_plan`** (ADR-030) list the threats the answers in `stackvet.toml` raise, before any
   code is written, but only those *not verified* or that it *cannot place*: a plan never says a threat was *found*
   or *checked in part*, since nothing has been looked at yet. `sv brief` shows no threats.
 - **An answer is not a check.** A `[design]` answer, a section written down, or a statement never settles a threat;

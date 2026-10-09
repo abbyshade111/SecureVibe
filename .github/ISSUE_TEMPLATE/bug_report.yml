@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thank you. **If this could be a security hole in `sv` itself** (it read or wrote outside the folder it was given, opened a network connection, ran code it was not asked to, or showed a whole key or password), please do not report it here: use the private form linked from the new-issue page, as [SECURITY.md](https://github.com/abbyshade111/SecureVibe/blob/main/SECURITY.md) explains.
+        Thank you. **If this could be a security hole in `sv` itself** (it read or wrote outside the folder it was given, opened a network connection, ran code it was not asked to, or showed a whole key or password), please do not report it here: use the private form linked from the new-issue page, as [SECURITY.md](https://github.com/abbyshade111/StackVet/blob/main/SECURITY.md) explains.
 
         **Never paste a real key, password, or `.env` file** into an issue, not even one that already leaked.
   - type: textarea
@@ -19,14 +19,14 @@ body:
     id: command
     attributes:
       label: The command, or the MCP tool
-      description: For example `sv report ./my-app --run`, or "securevibe_check, from Claude Code".
+      description: For example `sv report ./my-app --run`, or "stackvet_check, from Claude Code".
     validations:
       required: true
   - type: input
     id: version
     attributes:
       label: Which sv
-      description: The commit you built it from (`git rev-parse HEAD` in your copy), or the container image's fingerprint (`docker image inspect --format '{{.Id}}' ghcr.io/abbyshade111/securevibe-sv`).
+      description: The commit you built it from (`git rev-parse HEAD` in your copy), or the container image's fingerprint (`docker image inspect --format '{{.Id}}' ghcr.io/abbyshade111/stackvet-sv`).
     validations:
       required: true
   - type: dropdown

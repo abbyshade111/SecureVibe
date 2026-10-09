@@ -1,7 +1,7 @@
 # Prompts for your AI coding tool
 
 These are instructions you can paste into the AI tool that builds your app (Claude Code, Cursor, Copilot, or
-another). Each one asks for something SecureVibe checks, and every one has been tried: an app was built with the
+another). Each one asks for something StackVet checks, and every one has been tried: an app was built with the
 prompt and without it, by an AI coding tool working on its own, and `sv` checked each build. Since 6 October 2026 a
 trial is ten builds each way, with two models, and a prompt is listed under "Shown to work" only when the problem it
 is for was in at least five of the builds without it and in at most one with it. The rest are listed apart, as
@@ -9,13 +9,13 @@ is for was in at least five of the builds without it and in at most one with it.
 anything should not be trusted as if it had. The trials are written up in `docs/prompts/library-trial/`.
 
 **You do not need to paste the ones shown to work.** Since 7 October 2026, `sv` gives every prompt shown to work, in
-full, at the end of the specification an AI tool reads before writing any code (`sv init`, `securevibe_spec`) and of
-the MCP server's opening instructions, and the ones for a feature in that feature's brief (`securevibe_before`).
+full, at the end of the specification an AI tool reads before writing any code (`sv init`, `stackvet_spec`) and of
+the MCP server's opening instructions, and the ones for a feature in that feature's brief (`stackvet_before`).
 
 `sv prompts` prints the same prompts at a terminal (`sv prompts --requirement V1.2.4` for those aimed at one
-requirement), and an AI coding tool connected to `sv mcp` can fetch them with `securevibe_prompts`. Once `sv report`
+requirement), and an AI coding tool connected to `sv mcp` can fetch them with `stackvet_prompts`. Once `sv report`
 has checked your app, `sv prompts --app <folder>` offers only the prompts for what that report shows unproven, and
-says which of your app's requirements each is for; the AI tool asks the same with `securevibe_prompts` and the app's
+says which of your app's requirements each is for; the AI tool asks the same with `stackvet_prompts` and the app's
 folder. The [design-time
 prompts](prompts/design-time.md) are also offered there as MCP prompts, for you to choose from your tool.
 
@@ -57,11 +57,11 @@ one of ten. `settings-file-first`'s new sentence was not in that trial and is no
 shown that week, at the end of this list: `isolate-the-window`, `security-contact`, `production-server`, and
 `password-rules`.
 
-### Describe the app to SecureVibe before writing code
+### Describe the app to StackVet before writing code
 
-> Before writing any code, run `sv init` in the project folder and fill in the securevibe.toml it prints: what the app does, who uses it, its languages, how to start it, and which of the listed capabilities it has. For any capability you are not sure about, delete the line instead of writing false. Keep the file up to date whenever the app gains or loses a capability. Once it is written, check it with SecureVibe (`securevibe_check`, or `sv report` at a terminal) and fix it until `sv` reads it.
+> Before writing any code, run `sv init` in the project folder and fill in the stackvet.toml it prints: what the app does, who uses it, its languages, how to start it, and which of the listed capabilities it has. For any capability you are not sure about, delete the line instead of writing false. Keep the file up to date whenever the app gains or loses a capability. Once it is written, check it with StackVet (`stackvet_check`, or `sv report` at a terminal) and fix it until `sv` reads it.
 
-*What it showed:* with the prompt, the app had a filled-in `securevibe.toml` and `sv report` checked it. Without
+*What it showed:* with the prompt, the app had a filled-in `stackvet.toml` and `sv report` checked it. Without
 it, there was no such file, and `sv report` could not check the app at all. Deleting an unsure line matters:
 a capability left out is reported as "not assessed", which is honest, while `false` says the requirements that
 depend on it do not apply. `sv` looks for each claim in the code: where the code shows the capability anyway, the
@@ -88,7 +88,7 @@ could not run.
 
 *Requirements:* ASVS V3.4.3, V3.4.4, V3.4.5, V3.4.6.
 
-*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 7. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the headers were missing in 6 of the 6 builds sv could start; with it in 0 of 7. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 21, against 20), and the apps that did not start were mostly ones whose stackvet.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
 
 ### Keep keys and passwords out of the code
 
@@ -96,7 +96,7 @@ could not run.
 
 *Requirement:* ASVS V13.3.1.
 
-*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the check found a key in the code or a .env the .gitignore left committable in 6 of the 6 builds with a readable securevibe.toml; with it in 1 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 25, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. To be checked again: six of the ten builds with this prompt wrote a securevibe.toml sv could not read, against three of ten without it, which may be chance at this size or the prompt crowding out the specification.
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt the check found a key in the code or a .env the .gitignore left committable in 6 of the 6 builds with a readable stackvet.toml; with it in 1 of 4. The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 25, against 20), and the apps that did not start were mostly ones whose stackvet.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here. To be checked again: six of the ten builds with this prompt wrote a stackvet.toml sv could not read, against three of ten without it, which may be chance at this size or the prompt crowding out the specification.
 
 ### Keep private pages out of the browser's cache
 
@@ -104,7 +104,7 @@ could not run.
 
 *Requirement:* ASVS V14.3.2.
 
-*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt a private page was left cacheable in 5 of the 6 builds sv could sign in to; with it in 0 of 6. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 22, against 20), and the apps that did not start were mostly ones whose securevibe.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
+*What it showed (6 October 2026, Haiku 4.5, ten builds with it and ten without):* Without the prompt a private page was left cacheable in 5 of the 6 builds sv could sign in to; with it in 0 of 6. (Recounted on 7 October 2026: `revision-protocol.md`, Amendment 2.) The trial's harm rule flagged it on the median of running-app checks answered, which counts an app that never started as none; among the apps that started, the builds with the prompt answered as many as those without it or more (median 22, against 20), and the apps that did not start were mostly ones whose stackvet.toml sv could not read, which happened in every group, the one without a prompt included. Shown by the owner's decision of 6 October 2026, with the flag recorded here.
 
 ### Guard what goes into the AI feature and what comes out of it
 
@@ -132,7 +132,7 @@ could not run.
 
 ### Run under a production server, and say no version numbers
 
-> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in securevibe.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both. With SQLite, run one worker, or create the tables before the workers start, so two workers never set up the same database at once.
+> Run the app with a production web server, not the framework's development server: gunicorn or uvicorn without `--reload` for Python, `NODE_ENV=production` for Node. Use that same command in stackvet.toml's `start`. Leave version numbers out of every header and error page (`Server`, `X-Powered-By`, and the like). Send a Content-Type on every response that has a body, with `; charset=utf-8` on text, HTML, and JSON. Python's built-in server (`http.server`) sends its own version in the `Server` header unless the request handler class sets `server_version` to a plain name and `sys_version` to an empty string; set both. With SQLite, run one worker, or create the tables before the workers start, so two workers never set up the same database at once.
 
 *Requirements:* ASVS V4.1.1, V13.4.6.
 
@@ -236,7 +236,7 @@ on the running app, less often than the builds without it.
 
 ### Limit wrong passwords and new records, without waiting to be told the numbers
 
-> Limit how often each person can try a wrong password and how fast they can create things, without waiting for me to choose the numbers. Use these unless securevibe.toml already has them under [policy]: 5 wrong passwords within 15 minutes per account, then refuse further attempts on that account until the 15 minutes pass; and 10 new records a minute per signed-in person. Write the numbers into securevibe.toml under [policy] as `failed-sign-ins`, `within-minutes`, and `requests-per-minute`, and into security-notes.md under "Business limits" and "How sign-in is protected against guessing", saying they are defaults for me to confirm. Count wrong passwords in a row for each account, and start the count again after a right one. If you also limit by address, set that limit well above what one person does (at least 100 an hour), since a checker signs in many times from one address. Past a limit, answer 429 Too Many Requests with a Retry-After header, and keep refusing until then. Write a test that goes one past each limit.
+> Limit how often each person can try a wrong password and how fast they can create things, without waiting for me to choose the numbers. Use these unless stackvet.toml already has them under [policy]: 5 wrong passwords within 15 minutes per account, then refuse further attempts on that account until the 15 minutes pass; and 10 new records a minute per signed-in person. Write the numbers into stackvet.toml under [policy] as `failed-sign-ins`, `within-minutes`, and `requests-per-minute`, and into security-notes.md under "Business limits" and "How sign-in is protected against guessing", saying they are defaults for me to confirm. Count wrong passwords in a row for each account, and start the count again after a right one. If you also limit by address, set that limit well above what one person does (at least 100 an hour), since a checker signs in many times from one address. Past a limit, answer 429 Too Many Requests with a Retry-After header, and keep refusing until then. Write a test that goes one past each limit.
 
 *Requirements:* ASVS V2.4.1, V6.3.1.
 
@@ -255,5 +255,5 @@ The same prompts, with the checks behind them, are in `data/prompts.json`.
 Prompts for what to decide **before** any code is written (who may do what, limits, logging, sign-in), drawn from the
 OWASP Secure by Design checklist and held to the same test (3 of the 14 shown to work so far), are on a page of their own:
 [Prompts to give your AI coding tool before it writes any code](prompts/design-time.md). `sv prompts` and
-`securevibe_prompts` give those too; `sv prompts --requirement SBD-AC-03` finds them by the checklist control they
+`stackvet_prompts` give those too; `sv prompts --requirement SBD-AC-03` finds them by the checklist control they
 help you answer.
