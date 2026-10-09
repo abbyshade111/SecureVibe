@@ -511,6 +511,8 @@ listed apart, below this item.
    and counted toward nothing, as the section's other notes are. **`Status: proposed`: ADR-049, Later, 9 October
    2026** (what is read in the AI tool's files). Read on `main` and the open pull requests just before this claim: no
    other session had claimed (e).
+   **(e) done the same day** (`docs/design/0331-instruction-files-that-name-sv-s-own-marks-9-october-2026.md`; ADR-049, Later, accepted): a note in the AI tool's
+   section for each instruction file naming one of the marks, with its line.
 
 
 23. **`sv check` at a terminal never reads securevibe.toml.** (`docs/GAP-ANALYSIS.md`, 5.1.) A broken file gets no
