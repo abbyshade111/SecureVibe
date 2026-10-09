@@ -46,6 +46,17 @@ pub fn cmd_review(path: Option<PathBuf>) -> Result<()> {
              terminal yourself and run `sv review` there."
         );
     }
+    if let Some((old, new)) = Key::old_folder_in_use() {
+        println!(
+            "Note: {} Move it with `mv {} {}`.\n",
+            sv_frameworks::names::read_under_old_name(
+                &old.display().to_string(),
+                &new.display().to_string()
+            ),
+            old.display(),
+            new.display()
+        );
+    }
     let stdin = std::io::stdin();
     let mut input = stdin.lock();
     let mut out = Visible(std::io::stdout());
@@ -1185,7 +1196,7 @@ mod tests {
             self.0.join("app")
         }
         fn keys(&self) -> PathBuf {
-            self.0.join("config").join("securevibe")
+            self.0.join("config").join("stackvet")
         }
         fn manifest(&self) -> String {
             std::fs::read_to_string(self.app().join("stackvet.toml")).unwrap()

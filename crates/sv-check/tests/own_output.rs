@@ -74,9 +74,9 @@ fn a_report_in_a_folder_of_any_name_is_left_out_once_marked() {
 
 #[test]
 fn the_default_report_folder_is_left_out_even_without_the_marker() {
-    // Reports written before the marker existed are in `securevibe-report` without one.
+    // Reports written before the marker existed are in `stackvet-report` without one.
     let dir = app("default");
-    report_in(&dir.join("securevibe-report"), false, false);
+    report_in(&dir.join("stackvet-report"), false, false);
     let (parsed, ast_findings, _, _) = read(&dir);
     std::fs::remove_dir_all(&dir).ok();
     assert_eq!(parsed, 1);
@@ -90,7 +90,7 @@ fn a_marked_folder_holding_code_sv_did_not_write_is_the_apps_code() {
     // is read like any other, and what is in it is found.
     for (tag, folder, marked) in [
         ("planted", "my-reports", true),
-        ("default-stray", "securevibe-report", false),
+        ("default-stray", "stackvet-report", false),
     ] {
         let dir = app(tag);
         report_in(&dir.join(folder), marked, true);

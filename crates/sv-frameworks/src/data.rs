@@ -30,7 +30,9 @@ fn places(program: Option<&Path>, built: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     if let Some(folder) = program.and_then(Path::parent) {
         out.push(folder.join("data"));
-        out.push(folder.join("../share/securevibe/data"));
+        // Where `tools/install.sh` puts it, and where it put it before the rename (ADR-062).
+        out.push(folder.join(format!("../share/{}/data", crate::names::CONFIG_DIR)));
+        out.push(folder.join(format!("../share/{}/data", crate::names::OLD_CONFIG_DIR)));
     }
     out.push(built.to_path_buf());
     out

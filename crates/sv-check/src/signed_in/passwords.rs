@@ -209,7 +209,7 @@ fn judge_breached(accepted: bool, control_accepted: bool, evidence: &str, out: &
                 "`sv`'s own record that `{BREACHED}` is a breached password, \
                  data/breached-password-evidence.json, could not be used: {wrong}. Without it, \
                  whether the app accepts that password says nothing about breached passwords. \
-                 Restore the file from SecureVibe's repository and build `sv` again."
+                 Restore the file from StackVet's repository and build `sv` again."
             ),
         )),
         (true, _, Ok(seen)) => out.findings.push(finding(

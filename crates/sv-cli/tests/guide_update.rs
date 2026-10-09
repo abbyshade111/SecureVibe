@@ -1,4 +1,4 @@
-//! The guide's "Keeping SecureVibe up to date" (`docs/GAP-ANALYSIS.md`, 5.3), held to the workflow that
+//! The guide's "Keeping StackVet up to date" (`docs/GAP-ANALYSIS.md`, 5.3), held to the workflow that
 //! publishes the image and to what `sv --version` prints: a guide that names an image nobody publishes,
 //! or a tag that does not exist, sends the owner to an update that never comes.
 
@@ -30,8 +30,8 @@ fn published_image(workflow: &str) -> String {
 /// The guide's section on updating, up to the next section.
 fn update_section(guide: &str) -> String {
     let start = guide
-        .find("\n## Keeping SecureVibe up to date\n")
-        .expect("the guide has a section on keeping SecureVibe up to date");
+        .find("\n## Keeping StackVet up to date\n")
+        .expect("the guide has a section on keeping StackVet up to date");
     let rest = &guide[start + 1..];
     let end = rest[3..].find("\n## ").map_or(rest.len(), |e| e + 3);
     rest[..end].to_owned()

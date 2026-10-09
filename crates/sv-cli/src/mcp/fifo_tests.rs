@@ -24,7 +24,7 @@ fn a_pipe_under_a_name_the_server_reads_is_refused_rather_than_waited_on() {
     let server = Server::new(&root).unwrap();
     let (sent, answered) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        let result = call(&server, "securevibe_check", json!({ "path": "app" }));
+        let result = call(&server, "stackvet_check", json!({ "path": "app" }));
         let _ = sent.send(result);
     });
     let result = answered.recv_timeout(std::time::Duration::from_secs(30));

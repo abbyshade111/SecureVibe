@@ -42,7 +42,7 @@ The requirements themselves, as published. Read by `sv-frameworks` and counted b
 | `prompts.json` | `sv-check`, `sv-cli`, `tools/coverage.py`; `docs/PROMPTS.md` is written from it by hand | Prompts for the AI coding tool, each with the check that shows whether it worked and the result of trying it. |
 | `design-prompts.json` | `sv-check`, `sv-cli`, `tools/coverage.py`; `docs/prompts/design-time.md` is written from it by hand | Design-time prompts from the Secure by Design checklist, in `prompts.json`'s shape, with the checklist controls each helps a person answer. |
 | `design-decisions.json` | `sv-check`, `sv-cli` | The sections of `design-decisions.md` that count toward a Secure by Design control, read as the security notes are, each with the heading its design-time prompt writes and what a written section does not show. |
-| `feature-briefs.json` | `sv-cli` | The features `sv brief` and `securevibe_before` write a brief for: the conditions and requirements each brings, its design-time prompts, and the `stackvet.toml` settings `sv run` needs to test it. |
+| `feature-briefs.json` | `sv-cli` | The features `sv brief` and `stackvet_before` write a brief for: the conditions and requirements each brings, its design-time prompts, and the `stackvet.toml` settings `sv run` needs to test it. |
 
 ## How `sv` reads an app
 

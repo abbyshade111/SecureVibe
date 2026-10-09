@@ -1,7 +1,7 @@
 //! One run at a time in a report folder, and no older report replacing a newer one.
 //!
 //! On family-hub (3 October 2026) the owner and their AI coding tool each ran `sv report --run
-//! --tools` on the app at about the same time. Both wrote `<app>/securevibe-report`; the AI tool's
+//! --tools` on the app at about the same time. Both wrote `<app>/stackvet-report`; the AI tool's
 //! run succeeded, and the owner's finished two minutes later with a failure and replaced the good
 //! report with the failed one, with nothing anywhere to say so (BACKLOG, "What the owner hit
 //! building family-hub", item 2). Three things here:

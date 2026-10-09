@@ -2,7 +2,7 @@
 //!
 //! Kept outside every app's folder, because an app's folder is often a public git repository, and a
 //! dated list of an app's weaknesses committed there is a gift to anybody looking for one; in
-//! `$XDG_DATA_HOME/securevibe/history`, or `~/.local/share/securevibe/history`, readable only by the
+//! `$XDG_DATA_HOME/stackvet/history`, or `~/.local/share/stackvet/history`, readable only by the
 //! person. Switched on by a file of the person's own, `keep-history` in the folder `sv` keeps its
 //! review key in, never by `stackvet.toml`, which the AI coding tool writes. A record holds what
 //! `sv_report::dashboard::Run` holds and nothing else; at most `KEEP` are kept for each app.
@@ -25,7 +25,7 @@ fn settings() -> Option<PathBuf> {
     sv_check::seal::Key::folder()
 }
 
-/// Where history is kept: `$XDG_DATA_HOME/securevibe/history`, or `~/.local/share/securevibe/history`.
+/// Where history is kept: `$XDG_DATA_HOME/stackvet/history`, or `~/.local/share/stackvet/history`.
 pub fn folder() -> Option<PathBuf> {
     std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
@@ -36,7 +36,19 @@ pub fn folder() -> Option<PathBuf> {
                 .filter(|p| p.is_absolute())
                 .map(|home| home.join(".local/share"))
         })
-        .map(|data| data.join("securevibe/history"))
+        .map(|data| {
+            // The old folder is used while only it exists (ADR-062), as the config folder is:
+            // nothing moves what was kept.
+            let new = data.join(sv_frameworks::names::CONFIG_DIR).join("history");
+            let old = data
+                .join(sv_frameworks::names::OLD_CONFIG_DIR)
+                .join("history");
+            if !new.is_dir() && old.is_dir() {
+                old
+            } else {
+                new
+            }
+        })
 }
 
 /// Whether the person has turned history on.

@@ -26,4 +26,6 @@ it, and the report folder found under either name. **Step 2a built the same day*
 read as `stackvet.toml` first and `securevibe.toml` while only it exists, said once in the report and at the
 terminal; both at once refused. Open after it: step 2b (the MCP server and tool names with the old answered, the
 help text, the history folder, the bundle's default name, the `sv review` sentence for the old key folder), then
-step 3 (the documents, the image's name, this record accepted).
+step 3 (the documents, the image's name, this record accepted). **Step 2b built 9 October 2026** (design entry 0314): the MCP server `stackvet` with its tools
+`stackvet_*` and the old names answered, history's folder, the `sv review` note for the old key folder, the
+bundle's name, the installed data's folder, and the help text and prose. Open after it: step 3.

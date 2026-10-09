@@ -90,12 +90,12 @@ impl Server {
     /// (`crate::parts`).
     pub(super) fn check(&self, args: &Value, progress: &Progress) -> Result<Value> {
         // Asked before the check runs, so a misspelt section is said at once.
-        let ask = crate::parts::ask(args, "securevibe_check", CHECK_SECTIONS)?;
+        let ask = crate::parts::ask(args, "stackvet_check", CHECK_SECTIONS)?;
         let app_dir = self.app_dir(args)?;
         let report = self.report_for(&app_dir, progress)?;
         crate::parts::respond(
             &crate::parts::Answer {
-                tool: "securevibe_check",
+                tool: "stackvet_check",
                 what: "check",
                 sections: &|fence| check_sections(&report, fence),
                 first: CHECK_FIRST,
@@ -111,13 +111,13 @@ impl Server {
     /// two agree about what applies, and crediting nothing. Whole when it fits what an AI coding tool
     /// takes in whole, and in parts when it does not (`crate::parts`).
     pub(super) fn plan(&self, args: &Value, progress: &Progress) -> Result<Value> {
-        let ask = crate::parts::ask(args, "securevibe_plan", crate::plan::SECTIONS)?;
+        let ask = crate::parts::ask(args, "stackvet_plan", crate::plan::SECTIONS)?;
         let app_dir = self.app_dir(args)?;
         let report = self.report_for(&app_dir, progress)?;
         let plan = crate::plan_for(&app_dir, &report)?;
         crate::parts::respond(
             &crate::parts::Answer {
-                tool: "securevibe_plan",
+                tool: "stackvet_plan",
                 what: "plan",
                 sections: &|fence| crate::plan::sections_with(&plan, fence),
                 first: crate::plan::FIRST,
@@ -152,7 +152,7 @@ impl Server {
         let feature = args
             .get("feature")
             .and_then(Value::as_str)
-            .context("securevibe_before needs `feature`")?;
+            .context("stackvet_before needs `feature`")?;
         crate::brief::Features::load(&crate::feature_briefs_path())?.get(feature)?;
         // Before stackvet.toml is written, the brief gives what does not wait for it, rather
         // than refusing: builders ask for it first (the backlog, the delivery test of 6 October).
@@ -353,7 +353,7 @@ impl Server {
         needs_manifest(&app_dir, "try again")?;
         // The one file this writes is inside a folder already held to the root, but the file itself
         // could be a link to somewhere else, and writing follows it. Refused before anything is
-        // written, the same care `securevibe_write_report` takes with its folder.
+        // written, the same care `stackvet_write_report` takes with its folder.
         let target = app_dir.join("security-notes.md");
         if let Ok(meta) = std::fs::symlink_metadata(&target) {
             anyhow::ensure!(
@@ -366,8 +366,8 @@ impl Server {
         let text = sv_report::fence::fenced(|fence| {
             format!(
                 "Wrote {}, keeping every answer already in it. {} question{} apply, {} already \
-                     answered. Record the person's decisions with securevibe_record_answer; \
-                     securevibe_questions lists the questions.{}",
+                     answered. Record the person's decisions with stackvet_record_answer; \
+                     stackvet_questions lists the questions.{}",
                 fence.wrap(&written.path.display().to_string()),
                 written.asked,
                 if written.asked == 1 { "" } else { "s" },
@@ -463,10 +463,10 @@ impl Server {
                  command in a terminal.",
             ));
         }
-        // Resolved through links, so a `-securevibe-bundle.zip` that is a link to somewhere else is refused
+        // Resolved through links, so a `-stackvet-bundle.zip` that is a link to somewhere else is refused
         // before anything is written.
         let zip = crate::bundle::resolve_for_writing(
-            &parent.join(format!("{name}-securevibe-bundle.zip")),
+            &parent.join(format!("{name}-{}", sv_frameworks::names::BUNDLE_SUFFIX)),
         );
         anyhow::ensure!(
             zip.starts_with(&self.root) && !zip.starts_with(&app_dir),

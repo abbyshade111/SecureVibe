@@ -264,7 +264,7 @@ fn every_report_says_how_sure_it_is_and_whether_it_is_test_code_and_hides_nothin
         for m in [
             r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}"#,
             r#"{"jsonrpc":"2.0","method":"notifications/initialized"}"#,
-            r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"securevibe_check","arguments":{"path":"lab"}}}"#,
+            r#"{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":"lab"}}}"#,
         ] {
             writeln!(stdin, "{m}").unwrap();
         }

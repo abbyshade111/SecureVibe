@@ -49,9 +49,9 @@ fn data_line(program: &Path, env: Option<&Path>) -> String {
 #[test]
 fn a_copy_of_sv_reads_the_data_beside_it_and_checks_an_app_with_it() {
     // An install: the program in a folder of its own with its data, reached through a link from
-    // somewhere else, as `~/.local/bin/sv` reaches `~/.local/share/securevibe/sv`.
+    // somewhere else, as `~/.local/bin/sv` reaches `~/.local/share/stackvet/sv`.
     let root = scratch("installed");
-    let home = root.join("share/securevibe");
+    let home = root.join("share/stackvet");
     std::fs::create_dir_all(&home).unwrap();
     std::fs::copy(env!("CARGO_BIN_EXE_sv"), home.join("sv")).unwrap();
     copy_tree(&repository_data(), &home.join("data"));
@@ -271,7 +271,7 @@ fn the_install_script_puts_sv_and_its_data_in_a_folder_of_their_own() {
             .unwrap()
     };
     let first = install();
-    let home = root.join("share/securevibe");
+    let home = root.join("share/stackvet");
     let said = data_line(&root.join("bin/sv"), None);
     // Again, as after pulling a newer sv: the same link, and the data replaced whole.
     std::fs::write(home.join("data/left-over.json"), "{}").unwrap();

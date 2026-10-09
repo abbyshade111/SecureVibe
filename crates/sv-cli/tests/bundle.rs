@@ -469,8 +469,8 @@ fn with_no_place_given_the_bundle_goes_beside_the_app_not_in_it() {
         "{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(root.join("notes-app-securevibe-bundle.zip").is_file());
-    assert!(!dir.join("notes-app-securevibe-bundle.zip").exists());
+    assert!(root.join("notes-app-stackvet-bundle.zip").is_file());
+    assert!(!dir.join("notes-app-stackvet-bundle.zip").exists());
 }
 
 #[test]
@@ -668,7 +668,7 @@ fn a_bundle_replaces_only_a_zip_sv_made() {
     // The deep review's improvement 7: `sv bundle` wrote over whatever file had the bundle's name.
     let root = scratch("replace");
     let dir = app(&root);
-    let zip = root.join("notes-app-securevibe-bundle.zip");
+    let zip = root.join("notes-app-stackvet-bundle.zip");
     let bundle = || sv(&["bundle", dir.to_str().unwrap()]);
     let first = bundle();
     assert!(

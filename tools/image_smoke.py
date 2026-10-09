@@ -10,17 +10,17 @@ It makes a small app in a temporary folder, a copy of `examples/tested-notes` wi
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v
 <folder>:<folder> <image> mcp --root <folder>`). Then, over MCP:
 
-- the thirteen tools are offered, and `securevibe_spec` answers;
-- `securevibe_prompts` gives the prompt library, each marked, so the prompts file is in the image;
-- `securevibe_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
-- `securevibe_check` ran the committed-secrets check and found the `.env`. **This is asserted before
+- the thirteen tools are offered, and `stackvet_spec` answers;
+- `stackvet_prompts` gives the prompt library, each marked, so the prompts file is in the image;
+- `stackvet_guidance` gives the coding rules with their credit and license, so the rules file is in the image;
+- `stackvet_check` ran the committed-secrets check and found the `.env`. **This is asserted before
   anything is compared.** The first local test compared the image with the native `sv` on an app with
   no stackvet.toml: neither ran the check, "no answer" matched "no answer", and the control passed
   while proving nothing;
 - the same, run as root against a folder root does not own, which is what `safe.directory` is for:
   git refuses such a repository, and the check would then quietly be not assessed;
-- `securevibe_notes_file` writes into the owner's folder, as a file the owner owns;
-- `securevibe_bundle` writes a zip beside the app, as a file the owner owns, and the committed `.env` is not in it;
+- `stackvet_notes_file` writes into the owner's folder, as a file the owner owns;
+- `stackvet_bundle` writes a zip beside the app, as a file the owner owns, and the committed `.env` is not in it;
 - the container really has no network.
 
 With `--native`, the image's findings must be the native `sv`'s, once both are known to have run.
@@ -44,19 +44,19 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 EXAMPLE = ROOT / "examples" / "tested-notes"
 TOOLS = [
-    "securevibe_check",
-    "securevibe_write_report",
-    "securevibe_bundle",
-    "securevibe_explain",
-    "securevibe_questions",
-    "securevibe_notes_file",
-    "securevibe_record_answer",
-    "securevibe_guidance",
-    "securevibe_prompts",
-    "securevibe_spec",
-    "securevibe_plan",
-    "securevibe_preflight",
-    "securevibe_before",
+    "stackvet_check",
+    "stackvet_write_report",
+    "stackvet_bundle",
+    "stackvet_explain",
+    "stackvet_questions",
+    "stackvet_notes_file",
+    "stackvet_record_answer",
+    "stackvet_guidance",
+    "stackvet_prompts",
+    "stackvet_spec",
+    "stackvet_plan",
+    "stackvet_preflight",
+    "stackvet_before",
 ]
 FAILURES = []
 
@@ -69,7 +69,7 @@ def check(ok, what):
 
 def make_app(root: Path) -> Path:
     app = root / "app"
-    shutil.copytree(EXAMPLE, app, ignore=shutil.ignore_patterns("__pycache__", "securevibe-report"))
+    shutil.copytree(EXAMPLE, app, ignore=shutil.ignore_patterns("__pycache__", "stackvet-report"))
     (app / ".env").write_text("API_KEY=not-a-real-key\n")
     git = ["git", "-C", str(app), "-c", "user.name=smoke", "-c", "user.email=smoke@example.invalid"]
     subprocess.run(git[:3] + ["init", "-q"], check=True)
@@ -123,15 +123,15 @@ def main():
     try:
         app = make_app(root)
         me = f"{os.getuid()}:{os.getgid()}"
-        check_call = ("tools/call", {"name": "securevibe_check", "arguments": {"path": "app"}})
+        check_call = ("tools/call", {"name": "stackvet_check", "arguments": {"path": "app"}})
         replies = session(docker(args.image, root, me), [
             ("tools/list", {}),
-            ("tools/call", {"name": "securevibe_spec", "arguments": {}}),
+            ("tools/call", {"name": "stackvet_spec", "arguments": {}}),
             check_call,
-            ("tools/call", {"name": "securevibe_notes_file", "arguments": {"path": "app"}}),
-            ("tools/call", {"name": "securevibe_bundle", "arguments": {"path": "app"}}),
-            ("tools/call", {"name": "securevibe_guidance", "arguments": {"path": "app"}}),
-            ("tools/call", {"name": "securevibe_prompts", "arguments": {}}),
+            ("tools/call", {"name": "stackvet_notes_file", "arguments": {"path": "app"}}),
+            ("tools/call", {"name": "stackvet_bundle", "arguments": {"path": "app"}}),
+            ("tools/call", {"name": "stackvet_guidance", "arguments": {"path": "app"}}),
+            ("tools/call", {"name": "stackvet_prompts", "arguments": {}}),
         ])
         names = [t["name"] for t in replies[0]["result"]["tools"]]
         check(names == TOOLS, f"thirteen tools offered: {names}")
@@ -139,19 +139,19 @@ def main():
         prompts_text = prompts["content"][0]["text"]
         check(prompts["isError"] is False and "**Shown to work, on " in prompts_text
               and "**Tried, not shown to work.**" in prompts_text,
-              "securevibe_prompts gives the prompt library, each prompt marked")
+              "stackvet_prompts gives the prompt library, each prompt marked")
         guidance = replies[5]["result"]
         rules_text = guidance["content"][0]["text"]
         check(guidance["isError"] is False and "CC BY-SA 4.0" in rules_text and "OWASP AISVS" in rules_text,
-              "securevibe_guidance gives the coding rules, credited, with their license")
+              "stackvet_guidance gives the coding rules, credited, with their license")
         spec = replies[1]["result"]["content"][0]["text"]
-        check("[capabilities]" in spec, "securevibe_spec answers with the manifest spec")
+        check("[capabilities]" in spec, "stackvet_spec answers with the manifest spec")
 
         image_check = replies[2]
         if image_check["result"]["isError"] is not False:
-            check(False, "securevibe_check answers: " + image_check["result"]["content"][0]["text"])
+            check(False, "stackvet_check answers: " + image_check["result"]["content"][0]["text"])
             sys.exit("the image cannot check an app, so nothing else is worth asking")
-        check(True, "securevibe_check answers")
+        check(True, "stackvet_check answers")
         # Starting the app cannot work from the container, so what the tool is told to have the
         # person run names `sv` on the computer itself, never the container's own path.
         told = gaps(image_check)
@@ -170,8 +170,8 @@ def main():
             check(notes.stat().st_uid == os.getuid(), "and the owner owns it")
 
         bundle_reply = replies[4]["result"]
-        check(bundle_reply["isError"] is False, "securevibe_bundle answers: " + bundle_reply["content"][0]["text"][:120])
-        bundle = root / "app-securevibe-bundle.zip"
+        check(bundle_reply["isError"] is False, "stackvet_bundle answers: " + bundle_reply["content"][0]["text"][:120])
+        bundle = root / "app-stackvet-bundle.zip"
         check(bundle.exists(), "the bundle is written beside the app, not inside it")
         if bundle.exists():
             check(bundle.stat().st_uid == os.getuid(), "the owner owns the bundle")

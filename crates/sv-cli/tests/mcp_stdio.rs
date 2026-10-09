@@ -20,8 +20,8 @@ fn a_whole_session_over_stdio() {
         json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}),
         json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
         json!({"jsonrpc":"2.0","id":2,"method":"tools/list"}),
-        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"securevibe_check","arguments":{"path":"tested-notes"}}}),
-        json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"securevibe_check","arguments":{"path":"../.."}}}),
+        json!({"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":"tested-notes"}}}),
+        json!({"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":"../.."}}}),
     ];
     {
         let stdin = child.stdin.as_mut().unwrap();
@@ -47,7 +47,7 @@ fn a_whole_session_over_stdio() {
     // Four requests, one notification: four replies, in order.
     let ids: Vec<i64> = replies.iter().map(|r| r["id"].as_i64().unwrap()).collect();
     assert_eq!(ids, [1, 2, 3, 4]);
-    assert_eq!(replies[0]["result"]["serverInfo"]["name"], "securevibe");
+    assert_eq!(replies[0]["result"]["serverInfo"]["name"], "stackvet");
     // What the tool is told to have the person run names this very `sv` by its full path, so it
     // works at a terminal whether or not `sv` was ever put on the search path (the owner's first
     // build met `command not found`).
@@ -59,7 +59,7 @@ fn a_whole_session_over_stdio() {
     );
     assert_eq!(replies[1]["result"]["tools"].as_array().unwrap().len(), 13);
     assert!(
-        instructions.contains("securevibe_guidance"),
+        instructions.contains("stackvet_guidance"),
         "the tool is told to ask for the rules before it codes: {instructions}"
     );
     let check = &replies[2]["result"];

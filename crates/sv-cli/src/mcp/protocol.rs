@@ -108,7 +108,7 @@ pub(super) fn needs_manifest(app_dir: &Path, again: &str) -> Result<()> {
     }
     Err(crate::Remedy::error(
         format!("there is no stackvet.toml in {}.", app_dir.display()),
-        format!("Call securevibe_spec, write the file it describes into that folder, and {again}."),
+        format!("Call stackvet_spec, write the file it describes into that folder, and {again}."),
     ))
 }
 

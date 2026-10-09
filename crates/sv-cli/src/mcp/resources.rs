@@ -98,7 +98,7 @@ impl Server {
         let sealed = crate::report_seal::proven(&folder).map_err(|why| {
             not_found(&format!(
                 "sv cannot show it wrote the report in that folder ({why}), so it is not offered \
-                 as one. Call securevibe_check for what sv finds now"
+                 as one. Call stackvet_check for what sv finds now"
             ))
         })?;
         let path = folder.join(name);

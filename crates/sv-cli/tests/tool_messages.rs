@@ -328,13 +328,9 @@ fn a_password_a_tool_quotes_reaches_no_report_bundle_reply_or_screen() {
         .enumerate()
         .map(|(i, uri)| json!({"jsonrpc":"2.0","id":10 + i,"method":"resources/read","params":{"uri":uri}}))
         .collect();
-    for (i, name) in [
-        "securevibe_check",
-        "securevibe_write_report",
-        "securevibe_bundle",
-    ]
-    .iter()
-    .enumerate()
+    for (i, name) in ["stackvet_check", "stackvet_write_report", "stackvet_bundle"]
+        .iter()
+        .enumerate()
     {
         asks.push(json!({"jsonrpc":"2.0","id":100 + i,"method":"tools/call","params":{"name":name,"arguments":{"path":"app"}}}));
     }

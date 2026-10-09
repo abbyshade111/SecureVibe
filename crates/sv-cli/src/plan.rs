@@ -360,7 +360,7 @@ pub(crate) fn markdown_with(plan: &Plan, fence: &sv_report::fence::Fence) -> Str
         .collect()
 }
 
-/// The names of the plan's sections, in the order of the whole plan, for `securevibe_plan`'s `section`.
+/// The names of the plan's sections, in the order of the whole plan, for `stackvet_plan`'s `section`.
 pub(crate) const SECTIONS: &[&str] = &[
     "summary",
     "requirements",
@@ -382,7 +382,7 @@ pub(crate) const FIRST: &[&str] = &[
 ];
 
 /// The plan in its sections, each line with the item of the structured plan it shows: the whole plan is
-/// these joined, and `securevibe_plan` gives them in parts (`crate::parts`).
+/// these joined, and `stackvet_plan` gives them in parts (`crate::parts`).
 pub(crate) fn sections_with(
     plan: &Plan,
     fence: &sv_report::fence::Fence,
@@ -517,7 +517,7 @@ pub(crate) fn sections_with(
     );
     run.lead = "\n## 4. What the app must give `sv run`\n\n\
                 So that `sv report --run` can test the app running, rather than reporting those checks as \
-                not assessed. Each goes in `stackvet.toml`; `sv init`, or the `securevibe_spec` tool, \
+                not assessed. Each goes in `stackvet.toml`; `sv init`, or the `stackvet_spec` tool, \
                 describes each one.\n\n"
         .to_owned();
     for n in &plan.run {

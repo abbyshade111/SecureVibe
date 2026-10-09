@@ -1,12 +1,12 @@
 //! The proof that a report folder is one `sv` wrote (deep review R9, ADR-034).
 //!
 //! The MCP server offers the reports below its root as resources, "a report sv wrote". It took any
-//! folder holding the marker, `.securevibe-report`, as one, and anything can write that marker: the
+//! folder holding the marker, `.stackvet-report`, as one, and anything can write that marker: the
 //! review offered the AI coding tool a forged report that way. H6 of the same review made the walk of
 //! the app believe the marker only in a folder holding nothing but the files `sv` writes, which keeps a
 //! marker from hiding code, but a forged report is exactly such a folder.
 //!
-//! So `sv report` and `securevibe_write_report` seal what they wrote: the marker gains a line
+//! So `sv report` and `stackvet_write_report` seal what they wrote: the marker gains a line
 //! `seal: v1:<key id>:<mac>`, an HMAC-SHA-256 of each report file's name and SHA-256, under a key of this
 //! computer's kept beside the review key (`sv_check::seal::REPORT_KEY_FILE`), outside every app, made
 //! the first time a report is written. A folder is offered as `sv`'s only when it holds nothing but

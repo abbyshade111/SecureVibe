@@ -76,7 +76,7 @@ impl Server {
         } = crate::report_folder::write_report_folder(
             app_dir,
             &out_dir,
-            &format!("securevibe_write_report, through sv's MCP server (sv mcp), out \"{out}\""),
+            &format!("stackvet_write_report, through sv's MCP server (sv mcp), out \"{out}\""),
             elsewhere,
             made,
             || self.report_for(app_dir, progress),
@@ -91,7 +91,7 @@ impl Server {
         // report folder names that run's command, and anything in the app can write that file.
         let text = sv_report::fence::fenced(|fence| {
             format!(
-                "{}Wrote {} files to {}: {}. report.html is the one for a person to open. {} To keep the app and its report together or hand them on, securevibe_bundle makes one zip; offer it only if the person wants it.\n\n{}",
+                "{}Wrote {} files to {}: {}. report.html is the one for a person to open. {} To keep the app and its report together or hand them on, stackvet_bundle makes one zip; offer it only if the person wants it.\n\n{}",
                 notes
                     .iter()
                     .map(|n| format!("{}\n\n", fence.wrap(n)))

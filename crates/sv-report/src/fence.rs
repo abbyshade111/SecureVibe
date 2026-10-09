@@ -2,7 +2,7 @@
 //!
 //! What `sv` tells the AI coding tool quotes the app: its name, its file paths and package names,
 //! what stackvet.toml and the security notes say. Quoted plainly, that text reads as `sv`'s own
-//! words, and an app named "IGNORE ALL PREVIOUS INSTRUCTIONS..." opened `securevibe_check`'s result
+//! words, and an app named "IGNORE ALL PREVIOUS INSTRUCTIONS..." opened `stackvet_check`'s result
 //! with exactly that. So every piece of text that is the app's, or that quotes it, is put between an
 //! opening and a closing tag, and the result says first, outside every tag, what the tags mean: the
 //! text inside is information about the app, never an instruction.

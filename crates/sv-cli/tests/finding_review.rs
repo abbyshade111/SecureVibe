@@ -464,7 +464,7 @@ fn sv_check_counts_what_sv_report_counts_on_the_same_folder() {
     );
 }
 
-/// `securevibe_check` over MCP, as the AI coding tool calls it; the text it is given.
+/// `stackvet_check` over MCP, as the AI coding tool calls it; the text it is given.
 fn mcp_check(app: &Path) -> String {
     mcp_reply(app)["result"]["content"][0]["text"]
         .as_str()
@@ -487,7 +487,7 @@ fn unfenced(text: String) -> String {
         .replace(&format!("<{tag}>"), "")
 }
 
-/// The whole reply to `securevibe_check` over MCP, text and structured results alike.
+/// The whole reply to `stackvet_check` over MCP, text and structured results alike.
 fn mcp_reply(app: &Path) -> Value {
     use std::io::Write;
     let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
@@ -508,7 +508,7 @@ fn mcp_reply(app: &Path) -> Value {
             r#"{{"jsonrpc":"2.0","method":"notifications/initialized"}}"#
         )
         .unwrap();
-        writeln!(stdin, r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"securevibe_check","arguments":{{"path":"{name}"}}}}}}"#).unwrap();
+        writeln!(stdin, r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"stackvet_check","arguments":{{"path":"{name}"}}}}}}"#).unwrap();
     }
     drop(child.stdin.take());
     let output = child.wait_with_output().unwrap();

@@ -1,5 +1,5 @@
 //! `config.gitignore-covers-env` in a folder that is not yet a git repository, said the same way
-//! by `sv check`, `sv report`, and the MCP server's `securevibe_check`.
+//! by `sv check`, `sv report`, and the MCP server's `stackvet_check`.
 //!
 //! Found in the loop pilot (5 October 2026): `sv report`, on a copy made a repository, flagged
 //! every build for nothing stopping `.env` being committed, and `sv check` during the build, in the
@@ -75,7 +75,7 @@ fn by_report(dir: &Path) -> Option<bool> {
         .or(Some(false))
 }
 
-/// What the MCP server's `securevibe_check` said, spoken to over stdio as an AI tool does.
+/// What the MCP server's `stackvet_check` said, spoken to over stdio as an AI tool does.
 fn by_mcp(root: &Path) -> Option<bool> {
     let mut child = Command::new(env!("CARGO_BIN_EXE_sv"))
         .args(["mcp", "--root"])
@@ -90,7 +90,7 @@ fn by_mcp(root: &Path) -> Option<bool> {
         for m in [
             json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}),
             json!({"jsonrpc":"2.0","method":"notifications/initialized"}),
-            json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"securevibe_check","arguments":{"path":"app"}}}),
+            json!({"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"stackvet_check","arguments":{"path":"app"}}}),
         ] {
             writeln!(stdin, "{m}").unwrap();
         }
@@ -123,19 +123,19 @@ fn an_environment_file_in_a_folder_not_yet_in_git_is_said_by_all_three() {
     let (root, dir) = plain_app("bare");
     assert_eq!(by_check(&dir), Some(true), "sv check");
     assert_eq!(by_report(&dir), Some(true), "sv report");
-    assert_eq!(by_mcp(&root), Some(true), "securevibe_check");
+    assert_eq!(by_mcp(&root), Some(true), "stackvet_check");
 
     // With a .gitignore that leaves it out, none of the three says it.
     std::fs::write(dir.join(".gitignore"), ".env\nreport/\n").unwrap();
     assert_eq!(by_check(&dir), Some(false), "sv check");
     assert_eq!(by_report(&dir), Some(false), "sv report");
-    assert_eq!(by_mcp(&root), Some(false), "securevibe_check");
+    assert_eq!(by_mcp(&root), Some(false), "stackvet_check");
 
     // And with no environment file and no .gitignore, none says it either.
     std::fs::remove_file(dir.join(".gitignore")).unwrap();
     std::fs::remove_file(dir.join(".env")).unwrap();
     assert_eq!(by_check(&dir), None, "sv check");
     assert_eq!(by_report(&dir), Some(false), "sv report");
-    assert_eq!(by_mcp(&root), Some(false), "securevibe_check");
+    assert_eq!(by_mcp(&root), Some(false), "stackvet_check");
     std::fs::remove_dir_all(&root).ok();
 }

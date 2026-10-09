@@ -47,7 +47,7 @@ fn the_guide_gives_the_containers_sv_review_as_the_readme_does() {
     for part in [
         "-it",
         "--network none",
-        "-v \"$HOME/.config/securevibe\":/sv-config/securevibe",
+        "-v \"$HOME/.config/stackvet\":/sv-config/stackvet",
         "-e XDG_CONFIG_HOME=/sv-config",
     ] {
         assert!(review.contains(part), "{part} in {review}");
@@ -55,12 +55,12 @@ fn the_guide_gives_the_containers_sv_review_as_the_readme_does() {
     // The folder is made first, with the list in it, so a mount of the list alone finds a file.
     let made = commands
         .lines()
-        .find(|l| l.starts_with("mkdir -p ~/.config/securevibe"))
+        .find(|l| l.starts_with("mkdir -p ~/.config/stackvet"))
         .expect("the folder is made first");
-    assert!(made.contains("chmod 700 ~/.config/securevibe"), "{made}");
+    assert!(made.contains("chmod 700 ~/.config/stackvet"), "{made}");
     assert!(
         made.contains(&format!(
-            "touch ~/.config/securevibe/{}",
+            "touch ~/.config/stackvet/{}",
             sv_check::signed::TRUSTED_FILE
         )),
         "{made}"
@@ -73,7 +73,7 @@ fn the_ai_tools_container_is_given_the_list_alone_and_read_only() {
     let json = blocks(&step, "json");
     assert_eq!(json.len(), 1, "one .mcp.json in step 5");
     let config: serde_json::Value = serde_json::from_str(&json[0]).expect("the .mcp.json parses");
-    let args: Vec<&str> = config["mcpServers"]["securevibe"]["args"]
+    let args: Vec<&str> = config["mcpServers"]["stackvet"]["args"]
         .as_array()
         .unwrap()
         .iter()
@@ -91,7 +91,7 @@ fn the_ai_tools_container_is_given_the_list_alone_and_read_only() {
         .map(|w| w[1])
         .collect();
     let list = format!(
-        "/.config/securevibe/{}:/sv-config/securevibe/{}:ro",
+        "/.config/stackvet/{}:/sv-config/stackvet/{}:ro",
         sv_check::signed::TRUSTED_FILE,
         sv_check::signed::TRUSTED_FILE
     );

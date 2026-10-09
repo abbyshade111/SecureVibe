@@ -1,4 +1,4 @@
-//! `sv preflight` and `securevibe_preflight`: what `sv run` will need, looked for in the code, with
+//! `sv preflight` and `stackvet_preflight`: what `sv run` will need, looked for in the code, with
 //! nothing run (ADR-035).
 //!
 //! `sv run` can test an app only if the app gives it what `[stack.run]` says: a server listening on

@@ -1447,7 +1447,7 @@ pub fn to_cyclonedx(sbom: &Sbom) -> CycloneDx {
         version: 1,
         metadata: Metadata {
             tools: vec![Tool {
-                vendor: "SecureVibe",
+                vendor: "StackVet",
                 name: "sv",
             }],
             properties,

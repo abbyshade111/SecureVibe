@@ -220,7 +220,7 @@ def documents():
             capture_output=True, check=True,
         ).stdout.decode().split("\0")
     except (OSError, subprocess.CalledProcessError):
-        sys.exit("This needs git and the SecureVibe repository: run it from inside your copy of SecureVibe.")
+        sys.exit("This needs git and the StackVet repository: run it from inside your copy of StackVet.")
     return sorted(p for p in listed if p and not p.startswith(LEFT_OUT) and (ROOT / p).is_file())
 
 
@@ -263,8 +263,8 @@ def page(title, nav, body, depth):
     return (
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        f"<title>{html.escape(title)} · SecureVibe docs</title>\n<style>{STYLE}</style>\n</head>\n<body>\n"
-        f"<div class=\"layout\">\n<nav class=\"site\"><a href=\"{up}index.html\"><strong>SecureVibe docs</strong></a>"
+        f"<title>{html.escape(title)} · StackVet docs</title>\n<style>{STYLE}</style>\n</head>\n<body>\n"
+        f"<div class=\"layout\">\n<nav class=\"site\"><a href=\"{up}index.html\"><strong>StackVet docs</strong></a>"
         f"{nav}</nav>\n<main>\n{body}\n</main>\n</div>\n</body>\n</html>\n"
     )
 
@@ -364,7 +364,7 @@ def build(out):
     # Not one `<` inside the script element: the documents quote `<script` and `<!--`, which would end it.
     data = json.dumps(index).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     body = (
-        "<h1>SecureVibe's documentation</h1>\n"
+        "<h1>StackVet's documentation</h1>\n"
         f"<p class=\"note\">{len(docs)} documents from your copy of the repository, written by "
         "<code>tools/docs_page.py</code> for this computer only. The paper's drafts are left out. Run it again after a "
         "pull to bring these pages up to date.</p>\n"
@@ -372,7 +372,7 @@ def build(out):
         "<ul id=\"results\"></ul>\n" + "".join(listing)
         + f'\n<script type="application/json" id="index">{data}</script>\n' + SEARCH
     )
-    (out / "index.html").write_text(page("SecureVibe docs", nav_for(docs, titles, "index.md"), body, 0), encoding="utf-8")
+    (out / "index.html").write_text(page("StackVet docs", nav_for(docs, titles, "index.md"), body, 0), encoding="utf-8")
     written.add((out / "index.html").resolve())
 
     # Pages of documents that are gone, in its own folder only.

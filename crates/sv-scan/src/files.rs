@@ -827,8 +827,8 @@ mod tests {
         write("reports/Report.JSON", "{}\n");
         write(&format!("hidden/{marker}"), "sv\n");
         write("hidden/admin.py", "eval(x)\n");
-        write("securevibe-report/report.html", "<html>\n");
-        write("securevibe-report/notes.py", "print(1)\n");
+        write("stackvet-report/report.html", "<html>\n");
+        write("stackvet-report/notes.py", "print(1)\n");
 
         let listing = Listing::of(&root);
         std::fs::remove_dir_all(&root).ok();
@@ -836,8 +836,8 @@ mod tests {
         let files = names(&listing.files);
         assert!(!files.contains(&"reports/Report.JSON"), "{files:?}");
         assert!(files.contains(&"hidden/admin.py"), "{files:?}");
-        assert!(files.contains(&"securevibe-report/notes.py"), "{files:?}");
-        assert_eq!(listing.refused_markers, ["hidden", "securevibe-report"]);
+        assert!(files.contains(&"stackvet-report/notes.py"), "{files:?}");
+        assert_eq!(listing.refused_markers, ["hidden", "stackvet-report"]);
         assert!(listing.skipped.is_empty(), "{:?}", listing.skipped);
     }
 

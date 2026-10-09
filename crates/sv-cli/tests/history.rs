@@ -40,7 +40,7 @@ impl Home {
     }
 
     fn history(&self) -> PathBuf {
-        self.root.join("home/.local/share/securevibe/history")
+        self.root.join("home/.local/share/stackvet/history")
     }
 
     /// The one app folder in history, and its run files, oldest first.
