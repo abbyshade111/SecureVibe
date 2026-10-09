@@ -3556,6 +3556,14 @@
     "finding_only": false
    }
   ],
+  "C12.1.2": [
+   {
+    "id": "probe.ai-safety-decision-detailed",
+    "run": "The running app",
+    "looks_for": "A record that something was blocked, without why or when, cannot be audited, cannot show a filter that blocks too much, and cannot be laid beside other events in an investigation.",
+    "finding_only": false
+   }
+  ],
   "C12.1.3": [
    {
     "id": "probe.ai-call-log-incomplete",
