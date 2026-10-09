@@ -1,6 +1,6 @@
 # Records that disagree with what was built, or are missing, found by the ADR analysis
 
-**Status:** open
+**Status:** done, 30 September 2026
 
 Found on 27 September 2026 by
 session admiring-murdock-875699 while reading every decision record for the paper; the owner asked for each one

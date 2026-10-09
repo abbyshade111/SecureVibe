@@ -1,6 +1,6 @@
 # Records owed, from the first weekly review of the decision records (30 September 2026)
 
-**Status:** open
+**Status:** done, 4 October 2026
 
 Each is a decision
 in code merged that week with no record, and costly to undo without its reasons. Its reasons are mostly already in

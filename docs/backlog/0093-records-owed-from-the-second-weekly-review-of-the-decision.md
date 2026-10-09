@@ -1,6 +1,6 @@
 # Records owed, from the second weekly review of the decision records (5 October 2026)
 
-**Status:** partly done: 1 of 8 parts done, 0 claimed, 7 open, as its markers read on 8 October 2026
+**Status:** done, 6 October 2026
 
 Each is a decision in
 code merged in the week to 5 October with no record, costly to undo without its reasons; each is explained in
