@@ -389,3 +389,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     The app's files only, as `config.mcp-server-unpinned` reads them; the AI coding tool's own are ADR-049's. The old
     SSE transport, and the running half, are not part of this. **Record, `Status: proposed`: ADR-068.** Checked just
     before this claim: not on `main`, in no open pull request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "An MCP link to another computer over plain HTTP (9 October 2026)"; ADR-068,
+    accepted). `config.mcp-transport-unencrypted` finds an `http://` address to another computer as an MCP client
+    transport's first argument or as an MCP server's `url` in the app's files, and never credits. Not done: the old
+    SSE transport over `https://`, and the running half.
