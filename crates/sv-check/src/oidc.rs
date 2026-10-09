@@ -28,6 +28,7 @@
 use crate::finding::Severity;
 use crate::probes::{ProbeRequest, ProbeResponse};
 use crate::signed_in::{Http, Outcome, Rule, Session, finding, get, ok, send_filled, status};
+use crate::stand_in::oidc as idp;
 use sv_manifest::OidcSection;
 
 const IDS: &str = "V10.1.2, V10.2.1, V10.5.1, V10.5.4, V6.8.2, V10.2.2, V10.5.2";
@@ -136,7 +137,7 @@ fn set_mode(http: &mut dyn Http, mode: &str) -> bool {
     let request = ProbeRequest {
         id: format!("oidc-mode-{mode}"),
         method: "POST".to_owned(),
-        path: "/_sv/mode".to_owned(),
+        path: idp::MODE.to_owned(),
         headers: vec![(
             "Content-Type".to_owned(),
             "application/x-www-form-urlencoded".to_owned(),
@@ -265,7 +266,7 @@ fn same_email_check(http: &mut dyn Http, section: &OidcSection, out: &mut Outcom
             .map(|(k, v)| (k.clone(), fill(v)))
             .collect(),
     };
-    let mut first = match session_for(http, section, "normal", "same-first") {
+    let mut first = match session_for(http, section, idp::NORMAL, "same-first") {
         Ok(Some(session)) => session,
         other => {
             not_assessed(
@@ -284,7 +285,7 @@ fn same_email_check(http: &mut dyn Http, section: &OidcSection, out: &mut Outcom
     };
     let saved = send_filled(http, "oidc-create", &marked, &mut first, &[page.to_owned()]);
     // The control: the same person, in a new session, finds what they saved.
-    let again = session_for(http, section, "normal", "same-again")
+    let again = session_for(http, section, idp::NORMAL, "same-again")
         .ok()
         .flatten();
     if !again
@@ -303,11 +304,11 @@ fn same_email_check(http: &mut dyn Http, section: &OidcSection, out: &mut Outcom
         return;
     }
     // A different person with the same email address, and the same person with a new one.
-    let other = session_for(http, section, "other-person", "same-other")
+    let other = session_for(http, section, idp::OTHER_PERSON, "same-other")
         .ok()
         .flatten()
         .map(|s| shows_marker(http, section, &s, "same-other"));
-    let moved = session_for(http, section, "new-email", "same-moved")
+    let moved = session_for(http, section, idp::NEW_EMAIL, "same-moved")
         .ok()
         .flatten()
         .map(|s| shows_marker(http, section, &s, "same-moved"));
@@ -396,7 +397,7 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
     let not_assessed =
         |out: &mut Outcome, why: String| out.not_assessed.push((IDS.to_owned(), why));
 
-    if !set_mode(http, "normal") {
+    if !set_mode(http, idp::NORMAL) {
         not_assessed(
             &mut out,
             "The test provider could not be started or did not answer, so the app's sign-in \
@@ -463,14 +464,14 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
     // The sign-ins the provider gets wrong on purpose.
     let mut broken: Vec<(&str, Option<bool>)> = Vec::new();
     for mode in [
-        "wrong-nonce",
-        "wrong-aud",
-        "unsigned",
-        "wrong-key",
-        "wrong-iss",
-        "wrong-token-iss",
+        idp::WRONG_NONCE,
+        idp::WRONG_AUD,
+        idp::UNSIGNED,
+        idp::WRONG_KEY,
+        idp::WRONG_ISS,
+        idp::WRONG_TOKEN_ISS,
     ] {
-        let result = if mode == "wrong-nonce" && !nonce_sent {
+        let result = if mode == idp::WRONG_NONCE && !nonce_sent {
             None
         } else {
             sign_in(http, section, mode, mode).ok()
@@ -481,7 +482,7 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
     let refused = |mode: &str| broken.iter().any(|(m, r)| *m == mode && *r == Some(false));
 
     // And an ordinary sign-in again, or none of the refusals above is credited.
-    let still_works = sign_in(http, section, "normal", "after").unwrap_or(false);
+    let still_works = sign_in(http, section, idp::NORMAL, "after").unwrap_or(false);
     out.steps.push(format!(
         "finished in another session: {}; a wrong nonce: {}; a wrong audience: {}; unsigned: {}; \
          signed with another key: {}; another provider named in the return: {}; another \
@@ -534,9 +535,9 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
         Severity::High,
         "an ID token issued to a different client",
     );
-    let signature = if accepted("unsigned") || accepted("wrong-key") {
+    let signature = if accepted(idp::UNSIGNED) || accepted(idp::WRONG_KEY) {
         Some(true)
-    } else if refused("unsigned") && refused("wrong-key") {
+    } else if refused(idp::UNSIGNED) && refused(idp::WRONG_KEY) {
         Some(false)
     } else {
         None
@@ -548,9 +549,9 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
         still_works,
         "An ID token that is not properly signed is accepted",
         Severity::High,
-        if accepted("unsigned") {
+        if accepted(idp::UNSIGNED) {
             "an ID token with no signature at all (`alg: none`)"
-        } else if accepted("wrong-key") {
+        } else if accepted(idp::WRONG_KEY) {
             "an ID token signed with a key the provider never published"
         } else {
             "an ID token with no signature, and one signed with a key the provider never \
@@ -559,10 +560,10 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
     );
     // V10.2.2, credit only.
     let named = |mode: &str| match mode {
-        "wrong-iss" => "the sign-in's `iss` parameter",
+        idp::WRONG_ISS => "the sign-in's `iss` parameter",
         _ => "the ID token's `iss` claim",
     };
-    let took: Vec<&str> = ["wrong-iss", "wrong-token-iss"]
+    let took: Vec<&str> = [idp::WRONG_ISS, idp::WRONG_TOKEN_ISS]
         .into_iter()
         .filter(|m| accepted(m))
         .map(named)
@@ -579,7 +580,7 @@ pub fn run(http: &mut dyn Http, section: &OidcSection) -> Outcome {
                 took.join(" and when ")
             ),
         ));
-    } else if refused("wrong-iss") && refused("wrong-token-iss") && still_works {
+    } else if refused(idp::WRONG_ISS) && refused(idp::WRONG_TOKEN_ISS) && still_works {
         out.verified.push(crate::Verified::new(
             MIX_UP.rule_id,
             MIX_UP.requirement_ids,
@@ -880,7 +881,7 @@ mod tests {
             if self.flaws.no_provider {
                 return None;
             }
-            if r.path == "/_sv/mode" {
+            if r.path == idp::MODE {
                 self.mode_requests += 1;
                 self.mode = r
                     .body_text()
@@ -892,36 +893,36 @@ mod tests {
             let q = query(&r.path);
             let code = self.id();
             let nonce = q.get("nonce").cloned();
-            let mode = std::mem::replace(&mut self.mode, "normal".to_owned());
+            let mode = std::mem::replace(&mut self.mode, idp::NORMAL.to_owned());
             if self.flaws.provider_fails_on == Some(mode.as_str()) {
                 return None;
             }
             let token = Token {
                 nonce: match mode.as_str() {
-                    "wrong-nonce" => Some("not-it".to_owned()),
+                    idp::WRONG_NONCE => Some("not-it".to_owned()),
                     _ => nonce.clone(),
                 },
-                aud: if mode == "wrong-aud" {
+                aud: if mode == idp::WRONG_AUD {
                     "other".into()
                 } else {
                     "client".into()
                 },
                 signed: match mode.as_str() {
-                    "unsigned" => "none",
-                    "wrong-key" => "stranger",
+                    idp::UNSIGNED => "none",
+                    idp::WRONG_KEY => "stranger",
                     _ => "good",
                 },
-                iss: if mode == "wrong-token-iss" {
+                iss: if mode == idp::WRONG_TOKEN_ISS {
                     "other"
                 } else {
                     "idp"
                 },
-                sub: if mode == "other-person" {
+                sub: if mode == idp::OTHER_PERSON {
                     "other-person"
                 } else {
                     "person"
                 },
-                email: if mode == "new-email" {
+                email: if mode == idp::NEW_EMAIL {
                     "new@x"
                 } else {
                     "shared@x"
@@ -935,7 +936,11 @@ mod tests {
                     format!(
                         "http://app/callback?code={code}&state={}&iss={}",
                         q.get("state").cloned().unwrap_or_default(),
-                        if mode == "wrong-iss" { "other" } else { "idp" }
+                        if mode == idp::WRONG_ISS {
+                            "other"
+                        } else {
+                            "idp"
+                        }
                     ),
                 )],
             ))
@@ -968,7 +973,7 @@ mod tests {
     fn run_saving(flaws: Flaws) -> Outcome {
         let mut fake = Fake {
             flaws,
-            mode: "normal".into(),
+            mode: idp::NORMAL.into(),
             ..Default::default()
         };
         run(&mut fake, &saving())
@@ -1111,7 +1116,7 @@ mod tests {
     fn run_with(flaws: Flaws) -> Outcome {
         let mut fake = Fake {
             flaws,
-            mode: "normal".into(),
+            mode: idp::NORMAL.into(),
             ..Default::default()
         };
         run(&mut fake, &section())
@@ -1313,7 +1318,7 @@ mod tests {
         // when that sign-in cannot be made through to the end, V6.8.2 is neither passed nor
         // failed.
         let o = run_with(Flaws {
-            provider_fails_on: Some("wrong-key"),
+            provider_fails_on: Some(idp::WRONG_KEY),
             ..Default::default()
         });
         assert!(!credited(&o).contains(&UNCHECKED_SIGNATURE.rule_id));
@@ -1365,7 +1370,7 @@ mod tests {
     #[test]
     fn one_refused_issuer_is_not_credit_when_the_other_could_not_be_tried() {
         let o = run_with(Flaws {
-            provider_fails_on: Some("wrong-token-iss"),
+            provider_fails_on: Some(idp::WRONG_TOKEN_ISS),
             ..Default::default()
         });
         assert!(!credited(&o).contains(&MIX_UP.rule_id));

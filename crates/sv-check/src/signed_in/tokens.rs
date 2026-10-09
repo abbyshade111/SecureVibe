@@ -420,7 +420,10 @@ fn key_source_check(http: &mut dyn Http, jwt: &Jwt, confirm: &str, out: &mut Out
     {
         let tag = crate::fetch::tag(n as u32);
         let mut header = jwt.header.clone();
-        header.insert(field.to_owned(), format!("{server}/_sv/keys/{tag}").into());
+        header.insert(
+            field.to_owned(),
+            format!("{server}{}", crate::stand_in::keys(&tag)).into(),
+        );
         let token = format!("{}.{payload}.{}", part(&header), jwt.signature);
         http.send(&get(
             &format!("token-{field}"),

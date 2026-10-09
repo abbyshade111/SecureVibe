@@ -1669,7 +1669,7 @@ impl DockerBackend {
         let health = sv_check::probes::ProbeRequest {
             id: "model-health".to_owned(),
             method: "GET".to_owned(),
-            path: "/_sv/health".to_owned(),
+            path: sv_check::stand_in::HEALTH.to_owned(),
             headers: Vec::new(),
             body: None,
         };
@@ -1690,7 +1690,7 @@ impl DockerBackend {
         let health = sv_check::probes::ProbeRequest {
             id: "provider-health".to_owned(),
             method: "GET".to_owned(),
-            path: "/_sv/health".to_owned(),
+            path: sv_check::stand_in::HEALTH.to_owned(),
             headers: Vec::new(),
             body: None,
         };
