@@ -23,9 +23,6 @@ impl Drop for Server {
     }
 }
 
-/// Starts the test model on a port the system says is free, and waits until the test model
-/// itself answers there: a connection alone could be to something else that took the port first.
-
 /// The health answer at `port`, or nothing: while a test server is starting, a connection can be
 /// refused, or reset by another test's server stopping on the same port, and that means only "not
 /// this one yet".
@@ -45,6 +42,8 @@ fn health(port: u16) -> String {
     attempt().unwrap_or_default()
 }
 
+/// Starts the test model on a port the system says is free, and waits until the test model
+/// itself answers there: a connection alone could be to something else that took the port first.
 /// Tried on three ports before giving up.
 fn start() -> Option<(Server, u16)> {
     let script = concat!(env!("CARGO_MANIFEST_DIR"), "/assets/model-provider.mjs");
