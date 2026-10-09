@@ -484,3 +484,7 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     time; the action is a read-only lookup, and approver and outcome are not seen. Never a finding. **Record,
     `Status: proposed`: ADR-075.** Checked just before this claim: not on `main`, in no open pull request, and in no
     recent branch.
+    **Done on 9 October 2026** (DESIGN, "A tool action the AI took, written down with its argument (9 October
+    2026)"; ADR-075, accepted). `probe.ai-tool-action-logged` credits C12.4.2 in part when a line of the app's output
+    records the AI's call to `sv_lookup` with its argument, and says so otherwise; it never finds. Not done: a
+    security-critical action, its approver, and its outcome.

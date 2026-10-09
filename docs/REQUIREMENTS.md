@@ -631,7 +631,7 @@ decided per app, from its `stackvet.toml` and its code.
 
 ## OWASP AISVS 1.0
 
-191 requirements: 25 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 147 with no check.
+191 requirements: 26 can be checked, 19 can only be found failing, 0 where a check helps but a person decides, and 146 with no check.
 
 ### Level 1 (51 requirements, 16 can be checked, 8 can only be found failing)
 
@@ -741,7 +741,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C12.5.1** Verify that dataset lineage records each dataset and its components, including all transformations, augmentations, and merges. | No check | – |
 | **C12.5.2** Verify that all labeling activities are recorded in logs. | No check | – |
 
-### Level 2 (95 requirements, 8 can be checked, 10 can only be found failing)
+### Level 2 (95 requirements, 9 can be checked, 10 can only be found failing)
 
 #### C1 Training Data Integrity & Traceability
 
@@ -893,7 +893,7 @@ decided per app, from its `stackvet.toml` and its code.
 | **C12.3.2** Verify that hallucination detection monitors identify and flag model outputs that contain factually incorrect, inconsistent, or fabricated information. | No check | – |
 | **C12.3.3** Verify that hallucination rates are tracked as continuous time-series metrics to enable trend analysis and detection of sustained model degradation. | No check | – |
 | **C12.4.1** Verify that autonomous action triggers include proactive behavior-pattern analysis, security evaluation, and threat-landscape assessment. | No check | – |
-| **C12.4.2** Verify that audit logs capture security-critical proactive actions, including approver identity, timestamp, action parameters, and decision outcomes. | No check | – |
+| **C12.4.2** Verify that audit logs capture security-critical proactive actions, including approver identity, timestamp, action parameters, and decision outcomes. | Can be checked | The running app: `probe.ai-tool-action-logged`, if it fails: An action the AI took that leaves no record of what it did, with what, when and on whose say-so cannot be reviewed after something goes wrong. (credited only, and only ever in part) |
 | **C12.4.3** Verify that kill-switch activations and override commands are logged. | No check | – |
 | **C12.5.3** Verify that all model changes generate immutable audit records. | No check | – |
 | **C12.5.4** Verify that every ingested document is tagged at write time with source, writer identity, and timestamp. | No check | – |
