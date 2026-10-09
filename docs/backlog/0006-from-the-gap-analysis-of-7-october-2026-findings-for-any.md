@@ -303,6 +303,20 @@ listed apart, below this item.
    **(a) on `owned.create` done the same day**
    (`docs/design/0326-a-record-put-into-another-user-s-account-9-october-2026.md`; ADR-053, Later):
    `probe.owner-field-trusted`. `creates` and `change-email` stay open.
+   **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
+   you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
+   OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
+   before it, so a base address ending `/v1` still works) is read for `systemInstruction`, the user's `contents`,
+   `functionResponse` parts, `tools[].functionDeclarations`, and `generationConfig.maxOutputTokens`, with the model
+   named in the path; the shape asked for is read from `generationConfig.responseMimeType` with `responseSchema` or
+   `responseJsonSchema`, and from `toolConfig.functionCallingConfig` (mode `ANY` with one function); answers,
+   function calls, streamed answers, and errors come back in Gemini's own shapes. The app is also given
+   `GEMINI_API_KEY` and `GOOGLE_API_KEY` set to the same placeholder key as the others, and `GOOGLE_GEMINI_BASE_URL`
+   set to the test model's address, which Google's own client library reads. An app that writes Google's address
+   into its code is still not reached, and says so as now. **`Status: proposed`: ADR-019, Later, 9 October 2026**
+   (what the app is given inside the fence) **and ADR-042, Later, 9 October 2026** (the shape read from a Gemini
+   request). Read on `main` and the open pull requests just before this claim: no other session had claimed (g).
+
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
