@@ -1,6 +1,6 @@
 # Test the prompt library where the prompts have something to fix
 
-**Status:** partly done: 0 of 4 parts done, 1 claimed, 3 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 Proposed on 6 October 2026 by session
 paper-facts, reviewing the library at the owner's asking; **the owner's decision the same day: write it up, with the
@@ -41,3 +41,4 @@ roughly halved unreadable settings files (34% to 15%; "partly" by the rule). Del
 work for any prompt: the feature briefs mostly never reached the builders, because `securevibe_before` refuses until
 `securevibe.toml` exists and they asked first; the guidance did reach them, and halved Haiku's problems, less than
 pasting the prompt did. Four items below follow.
+**Marked done 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 4, item 2), read against `main`: items 1 to 3 and item 4 are each done above (`docs/prompts/library-trial/README.md` and `delivery.md`). The four items the delivery test raised are their own entries.

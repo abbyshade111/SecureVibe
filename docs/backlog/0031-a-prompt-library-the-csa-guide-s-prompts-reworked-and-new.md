@@ -1,6 +1,6 @@
 # A prompt library: the CSA guide's prompts, reworked, and new ones from what went wrong
 
-**Status:** partly done: 0 of 7 parts done, 0 claimed, 6 open, as its markers read on 8 October 2026
+**Status:** done, 9 October 2026
 
 Asked
 for by the owner on 3 October 2026, after a review of `sv` against the Cloud Security Alliance's
@@ -98,3 +98,4 @@ the plain build: it read the pasted key from the environment, ran the program wi
 `scrypt`, and cleaned the editor's HTML with `sanitize-html`, and `sv` found nothing in any of the five builds. The
 four prompts stay not tested. Putting each shortcut back was caught for the key and the command, and missed for
 the sanitizer: two new items under "Next".
+**Marked done 9 October 2026 by session securevibe-e9**, from the roadmap (Phase 4, item 2), read against `main`: every part of the owner's decisions of 3 and 4 October has a done note above (the first batch, the rest of it, `sv prompts` and its MCP tool, the prompts for an app's unproven requirements, the design-time prompts in `sv prompts`, and the second app brief). The status line's "0 of 7 parts done" was the 8 October split reading the numbered decisions as parts. The new items the second app brief raised are their own entries.
