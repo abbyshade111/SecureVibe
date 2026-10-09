@@ -1,13 +1,14 @@
 //! The library behind `sv`: the report's assembly and what it needs, called by the command line and the MCP
 //! server alike (BACKLOG, "From the architecture assessment of 8 October 2026", item 12).
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::path::{Path, PathBuf};
 use sv_check::advisories;
 use sv_check::ast;
 use sv_check::probes;
 use sv_check::sbom;
-use sv_check::secrets::SecretRules;
+use sv_check::secrets::{SecretRules, scan_dir};
+use sv_frameworks::Condition;
 use sv_frameworks::Frameworks;
 use sv_frameworks::applicability::{ApplicabilityConfig, bucket};
 use sv_manifest::Manifest;
@@ -28,6 +29,7 @@ pub mod bundle;
 pub mod exit;
 pub mod report_lock;
 pub mod static_scan;
+pub use assemble::{REPORT_STAGES, assemble_report_saying};
 
 /// Everything a report reads from `data/`, loaded once per process.
 ///
@@ -932,3 +934,960 @@ pub fn prompts_paths() -> [PathBuf; 2] {
         sv_frameworks::data::file("design-prompts.json"),
     ]
 }
+
+pub mod report_files;
+
+pub mod report_folder;
+
+pub mod report_seal;
+
+/// The coding prompts shown to work, in full, for the two places every builder reads before any code:
+/// the end of the specification (`sv init`, `stackvet_spec`) and of the MCP server's opening
+/// instructions. In the delivery test (docs/prompts/library-trial/delivery.md) a prompt pasted where
+/// the builder starts did better than the same prompt fetched mid-build, every time. Read from
+/// `data/prompts.json`, so the list cannot drift from the library; empty if it cannot be read.
+pub fn prompts_at_start() -> String {
+    let Ok(library) = coding_prompts() else {
+        return String::new();
+    };
+    let shown: Vec<_> = library
+        .prompts
+        .iter()
+        .filter(|p| p.status == sv_check::prompts::Status::Shown)
+        .collect();
+    if shown.is_empty() {
+        return String::new();
+    }
+    let mut out = String::from(
+        "\n## Prompts shown to work\n\nEach of these was given to an AI coding tool building an app, \
+         and `sv` found that the problem it is for went away (docs/PROMPTS.md). Follow them while you \
+         build, as you follow the rest of these instructions:\n",
+    );
+    for p in shown {
+        out.push_str(&format!(
+            "\n### {} (`{}`)\n\n{}\n\n{}\n",
+            p.title,
+            p.id,
+            p.status_sentence(),
+            p.prompt
+        ));
+    }
+    out
+}
+
+/// The coding prompts shown to work that no feature's brief gives, because none of their
+/// requirements is one a feature brings (security headers, keys kept out of the code): the ones
+/// for the whole app, which `stackvet_guidance` gives with its rules. Each shown prompt so reaches
+/// a builder once, from the brief for its feature or from the guidance read before any code.
+pub fn whole_app_prompts(loaded: &Loaded) -> Result<Vec<sv_check::prompts::Prompt>> {
+    let features = brief::Features::load(&feature_briefs_path())?;
+    let mut brought = std::collections::BTreeSet::new();
+    for f in &features.features {
+        brought.extend(brief::brought(f, &loaded.frameworks, &loaded.config_rules).all);
+    }
+    Ok(coding_prompts()?
+        .prompts
+        .into_iter()
+        .filter(|p| p.status == sv_check::prompts::Status::Shown)
+        .filter(|p| !p.requirements.iter().any(|r| brought.contains(r)))
+        .collect())
+}
+
+/// Reads the coding rules and leaves out those whose every cited requirement does not apply to the
+/// app. Prints nothing, because the MCP server's stdout is the protocol.
+pub fn coding_rules_for(app_dir: &Path) -> Result<RulesForApp> {
+    let rules = sv_check::coding_rules::CodingRules::load(&coding_rules_path())?;
+    let excluded: Option<std::collections::BTreeSet<String>> =
+        if let Some(located) = sv_manifest::locate(app_dir)? {
+            let manifest = Manifest::load(&located.path)?;
+            let data = data_dir()?;
+            let frameworks = load_frameworks(&data)?;
+            let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
+            let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+            let scan_report = scan_for(
+                &manifest,
+                &sv_scan::files::Listing::of(app_dir),
+                &signatures,
+            )?;
+            let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
+            let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
+            Some(buckets.not_applicable.into_iter().map(|n| n.id).collect())
+        } else {
+            None
+        };
+    let is_excluded = |id: &str| excluded.as_ref().is_some_and(|set| set.contains(id));
+    let given: Vec<String> = rules
+        .for_app(
+            excluded
+                .as_ref()
+                .map(|_| &is_excluded as &dyn Fn(&str) -> bool),
+        )
+        .into_iter()
+        .map(|r| r.id.clone())
+        .collect();
+    let withheld = rules.rules.len() - given.len();
+    Ok(RulesForApp {
+        filtered: excluded.is_some(),
+        rules,
+        given,
+        withheld,
+    })
+}
+
+/// The library's prompts for one requirement, or all of them, as Markdown, and the ones chosen.
+///
+/// An id that is not a requirement is refused, so a mistyped one is never answered "no prompt for
+/// it" as if the library had been searched for it.
+pub fn prompts_for(
+    frameworks: &Frameworks,
+    requirement: Option<&str>,
+) -> Result<(sv_check::prompts::Prompts, Vec<String>, String)> {
+    if let Some(id) = requirement {
+        anyhow::ensure!(
+            frameworks.get(id).is_some(),
+            "{id} is not a requirement or a Secure by Design control in any loaded framework"
+        );
+    }
+    let paths = prompts_paths();
+    let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
+    let chosen = prompts.select(requirement);
+    let ids = chosen.iter().map(|p| p.id.clone()).collect();
+    let text = match (requirement, chosen.is_empty()) {
+        (Some(id), true) => {
+            format!("No prompt in the library targets {id} yet. `sv prompts` lists all of them.\n")
+        }
+        _ => prompts.markdown(&chosen),
+    };
+    Ok((prompts, ids, text))
+}
+
+/// The prompts for the requirements an app's last report shows with no evidence (the owner's
+/// decision of 3 October 2026, "`sv` can offer the right prompt for a requirement that still has no
+/// evidence"). Read from the report, so it says what the report said when it was written: a new
+/// report is the only way to see what changed since.
+///
+pub fn prompts_for_report(report: &Path) -> Result<ReportPrompts> {
+    let text = std::fs::read_to_string(report).map_err(|e| {
+        anyhow::anyhow!(
+            "there is no report to read at {} ({e}). Make one first: `sv report`, or \
+             `stackvet_write_report` from the AI coding tool.",
+            report.display()
+        )
+    })?;
+    let json: serde_json::Value = serde_json::from_str(&text)
+        .with_context(|| format!("{} is not a report `sv` can read", report.display()))?;
+    let gaps = sv_check::prompts::gaps_in_report(&json)
+        .with_context(|| format!("reading {}", report.display()))?;
+    let paths = prompts_paths();
+    let prompts = sv_check::prompts::Prompts::load_all(&[&paths[0], &paths[1]])?;
+    let offered = prompts.for_gaps(&gaps);
+    let markdown = prompts.gaps_markdown(&offered, &gaps, &format!("`{}`", report.display()));
+    let offered = offered
+        .iter()
+        .map(|(p, ids)| (p.id.clone(), ids.clone()))
+        .collect();
+    Ok(ReportPrompts {
+        prompts,
+        offered,
+        gaps,
+        text: markdown,
+    })
+}
+
+/// What `prompts_for_report` found: the library, the ids offered with the requirements each is
+/// for, the requirements the report shows unproven with their status, and the offer as text.
+pub struct ReportPrompts {
+    pub prompts: sv_check::prompts::Prompts,
+    pub offered: Vec<(String, Vec<String>)>,
+    pub gaps: std::collections::BTreeMap<String, String>,
+    pub text: String,
+}
+
+/// Writes or refreshes security-notes.md, keeping everything in it that `sv` did not write: the
+/// answers under their questions, and any other text in a section of its own. Shared by `sv notes`
+/// and the MCP server, and prints nothing, because the MCP server's stdout is the protocol.
+pub fn write_notes_file(app_dir: &Path) -> Result<NotesWritten> {
+    write_notes(app_dir, None)
+}
+
+/// Writes the notes file with the AI coding tool's answer under one question, marked as the tool's.
+///
+/// Refused when the question does not apply to the app, when the section holds anything but
+/// the tool's own marked answer (`Answers::tool_may_write`: the tool's answer never replaces what
+/// may be the owner's), and when the answer would not read back as exactly the
+/// tool's (`sv_check::notes::tool_answer`). Written under a new name and renamed into place, and
+/// never through a link.
+pub fn record_tool_answer(app_dir: &Path, id: &str, answer: &str) -> Result<NotesWritten> {
+    write_notes(app_dir, Some((id, answer)))
+}
+
+/// Makes the zip from a report already built. `zip_abs` has been resolved and is outside the app; the caller
+/// checked. Shared by `sv bundle` and the MCP tool, so what an AI tool is told is what the command says.
+pub fn write_bundle(
+    app_abs: &Path,
+    zip_abs: &Path,
+    report: &sv_report::Report,
+    command: &str,
+) -> Result<BundleOutcome> {
+    let name = app_abs
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "app".to_owned());
+    let folder = bundle::safe_name(&name);
+    // What goes in, decided from what the credential scan found and could not read.
+    let rules = SecretRules::load(&secret_rules_path())?;
+    let scan = scan_dir(&rules, app_abs);
+    let plan = bundle::plan(app_abs, &scan);
+    let categories = Manifest::load_in(app_abs)
+        .map(|(m, _)| m.data.listed().to_vec())
+        .unwrap_or_default();
+
+    let mut entries: Vec<(String, Vec<u8>)> = Vec::new();
+    for rel in &plan.include {
+        let bytes = std::fs::read(app_abs.join(rel)).with_context(|| format!("reading {rel}"))?;
+        entries.push((format!("{folder}/app/{rel}"), bytes));
+    }
+    // The report on its way into the zip is written to a folder of this run's own in the system's
+    // temporary folder, readable by this user alone and named so nobody can guess it, and removed
+    // with everything in it when `private` is dropped, however this returns (ADR-017, Later, 8
+    // October 2026). It used to be a folder named by the process id and the time, which anyone
+    // on the computer could name first and read.
+    let private = sv_check::adapters::PrivateFolder::new_in(&std::env::temp_dir())
+        .context("making a private folder for the report on its way into the zip")?;
+    let scratch = private.path().to_path_buf();
+    let written = write_report_files(report, &scratch);
+    let sbom_json =
+        serde_json::to_string_pretty(&sbom::to_cyclonedx(&sbom::build(app_abs)))? + "\n";
+    let report_files: Result<Vec<(String, Vec<u8>)>> = written.and_then(|names| {
+        names
+            .iter()
+            .map(|n| {
+                Ok((
+                    format!("{folder}/report/{n}"),
+                    std::fs::read(scratch.join(n))?,
+                ))
+            })
+            .collect()
+    });
+    drop(private);
+    let report_files = report_files?;
+    refuse_a_credential_in_the_report(&rules, &report_files)?;
+    entries.extend(report_files);
+    entries.push((
+        format!("{folder}/report/sbom.cdx.json"),
+        sbom_json.into_bytes(),
+    ));
+
+    let made_at = bundle::utc_time(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0),
+    );
+    let listing = bundle::listing(
+        &bundle::Made {
+            sv_version: env!("CARGO_PKG_VERSION"),
+            commit: env!("SV_GIT_COMMIT"),
+            made_at: &made_at,
+            command,
+            app_name: &name,
+            categories: &categories,
+        },
+        &entries,
+        &plan,
+    );
+    let readme = bundle::readme(&name, &made_at, plan.include.len(), &plan, &categories);
+    entries.push((
+        format!("{folder}/BUNDLE.json"),
+        (serde_json::to_string_pretty(&listing)? + "\n").into_bytes(),
+    ));
+    entries.push((format!("{folder}/README.txt"), readme.into_bytes()));
+
+    let bytes = bundle::zip(&entries)?;
+    if let Some(parent) = zip_abs.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("creating {}", parent.display()))?;
+    }
+    // Not through a link: a bundle name in the folder beside the app that is a link to another file had
+    // that file overwritten (deep review S4).
+    refuse_link(zip_abs, FILE_LINK)?;
+    // A bundle replaces only one `sv` made: a file of the owner's at that name, given with --out by
+    // mistake or there before, is not written over (the deep review's improvement 7).
+    if std::fs::symlink_metadata(zip_abs).is_ok() && !bundle::made_by_sv(zip_abs) {
+        bail!(
+            "{} is already there, and is not a bundle sv made, so it is not written over. Give \
+             another name with --out, or move that file first.",
+            zip_abs.display()
+        );
+    }
+    let (Some(parent), Some(file_name)) = (zip_abs.parent(), zip_abs.file_name()) else {
+        bail!("{} is not a file name", zip_abs.display());
+    };
+    let Some(file_name) = file_name.to_str() else {
+        bail!("{} is not a file name sv can write", zip_abs.display());
+    };
+    write_without_following(parent, file_name, &bytes)?;
+    Ok(BundleOutcome {
+        zip: zip_abs.to_path_buf(),
+        kilobytes: bytes.len() / 1024,
+        files: entries.len(),
+        included: plan.include.len(),
+        left_out: plan.left_out,
+        categories,
+    })
+}
+
+/// Every name `sv` writes in a report folder: the marker, the lock, and the five reports. A test
+/// holds this to what `write_report_files` writes. Kept in `sv-scan`, whose walk leaves a report
+/// folder out only while it holds nothing but these (deep review H6).
+pub const REPORT_FOLDER_NAMES: &[&str] = sv_scan::ecosystems::REPORT_FOLDER_NAMES;
+
+/// Writes the reports.
+///
+/// Everything here runs offline and without a container. The probes need a running app, so unless
+/// `sv run` has been used they are recorded as a gap rather than as nothing to report — a section
+/// missing from a report reads as a section with nothing in it.
+/// Writes the five renderings of a report into `out_dir`, and says which were written.
+///
+/// The report folder usually sits inside the app, and an app can hold links, so nothing here follows
+/// one: a folder or a file that is a link is refused, and each file is written under a new name and
+/// renamed into place, since a rename replaces a link rather than writing through it. `std::fs::write`
+/// follows a link, and did: a `report.json` that was a link to a file outside the app had that file
+/// replaced by the report (BACKLOG, "Hardening the MCP server", item 1).
+pub fn write_report_files(report: &sv_report::Report, out_dir: &Path) -> Result<Vec<&'static str>> {
+    Ok(write_report(report, out_dir)?.names())
+}
+
+/// Refuses a path that is a link, whatever it points to, saying so in the owner's terms and saying
+/// what to do instead.
+pub fn refuse_link(path: &Path, what_to_do: &str) -> Result<()> {
+    if let Ok(meta) = std::fs::symlink_metadata(path)
+        && meta.file_type().is_symlink()
+    {
+        return Err(Remedy::error(
+            format!(
+                "{} is a link to somewhere else, so sv does not read or write through it.",
+                path.display()
+            ),
+            what_to_do,
+        ));
+    }
+    Ok(())
+}
+
+/// What went wrong, and what `sv` itself says to do about it, kept apart. The MCP server fences what
+/// went wrong as the app's text, since it quotes the app as often as not, and writes the next step
+/// outside the fence as `sv`'s own words, which an AI coding tool reading a fenced instruction as
+/// information did not act on (`docs/GAP-ANALYSIS.md`, 5.3). At a terminal the two read as one, as
+/// before. `next` is `sv`'s words only: nothing of the app's goes in it.
+#[derive(Debug)]
+pub struct Remedy {
+    pub problem: String,
+    pub next: String,
+}
+
+impl Remedy {
+    /// The error that carries `problem` and `next`.
+    pub fn error(problem: impl Into<String>, next: impl Into<String>) -> anyhow::Error {
+        anyhow::Error::new(Remedy {
+            problem: problem.into(),
+            next: next.into(),
+        })
+    }
+}
+
+impl std::fmt::Display for Remedy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}", self.problem, self.next)
+    }
+}
+
+impl std::error::Error for Remedy {}
+
+pub fn assemble_report(
+    app_dir: &Path,
+    options: &ReportOptions,
+    loaded: &Loaded,
+) -> Result<sv_report::Report> {
+    assemble_report_saying(app_dir, options, loaded, &|_, _| {})
+}
+
+/// The coding rules for an app, and how many were left out as not applying to it.
+pub struct RulesForApp {
+    pub rules: sv_check::coding_rules::CodingRules,
+    /// The ids of the rules given, in the file's order.
+    pub given: Vec<String>,
+    pub withheld: usize,
+    /// Whether stackvet.toml was there to filter by. Without it every rule is given.
+    pub filtered: bool,
+}
+
+impl RulesForApp {
+    pub fn markdown(&self, topic: Option<&str>) -> String {
+        let given: Vec<&sv_check::coding_rules::Rule> = self
+            .rules
+            .rules
+            .iter()
+            .filter(|r| self.given.contains(&r.id) && topic.is_none_or(|t| r.topic == t))
+            .collect();
+        self.rules
+            .markdown(&given, if topic.is_none() { self.withheld } else { 0 })
+    }
+
+    /// Every rule given, as `sv rules` writes them into `AGENTS.md`.
+    pub fn agents_markdown(&self) -> String {
+        let given: Vec<&sv_check::coding_rules::Rule> = self
+            .rules
+            .rules
+            .iter()
+            .filter(|r| self.given.contains(&r.id))
+            .collect();
+        self.rules.agents_markdown(&given, self.withheld)
+    }
+}
+
+/// What writing the notes file came to.
+pub struct NotesWritten {
+    pub path: PathBuf,
+    /// Sections for requirements that apply.
+    pub asked: usize,
+    /// Of those, how many were already answered.
+    pub already: usize,
+    /// Whether the file has text that is not under a question, kept in a section of its own.
+    pub kept: bool,
+}
+
+pub fn write_notes(app_dir: &Path, record: Option<(&str, &str)>) -> Result<NotesWritten> {
+    let manifest = Manifest::load_in(app_dir)?.0;
+    let data = data_dir()?;
+    let frameworks = load_frameworks(&data)?;
+    let config = ApplicabilityConfig::load_v2(&data.join("knowledge"), &overlay_path())?;
+    let signatures = Signatures::load_all(&[&signatures_path(), &corroborators_path()])?;
+    let scan_report = scan_for(
+        &manifest,
+        &sv_scan::files::Listing::of(app_dir),
+        &signatures,
+    )?;
+    let (ctx, _) = sv_manifest::resolve(&manifest, &scan_report.as_corroborator());
+    let buckets = bucket(&frameworks, &config, &ctx, manifest.target_level());
+    let catalog = sv_check::notes::Catalog::load(&notes_path())?;
+
+    let app_name = if manifest.app.name.is_empty() {
+        "This app"
+    } else {
+        &manifest.app.name
+    };
+    let facts = notes_facts(&manifest, &scan_report, app_name);
+    let applicable: std::collections::BTreeSet<String> =
+        buckets.applicable.iter().cloned().collect();
+    let out_path = app_dir.join(&catalog.file);
+    // Before reading: a notes file that is a link would have what it points at read in as answers and
+    // then written over, from `sv notes` as from the MCP tools (deep review S3).
+    refuse_link(&out_path, FILE_LINK)?;
+    // A file that is there but cannot be read as text is refused, never treated as absent: written
+    // over with a fresh template, every answer in it would be gone (deep review R7).
+    let existing = match std::fs::read(&out_path) {
+        Ok(bytes) => Some(String::from_utf8(bytes).map_err(|_| {
+            anyhow::anyhow!(
+                "{} is not plain text (UTF-8), so `sv` cannot keep what is in it and has written \
+                 nothing. Save it as UTF-8 text in your editor and run this again.",
+                out_path.display()
+            )
+        })?),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+        Err(e) => {
+            return Err(e).with_context(|| {
+                format!(
+                    "{} could not be read, so `sv` has written nothing over it",
+                    out_path.display()
+                )
+            });
+        }
+    };
+    let already = existing
+        .as_deref()
+        .map(|text| {
+            sv_check::notes::read_answers(&catalog, text)
+                .answered()
+                .len()
+        })
+        .unwrap_or(0);
+
+    let describe = |id: &str| {
+        frameworks
+            .requirements
+            .get(id)
+            .map(|r| r.description.clone())
+    };
+    let Some((id, answer)) = record else {
+        let text = sv_check::notes::write_template(
+            &catalog,
+            &applicable,
+            &facts,
+            existing.as_deref(),
+            &describe,
+        )
+        .map_err(|why| anyhow::anyhow!(why))?;
+        write_without_following(app_dir, &catalog.file, text.as_bytes())?;
+        let asked = catalog
+            .sections
+            .iter()
+            .filter(|s| applicable.contains(&s.id))
+            .count();
+        return Ok(NotesWritten {
+            path: out_path,
+            asked,
+            already,
+            kept: text.contains(sv_check::notes::KEPT_HEADING),
+        });
+    };
+    anyhow::ensure!(
+        catalog.section(id).is_some() && applicable.contains(id),
+        "{id} is not one of the questions in {} for this app; stackvet_questions lists the ones \
+         that are",
+        catalog.file
+    );
+    let mut answers = existing
+        .as_deref()
+        .map(|text| sv_check::notes::read_answers(&catalog, text))
+        .unwrap_or_default();
+    // Only an empty question or the tool's own answer: anything else may be the owner's words
+    // (deep review R8). Refused before anything is written, so the file is left as it was.
+    answers
+        .tool_may_write(id, &catalog.file)
+        .map_err(|why| anyhow::anyhow!(why))?;
+    let body = sv_check::notes::tool_answer(answer).map_err(|why| anyhow::anyhow!(why))?;
+    answers.set(id, body);
+    let text =
+        sv_check::notes::write_template_with(&catalog, &applicable, &facts, &answers, &describe)
+            .map_err(|why| anyhow::anyhow!(why))?;
+    write_without_following(app_dir, &catalog.file, text.as_bytes())?;
+
+    let asked = catalog
+        .sections
+        .iter()
+        .filter(|s| applicable.contains(&s.id))
+        .count();
+    Ok(NotesWritten {
+        path: out_path,
+        asked,
+        already,
+        kept: text.contains(sv_check::notes::KEPT_HEADING),
+    })
+}
+
+/// What `sv bundle` and the MCP tool made.
+pub struct BundleOutcome {
+    pub zip: PathBuf,
+    pub kilobytes: usize,
+    pub files: usize,
+    pub included: usize,
+    pub left_out: Vec<(String, String)>,
+    pub categories: Vec<String>,
+}
+
+impl BundleOutcome {
+    /// What is said to the person, on the screen and in the AI tool alike.
+    pub fn summary(&self) -> String {
+        self.summary_with(&sv_report::fence::Fence::none())
+    }
+
+    /// The same, with the app's own text (the zip's path, the files left out, what stackvet.toml
+    /// says the app holds) put through `fence`, for the AI coding tool (deep review R9).
+    pub fn summary_with(&self, fence: &sv_report::fence::Fence) -> String {
+        let mut text = format!(
+            "Wrote {} ({} files, {} KB).\n  {} of the app's files, the report, and a SHA-256 for every file in BUNDLE.json.\n",
+            fence.wrap(&self.zip.display().to_string()),
+            self.files,
+            self.kilobytes,
+            self.included
+        );
+        if self.left_out.is_empty() {
+            text.push_str("Nothing was left out.\n");
+        } else {
+            text.push_str(&format!(
+                "\nLeft out on purpose, so the zip carries no secret ({}):\n",
+                self.left_out.len()
+            ));
+            for (path, reason) in &self.left_out {
+                text.push_str(&format!(
+                    "  {}: {}\n",
+                    fence.wrap(path),
+                    sv_report::one_line(reason)
+                ));
+            }
+        }
+        if !self.categories.is_empty() {
+            text.push_str(&format!(
+                "\nstackvet.toml says this app holds: {}. Those are not left out: sv cannot tell which files hold them.\n",
+                fence.wrap(&self.categories.join(", "))
+            ));
+        }
+        text.push_str(
+            "\nsv cannot tell which files hold data about your app's people. It leaves out the database files it \
+             recognizes by name, and nothing else: look through the zip before you hand it on.",
+        );
+        text
+    }
+}
+
+/// Refuses to make the bundle when the report going into it holds something the credential scan
+/// reads as a credential, naming the file, line and rule, never the value.
+///
+/// The backstop to redacting what outside tools say (deep review S8), and a guard for what the report
+/// quotes of the app itself (its name in `stackvet.toml`, for one): Bandit's B105 message quoted a
+/// password four times inside `report/` of a bundle that had left the file holding it out, so that the
+/// zip carried no secret. `sv`'s own findings carry a credential only redacted, and a tool's words
+/// are redacted as they are read (`adapters::redact_tool_text`); this is what holds if some other
+/// text ever reaches a report unredacted. Refusing, not redacting the files here: a report changed on
+/// its way into the zip would no longer be the one `sv` wrote, and the owner is told where to look.
+pub fn refuse_a_credential_in_the_report(
+    rules: &SecretRules,
+    report_files: &[(String, Vec<u8>)],
+) -> Result<()> {
+    let mut found: Vec<String> = Vec::new();
+    for (name, bytes) in report_files {
+        let text = String::from_utf8_lossy(bytes);
+        for f in sv_check::secrets::scan_text(rules, name, &text) {
+            found.push(format!(
+                "{} line {} ({})",
+                sv_report::one_line(name),
+                f.location.line,
+                f.rule_id
+            ));
+        }
+    }
+    if found.is_empty() {
+        return Ok(());
+    }
+    bail!(
+        "the report holds {} thing{} the credential scan reads as a secret, so no bundle was made: \
+         a bundle must never carry one. Where: {}. A report quotes some of what the app's own files \
+         say, such as its name in stackvet.toml: take the credential out of the place it was \
+         quoted from and run this again. If it came from nowhere in the app, it is a fault in sv: \
+         please report it.",
+        found.len(),
+        if found.len() == 1 { "" } else { "s" },
+        found.join("; ")
+    )
+}
+
+/// Makes `out_dir` ready for a report and takes it for this run, before the run starts: the checks
+/// `write_report_files` makes on the folder, made early so a refusal comes before the wait rather
+/// than after it, and the lock (`report_lock`). The marker is written once the folder is held, so the
+/// run's own reading of the app leaves the folder out.
+///
+/// A run that ends without writing its report leaves the folder as it found it: the marker goes if
+/// this wrote it, and the folder if this made it (`made_by_caller`, for a caller that made it just
+/// before) and nothing else is in it. Ctrl-C during `sv report --run` wrote no report and left the
+/// folder behind, which `interrupt.rs` caught.
+pub fn claim_report_folder(
+    out_dir: &Path,
+    command: &str,
+    elsewhere: &str,
+    made_by_caller: bool,
+) -> Result<report_lock::Held> {
+    refuse_link(out_dir, REPORT_LINK)?;
+    let made = made_by_caller || std::fs::symlink_metadata(out_dir).is_err();
+    std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+    for name in REPORT_FOLDER_NAMES {
+        refuse_link(&out_dir.join(name), REPORT_LINK)?;
+    }
+    let refused = refuse_someone_elses_folder(out_dir, REPORT_FOLDER_NAMES);
+    let taken = refused.and_then(|()| report_lock::take(out_dir, command, elsewhere));
+    let held = match taken {
+        Ok(held) => held,
+        Err(e) => {
+            if made {
+                let _ = std::fs::remove_dir(out_dir);
+            }
+            return Err(e);
+        }
+    };
+    // The marker under either of its names (ADR-062): one already there is kept until the report
+    // is written; a folder without one gets the new name.
+    let marker = sv_scan::ecosystems::report_marker_in(out_dir)
+        .unwrap_or_else(|| out_dir.join(sv_scan::ecosystems::REPORT_MARKER));
+    held.undo_unless_written(
+        (!marker.is_file()).then(|| marker.clone()),
+        made.then(|| out_dir.to_path_buf()),
+    );
+    // Part-written files a stopped run left. Held, so no other run of this `sv` is writing them now.
+    if let Ok(entries) = std::fs::read_dir(out_dir) {
+        for entry in entries.filter_map(|e| e.ok()) {
+            if is_staging(&entry.file_name().to_string_lossy(), REPORT_FOLDER_NAMES) {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+    // A marker already there is kept until the report is written: it may carry the seal that lets
+    // the report go beside a file of the owner's (`refuse_someone_elses_folder`), and the report's
+    // own writing and sealing replace it.
+    if !marker.is_file() {
+        write_without_following(
+            out_dir,
+            sv_scan::ecosystems::REPORT_MARKER,
+            REPORT_MARKER_TEXT.as_bytes(),
+        )
+        .context("writing the report folder's marker")?;
+    }
+    Ok(held)
+}
+
+/// The report files written, each with the text written to it, which is what a seal is made from.
+pub struct Written {
+    pub contents: Vec<(&'static str, String)>,
+}
+
+impl Written {
+    pub fn names(&self) -> Vec<&'static str> {
+        self.contents.iter().map(|(name, _)| *name).collect()
+    }
+}
+
+/// `write_report_files`, keeping what was written.
+pub fn write_report(report: &sv_report::Report, out_dir: &Path) -> Result<Written> {
+    // Before the folder is created: creating it would follow a link to a folder that does not exist yet.
+    refuse_link(out_dir, REPORT_LINK)?;
+    std::fs::create_dir_all(out_dir).with_context(|| format!("creating {}", out_dir.display()))?;
+    // Marks the folder as `sv`'s own output, so the next check of the app does not read the report
+    // as the app's code, whatever the folder is called (`sv_scan::ecosystems::REPORT_MARKER`).
+    let marker = (
+        sv_scan::ecosystems::REPORT_MARKER,
+        REPORT_MARKER_TEXT.to_owned(),
+    );
+    let written: Vec<(&'static str, String)> = report_files::REPORT_FILES
+        .iter()
+        .map(|file| (file.name, (file.render)(report)))
+        .collect();
+    // Every name is looked at before any is written, so a refusal leaves the folder as it was.
+    for (name, _) in std::iter::once(&marker).chain(&written) {
+        refuse_link(&out_dir.join(name), REPORT_LINK)?;
+    }
+    refuse_someone_elses_folder(out_dir, REPORT_FOLDER_NAMES)?;
+    for (name, contents) in std::iter::once(&marker).chain(&written) {
+        write_without_following(out_dir, name, contents.as_bytes())
+            .with_context(|| format!("writing {name}"))?;
+    }
+    Ok(Written { contents: written })
+}
+
+/// What to do about a link where `sv` writes one of its own files into the app.
+pub const FILE_LINK: &str = "Remove the link, and run it again.";
+
+/// Writes `name` in `dir` without following a link at that name: the bytes go to a file that did not
+/// exist before (`create_new` refuses a link as it refuses anything already there), which is then
+/// renamed over `name`. A link put at `name` after `refuse_link` looked is replaced, never written
+/// through.
+pub fn write_without_following(dir: &Path, name: &str, contents: &[u8]) -> Result<()> {
+    let target = dir.join(name);
+    let staging = dir.join(format!(".{name}.sv-{}", std::process::id()));
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&staging)
+        .with_context(|| format!("{} could not be created", staging.display()))?;
+    let written = std::io::Write::write_all(&mut file, contents).and_then(|()| file.sync_all());
+    drop(file);
+    if let Err(e) = written.and_then(|()| std::fs::rename(&staging, &target)) {
+        let _ = std::fs::remove_file(&staging);
+        return Err(e).with_context(|| format!("{} could not be written", target.display()));
+    }
+    Ok(())
+}
+
+/// The scan every command reads the app with: the folders the manifest says are not the app are
+/// left out of what counts as evidence about it. One place, so no command reads them as the app.
+pub fn scan_for(
+    manifest: &Manifest,
+    listing: &sv_scan::files::Listing,
+    signatures: &Signatures,
+) -> Result<sv_scan::ScanReport> {
+    sv_scan::scan_listing_app(listing, signatures, &manifest.not_the_app().0)
+}
+
+/// What `sv` found that belongs in the notes, so the owner starts from their app, not a blank page.
+pub fn notes_facts(
+    manifest: &Manifest,
+    scan_report: &sv_scan::ScanReport,
+    app_name: &str,
+) -> sv_check::notes::Facts {
+    // Each outside service is named by the thing that showed it, never by the condition alone: "the
+    // `stripe` package in package.json" is something the owner can go and look at, and "payments"
+    // is something they have to take on trust.
+    let mut outside_services: Vec<String> = Vec::new();
+    for answer in &scan_report.answers {
+        if answer.value != Some(true) {
+            continue;
+        }
+        if !matches!(
+            answer.condition,
+            Condition::ExternalApis | Condition::Payments | Condition::Email | Condition::Ai
+        ) {
+            continue;
+        }
+        if let sv_scan::Evidence::Dependency { name, manifest } = &answer.evidence {
+            let line = format!("the `{name}` package in {manifest}");
+            if !outside_services.contains(&line) {
+                outside_services.push(line);
+            }
+        }
+    }
+    // The manifest's own list of hosts, which the code cannot show and the owner already wrote.
+    for host in manifest
+        .capabilities
+        .external_apis
+        .iter()
+        .flatten()
+        .filter(|h| !h.is_empty())
+    {
+        let line = format!("{host}, from stackvet.toml");
+        if !outside_services.contains(&line) {
+            outside_services.push(line);
+        }
+    }
+
+    sv_check::notes::Facts {
+        app_name: app_name.to_owned(),
+        data_categories: manifest.data.listed().to_vec(),
+        outside_services,
+        ecosystems: scan_report
+            .ecosystems
+            .iter()
+            .map(|e| format!("{} ({})", e.name, e.manifest))
+            .collect(),
+        uploads: manifest.capabilities.uploads,
+        sign_in: manifest.capabilities.auth,
+    }
+}
+
+pub const REPORT_MARKER_TEXT: &str =
+    "This folder holds a report written by sv. sv leaves it out when it checks the app.\n";
+
+/// Seals the report just written in `out_dir` (`report_seal`), so `sv`'s MCP server can show it is
+/// `sv`'s before offering it as one. Whether it was sealed, and what the person should be told: that
+/// the report key was made, or why the report could not be sealed. The report stands either way.
+fn seal_report_folder(out_dir: &Path, written: &Written) -> (bool, Vec<String>) {
+    let bytes: Vec<(&str, &[u8])> = written
+        .contents
+        .iter()
+        .map(|(name, text)| (*name, text.as_bytes()))
+        .collect();
+    match report_seal::seal(out_dir, REPORT_MARKER_TEXT, &bytes) {
+        Ok(sealed) => (
+            true,
+            sealed
+                .made_key
+                .map(|key| {
+                    format!(
+                        "Made {}, the key sv seals its reports with on this computer, so its MCP \
+                         server can tell a report it wrote from one anything else put in the app. \
+                         It is kept outside every app's folder, and never printed.",
+                        key.display()
+                    )
+                })
+                .into_iter()
+                .collect(),
+        ),
+        Err(why) => (
+            false,
+            vec![format!(
+                "The report could not be sealed ({why}), so sv's MCP server will not offer it to an \
+                 AI coding tool as a report sv wrote. The report itself is complete."
+            )],
+        ),
+    }
+}
+
+/// Refuses to write a report into a folder that holds anything but `sv`'s own files, unless `sv` marked
+/// it as its own and this computer can show, by its seal, that `sv` wrote the report there; and,
+/// marked or not, one holding a file whose name differs from one of `sv`'s only in capitals.
+///
+/// A report written with `out` "." landed in the app itself, and on a disk that does not tell capitals
+/// apart (macOS and Windows, by default) its `security.md` replaced the app's own `SECURITY.md` (deep
+/// review S5). A folder holding only names `sv` writes, as a report from before the marker had, is
+/// taken as `sv`'s; the marker itself is checked by its exact name, so the app's files are never
+/// mistaken for it.
+pub fn refuse_someone_elses_folder(out_dir: &Path, ours: &[&str]) -> Result<()> {
+    let Ok(entries) = std::fs::read_dir(out_dir) else {
+        return Ok(());
+    };
+    let names: Vec<String> = entries
+        .filter_map(|e| e.ok())
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    let like_ours: Vec<&String> = names
+        .iter()
+        .filter(|name| {
+            !ours.contains(&name.as_str()) && ours.iter().any(|o| o.eq_ignore_ascii_case(name))
+        })
+        .collect();
+    anyhow::ensure!(
+        like_ours.is_empty(),
+        "{} holds {}, which a report file would replace on a disk that does not tell capitals apart, \
+         so sv does not write its report there. Give a folder of its own with --out.",
+        out_dir.display(),
+        like_ours
+            .iter()
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+    let marked = names.iter().any(|name| {
+        name == sv_scan::ecosystems::REPORT_MARKER
+            || name == sv_frameworks::names::OLD_REPORT_MARKER
+    });
+    let others: Vec<&String> = names
+        .iter()
+        .filter(|name| !ours.contains(&name.as_str()) && !is_staging(name, ours))
+        .collect();
+    if others.is_empty() {
+        return Ok(());
+    }
+    // Beside files `sv` did not write, only in a folder whose last report this computer can show it
+    // sealed: the marker alone can be planted in any of the app's folders (the review of 8 October,
+    // item 4), and a seal cannot be made without the report key.
+    let named = format!(
+        "{}{}",
+        others
+            .iter()
+            .take(3)
+            .map(|n| format!("`{n}`"))
+            .collect::<Vec<_>>()
+            .join(", "),
+        if others.len() > 3 { ", and more" } else { "" }
+    );
+    if !marked {
+        anyhow::bail!(
+            "{} already holds files sv did not write ({named}), so sv does not write its report \
+             there. Give an empty folder, or a new one, with --out.",
+            out_dir.display()
+        );
+    }
+    if let Err(why) = report_seal::sealed_here(out_dir) {
+        anyhow::bail!(
+            "{} carries sv's marker and also holds files sv did not write ({named}), and sv cannot \
+             show it wrote the report there: {why}. A marker can be copied into any folder, so sv \
+             does not write its report there. Give an empty folder, or a new one, with --out.",
+            out_dir.display()
+        );
+    }
+    Ok(())
+}
+
+/// Whether `name` is one of `ours` part-written by `write_without_following` (`.report.json.sv-4321`):
+/// what a run stopped while writing leaves, and what a run writing at that moment has. Seen when two
+/// runs started together: the second found the first's marker half-written, in a folder not yet
+/// marked, and called the folder someone else's.
+pub fn is_staging(name: &str, ours: &[&str]) -> bool {
+    name.strip_prefix('.')
+        .and_then(|rest| rest.rsplit_once(".sv-"))
+        .is_some_and(|(base, pid)| {
+            ours.contains(&base) && !pid.is_empty() && pid.bytes().all(|b| b.is_ascii_digit())
+        })
+}
+
+/// What to do about a link where a report file or folder goes.
+pub const REPORT_LINK: &str = "Remove the link, or give a folder of your own with --out.";
+
+pub mod mcp;
