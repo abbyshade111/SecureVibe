@@ -186,6 +186,7 @@ RUST_CHECKS = {
     "probe.account-details-sent-elsewhere": ("signed-in", ["V14.2.3"]),
     "probe.preflight-skipped": ("signed-in", ["V3.5.2"]),
     "probe.session-id-weak": ("signed-in", ["V7.2.3"]),
+    "probe.session-token-static": ("signed-in", ["V7.2.2"]),
     "probe.password-altered": ("signed-in", ["V6.2.8"]),
     "probe.long-password-refused": ("signed-in", ["V6.2.9"]),
     "probe.password-field-unmasked": ("signed-in", ["V6.2.6"]),

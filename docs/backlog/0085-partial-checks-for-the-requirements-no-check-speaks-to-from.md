@@ -374,3 +374,9 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     sessions are not one static key. The static half (a key built into the browser's code) is not part of this.
     **Record, `Status: proposed`: ADR-067.** Checked just before this claim: not on `main`, in no open pull request,
     and in no recent branch.
+    **Done on 8 October 2026** (DESIGN, "A session that is one fixed key (8 October 2026)"; ADR-067, accepted).
+    `probe.session-token-static` compares each cookie the sign-in set, and the token when there is one, between two
+    sign-ins of the first test user: the same value twice is a finding, and every one different, with the new session
+    opening a private page, is credited. Not three sign-ins of two users, as claimed: the run's promised limit of 60
+    sign-ins was already reached in the busiest test, and a key fixed for everybody shows at two sign-ins of one
+    person. Not done: the static half.
