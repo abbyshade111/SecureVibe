@@ -1,0 +1,48 @@
+# The fuzzing targets for the readers of untrusted input (ADR-077). A crate of its own, outside the
+# workspace, so `cargo test --workspace`, the build, and the image gain nothing from it. It needs
+# Rust's nightly toolchain: `cargo +nightly fuzz run <target>`.
+[package]
+name = "sv-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+sv-check = { path = "../crates/sv-check" }
+sv-cli = { path = "../crates/sv-cli" }
+sv-manifest = { path = "../crates/sv-manifest" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "mcp_line"
+path = "fuzz_targets/mcp_line.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "manifest"
+path = "fuzz_targets/manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "lockfiles"
+path = "fuzz_targets/lockfiles.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "tool_reports"
+path = "fuzz_targets/tool_reports.rs"
+test = false
+doc = false
+bench = false
