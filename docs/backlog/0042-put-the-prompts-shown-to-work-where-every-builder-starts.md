@@ -1,6 +1,6 @@
 # Put the prompts shown to work where every builder starts
 
-**Status:** claimed by paper-facts, as its markers read on 8 October 2026
+**Status:** done, 8 October 2026
 
 Found on 6 October 2026 by session paper-facts, in
 the delivery test: a prompt pasted into the request did better than the same prompt fetched mid-build in every
@@ -34,3 +34,8 @@ them built again after the credit ran out. All four revisions kept. `isolate-the
 then 0 of 10) and `security-contact` on Haiku (8 of 8, then 0 of 9), both marked shown by the owner the same day;
 `production-server` and `limits-without-asking` not shown. No harm. With the shown prompts at the start, Haiku's
 missing headers and committable `.env` were already gone without anything pasted.
+**Done**, closed on 8 October 2026 by session paper-facts, whose claim had stayed open: the shown prompts are at the
+start of the MCP server's instructions and the specification, read from `data/prompts.json`; the start test, the
+reviews and the revision trial are written up above. The finding left for the owner was settled on 7 October 2026:
+`ast.weak-password-key-derivation` cites V11.4.2 as well as V11.4.4, and `password-hashing` cites V11.4.2 (commit
+`58e6fc80`, ADR-048).
