@@ -192,3 +192,5 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    than leaving its signature silently unread. Confirmed on `main` just before this claim: the field is a `String`
    read with `Condition::from_name` and skipped when unknown (`sv-scan/src/lib.rs`), every name in both files is
    known today, and no other session had claimed this part. The rest of item 12 stays open.
+   **That part done the same day** (`docs/design/0318-a-signature-s-condition-is-a-condition-9-october.md`): the field
+   is a `Condition`, and a misspelled name stops the load with the name. The rest of item 12 is open.
