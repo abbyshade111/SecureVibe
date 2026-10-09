@@ -132,7 +132,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.1.2 | L2 | Reads the code: `config.versions-pinned`, `sbom` |
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.2.4 | L3 | Reads the code: `ast.download-piped-to-shell` (sv only ever as a finding: `ast.download-piped-to-shell`) |
-| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
+| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
 | V16.5.3 | L2 | Reads the code: `ast.check-passes-on-error` (sv only ever as a finding: `ast.check-passes-on-error`) |
 
 ### Settled by asking the running app (115)
@@ -214,7 +214,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V7.5.1 | L2 | Signed in: `probe.email-change-without-password` |
 | V8.2.1 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.private-page-anonymous`, `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`) |
 | V8.2.2 | L1 | Reads the code: `config.firebase-rules-open`, `config.supabase-table-without-rls`, `config.supabase-policy-allows-all`; Signed in: `probe.owner-field-trusted`, `probe.other-users-data` (sv only ever as a finding: `config.firebase-rules-open`, `config.supabase-policy-allows-all`, `config.supabase-table-without-rls`, `probe.owner-field-trusted`) |
-| V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.owner-field-trusted`, `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
+| V8.2.3 | L2 | Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.record-returns-secret-fields`, `probe.role-field-trusted`) |
 | V8.4.2 | L3 | The running app: `probe.admin-opened-by-address` (sv only ever as a finding: `probe.admin-opened-by-address`) |
 | V9.1.1 | L1 | Reads the code: `ast.token-signature-not-checked`; Signed in: `probe.app-token-signature-not-checked`, `probe.app-token-placeholder-key`; Outside tools: `semgrep`, `codeql-javascript` (sv only ever as a finding: `ast.token-signature-not-checked`, `probe.app-token-placeholder-key`) |
 | V9.1.2 | L1 | Signed in: `probe.app-token-alg-none`; Outside tools: `semgrep` |
@@ -243,7 +243,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V15.2.3 | L2 | Reads the code: `config.development-server-started`; The running app: `probe.development-console-open` (sv only ever as a finding: `config.development-server-started`, `probe.development-console-open`) |
 | V15.3.1 | L1 | Signed in: `probe.record-returns-secret-fields` (sv only ever as a finding: `probe.record-returns-secret-fields`) |
 | V15.3.2 | L2 | The running app: `probe.fetch-follows-redirect` |
-| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
+| V15.3.3 | L2 | Reads the code: `ast.request-body-passed-whole`; Signed in: `probe.role-field-trusted`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`; Outside tools: `brakeman`, `semgrep` (sv only ever as a finding: `ast.request-body-passed-whole`, `probe.email-change-role-trusted`, `probe.owner-field-trusted`, `probe.role-field-trusted`) |
 | V15.3.4 | L2 | Signed in: `probe.forwarded-for-trusted` (sv only ever as a finding: `probe.forwarded-for-trusted`) |
 | V16.2.1 | L2 | Signed in: `probe.log-line-metadata` |
 | V16.2.2 | L2 | Signed in: `probe.log-timestamp-zoned` |
@@ -299,7 +299,7 @@ Every rule a pack loads reads files `sv` hands semgrep: the app's code files, te
 | V2.3.4 | L2 | Signed in: `probe.action-done-twice` |
 | V5.4.3 | L2 | Signed in: `probe.upload-not-scanned` |
 | V6.2.12 | L2 | Signed in: `probe.breached-password-accepted` |
-| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted` (sv only ever as a finding: `probe.role-field-trusted`) |
+| V8.3.1 | L1 | Signed in: `probe.admin-page-ordinary-user`, `probe.admin-action-ordinary-user`, `probe.role-field-trusted`, `probe.email-change-role-trusted` (sv only ever as a finding: `probe.email-change-role-trusted`, `probe.role-field-trusted`) |
 | V11.1.1 | L2 | Reads the code: `secrets.private-key-block` |
 | V12.2.2 | L1 | Your own live site: `probe.certificate-not-trusted` |
 | V13.3.1 | L2 | Reads the code: `secrets.anthropic-key`, `secrets.openai-key`, `secrets.huggingface-token`, `secrets.aws-access-key` and 22 more; Outside tools: `bandit`, `gosec`, `brakeman`, `semgrep` (sv only ever as a finding: `config.secret-under-public-name`, `secrets.credential-assignment`, `secrets.password-in-url`) |
