@@ -158,6 +158,12 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    **Done the same day** (DESIGN, "An AI agent's limit, asked through the app's own read-only tool"; ADR-045,
    accepted). With `read-only = true` on the record tool, the test model asks for it again after every result, and the
    rounds are judged as the MCP loop's are; without it the tool is never called in a loop.
+   **C9.1.1's timeouts claimed on 9 October 2026 by session paper-facts**, at the owner's word ("go ahead with part 9,
+   yes"), in branch `claude/tool-timeout`: the test MCP tool `sv_lookup` holds its answer, as the held AI message is
+   held, and an app that answers by itself within the time StackVet waits, while the tool is shown to be held, is
+   credited for C9.1.1 in part (execution time, one tool; CPU, memory, disk and egress cannot be seen from outside).
+   No finding: no answer in time cannot tell a longer limit from none. **Record, `Status: proposed`: ADR-064.**
+   Checked just before this claim: not on `main`, in no open pull request, and in no recent branch.
 10. **The AI service failing (V16.5.2, V16.5.3; C7.1.1 where the app asks for a structured answer).** The test
     model answers with an error, a timeout, or malformed JSON; credit when the app shows a plain error, keeps
     working, and passes on neither the raw error nor the bad structure.
