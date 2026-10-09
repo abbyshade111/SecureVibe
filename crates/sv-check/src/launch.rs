@@ -21,6 +21,7 @@ use sv_scan::files::{Entry, Listing};
 
 pub const DEV_SERVER: &str = "config.development-server-started";
 pub const MCP_UNPINNED: &str = "config.mcp-server-unpinned";
+pub const MCP_PLAIN_HTTP: &str = "config.mcp-transport-unencrypted";
 
 /// Runs both checks over the app's files.
 pub fn check(listing: &Listing, report: &mut ConfigReport) {
@@ -407,6 +408,117 @@ fn dev_server_finding(file: &str, line: usize, what: &str, command: &str) -> Fin
 }
 
 // ---------------------------------------------------------------------------------------------
+// C10.3.1: an MCP link to another computer over plain HTTP (ADR-068).
+
+/// An MCP client transport opened with a plain-HTTP address as its first argument, in the ways
+/// the official SDKs and the common agent libraries write one: TypeScript's
+/// `new StreamableHTTPClientTransport(new URL("http://…"))`, Python's `streamablehttp_client("http://…")`.
+static TRANSPORT_OPENED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"\b(?:StreamableHTTPClientTransport|SSEClientTransport|streamablehttp_client|streamable_http_client|sse_client|MCPServerStreamableHttp|MCPServerSse)\s*\(\s*(?:new\s+URL\s*\(\s*)?["'](http://[^"'\s]+)["']"#,
+    )
+    .expect("a fixed pattern")
+});
+
+/// An MCP server's address given as a `url` (or `serverUrl`, `server_url`), as configuration files
+/// and the agent libraries' server tables write one. Counted only with MCP named shortly before it.
+static ADDRESS_GIVEN: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"["']?\b(?:url|serverUrl|server_url)["']?\s*[:=]\s*["'](http://[^"'\s]+)["']"#)
+        .expect("a fixed pattern")
+});
+
+/// Whether a plain-HTTP address names a computer other than this one or one on its own network:
+/// loopback, private and link-local addresses, `.localhost`, `.local` and `.internal` names, and a
+/// name with no dot never leave it. A name with no dot is `localhost`, a service on the same Docker
+/// network, or one built at run time (`${HOST}`), which is not judged.
+fn leaves_the_network(address: &str) -> bool {
+    // Only plain HTTP: the patterns match nothing else, and this holds even if one is widened.
+    let Some(rest) = address.strip_prefix("http://") else {
+        return false;
+    };
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or("");
+    let authority = authority.rsplit('@').next().unwrap_or("");
+    let host = if let Some(inner) = authority.strip_prefix('[') {
+        inner.split(']').next().unwrap_or("")
+    } else {
+        authority.split(':').next().unwrap_or("")
+    }
+    .to_ascii_lowercase();
+    if !host.contains(['.', ':']) {
+        return false;
+    }
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        return match ip {
+            std::net::IpAddr::V4(v4) => {
+                !(v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified())
+            }
+            std::net::IpAddr::V6(v6) => !(v6.is_loopback() || v6.is_unspecified()),
+        };
+    }
+    !(host.ends_with(".localhost") || host.ends_with(".local") || host.ends_with(".internal"))
+}
+
+/// Every plain-HTTP MCP link to another computer in one file's text, with its line.
+fn plain_mcp_links_in(text: &str) -> Vec<(usize, String)> {
+    let mut out: Vec<(usize, String)> = Vec::new();
+    let line_of = |at: usize| text[..at].matches('\n').count() + 1;
+    for found in TRANSPORT_OPENED.captures_iter(text) {
+        let address = found.get(1).expect("the address");
+        out.push((line_of(address.start()), address.as_str().to_owned()));
+    }
+    for found in ADDRESS_GIVEN.captures_iter(text) {
+        let address = found.get(1).expect("the address");
+        let before = text
+            .get(address.start().saturating_sub(400)..address.start())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        if before.contains("mcp") {
+            out.push((line_of(address.start()), address.as_str().to_owned()));
+        }
+    }
+    out.retain(|(_, address)| leaves_the_network(address));
+    out.sort();
+    out.dedup();
+    out
+}
+
+#[track_caller]
+fn plain_http_finding(file: &str, line: usize, address: &str) -> Finding {
+    crate::finding::found(Finding {
+        also_reported_by: Vec::new(),
+        fingerprint: String::new(),
+        earlier_fingerprints: Vec::new(),
+        marked_test_code: false,
+        bundled_library: None,
+        outranked: None,
+        also_on_this_line: Vec::new(),
+        rule_id: "config.mcp-transport-unencrypted".into(),
+        title: "An MCP server on another computer is reached over plain HTTP".into(),
+        severity: Severity::Medium,
+        confidence: Confidence::Medium,
+        location: Location {
+            file: file.to_owned(),
+            line,
+        },
+        secret: None,
+        requirement_ids: vec!["C10.3.1".into()],
+        cwe: vec!["CWE-319".into()],
+        description: format!(
+            "The app connects to an MCP server at `{address}`, which is plain HTTP to another \
+             computer: nothing on the link is encrypted."
+        ),
+        impact: "Every tool call, every result, and the token the link is opened with can be read \
+                 and changed by anybody on the network between the app and the server."
+            .into(),
+        fix: "Reach the server at an `https://` address over the streamable HTTP transport, and \
+              have it ask for a token on every request (OAuth 2.1, as the MCP specification \
+              describes); if the server is yours and runs beside the app, keep it on the app's own \
+              network instead."
+            .into(),
+    })
+}
+
+// ---------------------------------------------------------------------------------------------
 // C10.1.1: MCP servers started from a package or image with no pinned version.
 
 /// Files and folders that configure a developer's own AI tools, not the app. What they start runs
@@ -669,6 +781,11 @@ fn mcp_servers(listing: &Listing, report: &mut ConfigReport) {
             }
         };
         read += 1;
+        for (line, address) in plain_mcp_links_in(&text) {
+            report
+                .findings
+                .push(plain_http_finding(&entry.relative, line, &address));
+        }
         if !text.contains("command") {
             continue;
         }
@@ -1120,6 +1237,91 @@ mod tests {
             1,
             "{:?}",
             report.findings
+        );
+    }
+
+    #[test]
+    fn a_plain_http_mcp_link_to_another_computer_is_found_and_nothing_local_is() {
+        // ADR-068, C10.3.1.
+        let dir = scratch("mcp-plain");
+        fs::create_dir_all(dir.join("src")).unwrap();
+        fs::create_dir_all(dir.join("docs")).unwrap();
+        // Found: a transport opened in TypeScript and in Python, and a server's address in the
+        // app's configuration, each written its own way.
+        fs::write(
+            dir.join("src/client.ts"),
+            "import { Client } from '@modelcontextprotocol/sdk/client/index.js';\n\
+             const transport = new StreamableHTTPClientTransport(new URL(\"http://tools.example.com/mcp\"));\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("src/agent.py"),
+            "async with streamablehttp_client('http://203.0.113.5:8000/mcp') as (read, write, _):\n    pass\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("mcp_config.json"),
+            "{\"mcpServers\": {\n  \"remote\": {\"serverUrl\": \"http://mcp.example.org/mcp\"}\n}}\n",
+        )
+        .unwrap();
+        // Not found: encrypted; this computer; a service on the app's own network; a private
+        // address; an address built at run time; a link in a file that says nothing of MCP; and the
+        // AI coding tool's own file, which is ADR-049's.
+        fs::write(
+            dir.join("src/fine.ts"),
+            "const a = new StreamableHTTPClientTransport(new URL('https://tools.example.com/mcp'));\n\
+             const b = new StreamableHTTPClientTransport(new URL('http://localhost:3001/mcp'));\n\
+             const c = new SSEClientTransport(new URL('http://mcp-server:8080/sse'));\n\
+             const d = new StreamableHTTPClientTransport(new URL('http://192.168.1.4/mcp'));\n\
+             const e = new StreamableHTTPClientTransport(new URL('http://${MCP_HOST}/mcp'));\n\
+             const f = new StreamableHTTPClientTransport(new URL('http://127.0.0.1:9000/mcp'));\n\
+             const g = new StreamableHTTPClientTransport(new URL('http://tools.localhost/mcp'));\n\
+             const h = new StreamableHTTPClientTransport(new URL('http://host.docker.internal/mcp'));\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("docs/links.json"),
+            "{\"homepage\": {\"url\": \"http://example.com/about\"}}\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join(".mcp.json"),
+            "{\"mcpServers\": {\"x\": {\"url\": \"http://tools.example.com/mcp\"}}}\n",
+        )
+        .unwrap();
+        let report = run(&dir);
+        let mut hits: Vec<(String, usize)> = found(&report, MCP_PLAIN_HTTP)
+            .iter()
+            .map(|f| (f.location.file.clone(), f.location.line))
+            .collect();
+        hits.sort();
+        assert_eq!(
+            hits,
+            [
+                ("mcp_config.json".to_owned(), 2),
+                ("src/agent.py".to_owned(), 1),
+                ("src/client.ts".to_owned(), 2)
+            ],
+            "{:?}",
+            report.findings
+        );
+        let f = found(&report, MCP_PLAIN_HTTP)[0];
+        assert_eq!(f.requirement_ids, ["C10.3.1"]);
+        // Only ever a finding: a clean reading credits nothing.
+        for f in ["src/client.ts", "src/agent.py", "mcp_config.json"] {
+            fs::remove_file(dir.join(f)).unwrap();
+        }
+        let clean = run(&dir);
+        assert!(
+            found(&clean, MCP_PLAIN_HTTP).is_empty(),
+            "{:?}",
+            clean.findings
+        );
+        assert!(
+            !clean.passed.iter().any(|v| v.check_id == MCP_PLAIN_HTTP
+                || v.requirement_ids.iter().any(|q| q == "C10.3.1")),
+            "{:?}",
+            clean.passed
         );
     }
 
