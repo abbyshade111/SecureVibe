@@ -202,6 +202,8 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    than leaving its signature silently unread. Confirmed on `main` just before this claim: the field is a `String`
    read with `Condition::from_name` and skipped when unknown (`sv-scan/src/lib.rs`), every name in both files is
    known today, and no other session had claimed this part. The rest of item 12 stays open.
+   **That part done the same day** (`docs/design/0318-a-signature-s-condition-is-a-condition-9-october.md`): the field
+   is a `Condition`, and a misspelled name stops the load with the name. The rest of item 12 is open.
    **Its fourth part, `AstRule`'s schema, claimed 9 October 2026 by session securevibe-e2**, from the roadmap (Phase 2,
    item 12, the first unclaimed part in its order once `not_for_tests` was claimed by securevibe-e9; the third part,
    `Verified::new` logging the kind of run, is passed over for now because shrinking the mirror needs a decision on
@@ -210,8 +212,12 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    fails when the list and the fields the loader accepts differ, read from the loader's own refusal of an unknown
    field. Confirmed on `main` just before this claim: the fields are described only by `AstRule`'s comments, and no
    other session holds this part.
-   **That part done the same day** (`docs/design/0318-a-signature-s-condition-is-a-condition-9-october.md`): the field
-   is a `Condition`, and a misspelled name stops the load with the name. The rest of item 12 is open.
+   **That part done the same day**: `data/README.md` has a section, "The fields of a rule in `ast-rules.json`",
+   listing each of the 32 fields in plain words, grouped by what it does, and
+   `crates/sv-check/tests/ast_rule_schema.rs` reads the fields the loader accepts from its own refusal of an unknown
+   field and fails when the two lists differ in either direction. Broken three ways (a field dropped from the list,
+   one the code lacks, one added to `AstRule`): each caught by that test, naming the field. The rest of item 12 is
+   open.
    **Its second part, `not_for_tests` moved, claimed 9 October 2026 by session securevibe-e9**, from the roadmap
    (Phase 2, item 12, the next unclaimed part in its order), in branch `claude/stackvet-e9-not-for-tests`: the rule for
    what an application's own tests cannot show (a requirement classed as documentation or deployment, the AISVS
@@ -224,3 +230,13 @@ top, so that two sessions claiming on the same day stop colliding on the same li
    in `sv-frameworks`, called by the CLI, and `crates/sv-frameworks/tests/not_for_tests.rs`, which holds each of its four
    reasons on a requirement only that reason covers. Before it, nothing in the workspace failed when the rule held for
    nothing. The rest of item 12 is open.
+   **Its fifth part, the anonymous probes sent in one go, claimed 9 October 2026 by session securevibe-e9**, from the
+   roadmap (Phase 2, item 12, the next unclaimed part: the third waits on a decision, as securevibe-e2 noted, and the
+   fourth is theirs), in branch `claude/stackvet-e9-probes-in-one`. Not `probe_together` as it stands, which starts
+   every request at the same moment: that would change what the anonymous probes measure, since an app that falters
+   under thirty connections at once would be reported as crashing. Instead the anonymous requests go into the fence
+   in one call, as `probe_together`'s do, and are sent there one after another, in the same order, each waiting for
+   its answer, so the app sees what it saw before and the run pays for one container call rather than one each. A
+   rate limiter's answer is still waited out and the request sent again, alone, as now. Measured before and after
+   with Docker. Confirmed on `main` just before this claim: each anonymous request is its own container call
+   (`ask_anonymously_within`), and no other session holds this part.
