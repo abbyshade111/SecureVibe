@@ -11121,6 +11121,196 @@
       "finished_exits": [
         0
       ]
+    },
+    {
+      "id": "codeql-ruby",
+      "name": "CodeQL (Ruby)",
+      "language": "ruby",
+      "version": {
+        "command": "codeql",
+        "args": [
+          "version",
+          "--format=terse"
+        ]
+      },
+      "prepare": {
+        "command": "codeql",
+        "args": [
+          "database",
+          "create",
+          "{database}",
+          "--language=ruby",
+          "--source-root",
+          "{dir}",
+          "--overwrite",
+          "--threads=0"
+        ]
+      },
+      "run": {
+        "command": "codeql",
+        "args": [
+          "database",
+          "analyze",
+          "{database}",
+          "codeql/ruby-queries:codeql-suites/ruby-security-extended.qls",
+          "--format=sarif-latest",
+          "--output",
+          "{output}",
+          "--threads=0"
+        ]
+      },
+      "install": "download the CodeQL bundle from https://github.com/github/codeql-action/releases, unpack it, and put its `codeql` on your PATH",
+      "note": "Follows a value from where it enters the app to where it is used (taint tracking), which is what a rule matching one call cannot do. Runs the security-extended suite from the bundle, offline, reading the code without building it. Exit code 0 is the only finished run. Tried on 9 October 2026 with CodeQL 2.27.2 the way ADR-032 tries a tool (ADR-078): with a planted Gemfile, Rakefile, bin/bundle, and bin/setup that would each leave a mark, building the database ran none of them, and with no network at all it finished with the same results as with one, and a planted link to a file and to a folder outside the app left nothing of either in the database, so it needs neither a guard nor `follows_links`. Its models are strongest for Rails: on a Rails controller it found nine problems, on a plain Sinatra file none.",
+      "credit_loaded_only": true,
+      "rules": {
+        "rb/clear-text-logging-sensitive-data": {
+          "what": "sensitive data such as credentials written to logs",
+          "requirements": [
+            "V16.2.5"
+          ]
+        },
+        "rb/code-injection": {
+          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "rb/command-line-injection": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "rb/csrf-protection-disabled": {
+          "what": "cross-site request forgery protection turned off",
+          "requirements": [
+            "V3.5.1"
+          ]
+        },
+        "rb/html-constructed-from-input": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "rb/insecure-mass-assignment": {
+          "what": "request parameters permitted wholesale (permit!) and passed to a model, so a request can set any field",
+          "requirements": [
+            "V15.3.3"
+          ]
+        },
+        "rb/kernel-open": {
+          "what": "user input reaching Kernel.open, IO.read, or a similar call, which runs a command when the name starts with a pipe (|)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "rb/log-injection": {
+          "what": "log injection: user input written to a log without encoding, so it can forge or break log entries",
+          "requirements": [
+            "V16.4.1"
+          ]
+        },
+        "rb/path-injection": {
+          "what": "a file path built from user-submitted data (path traversal)",
+          "requirements": [
+            "V5.3.2"
+          ]
+        },
+        "rb/polynomial-redos": {
+          "what": "a regular expression open to exponential backtracking (ReDoS)",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "rb/redos": {
+          "what": "a regular expression open to exponential backtracking (ReDoS)",
+          "requirements": [
+            "V1.3.12"
+          ]
+        },
+        "rb/reflected-xss": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "rb/regexp-injection": {
+          "what": "a regular expression built from user input without escaping its special characters, so they are read as metacharacters",
+          "requirements": [
+            "V1.2.9"
+          ]
+        },
+        "rb/request-forgery": {
+          "what": "a server-side request to a URL taken from untrusted data (server-side request forgery)",
+          "requirements": [
+            "V1.3.6"
+          ]
+        },
+        "rb/request-without-cert-validation": {
+          "what": "TLS certificate validation turned off in a client",
+          "requirements": [
+            "V12.3.2"
+          ]
+        },
+        "rb/shell-command-constructed-from-input": {
+          "what": "an operating system command built from data that may be untrusted (OS command injection)",
+          "requirements": [
+            "V1.2.5"
+          ]
+        },
+        "rb/sql-injection": {
+          "what": "a database query built from strings rather than parameterized (SQL or NoSQL injection)",
+          "requirements": [
+            "V1.2.4"
+          ]
+        },
+        "rb/stored-xss": {
+          "what": "HTML output built without output encoding for its context (cross-site scripting)",
+          "requirements": [
+            "V1.2.1"
+          ]
+        },
+        "rb/tainted-format-string": {
+          "what": "a format string built from untrusted input",
+          "requirements": [
+            "V1.3.10"
+          ]
+        },
+        "rb/unsafe-code-construction": {
+          "what": "dynamic code execution, such as eval, on data that may be untrusted",
+          "requirements": [
+            "V1.3.2"
+          ]
+        },
+        "rb/unsafe-deserialization": {
+          "what": "deserialization of untrusted data into arbitrary objects",
+          "requirements": [
+            "V1.5.2"
+          ]
+        },
+        "rb/url-redirection": {
+          "what": "a redirect to a destination taken from the request (open redirect)",
+          "requirements": [
+            "V3.7.2"
+          ]
+        },
+        "rb/weak-sensitive-data-hashing": {
+          "what": "a disallowed hash function such as MD5 or SHA1",
+          "requirements": [
+            "V11.4.1"
+          ]
+        },
+        "rb/xxe": {
+          "what": "an XML parser that resolves external entities (XXE)",
+          "requirements": [
+            "V1.5.1"
+          ]
+        }
+      },
+      "finished_exits": [
+        0
+      ]
     }
   ]
 }
