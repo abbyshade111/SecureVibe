@@ -121,6 +121,15 @@ jobs:
           sudo systemctl restart docker
           docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
 
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
+        # ask Docker Hub at all. Before the sign-in below: signed in, the first runs could not fetch
+        # them in a second, and a fetch that fails here leaves the build to try for itself, signed in.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
+          done
+
       - name: Sign in to Docker Hub, when this run has the repository's token
         # The base images come from Docker Hub, which limits anonymous downloads: from 20:48 UTC on
         # 9 October 2026 every image build failed in seconds, refused with "too many requests"
@@ -140,14 +149,6 @@ jobs:
           else
             echo "No Docker Hub token in this run: the base images are downloaded anonymously."
           fi
-
-      - name: Fetch the Dockerfile's base images before the build
-        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
-        # ask Docker Hub at all.
-        run: |
-          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
-            docker pull "$image"
-          done
 
       - name: Build the image
         run: docker build --build-arg SV_GIT_COMMIT=${{ github.sha }} -t stackvet/sv .
@@ -241,6 +242,15 @@ jobs:
           sudo systemctl restart docker
           docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
 
+      - name: Fetch the Dockerfile's base images before the build
+        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
+        # ask Docker Hub at all. Before the sign-in below: signed in, the first runs could not fetch
+        # them in a second, and a fetch that fails here leaves the build to try for itself, signed in.
+        run: |
+          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
+            docker pull "$image" || echo "::warning::Could not fetch $image ahead of the build; the build will try."
+          done
+
       - name: Sign in to Docker Hub, when this run has the repository's token
         # As in the image job above (ADR-051, Later, 9 October 2026).
         env:
@@ -255,14 +265,6 @@ jobs:
           else
             echo "No Docker Hub token in this run: the base images are downloaded anonymously."
           fi
-
-      - name: Fetch the Dockerfile's base images before the build
-        # Through the mirror, by their pinned fingerprints, so the build finds them here and does not
-        # ask Docker Hub at all.
-        run: |
-          for image in $(awk '/^FROM/ {print $2}' Dockerfile); do
-            docker pull "$image"
-          done
 
       - name: Build the image
         # The source label ties the package to this repository on GitHub, so it is listed there and
