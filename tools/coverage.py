@@ -114,6 +114,7 @@ RUST_CHECKS = {
     "probe.ai-kill-switch-ignored": ("running", ["C9.6.1"]),
     "probe.ai-mcp-output-unvalidated": ("running", ["C10.4.1", "C9.3.2"]),
     "probe.ai-mcp-injection-unscreened": ("running", ["C10.4.2"]),
+    "probe.ai-stored-injection-unscreened": ("running", ["C2.1.3"]),
     "probe.ai-input-truncated": ("running", ["C2.1.4"]),
     "probe.ai-injection-other-languages": ("running", ["C2.2.2"]),
     "probe.ai-hidden-content-passed": ("running", ["C7.3.4"]),
@@ -143,6 +144,7 @@ RUST_CHECKS = {
     "probe.unused-method-accepted": ("running", ["V4.1.4"]),
     "probe.jsonp-enabled": ("running", ["V3.5.6"]),
     "probe.docs-or-monitoring-exposed": ("running", ["V13.4.5"]),
+    "probe.log-file-served": ("running", ["V16.4.2"]),
     "probe.development-console-open": ("running", ["V15.2.3", "V13.4.2"]),
     "probe.version-disclosed": ("running", ["V13.4.6"]),
     "probe.reflected-unencoded": ("running", ["V1.2.1"]),
@@ -273,6 +275,11 @@ RUST_CHECKS = {
 # Checks in RUST_CHECKS that only ever raise their requirement as a finding: a clean run of one
 # credits nothing, because what would settle the requirement is not in anything the check reads.
 RUST_FINDINGS_ONLY = {
+    # One stored pattern screened out, or a note the search did not hand over, is not every way of
+    # writing one (gap analysis finding 13(e)).
+    "probe.ai-stored-injection-unscreened",
+    # Nine guessed addresses cannot show that no log is served (ADR-072).
+    "probe.log-file-served",
     # No list of what a page loads is complete, so finding none shows nothing (ADR-070).
     "config.client-tech-unsupported",
     # An `https://` address shows neither that the link is authenticated nor that it is the only one

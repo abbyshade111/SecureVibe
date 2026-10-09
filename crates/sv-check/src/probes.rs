@@ -243,6 +243,13 @@ pub fn requests(health_path: &str) -> Vec<ProbeRequest> {
         headers: Vec::new(),
         body: None,
     }))
+    .chain(LOG_PATHS.iter().map(|path| ProbeRequest {
+        id: log_id(path),
+        method: "GET".into(),
+        path: (*path).to_owned(),
+        headers: Vec::new(),
+        body: None,
+    }))
     .chain(EXPOSED_PATHS.iter().map(|path| ProbeRequest {
         id: exposed_id(path),
         method: "GET".into(),
@@ -447,6 +454,7 @@ pub fn evaluate(responses: &[ProbeResponse]) -> Vec<Finding> {
     out.extend(jsonp(responses));
     out.extend(reflected(responses));
     out.extend(exposed_endpoints(responses));
+    out.extend(served_logs(responses));
     out.extend(development_console(responses));
     out.extend(version_disclosed(responses));
     out.extend(opener_policy(responses));
@@ -1617,6 +1625,104 @@ const EXPOSED_PATHS: &[&str] = &[
     "/nginx_status",
     "/phpinfo.php",
 ];
+
+/// Where frameworks and servers commonly leave the app's log files, asked for by somebody not signed
+/// in (V16.4.2, ADR-072).
+const LOG_PATHS: &[&str] = &[
+    "/logs/",
+    "/log/",
+    "/logs/app.log",
+    "/log/production.log",
+    "/storage/logs/laravel.log",
+    "/error.log",
+    "/debug.log",
+    "/npm-debug.log",
+    "/var/log/app.log",
+];
+
+fn log_id(path: &str) -> String {
+    format!("log-{}", path.trim_matches('/').replace(['/', '.'], "-"))
+}
+
+/// A line that starts the way log lines do: an ISO date and time (`2026-10-09 12:00`,
+/// `[2026-10-09T12:00`), or syslog's `Oct  9 12:00:01`.
+static LOG_LINE_START: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(
+        r"^\[?(?:\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}|[A-Z][a-z]{2} +\d{1,2} \d{2}:\d{2}:\d{2})",
+    )
+    .expect("a fixed pattern")
+});
+
+/// The common log format's time, which follows the client's address:
+/// `10.0.0.1 - - [09/Oct/2026:12:00:01 +0000]`.
+static ACCESS_LOG_TIME: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r"\[\d{2}/[A-Z][a-z]{2}/\d{4}:\d{2}:\d{2}:\d{2}").expect("a fixed pattern")
+});
+
+/// A level word beside a date anywhere on the line: `level=error ts=2026-10-09…`, `{"level":"info",
+/// "time":"2026-10-09…"}`.
+static LEVEL_WITH_DATE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r"(?i)\b(?:info|warn|warning|error|debug|fatal|trace)\b.*\d{4}-\d{2}-\d{2}|\d{4}-\d{2}-\d{2}.*\b(?:INFO|WARN|WARNING|ERROR|DEBUG|FATAL|TRACE)\b")
+        .expect("a fixed pattern")
+});
+
+/// Whether an answer reads as a log: at least three lines that each start as a log line does, carry
+/// the common log format's time, or carry a level word beside a date. A page of HTML never does, a
+/// listing of a logs folder included, whose rows carry dates and which `probe.directory-listing`
+/// finds itself.
+fn reads_as_log(body: &str) -> bool {
+    let start = body.trim_start().to_ascii_lowercase();
+    if start.starts_with('<') || start.contains("<html") || start.contains("<a href") {
+        return false;
+    }
+    body.lines()
+        .filter(|l| {
+            LOG_LINE_START.is_match(l.trim_start())
+                || ACCESS_LOG_TIME.is_match(l)
+                || LEVEL_WITH_DATE.is_match(l)
+        })
+        .count()
+        >= 3
+}
+
+const LOG_SERVED: Rule = Rule {
+    rule_id: "probe.log-file-served",
+    confidence: Confidence::High,
+    requirement_ids: &["V16.4.2"],
+    cwe: &["CWE-538"],
+    impact: "The app's log is handed to anybody who asks for it, with whatever it holds: sessions \
+             and tokens, email addresses, the errors that show how the app is built.",
+    fix: "Write logs outside every folder the web server serves, or to a logging service, and \
+          make sure no route answers with a log file. Remove any log already left where it is \
+          served.",
+};
+
+/// Log files answered to somebody not signed in (V16.4.2). Only a finding: nine guesses are nine
+/// guesses.
+fn served_logs(responses: &[ProbeResponse]) -> Option<Finding> {
+    let found: Vec<&str> = LOG_PATHS
+        .iter()
+        .filter(|path| {
+            responses
+                .iter()
+                .find(|r| r.id == log_id(path))
+                .is_some_and(|r| (200..300).contains(&r.status) && reads_as_log(&r.body))
+        })
+        .copied()
+        .collect();
+    if found.is_empty() {
+        return None;
+    }
+    Some(finding(
+        &LOG_SERVED,
+        "The app's log file is served to anybody who asks",
+        Severity::High,
+        format!(
+            "Asked as somebody not signed in, the app answered {} with lines that read as a log.",
+            found.join(", ")
+        ),
+    ))
+}
 
 fn exposed_id(path: &str) -> String {
     format!(

@@ -49,7 +49,7 @@ fn has_word_answers_as_the_pattern_it_replaced_did() {
 
 /// What the fake app gets wrong, or does differently, one switch each.
 #[derive(Default, Clone, Copy)]
-struct Flaws {
+pub(super) struct Flaws {
     /// Its requests to the model set no maximum length.
     unbounded: bool,
     /// It passes every reply on as it came, instructions and all.
@@ -190,6 +190,9 @@ struct Flaws {
     retrieval_ignores_user: bool,
     /// It holds back, from the answer, any private marker that is not the caller's own (C5.2.4).
     reply_filters_others: bool,
+    /// Its search hands the model a note as it was saved, a prompt injection in it included; without
+    /// this, it takes the injection's words out first, as its screen does for what is typed.
+    pub(super) notes_unscreened: bool,
     /// Its record tool finds nothing for anybody, the caller's own records included.
     record_tool_broken: bool,
     /// It asks the model for an answer that fits a JSON schema, and checks the answer against
@@ -289,6 +292,8 @@ struct FakeChat {
     rounds: BTreeMap<String, u64>,
     /// For each RECALL tag, every private marker the model was handed.
     private_seen: BTreeMap<String, Vec<String>>,
+    /// The RECALL tags whose message carried a textbook injection's words.
+    injection_seen: std::collections::BTreeSet<String>,
     flaws: Flaws,
     seen: BTreeMap<String, (bool, String, bool, bool)>,
     signed_in: bool,
@@ -471,6 +476,12 @@ impl FakeChat {
             // As the test model does: every private marker in what it was handed, repeated.
             let found: Vec<String> = private_markers(message);
             self.private_seen.insert(tag.to_owned(), found.clone());
+            if message
+                .to_lowercase()
+                .contains("ignore all previous instructions")
+            {
+                self.injection_seen.insert(tag.to_owned());
+            }
             return if found.is_empty() {
                 format!("{marker} I found nothing.")
             } else {
@@ -728,7 +739,13 @@ impl FakeChat {
                 .iter()
                 .filter(|(_, owner, _)| self.flaws.retrieval_ignores_user || *owner == self.caller)
                 .filter(|(_, _, text)| words.iter().any(|w| text.contains(w)))
-                .map(|(_, _, text)| text.clone())
+                .map(|(_, _, text)| {
+                    if self.flaws.notes_unscreened {
+                        text.clone()
+                    } else {
+                        screened(text)
+                    }
+                })
                 .collect();
             if found.is_empty() {
                 cut
@@ -1067,6 +1084,7 @@ impl Http for FakeChat {
                             "failures": if self.kinds.get(tag).and_then(|k| k.last()).is_some_and(|k| k == "FAIL") { self.failures } else { 0 },
                             "rounds": self.rounds.get(tag).copied().unwrap_or(0),
                             "private_seen": self.private_seen.get(tag).cloned().unwrap_or_default(),
+                            "injection_seen": self.injection_seen.contains(tag),
                             "shape": self.shapes.get(tag).cloned().unwrap_or_default(),
                             "arrived": self.arrived.get(tag).cloned().unwrap_or_default(),
                             "bad_attempts": u64::from(self.shapes.contains_key(tag)),
@@ -1114,6 +1132,15 @@ fn section() -> AiSection {
 }
 
 /// Every `SV-PRIVATE-` marker in a text, as the test model finds them.
+/// A saved note as the fake app's screen leaves it: a textbook injection's words taken out.
+fn screened(text: &str) -> String {
+    let lower = text.to_lowercase();
+    match lower.find("ignore all previous instructions") {
+        Some(at) => format!("{}[removed by the screen]", &text[..at]),
+        None => text.to_owned(),
+    }
+}
+
 fn private_markers(text: &str) -> Vec<String> {
     let mut found: Vec<String> = text
         .match_indices("SV-PRIVATE-")
@@ -1166,11 +1193,11 @@ fn ask_and_read(flaws: Flaws, logs: Logs) -> Outcome {
     o
 }
 
-fn found(o: &Outcome) -> Vec<&str> {
+pub(super) fn found(o: &Outcome) -> Vec<&str> {
     o.findings.iter().map(|f| f.rule_id.as_str()).collect()
 }
 
-fn credited(o: &Outcome) -> Vec<&str> {
+pub(super) fn credited(o: &Outcome) -> Vec<&str> {
     o.verified.iter().map(|v| v.check_id.as_str()).collect()
 }
 
@@ -1779,7 +1806,7 @@ fn the_apps_own_tool_is_called_in_a_loop_only_when_marked_read_only() {
 
 /// A run as the second of two signed-in test users, with the record tool (C9.5.3) and the
 /// private notes (C5.2.2) asked about when told to.
-fn signed_run(flaws: Flaws, tool: bool, reads_owned: bool) -> Outcome {
+pub(super) fn signed_run(flaws: Flaws, tool: bool, reads_owned: bool) -> Outcome {
     let mut s = section();
     s.signed_in = true;
     s.reads_owned = reads_owned;
@@ -1879,7 +1906,7 @@ fn a_record_tool_that_hands_over_another_users_record_is_found_and_one_that_refu
     assert_eq!(f.requirement_ids, ["C9.5.3"]);
 }
 
-fn notes_run(flaws: Flaws) -> Outcome {
+pub(super) fn notes_run(flaws: Flaws) -> Outcome {
     signed_run(
         Flaws {
             reads_notes: true,

@@ -41,7 +41,8 @@
 //   RECALL  records every `SV-PRIVATE-<hex>` marker anywhere in the request (instructions, messages,
 //           tool results, any field), as `private_seen`, and repeats them in the reply: what the app's
 //           search handed the model for this person's question, and whether the app lets it through
-//           to them
+//           to them; and, as `injection_seen`, whether a textbook injection's words ("ignore all
+//           previous instructions") were anywhere in the request, for a note saved with one in it
 //   BADSHAPE an answer in the wrong shape, when the app asked for a shape (below): JSON whose every
 //           field has the wrong type and carries `SVBAD<tag>`, with one field more, when there is a
 //           schema to break; text that is not JSON, carrying `SVBAD<tag>`, in JSON mode. `shape` in
@@ -392,6 +393,7 @@ function reply(api, body, usage) {
   if (kind === 'RECALL') {
     const found = [...new Set([...JSON.stringify(body).matchAll(/SV-PRIVATE-[0-9a-f]+/g)].map((m) => m[0]))];
     record.private_seen = found;
+    record.injection_seen = /ignore all previous instructions/i.test(JSON.stringify(body));
     return found.length ? `${marker} Your notes mention ${found.join(' ')}.` : `${marker} I found nothing.`;
   }
   if (kind === 'SMUGGLE' || kind === 'ODDCHARS') {

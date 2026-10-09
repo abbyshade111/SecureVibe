@@ -327,6 +327,8 @@ listed apart, below this item.
    own plain note, found the same way; without it nothing is judged. The change to what the test model reports is a
    Later entry on ADR-042, written with the build. Read on `main` and the open pull requests just before this claim:
    no other session had claimed (e).
+   **(e) done the same day** (`docs/design/0330-a-prompt-injection-saved-in-a-note-9-october-2026.md`; ADR-042,
+   Later): `probe.ai-stored-injection-unscreened`.
    **(g) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-gemini`: the test model answers Google's Gemini format as it answers
    OpenAI's and Anthropic's. A POST whose path ends `:generateContent` or `:streamGenerateContent` (whatever comes
@@ -355,6 +357,13 @@ listed apart, below this item.
    **(b), the stored record's half, done the same day**
    (`docs/design/0328-saved-text-written-into-a-page-unencoded-9-october-2026.md`): `probe.stored-unencoded`. The
    test model's half stays open.
+   **(b), the test model's half, claimed 9 October 2026 by session securevibe-e9** ("please continue to work through
+   and pick up new items as you merge"), in branch `claude/stackvet-e9-model-html`: a new test-model reply kind whose
+   reply carries an `<img src=x onerror=...>` tag with a marker. When the app's answer to the chat is HTML and holds
+   that tag as it is, the model's reply was written into the page unencoded: a finding citing V1.2.1, only ever a
+   finding. An answer in JSON is not judged, since the page drawing it decides, which the browser checks ask. The new
+   kind is a Later entry on ADR-042, written with the build. Read on `main` and the open pull requests just before
+   this claim: no other session had claimed it.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
@@ -414,6 +423,15 @@ listed apart, below this item.
    (`audience`, `[data]`); until sealed, show the level 2 count beside it; compare `audience = "just-me"` with a
    public sign-up page, and a health-like app with `categories = []`. Changes what a report concludes: a record
    (ADR-024, Later, or a new one).
+   **Its first part claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up
+   new items as you merge"), in branch `claude/securevibe-e2-level-why`: under the level line, every report says why
+   the app is held to that level (the audience, or the sensitive data named, or the data list left unanswered), and
+   on whose word: answers in `stackvet.toml` that the AI coding tool usually writes and nobody has confirmed. At level
+   1, it also says how many more requirements level 2 would bring, so a level 1 resting on an unconfirmed
+   `audience = "just-me"` does not read as settled. Sealing the scope through `sv review`, and comparing the answers
+   with what the code shows (a public sign-up page, health-like fields), stay open. **`Status: proposed`: ADR-024,
+   Later, 9 October 2026** (what the report says about the level and on whose word). Read on `main` and the open pull
+   requests just before this claim: no other session had claimed any part of finding 17.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
