@@ -5,7 +5,7 @@
 //! The fault this pins: an app whose only query was knex's `whereRaw("name = '" + name + "'")` had
 //! V1.2.4 *checked*, because `ast.sql-built-by-hand` had not been taught `whereRaw` and found
 //! nothing. Four apps: the package declared in a manifest with no lockfile (the bill of materials
-//! lists nothing then), the package only in a lockfile, a Python package written in another case,
+//! lists nothing then), the package only in a lockfile, a Python package written in another case (PyMongo),
 //! and a control the rule does read, so a hold-back on everything would fail it.
 
 use std::path::{Path, PathBuf};
@@ -156,14 +156,15 @@ fn a_package_only_in_the_lockfile_holds_the_credit_back() {
 #[test]
 fn a_python_package_matches_whatever_its_case() {
     let dir = app(
-        "django",
+        "pymongo",
         "python",
         &[
-            ("requirements.txt", "Django==5.0.6\n"),
+            // Django is read now (`ast/orm_django_laravel_tests.rs`); PyMongo's `$where` is not.
+            ("requirements.txt", "PyMongo==4.8.0\n"),
             (
                 "views.py",
-                "from django.contrib.auth.models import User\n\n\
-                 def users(request):\n    return User.objects.extra(where=[\"name = '%s'\" % request.GET['name']])\n",
+                "from pymongo import MongoClient\n\n\
+                 def users(request):\n    return MongoClient().app.users.find({\"$where\": \"this.name == '\" + request.GET['name'] + \"'\"})\n",
             ),
         ],
     );
@@ -171,11 +172,11 @@ fn a_python_package_matches_whatever_its_case() {
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !credited(&checked_by),
-        "V1.2.4 was checked for a Django app: {checked_by:?}"
+        "V1.2.4 was checked for a PyMongo app: {checked_by:?}"
     );
     assert!(
-        gap_naming(&gaps, "django").is_some(),
-        "no gap names django: {gaps:?}"
+        gap_naming(&gaps, "pymongo").is_some(),
+        "no gap names pymongo: {gaps:?}"
     );
 }
 

@@ -141,12 +141,12 @@
       "fix": "Send the query with placeholders and pass the values alongside it. Every database library supports this, and it is shorter than building the string.",
       "literalArgumentIsSafe": true,
       "queries": {
-        "python": "(call function: (attribute attribute: (identifier) @fn)\n            arguments: (argument_list . (_) @arg)) @hit",
+        "python": "(call function: (attribute attribute: (identifier) @fn)\n            arguments: (argument_list . (_) @arg)) @hit\n(call function: (identifier) @fn\n      arguments: (argument_list . (_) @arg)) @hit",
         "javascript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (call_expression)\n                                              property: (property_identifier)) @fn\n                 arguments: (arguments . (_) @arg)) @hit",
         "typescript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression) (non_null_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (call_expression)\n                                              property: (property_identifier)) @fn\n                 arguments: (arguments . (_) @arg)) @hit",
         "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)\n                       arguments: (argument_list . (_) @arg)) @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
-        "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
+        "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))\n (scoped_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
         "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
         "csharp": "[(invocation_expression function: (member_access_expression name: (identifier) @fn)\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (member_access_expression name: (generic_name (identifier) @fn))\n                       arguments: (argument_list . (argument (_) @arg)))\n (invocation_expression function: (identifier) @fn\n                       arguments: (argument_list . (argument (_) @arg)))\n (object_creation_expression type: (identifier) @fn\n                            arguments: (argument_list . (argument (_) @arg)))\n (assignment_expression left: (member_access_expression name: (identifier) @fn) right: (_) @arg)\n (assignment_expression left: (identifier) @fn right: (_) @arg)] @hit",
         "kotlin": "[(call_expression (navigation_expression (_) (identifier) @fn)\n                  (value_arguments . (value_argument (_) @arg)))\n (call_expression (identifier) @fn (value_arguments . (value_argument (_) @arg)))] @hit",
@@ -158,12 +158,12 @@
         "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
-        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query)$",
+        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query|extra|RawSQL)$",
         "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
         "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
         "go": "^(Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Raw|Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$",
         "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values|where|rewhere|order|reorder|having|group|joins|from|pluck|count_by_sql)$",
-        "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query)$",
+        "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query|select|insert|update|delete|statement|unprepared|raw|whereRaw|orWhereRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|selectRaw|fromRaw)$",
         "java": "^(executeQuery|executeUpdate|execute|executeLargeUpdate|createQuery|createNativeQuery|addBatch|prepareStatement|prepareCall|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForStream|update|batchUpdate)$",
         "csharp": "^(CommandText|ExecuteReader|ExecuteNonQuery|ExecuteScalar|FromSqlRaw|ExecuteSqlRaw|ExecuteSqlRawAsync|SqlCommand|SqliteCommand|NpgsqlCommand|MySqlCommand|OracleCommand|OleDbCommand|OdbcCommand|Query|QueryAsync|QueryFirst|QueryFirstAsync|QueryFirstOrDefault|QueryFirstOrDefaultAsync|QuerySingle|QuerySingleAsync|QuerySingleOrDefault|QuerySingleOrDefaultAsync|QueryMultiple|QueryMultipleAsync|Execute|ExecuteAsync|ExecuteScalarAsync)$",
         "kotlin": "^(rawQuery|execSQL|executeQuery|executeUpdate|executeLargeUpdate|addBatch|createQuery|createNativeQuery|prepareStatement|prepareCall)$",
@@ -221,6 +221,12 @@
         },
         "go": {
           "^(Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$": "^(\"|`|fmt\\.Sprintf\\()|\"\\s*\\+|\\+\\s*\""
+        },
+        "python": {
+          "^extra$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']"
+        },
+        "php": {
+          "^(select|insert|update|delete)$": "[\"']\\s*\\.|\\.\\s*[\"']|\"[^\"]*\\$|sprintf\\("
         }
       },
       "boundParametersLowerConfidence": true,
@@ -231,7 +237,6 @@
           "@supabase/supabase-js": "filter text such as `.or(...)` and `.filter(...)`"
         },
         "Python": {
-          "django": "`.extra(...)` and `RawSQL(...)`",
           "pymongo": "a `$where` written into a query",
           "supabase": "filter text such as `.or_(...)` and `.filter(...)`"
         },
@@ -239,10 +244,7 @@
           "go.mongodb.org/mongo-driver": "a `$where` written into a query",
           "go.mongodb.org/mongo-driver/v2": "a `$where` written into a query"
         },
-        "PHP": {
-          "laravel/framework": "`DB::select`, `DB::statement`, and `whereRaw` and its other `...Raw` calls",
-          "illuminate/database": "`DB::select`, `DB::statement`, and `whereRaw` and its other `...Raw` calls"
-        }
+        "PHP": {}
       }
     },
     {
@@ -2149,13 +2151,13 @@
           "^NewRequestWithContext$": 2
         }
       },
-        "safeArgumentPatterns": {
+      "safeArgumentPatterns": {
         "python": "^f?[\"']https?://[^/{\"'\\s]+/",
         "javascript": "^[`\"']https?://[^/$`\"'\\s]+/",
         "typescript": "^[`\"']https?://[^/$`\"'\\s]+/",
         "go": "^\"https?://[^/\"\\s]+/"
       },
-    "argumentPatterns": {
+      "argumentPatterns": {
         "python": "\\brequest\\.(args|form|values|json|data|GET|POST|query_params|headers)\\b|\\brequest\\.get_json\\(",
         "javascript": "\\b(req|request)\\.(query|body|params|headers)\\b|\\bctx\\.(query|params|request\\.(body|query))\\b|\\bsearchParams\\.get\\(",
         "typescript": "\\b(req|request)\\.(query|body|params|headers)\\b|\\bctx\\.(query|params|request\\.(body|query))\\b|\\bsearchParams\\.get\\(",

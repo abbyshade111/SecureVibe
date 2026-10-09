@@ -1643,8 +1643,8 @@ fn languages_the_rule_reads_alike_share_one_phrase() {
          calls it reads: `Query`, `QueryRow`, `Exec`, `Prepare`, `QueryContext`, `QueryRowContext`, \
          `ExecContext`, `PrepareContext`, `Raw`, `Where`, `Or`, `Not`, `Order`, `Group`, `Having`, \
          `Joins`, `Select`, `Find`, `First`, `Last`, `Take`, `FirstOrInit`, and `FirstOrCreate`), 2 python \
-         files (the calls it reads: `execute`, `executemany`, `executescript`, `raw`, `read_sql`, and \
-         `read_sql_query`), and 1 ruby file (the calls it reads: `execute`, `exec_query`, \
+         files (the calls it reads: `execute`, `executemany`, `executescript`, `raw`, `read_sql`, \
+         `read_sql_query`, `extra`, and `RawSQL`), and 1 ruby file (the calls it reads: `execute`, `exec_query`, \
          `find_by_sql`, `select_all`, `select_rows`, `select_values`, `where`, `rewhere`, `order`, \
          `reorder`, `having`, `group`, `joins`, `from`, `pluck`, and `count_by_sql`)"
     );
