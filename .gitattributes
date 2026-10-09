@@ -1,0 +1,9 @@
+# Text files keep Unix line endings in every checkout, Windows included (backlog 0120). Without this, a
+# Windows checkout turns them into CRLF, and the tests that read the guide, the README, the decision
+# records, the adapter list, and the workflows no longer find what they hold: fifteen of the tests that
+# failed on Windows did so for this reason alone. `sv` reads an app's own files however they end.
+* text=auto eol=lf
+
+# Kept byte for byte as they were written: these CSVs have CRLF line endings (Python's csv module writes
+# them so), and docs/paper cites them.
+*.csv -text
