@@ -2184,7 +2184,18 @@ fn a_page_that_is_not_a_log_is_never_taken_for_one() {
     let three_lines = "[2026-10-09 12:00:01] a\n[2026-10-09 12:00:02] b\n[2026-10-09 12:00:03] c\n";
     for (path, status, body) in [
         // The app's own page, answered at every address.
-        ("/logs/app.log", 200, "<!doctype html><html><body>Welcome</body></html>"),
+        (
+            "/logs/app.log",
+            200,
+            "<!doctype html><html><body>Welcome</body></html>",
+        ),
+        // The app's own page again, with a list whose rows carry a date and a word a log also
+        // uses: HTML, so never a log.
+        (
+            "/log/production.log",
+            200,
+            "<!doctype html><html><body><ul>\n<li>2026-10-09 12:00 Opening hours: more info</li>\n<li>2026-10-08 09:30 New menu: more info</li>\n<li>2026-10-07 18:15 Events: more info</li>\n</ul></body></html>",
+        ),
         // A listing of a logs folder, whose rows carry dates: the listing check's to find.
         (
             "/logs/",
@@ -2192,15 +2203,16 @@ fn a_page_that_is_not_a_log_is_never_taken_for_one() {
             "<html><body><a href=\"app.log\">app.log</a> 2026-10-09 12:00  4K\n<a href=\"b.log\">b.log</a> 2026-10-09 12:01  4K\n<a href=\"c.log\">c.log</a> 2026-10-09 12:02  4K\n</body></html>",
         ),
         // Two lines are not enough.
-        ("/error.log", 200, "[2026-10-09 12:00:01] a\n[2026-10-09 12:00:02] b\n"),
+        (
+            "/error.log",
+            200,
+            "[2026-10-09 12:00:01] a\n[2026-10-09 12:00:02] b\n",
+        ),
         // Not served.
         ("/debug.log", 404, three_lines),
         ("/log/", 403, three_lines),
     ] {
-        let found = evaluate(&[
-            good_home(),
-            response(&log_id(path), status, &[], body),
-        ]);
+        let found = evaluate(&[good_home(), response(&log_id(path), status, &[], body)]);
         assert!(
             !ids(&found).contains(&"probe.log-file-served"),
             "{path} {status}: {found:?}"
