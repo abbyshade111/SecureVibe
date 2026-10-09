@@ -47,6 +47,10 @@ listed apart, below this item.
    left out: `d3.select("#" + id)` would be a false alarm in every page that draws a chart. Each package comes off
    `unreadPackages` only with a test of each of its calls. Confirmed on `main` just before this claim: all three are on
    the list, and no other session holds this part.
+   **That part done the same day** (`docs/design/0324-the-sql-rule-reads-typeorm-sequelize-and-drizzle-9-october.md`):
+   all three read and off the list (`crates/sv-check/src/ast/orm_npm_tests.rs`); Drizzle's `sql` template, which keeps
+   values apart, is no longer a false alarm at `db.execute`. Mongoose and the MongoDB drivers, Supabase's clients,
+   Django, PyMongo, and Laravel remain.
 2. **Dependencies in .NET, Dart, Swift, Elixir, and Deno are invisible, and V15.2.1 is credited anyway.**
    (`docs/GAP-ANALYSIS.md`, 1.5.) Detect `*.csproj`, `packages.lock.json`, `pubspec.yaml`/`.lock`,
    `Package.swift`/`.resolved`, `mix.exs`, and `deno.json`/`.lock` as ecosystems `sv` does not read, so they hold
