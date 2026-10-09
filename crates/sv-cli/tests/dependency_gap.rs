@@ -15,9 +15,9 @@ fn app(name: &str, files: &[(&str, &str)]) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("sv-depgap-{name}-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
-    std::fs::copy(manifest, dir.join("securevibe.toml")).unwrap();
+    let manifest =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
+    std::fs::copy(manifest, dir.join("stackvet.toml")).unwrap();
     for (name, contents) in files {
         std::fs::write(dir.join(name), contents).unwrap();
     }
@@ -222,7 +222,7 @@ fn inventory_line(name: &str, files: &[(&str, &str)]) -> (serde_json::Value, Str
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n\n[app]\nname = \"Inventory\"\n",
     )
     .unwrap();

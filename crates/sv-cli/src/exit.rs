@@ -9,7 +9,7 @@
 //!   not cover the whole app.
 //!   `sv run`: the app could not be started, or never answered, so nothing about it running was
 //!   checked (the owner's decision, 6 October 2026).
-//! - 3: `sv` itself failed: no securevibe.toml, a manifest it cannot read, a folder that is not
+//! - 3: `sv` itself failed: no stackvet.toml, a manifest it cannot read, a folder that is not
 //!   there, an option it does not know. Nothing about the app is known from such a run.
 //!
 //! 1 outranks 2, and 3 is never combined with anything: a run that failed produced no result to rank.
@@ -136,11 +136,15 @@ pub struct Gaps {
 
 /// The files `sv` reads for itself, which say nothing about the app: an app holding only these was
 /// not read at all.
-const SV_OWN_FILES: &[&str] = &["securevibe.toml", "security-notes.md"];
+const SV_OWN_FILES: &[&str] = &[
+    sv_frameworks::names::MANIFEST,
+    sv_frameworks::names::OLD_MANIFEST,
+    "security-notes.md",
+];
 
 /// The gap an app none of whose files was read is given.
 const NOTHING_READ: &str =
-    "no file of the app was read (securevibe.toml and security-notes.md do not count)";
+    "no file of the app was read (stackvet.toml and security-notes.md do not count)";
 
 impl Gaps {
     /// Whether no file of the app was read, so a check that found nothing had nothing to look in.

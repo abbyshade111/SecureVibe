@@ -38,7 +38,7 @@ fn the_rules_go_into_agents_md_beside_what_the_owner_wrote() {
     std::fs::write(dir.join("AGENTS.md"), owner).unwrap();
     let said = sv(&["rules", dir.to_str().unwrap()]);
     assert!(said.contains("after what was already in it"), "{said}");
-    assert!(said.contains("no securevibe.toml yet"), "{said}");
+    assert!(said.contains("no stackvet.toml yet"), "{said}");
     let written = std::fs::read_to_string(dir.join("AGENTS.md")).unwrap();
     assert!(written.starts_with(owner.trim_end()), "{written}");
     for credit in CREDIT {
@@ -65,7 +65,7 @@ fn the_rules_go_into_agents_md_beside_what_the_owner_wrote() {
 fn rules_that_do_not_apply_to_the_app_are_left_out_and_counted() {
     let dir = folder("filtered");
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"x\"\n[repository]\nci-cd = false\n\
          outside-contributors = false\n",
     )

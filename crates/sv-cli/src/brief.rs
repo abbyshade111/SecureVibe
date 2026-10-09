@@ -7,7 +7,7 @@
 //! for those requirements. Its own parts are the design-time prompts for the decisions to make
 //! first, the coding rules that cite one of its requirements, the coding prompts shown to work for
 //! its requirements, and the settings `sv run` needs to test it, quoted from the starter
-//! `securevibe.toml` so they cannot drift from the spec.
+//! `stackvet.toml` so they cannot drift from the spec.
 //!
 //! The coding prompts are only those the library marks `shown` (`data/prompts.json`): each was given
 //! to an AI coding tool building an app, and the problem it is for went away under `sv`'s check
@@ -25,7 +25,7 @@ use std::collections::BTreeSet;
 use sv_frameworks::applicability::{ApplicabilityConfig, requirement_ids_gated_on};
 use sv_frameworks::{Condition, Frameworks};
 
-/// One table and key in `securevibe.toml`.
+/// One table and key in `stackvet.toml`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Setting {
     pub table: String,
@@ -166,7 +166,7 @@ pub(crate) struct RuleRef {
     pub rule: String,
 }
 
-/// A setting `sv run` needs, with the lines of the starter `securevibe.toml` that describe it.
+/// A setting `sv run` needs, with the lines of the starter `stackvet.toml` that describe it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SettingBlock {
     pub table: String,
@@ -177,7 +177,7 @@ pub(crate) struct SettingBlock {
 /// One feature's brief, for one app.
 #[derive(Debug, Clone)]
 pub(crate) struct Brief {
-    /// There is no `securevibe.toml` yet, so which requirements apply, at which level, and the
+    /// There is no `stackvet.toml` yet, so which requirements apply, at which level, and the
     /// tests they need cannot be said: `pending` then holds everything the feature can bring.
     pub waiting: bool,
     pub app: String,
@@ -186,9 +186,9 @@ pub(crate) struct Brief {
     pub name: String,
     pub requirements: Vec<Applies>,
     /// Requirements the feature's own conditions gate, within the app's level, that do not apply
-    /// yet because securevibe.toml does not say the app has the feature: what building it brings.
+    /// yet because stackvet.toml does not say the app has the feature: what building it brings.
     pub pending: Vec<Applies>,
-    /// The conditions securevibe.toml would have to answer yes for `pending` to apply.
+    /// The conditions stackvet.toml would have to answer yes for `pending` to apply.
     pub conditions: Vec<String>,
     /// How many of the feature's requirements neither apply nor are pending: above the app's
     /// level, or brought only by its own list and ruled out.
@@ -222,7 +222,7 @@ pub(crate) fn brought(
     Brought { all, gated }
 }
 
-/// The lines of the starter `securevibe.toml` that describe `key` in `table`: its own line and the
+/// The lines of the starter `stackvet.toml` that describe `key` in `table`: its own line and the
 /// indented ones under it. `None` when the starter file does not describe it.
 pub(crate) fn setting_lines(table: &str, key: &str) -> Option<String> {
     let mut in_table = false;
@@ -278,7 +278,7 @@ pub(crate) fn from_report(
         })
         .collect();
     let applying: BTreeSet<&str> = requirements.iter().map(|r| r.id.as_str()).collect();
-    // A requirement gated on the feature's own condition applies as soon as securevibe.toml says
+    // A requirement gated on the feature's own condition applies as soon as stackvet.toml says
     // yes to it, since an applicability rule's conditions are any-of; those within the app's level
     // that do not apply now are what building the feature brings.
     let mut pending: Vec<Applies> = brought
@@ -295,7 +295,7 @@ pub(crate) fn from_report(
         .collect();
     pending.sort_by_key(order);
     // A coding prompt is offered when it has been shown to work and one of its requirements is one
-    // this feature brings to the app, now or once securevibe.toml says the app has it.
+    // this feature brings to the app, now or once stackvet.toml says the app has it.
     let brings: BTreeSet<&str> = requirements
         .iter()
         .chain(pending.iter())
@@ -336,7 +336,7 @@ pub(crate) fn from_report(
     }
 }
 
-/// The brief for one feature before the app has a `securevibe.toml`: what the feature brings is
+/// The brief for one feature before the app has a `stackvet.toml`: what the feature brings is
 /// the same for every app, so it is given whole, at every level, and what only the file can
 /// decide (which of it applies, and the tests that needs) is said to be waiting for it.
 pub(crate) fn without_manifest(
@@ -399,7 +399,7 @@ fn order(r: &Applies) -> (u8, bool, Vec<u32>) {
     (r.level, !r.id.starts_with('V'), numbers)
 }
 
-/// What a brief gives whether or not the app has a `securevibe.toml`: the feature's decisions, the
+/// What a brief gives whether or not the app has a `stackvet.toml`: the feature's decisions, the
 /// coding prompts shown to work for what it brings, its coding rules, and its settings.
 struct Shared {
     prompts: Vec<PromptText>,
@@ -518,7 +518,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     };
     if brief.waiting {
         out.push_str(&format!(
-            "# Before building: {} (no securevibe.toml yet)\n\n",
+            "# Before building: {} (no stackvet.toml yet)\n\n",
             brief.name
         ));
     } else {
@@ -535,9 +535,9 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     out.push_str("## 1. The requirements it brings\n\n");
     if brief.waiting {
         out.push_str(
-            "There is no securevibe.toml yet, so which of these apply to this app, and at which \
+            "There is no stackvet.toml yet, so which of these apply to this app, and at which \
              level, cannot be said: below is everything this feature can bring, at every level. \
-             Write securevibe.toml (`securevibe_spec`, or `sv init`), then ask for this brief again: \
+             Write stackvet.toml (`securevibe_spec`, or `sv init`), then ask for this brief again: \
              it will say which apply, and the tests to write for them. Everything after this \
              section is the same for every app, and does not wait.\n\n",
         );
@@ -560,7 +560,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     }
     if !brief.waiting && !brief.pending.is_empty() {
         out.push_str(&format!(
-            "\n### Once securevibe.toml says the app has it ({})\n\nsecurevibe.toml does not say \
+            "\n### Once stackvet.toml says the app has it ({})\n\nstackvet.toml does not say \
              yet that the app has this feature, so these do not apply now. They will as soon as it \
              does, and the tests for them are written then (`sv plan` lists them):\n\n",
             brief
@@ -628,7 +628,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
     out.push_str("\n## 4. Tests to write\n\n");
     if brief.waiting {
         out.push_str(
-            "Waiting for securevibe.toml: the tests to write are those for the requirements that \
+            "Waiting for stackvet.toml: the tests to write are those for the requirements that \
              apply, which it decides.\n",
         );
     } else if brief.tests.is_empty() {
@@ -647,7 +647,7 @@ pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> S
         ));
     }
 
-    out.push_str("\n## 5. What `sv run` needs in `securevibe.toml`\n\n");
+    out.push_str("\n## 5. What `sv run` needs in `stackvet.toml`\n\n");
     if !brief.settings.is_empty() {
         out.push_str(
             "Each is quoted as the specification writes it, commented out. Remove the `#` from the \

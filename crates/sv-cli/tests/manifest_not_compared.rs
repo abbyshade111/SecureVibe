@@ -23,7 +23,7 @@ fn app() -> PathBuf {
     .unwrap();
     std::fs::write(dir.join("index.js"), "console.log('hi');\n").unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n\n[app]\nname = \"Not compared\"\naudience = \"just-me\"\n\
          deployment = \"local-only\"\n\n[stack]\nlanguages = [\"javascript\"]\n",
     )

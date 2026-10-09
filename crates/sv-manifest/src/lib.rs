@@ -1,4 +1,4 @@
-//! `securevibe.toml` — what the app claims about itself, and what those claims are worth.
+//! `stackvet.toml` — what the app claims about itself, and what those claims are worth.
 //!
 //! This replaces the wizard. The user's AI coding tool writes this file during the back-and-forth
 //! that builds the app; `sv init` prints the spec to hand it.
@@ -250,7 +250,7 @@ pub struct RunSection {
 }
 
 /// Whether a name is one an environment variable can have: letters, digits, and `_`, and not empty.
-/// What a name from securevibe.toml must be before it goes on a command line as `NAME=value`.
+/// What a name from stackvet.toml must be before it goes on a command line as `NAME=value`.
 pub fn is_variable_name(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
@@ -767,7 +767,7 @@ pub enum ArchiveFormat {
 }
 
 impl ArchiveFormat {
-    /// The name it is written with in `securevibe.toml` and in the report.
+    /// The name it is written with in `stackvet.toml` and in the report.
     pub fn name(self) -> &'static str {
         match self {
             ArchiveFormat::Zip => "zip",
@@ -1203,7 +1203,7 @@ pub struct Manifest {
     pub finding_review: Vec<FindingReview>,
 }
 
-/// One finding set aside, as `[[finding-review]]` in securevibe.toml.
+/// One finding set aside, as `[[finding-review]]` in stackvet.toml.
 ///
 /// It names the finding by its rule, its file, and the fingerprint the report prints beside it, and
 /// says what a person decided and why. Only an entry a person recorded through `sv review`, which
@@ -1326,6 +1326,13 @@ impl Manifest {
         Self::parse(&text, path)
     }
 
+    /// The manifest of the app at `app_dir`, by whichever name it has (`locate`), or the error
+    /// every command gives when there is none.
+    pub fn load_in(app_dir: &Path) -> Result<(Self, Located)> {
+        let located = locate_or_bail(app_dir)?;
+        Ok((Self::load(&located.path)?, located))
+    }
+
     /// The manifest in `text`, read from `path`, which only names it in an error. For a caller that
     /// needs the bytes it parsed as well, such as `sv report` recording their hash.
     pub fn parse(text: &str, path: &Path) -> Result<Self> {
@@ -1377,7 +1384,7 @@ impl Manifest {
     pub fn level_from_unanswered_data(&self) -> Option<&'static str> {
         let exposed = matches!(self.app.audience, Audience::Customers | Audience::Public);
         (self.data.categories.is_none() && !exposed).then_some(
-            "securevibe.toml does not say what information the app holds about people (`[data] \
+            "stackvet.toml does not say what information the app holds about people (`[data] \
              categories`), so the app is held to ASVS level 2, the level for apps that hold \
              sensitive information such as health or financial details. List what it holds, or \
              write `categories = []` if it holds nothing about people; if nothing on the list is \
@@ -1399,7 +1406,7 @@ impl Manifest {
             .collect();
         (!unknown.is_empty()).then(|| {
             format!(
-                "securevibe.toml lists {} under `[data] categories`, which {} not among the names \
+                "stackvet.toml lists {} under `[data] categories`, which {} not among the names \
                  `sv` knows ({}), so nothing shows {} not sensitive, and the app is held to ASVS \
                  level 2. Use the names on that list.",
                 unknown
@@ -2090,7 +2097,7 @@ mod tests {
         assert_ne!(careless, spec, "the line was put in");
         let message = format!(
             "{:#}",
-            Manifest::parse(&careless, Path::new("securevibe.toml"))
+            Manifest::parse(&careless, Path::new("stackvet.toml"))
                 .expect_err("ai = true under [capabilities] is not read")
         );
         assert!(
@@ -2170,7 +2177,7 @@ mod authorization_server_tests {
     #[test]
     fn the_code_can_answer_it_over_a_manifest_that_says_no() {
         // `effective = claimed || found_in_code`, on this condition like every other: an app
-        // shipping an authorization server gets V10.4 back whatever securevibe.toml says.
+        // shipping an authorization server gets V10.4 back whatever stackvet.toml says.
         let m = "[capabilities]\noauth = true\nauthorization-server = false\n";
         let found = |c: Condition| (c == Condition::AuthorizationServer).then_some(true);
         let (ctx, resolved) = resolve(&manifest(m), &found);
@@ -2485,7 +2492,7 @@ mod mcp_server_tests {
 
     #[test]
     fn a_manifest_version_this_sv_does_not_know_is_refused() {
-        let path = Path::new("securevibe.toml");
+        let path = Path::new("stackvet.toml");
         assert!(Manifest::parse("manifest-version = 1\n", path).is_ok());
         assert!(
             Manifest::parse("[app]\nname = \"x\"\n", path).is_ok(),
@@ -2511,4 +2518,64 @@ mod mcp_server_tests {
             );
         }
     }
+}
+
+/// Where an app's manifest is: `stackvet.toml`, or `stackvet.toml` while only it exists, since
+/// the file was written under that name until 8 October 2026 (ADR-062).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Located {
+    pub path: std::path::PathBuf,
+    /// The file still has the old name; `note` says so.
+    pub old_name: bool,
+}
+
+impl Located {
+    /// What the report and the terminal say, once per run, when the old name was read.
+    pub fn note(&self) -> Option<String> {
+        self.old_name.then(|| {
+            format!(
+                "{} Every sentence here that names {} means that file.",
+                sv_frameworks::names::read_under_old_name(
+                    sv_frameworks::names::OLD_MANIFEST,
+                    sv_frameworks::names::MANIFEST
+                ),
+                sv_frameworks::names::MANIFEST
+            )
+        })
+    }
+}
+
+/// The manifest in `app_dir`, if there is one: the new name, or the old one while only it exists.
+/// A folder with both is refused: two manifests are two answers.
+pub fn locate(app_dir: &Path) -> Result<Option<Located>> {
+    use sv_frameworks::names::{MANIFEST, OLD_MANIFEST};
+    let new = app_dir.join(MANIFEST);
+    let old = app_dir.join(OLD_MANIFEST);
+    match (new.exists(), old.exists()) {
+        (true, true) => anyhow::bail!(
+            "{} holds both {MANIFEST} and {OLD_MANIFEST}, and two manifests are two answers. Keep \
+             one: {MANIFEST} is the name `sv` writes and reads first.",
+            app_dir.display()
+        ),
+        (true, false) => Ok(Some(Located {
+            path: new,
+            old_name: false,
+        })),
+        (false, true) => Ok(Some(Located {
+            path: old,
+            old_name: true,
+        })),
+        (false, false) => Ok(None),
+    }
+}
+
+/// `locate`, or the error every command gives when there is no manifest.
+pub fn locate_or_bail(app_dir: &Path) -> Result<Located> {
+    locate(app_dir)?.ok_or_else(|| {
+        anyhow::anyhow!(
+            "no {} in {}. Run `sv init` and give the spec to your AI coding tool.",
+            sv_frameworks::names::MANIFEST,
+            app_dir.display()
+        )
+    })
 }

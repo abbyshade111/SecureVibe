@@ -16,7 +16,7 @@ fn fixture() -> PathBuf {
 
 fn plan() -> RunPlan {
     let dir = fixture();
-    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("fixture manifest");
+    let manifest = Manifest::load(&dir.join("stackvet.toml")).expect("fixture manifest");
     RunPlan::from_manifest(&manifest, &dir).expect("fixture declares how to run")
 }
 
@@ -254,7 +254,7 @@ fn the_fence_the_runner_creates_is_the_fenced_kind() {
 
 fn probe_plan() -> RunPlan {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/probe-app");
-    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("probe fixture manifest");
+    let manifest = Manifest::load(&dir.join("stackvet.toml")).expect("probe fixture manifest");
     RunPlan::from_manifest(&manifest, &dir).expect("probe fixture declares how to run")
 }
 

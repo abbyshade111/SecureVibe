@@ -423,7 +423,7 @@ impl Listing {
         self.app_files().filter(|f| f.language.is_some())
     }
 
-    /// This listing in two: what lies outside `folders`, and what lies in them, as securevibe.toml's
+    /// This listing in two: what lies outside `folders`, and what lies in them, as stackvet.toml's
     /// `not-the-app` names them (`crate::under_any`). Both keep the same root, so paths read the same.
     pub fn split(&self, folders: &[String]) -> (Listing, Listing) {
         let (mut ours, mut theirs) = (

@@ -137,7 +137,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
     out.liveness
         .push(services.liveness("the questions asked as somebody not signed in"));
 
-    // 4b. As signed-in users, when securevibe.toml says how. After the anonymous probes, so
+    // 4b. As signed-in users, when stackvet.toml says how. After the anonymous probes, so
     //     those see the app as a stranger first; before the tests, which may change its data.
     out.signed_in = plan
         .users
@@ -162,7 +162,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
         out
     });
 
-    // 4c'. The app as an MCP server, when securevibe.toml says where it answers.
+    // 4c'. The app as an MCP server, when stackvet.toml says where it answers.
     out.mcp_server = plan.mcp_server.map(|section| {
         let mut http = services.http(Target::App, With::default());
         let mut patient = Patient::within(http.as_mut(), &spent);
@@ -192,7 +192,7 @@ pub fn run(services: &dyn Services, plan: &Plan, probes: &[ProbeRequest]) -> Out
         out
     });
 
-    // 4d. The AI feature, through the test model, when securevibe.toml says how to reach it.
+    // 4d. The AI feature, through the test model, when stackvet.toml says how to reach it.
     //     Last of the questions, as the second test user when it needs one: nothing after it
     //     depends on that user's session. Not through `Patient`: the suite waits a limiter out
     //     itself where an answer matters, and its rate check (C11.2.2) sets out to make the app

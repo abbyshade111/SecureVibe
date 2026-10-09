@@ -102,7 +102,8 @@ fn private_kind(relative: &str) -> Option<(&'static str, bool, u8)> {
     }
     if matches!(
         lower.as_str(),
-        "securevibe.toml"
+        sv_frameworks::names::MANIFEST
+            | sv_frameworks::names::OLD_MANIFEST
             | "package.json"
             | "composer.json"
             | "requirements.txt"

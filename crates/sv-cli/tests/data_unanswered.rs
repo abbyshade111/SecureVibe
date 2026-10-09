@@ -1,4 +1,4 @@
-//! What the report says when securevibe.toml does not say what the app holds about people.
+//! What the report says when stackvet.toml does not say what the app holds about people.
 //!
 //! Level 1 is a claim that nothing sensitive is held; a list nobody filled in makes no claim, so the
 //! app is held to level 2 and the report says why. `categories = []` is an answer, and gets level 1.
@@ -13,7 +13,7 @@ fn compliance_with(name: &str, data: &str) -> String {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n\n[app]\nname = \"Notes\"\naudience = \"just-me\"\n\
              deployment = \"local-only\"\n\n[stack]\nlanguages = [\"python\"]\n{data}"

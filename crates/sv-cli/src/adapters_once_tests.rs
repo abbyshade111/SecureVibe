@@ -10,7 +10,7 @@ use sv_check::adapters::Adapters;
 /// beside `main.rs` is not one it can.
 fn app() -> PathBuf {
     let app = Path::new("../../examples/flask-booking").to_path_buf();
-    assert!(app.join("securevibe.toml").is_file(), "the setup: {app:?}");
+    assert!(app.join("stackvet.toml").is_file(), "the setup: {app:?}");
     app
 }
 

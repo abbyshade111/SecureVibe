@@ -332,7 +332,7 @@ pub fn compliance(report: &Report) -> String {
             .map(|p| match p.present {
                 Some(true) => p.name.clone(),
                 _ => format!(
-                    "{} (not known: securevibe.toml does not answer {})",
+                    "{} (not known: stackvet.toml does not answer {})",
                     p.name,
                     p.unanswered
                         .iter()
@@ -618,9 +618,7 @@ pub fn compliance(report: &Report) -> String {
 
     if !report.claims.is_empty() {
         out.push_str("## What the app says about itself\n\n");
-        out.push_str(
-            "| about | securevibe.toml | the code | what that means |\n|---|---|---|---|\n",
-        );
+        out.push_str("| about | stackvet.toml | the code | what that means |\n|---|---|---|---|\n");
         for claim in &report.claims {
             out.push_str(&format!(
                 "| {} | {} | {} | {} |\n",
@@ -795,10 +793,10 @@ pub fn security(report: &Report) -> String {
 
     let set_aside = crate::false_alarm_entries(report);
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
-        out.push_str("## Set aside in securevibe.toml\n\n");
+        out.push_str("## Set aside in stackvet.toml\n\n");
         if !set_aside.is_empty() {
             out.push_str(&format!(
-                "Found by a check, and set aside as a false alarm in securevibe.toml through \
+                "Found by a check, and set aside as a false alarm in stackvet.toml through \
                  `sv review`. {} They are not counted below. A requirement one of them was about is not credited \
                  for it: it is shown by whatever else is known about it, never as checked.\n\n",
                 crate::SEALED_WHY
@@ -945,6 +943,7 @@ mod tests {
             generated: None,
             sv: Default::default(),
             run_record: None,
+            manifest_file: crate::default_manifest_file(),
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,

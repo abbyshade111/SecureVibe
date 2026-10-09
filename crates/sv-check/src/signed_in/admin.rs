@@ -18,7 +18,7 @@ pub(super) struct AdminSignIn {
 /// a refused code is tried once more, from a new sign-in, after the next 30-second step begins.
 ///
 /// When the admin is still not shown signed in, `stopped` says where it stopped, so a page the
-/// admin could not open is not blamed on securevibe.toml naming the wrong page.
+/// admin could not open is not blamed on stackvet.toml naming the wrong page.
 pub(super) fn sign_in_admin(
     http: &mut dyn Http,
     users: &UsersSection,
@@ -66,7 +66,7 @@ pub(super) fn sign_in_admin(
         let stopped = format!(
             "after its password, the admin's sign-in {} and {confirm} then answered {answered}. \
              If the app asks admins for a further step, such as a code from an authenticator app, \
-             add it to securevibe.toml as `totp` and have `seed` enroll the admin with \
+             add it to stackvet.toml as `totp` and have `seed` enroll the admin with \
              SV_ADMIN_TOTP_SECRET",
             signed.landed
         );
@@ -120,7 +120,7 @@ pub(super) fn sign_in_admin(
         "after its password, the admin's sign-in {}; the authenticator code worked out from \
          SV_ADMIN_TOTP_SECRET was then given at {}{}, and {confirm} still did not open, so the \
          sign-in stopped at the code step. Check that `seed` enrolls the admin in two-factor \
-         sign-in with SV_ADMIN_TOTP_SECRET, and `totp` in securevibe.toml",
+         sign-in with SV_ADMIN_TOTP_SECRET, and `totp` in stackvet.toml",
         signed.landed,
         entry.path,
         if given > 1 {
@@ -173,7 +173,7 @@ pub(super) fn admin_checks(
     if users.admin.is_empty() {
         out.not_assessed.push((
             "V8.2.1".to_owned(),
-            "Admin pages: securevibe.toml lists none under [stack.run.users] admin.".to_owned(),
+            "Admin pages: stackvet.toml lists none under [stack.run.users] admin.".to_owned(),
         ));
         return;
     }
@@ -225,13 +225,13 @@ pub(super) fn admin_checks(
                 (None, Some(private)) => format!(
                     "The admin account was signed in (it opened {private}) but did not open \
                      {pages} either, so the ordinary user being refused says nothing: the page may \
-                     not be where securevibe.toml says, or the account `seed` made from SV_ADMIN \
+                     not be where stackvet.toml says, or the account `seed` made from SV_ADMIN \
                      may not be an admin."
                 ),
                 (None, None) => format!(
                     "The admin account did not open {pages} either, so the ordinary user being \
                      refused says nothing. No private page is listed to show the admin's sign-in \
-                     worked, so it may not have, or the page may not be where securevibe.toml says."
+                     worked, so it may not have, or the page may not be where stackvet.toml says."
                 ),
             },
         ));
@@ -428,7 +428,7 @@ pub(super) fn admin_action_checks(
     if users.admin_actions.is_empty() {
         out.not_assessed.push((
             "V8.3.1".to_owned(),
-            "Admin actions: securevibe.toml lists none under [stack.run.users] admin-actions, so no \
+            "Admin actions: stackvet.toml lists none under [stack.run.users] admin-actions, so no \
              request only an admin should make was sent by an ordinary user."
                 .to_owned(),
         ));
@@ -599,7 +599,7 @@ pub(super) fn admin_action_checks(
             format!(
                 "Signed in as an ordinary test user, the app answered {} with a success status. \
                  This is judged by the status alone, and some apps answer a refused request that \
-                 way; a `check` page for the action in securevibe.toml would show whether it took \
+                 way; a `check` page for the action in stackvet.toml would show whether it took \
                  effect.",
                 answered_ordinary.join(", ")
             ),
@@ -654,7 +654,7 @@ pub(super) fn owned_checks(
     let Some(owned) = &users.owned else {
         out.not_assessed.push((
             "V8.2.2, V3.5.1, V3.5.2".to_owned(),
-            "Another user's records, and requests from another site: securevibe.toml lists no \
+            "Another user's records, and requests from another site: stackvet.toml lists no \
              `owned` record under [stack.run.users]."
                 .to_owned(),
         ));
@@ -743,7 +743,7 @@ pub(super) fn owned_checks(
         }
     }
 
-    // Changing and deleting it, as the second user, when securevibe.toml says how. What decides is
+    // Changing and deleting it, as the second user, when stackvet.toml says how. What decides is
     // what the first user then reads back, not what the second was told: `Some(true)` the change or
     // the deletion took, `Some(false)` it did not, `None` the read-back said neither (ADR-053).
     let id = created.as_ref().and_then(|c| record_id(owned, c));
@@ -955,7 +955,7 @@ pub(super) fn owned_checks(
             out.not_assessed.push((
                 "V8.2.2".to_owned(),
                 if owned.update.is_none() && owned.delete.is_none() {
-                    "Whether one user can change or delete another user's records: securevibe.toml \
+                    "Whether one user can change or delete another user's records: stackvet.toml \
                      gives no `update` or `delete` under `owned`, so only reading was tried, and V8.2.2 \
                      is checked in part."
                         .to_owned()
@@ -1299,7 +1299,7 @@ mod tests {
         ] {
             assert!(full.scope.contains(said), "{said}: {}", full.scope);
         }
-        // Reading alone, as securevibe.toml gives no change or delete request: in part, and the
+        // Reading alone, as stackvet.toml gives no change or delete request: in part, and the
         // report says why and how to make it whole.
         let o = run_against(Flaws::default(), &users());
         let part = o
@@ -1799,7 +1799,7 @@ mod tests {
         let reasons = admin_page_reasons(&o, "V8.2.1");
         assert!(
             reasons.iter().any(|why| why.contains("it opened /account")
-                && why.contains("may not be where securevibe.toml says")),
+                && why.contains("may not be where stackvet.toml says")),
             "{reasons:#?}"
         );
     }

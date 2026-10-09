@@ -6,7 +6,7 @@
 //! fragment of one and never the whole, so they sat in the report as *not verified* beside the
 //! requirements nobody had looked at.
 //!
-//! The owner answers them in securevibe.toml, as `yes`, `no`, `not-sure`, or `planned`, with `where`
+//! The owner answers them in stackvet.toml, as `yes`, `no`, `not-sure`, or `planned`, with `where`
 //! naming the file that does it.
 //!
 //! # Why this tier is weaker than the notes, and how much weaker
@@ -126,7 +126,7 @@ impl Questions {
     }
 }
 
-/// One answer, as securevibe.toml gives it.
+/// One answer, as stackvet.toml gives it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Answer {
     pub answer: String,
@@ -243,7 +243,7 @@ pub fn evaluate(
                                 "design.attested",
                                 &id,
                                 format!(
-                                    "securevibe.toml: you answered yes, and {named}{}. This is \
+                                    "stackvet.toml: you answered yes, and {named}{}. This is \
                                      your word about the app, not a check of it.",
                                     crate::seal::recorded_where(sealed)
                                 ),
@@ -254,7 +254,7 @@ pub fn evaluate(
                             "design.stated-by-ai",
                             &id,
                             format!(
-                                "securevibe.toml says you answered yes, and {named}, but {}, so it \
+                                "stackvet.toml says you answered yes, and {named}, but {}, so it \
                                  counts as your AI coding tool's word, not a check of the code. If \
                                  it is your answer, run `sv review` in your own terminal to record \
                                  it as yours.",
@@ -265,7 +265,7 @@ pub fn evaluate(
                             "design.stated-by-ai",
                             &id,
                             format!(
-                                "securevibe.toml: {} yes, and {named}. This is the word of the \
+                                "stackvet.toml: {} yes, and {named}. This is the word of the \
                                  tool that wrote the code, not a check of it.",
                                 if answer.by.is_some() {
                                     "your AI coding tool answered"
@@ -298,7 +298,7 @@ impl Who {
     fn answered(&self) -> &'static str {
         match self {
             Who::Owner(_) => "You answered",
-            Who::OwnerUnrecorded => "securevibe.toml says you answered",
+            Who::OwnerUnrecorded => "stackvet.toml says you answered",
             Who::AiTool => "Your AI coding tool answered",
         }
     }
@@ -324,14 +324,14 @@ fn said_no(question: &Question, who: &Who) -> Finding {
         severity: Severity::Medium,
         confidence: Confidence::High,
         location: Location {
-            file: "securevibe.toml".to_owned(),
+            file: "stackvet.toml".to_owned(),
             line: 1,
         },
         secret: None,
         requirement_ids: vec![question.id.clone()],
         cwe: Vec::new(),
         description: format!(
-            "In securevibe.toml {} no to this question: {}",
+            "In stackvet.toml {} no to this question: {}",
             match who {
                 Who::OwnerUnrecorded => "the answer, given as yours, is",
                 Who::Owner(_) => "you answered",
@@ -345,7 +345,7 @@ fn said_no(question: &Question, who: &Who) -> Finding {
             question.id,
             match who {
                 Who::Owner(_) => "you have",
-                Who::OwnerUnrecorded => "securevibe.toml says you have",
+                Who::OwnerUnrecorded => "stackvet.toml says you have",
                 Who::AiTool => "your AI coding tool has",
             }
         ),
@@ -373,7 +373,7 @@ fn stale_pointer(question: &Question, path: &str, who: &Who) -> Finding {
         severity: Severity::Low,
         confidence: Confidence::High,
         location: Location {
-            file: "securevibe.toml".to_owned(),
+            file: "stackvet.toml".to_owned(),
             line: 1,
         },
         secret: None,
@@ -413,7 +413,7 @@ fn never_built(question: &Question, path: &str, who: &Who) -> Finding {
         // else is not, so this is less sure than a stale pointer.
         confidence: Confidence::Medium,
         location: Location {
-            file: "securevibe.toml".to_owned(),
+            file: "stackvet.toml".to_owned(),
             line: 1,
         },
         secret: None,
@@ -832,7 +832,7 @@ mod tests {
         assert!(
             out.stated[0]
                 .scope
-                .contains("securevibe.toml says you answered yes")
+                .contains("stackvet.toml says you answered yes")
                 && out.stated[0]
                     .scope
                     .contains("not recorded through `sv review`")
@@ -845,7 +845,7 @@ mod tests {
         assert!(
             out.findings[0]
                 .title
-                .starts_with("securevibe.toml says you answered no")
+                .starts_with("stackvet.toml says you answered no")
         );
     }
 }

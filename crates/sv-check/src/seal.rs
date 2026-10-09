@@ -1,7 +1,7 @@
 //! The seal `sv review` puts on what a person records, so an entry the AI coding tool wrote can be
 //! told from one a person typed (deep review R1).
 //!
-//! The owner's decision, 4 October 2026. An entry in securevibe.toml that sets a finding aside, or
+//! The owner's decision, 4 October 2026. An entry in stackvet.toml that sets a finding aside, or
 //! confirms what the AI coding tool said, names who decided in `by`, and `sv` only reads that name:
 //! the tool rewrites code until a warning stops, and writing `by = "owner"` is the easiest rewrite
 //! of all. So an entry counts only when `sv review` recorded it. That command runs only in a
@@ -722,7 +722,7 @@ pub fn confirmation_fields(
     fields
 }
 
-/// The same, for a confirmation as securevibe.toml gives it.
+/// The same, for a confirmation as stackvet.toml gives it.
 pub fn manifest_confirmation_fields(
     section: &str,
     requirement: &str,

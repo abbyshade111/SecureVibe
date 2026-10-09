@@ -32,7 +32,7 @@ fn app(name: &str, securevibe_toml: Option<&str>) -> (PathBuf, PathBuf) {
     )
     .unwrap();
     if let Some(text) = securevibe_toml {
-        std::fs::write(dir.join("securevibe.toml"), text).unwrap();
+        std::fs::write(dir.join("stackvet.toml"), text).unwrap();
     }
     for (id, package, published, vector) in [
         ("GHSA-late", "lodash", "2020-07-15T00:00:00Z", HIGH),

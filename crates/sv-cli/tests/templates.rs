@@ -40,8 +40,8 @@ fn the_terminal_names_the_template_and_the_sql() {
 fn the_report_names_them_as_gaps() {
     let dir = app("report");
     let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
-    std::fs::copy(manifest, dir.join("securevibe.toml")).unwrap();
+        .join("../../examples/tested-notes/stackvet.toml");
+    std::fs::copy(manifest, dir.join("stackvet.toml")).unwrap();
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
         .arg("report")

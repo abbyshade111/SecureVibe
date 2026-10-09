@@ -27,7 +27,7 @@ fn a_section_holding_only_the_tools_disclaimer_is_not_verified() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"x\"\n",
     )
     .unwrap();

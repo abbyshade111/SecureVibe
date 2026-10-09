@@ -2,10 +2,10 @@
 //! they confirm, and `sv` seals each so the AI coding tool's own entries can be told apart (deep
 //! review R1; the owner's decision of 4 October 2026, in `sv_check::seal`).
 //!
-//! It goes through every entry in securevibe.toml that does not yet count on this computer: a
+//! It goes through every entry in stackvet.toml that does not yet count on this computer: a
 //! `[[finding-review]]` entry and a `confirmed` under `[design]` or `[checked-by-hand]`, whether the
 //! AI coding tool proposed it or someone wrote it by hand. For each it shows what is being decided
-//! and asks for the person's name. What they record is written back into securevibe.toml, with `by`,
+//! and asks for the person's name. What they record is written back into stackvet.toml, with `by`,
 //! today's date and the seal, and nothing else in the file is changed, except one thing: a finding's
 //! fingerprint in the form used before 5 October 2026 that names one line is written in today's
 //! form, which also watches the lines that set the values that line uses (deep review A2).
@@ -211,7 +211,10 @@ fn review(
     out: &mut dyn Write,
     secret: Secret<'_>,
 ) -> Result<()> {
-    let manifest_path = app_dir.join("securevibe.toml");
+    // The manifest by the name it has (ADR-062): the new one when neither exists yet.
+    let manifest_path = sv_manifest::locate(app_dir)?
+        .map(|l| l.path)
+        .unwrap_or_else(|| app_dir.join(sv_frameworks::names::MANIFEST));
     // The files this writes are looked at before anything is asked: a link planted at one of their
     // names would otherwise be found only after the person had typed their answers (and perhaps
     // made a key), and a file outside the app must never be written over through it.
@@ -437,7 +440,7 @@ fn review(
             Waiting::DesignAnswer(id) => {
                 let a = &manifest.design[&id];
                 let what = format!(
-                    "Your answer to requirement {id}, as securevibe.toml gives it: {}{}.",
+                    "Your answer to requirement {id}, as stackvet.toml gives it: {}{}.",
                     a.answer,
                     a.r#where
                         .as_deref()
@@ -456,7 +459,7 @@ fn review(
             Waiting::HandAnswer(id) => {
                 let h = &manifest.checked_by_hand[&id];
                 let what = format!(
-                    "Your check made by hand for requirement {id}, as securevibe.toml gives it: {}, \
+                    "Your check made by hand for requirement {id}, as stackvet.toml gives it: {}, \
                      on {}: \"{}\"",
                     h.result,
                     h.on.as_deref().unwrap_or("no date"),
@@ -774,7 +777,7 @@ fn record_finding(
         writeln!(
             out,
             "  Its verdict, \"{}\", is not `false-alarm` or `accepted-risk`, so it cannot count. \
-             Fix it in securevibe.toml first.",
+             Fix it in stackvet.toml first.",
             entry.verdict
         )?;
         return Ok(None);
@@ -1010,7 +1013,7 @@ fn record_own(
     }
 }
 
-/// Puts `seal` on the answer to `id` in `section` of securevibe.toml, changing nothing else.
+/// Puts `seal` on the answer to `id` in `section` of stackvet.toml, changing nothing else.
 fn set_seal(doc: &mut toml_edit::DocumentMut, section: &str, id: &str, seal: &str) -> Result<()> {
     doc.get_mut(section)
         .and_then(toml_edit::Item::as_table_like_mut)
@@ -1185,7 +1188,7 @@ mod tests {
             self.0.join("config").join("securevibe")
         }
         fn manifest(&self) -> String {
-            std::fs::read_to_string(self.app().join("securevibe.toml")).unwrap()
+            std::fs::read_to_string(self.app().join("stackvet.toml")).unwrap()
         }
         /// `sv review`, with `typed` as what the person types. The first run is asked whether the
         /// signing key it makes should have a passphrase, and the answer is no.
@@ -1234,11 +1237,11 @@ mod tests {
 
     fn with_app(s: &Scratch, manifest: &str) {
         std::fs::write(s.app().join("app.py"), format!("def go():\n    {LINE}\n")).unwrap();
-        std::fs::write(s.app().join("securevibe.toml"), manifest).unwrap();
+        std::fs::write(s.app().join("stackvet.toml"), manifest).unwrap();
     }
 
     fn finding_counts(s: &Scratch, i: usize) -> bool {
-        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         counts(&m, &Waiting::Finding(i), &s.checker())
     }
 
@@ -1306,7 +1309,7 @@ mod tests {
             let s = Scratch::new(&format!("secret-{rule}"));
             std::fs::write(s.app().join("app.py"), format!("{line}\n")).unwrap();
             std::fs::write(
-                s.app().join("securevibe.toml"),
+                s.app().join("stackvet.toml"),
                 format!(
                     "{HEAD}[[finding-review]]\nrule = \"{rule}\"\nfile = \"app.py\"\n\
                      fingerprint = \"{}\"\nverdict = \"false-alarm\"\nwhy = \"short\"\n",
@@ -1363,7 +1366,7 @@ mod tests {
         result.unwrap();
         assert!(out.contains("Nothing says what was looked at"), "{out}");
         assert!(out.contains("Recorded 2 of 2"), "{out}");
-        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         let design = m.design["V8.3.1"].confirmed.clone().unwrap();
         // What was confirmed is the answer shown, not the "no" the proposal named.
         assert_eq!(design.answer.as_deref(), Some("yes"));
@@ -1391,7 +1394,7 @@ mod tests {
         let s = Scratch::new("put-back");
         let manifest = format!("{HEAD}{}", proposal(WHY));
         with_app(&s, &manifest);
-        let path = s.app().join("securevibe.toml");
+        let path = s.app().join("stackvet.toml");
         let mut doc: toml_edit::DocumentMut = manifest.parse().unwrap();
         let fingerprint = sv_check::review::named("ast.open-redirect", "app.py", LINE);
         set_finding(
@@ -1440,7 +1443,7 @@ mod tests {
         let (old, _) = Key::load_or_make_in(&s.keys()).unwrap();
         let old = old.for_app(&App::of(&s.app()).unwrap());
         let seal = |fields: &[String]| old.seal(&sv_check::seal::as_strs(fields));
-        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         let mut doc: toml_edit::DocumentMut = s.manifest().parse().unwrap();
         finding_table(&mut doc, 0).unwrap().insert(
             "seal",
@@ -1473,7 +1476,7 @@ mod tests {
             "design", "V2.2.2", &c,
         )));
         set_confirmation(&mut doc, "design", "V2.2.2", &c).unwrap();
-        std::fs::write(s.app().join("securevibe.toml"), doc.to_string()).unwrap();
+        std::fs::write(s.app().join("stackvet.toml"), doc.to_string()).unwrap();
         let catalog = sv_check::notes::Catalog::load(&crate::notes_path()).unwrap();
         let prose = sv_check::notes::read_answers(&catalog, notes)
             .prose_of("V6.1.1")
@@ -1542,7 +1545,7 @@ mod tests {
             sv_check::signed::Trust::load(None, Some(list.into())),
             Some(App::of(&elsewhere).unwrap()),
         );
-        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         for which in [
             Waiting::Finding(0),
             Waiting::DesignAnswer("V8.3.1".into()),
@@ -1586,7 +1589,7 @@ mod tests {
         let (here, _) = Key::load_or_make_in(&s.keys()).unwrap();
         let (there, _) = Key::load_or_make_in(&s.0.join("there")).unwrap();
         let app = App::of(&s.app()).unwrap();
-        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         let mut doc: toml_edit::DocumentMut = s.manifest().parse().unwrap();
         for (i, key) in [(0, &here), (1, &there)] {
             let seal = key.for_app(&app).seal(&sv_check::seal::as_strs(
@@ -1596,7 +1599,7 @@ mod tests {
                 .unwrap()
                 .insert("seal", toml_edit::value(seal));
         }
-        std::fs::write(s.app().join("securevibe.toml"), doc.to_string()).unwrap();
+        std::fs::write(s.app().join("stackvet.toml"), doc.to_string()).unwrap();
         // Yes to signing again; then Enter for the other, which is asked about.
         let (result, out) = s.run("yes\n\n");
         result.unwrap();
@@ -1667,7 +1670,7 @@ mod tests {
         // Three wrong passphrases: nothing is recorded, and nothing is asked.
         let manifest = s.manifest();
         std::fs::write(
-            s.app().join("securevibe.toml"),
+            s.app().join("stackvet.toml"),
             format!(
                 "{manifest}{}",
                 proposal("A second reason, long enough to be a reason.")
@@ -1715,7 +1718,7 @@ mod tests {
         );
         assert!(out.contains("Five failed sign-ins"), "{out}");
         assert!(out.contains("Recorded 4 of 4"), "{out}");
-        let m = sv_manifest::Manifest::load(&s.app().join("securevibe.toml")).unwrap();
+        let m = sv_manifest::Manifest::load(&s.app().join("stackvet.toml")).unwrap();
         for which in [
             Waiting::DesignAnswer("V8.3.1".into()),
             Waiting::HandAnswer("V12.2.2".into()),
@@ -1840,7 +1843,7 @@ mod tests {
             "app.py",
             LINE,
         ));
-        std::fs::write(s.app().join("securevibe.toml"), &earlier).unwrap();
+        std::fs::write(s.app().join("stackvet.toml"), &earlier).unwrap();
         let (result, out) = s.run("owner\n");
         result.unwrap();
         assert!(
@@ -1860,7 +1863,7 @@ mod tests {
         }];
         sv_check::review::fill_fingerprints(&s.app(), &mut second);
         let todays = entry(&second[0].fingerprint);
-        std::fs::write(s.app().join("securevibe.toml"), &todays).unwrap();
+        std::fs::write(s.app().join("stackvet.toml"), &todays).unwrap();
         let (result, out) = s.run("owner\n");
         result.unwrap();
         assert!(out.contains(&format!("Line 5: {LINE}")), "{out}");

@@ -19,9 +19,9 @@ fn fresh(name: &str) -> PathBuf {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
-    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
-    std::fs::copy(example, dir.join("securevibe.toml")).unwrap();
+    let example =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
+    std::fs::copy(example, dir.join("stackvet.toml")).unwrap();
     dir
 }
 

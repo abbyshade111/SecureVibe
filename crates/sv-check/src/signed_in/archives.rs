@@ -388,7 +388,7 @@ pub(super) fn archive_checks(
             "V5.2.3".to_owned(),
             "Whether the app checks a compressed file before it unpacks it: if it unpacks any, \
              list them as `unpacks-archives = [\"zip\", \"gzip\"]` on the `upload` entry in \
-             securevibe.toml, with `max-unpacked-bytes` and `max-files`, and an archive just over \
+             stackvet.toml, with `max-unpacked-bytes` and `max-files`, and an archive just over \
              each will be sent. If it unpacks none, `unpacks-archives = []` says so."
                 .to_owned(),
         ));
@@ -399,13 +399,13 @@ pub(super) fn archive_checks(
     formats.dedup();
     if formats.is_empty() {
         out.steps
-            .push("sent no compressed file: securevibe.toml says the app unpacks none".to_owned());
+            .push("sent no compressed file: stackvet.toml says the app unpacks none".to_owned());
         return;
     }
     if upload.max_unpacked_bytes.is_none() && upload.max_files.is_none() {
         out.not_assessed.push((
             "V5.2.3".to_owned(),
-            "securevibe.toml says the app unpacks compressed files, and states no limit for them: \
+            "stackvet.toml says the app unpacks compressed files, and states no limit for them: \
              add `max-unpacked-bytes` (the most one may unpack to) and `max-files` (the most files \
              one may hold) to the `upload` entry. `sv` sets no limit of its own."
                 .to_owned(),
@@ -448,7 +448,7 @@ pub(super) fn archive_checks(
                 // 2026).
                 out.not_assessed.push((
                     "V5.2.3".to_owned(),
-                    "securevibe.toml says the app unpacks gzip files and states only `max-files`, \
+                    "stackvet.toml says the app unpacks gzip files and states only `max-files`, \
                      which a gzip, holding one file, cannot be over: add `max-unpacked-bytes` (the \
                      most one may unpack to) and a gzip just over it will be sent."
                         .to_owned(),
@@ -512,7 +512,7 @@ pub(super) fn archive_checks(
                     "A compressed file past the stated limits was accepted",
                     Severity::Medium,
                     format!(
-                        "securevibe.toml says the app unpacks {f} files. {} was accepted at {} \
+                        "stackvet.toml says the app unpacks {f} files. {} was accepted at {} \
                          ({}), where an app that checks first refuses it.",
                         archive.what,
                         upload.path,
@@ -670,7 +670,7 @@ mod tests {
         }));
         assert!(
             f.iter()
-                .any(|e| e.starts_with("securevibe.toml says the app unpacks gzip"))
+                .any(|e| e.starts_with("stackvet.toml says the app unpacks gzip"))
         );
         assert_eq!(
             credits(&o),
@@ -776,7 +776,7 @@ mod tests {
         assert!(
             o.steps
                 .iter()
-                .any(|s| s == "sent no compressed file: securevibe.toml says the app unpacks none")
+                .any(|s| s == "sent no compressed file: stackvet.toml says the app unpacks none")
         );
         // Only gzip, which is not sent as zip.
         let o = run_against(

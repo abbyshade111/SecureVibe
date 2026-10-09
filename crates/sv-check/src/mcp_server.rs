@@ -228,7 +228,7 @@ fn token_checks(
     let say = |why: String, out: &mut Outcome| out.not_assessed.push(("C10.2.1".to_owned(), why));
     if section.public {
         say(
-            "Whether the MCP server checks an access token: securevibe.toml says it is meant to \
+            "Whether the MCP server checks an access token: stackvet.toml says it is meant to \
              answer anyone, so it was not asked."
                 .to_owned(),
             out,
@@ -430,7 +430,7 @@ fn tool_checks(
         session,
     ));
     out.steps.push(format!(
-        "called its tool `{}` with the arguments securevibe.toml gives ({})",
+        "called its tool `{}` with the arguments stackvet.toml gives ({})",
         tool.name,
         status(&control)
     ));
@@ -439,7 +439,7 @@ fn tool_checks(
             "C10.4.3, C10.4.4, C10.4.5",
             format!(
                 "What the MCP server does with arguments it should refuse: its tool `{}`, called \
-                 with the arguments securevibe.toml gives, did not answer with a result ({}), so a \
+                 with the arguments stackvet.toml gives, did not answer with a result ({}), so a \
                  refusal of anything else would show nothing.",
                 tool.name,
                 status(&control)
@@ -529,7 +529,7 @@ fn tool_checks(
                 "What the tool `{}` does with an unknown or over-long argument: {}.",
                 tool.name,
                 if long_answer.is_none() {
-                    "securevibe.toml gives it no argument to make long, and an unknown one alone is \
+                    "stackvet.toml gives it no argument to make long, and an unknown one alone is \
                      not all of the question"
                         .to_owned()
                 } else {
@@ -570,7 +570,7 @@ fn tool_checks(
             "C10.4.4",
             format!(
                 "Whether the tool `{}` refuses a value of the wrong type: its listed schema declares \
-                 none of the arguments securevibe.toml gives as a string, so there was no type to \
+                 none of the arguments stackvet.toml gives as a string, so there was no type to \
                  get wrong on purpose.",
                 tool.name
             ),
@@ -1551,7 +1551,7 @@ mod tests {
         assert!(
             why(&o, "C10.2.1")
                 .iter()
-                .any(|w| w.contains("securevibe.toml says it is meant to answer anyone")),
+                .any(|w| w.contains("stackvet.toml says it is meant to answer anyone")),
             "{:?}",
             o.not_assessed
         );

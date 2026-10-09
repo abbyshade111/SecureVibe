@@ -16,7 +16,7 @@
 //!   guess from a process number, which can be reused or belong to another machine or container. The
 //!   lock file still says who held it, so the next run says that run stopped before it finished.
 //! - **A record in `report.json`** (`sv_report::RunRecord`) of when the run started and the hash of
-//!   the `securevibe.toml` it read. Before writing, a run reads the report it would replace; if that
+//!   the `stackvet.toml` it read. Before writing, a run reads the report it would replace; if that
 //!   one came from a run that started later, it keeps the newer report and says so. With the lock
 //!   this happens only where the lock could not hold: a disk without locks, or a run of an `sv` from
 //!   before this.
@@ -30,7 +30,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// The lock's name in the report folder, from the one list of the folder's names.
 pub const LOCK_NAME: &str = sv_scan::ecosystems::REPORT_LOCK;
 
-/// The record of a run that started at `started` and read `manifest` as its `securevibe.toml`.
+/// The record of a run that started at `started` and read `manifest` as its `stackvet.toml`.
 pub fn run_record(started: SystemTime, manifest: &[u8]) -> sv_report::RunRecord {
     let ms = millis(started);
     sv_report::RunRecord {
@@ -361,10 +361,10 @@ fn refuse_older_than(
     }
     let same_file = match record["securevibe_toml_sha256"].as_str() {
         Some(theirs) if theirs == mine.securevibe_toml_sha256 => {
-            "Both runs read the same securevibe.toml."
+            "Both runs read the same stackvet.toml."
         }
         Some(_) => {
-            "The two runs read different versions of securevibe.toml, so the one there is of the \
+            "The two runs read different versions of stackvet.toml, so the one there is of the \
              newer file."
         }
         None => "",
@@ -379,7 +379,7 @@ fn refuse_older_than(
     )
 }
 
-/// What to say when `securevibe.toml` changed while the run was going, if it did: the report is of
+/// What to say when `stackvet.toml` changed while the run was going, if it did: the report is of
 /// the file as it was when the run started, and a person reading it beside the file should know. A
 /// sentence for the terminal, and the same as a gap for the report.
 pub fn manifest_changed(
@@ -387,7 +387,7 @@ pub fn manifest_changed(
     app_dir: &Path,
 ) -> Option<(String, sv_report::Gap)> {
     let mine = report.run_record.as_ref()?;
-    let now = std::fs::read(app_dir.join("securevibe.toml")).ok()?;
+    let now = std::fs::read(sv_manifest::locate(app_dir).ok()??.path).ok()?;
     if crate::bundle::sha256(&now) == mine.securevibe_toml_sha256 {
         return None;
     }
@@ -397,9 +397,9 @@ pub fn manifest_changed(
         mine.started
     );
     Some((
-        format!("Note: securevibe.toml {changed}."),
+        format!("Note: stackvet.toml {changed}."),
         sv_report::Gap {
-            what: "securevibe.toml as it is now".to_owned(),
+            what: "stackvet.toml as it is now".to_owned(),
             why: format!("it {changed}"),
         },
     ))

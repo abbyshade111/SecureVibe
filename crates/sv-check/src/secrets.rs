@@ -219,7 +219,7 @@ fn looks_like_placeholder(value: &str) -> bool {
     if v.is_empty() {
         return true;
     }
-    // `{new_password}`, `{code}`: the single-brace blanks `sv`'s own securevibe.toml fills in, whole.
+    // `{new_password}`, `{code}`: the single-brace blanks `sv`'s own stackvet.toml fills in, whole.
     // `sv init`'s template raised a HIGH finding at its own commented example until 29 September
     // 2026 (found by the owner's comparison study). `{new_password}x9Q2vL` has text of its own.
     // `{html.escape(csrf_token)}`, `{session.csrf}`, `{tokens[0]}`: the whole value is one expression

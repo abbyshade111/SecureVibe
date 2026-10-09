@@ -1,4 +1,4 @@
-//! The two things added to `sv run`'s limits after #332: a test limit set in securevibe.toml, and
+//! The two things added to `sv run`'s limits after #332: a test limit set in stackvet.toml, and
 //! a run killed outright being cleaned up by the next one.
 //!
 //! Real containers, as in `fence.rs`, and the same rule: with no container backend the tests check
@@ -17,7 +17,7 @@ static ONE_AT_A_TIME: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn plan() -> RunPlan {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/static-app");
-    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("fixture manifest");
+    let manifest = Manifest::load(&dir.join("stackvet.toml")).expect("fixture manifest");
     RunPlan::from_manifest(&manifest, &dir).expect("fixture declares how to run")
 }
 
@@ -47,7 +47,7 @@ fn the_limit_securevibe_toml_sets_is_the_one_a_suite_is_stopped_at() {
     let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
     let Some(backend) = backend() else { return };
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/static-app");
-    let mut manifest = Manifest::load(&dir.join("securevibe.toml")).expect("fixture manifest");
+    let mut manifest = Manifest::load(&dir.join("stackvet.toml")).expect("fixture manifest");
     manifest.stack.run.test = Some("echo started; sleep 120".to_owned());
     manifest.stack.run.test_time_limit = Some(3);
     let plan = RunPlan::from_manifest(&manifest, &dir).expect("fixture declares how to run");

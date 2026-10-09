@@ -1,4 +1,4 @@
-//! A pipe named `securevibe.toml` (the review of 8 October 2026, item 6): reading it waits for a
+//! A pipe named `stackvet.toml` (the review of 8 October 2026, item 6): reading it waits for a
 //! writer that never comes, and with it the server's one thread for answering. It is refused, with
 //! the reason, before it is read.
 #![cfg(unix)]
@@ -8,7 +8,7 @@ use super::*;
 #[test]
 fn a_pipe_under_a_name_the_server_reads_is_refused_rather_than_waited_on() {
     let root = scratch_app("fifo-manifest", "flask-booking");
-    let manifest = root.join("app/securevibe.toml");
+    let manifest = root.join("app/stackvet.toml");
     std::fs::remove_file(&manifest).ok();
     let made = std::process::Command::new("mkfifo")
         .arg(&manifest)
@@ -32,7 +32,7 @@ fn a_pipe_under_a_name_the_server_reads_is_refused_rather_than_waited_on() {
     let result = result.expect("the server was still reading the pipe after 30 seconds");
     assert_eq!(result["isError"], true, "{}", text(&result));
     assert!(
-        text(&result).contains("securevibe.toml in app is not an ordinary file"),
+        text(&result).contains("stackvet.toml in app is not an ordinary file"),
         "{}",
         text(&result)
     );

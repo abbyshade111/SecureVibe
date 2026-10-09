@@ -73,7 +73,7 @@ pub fn headline(report: &Report) -> String {
     let n = report.findings.len();
     // False alarms left `findings` when they were set aside, so they are counted here or the
     // headline would say nothing was found when something was (deep review R2). Who set them aside
-    // is only what securevibe.toml says, so the sentence says where, not who.
+    // is only what stackvet.toml says, so the sentence says where, not who.
     let set_aside = report
         .set_aside
         .iter()
@@ -81,18 +81,18 @@ pub fn headline(report: &Report) -> String {
         .count();
     let set_aside_said = match set_aside {
         0 => String::new(),
-        1 => " 1 more was found and set aside as a false alarm in securevibe.toml; it is listed \
-              under \"Set aside in securevibe.toml\"."
+        1 => " 1 more was found and set aside as a false alarm in stackvet.toml; it is listed \
+              under \"Set aside in stackvet.toml\"."
             .to_owned(),
         k => format!(
-            " {k} more were found and set aside as false alarms in securevibe.toml; they are \
-             listed under \"Set aside in securevibe.toml\"."
+            " {k} more were found and set aside as false alarms in stackvet.toml; they are \
+             listed under \"Set aside in stackvet.toml\"."
         ),
     };
     if n == 0 && set_aside > 0 {
         return format!(
-            "Nothing found is still open, but {} found and set aside as {} in securevibe.toml, \
-             listed under \"Set aside in securevibe.toml\". That is not the same as this app being \
+            "Nothing found is still open, but {} found and set aside as {} in stackvet.toml, \
+             listed under \"Set aside in stackvet.toml\". That is not the same as this app being \
              sound: {} of the {} requirements that apply have had nothing look at them at all.",
             if set_aside == 1 {
                 "1 thing was".to_owned()
@@ -291,7 +291,7 @@ pub fn next_steps(report: &Report) -> Vec<NextStep> {
             },
             where_to_look:
                 "`sv notes` writes the questions out; the rest are the [design] section \
-                            of securevibe.toml"
+                            of stackvet.toml"
                     .to_owned(),
         });
     }
@@ -322,7 +322,7 @@ pub fn next_steps(report: &Report) -> Vec<NextStep> {
     if c.not_assessed > 0 {
         steps.push(NextStep {
             what: format!(
-                "Answer the questions in securevibe.toml that would place {} more requirements, \
+                "Answer the questions in stackvet.toml that would place {} more requirements, \
                  which are in none of the numbers above until then.",
                 c.not_assessed
             ),
@@ -345,6 +345,7 @@ mod tests {
             generated: None,
             sv: Default::default(),
             run_record: None,
+            manifest_file: crate::default_manifest_file(),
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,
@@ -494,11 +495,11 @@ mod tests {
             "{line}"
         );
         assert!(
-            line.contains("Set aside in securevibe.toml") && line.contains("190"),
+            line.contains("Set aside in stackvet.toml") && line.contains("190"),
             "{line}"
         );
         // It says where the setting aside is recorded, not that a person did it: sv cannot tell.
-        assert!(line.contains("in securevibe.toml"), "{line}");
+        assert!(line.contains("in stackvet.toml"), "{line}");
 
         r.set_aside
             .push(set_aside("ast.eval", sv_check::review::FALSE_ALARM));
@@ -783,7 +784,7 @@ mod tests {
         assert!(steps[0].starts_with("Fix the 2"), "{steps:?}");
         assert!(steps[1].contains("no tool can settle"), "{steps:?}");
         assert!(steps[2].contains("Write tests"), "{steps:?}");
-        assert!(steps[3].contains("securevibe.toml"), "{steps:?}");
+        assert!(steps[3].contains("stackvet.toml"), "{steps:?}");
     }
 
     #[test]

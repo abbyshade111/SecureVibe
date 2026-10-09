@@ -322,7 +322,7 @@ impl Facts {
                 }
                 "data" if !self.data_categories.is_empty() => {
                     out.push(format!(
-                        "securevibe.toml says this app holds: {}.",
+                        "stackvet.toml says this app holds: {}.",
                         and_list(&self.data_categories)
                     ));
                 }
@@ -339,20 +339,18 @@ impl Facts {
                     ));
                 }
                 "uploads" => match self.uploads {
-                    Some(true) => out.push("securevibe.toml says people can upload files.".into()),
+                    Some(true) => out.push("stackvet.toml says people can upload files.".into()),
                     Some(false) => out.push(
-                        "securevibe.toml says nobody can upload a file. If that changes, this \
+                        "stackvet.toml says nobody can upload a file. If that changes, this \
                          question starts to matter."
                             .into(),
                     ),
                     None => {}
                 },
                 "sign-in" => match self.sign_in {
-                    Some(true) => {
-                        out.push("securevibe.toml says people sign in to this app.".into())
-                    }
+                    Some(true) => out.push("stackvet.toml says people sign in to this app.".into()),
                     Some(false) => out.push(
-                        "securevibe.toml says nobody signs in to this app. If that changes, this \
+                        "stackvet.toml says nobody signs in to this app. If that changes, this \
                          question starts to matter."
                             .into(),
                     ),
@@ -405,7 +403,7 @@ const NOTHING_APPLIES: &str = "None of the requirements that ask for a document 
 
 /// The heading `sv` puts over answers to questions that no longer apply, and what it says under it.
 pub const ORPHANS_HEADING: &str = "## Answers for requirements that no longer apply";
-const ORPHANS_WHY: &str = "You wrote these, and the answers to the questions in securevibe.toml now say they do \
+const ORPHANS_WHY: &str = "You wrote these, and the answers to the questions in stackvet.toml now say they do \
      not apply to this app. They are kept here in case the manifest is what is wrong.";
 /// The title `sv` gave an answer whose question it no longer has.
 const NO_LONGER_ASKED: &str = "a question that is no longer asked";
@@ -437,7 +435,7 @@ fn own_lines() -> [String; 7] {
 /// any other bullet there is the owner's and kept.
 const FACT_OPENINGS: [&str; 4] = [
     "This app is called ",
-    "securevibe.toml says ",
+    "stackvet.toml says ",
     "Outside services found in the code: ",
     "This app installs packages with ",
 ];
@@ -2097,7 +2095,7 @@ mod tests {
     fn owner_text_before_between_and_after_sv_sections_is_kept_in_order() {
         let first = rewrite(None, &["V6.1.1", "V8.1.1"]).unwrap();
         // Setup: the facts list and the requirement's wording are really there to sit beside.
-        let data_fact = "- securevibe.toml says this app holds: email addresses and orders.\n";
+        let data_fact = "- stackvet.toml says this app holds: email addresses and orders.\n";
         assert!(first.contains(data_fact) && first.contains("*V8.1.1 asks for this: "));
         let edited = first
             .replacen(
@@ -2325,8 +2323,8 @@ mod tests {
             )
             .replacen(PLACEHOLDER, answer, 1)
             .replacen(
-                "- securevibe.toml says this app holds: email addresses and orders.\n",
-                "- securevibe.toml says this app holds: email addresses and orders.\n- Ours: and \
+                "- stackvet.toml says this app holds: email addresses and orders.\n",
+                "- stackvet.toml says this app holds: email addresses and orders.\n- Ours: and \
                  photographs.\n",
                 1,
             );

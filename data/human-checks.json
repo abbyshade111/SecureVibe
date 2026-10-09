@@ -4,7 +4,7 @@
     {
       "id": "V2.3.1",
       "title": "Steps cannot be skipped or done out of order",
-      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice. Describing the flow in securevibe.toml as `flow` under [stack.run.users] lets `sv report --run` try two skips, one wrong order, and one repeated step for you; other orders, and the last step sent again after the flow finished, are still yours."
+      "how": "Take a flow with more than one step — checkout, sign-up with a confirmation, anything with a \"next\" button. Write down the address of the last step. Start the flow again, and go straight to that address without doing the steps before it. It should refuse. Then try the steps in the wrong order, and try the same step twice. Describing the flow in stackvet.toml as `flow` under [stack.run.users] lets `sv report --run` try two skips, one wrong order, and one repeated step for you; other orders, and the last step sent again after the flow finished, are still yours."
     },
     {
       "id": "V12.1.2",
@@ -19,7 +19,7 @@
     {
       "id": "V15.2.1",
       "title": "Nothing is past the update deadline you set",
-      "how": "Write the time frames from your security notes into securevibe.toml as `[policy] fix-within-days`, one number of days per severity, then run `sv report --advisories DIR` (or `sv audit`) against a local advisory database. It lists the packages with a known vulnerability and puts the ones past your time frame first. Those are the answer to this one. Without the numbers it counts every known vulnerability as late, whatever its age."
+      "how": "Write the time frames from your security notes into stackvet.toml as `[policy] fix-within-days`, one number of days per severity, then run `sv report --advisories DIR` (or `sv audit`) against a local advisory database. It lists the packages with a known vulnerability and puts the ones past your time frame first. Those are the answer to this one. Without the numbers it counts every known vulnerability as late, whatever its age."
     },
     {
       "id": "V2.3.2",
@@ -34,7 +34,7 @@
     {
       "id": "V6.2.11",
       "title": "The banned word list is actually used",
-      "how": "Take a word from the list you wrote down — the app's name, your organization's name — and try to register an account using it as the password, or with it inside a longer password. It should be refused. Listing the words in securevibe.toml under [policy] as `context-words` lets `sv report --run` try the first one for you, through the app's own sign-up."
+      "how": "Take a word from the list you wrote down — the app's name, your organization's name — and try to register an account using it as the password, or with it inside a longer password. It should be refused. Listing the words in stackvet.toml under [policy] as `context-words` lets `sv report --run` try the first one for you, through the app's own sign-up."
     },
     {
       "id": "V6.2.12",

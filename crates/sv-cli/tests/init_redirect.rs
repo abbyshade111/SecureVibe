@@ -1,7 +1,7 @@
-//! `sv init > securevibe.toml` writes a file `sv` can read (gap analysis 5.3).
+//! `sv init > stackvet.toml` writes a file `sv` can read (gap analysis 5.3).
 //!
 //! `sv init` prints the starter file and then the instructions for the AI coding tool, which are
-//! prose. Redirected into `securevibe.toml`, that made a file every later command refused. Into a
+//! prose. Redirected into `stackvet.toml`, that made a file every later command refused. Into a
 //! file it now prints only the starter; through a pipe, as an AI coding tool reads it, everything.
 
 use std::process::{Command, Stdio};
@@ -13,13 +13,13 @@ fn redirected_into_a_file_it_writes_only_what_sv_can_read() {
     let dir = std::env::temp_dir().join(format!("sv-init-redirect-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    let file = std::fs::File::create(dir.join("securevibe.toml")).unwrap();
+    let file = std::fs::File::create(dir.join("stackvet.toml")).unwrap();
     let into_file = Command::new(SV)
         .arg("init")
         .stdout(Stdio::from(file))
         .output()
         .unwrap();
-    let written = std::fs::read_to_string(dir.join("securevibe.toml")).unwrap();
+    let written = std::fs::read_to_string(dir.join("stackvet.toml")).unwrap();
     let scope = Command::new(SV).arg("scope").arg(&dir).output().unwrap();
     let piped = Command::new(SV).arg("init").output().unwrap();
     std::fs::remove_dir_all(&dir).ok();

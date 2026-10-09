@@ -505,7 +505,7 @@ pub fn count_line(lines: &[ThreatLine]) -> String {
 pub fn evidence_words(line: &ThreatLine) -> String {
     if line.status == ThreatStatus::CannotPlace {
         return format!(
-            "whether this applies is not known: answer {} in securevibe.toml",
+            "whether this applies is not known: answer {} in stackvet.toml",
             line.unanswered.join(", ")
         );
     }

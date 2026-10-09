@@ -14,11 +14,11 @@ fn status_of<'a>(compliance: &'a str, id: &str) -> &'a str {
     row.split('|').nth(2).unwrap_or("").trim()
 }
 
-/// Writes the tested-notes example's securevibe.toml with `design` as its [design] section, runs
+/// Writes the tested-notes example's stackvet.toml with `design` as its [design] section, runs
 /// `sv report`, and gives back compliance.md and report.json.
 fn report(dir: &Path, design: &str) -> (String, String) {
-    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
+    let example =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
     let mut manifest = std::fs::read_to_string(example).unwrap();
     assert_eq!(
         manifest.matches("[design]").count(),
@@ -26,7 +26,7 @@ fn report(dir: &Path, design: &str) -> (String, String) {
         "the example grew answers of its own; this test would be adding to them"
     );
     manifest.push_str(&format!("\n[design]\n{design}"));
-    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &manifest).unwrap();
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
         .env("XDG_CONFIG_HOME", dir.join("config"))

@@ -21,3 +21,9 @@ written, and both present is refused.
 **Claimed 8 October 2026 by session securevibe-review**, in branch `claude/securevibe-review-stackvet`, once the
 owner says go on the name; the owner's own steps (the domains, the repository's name, the image's) are theirs.
 
+**Step 1 done 8 October 2026** (#1121; design entry 0312): the names module, the crates below `sv-cli` reading from
+it, and the report folder found under either name. **Step 2a built the same day** (design entry 0313): the manifest
+read as `stackvet.toml` first and `securevibe.toml` while only it exists, said once in the report and at the
+terminal; both at once refused. Open after it: step 2b (the MCP server and tool names with the old answered, the
+help text, the history folder, the bundle's default name, the `sv review` sentence for the old key folder), then
+step 3 (the documents, the image's name, this record accepted).

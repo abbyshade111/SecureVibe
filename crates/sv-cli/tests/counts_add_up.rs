@@ -63,13 +63,13 @@ fn app_with_every_status(name: &str) -> PathBuf {
         "import subprocess\n\n\ndef run(cmd):\n    return subprocess.call(cmd, shell=True)\n",
     )
     .unwrap();
-    let mut manifest = std::fs::read_to_string(example.join("securevibe.toml")).unwrap();
+    let mut manifest = std::fs::read_to_string(example.join("stackvet.toml")).unwrap();
     assert_eq!(
         manifest.matches("[design]").count() + manifest.matches("[checked-by-hand]").count(),
         0,
         "the example grew answers of its own; this test would be adding to them"
     );
-    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &manifest).unwrap();
 
     let key_dir = dir.join("config").join(sv_frameworks::names::CONFIG_DIR);
     let (key, _) = sv_check::seal::Key::load_or_make_in(&key_dir).unwrap();
@@ -143,7 +143,7 @@ fn app_with_every_status(name: &str) -> PathBuf {
 "V12.2.2" = {{ result = "done", on = "{today}", by = "owner", how = "{padlock}", seal = "{hand_seal}" }}
 "#
     ));
-    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &manifest).unwrap();
     dir
 }
 

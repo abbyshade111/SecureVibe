@@ -11,7 +11,7 @@ fn the_prompts_offered_are_for_requirements_the_real_report_shows_unproven() {
     std::fs::create_dir_all(&app).unwrap();
     std::fs::write(app.join("app.py"), "def hello():\n    return 'hello'\n").unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Gaps\"\naudience = \"customers\"\n\
          deployment = \"internet\"\n[stack]\nlanguages = [\"python\"]\n",
     )

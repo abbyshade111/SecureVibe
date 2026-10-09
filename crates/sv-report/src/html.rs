@@ -171,7 +171,7 @@ pub fn glance_of(c: &crate::Counts, target_level: u8) -> String {
         (
             "not-apply",
             c.not_applicable,
-            "do not apply to it, from what securevibe.toml says about the app".to_owned(),
+            "do not apply to it, from what stackvet.toml says about the app".to_owned(),
         ),
         (
             "unplaced",
@@ -389,10 +389,10 @@ pub fn page(report: &Report) -> String {
 
     let set_aside = crate::false_alarm_entries(report);
     if !set_aside.is_empty() || !report.reviews_not_counted.is_empty() {
-        b.push_str("<h2>Set aside in securevibe.toml</h2>\n");
+        b.push_str("<h2>Set aside in stackvet.toml</h2>\n");
         if !set_aside.is_empty() {
             b.push_str(&format!(
-                "<p>Found by a check, and set aside as a false alarm in securevibe.toml through \
+                "<p>Found by a check, and set aside as a false alarm in stackvet.toml through \
                  <code>sv review</code>. {} They are not counted below, and a requirement one of them was about is never \
                  shown as checked because of it.</p>\n<ul>\n",
                 escape(crate::SEALED_WHY)
@@ -554,7 +554,7 @@ pub fn page(report: &Report) -> String {
             let known = match p.present {
                 Some(true) => String::new(),
                 _ => format!(
-                    " <span class=\"note\">(not known: securevibe.toml does not answer {})</span>",
+                    " <span class=\"note\">(not known: stackvet.toml does not answer {})</span>",
                     escape(&p.unanswered.join(", "))
                 ),
             };
@@ -1029,7 +1029,7 @@ mod tests {
             c.not_applicable = 1;
         });
         let html = glance(&r).to_lowercase();
-        // Whole words, as the short version's own test reads them: `securevibe.toml` is a name.
+        // Whole words, as the short version's own test reads them: `stackvet.toml` is a name.
         let words: Vec<&str> = html.split(|ch: char| !ch.is_alphanumeric()).collect();
         for word in [
             "pass",
@@ -1078,6 +1078,7 @@ mod tests {
             generated: None,
             sv: Default::default(),
             run_record: None,
+            manifest_file: crate::default_manifest_file(),
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,

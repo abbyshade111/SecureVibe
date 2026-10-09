@@ -123,7 +123,7 @@ fn a_folder_with_only_the_list_is_enough_to_count_a_signed_answer() {
     let app_dir = dir.join("app");
     std::fs::create_dir_all(&app_dir).unwrap();
     std::fs::write(app_dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
-    let mut manifest = read("examples/tested-notes/securevibe.toml");
+    let mut manifest = read("examples/tested-notes/stackvet.toml");
     let app = sv_check::seal::App::of(&app_dir).unwrap();
 
     // On the owner's computer: the key, and the list `sv review` keeps beside it.
@@ -145,7 +145,7 @@ fn a_folder_with_only_the_list_is_enough_to_count_a_signed_answer() {
     manifest.push_str(&format!(
         "\n[design]\n\"V8.3.1\" = {{ answer = \"yes\", where = \"app.py\", by = \"owner\", seal = \"{seal}\" }}\n"
     ));
-    std::fs::write(app_dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(app_dir.join("stackvet.toml"), &manifest).unwrap();
 
     // In the container: only the list, copied as the mount shows it, read-only.
     let seen = dir.join("sv-config/securevibe");

@@ -183,7 +183,7 @@ fn it_writes_only_where_it_is_told_and_never_over_what_it_did_not_make() {
 
 #[test]
 fn what_a_report_says_reaches_the_page_as_text_and_never_as_markup() {
-    // The app's name comes from securevibe.toml, which the AI coding tool writes.
+    // The app's name comes from stackvet.toml, which the AI coding tool writes.
     let root = scratch("escape");
     let app = root.join("odd");
     std::fs::create_dir_all(app.join(sv_scan::ecosystems::DEFAULT_REPORT_DIR)).unwrap();

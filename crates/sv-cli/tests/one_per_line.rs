@@ -23,7 +23,7 @@ fn two_problems_on_one_line_are_one_entry_naming_both_and_two_sarif_results() {
     )
     .unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Lines\"\n[stack]\nlanguages = [\"javascript\"]\n",
     )
     .unwrap();

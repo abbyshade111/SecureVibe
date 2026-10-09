@@ -92,7 +92,7 @@ fn an_unknown_option_is_an_error_that_names_the_commands_options_never_a_folder(
             "sv {command} --nonsense: {said}"
         );
         assert!(said.contains("USAGE:"), "{said}");
-        for folder_word in ["not a folder", "no securevibe.toml in"] {
+        for folder_word in ["not a folder", "no stackvet.toml in"] {
             assert!(!said.contains(folder_word), "sv {command}: {said}");
         }
     }
@@ -136,7 +136,7 @@ fn a_value_that_starts_with_a_dash_is_a_value_and_a_dashed_folder_can_be_named()
     std::fs::create_dir_all(&dashed).unwrap();
     std::fs::write(dashed.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
-        dashed.join("securevibe.toml"),
+        dashed.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Dashed\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();
@@ -230,7 +230,7 @@ fn help_writes_nothing_even_where_the_command_would() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Helped\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();
@@ -249,7 +249,7 @@ fn help_writes_nothing_even_where_the_command_would() {
     let written: Vec<String> = std::fs::read_dir(&dir)
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-        .filter(|name| name != "securevibe.toml")
+        .filter(|name| name != "stackvet.toml")
         .collect();
     // The control: without --help, the same report command does write its folder.
     let control = run(&["report", ".", "--out", "asked"]);
@@ -260,7 +260,7 @@ fn help_writes_nothing_even_where_the_command_would() {
     }
     assert!(written.is_empty(), "help wrote {written:?}");
     assert!(
-        // 2: a folder holding only securevibe.toml has no file of the app to read.
+        // 2: a folder holding only stackvet.toml has no file of the app to read.
         control.status.code() == Some(2) && control_wrote,
         "{}",
         text(&control)
@@ -277,7 +277,7 @@ fn an_option_given_where_a_value_belongs_is_refused_and_nothing_is_written() {
     std::fs::create_dir_all(dir.join("app")).unwrap();
     std::fs::write(dir.join("app").join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
-        dir.join("app").join("securevibe.toml"),
+        dir.join("app").join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Valued\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();

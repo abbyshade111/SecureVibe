@@ -4,7 +4,7 @@
 //! `sv`. The macro defines each condition's name, its plain-language reason, its source and its question in
 //! one place, so they cannot drift apart.
 //!
-//! **Source** is the part v2 adds. `Claim` means the answer comes from `securevibe.toml` and is worth
+//! **Source** is the part v2 adds. `Claim` means the answer comes from `stackvet.toml` and is worth
 //! only what corroboration makes it worth. `Derived` means it comes from the app's own dependencies and
 //! needs nobody's word. The distinction has to survive into the reports: "you told us this app has no
 //! CI/CD" and "no XML parser appears in your dependencies" are not equally strong, and a report that
@@ -15,7 +15,7 @@ use serde::{Deserialize, Deserializer};
 /// Where a condition's answer comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Source {
-    /// Stated in `securevibe.toml`, then corroborated against the code as far as possible.
+    /// Stated in `stackvet.toml`, then corroborated against the code as far as possible.
     Claim,
     /// Read out of the app's dependency manifests and source. Needs nobody's word.
     Derived,

@@ -12,7 +12,7 @@
 //! an address somebody supplies is a tool that can be pointed at a stranger, so the limits are
 //! narrow and each one is a test:
 //!
-//! - **The address comes from the command line and nowhere else.** Not from securevibe.toml. A file
+//! - **The address comes from the command line and nowhere else.** Not from stackvet.toml. A file
 //!   can be committed and then run by CI against a host its author never meant; an argument was
 //!   typed by a person who is looking at the terminal. That is the consent, and it is the only one
 //!   available, because nothing here can prove who owns a domain.

@@ -38,11 +38,10 @@ fn app(root: &Path) -> PathBuf {
     std::fs::create_dir_all(dir.join(".vscode")).unwrap();
     std::fs::create_dir_all(dir.join("node_modules/pkg")).unwrap();
     let manifest = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../examples/tested-notes/securevibe.toml"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml"),
     )
     .unwrap();
-    std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), manifest).unwrap();
     std::fs::write(dir.join("src/main.py"), "print('hello')\n").unwrap();
     std::fs::write(
         dir.join("src/config.py"),
@@ -257,7 +256,7 @@ fn the_bundle_holds_the_app_the_report_the_bill_of_materials_and_the_listing() {
     let made = make("holds");
     for wanted in [
         "notes-app/app/src/main.py",
-        "notes-app/app/securevibe.toml",
+        "notes-app/app/stackvet.toml",
         "notes-app/app/.env.example",
         "notes-app/report/report.html",
         "notes-app/report/compliance.md",
@@ -480,11 +479,10 @@ fn an_app_with_nothing_to_leave_out_says_so() {
     let dir = root.join("tidy");
     std::fs::create_dir_all(&dir).unwrap();
     let manifest = std::fs::read_to_string(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../examples/tested-notes/securevibe.toml"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml"),
     )
     .unwrap();
-    std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), manifest).unwrap();
     std::fs::write(dir.join("main.py"), "print('hi')\n").unwrap();
     let zip = root.join("tidy.zip");
     let out = sv(&[
@@ -539,13 +537,13 @@ fn the_listing_names_the_commit_sv_was_built_from() {
 fn the_data_the_owner_says_the_app_holds_is_named_and_not_pretended_away() {
     let root = scratch("categories");
     let dir = app(&root);
-    let manifest = std::fs::read_to_string(dir.join("securevibe.toml")).unwrap();
+    let manifest = std::fs::read_to_string(dir.join("stackvet.toml")).unwrap();
     assert!(
         !manifest.contains("[data]"),
         "the example grew a [data] section; merge rather than append"
     );
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!("{manifest}\n[data]\ncategories = [\"health\"]\n"),
     )
     .unwrap();
@@ -563,7 +561,7 @@ fn the_data_the_owner_says_the_app_holds_is_named_and_not_pretended_away() {
         String::from_utf8_lossy(&out.stderr)
     );
     assert!(
-        stdout.contains("securevibe.toml says this app holds: health"),
+        stdout.contains("stackvet.toml says this app holds: health"),
         "{stdout}"
     );
     let (entries, bad) = read_zip(&zip);
@@ -609,9 +607,8 @@ fn a_backslash_in_a_file_name_never_reaches_outside_the_app() {
     let outside = "text-that-lives-outside-the-app-4417";
     std::fs::write(root.join("outside/deploy_key.txt"), outside).unwrap();
     std::fs::copy(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../examples/tested-notes/securevibe.toml"),
-        dir.join("securevibe.toml"),
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml"),
+        dir.join("stackvet.toml"),
     )
     .unwrap();
     std::fs::write(dir.join("src/main.py"), "print('hello')\n").unwrap();

@@ -83,7 +83,7 @@ pub fn text_with(report: &Report, fence: &crate::fence::Fence) -> String {
 
     if !design.is_empty() {
         out.push_str(&format!(
-            "\n1. HOW THE APP IS BUILT ({}). Record each answer in securevibe.toml, in the [design] \
+            "\n1. HOW THE APP IS BUILT ({}). Record each answer in stackvet.toml, in the [design] \
              section, keyed by its id:\n   \"V8.3.1\" = {{ answer = \"yes\", where = \"server/auth.py\", \
              by = \"owner\" }}\n   `answer` is yes, no, not-sure, or planned (decided, not built yet); \
              `where` names the file that does it, or will, and is left out when there is none.\n",
@@ -134,7 +134,7 @@ pub fn text_with(report: &Report, fence: &crate::fence::Fence) -> String {
     if !by_hand.is_empty() {
         out.push_str(&format!(
             "\n{}. CHECKS TO MAKE BY HAND ({}). Walk the person through each one, and help with the \
-             part that is in the code. Then record what happened in securevibe.toml, in the \
+             part that is in the code. Then record what happened in stackvet.toml, in the \
              [checked-by-hand] section, keyed by its id:\n   \"V12.2.2\" = {{ result = \"done\", on = \
              \"2026-09-26\", by = \"owner\", how = \"Opened the live site; the padlock shows a \
              trusted certificate.\" }}\n   `result` is done, problem, or not-yet; `on` is the day; \

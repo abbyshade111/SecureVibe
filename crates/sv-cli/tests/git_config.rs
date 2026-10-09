@@ -28,7 +28,7 @@ fn checking_an_app_runs_no_program_its_repository_names() {
     // The mark is outside the app, where a program would reach on the owner's computer.
     let mark = root.join("ran");
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Planted\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();

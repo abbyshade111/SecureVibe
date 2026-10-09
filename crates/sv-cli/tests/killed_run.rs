@@ -21,7 +21,7 @@ fn app(name: &str, test: &str) -> PathBuf {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("index.html"), "<p>hello</p>\n").unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n[app]\nname = \"Stop\"\n[stack]\nlanguages = []\n\
              [stack.run]\nimage = \"busybox:1.36\"\nstart = \"httpd -f -h /app -p $PORT\"\n\

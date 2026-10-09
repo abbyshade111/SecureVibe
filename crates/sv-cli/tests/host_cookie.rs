@@ -33,12 +33,7 @@ fn app() -> PathBuf {
         .join(format!("sv-host-cookie-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
-    for file in [
-        "app.py",
-        "seed.py",
-        "common-passwords.txt",
-        "securevibe.toml",
-    ] {
+    for file in ["app.py", "seed.py", "common-passwords.txt", "stackvet.toml"] {
         std::fs::copy(example.join(file), dir.join(file)).unwrap();
     }
 
@@ -75,13 +70,13 @@ fn app() -> PathBuf {
     );
     std::fs::write(dir.join("app.py"), code).unwrap();
 
-    let mut manifest = std::fs::read_to_string(dir.join("securevibe.toml")).unwrap();
+    let mut manifest = std::fs::read_to_string(dir.join("stackvet.toml")).unwrap();
     replace(
         &mut manifest,
         "start = \"python app.py\"",
         "start = \"FAMILY_HUB_INSECURE_COOKIES=1 python app.py\"",
     );
-    std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), manifest).unwrap();
     dir
 }
 
@@ -118,7 +113,7 @@ fn a_host_prefixed_cookie_signs_the_browser_in_and_a_weakened_start_is_warned_ab
     // Before the run, and in the report's note about it: the warning, which does not stop the run.
     assert!(
         stderr.contains(
-            "Warning: the start command in securevibe.toml sets `FAMILY_HUB_INSECURE_COOKIES=1`"
+            "Warning: the start command in stackvet.toml sets `FAMILY_HUB_INSECURE_COOKIES=1`"
         ),
         "{stderr}"
     );

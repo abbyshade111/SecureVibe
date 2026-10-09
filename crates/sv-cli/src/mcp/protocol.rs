@@ -100,14 +100,14 @@ pub(super) fn error_reply(id: Value, code: i64, message: &str) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
 }
 
-/// Refuses an app folder with no securevibe.toml, naming the tool that writes one, and what to do
+/// Refuses an app folder with no stackvet.toml, naming the tool that writes one, and what to do
 /// after: `again`, such as "check again".
 pub(super) fn needs_manifest(app_dir: &Path, again: &str) -> Result<()> {
-    if app_dir.join("securevibe.toml").exists() {
+    if sv_manifest::locate(app_dir)?.is_some() {
         return Ok(());
     }
     Err(crate::Remedy::error(
-        format!("there is no securevibe.toml in {}.", app_dir.display()),
+        format!("there is no stackvet.toml in {}.", app_dir.display()),
         format!("Call securevibe_spec, write the file it describes into that folder, and {again}."),
     ))
 }

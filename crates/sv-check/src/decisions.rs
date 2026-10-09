@@ -20,7 +20,7 @@
 //!
 //! The owner's decisions of 5 October 2026 (BACKLOG, design-time item 9).
 
-/// The file, beside the app's securevibe.toml.
+/// The file, beside the app's stackvet.toml.
 pub const FILE: &str = "design-decisions.md";
 
 /// The heading the "when to bring in a person" prompt writes.

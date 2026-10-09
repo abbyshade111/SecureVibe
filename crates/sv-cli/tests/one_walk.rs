@@ -61,7 +61,7 @@ fn a_link_out_of_the_app_and_a_loop_are_named_once_and_never_read() {
     std::fs::create_dir_all(&outside).unwrap();
     std::fs::write(app.join("src/app.py"), "print('hi')\n").unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Links\"\n",
     )
     .unwrap();
@@ -114,7 +114,7 @@ fn a_link_out_of_the_app_and_a_loop_are_named_once_and_never_read() {
 fn a_file_too_large_to_read_is_named_and_keeps_the_rules_from_claiming_a_clean_result() {
     let root = scratch("large");
     std::fs::write(
-        root.join("securevibe.toml"),
+        root.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Large\"\n",
     )
     .unwrap();

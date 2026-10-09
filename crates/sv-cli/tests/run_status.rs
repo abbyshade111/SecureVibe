@@ -17,7 +17,7 @@ fn report_with(name: &str, run: bool, manifest_extra: &str) -> (String, Value) {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!("manifest-version = 1\n[app]\nname = \"x\"\n{manifest_extra}"),
     )
     .unwrap();

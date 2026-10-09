@@ -260,7 +260,7 @@ pub(super) fn password_checks(
     let Some(signup) = &users.signup else {
         out.not_assessed.push((
             IDS.to_owned(),
-            "The password rules are asked through the app's own sign-up, and securevibe.toml sets \
+            "The password rules are asked through the app's own sign-up, and stackvet.toml sets \
              no `signup` under [stack.run.users]."
                 .to_owned(),
         ));
@@ -441,12 +441,12 @@ pub(super) fn password_checks(
         None => out.not_assessed.push((
             "V6.2.11".to_owned(),
             if policy.context_words.is_empty() {
-                "securevibe.toml lists no context-specific words. Add your app's and your \
+                "stackvet.toml lists no context-specific words. Add your app's and your \
                  organization's names under [policy] as `context-words`, and sign-up is asked to \
                  refuse a password made from one."
                     .to_owned()
             } else {
-                "No word under `context-words` in securevibe.toml has between 4 and 32 letters or \
+                "No word under `context-words` in stackvet.toml has between 4 and 32 letters or \
                  digits, so none could be made into a password worth trying."
                     .to_owned()
             },
@@ -458,7 +458,7 @@ pub(super) fn password_checks(
                 Severity::Low,
                 format!(
                     "The app let an account sign up with `{password}`, which is \"{word}\" from \
-                     `context-words` in securevibe.toml, repeated, and sign in with it."
+                     `context-words` in stackvet.toml, repeated, and sign in with it."
                 ),
             )),
             (false, true) => out.verified.push(crate::Verified::new(
@@ -590,7 +590,7 @@ fn exact_password_checks(
 /// The password field on the sign-in and sign-up pages: masked (V6.2.6), and not refusing a paste
 /// (V6.2.7).
 ///
-/// Read from the page's HTML, which is what a browser is given. The field is the one securevibe.toml
+/// Read from the page's HTML, which is what a browser is given. The field is the one stackvet.toml
 /// sends `{password}` in, so what is looked at is the field the app reads, not any input that
 /// happens to say "password". A page that builds its form with script has no such field in its HTML,
 /// and says so rather than passing. Pasting blocked by a script attached after the page loads cannot
@@ -685,7 +685,7 @@ pub(super) fn password_field_checks(
             UNMASKED_PASSWORD.rule_id,
             UNMASKED_PASSWORD.requirement_ids,
             format!(
-                "the password field securevibe.toml names, on {}, served as type=password",
+                "the password field stackvet.toml names, on {}, served as type=password",
                 masked.join(" and ")
             ),
         ));
@@ -713,12 +713,12 @@ pub(super) fn password_field_checks(
         out.not_assessed.push((
             "V6.2.6".to_owned(),
             if missing.is_empty() {
-                "Whether password fields are masked: securevibe.toml names no form with a \
+                "Whether password fields are masked: stackvet.toml names no form with a \
                  `{password}` field."
                     .to_owned()
             } else {
                 format!(
-                    "Whether password fields are masked: the field securevibe.toml names was not in \
+                    "Whether password fields are masked: the field stackvet.toml names was not in \
                      the HTML of {}. A page that builds its form with script cannot be read here.",
                     missing.join(" or ")
                 )
@@ -748,7 +748,7 @@ pub(super) fn change_password_checks(
         out.not_assessed.push((
             IDS.to_owned(),
             "Whether a password can be changed, and whether that needs the current one: \
-             securevibe.toml sets no `change-password` under [stack.run.users]."
+             stackvet.toml sets no `change-password` under [stack.run.users]."
                 .to_owned(),
         ));
         return;
@@ -921,7 +921,7 @@ pub(super) fn change_password_checks(
             IDS.to_owned(),
             format!(
                 "A change of password through {} with the right current password did not take: \
-                 the new password did not sign in. Check `change-password` in securevibe.toml. With \
+                 the new password did not sign in. Check `change-password` in stackvet.toml. With \
                  no change that works, a refused one shows nothing.",
                 change.path
             ),
@@ -982,7 +982,7 @@ pub(super) fn change_email_check(
     let Some(change) = &users.change_email else {
         out.not_assessed.push((
             IDS.to_owned(),
-            "Whether changing the email address needs the password again: securevibe.toml sets no \
+            "Whether changing the email address needs the password again: stackvet.toml sets no \
              `change-email` under [stack.run.users]."
                 .to_owned(),
         ));
@@ -992,7 +992,7 @@ pub(super) fn change_email_check(
         out.not_assessed.push((
             IDS.to_owned(),
             "Whether changing the email address needs the password again: it is only ever done to \
-             an account made for it, and securevibe.toml sets no `signup` to make one."
+             an account made for it, and stackvet.toml sets no `signup` to make one."
                 .to_owned(),
         ));
         return;
@@ -1100,7 +1100,7 @@ pub(super) fn change_email_check(
                 "A change of email address through {} with the right password did not take: the \
                  new address did not sign in. That happens when sign-in is by user name rather \
                  than email address, or when the app waits for the new address to be confirmed \
-                 first; otherwise check `change-email` in securevibe.toml. With no change that \
+                 first; otherwise check `change-email` in stackvet.toml. With no change that \
                  works, a refused one shows nothing.",
                 change.path
             ),
@@ -1471,7 +1471,7 @@ pub(super) fn delete_account_check(
     let Some(delete) = &users.delete_account else {
         out.not_assessed.push((
             IDS.to_owned(),
-            "Whether deleting an account ends its sessions: securevibe.toml sets no \
+            "Whether deleting an account ends its sessions: stackvet.toml sets no \
              `delete-account` under [stack.run.users]."
                 .to_owned(),
         ));
@@ -1481,7 +1481,7 @@ pub(super) fn delete_account_check(
         out.not_assessed.push((
             IDS.to_owned(),
             "Whether deleting an account ends its sessions: only an account made for the purpose is \
-             ever deleted, and securevibe.toml sets no `signup` to make one."
+             ever deleted, and stackvet.toml sets no `signup` to make one."
                 .to_owned(),
         ));
         return;
@@ -1557,7 +1557,7 @@ pub(super) fn delete_account_check(
             format!(
                 "Whether deleting an account ends its sessions: after the request to {}, the \
                  account still signed in, so it was not deleted. Check `delete-account` in \
-                 securevibe.toml.",
+                 stackvet.toml.",
                 delete.path
             ),
         ));

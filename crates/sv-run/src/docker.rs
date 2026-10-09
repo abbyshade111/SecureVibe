@@ -371,7 +371,7 @@ impl DockerBackend {
             ],
         };
 
-        // 0. The app's packages, when securevibe.toml asks for them (ADR-052): before anything else
+        // 0. The app's packages, when stackvet.toml asks for them (ADR-052): before anything else
         //    starts, in a container of their own that can reach the internet and is given only the
         //    dependency files. A refusal or a failed install stops the run before the app starts.
         let installs = if plan.install {
@@ -470,7 +470,7 @@ impl DockerBackend {
             && self.start_model(&network, &model_name))
         .then_some(model_name.as_str());
 
-        // 1e. A headless browser, when securevibe.toml asks for checks made in one. On the same
+        // 1e. A headless browser, when stackvet.toml asks for checks made in one. On the same
         //     fenced network, so the pages it draws can reach nothing the app could not. If it
         //     cannot be started the checks that needed it say so.
         let wants_browser = plan.users.as_ref().is_some_and(|u| u.browser.is_some());
@@ -716,7 +716,7 @@ impl DockerBackend {
                 (None, _) => (
                     None,
                     Some(
-                        "securevibe.toml declares no test-report, so only the exit code is known and a suite with one failing test credits nothing"
+                        "stackvet.toml declares no test-report, so only the exit code is known and a suite with one failing test credits nothing"
                             .to_owned(),
                     ),
                 ),
@@ -1239,7 +1239,7 @@ fn model_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 2]) -> Vec<&'a
 
 /// What the app is told about the test model: the addresses the OpenAI and Anthropic libraries
 /// read, a key for each that works nowhere else, and the OpenAI-style address in any other
-/// variables securevibe.toml names.
+/// variables stackvet.toml names.
 fn model_env(host: &str, others: &[String], mcp: Option<&str>) -> Vec<String> {
     let openai = format!("http://{host}:{MODEL_PORT}/v1");
     let mut env = vec![
@@ -2001,7 +2001,7 @@ fn seed_failed(code: i32, out: &str, accounts: &sv_check::signed_in::Accounts) -
         line = line.replace(secret.as_str(), "[a test secret, left out]");
     }
     format!(
-        "The seed command in securevibe.toml failed (exit {code}): {line}. With no accounts there \
+        "The seed command in stackvet.toml failed (exit {code}): {line}. With no accounts there \
          is nobody to sign in as."
     )
 }

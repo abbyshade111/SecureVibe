@@ -11,7 +11,7 @@ fn a_misspelled_data_category_is_named_in_the_report() {
     std::fs::write(app.join("app.py"), "def home():\n    return 'hello'\n").unwrap();
     let report = |categories: &str| -> (String, serde_json::Value) {
         std::fs::write(
-            app.join("securevibe.toml"),
+            app.join("stackvet.toml"),
             format!(
                 "manifest-version = 1\n[app]\nname = \"Notes\"\naudience = \"just-me\"\n\
                  [stack]\nlanguages = [\"python\"]\n[data]\ncategories = {categories}\n"

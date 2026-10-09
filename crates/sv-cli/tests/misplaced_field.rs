@@ -1,4 +1,4 @@
-//! A field in the wrong section of securevibe.toml is answered, by every command that reads the
+//! A field in the wrong section of stackvet.toml is answered, by every command that reads the
 //! file, with the section it was read in and where a field of that name belongs (DESIGN, "A
 //! misplaced field names its section"). In the loop pilot an AI coding tool told only the field
 //! sent the same line back five times.
@@ -12,7 +12,7 @@ fn every_command_that_reads_the_manifest_names_the_section() {
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(root.join("app.py"), "print('hello')\n").unwrap();
     std::fs::write(
-        root.join("securevibe.toml"),
+        root.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Club\"\n\n[stack.run.ai]\nenabled = true\n",
     )
     .unwrap();

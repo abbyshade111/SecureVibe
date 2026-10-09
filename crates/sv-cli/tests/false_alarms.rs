@@ -123,7 +123,7 @@ fn one_weakness_on_one_line_from_two_tools_is_listed_once_naming_both() {
     std::fs::create_dir_all(&app).unwrap();
     std::fs::write(app.join("app.py"), APP).unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Dup\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();
@@ -179,7 +179,7 @@ fn labelled_app(dir: &Path) {
     )
     .unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Labels\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();
@@ -316,7 +316,7 @@ fn sentence_app(app: &Path, line: usize) {
     )
     .unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Sentence\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();

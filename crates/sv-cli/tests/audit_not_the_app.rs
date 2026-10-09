@@ -1,6 +1,6 @@
-//! `sv audit` and the folders securevibe.toml says are not the app, and what its exit status says,
+//! `sv audit` and the folders stackvet.toml says are not the app, and what its exit status says,
 //! end to end through the binary. What is in those folders is listed apart and still counted, since
-//! the AI coding tool writes securevibe.toml. A weekly job in CI holds `sv` itself to V15.2.1 with
+//! the AI coding tool writes stackvet.toml. A weekly job in CI holds `sv` itself to V15.2.1 with
 //! this, so the status is the check: 0 only when everything was compared and nothing matched.
 
 use std::path::{Path, PathBuf};
@@ -47,7 +47,7 @@ fn setup(name: &str, manifest: &str, app_packages: &[(&str, &str)]) -> (PathBuf,
     let (dir, osv) = (root.join("app"), root.join("osv"));
     lockfile(&dir, app_packages);
     lockfile(&dir.join("examples/demo"), &[("lodash", "4.17.15")]);
-    std::fs::write(dir.join("securevibe.toml"), manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), manifest).unwrap();
     std::fs::create_dir_all(&osv).unwrap();
     for (id, package) in [("GHSA-app", "qs"), ("GHSA-example", "lodash")] {
         std::fs::write(
@@ -97,7 +97,7 @@ fn an_example_apps_vulnerability_is_listed_apart_and_still_counted() {
     let (dir, osv) = setup("apart", NOT_THE_APP, &[("qs", "6.5.0")]);
     let (code, text) = audit(&dir, Some(&osv));
     // The control: with nothing said about examples, both are the app's own.
-    std::fs::write(dir.join("securevibe.toml"), PLAIN).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), PLAIN).unwrap();
     let (plain_code, plain) = audit(&dir, Some(&osv));
     std::fs::remove_dir_all(dir.parent().unwrap()).ok();
 
@@ -122,7 +122,7 @@ fn an_example_apps_vulnerability_is_listed_apart_and_still_counted() {
 
 #[test]
 fn naming_a_folder_never_hides_its_vulnerability() {
-    // The app itself is clean; the only vulnerable package is in a folder securevibe.toml sets apart.
+    // The app itself is clean; the only vulnerable package is in a folder stackvet.toml sets apart.
     // A line the AI coding tool writes must not be able to turn that into a clean result.
     let (dir, osv) = setup("hidden", NOT_THE_APP, &[("express", "4.21.2")]);
     let (code, text) = audit(&dir, Some(&osv));
@@ -218,7 +218,7 @@ fn a_database_that_only_mentions_an_ecosystem_in_passing_does_not_cover_it() {
 
 #[test]
 fn a_folder_set_apart_by_a_pattern_still_counts_both_ways() {
-    // `fixtures/*` in securevibe.toml, as `sv`'s own manifest writes `crates/*/tests`.
+    // `fixtures/*` in stackvet.toml, as `sv`'s own manifest writes `crates/*/tests`.
     let manifest = "manifest-version = 1\n[app]\nname = \"Audited\"\n[stack]\nlanguages = [\"javascript\"]\n[repository]\nnot-the-app = [\"examples\", \"fixtures/*\"]\n";
     let (dir, osv) = setup("pattern", manifest, &[("express", "4.21.2")]);
     lockfile(&dir.join("examples/demo"), &[("express", "4.21.2")]);

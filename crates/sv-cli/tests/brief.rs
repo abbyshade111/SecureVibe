@@ -42,7 +42,7 @@ fn a_brief_has_its_five_parts_and_credits_nothing() {
         "## 2. Decide first",
         "## 3. Rules to code by",
         "## 4. Tests to write",
-        "## 5. What `sv run` needs in `securevibe.toml`",
+        "## 5. What `sv run` needs in `stackvet.toml`",
     ] {
         assert!(said.contains(part), "{part}: {said}");
     }
@@ -72,7 +72,7 @@ fn a_feature_with_no_brief_is_refused_naming_those_with_one() {
 #[test]
 fn a_brief_before_securevibe_toml_says_what_waits_for_it_and_gives_the_rest() {
     // A builder asks for the brief before writing the settings file (the delivery test of 6
-    // October 2026). An empty folder: no securevibe.toml, no code.
+    // October 2026). An empty folder: no stackvet.toml, no code.
     let dir = std::env::temp_dir().join(format!("sv-brief-none-{}", std::process::id()));
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
@@ -80,13 +80,13 @@ fn a_brief_before_securevibe_toml_says_what_waits_for_it_and_gives_the_rest() {
     std::fs::remove_dir_all(&dir).ok();
     let said = text(&out);
     assert!(out.status.success(), "{said}");
-    assert!(said.contains("(no securevibe.toml yet)"), "{said}");
-    assert!(said.contains("Waiting for securevibe.toml"), "{said}");
+    assert!(said.contains("(no stackvet.toml yet)"), "{said}");
+    assert!(said.contains("Waiting for stackvet.toml"), "{said}");
     // What does not wait: a requirement it can bring, the prompt shown to work, and a setting.
     assert!(said.contains("**C2.1.3**"), "{said}");
     assert!(said.contains("(`ai-feature-guard`)"), "{said}");
     assert!(
-        said.contains("## 5. What `sv run` needs in `securevibe.toml`"),
+        said.contains("## 5. What `sv run` needs in `stackvet.toml`"),
         "{said}"
     );
 }

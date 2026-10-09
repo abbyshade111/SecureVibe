@@ -1,5 +1,5 @@
 //! Part 2 of the false-alarm work, end to end: a person's `[[finding-review]]` entries in
-//! securevibe.toml, as the report, the SARIF, and the AI coding tool see them.
+//! stackvet.toml, as the report, the SARIF, and the AI coding tool see them.
 
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -152,7 +152,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     app(&dir, REDIRECT);
-    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), MANIFEST).unwrap();
 
     // First, as found: both need attention, and each finding carries the name a review uses.
     let before = report(&dir);
@@ -171,7 +171,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     // proposes that the missing SECURITY.md is a false alarm.
     let why = "The next= value is looked up in a fixed list of our own paths before redirect.";
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "{MANIFEST}{}{}{}",
             entry(
@@ -210,7 +210,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
     // find it further down (deep review R2).
     for page in [&after.compliance, &after.html] {
         assert!(
-            page.contains("1 more was found and set aside as a false alarm in securevibe.toml"),
+            page.contains("1 more was found and set aside as a false alarm in stackvet.toml"),
             "{page}"
         );
     }
@@ -223,7 +223,7 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
         .nth(1)
         .unwrap_or_else(|| panic!("no list of things to fix:\n{}", after.security));
     assert!(!to_fix.contains("app.py` line 6"), "{}", after.security);
-    assert!(after.security.contains("## Set aside in securevibe.toml"));
+    assert!(after.security.contains("## Set aside in stackvet.toml"));
     assert!(after.security.contains(why));
     // Who set it aside is what `sv review` recorded, and the report says what its seal shows and
     // what it cannot (deep review R1).
@@ -316,11 +316,11 @@ fn a_persons_review_sets_findings_aside_and_the_tools_proposal_does_not() {
             .all(|r| r["partialFingerprints"]["svFingerprint/v1"].is_string())
     );
 
-    // What the AI coding tool is told: what was set aside in securevibe.toml, and that its own proposal does
+    // What the AI coding tool is told: what was set aside in stackvet.toml, and that its own proposal does
     // not count and is never to be signed with a person's name.
     let tool = mcp_check(&dir);
     assert!(
-        tool.contains("SET ASIDE IN securevibe.toml through `sv review`")
+        tool.contains("SET ASIDE IN stackvet.toml through `sv review`")
             && tool.contains("never run it for them, and never write a `seal`")
             && tool.contains(why),
         "{tool}"
@@ -391,7 +391,7 @@ fn sv_check_counts_what_sv_report_counts_on_the_same_folder() {
         ),
     )
     .unwrap();
-    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), MANIFEST).unwrap();
     let before = report(&dir);
     let redirect = fingerprint(&before, "ast.open-redirect");
     let (check_before, check_said) = exit_of("check", &dir);
@@ -408,7 +408,7 @@ fn sv_check_counts_what_sv_report_counts_on_the_same_folder() {
     let why = "The next= value is looked up in a fixed list of our own paths before redirect.";
     let contact = fingerprint(&before, "config.security-contact");
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "{MANIFEST}{}{}",
             entry(
@@ -443,7 +443,7 @@ fn sv_check_counts_what_sv_report_counts_on_the_same_folder() {
     // Nothing is dropped quietly: the terminal says what was set aside, by whom, and why, and
     // that the tool's proposal does not count; the redirect is no longer a thing to look at.
     assert!(
-        check_said.contains("In securevibe.toml, through `sv review`:")
+        check_said.contains("In stackvet.toml, through `sv review`:")
             && check_said.contains("ast.open-redirect in app.py: a false alarm, by owner on")
             && check_said.contains(why),
         "{check_said}"
@@ -537,7 +537,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
         "def test_v1_2_4_notes_are_found():\n    assert True\n",
     )
     .unwrap();
-    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), MANIFEST).unwrap();
     // 2, because `broken.py` could not be read in full.
     let before = report_exiting(&dir, &[2]);
     let redirect = fingerprint(&before, "ast.open-redirect");
@@ -558,7 +558,7 @@ fn an_entry_that_matches_nothing_says_whether_its_rule_looked_and_an_earlier_one
     let why = "Looked at by the owner on the day, and the value never comes from a request.";
     let sql_line = "cur.execute(\"SELECT * FROM notes WHERE owner = \" + user_id)";
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         format!(
             "{MANIFEST}{}{}{}{}{}{}",
             // The rule ran over app.py and the line is fixed below: gone.
@@ -722,7 +722,7 @@ fn no_fingerprint_given_for_a_credential_is_over_its_value_as_written() {
         format!("import sqlite3\n{line}\nconn = connect(db_password)\n"),
     )
     .unwrap();
-    std::fs::write(dir.join("securevibe.toml"), MANIFEST).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), MANIFEST).unwrap();
     let run = report(&dir);
     let reply = mcp_reply(&dir).to_string();
     std::fs::remove_dir_all(&dir).ok();

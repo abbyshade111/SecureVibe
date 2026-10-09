@@ -13,7 +13,7 @@ fn training_claim(name: &str, code: &str) -> Value {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Tuner\"\n[stack]\nlanguages = [\"python\"]\n\
          [capabilities.ai]\nenabled = true\ntraining = false\n",
     )

@@ -22,8 +22,8 @@ fn an_owners_answer_is_theirs_only_as_recorded_and_not_changed_since() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
-    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
+    let example =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
     let mut manifest = std::fs::read_to_string(example).unwrap();
     let config = dir.join("config");
     let (key, _) =
@@ -79,7 +79,7 @@ fn an_owners_answer_is_theirs_only_as_recorded_and_not_changed_since() {
         !manifest.contains("[design]\n[") && manifest.matches("[design]").count() == 1,
         "the example grew answers of its own; this test would be adding to them"
     );
-    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &manifest).unwrap();
 
     let out_dir = dir.join("report");
     let out = Command::new(env!("CARGO_BIN_EXE_sv"))
@@ -133,8 +133,8 @@ fn an_owners_signed_answer_counts_where_sv_trusted_seals_names_its_key() {
     std::fs::remove_dir_all(&dir).ok();
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("app.py"), "def home():\n    return 'hi'\n").unwrap();
-    let example = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../examples/tested-notes/securevibe.toml");
+    let example =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../examples/tested-notes/stackvet.toml");
     let mut manifest = std::fs::read_to_string(example).unwrap();
     let app = sv_check::seal::App::of(&dir).unwrap();
     // The owner's key, on the owner's computer, and the line they would give CI.
@@ -163,7 +163,7 @@ fn an_owners_signed_answer_counts_where_sv_trusted_seals_names_its_key() {
     manifest.push_str(&format!(
         "\n[design]\n\"V8.3.1\" = {{ answer = \"yes\", where = \"app.py\", by = \"owner\", seal = \"{seal}\" }}\n"
     ));
-    std::fs::write(dir.join("securevibe.toml"), &manifest).unwrap();
+    std::fs::write(dir.join("stackvet.toml"), &manifest).unwrap();
 
     let report = |list: Option<&str>| {
         let out_dir = dir.join("report");

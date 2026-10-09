@@ -62,7 +62,7 @@ pub fn render(report: &Report) -> String {
                     "inTestCode": f.in_test_code(),
                     "alsoReportedBy": f.also_reported_by,
                 },
-                "locations": [location(&f.location)],
+                "locations": [location(&f.location, &report.manifest_file)],
             });
             if !f.location.is_file() {
                 result["properties"]["place"] = json!(f.location.file);
@@ -134,10 +134,6 @@ pub fn render(report: &Report) -> String {
     serde_json::to_string_pretty(&document).expect("a JSON value serializes")
 }
 
-/// The file a finding about the running app is pointed at: the manifest, whose `[run]` section says
-/// how `sv` started the app. `sv report --run` cannot run without it, so it is always there.
-const RUNNING_APP_ANCHOR: &str = "securevibe.toml";
-
 /// Where a finding is, as a SARIF `location`.
 ///
 /// A file of the app is an `artifactLocation.uri` relative to the app's folder, percent-encoded so
@@ -149,7 +145,9 @@ const RUNNING_APP_ANCHOR: &str = "securevibe.toml";
 /// manifest that says how the app was run, line 1, and says so in the location's own message,
 /// with the place named as a `logicalLocation` and in the result's `properties.place`. The address
 /// the probe asked is in the result's message, as it always was.
-fn location(at: &sv_check::Location) -> Value {
+/// `anchor` is the manifest, by the name it has in this app, whose `[run]` section says how `sv`
+/// started the app; `sv report --run` cannot run without it, so it is always there.
+fn location(at: &sv_check::Location, anchor: &str) -> Value {
     if at.is_file() {
         return json!({
             "physicalLocation": {
@@ -160,12 +158,12 @@ fn location(at: &sv_check::Location) -> Value {
     }
     json!({
         "physicalLocation": {
-            "artifactLocation": { "uri": RUNNING_APP_ANCHOR },
+            "artifactLocation": { "uri": anchor },
             "region": { "startLine": 1 }
         },
         "logicalLocations": [{ "name": at.file }],
         "message": { "text": format!(
-            "Seen in {}, which has no file or line of its own. It points at {RUNNING_APP_ANCHOR}, \
+            "Seen in {}, which has no file or line of its own. It points at {anchor}, \
              which says how the app was started.",
             at.file
         ) }
@@ -313,6 +311,7 @@ mod tests {
             generated: None,
             sv: Default::default(),
             run_record: None,
+            manifest_file: crate::default_manifest_file(),
             run_note: None,
             run_steps: Vec::new(),
             test_output: None,
@@ -519,7 +518,7 @@ mod tests {
                 .as_str()
                 .unwrap_or_else(|| panic!("GitHub needs a file for every result: {result}"));
             assert_eq!(
-                uri, "securevibe.toml",
+                uri, "stackvet.toml",
                 "a running-app finding points at the manifest that says how the app was run"
             );
             is_relative_path_reference(uri).unwrap();

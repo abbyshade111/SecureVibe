@@ -12,7 +12,7 @@ use sv_run::{Backend, CannotRun, RunPlan, docker::DockerBackend};
 
 fn plan() -> RunPlan {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/stops-app");
-    let manifest = Manifest::load(&dir.join("securevibe.toml")).expect("stops fixture manifest");
+    let manifest = Manifest::load(&dir.join("stackvet.toml")).expect("stops fixture manifest");
     RunPlan::from_manifest(&manifest, &dir).expect("stops fixture declares how to run")
 }
 

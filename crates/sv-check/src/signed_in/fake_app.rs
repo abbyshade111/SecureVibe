@@ -407,7 +407,7 @@ pub(super) struct Flaws {
     /// Signing out sends Clear-Site-Data.
     pub(super) clears_site_data: bool,
     /// Refuses every upload, whatever it is. An app whose upload path does not work as
-    /// securevibe.toml describes, which must read as *not assessed* and never as four passes.
+    /// stackvet.toml describes, which must read as *not assessed* and never as four passes.
     pub(super) upload_broken: bool,
     /// Keeps an uploaded SVG's `<script>` and `<foreignObject>` rather than removing them (V1.3.4).
     pub(super) svg_scripts_kept: bool,

@@ -253,7 +253,7 @@ mod tests {
         }
     }
 
-    /// securevibe.toml with a search page and a record by query string among the private pages.
+    /// stackvet.toml with a search page and a record by query string among the private pages.
     fn sql_users() -> UsersSection {
         let mut u = users();
         u.private.push("/search?q=zz".into());

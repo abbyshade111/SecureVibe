@@ -1,4 +1,4 @@
-//! Whether securevibe.toml's `[repository] not-the-app` list is used for this app (ADR-031).
+//! Whether stackvet.toml's `[repository] not-the-app` list is used for this app (ADR-031).
 
 use crate::{files, under_any};
 

@@ -511,7 +511,7 @@ pub struct Made<'a> {
     pub made_at: &'a str,
     pub command: &'a str,
     pub app_name: &'a str,
-    /// What `securevibe.toml` says about the data the app holds.
+    /// What `stackvet.toml` says about the data the app holds.
     pub categories: &'a [String],
 }
 
@@ -566,7 +566,7 @@ pub fn readme(
     }
     if !categories.is_empty() {
         text.push_str(&format!(
-            "securevibe.toml says this app holds: {}. Those files are not left out, because sv cannot tell which they are.\n\n",
+            "stackvet.toml says this app holds: {}. Those files are not left out, because sv cannot tell which they are.\n\n",
             categories.join(", ")
         ));
     }

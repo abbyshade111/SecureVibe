@@ -107,7 +107,7 @@ class Handler(BaseHTTPRequestHandler):
             "<button>Sign out</button></form>"
         )
 
-    # The largest file this app accepts, matching `max-bytes` in securevibe.toml: V5.2.1.
+    # The largest file this app accepts, matching `max-bytes` in stackvet.toml: V5.2.1.
     MAX_UPLOAD = 64 * 1024
     UPLOADS = {}
 

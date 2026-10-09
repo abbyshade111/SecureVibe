@@ -57,7 +57,7 @@ fn interrupt(command: &[&str]) {
     // A suite that would hold the run for ten minutes, so the run is certainly still going when
     // it is interrupted.
     std::fs::write(
-        dir.join("securevibe.toml"),
+        dir.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Interrupted\"\naudience = \"just-me\"\n\
          deployment = \"local-only\"\n[stack]\nlanguages = []\n[stack.run]\n\
          image = \"busybox:1.36\"\nstart = \"httpd -f -h /app -p $PORT\"\n\

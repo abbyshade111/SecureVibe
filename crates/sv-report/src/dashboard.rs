@@ -105,14 +105,14 @@ impl Run {
     }
 
     /// Why `self` cannot be set against `earlier`, or `None` when it can: the same kind of run, at
-    /// the same level, from the same `securevibe.toml`, by the same `sv`.
+    /// the same level, from the same `stackvet.toml`, by the same `sv`.
     pub fn not_comparable_with(&self, earlier: &Run) -> Option<&'static str> {
         if self.not_run != earlier.not_run {
             Some("a different kind of run, which reaches different requirements")
         } else if self.target_level != earlier.target_level {
             Some("held to a different level")
         } else if self.securevibe_toml_sha256 != earlier.securevibe_toml_sha256 {
-            Some("securevibe.toml changed between them, and with it what applies")
+            Some("stackvet.toml changed between them, and with it what applies")
         } else if self.sv != earlier.sv {
             Some("a different sv, whose checks may differ")
         } else {
@@ -315,7 +315,7 @@ fn over_time(runs: &[Run]) -> String {
     }
     let mut b = String::from(
         "<h3>Over time</h3>\n<p class=\"note\">From the history kept on this computer. A run is set \
-         against the last earlier one of the same kind, at the same level, from the same securevibe.toml, \
+         against the last earlier one of the same kind, at the same level, from the same stackvet.toml, \
          by the same sv; any other comparison would show the run changing, not the app.</p>\n<ul>\n",
     );
     for (i, run) in runs.iter().enumerate().rev() {

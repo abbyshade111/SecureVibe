@@ -1628,7 +1628,7 @@ fn an_ai_that_does_not_read_notes_or_was_not_said_to_settles_nothing() {
 
 #[test]
 fn a_record_tool_that_cannot_be_asked_is_said_and_not_credited() {
-    // No tool named in securevibe.toml: the report says how to name one.
+    // No tool named in stackvet.toml: the report says how to name one.
     let unnamed = record_run(Flaws::default(), false);
     assert!(
         why(&unnamed, "C9.5.3")

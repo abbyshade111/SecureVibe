@@ -162,7 +162,7 @@ fn app(root: &Path) -> PathBuf {
     )
     .unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         "manifest-version = 1\n[app]\nname = \"Quoted\"\n[stack]\nlanguages = [\"python\"]\n",
     )
     .unwrap();
@@ -369,7 +369,7 @@ fn a_bundle_whose_report_would_hold_a_key_is_not_made() {
     let key = ["sk", "ant", "api03", "Zp8Kd3Wq1Ls6Vn0Rt4Yb9Xm2Qc"].join("-");
     std::fs::write(app.join("app.py"), "print(1)\n").unwrap();
     std::fs::write(
-        app.join("securevibe.toml"),
+        app.join("stackvet.toml"),
         format!(
             "manifest-version = 1\n[app]\nname = \"Notes {key}\"\n[stack]\nlanguages = [\"python\"]\n"
         ),

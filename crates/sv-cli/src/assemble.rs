@@ -45,7 +45,7 @@ fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
         gaps.push(sv_report::Gap {
             what: format!("{} planned, not built yet", decisions(not_yet.len())),
             why: format!(
-                "securevibe.toml answers these as planned, and the app has no code yet, so there is \
+                "stackvet.toml answers these as planned, and the app has no code yet, so there is \
                  nothing to check: {}. A plan counts for nothing until it is built; once the code \
                  exists, a planned file that is not there is reported as decided, never built.",
                 not_yet.join(", ")
@@ -57,7 +57,7 @@ fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
         gaps.push(sv_report::Gap {
             what: format!("{} planned, and the file is there now", decisions(due.len())),
             why: format!(
-                "securevibe.toml still answers these as planned, and the file each names is in the \
+                "stackvet.toml still answers these as planned, and the file each names is in the \
                  app now: {}. Look at it, then change the answer to yes if it does what was decided, \
                  or to no if it does not. Until then it counts for nothing.",
                 due.join(", ")
@@ -69,7 +69,7 @@ fn planned_gaps(planned: &[sv_check::design::Planned]) -> Vec<sv_report::Gap> {
         gaps.push(sv_report::Gap {
             what: format!("{} planned, with no file named", decisions(blind.len())),
             why: format!(
-                "securevibe.toml answers these as planned without a `where`, and the app has code \
+                "stackvet.toml answers these as planned without a `where`, and the app has code \
                  now, so `sv` cannot tell whether they were built: {}. Change each answer to yes, \
                  naming the file that does it, or to no.",
                 blind.join(", ")
@@ -87,6 +87,8 @@ struct Scene<'a> {
     options: &'a ReportOptions,
     loaded: &'a Loaded,
     manifest: &'a Manifest,
+    /// The manifest's file name as read: the new name, or the old one (ADR-062).
+    manifest_file: &'a str,
     static_scan: &'a static_scan::StaticScan,
     ctx: &'a sv_frameworks::applicability::ConditionContext,
     resolved: &'a [sv_manifest::ResolvedClaim],
@@ -137,13 +139,13 @@ pub(crate) fn assemble_report_saying(
 ) -> Result<sv_report::Report> {
     let stage = |n: usize| starting(n, REPORT_STAGES[n]);
     let started = std::time::SystemTime::now();
-    let manifest_path = app_dir.join("securevibe.toml");
-    if !manifest_path.exists() {
-        bail!(
-            "no securevibe.toml in {}. Run `sv init` and give the spec to your AI coding tool.",
-            app_dir.display()
-        );
-    }
+    // The new name, or the old one while only it exists (ADR-062); the report says which.
+    let located = sv_manifest::locate_or_bail(app_dir)?;
+    let manifest_path = located.path.clone();
+    let manifest_file = manifest_path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| sv_frameworks::names::MANIFEST.to_owned());
     // Read once, so the hash recorded is of the very bytes parsed.
     let manifest_text = std::fs::read_to_string(&manifest_path)
         .with_context(|| format!("reading {}", manifest_path.display()))?;
@@ -173,6 +175,7 @@ pub(crate) fn assemble_report_saying(
         options,
         loaded,
         manifest: &manifest,
+        manifest_file: &manifest_file,
         static_scan: &static_scan,
         ctx: &ctx,
         resolved: &resolved,
@@ -201,6 +204,13 @@ pub(crate) fn assemble_report_saying(
     // Every limit `sv` knows about, said out loud. This list existing is the difference between a
     // report about an app and a report about the part of an app somebody happened to look at.
     let mut gaps = Vec::new();
+    // Said first: a file read under its old name is the one thing here about `sv` and not the app.
+    if let Some(note) = located.note() {
+        gaps.push(sv_report::Gap {
+            what: format!("the manifest, named {manifest_file}"),
+            why: note,
+        });
+    }
     let run = running_app(&scene, &mut findings, &mut gaps);
     gaps.extend(tools.gaps);
     let manual_only = what_was_not_read(&scene, &mut gaps, &mut examined);
@@ -244,7 +254,7 @@ pub(crate) fn assemble_report_saying(
 }
 
 /// Known vulnerabilities, when the owner has pointed at a local advisory database, held to the
-/// time frames in securevibe.toml exactly as `sv audit` holds them. Without a database this says
+/// time frames in stackvet.toml exactly as `sv audit` holds them. Without a database this says
 /// so: a report silent about known vulnerabilities reads as a report that found none.
 fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<Advisories> {
     let Scene {
@@ -252,6 +262,7 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -279,6 +290,7 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -299,7 +311,7 @@ fn advisories(scene: &Scene, examined: &mut Vec<sv_report::Examined>) -> Result<
     let mut findings_from_advisories = Vec::new();
 
     // Known vulnerabilities, when the owner has pointed at a local advisory database, held to the
-    // time frames in securevibe.toml exactly as `sv audit` holds them. Without a database this says
+    // time frames in stackvet.toml exactly as `sv audit` holds them. Without a database this says
     // so: a report silent about known vulnerabilities reads as a report that found none.
     let mut advisory_verified = Vec::new();
     let mut advisory_gaps = Vec::new();
@@ -500,6 +512,7 @@ fn outside_tools(
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -527,6 +540,7 @@ fn outside_tools(
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -634,6 +648,7 @@ fn running_app(
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -661,6 +676,7 @@ fn running_app(
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -920,7 +936,7 @@ fn running_app(
                                          so nothing can be concluded from them either way. {}",
                                         result.exit_code,
                                         result.report_note.as_deref().unwrap_or(
-                                            "Declare test-report in securevibe.toml to have the \
+                                            "Declare test-report in stackvet.toml to have the \
                                              tests that did pass still count."
                                         )
                                     ),
@@ -941,11 +957,11 @@ fn running_app(
                     None => {
                         tests_examined = sv_report::Examined::not_run(
                             "tests.",
-                            "securevibe.toml declares no test command",
+                            "stackvet.toml declares no test command",
                         );
                         gaps.push(sv_report::Gap {
                             what: "the app's own tests".to_owned(),
-                            why: "securevibe.toml declares no test command".to_owned(),
+                            why: "stackvet.toml declares no test command".to_owned(),
                         })
                     }
                 }
@@ -1001,6 +1017,7 @@ fn what_was_not_read(
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -1028,6 +1045,7 @@ fn what_was_not_read(
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -1318,6 +1336,7 @@ fn requirements_for_tests(
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -1345,6 +1364,7 @@ fn requirements_for_tests(
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -1411,6 +1431,7 @@ fn the_owners_word(
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -1438,6 +1459,7 @@ fn the_owners_word(
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -1613,7 +1635,7 @@ fn the_owners_word(
         .chain(decisions.documented)
         .collect();
 
-    // The design questions, answered in securevibe.toml. `yes` is the owner's word and the weakest
+    // The design questions, answered in stackvet.toml. `yes` is the owner's word and the weakest
     // tier here; `no`, and a `where` naming a file the app does not have, are findings.
     let design_questions = sv_check::design::Questions::load(&design_questions_path())?;
     let human_checks =
@@ -1649,7 +1671,13 @@ fn the_owners_word(
             || !scan_report.declared.is_empty()
             || !scan_report.unread_extensions.is_empty(),
     );
-    findings.extend(design.findings.iter().cloned());
+    findings.extend(
+        design
+            .findings
+            .iter()
+            .cloned()
+            .map(|f| at_the_manifest(f, manifest_file)),
+    );
     gaps.extend(planned_gaps(&design.planned));
     if !design.unreadable.is_empty() {
         gaps.push(sv_report::Gap {
@@ -1663,7 +1691,7 @@ fn the_owners_word(
                 }
             ),
             why: format!(
-                "securevibe.toml answers {} with a word that is not yes, no, not-sure, or planned, or \
+                "stackvet.toml answers {} with a word that is not yes, no, not-sure, or planned, or \
                  says it was answered `by` somebody other than \"owner\" or \"ai-tool\", so \
                  nothing could be made of it: {}.",
                 if design.unreadable.len() == 1 {
@@ -1689,14 +1717,14 @@ fn the_owners_word(
             why: format!(
                 "No tool can settle these — whether input is validated on the server, whether the \
                  app's own services authenticate to each other. Answer them in the [design] \
-                 section of securevibe.toml: {}. Your AI coding tool can ask you them: `sv \
+                 section of stackvet.toml: {}. Your AI coding tool can ask you them: `sv \
                  questions` prints them for its chat.",
                 design.unanswered.join(", ")
             ),
         });
     }
 
-    // The checks made by hand, recorded in securevibe.toml. The owner's `done` is their word about
+    // The checks made by hand, recorded in stackvet.toml. The owner's `done` is their word about
     // what they saw; `problem` is a finding; an old one is out of date and counts for nothing.
     let hand_answers: std::collections::BTreeMap<String, sv_check::hand::Answer> = manifest
         .checked_by_hand
@@ -1728,7 +1756,12 @@ fn the_owners_word(
         // A clock before 1970 cannot say whether a check is current, so none is counted.
         None => sv_check::hand::Outcome::default(),
     };
-    findings.extend(hand.findings.iter().cloned());
+    findings.extend(
+        hand.findings
+            .iter()
+            .cloned()
+            .map(|f| at_the_manifest(f, manifest_file)),
+    );
     if !hand.unreadable.is_empty() {
         gaps.push(sv_report::Gap {
             what: format!(
@@ -1737,7 +1770,7 @@ fn the_owners_word(
                 if hand.unreadable.len() == 1 { "" } else { "s" }
             ),
             why: format!(
-                "securevibe.toml records {} in [checked-by-hand] in a way nothing could be made \
+                "stackvet.toml records {} in [checked-by-hand] in a way nothing could be made \
                  of, so it counts for nothing: {}.",
                 if hand.unreadable.len() == 1 {
                     "this"
@@ -1875,7 +1908,7 @@ fn the_owners_word(
                 if not_counted.len() == 1 { "" } else { "s" }
             ),
             why: format!(
-                "securevibe.toml records {} in a way that does not count, so the tool's word is \
+                "stackvet.toml records {} in a way that does not count, so the tool's word is \
                  all there is and the question is asked again: {}.",
                 if not_counted.len() == 1 {
                     "this confirmation"
@@ -1971,6 +2004,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         options,
         loaded,
         manifest,
+        manifest_file,
         static_scan,
         ctx,
         resolved,
@@ -1998,6 +2032,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         options,
         loaded,
         manifest,
+        manifest_file,
         ctx,
         resolved,
         buckets,
@@ -2055,7 +2090,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         }
     });
     examined.push(tests_examined);
-    // The owner's answers in securevibe.toml are read on every run.
+    // The owner's answers in stackvet.toml are read on every run.
     examined.push(sv_report::Examined::ran("design."));
     examined.push(sv_report::Examined::ran("hand."));
     // The "Safe defaults" section's three switches (`sv_check::decisions`), each held to the check
@@ -2204,6 +2239,7 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
     report.could_not_run = file_gaps.could_not_run;
     report.partly_read = file_gaps.partly;
     report.run_record = Some(run_record);
+    report.manifest_file = manifest_file.to_owned();
     // A contradiction says what in the code contradicted the manifest, so whoever wrote the
     // manifest can see what to correct. "The code says otherwise" alone left the AI coding tool that
     // wrote it with nothing to go on; `sv scope` always said, and now the report does too.
@@ -2225,4 +2261,12 @@ fn put_together(scene: &Scene, gathered: Gathered) -> Result<sv_report::Report> 
         }
     }
     Ok(report)
+}
+
+/// A finding the manifest's answers made, pointed at the manifest by the name it has in this app.
+fn at_the_manifest(mut finding: sv_check::Finding, manifest_file: &str) -> sv_check::Finding {
+    if finding.location.file == sv_frameworks::names::MANIFEST {
+        finding.location.file = manifest_file.to_owned();
+    }
+    finding
 }

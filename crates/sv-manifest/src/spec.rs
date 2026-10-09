@@ -4,7 +4,7 @@
 //! It is written to be pasted into a chat, so it says what each answer is used for and is explicit
 //! that over-claiming is cheap and under-claiming is not.
 
-pub const STARTER_MANIFEST: &str = r#"# securevibe.toml — what this app is, so `sv` knows which security requirements apply.
+pub const STARTER_MANIFEST: &str = r#"# stackvet.toml — what this app is, so `sv` knows which security requirements apply.
 # Written by your AI coding tool; read it yourself before you trust the report.
 manifest-version = 1
 
@@ -378,7 +378,7 @@ tls = "terminated-upstream"   # off | self | terminated-upstream
 
 pub const INSTRUCTIONS: &str = r#"Hand this to your AI coding tool, along with the starter file above.
 
-  Fill in securevibe.toml for the app in this folder. Every answer decides which OWASP ASVS
+  Fill in stackvet.toml for the app in this folder. Every answer decides which OWASP ASVS
   requirements are judged to apply.
 
   - If there is no code yet, write it first, before any code, for the app as it will be. It is the
