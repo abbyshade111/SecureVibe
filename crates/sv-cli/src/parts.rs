@@ -49,19 +49,19 @@ use sv_report::fence::Fence;
 
 /// The most one answer holds, in bytes: its text, and separately its structured result as compact JSON. See the
 /// module's documentation for why 40,000.
-pub(crate) const ANSWER_BUDGET: usize = 40_000;
+pub const ANSWER_BUDGET: usize = 40_000;
 
 /// The most the pages in one answer hold together, leaving the rest of [`ANSWER_BUDGET`] for what frames them: the
 /// list of sections, the line naming each page, what the fence's tags mean, and the fields every part carries.
-pub(crate) const PAGE_BUDGET: usize = 30_000;
+pub const PAGE_BUDGET: usize = 30_000;
 
 /// The most one page holds, in its text and in its structured items alike: half of [`PAGE_BUDGET`], so that a
 /// first answer can hold the start of a long section after the short ones before it, and an answer asked for one
 /// page can hold the next too. An item larger than this has a page of its own.
-pub(crate) const PAGE: usize = 15_000;
+pub const PAGE: usize = 15_000;
 
 /// One line or a few of an answer, and the item of the structured result it shows, if any.
-pub(crate) struct Item {
+pub struct Item {
     pub text: String,
     /// The structured result's list this item belongs in, and the item.
     pub data: Option<(&'static str, Value)>,
@@ -80,7 +80,7 @@ impl Item {
 }
 
 /// One section of an answer.
-pub(crate) struct Section {
+pub struct Section {
     /// The name `section` asks for it by.
     pub name: &'static str,
     /// What it is, in `sv`'s own words: never the app's text, since the list of sections is not fenced.
@@ -161,7 +161,7 @@ fn item_bytes(item: &Item) -> usize {
 
 /// What the tool was asked for.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Ask {
+pub enum Ask {
     /// No `section`: the whole answer if it fits, and otherwise its first pages and the list of the rest.
     First,
     /// `"section": "all"`: the whole answer, whatever its size.
@@ -171,7 +171,7 @@ pub(crate) enum Ask {
 }
 
 /// Reads `section` and `page` from a tool's arguments, refusing a section the tool does not have.
-pub(crate) fn ask(args: &Value, tool: &str, names: &[&str]) -> Result<Ask> {
+pub fn ask(args: &Value, tool: &str, names: &[&str]) -> Result<Ask> {
     let section = args.get("section").filter(|v| !v.is_null());
     let page = args.get("page").filter(|v| !v.is_null());
     let page = match page {
@@ -212,7 +212,7 @@ pub(crate) fn ask(args: &Value, tool: &str, names: &[&str]) -> Result<Ask> {
 }
 
 /// One answer of a tool whose answer comes in parts.
-pub(crate) struct Answer<'a> {
+pub struct Answer<'a> {
     pub tool: &'static str,
     /// What the answer is, for the list of parts: "plan" or "check".
     pub what: &'static str,
@@ -228,7 +228,7 @@ pub(crate) struct Answer<'a> {
 }
 
 /// The tool's result for what was asked.
-pub(crate) fn respond(answer: &Answer, ask: &Ask) -> Result<Value> {
+pub fn respond(answer: &Answer, ask: &Ask) -> Result<Value> {
     let whole = || {
         json!({
             "content": [{ "type": "text", "text": sv_report::fence::fenced(answer.whole_text) }],
@@ -352,10 +352,10 @@ pub(crate) fn respond(answer: &Answer, ask: &Ask) -> Result<Value> {
 }
 
 /// What opens each page in an answer's text, before the section's name and the page.
-pub(crate) const MARK: &str = "[part: ";
+pub const MARK: &str = "[part: ";
 
 /// What opens the list of parts at the end of an answer's text.
-pub(crate) const PARTS: &str = "[the parts of this answer]";
+pub const PARTS: &str = "[the parts of this answer]";
 
 fn how_to_ask(answer: &Answer) -> String {
     format!(

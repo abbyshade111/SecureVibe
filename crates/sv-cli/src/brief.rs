@@ -27,14 +27,14 @@ use sv_frameworks::{Condition, Frameworks};
 
 /// One table and key in `stackvet.toml`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Setting {
+pub struct Setting {
     pub table: String,
     pub key: String,
 }
 
 /// A feature, as the data file names it.
 #[derive(Debug, Clone)]
-pub(crate) struct Feature {
+pub struct Feature {
     pub id: String,
     pub name: String,
     /// The conditions whose requirements it brings.
@@ -49,12 +49,12 @@ pub(crate) struct Feature {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Features {
+pub struct Features {
     pub features: Vec<Feature>,
 }
 
 impl Features {
-    pub(crate) fn load(path: &std::path::Path) -> Result<Features> {
+    pub fn load(path: &std::path::Path) -> Result<Features> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         let value: Value =
@@ -124,7 +124,7 @@ impl Features {
     }
 
     /// The feature named `id`, or an error naming every feature there is.
-    pub(crate) fn get(&self, id: &str) -> Result<&Feature> {
+    pub fn get(&self, id: &str) -> Result<&Feature> {
         match self.features.iter().find(|f| f.id == id) {
             Some(f) => Ok(f),
             None => bail!(
@@ -134,14 +134,14 @@ impl Features {
         }
     }
 
-    pub(crate) fn ids(&self) -> Vec<&str> {
+    pub fn ids(&self) -> Vec<&str> {
         self.features.iter().map(|f| f.id.as_str()).collect()
     }
 }
 
 /// A requirement the feature brings that applies to this app.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Applies {
+pub struct Applies {
     pub id: String,
     pub level: u8,
     pub description: String,
@@ -149,7 +149,7 @@ pub(crate) struct Applies {
 
 /// A design-time prompt, whole, for the AI coding tool to work from.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct PromptText {
+pub struct PromptText {
     pub id: String,
     pub title: String,
     pub status: &'static str,
@@ -160,7 +160,7 @@ pub(crate) struct PromptText {
 
 /// A coding rule on one of the topics that bear on building the feature.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RuleRef {
+pub struct RuleRef {
     pub id: String,
     pub topic: String,
     pub rule: String,
@@ -168,7 +168,7 @@ pub(crate) struct RuleRef {
 
 /// A setting `sv run` needs, with the lines of the starter `stackvet.toml` that describe it.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SettingBlock {
+pub struct SettingBlock {
     pub table: String,
     pub key: String,
     pub lines: String,
@@ -176,7 +176,7 @@ pub(crate) struct SettingBlock {
 
 /// One feature's brief, for one app.
 #[derive(Debug, Clone)]
-pub(crate) struct Brief {
+pub struct Brief {
     /// There is no `stackvet.toml` yet, so which requirements apply, at which level, and the
     /// tests they need cannot be said: `pending` then holds everything the feature can bring.
     pub waiting: bool,
@@ -203,12 +203,12 @@ pub(crate) struct Brief {
 
 /// Every requirement the feature brings, at every level: those its conditions gate (`gated`), and
 /// those it names.
-pub(crate) struct Brought {
+pub struct Brought {
     pub all: BTreeSet<String>,
     pub gated: BTreeSet<String>,
 }
 
-pub(crate) fn brought(
+pub fn brought(
     feature: &Feature,
     frameworks: &Frameworks,
     config: &ApplicabilityConfig,
@@ -224,7 +224,7 @@ pub(crate) fn brought(
 
 /// The lines of the starter `stackvet.toml` that describe `key` in `table`: its own line and the
 /// indented ones under it. `None` when the starter file does not describe it.
-pub(crate) fn setting_lines(table: &str, key: &str) -> Option<String> {
+pub fn setting_lines(table: &str, key: &str) -> Option<String> {
     let mut in_table = false;
     let mut out: Vec<&str> = Vec::new();
     for line in sv_manifest::spec::STARTER_MANIFEST.lines() {
@@ -258,7 +258,7 @@ pub(crate) fn setting_lines(table: &str, key: &str) -> Option<String> {
 }
 
 /// The brief for one feature of an app, from its report.
-pub(crate) fn from_report(
+pub fn from_report(
     report: &sv_report::Report,
     feature: &Feature,
     brought: &Brought,
@@ -339,7 +339,7 @@ pub(crate) fn from_report(
 /// The brief for one feature before the app has a `stackvet.toml`: what the feature brings is
 /// the same for every app, so it is given whole, at every level, and what only the file can
 /// decide (which of it applies, and the tests that needs) is said to be waiting for it.
-pub(crate) fn without_manifest(
+pub fn without_manifest(
     feature: &Feature,
     brought: &Brought,
     frameworks: &Frameworks,
@@ -474,7 +474,7 @@ impl Shared {
 }
 
 /// The brief as data, for the MCP tool's structured result.
-pub(crate) fn to_json(brief: &Brief) -> Value {
+pub fn to_json(brief: &Brief) -> Value {
     json!({
         "waiting": brief.waiting,
         "app": brief.app,
@@ -509,7 +509,7 @@ pub(crate) fn to_json(brief: &Brief) -> Value {
 }
 
 /// The brief as Markdown, with the app's own name put through `fence` for the AI coding tool.
-pub(crate) fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> String {
+pub fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> String {
     let mut out = String::new();
     let app = if brief.app.is_empty() {
         "this app".to_owned()
