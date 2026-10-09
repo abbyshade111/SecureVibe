@@ -12,7 +12,7 @@ resting on the tool's `audience = "just-me"` read the same as one the owner had 
   (named), the data list was left unanswered, or a name on it is not one `sv` knows;
 - on whose word: "answers in stackvet.toml, which your AI coding tool usually writes and nobody has confirmed, so
   check them";
-- at level 1, what level 2 would add: "At level 2, 98 more requirements would apply", counting level 2's own
+- at level 1, what level 2 would add: "At level 2, N more requirements would apply" (N the count), counting level 2's own
   requirements and not level 3's.
 
 `report.json` carries the same as `level_why` (`because`, `level_two_more`). A report built without a manifest's
