@@ -186,6 +186,14 @@ listed apart, below this item.
    **CSRF protection switched off done the same day** (DESIGN, "Protection against forged requests switched off").
    **CORS with any site and credentials done the same day** (DESIGN, "Cross-origin settings that let any site in with
    credentials").
+   **Request data in an outgoing request's address claimed 9 October 2026 by session securevibe-e9**, from the
+   roadmap (Phase 4, item 4, the next unclaimed part of this finding), in branch `claude/stackvet-e9-fetch-from-request`:
+   a code rule, `ast.fetch-address-from-request`, only ever a finding, citing what the running check of the same flaw
+   cites (V1.3.6, V13.2.4; `probe.fetch-goes-anywhere`), for an outgoing request whose address is taken straight from
+   the incoming one (`requests.get(request.args["url"])`, `fetch(req.query.url)`, `http.Get(r.URL.Query().Get("url"))`,
+   and their usual siblings in Python, JavaScript and TypeScript, and Go), and not for an address built from the app's
+   own settings, which is how every API client is written. Confirmed on `main` and in the open pull requests just
+   before this claim: no rule reads it, and no other session holds this part.
 12. **Bandit and gosec findings for injection, XSS, and SSRF carry no requirement.** (`docs/GAP-ANALYSIS.md`, 3.4.)
    Map Bandit B610, B611, B701, B703, B704, B310, B614, B615 and gosec G203, G106, G108 in `data/adapters.json`,
    and add a test that fails when a tool rule whose description names injection or XSS maps to no requirement.
