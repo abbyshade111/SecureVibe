@@ -1245,9 +1245,10 @@ fn model_args<'a>(network: &'a str, name: &'a str, env: [&'a str; 2]) -> Vec<&'a
     args
 }
 
-/// What the app is told about the test model: the addresses the OpenAI and Anthropic libraries
-/// read, a key for each that works nowhere else, and the OpenAI-style address in any other
-/// variables stackvet.toml names.
+/// What the app is told about the test model: the addresses the OpenAI, Anthropic, and Google Gemini
+/// libraries read, a key for each that works nowhere else, and the OpenAI-style address in any other
+/// variables stackvet.toml names. Google's library reads its key from `GEMINI_API_KEY` or
+/// `GOOGLE_API_KEY` and its address from `GOOGLE_GEMINI_BASE_URL` (ADR-019, Later, 9 October 2026).
 fn model_env(host: &str, others: &[String], mcp: Option<&str>) -> Vec<String> {
     let openai = format!("http://{host}:{MODEL_PORT}/v1");
     let mut env = vec![
@@ -1255,6 +1256,9 @@ fn model_env(host: &str, others: &[String], mcp: Option<&str>) -> Vec<String> {
         format!("OPENAI_API_KEY={MODEL_KEY}"),
         format!("ANTHROPIC_BASE_URL=http://{host}:{MODEL_PORT}"),
         format!("ANTHROPIC_API_KEY={MODEL_KEY}"),
+        format!("GOOGLE_GEMINI_BASE_URL=http://{host}:{MODEL_PORT}"),
+        format!("GEMINI_API_KEY={MODEL_KEY}"),
+        format!("GOOGLE_API_KEY={MODEL_KEY}"),
     ];
     env.extend(others.iter().map(|name| format!("{name}={openai}")));
     // The test MCP server is the same container, at `/mcp`.
@@ -3353,12 +3357,18 @@ mod probe_tests {
         for expected in [
             "OPENAI_BASE_URL=http://sv-1-model:9100/v1",
             "ANTHROPIC_BASE_URL=http://sv-1-model:9100",
+            "GOOGLE_GEMINI_BASE_URL=http://sv-1-model:9100",
             "LLM_BASE_URL=http://sv-1-model:9100/v1",
             "MCP_SERVER_URL=http://sv-1-model:9100/mcp",
         ] {
             assert!(env.iter().any(|e| e == expected), "{expected}: {env:?}");
         }
-        for key in ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"] {
+        for key in [
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
+            "GEMINI_API_KEY",
+            "GOOGLE_API_KEY",
+        ] {
             assert!(
                 env.iter().any(|e| *e == format!("{key}={MODEL_KEY}")),
                 "{key}: {env:?}"

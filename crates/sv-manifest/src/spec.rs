@@ -57,9 +57,9 @@ health = "/"              # a path that returns 200 once the app is up
 # [stack.run.ai]
 # Only if the app has a feature that sends what people type to an AI model. For the run, the app is
 # given a test model of `sv`'s own instead of the real service, and must use it: read
-# OPENAI_BASE_URL and ANTHROPIC_BASE_URL (and the placeholder keys in OPENAI_API_KEY and
-# ANTHROPIC_API_KEY) from the environment when they are set; the OpenAI and Anthropic libraries do
-# this by themselves. Nothing is sent to an AI service and nothing is spent.
+# OPENAI_BASE_URL, ANTHROPIC_BASE_URL, and GOOGLE_GEMINI_BASE_URL (and the placeholder keys in
+# OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, and GOOGLE_API_KEY) from the environment when they
+# are set; the OpenAI, Anthropic, and Google Gen AI libraries do this by themselves. Nothing is sent to an AI service and nothing is spent.
 # This table only says how `sv` reaches the feature. Whether the app has one is said by
 # `enabled` under [capabilities.ai], further down: there is no `enabled` here, and `sv` refuses a
 # file that has one.

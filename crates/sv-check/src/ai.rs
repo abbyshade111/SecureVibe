@@ -857,8 +857,9 @@ pub fn run(http: &mut dyn Http, section: &AiSection, ctx: &Context) -> (Outcome,
             ALL,
             format!(
                 "A plain message sent through {} never reached the test model, so the app is not \
-                 talking to it. The app is given its address in OPENAI_BASE_URL and \
-                 ANTHROPIC_BASE_URL; if it reads another variable, name it in `ai.base-url-env`.",
+                 talking to it. The app is given its address in OPENAI_BASE_URL, \
+                 ANTHROPIC_BASE_URL, and GOOGLE_GEMINI_BASE_URL; if it reads another variable, \
+                 name it in `ai.base-url-env`.",
                 section.chat.path
             ),
             &mut out,

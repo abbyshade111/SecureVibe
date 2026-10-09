@@ -1,6 +1,7 @@
 // A test model for `sv`, run on the fenced network in a stock Node image, standing in for the AI
-// service an app calls. It speaks the three request shapes apps use — OpenAI's chat completions and
-// responses, and Anthropic's messages, each plain or streamed — and it misbehaves on purpose, which
+// service an app calls. It speaks the four request shapes apps use — OpenAI's chat completions and
+// responses, Anthropic's messages, and Google's Gemini `generateContent`, each plain or streamed — and
+// it misbehaves on purpose, which
 // is its whole purpose: whether an app's own controls hold can only be seen when the model does the
 // wrong thing, and a real model cannot be made to do the wrong thing on demand, or for free.
 //
@@ -63,9 +64,11 @@
 //           `mcp_released` that the hold has ended (ADR-064)
 //
 // Every other answer takes the shape the app asked for: JSON that fits the JSON schema it named
-// (OpenAI's `response_format` or `text.format`, Anthropic's `output_format`), with the reply's text
+// (OpenAI's `response_format` or `text.format`, Anthropic's `output_format`, Gemini's
+// `generationConfig.responseJsonSchema` or `responseSchema` with `responseMimeType: application/json`), with the reply's text
 // in each text field; a JSON object holding the reply in JSON mode; and a call to the tool it made
-// the model call (`tool_choice`), with arguments that fit that tool's schema. A real model asked for
+// the model call (`tool_choice`, or Gemini's `toolConfig.functionCallingConfig` in mode `ANY`), with
+// arguments that fit that tool's schema. A real model asked for
 // a shape answers in it, and an app that asked cannot read anything else (ADR-042).
 //
 // `GET /_sv/fetch/<tag>` and `GET /_sv/redirect/<tag>` are addresses for a feature of the app that
@@ -123,6 +126,13 @@ const resultText = (content) =>
       ? content.map((part) => (part && typeof part.text === 'string' ? part.text : typeof part === 'string' ? part : '')).join('\n')
       : '';
 
+// Gemini's function declarations, from every tool that has them.
+const declared = (body) =>
+  (body.tools || []).flatMap((t) => t.functionDeclarations || t.function_declarations || []).filter((d) => d && d.name);
+
+// Gemini's generation settings, written in either case the REST interface accepts.
+const generation = (body) => body.generationConfig || body.generation_config || {};
+
 // The instructions, what the people using the app said, whether the reply's length was limited,
 // the tools offered, and the results of tools called so far, for each of the three shapes. `user`
 // joins every user turn, since in a tool loop the latest one may be nothing but a tool's result.
@@ -154,6 +164,21 @@ function read(api, body) {
     }
     tools = (body.tools || []).map((t) => t.name || (t.function && t.function.name));
     bounded = Number.isFinite(body.max_output_tokens);
+  } else if (api === 'gemini') {
+    // Instructions are a Content (`{ parts: [{ text }] }`), or text; a turn with no role is the person's.
+    const instruction = body.systemInstruction || body.system_instruction;
+    system.push(typeof instruction === 'string' ? instruction : text(instruction && instruction.parts));
+    for (const c of body.contents || []) {
+      if (c.role && c.role !== 'user' && c.role !== 'function') continue;
+      for (const part of c.parts || []) {
+        const response = part.functionResponse || part.function_response;
+        if (response) results.push(typeof response.response === 'string' ? response.response : JSON.stringify(response.response || {}));
+        else if (typeof part.text === 'string') said.push(part.text);
+      }
+    }
+    tools = declared(body).map((d) => d.name);
+    const config = generation(body);
+    bounded = Number.isFinite(config.maxOutputTokens) || Number.isFinite(config.max_output_tokens);
   } else {
     for (const m of body.messages || []) {
       if (m.role === 'system' || m.role === 'developer') system.push(text(m.content));
@@ -169,6 +194,7 @@ function read(api, body) {
 // The shape the request asks the answer to take: `{ schema }` for a JSON schema, `{ json: true }` for
 // JSON mode, `{ tool, schema }` for a tool the model is made to call, and null for plain text.
 function shapeOf(api, body) {
+  if (api === 'gemini') return geminiShape(body);
   const format = api === 'messages'
     ? body.output_format || (body.output_config && body.output_config.format)
     : api === 'responses' ? body.text && body.text.format : body.response_format;
@@ -193,6 +219,26 @@ function shapeOf(api, body) {
   return { tool: name, schema: tool.input_schema || tool.parameters || (tool.function && tool.function.parameters) || {} };
 }
 
+// Gemini's asked shape: JSON, with or without a schema, from `generationConfig`, or one function the
+// model is made to call (`functionCallingConfig` in mode `ANY`, naming it or declaring only it).
+function geminiShape(body) {
+  const config = generation(body);
+  const mime = config.responseMimeType || config.response_mime_type;
+  if (mime === 'application/json') {
+    const schema = config.responseJsonSchema || config.response_json_schema || config.responseSchema || config.response_schema;
+    return schema ? { schema } : { json: true };
+  }
+  const tc = body.toolConfig || body.tool_config || {};
+  const calling = tc.functionCallingConfig || tc.function_calling_config || {};
+  if (String(calling.mode || '').toUpperCase() !== 'ANY') return null;
+  const functions = declared(body);
+  const allowed = calling.allowedFunctionNames || calling.allowed_function_names || [];
+  const name = allowed.length === 1 ? allowed[0] : !allowed.length && functions.length === 1 ? functions[0].name : null;
+  const fn = name && functions.find((d) => d.name === name);
+  if (!fn) return null;
+  return { tool: name, schema: fn.parametersJsonSchema || fn.parameters_json_schema || fn.parameters || {} };
+}
+
 // A schema a `$ref` names, from the schema it sits in.
 function resolve(schema, root) {
   let seenRefs = 0;
@@ -204,7 +250,9 @@ function resolve(schema, root) {
 }
 
 const typeOf = (schema) => {
-  const type = Array.isArray(schema.type) ? schema.type.find((t) => t !== 'null') : schema.type;
+  // Gemini's own schema writes its types in capitals (`STRING`, `OBJECT`).
+  const types = (Array.isArray(schema.type) ? schema.type : [schema.type]).filter(Boolean).map((t) => String(t).toLowerCase());
+  const type = types.find((t) => t !== 'null') || types[0];
   if (type) return type;
   if (schema.properties) return 'object';
   if (schema.items) return 'array';
@@ -411,6 +459,7 @@ function failure(api, res, tag) {
   if (api === 'messages') {
     return json(res, 500, { type: 'error', error: { type: 'api_error', message } });
   }
+  if (api === 'gemini') return json(res, 500, { error: { code: 500, message, status: 'INTERNAL' } });
   return json(res, 500, { error: { message, type: 'server_error', param: null, code: 'sv_failure' } });
 }
 
@@ -450,6 +499,7 @@ function answer(api, body, res) {
   }
   if (typeof said !== 'string') return toolCall(api, body, res, said, model, input, output);
   const raw = `SVRAW${tagOf(api, body)}`;
+  if (api === 'gemini') return gemini(body, res, [{ text: said }], model, input, output, raw);
   if (api === 'messages') {
     const message = {
       id: `msg_${raw}`, type: 'message', role: 'assistant', model,
@@ -519,9 +569,25 @@ function answer(api, body, res) {
   return sse(res, events);
 }
 
+// Gemini's answer: one candidate holding `parts`. Streamed, it is a list of the same objects, sent
+// as events when the app asked for them (`alt=sse`, as Google's own libraries do) and as one JSON
+// list otherwise.
+function gemini(body, res, parts, model, input, output, raw) {
+  const answer = {
+    candidates: [{ content: { role: 'model', parts }, finishReason: 'STOP', index: 0 }],
+    usageMetadata: { promptTokenCount: input, candidatesTokenCount: output, totalTokenCount: input + output },
+    modelVersion: model,
+    responseId: raw,
+  };
+  if (body.stream === 'sse') return sse(res, [[null, answer]]);
+  if (body.stream === 'list') return json(res, 200, [answer]);
+  return json(res, 200, answer);
+}
+
 // A reply that asks for a tool, in each shape, plain or streamed, as the real services send it.
 function toolCall(api, body, res, call, model, input, output) {
   const args = JSON.stringify(call.args);
+  if (api === 'gemini') return gemini(body, res, [{ functionCall: { name: call.tool, args: call.args } }], model, input, output, 'sv');
   if (api === 'messages') {
     const block = { type: 'tool_use', id: 'toolu_sv', name: call.tool, input: call.args };
     const message = {
@@ -731,6 +797,14 @@ http
     if (/(^|\/)chat\/completions$/.test(path)) return answer('chat', body, res);
     if (/(^|\/)responses$/.test(path)) return answer('responses', body, res);
     if (/(^|\/)messages$/.test(path)) return answer('messages', body, res);
+    // Gemini names the model in the address (`.../models/<model>:generateContent`), with any prefix
+    // before it, so a base address that ends in `/v1` or `/v1beta` reaches it the same.
+    const geminiAt = /(?:^|\/)models\/([^/:]+):(generateContent|streamGenerateContent)$/.exec(path);
+    if (geminiAt) {
+      const streamed = geminiAt[2] === 'streamGenerateContent';
+      const alt = new URL(req.url, 'http://x').searchParams.get('alt');
+      return answer('gemini', { ...body, model: geminiAt[1], stream: streamed ? (alt === 'sse' ? 'sse' : 'list') : false }, res);
+    }
     return json(res, 404, { error: { message: `no such endpoint: ${path}` } });
   })
   .listen(PORT, '0.0.0.0');
