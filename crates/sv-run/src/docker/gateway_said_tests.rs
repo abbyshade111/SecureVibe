@@ -31,3 +31,16 @@ fn silence_is_said_as_no_detail() {
         GatewayVerdict::Unknown("the check did not run; Docker said: no detail".to_owned())
     );
 }
+
+#[test]
+fn dockers_help_hint_is_passed_over_for_the_line_that_says_why() {
+    // As CI saw it on 9 October 2026, while Docker Hub was failing.
+    let out = "Unable to find image 'busybox:1.36' locally\n\
+               docker: Error response from daemon: Get \"https://registry-1.docker.io/v2/\": 504 Gateway Timeout.\n\
+               Run 'docker run --help' for more information\n";
+    let GatewayVerdict::Unknown(why) = gateway_verdict(out) else {
+        panic!("a check that never ran was given a verdict");
+    };
+    assert!(why.ends_with("504 Gateway Timeout."), "{why}");
+    assert!(!why.contains("--help"), "{why}");
+}
