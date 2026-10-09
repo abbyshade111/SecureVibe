@@ -104,6 +104,56 @@ impl Builds {
     }
 }
 
+/// Which of the two trials of `sv` giving the prompts itself a reading comes from
+/// (`docs/prompts/library-trial/`, `<trial>-verdicts.json`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Trial {
+    /// `start.md`: the shown prompts given in full at the start of every build.
+    Start,
+    /// `delivery.md`: the shown prompts given in the feature briefs and the guidance (ADR-044).
+    Delivery,
+}
+
+impl Trial {
+    fn words(self) -> &'static str {
+        match self {
+            Trial::Start => "at the start of a build",
+            Trial::Delivery => "in its briefs and guidance",
+        }
+    }
+}
+
+/// What a trial's rule said of a prompt that `sv` gave: removed the problem, did not, or could not tell
+/// (fewer than half the builds without it had the problem).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Verdict {
+    Works,
+    NotShown,
+    NoReading,
+}
+
+impl Verdict {
+    fn words(self) -> &'static str {
+        match self {
+            Verdict::Works => "shown to work",
+            Verdict::NotShown => "not shown to work",
+            Verdict::NoReading => "no reading",
+        }
+    }
+}
+
+/// How a prompt did when `sv` gave it to the AI tool, rather than its being pasted into the request
+/// (`docs/GAP-ANALYSIS.md`, 4.6): one reading for each trial and model.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Delivered {
+    pub trial: Trial,
+    pub model: String,
+    pub verdict: Verdict,
+}
+
 /// How a prompt was tried.
 #[derive(Debug, Clone, Deserialize)]
 pub struct Tested {
@@ -112,6 +162,10 @@ pub struct Tested {
     /// one shown on ten (`docs/GAP-ANALYSIS.md`, 4.6). Every prompt shown to work has it.
     #[serde(default)]
     pub builds: Option<Builds>,
+    /// How it did when `sv` gave it rather than the request: a prompt shown to work when pasted in
+    /// may not work when `sv` gives it, and the two read the same without this.
+    #[serde(default)]
+    pub delivered: Vec<Delivered>,
     pub brief: String,
     pub builder: String,
     pub result: String,
@@ -137,14 +191,67 @@ impl Prompt {
     /// Its status in words, as every copy of it says it: "Shown to work, on 10 builds with it and 10
     /// without.", "Tried, not shown to work.", or "Not tried yet.".
     pub fn status_sentence(&self) -> String {
-        match self.status {
+        let base = match self.status {
             Status::Shown => match self.tested.as_ref().and_then(|t| t.builds) {
                 Some(builds) => format!("Shown to work, {}.", builds.words()),
                 None => "Shown to work.".to_owned(),
             },
             Status::NotShown => "Tried, not shown to work.".to_owned(),
             Status::Untested => "Not tried yet.".to_owned(),
+        };
+        match self.delivered_sentence() {
+            Some(more) => format!("{base} {more}"),
+            None => base,
         }
+    }
+
+    /// How it did when `sv` gave it: "Given by `sv` rather than pasted into the request: at the start
+    /// of a build, shown to work with Sonnet, no reading with Haiku; in its briefs and guidance, not
+    /// shown to work with Sonnet and Haiku." A prompt shown to work with no such reading says it was
+    /// not tried that way; any other says nothing more.
+    fn delivered_sentence(&self) -> Option<String> {
+        let readings = self
+            .tested
+            .as_ref()
+            .map(|t| t.delivered.as_slice())
+            .unwrap_or(&[]);
+        if readings.is_empty() {
+            return (self.status == Status::Shown).then(|| {
+                "Given by `sv` rather than pasted into the request, it has not been tried."
+                    .to_owned()
+            });
+        }
+        let mut trials: Vec<Trial> = readings.iter().map(|r| r.trial).collect();
+        trials.sort();
+        trials.dedup();
+        let parts: Vec<String> = trials
+            .into_iter()
+            .map(|trial| {
+                let mut verdicts: Vec<Verdict> = readings
+                    .iter()
+                    .filter(|r| r.trial == trial)
+                    .map(|r| r.verdict)
+                    .collect();
+                verdicts.sort();
+                verdicts.dedup();
+                let said: Vec<String> = verdicts
+                    .into_iter()
+                    .map(|verdict| {
+                        let models: Vec<&str> = readings
+                            .iter()
+                            .filter(|r| r.trial == trial && r.verdict == verdict)
+                            .map(|r| r.model.as_str())
+                            .collect();
+                        format!("{} with {}", verdict.words(), models.join(" and "))
+                    })
+                    .collect();
+                format!("{}, {}", trial.words(), said.join(", "))
+            })
+            .collect();
+        Some(format!(
+            "Given by `sv` rather than pasted into the request: {}.",
+            parts.join("; ")
+        ))
     }
 }
 
