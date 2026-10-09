@@ -10,7 +10,8 @@ you go. You do not need to know how to program, and you do not need to know abou
 writes the code, StackVet checks it against the OWASP security standards, and the two of them ask you
 the questions only you can answer.
 
-It takes about fifteen minutes to set up, once.
+It takes about fifteen minutes to set up, once. A word here you do not know is probably in
+[the glossary](GLOSSARY.md).
 
 **Or let your AI coding tool do steps 1 to 3.** [The setup prompt](prompts/setup.md) asks it to check Docker, fetch
 StackVet, put the folder in git, and write the settings file with the paths already filled in, asking you before
@@ -25,7 +26,7 @@ short too.
 
 ## 1. Install Docker, and start it
 
-StackVet runs inside Docker, so there is nothing else to install. (One later step, which starts
+StackVet runs inside [Docker](GLOSSARY.md#docker), so there is nothing else to install. (One later step, which starts
 your app to check it while it runs, needs StackVet installed on the computer itself; section 6 says
 how, and it is optional.)
 
@@ -35,7 +36,7 @@ how, and it is optional.)
 **Docker has to be running before you open your AI tool.** If it is not, the StackVet tools are
 simply missing from the tool, and nothing tells you why. After a restart, start Docker first.
 
-Then fetch StackVet, in a terminal:
+Then fetch StackVet, in a [terminal](GLOSSARY.md#terminal):
 
 ```bash
 docker pull ghcr.io/abbyshade111/stackvet-sv
@@ -43,7 +44,8 @@ docker pull ghcr.io/abbyshade111/stackvet-sv
 
 ## 2. Make a folder for the app, and put it in git
 
-Make an empty folder for the app, for example `~/code/my-app`. Then, in a terminal in that folder:
+Make an empty folder for the app, for example `~/code/my-app`. Then, in a terminal in that folder, start
+[git](GLOSSARY.md#git) there:
 
 ```bash
 git init
@@ -51,11 +53,11 @@ git init
 
 (Or ask your AI tool to do it.) This matters more than it looks: the check for a password or key that
 was ever saved into your project's history only runs in a git folder. Without it, that check is
-reported as *not assessed*.
+reported as [*not assessed*](GLOSSARY.md#not-assessed).
 
 ## 3. Connect StackVet to your AI tool
 
-Your AI tool talks to StackVet over MCP, a standard way for AI tools to use other programs. You add
+Your AI tool talks to StackVet over [MCP](GLOSSARY.md#mcp), a standard way for AI tools to use other programs. You add
 one small file to the app's folder. In each example, replace `/Users/you/code/my-app` with your app
 folder's full path, in all three places. On a Mac, `pwd` in a terminal in that folder prints it.
 
