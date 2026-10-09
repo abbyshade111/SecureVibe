@@ -1,4 +1,4 @@
-# SecureVibe (`sv`) — design
+# StackVet (`sv`) — design
 
 > **This is the dated record, not the map.** Every entry in `docs/design/` was written when its decision was made,
 > numbered oldest first, and none is rewritten afterward; what `sv` is today is the sum of them. For the ten-minute map of the crates,

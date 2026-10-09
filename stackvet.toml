@@ -1,11 +1,11 @@
-# securevibe.toml — what `sv` itself is, so `sv report .` can check this repository the way it checks any app.
+# stackvet.toml — what `sv` itself is, so `sv report .` can check this repository the way it checks any app.
 # Written on 27 September 2026 by an AI coding session (Claude Code, session admiring-murdock-875699) from
 # `sv`'s own code, at the owner's asking, for the v2 self-assessment in docs/paper/. Read it before you trust
 # the report: every answer below is the AI tool's statement, not the owner's.
 manifest-version = 1
 
 [app]
-name = "sv (SecureVibe)"
+name = "sv (StackVet)"
 description = "A command-line checker that reads an app's code, can run the app in Docker behind a network fence, and reports against OWASP ASVS 5.0, AISVS 1.0, and Secure by Design. It also serves the same checks to an AI coding tool over MCP."
 # Each copy runs on the computer of the person using it and serves only them: the MCP server speaks over
 # standard input and output, and `sv` listens on no network port.

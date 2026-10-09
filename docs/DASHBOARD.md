@@ -10,7 +10,7 @@ end; their answers, and what follows from them, are in the last four sections, a
 
 Facts, read from the code on 8 October 2026:
 
-- **One report per run, overwritten by the next.** `sv report` writes five files into `<app>/securevibe-report`:
+- **One report per run, overwritten by the next.** `sv report` writes five files into `<app>/stackvet-report`:
   `report.html`, `compliance.md`, `security.md`, `findings.sarif`, and `report.json`. The next run replaces them.
   Nothing keeps an earlier run (`crates/sv-cli/src/main.rs`, `write_report`; `report_lock.rs` reads the old report
   only to avoid replacing a newer one).
@@ -22,7 +22,7 @@ Facts, read from the code on 8 October 2026:
   apply: how many need attention, are checked, checked in part, tested through the app's own tests, documented,
   attested, stated, to be checked by hand, and not verified, and apart from those, how many do not apply, are not
   assessed, or are above the app's level. It also names the app, the level, the date, the `sv` version, what kind of
-  run it was (`not_run_this_time`, `run_status`), and a fingerprint of the `securevibe.toml` it read
+  run it was (`not_run_this_time`, `run_status`), and a fingerprint of the `stackvet.toml` it read
   (`run_record`). It has no version number of its own format.
 - **Nothing in `sv` serves a web page.** The MCP server talks to the AI coding tool over standard input and output.
 - **The rules a dashboard inherits:** there is no pass (DESIGN); what was not examined comes first (DESIGN); no total
@@ -44,12 +44,12 @@ number written beside every part. It needs nothing `sv` does not already have.
 became checked, or stopped being checked. This needs something `sv` does not keep: earlier runs. It also has a trap.
 A run without `--run` checks far fewer requirements than one with it, so a plain run after a full one would look
 like the app got worse when only the run was smaller. Two runs can be compared only when they were the same kind of
-run, at the same level, from the same `securevibe.toml`; otherwise the page has to say they cannot be compared, and
-why. `report.json` holds enough to tell (`not_run_this_time`, `target_level`, the `securevibe.toml` fingerprint).
+run, at the same level, from the same `stackvet.toml`; otherwise the page has to say they cannot be compared, and
+why. `report.json` holds enough to tell (`not_run_this_time`, `target_level`, the `stackvet.toml` fingerprint).
 
 **C. Several apps together.** One page with a row per app: its name, when it was last checked and by which `sv`, its
 level, what kind of run, how many findings need attention, and the same bar as in A. It would read the
-`securevibe-report/report.json` already in each app's folder. It must never rank the apps or add their numbers up:
+`stackvet-report/report.json` already in each app's folder. It must never rank the apps or add their numbers up:
 apps at different levels, checked by different runs, do not add.
 
 ## How it could be delivered
@@ -64,9 +64,9 @@ apps at different levels, checked by different runs, do not add.
    more to get wrong, for little a reloaded file does not do. Not recommended now.
 
 Keeping history for B is a separate choice, with three places it could live, each a decision for the owner:
-a copy of each `report.json` under `securevibe-report/history/` (in the app's folder, where the AI coding tool can
+a copy of each `report.json` under `stackvet-report/history/` (in the app's folder, where the AI coding tool can
 read it, and committed with the app if the owner commits the report); a folder in the owner's home
-(`~/.local/share/securevibe/history`), private to this computer; or none, comparing only what the owner keeps
+(`~/.local/share/stackvet/history`), private to this computer; or none, comparing only what the owner keeps
 themselves, such as the reports in the app's git history.
 
 ## How any of it stays honest
@@ -119,7 +119,7 @@ counts and the earlier runs marked as made up:
 
 "Optional for anyone" settles how it is switched on: the bar at the top of `report.html` is part of every report,
 and everything else is off until the person running `sv` turns it on, in a setting of their own
-(`~/.config/securevibe/`). Not in `securevibe.toml`: that file is written by the AI coding tool, which should not be
+(`~/.config/stackvet/`). Not in `stackvet.toml`: that file is written by the AI coding tool, which should not be
 the one deciding what is kept about the app's history.
 
 ## Keeping history safely
@@ -128,10 +128,10 @@ What could go wrong, and what the recommendation does about each:
 
 - **Publishing it.** The app's folder is often a git repository, and sometimes a public one. A dated list of an app's
   weaknesses, committed there, is a gift to anybody looking for one. So history is kept outside every app's folder,
-  in `~/.local/share/securevibe/history/`, beside where `tools/install.sh` already puts `sv`, with permissions that
+  in `~/.local/share/stackvet/history/`, beside where `tools/install.sh` already puts `sv`, with permissions that
   let only the person read it.
 - **Keeping more than it needs.** Each run adds one small record: the date, the `sv` version, the level, what kind of
-  run it was, the `securevibe.toml` fingerprint the report already carries, the counts, and for each finding its
+  run it was, the `stackvet.toml` fingerprint the report already carries, the counts, and for each finding its
   fingerprint, severity, rule, and `sv`'s own title for it. Never the app's code, a file's contents, a line of it, or a
   credential, not even its first four characters. That is enough to say what changed and no more.
 - **Growing without end.** A limit on how many runs are kept for each app (the most recent 100, say), and one command
@@ -140,7 +140,7 @@ What could go wrong, and what the recommendation does about each:
   app's folder it is less in its way, not out of its reach. So history is a convenience for the person, never
   evidence: no requirement is credited from it, and the reports never read it.
 - **Comparing what cannot be compared.** Two runs are set against each other only when they were the same kind of run,
-  at the same level, from the same `securevibe.toml`, by the same `sv`. Otherwise the page says they are not compared,
+  at the same level, from the same `stackvet.toml`, by the same `sv`. Otherwise the page says they are not compared,
   and why (the mock-up's 5 October run). Without this, the first full run after a plain one would look like the app
   got worse.
 - **Which app is which.** An app is known by its folder, so a moved or renamed folder starts a new history, and the page

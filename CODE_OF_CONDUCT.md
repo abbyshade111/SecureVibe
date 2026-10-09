@@ -36,7 +36,7 @@ This Code of Conduct applies within all community spaces, and also applies when 
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at the repository's private reporting form: on the **Security** tab choose **Report a vulnerability** (<https://github.com/abbyshade111/SecureVibe/security/advisories/new>) and start the title with "Code of conduct:". Only you and the project's owner can see what you write there. GitHub has no private messages, so this form, though it is labeled for security problems, is the private channel for reports about conduct too. All complaints will be reviewed and investigated promptly and fairly.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at the repository's private reporting form: on the **Security** tab choose **Report a vulnerability** (<https://github.com/abbyshade111/StackVet/security/advisories/new>) and start the title with "Code of conduct:". Only you and the project's owner can see what you write there. GitHub has no private messages, so this form, though it is labeled for security problems, is the private channel for reports about conduct too. All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the reporter of any incident.
 

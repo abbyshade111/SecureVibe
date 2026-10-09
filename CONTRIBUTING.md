@@ -1,6 +1,6 @@
-# Contributing to SecureVibe
+# Contributing to StackVet
 
-Thank you for thinking about it. SecureVibe (`sv`) checks apps against the OWASP standards and says plainly what
+Thank you for thinking about it. StackVet (`sv`) checks apps against the OWASP standards and says plainly what
 was verified and what was not, so the one thing a change must never do is make the report claim more than it
 knows. Most of what follows comes from that.
 
@@ -34,7 +34,7 @@ These are exactly what CI runs, and all three must pass. A few more things to kn
 - **`docs/COVERAGE.md` is generated.** After changing a rule, a map from another tool's rules, or a requirement a
   check cites, run `python3 tools/coverage.py` to regenerate it; never edit it by hand. A test fails while it is
   out of date.
-- **The container** is built with `docker build -t securevibe/sv .`. `python3 tools/image_smoke.py securevibe/sv`
+- **The container** is built with `docker build -t stackvet/sv .`. `python3 tools/image_smoke.py stackvet/sv`
   drives it as an AI coding tool would; CI runs both on every pull request.
 
 ## The rules every change keeps

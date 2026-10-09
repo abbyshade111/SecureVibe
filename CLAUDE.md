@@ -1,6 +1,6 @@
-# SecureVibe — notes for Claude Code sessions
+# StackVet — notes for Claude Code sessions
 
-SecureVibe (`sv`) is a Rust command-line tool and MCP server that checks an app written in any language against OWASP
+StackVet (`sv`) is a Rust command-line tool and MCP server that checks an app written in any language against OWASP
 ASVS 5.0, AISVS 1.0 and the Secure by Design checklist, and writes reports that say plainly what was verified and what
 was not. The person builds the app in their own AI coding tool; `sv` picks up the code and grades it. The design is
 `docs/design/`, one file per dated entry (`docs/DESIGN.md` says how they are kept), `docs/BACKLOG.md` is what is still

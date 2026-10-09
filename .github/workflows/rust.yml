@@ -99,17 +99,17 @@ jobs:
           persist-credentials: false
 
       - name: Build the image
-        run: docker build --build-arg SV_GIT_COMMIT=${{ github.sha }} -t securevibe/sv .
+        run: docker build --build-arg SV_GIT_COMMIT=${{ github.sha }} -t stackvet/sv .
 
       - name: Build sv natively, to compare with
         run: rustup toolchain install stable --profile minimal && rustup default stable && cargo build --release -p sv-cli
 
       - name: Drive the image as an AI coding tool would
-        run: python3 tools/image_smoke.py securevibe/sv --native target/release/sv --commit ${{ github.sha }}
+        run: python3 tools/image_smoke.py stackvet/sv --native target/release/sv --commit ${{ github.sha }}
 
   publish:
     # Publishes the image to GitHub's container registry, at the owner's decision (26 September
-    # 2026), as ghcr.io/abbyshade111/securevibe-sv: `latest`, and the commit it was built from. Only
+    # 2026), as ghcr.io/abbyshade111/stackvet-sv: `latest`, and the commit it was built from. Only
     # for a push to main, and only once `test` and `image` have passed on that same commit, so what
     # is published is what the smoke test drove. It is the one job that may write packages; every
     # other job keeps the read-only permission above. No third-party action: `docker login` with the
@@ -127,7 +127,7 @@ jobs:
       contents: read
       packages: write
     env:
-      IMAGE: ghcr.io/abbyshade111/securevibe-sv
+      IMAGE: ghcr.io/abbyshade111/stackvet-sv
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -3,8 +3,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: A security problem in sv itself
-    url: https://github.com/abbyshade111/SecureVibe/security/advisories/new
+    url: https://github.com/abbyshade111/StackVet/security/advisories/new
     about: Report it privately here, not as a public issue. SECURITY.md says what counts.
   - name: Getting started
-    url: https://github.com/abbyshade111/SecureVibe/blob/main/docs/GETTING-STARTED.md
+    url: https://github.com/abbyshade111/StackVet/blob/main/docs/GETTING-STARTED.md
     about: Setting sv up alongside your AI coding tool, step by step.

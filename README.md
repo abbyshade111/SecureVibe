@@ -1,12 +1,12 @@
-# SecureVibe (`sv`)
+# StackVet (`sv`)
 
-SecureVibe checks an app against the OWASP standards and writes reports that say plainly what was verified and
+StackVet checks an app against the OWASP standards and writes reports that say plainly what was verified and
 what was not. You write the app in whatever AI coding tool you like, in any language; you have the back-and-forth
 with your own AI tool until the app is what you wanted, and then `sv` picks up the code and grades it.
 
 **If you are not a programmer, start with [`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md).** It walks through
-installing Docker, connecting SecureVibe to your AI tool, the prompt to start with, and reading the report, one step
-at a time. The rest of this page is written for programmers, and its commands build SecureVibe from its source code.
+installing Docker, connecting StackVet to your AI tool, the prompt to start with, and reading the report, one step
+at a time. The rest of this page is written for programmers, and its commands build StackVet from its source code.
 
 **SecureVibe v1**, the earlier version that asked you to fill in a form and then wrote a Node app for you, is
 archived, not deleted: it lives on the `v1` branch (see `ARCHIVED.md` there) and at the tags `v1-paper` and
@@ -23,7 +23,7 @@ each check needs to run, is counted in `docs/COVERAGE.md`. `docs/REQUIREMENTS.md
 family, with the checks that speak to each.
 
 ```bash
-cargo run -p sv-cli -- init              # the securevibe.toml spec to hand to your AI tool
+cargo run -p sv-cli -- init              # the stackvet.toml spec to hand to your AI tool
 cargo run -p sv-cli -- scope ./my-app    # which requirements apply to this app, and why
 cargo run -p sv-cli -- run ./my-app      # start it behind the network fence and ask it questions
 cargo run -p sv-cli -- check ./my-app    # credentials, configuration, and rules that read the code
@@ -50,7 +50,7 @@ way. Templates that cannot run code (Handlebars, Mustache, Jinja, Liquid, Twig, 
 the code in those yet, and the report names the files (ADR-054).
 
 `sv check`, `sv report`, `sv audit` and `sv run` end with a status a CI job can act on. 3 always means `sv` itself
-failed and there is no result: a folder that is not there, an option it does not know, a `securevibe.toml` that is
+failed and there is no result: a folder that is not there, an option it does not know, a `stackvet.toml` that is
 there and cannot be read, or, for `sv report`, none at all (`sv check` and `sv audit` run without one, and read it
 when it is there; every other command uses 3 for a failure of its own too). `sv run` exits 2 when the app could not
 be started or never answered. `sv audit` exits 0 when every package was compared
@@ -65,7 +65,7 @@ severity or worse, leaving out those marked only for information (or `attention:
 only), `--fail-on not-assessed` to exit 2 also for a symbolic link not
 followed, a `--tools` tool that did not run, or an `--advisories` comparison that did not cover the app, or
 `--fail-on any` for both; 1 outranks 2. Packages
-in folders `securevibe.toml` says are not the app, such as example apps and test fixtures, are listed apart
+in folders `stackvet.toml` says are not the app, such as example apps and test fixtures, are listed apart
 and still count: that file is written by your AI coding tool, and naming a folder there must never hide a
 vulnerability. `sv` holds itself to this every week, auditing the Rust files it is built from
 (`.github/workflows/audit.yml`).
@@ -114,7 +114,7 @@ exit code and one broken test costs the credit of every other test. There is no 
 somebody chose for other reasons. A test that names nothing is not evidence about anything in particular,
 which is a perfectly fair thing for a test to be — most tests are.
 
-`sv report` writes the whole thing out, into a folder named `securevibe-report` inside the app's folder
+`sv report` writes the whole thing out, into a folder named `stackvet-report` inside the app's folder
 unless you give `--out` (add `--run` to start the app behind the fence and include what it answers, and
 `--tools` to run the outside security tools that are installed: Bandit, gosec, Brakeman, Semgrep, and CodeQL):
 `report.html`, one file you can open by double-clicking it; `compliance.md` and `security.md`, the same in
@@ -136,7 +136,7 @@ the app's own tests*, below *checked*, and never for a requirement about documen
 The reports also have a threat model: what could go wrong with an app like this one, by the part of it
 each threat concerns (sign-in, stored data, the AI model, uploads, payments, and so on), with what the
 checks showed about each: found, checked in part, not verified, or not known to apply until a question
-in securevibe.toml is answered. (For a threat, *checked in part* means some of its requirements were checked; the
+in stackvet.toml is answered. (For a threat, *checked in part* means some of its requirements were checked; the
 app's own tests and the owner's word never move one.) It is made from rules, not by asking an AI, and it never calls a threat
 handled, because a threat is only as settled as the requirements that answer it. See
 `docs/THREAT-MODELING.md`.
@@ -186,7 +186,7 @@ what would change that, not reading about it.
 
 One thing you can state as a number, and `sv` will hold your app to it: how many wrong passwords in
 a row it should allow before pushing back. Put `failed-sign-ins = 5` under `[policy]` in
-`securevibe.toml` and the checks make seven wrong attempts, two more than you allowed, and watch what the app
+`stackvet.toml` and the checks make seven wrong attempts, two more than you allowed, and watch what the app
 does (at most 26, so a number above 24 is reported as not assessed). That settles
 V6.3.1, one of the Level 1 requirements, and it is a real check rather than your word: an app that
 only gives way after twenty attempts, when you said five, is reported. Say nothing and nothing is
@@ -194,7 +194,7 @@ claimed either way.
 
 Sixteen more ask how the app is built rather than what is in it: is input checked on the server as
 well as in the browser, do the app's own parts prove who they are to each other. You answer those in
-the `[design]` section of `securevibe.toml` with yes, no, or not sure, and where in the code it is
+the `[design]` section of `stackvet.toml` with yes, no, or not sure, and where in the code it is
 done.
 
 Answering yes makes the requirement **attested by the owner** — the weakest thing the report says of
@@ -225,7 +225,7 @@ thing (`data/sbd-asvs-crosswalk.json`), or is shown at every level when nothing 
 ## Setting a finding aside, confirming an answer, or giving your own: `sv review`
 
 When a finding is a false alarm, or a risk you choose to live with for now, it can be set aside under
-`[[finding-review]]` in `securevibe.toml`, with a reason. When your AI coding tool answered a question
+`[[finding-review]]` in `stackvet.toml`, with a reason. When your AI coding tool answered a question
 and you have looked for yourself, you can confirm its answer. Either counts only once **you** record it,
 by running this in your own terminal:
 
@@ -240,7 +240,7 @@ so.
 
 It goes through every entry that is not yet yours, shows the finding's line of code (never a line that
 may hold a key), and asks for your name, or `owner`. What you record is written back into
-`securevibe.toml` with the date and a *seal*. Your AI coding tool may write entries too, as proposals
+`stackvet.toml` with the date and a *seal*. Your AI coding tool may write entries too, as proposals
 (`by = "ai-tool"`), and the report lists them, but a proposal counts for nothing.
 
 Why the extra step: the tool rewrites code until a warning stops, and writing `by = "owner"` into the
@@ -270,13 +270,13 @@ What it cannot show: who was at the keyboard, unless your key has a passphrase; 
 yours, since whoever can change the list, or the repository variable, can add one. A tool set on faking
 it, running as you, could do either; it stops the easy way, not every way. Keep the key file private.
 
-Entries recorded before 6 October 2026 were sealed another way, with `~/.config/stackvet/review-key`,
+Entries recorded before 6 October 2026 were sealed another way, with `~/.config/securevibe/review-key`,
 and count only on the computer that holds that key. The next time you run `sv review` there, it offers to
 sign them all again at one yes, without asking each question again.
 
 With the container, give it a terminal and somewhere to keep the key, made first so that it is yours
 (`mkdir -p ~/.config/stackvet && chmod 700 ~/.config/stackvet`; on Linux, add `--user` as below):
-`docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/stackvet":/sv-config/stackvet -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/securevibe-sv review .`
+`docker run --rm -it --network none -v "$PWD":"$PWD" -w "$PWD" -v "$HOME/.config/stackvet":/sv-config/stackvet -e XDG_CONFIG_HOME=/sv-config ghcr.io/abbyshade111/stackvet-sv review .`
 The container that writes your reports needs only the list, and never the key beside it: pass
 `-e SV_TRUSTED_SEALS="$(cat ~/.config/stackvet/allowed_signers)"`, or mount the list alone, read-only,
 with `-v "$HOME/.config/stackvet/allowed_signers":/sv-config/stackvet/allowed_signers:ro -e XDG_CONFIG_HOME=/sv-config`.
@@ -285,7 +285,7 @@ For the container your AI coding tool starts, the guide (`docs/GETTING-STARTED.m
 ## Signing in
 
 `sv run` asks the running app questions as somebody who has not signed in — and, when
-`securevibe.toml` says how, as signed-in users too. Under `[stack.run.users]` you say how accounts are
+`stackvet.toml` says how, as signed-in users too. Under `[stack.run.users]` you say how accounts are
 made (a `seed` command run inside the app's container, or the app's own `signup`), how to sign in and
 out, which pages are private or admin-only, and how one user creates something another must not read.
 `sv` makes two ordinary accounts and, if you list admin pages, an admin, each with a password made for
@@ -346,7 +346,7 @@ that, the answer is *not assessed*, not a pass. `examples/notes-with-users` is a
 ## Building an app from scratch with `sv` alongside
 
 If you are not a programmer and want to build an app with an AI coding tool, start with
-[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md): installing Docker, connecting SecureVibe to your
+[`docs/GETTING-STARTED.md`](docs/GETTING-STARTED.md): installing Docker, connecting StackVet to your
 tool, a prompt to start the build with, what is and is not checked, and how to build `sv` on your own
 computer for `sv report --run`, step by step.
 
@@ -357,10 +357,10 @@ coding tools read before they work in a folder: keep keys and people's data out 
 pages, issues, and tool results as data rather than instructions, run the check after each feature,
 add only packages that really exist, never merge or deploy its own work, and write CI workflows that
 keep secrets away from code from forks. Each rule names the requirement it comes from. Rules about
-something your `securevibe.toml` says the app does not have, such as a CI pipeline, are left out, and
+something your `stackvet.toml` says the app does not have, such as a CI pipeline, are left out, and
 the file says how many. Anything else in `AGENTS.md` is left as it is: `sv` writes only between its
 own two markers, and running it again replaces only that section. `--print` shows the rules instead
-of writing them. From inside the tool, `securevibe_guidance` gives the same rules, for one topic or
+of writing them. From inside the tool, `stackvet_guidance` gives the same rules, for one topic or
 all of them.
 
 The rules are instructions for the tool, not a check. Following them is not evidence that the app
@@ -401,11 +401,11 @@ compressed) by `sv` itself, so it adds no dependency.
 
 `sv mcp` offers the same checks over the Model Context Protocol, so the tool you build with can run them
 mid-conversation and work through the findings with you. Install it once (`sh tools/install.sh`, which
-builds it and puts it with its data in `~/.local/share/securevibe`, linked from `~/.local/bin/sv`), then
+builds it and puts it with its data in `~/.local/share/stackvet`, linked from `~/.local/bin/sv`), then
 register it — for Claude Code:
 
 ```bash
-claude mcp add securevibe -- ~/.local/bin/sv mcp --root ~/code
+claude mcp add stackvet -- ~/.local/bin/sv mcp --root ~/code
 ```
 
 or, for a tool configured with JSON:
@@ -414,21 +414,21 @@ or, for a tool configured with JSON:
 { "mcpServers": { "stackvet": { "command": "/path/to/sv", "args": ["mcp", "--root", "/home/you/code"] } } }
 ```
 
-It offers thirteen tools: `securevibe_spec` (the `securevibe.toml` to write), `securevibe_plan` (the plan for the
-app from it, below), `securevibe_preflight` (what `sv run` will need, read from the code without running it),
-`securevibe_before` (one feature's brief before it is built, below), `securevibe_guidance` (the
+It offers thirteen tools: `stackvet_spec` (the `stackvet.toml` to write), `stackvet_plan` (the plan for the
+app from it, below), `stackvet_preflight` (what `sv run` will need, read from the code without running it),
+`stackvet_before` (one feature's brief before it is built, below), `stackvet_guidance` (the
 rules to follow while coding; see "Rules your AI coding tool follows while it codes" above),
-`securevibe_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
+`stackvet_prompts` (prompts from [the prompt library](docs/PROMPTS.md), each saying whether it has been shown to
 work; `sv prompts`, or `sv prompts --requirement V1.2.4`, prints them at a terminal; the ten coding prompts shown to
-work are also given in full at the end of `sv init`, `securevibe_spec`, and the server's opening instructions, since
+work are also given in full at the end of `sv init`, `stackvet_spec`, and the server's opening instructions, since
 a prompt given where the tool starts did better than the same prompt fetched mid-build),
-`securevibe_check` (what
-applies, what was found, and first of all what was not examined), `securevibe_explain` (a requirement in
-its framework's own words), `securevibe_write_report` (the full reports, into the app's folder),
-`securevibe_questions` (the questions only you can answer, for the tool to ask you one at a time), and
-`securevibe_notes_file` (the `security-notes.md` your written decisions go in), `securevibe_record_answer`
+`stackvet_check` (what
+applies, what was found, and first of all what was not examined), `stackvet_explain` (a requirement in
+its framework's own words), `stackvet_write_report` (the full reports, into the app's folder),
+`stackvet_questions` (the questions only you can answer, for the tool to ask you one at a time), and
+`stackvet_notes_file` (the `security-notes.md` your written decisions go in), `stackvet_record_answer`
 (an answer written under one of those questions, always marked as the tool's own: once you have read it and agree,
-you change its `Written by:` line to `owner` yourself and record it with `sv review`), and `securevibe_bundle`
+you change its `Written by:` line to `owner` yourself and record it with `sv review`), and `stackvet_bundle`
 (one zip beside the app, for you to keep or hand on; see "A zip to keep or hand on" above. A tool offers it when the report
 is written, if you want one).
 
@@ -441,10 +441,10 @@ with a list of every section and how to ask for each (`section`, and `page` for 
 It also offers [the design-time prompts](docs/prompts/design-time.md) as MCP prompts, for you to choose from
 your tool (where it shows them, for example as slash commands): what to decide with the tool before any code is
 written, each saying whether it has been shown to work. Its instructions ask the tool, for an app with no code yet, to
-write `securevibe.toml` with you first, for the app as it will be, and to go through the prompt for each feature
+write `stackvet.toml` with you first, for the app as it will be, and to go through the prompt for each feature
 before writing it.
 
-**A plan before any code.** `sv plan` (and `securevibe_plan`, for the tool) turns `securevibe.toml` into a plan:
+**A plan before any code.** `sv plan` (and `stackvet_plan`, for the tool) turns `stackvet.toml` into a plan:
 the requirements that will apply, the design-time prompts and questions to settle before each feature, the tests
 worth writing (named so they count once they pass), what the app must give `sv run` so it can be tested running
 (test accounts, the sign-in and sign-out forms, the pages only a signed-in person should see, and so on, worked out
@@ -452,16 +452,16 @@ from your answers), and the threats your answers raise. It needs no code, writes
 is what the app will be held to, not evidence that anything was built. It is built from the same parts as the report,
 so the two agree about what applies.
 
-**Before each feature.** `sv brief --feature uploads` (and `securevibe_before`, for the tool) gives one feature's brief
+**Before each feature.** `sv brief --feature uploads` (and `stackvet_before`, for the tool) gives one feature's brief
 before it is built: sign-in, sign-in through another service, admin pages, uploads, payments, email, an AI feature,
 or fetching a web address (`sv brief` with no feature lists them). It gives the requirements the feature brings that
-apply to the app now, and, if `securevibe.toml` does not say yet that the app has the feature, those that will apply
+apply to the app now, and, if `stackvet.toml` does not say yet that the app has the feature, those that will apply
 once it does; the design-time prompts for the decisions to make first, in full; the coding rules that bear on it; the
 tests to write; and the settings `sv run` needs to test it, quoted from the spec. With the coding prompts shown to
-work that bear on the feature, it answers before `securevibe.toml` exists too, saying that which requirements apply
+work that bear on the feature, it answers before `stackvet.toml` exists too, saying that which requirements apply
 cannot be known yet. Like the plan, it writes nothing and credits nothing.
 
-**Before `--run`.** `sv preflight` (and `securevibe_preflight`, for the tool) looks in the app's files for what
+**Before `--run`.** `sv preflight` (and `stackvet_preflight`, for the tool) looks in the app's files for what
 `sv run` will need from `[stack.run]`: a server listening on every address at `$PORT`, a seed that makes the test
 accounts, the sign-in form at the path and with the fields the settings give, the tables the app makes for itself,
 and so on. Each item says *looks right*, *look at this*, or *could not tell*. It reads text and runs nothing, so
@@ -482,12 +482,17 @@ such as the Claude desktop app.
 Colima):
 
 ```bash
-docker pull ghcr.io/abbyshade111/securevibe-sv
+docker pull ghcr.io/abbyshade111/stackvet-sv
 ```
 
 It is built from the `Dockerfile` by CI on every change to `main`, once the image has passed its
 test, and tagged `latest` and with the commit it came from. To build it yourself instead, from the
-repository root: `docker build -t ghcr.io/abbyshade111/securevibe-sv .`
+repository root: `docker build -t ghcr.io/abbyshade111/stackvet-sv .`
+
+Until 9 October 2026 the product was called SecureVibe and the image was `ghcr.io/abbyshade111/securevibe-sv`.
+That name is left as it is and gets no further pushes; the files `sv` wrote under the old names (`securevibe.toml`,
+`securevibe-report`, `~/.config/securevibe`) are still read, and the report says once what to rename
+(`docs/adr/ADR-062.md`).
 
 Then the tool starts it in its `.mcp.json`. Use your own folder in all three places, and the full path
 to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/bin`:
@@ -497,7 +502,7 @@ to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/
   "command": "/opt/homebrew/bin/docker",
   "args": ["run", "-i", "--rm", "--network", "none",
            "-v", "/Users/you/code:/Users/you/code",
-           "ghcr.io/abbyshade111/securevibe-sv", "mcp", "--root", "/Users/you/code"] } } }
+           "ghcr.io/abbyshade111/stackvet-sv", "mcp", "--root", "/Users/you/code"] } } }
 ```
 
 - The folder is mounted at the same path inside, so the paths in findings are your own.
@@ -506,7 +511,7 @@ to `docker`, since an app started from the Dock often cannot see `/opt/homebrew/
 - On Linux, add `"--user", "1000:1000"` (your own `id -u` and `id -g`) before the image name, so the
   files it writes are yours. Without it the image runs as a user of its own, never root, and that user
   cannot write into your folder. On a Mac, Docker Desktop makes what it writes yours either way.
-- Docker (or Colima) has to be running when the tool starts, or the securevibe tools are simply absent.
+- Docker (or Colima) has to be running when the tool starts, or the stackvet tools are simply absent.
 - The container never runs `sv report --run`: starting the app means starting containers, which from
   inside a container would mean handing it control of Docker on your machine. Run that step with a
   native `sv` at a terminal.
@@ -527,7 +532,7 @@ cargo test
 ```
 
 The OWASP data files (`data/frameworks`, `data/knowledge`) and `sv`'s own data files live together in `data/`.
-`sv` looks for that folder in `SV_DATA_DIR`, then beside itself (`data`, or `../share/securevibe/data`), then
+`sv` looks for that folder in `SV_DATA_DIR`, then beside itself (`data`, or `../share/stackvet/data`), then
 in the repository it was built from; `sv --version` names the one it uses.
 
 To contribute, read [CONTRIBUTING.md](CONTRIBUTING.md): the checks a change must pass and the rules every change

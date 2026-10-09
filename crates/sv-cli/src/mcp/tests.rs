@@ -231,8 +231,8 @@ fn a_report_is_not_written_through_a_symlink_out_of_the_app() {
 const FOLDER_NAMES: &[&str] = &[
     ".stackvet-report",
     crate::report_lock::LOCK_NAME,
-    ".securevibe-report",
-    ".securevibe-report.lock",
+    ".stackvet-report",
+    ".stackvet-report.lock",
     "report.html",
     "compliance.md",
     "security.md",
@@ -812,7 +812,7 @@ fn a_feature_brief_agrees_with_the_plan_and_keeps_to_its_feature() {
 }
 
 #[test]
-fn a_feature_brief_before_securevibe_toml_gives_what_does_not_wait_for_it() {
+fn a_feature_brief_before_stackvet_toml_gives_what_does_not_wait_for_it() {
     // The same app, with its settings file and without: what the feature brings, decides, and
     // needs is the same for both, and only which of it applies, and the tests, wait for the file.
     let root = scratch_app("before-no-toml", "flask-booking");
@@ -1520,11 +1520,11 @@ fn the_guide_the_container_points_at_says_how_to_install_sv() {
     );
     for step in [
         "https://sh.rustup.rs",
-        "git clone https://github.com/abbyshade111/SecureVibe.git",
+        "git clone https://github.com/abbyshade111/StackVet.git",
         "sh tools/install.sh",
         ".local/bin:$PATH",
         "sv --version",
-        "The installed copy does not need the `securevibe` folder",
+        "The installed copy does not need the `stackvet` folder",
         "Docker or Colima has to be running",
     ] {
         assert!(guide.contains(step), "the guide lacks {step:?}");

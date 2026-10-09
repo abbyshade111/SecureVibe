@@ -1,7 +1,7 @@
 # sv in a container, for somebody who is not going to install Rust.
 #
-#   docker pull ghcr.io/abbyshade111/securevibe-sv                              (the published one)
-#   docker build -t ghcr.io/abbyshade111/securevibe-sv .   (or build it, from the repository root)
+#   docker pull ghcr.io/abbyshade111/stackvet-sv                              (the published one)
+#   docker build -t ghcr.io/abbyshade111/stackvet-sv .   (or build it, from the repository root)
 #
 # The build context is the repository root; the `.dockerignore` beside this file keeps everything but the
 # Rust workspace, `data/` and the examples out of it.

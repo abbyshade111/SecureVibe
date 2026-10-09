@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Drives the sv container image over MCP the way an AI coding tool would, and says whether it works.
 
-    python3 tools/image_smoke.py securevibe/sv                      # the image as built
-    python3 tools/image_smoke.py securevibe/sv --native target/release/sv   # and compare with sv itself
-    python3 tools/image_smoke.py securevibe/sv --no-git              # an image built without git
-    python3 tools/image_smoke.py securevibe/sv --commit <sha>        # and built from this commit
+    python3 tools/image_smoke.py stackvet/sv                      # the image as built
+    python3 tools/image_smoke.py stackvet/sv --native target/release/sv   # and compare with sv itself
+    python3 tools/image_smoke.py stackvet/sv --no-git              # an image built without git
+    python3 tools/image_smoke.py stackvet/sv --commit <sha>        # and built from this commit
 
 It makes a small app in a temporary folder, a copy of `examples/tested-notes` with a `.env` committed
 to git, and starts the image the way `.mcp.json` would (`docker run -i --rm --network none -v

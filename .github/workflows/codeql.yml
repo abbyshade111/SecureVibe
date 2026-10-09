@@ -1,6 +1,6 @@
 # CodeQL, set up as a committed workflow ("advanced setup") rather than GitHub's default setup.
 #
-# The reason is the fixtures. SecureVibe tests its own scanners on deliberately vulnerable applications
+# The reason is the fixtures. StackVet tests its own scanners on deliberately vulnerable applications
 # (crates/sv-scan/tests/fixtures and crates/sv-check/tests/fixtures),
 # and with default setup every one of their faults is a real alert in the Security tab: eighteen were dismissed
 # by hand on 22 September 2026, sixteen of them from v1's fixtures. A dismissal is a click that lives only in
@@ -74,7 +74,7 @@ jobs:
           build-mode: none
           config: |
             paths-ignore:
-              # Deliberately vulnerable inputs for SecureVibe's own scanner tests. They exist to be found by
+              # Deliberately vulnerable inputs for StackVet's own scanner tests. They exist to be found by
               # sv-scan; an alert on one of them is the fixture doing its job. Do not "fix" them and do not
               # un-exclude them.
               - crates/sv-scan/tests/fixtures/**

@@ -1,4 +1,4 @@
-# SecureVibe (`sv`): the ten-minute map
+# StackVet (`sv`): the ten-minute map
 
 What `sv` is made of, how a run goes through it, and where each rule is held. Written 8 October 2026 for a session
 or a person opening the repository cold. `docs/design/` is the dated record of every decision as it was made, one file per
@@ -8,7 +8,7 @@ the pull request that finds it.
 
 ## What it does, in one paragraph
 
-A person builds an app in their own AI coding tool, in any language. The tool writes `securevibe.toml`, a manifest of
+A person builds an app in their own AI coding tool, in any language. The tool writes `stackvet.toml`, a manifest of
 what the app claims about itself, from the spec `sv init` prints. `sv` reads the code and the manifest, works out
 which requirements of OWASP ASVS 5.0, AISVS 1.0, and the Secure by Design checklist apply, checks what it can (the
 files, and, when asked, the app running behind a network fence), and writes reports that say what was verified, at
@@ -20,7 +20,7 @@ as it builds. `sv` never says an app is secure; it says what it checked and what
 | Crate | Lines | What it is |
 |---|---|---|
 | `sv-frameworks` | 1,200 | The standards as data (`data/frameworks/*.json`), and which requirements apply to an app with these conditions (`data/applicability-v2.json`). Also `data::file`, the one way any run-time read finds `data/` (ADR-036). |
-| `sv-manifest` | 4,100 | `securevibe.toml`: what the app claims. Nothing in it is a fact; `resolve` corroborates each claim against the code, and corroboration only ever adds requirements, never removes them. |
+| `sv-manifest` | 4,100 | `stackvet.toml`: what the app claims. Nothing in it is a fact; `resolve` corroborates each claim against the code, and corroboration only ever adds requirements, never removes them. |
 | `sv-scan` | 4,100 | One walk of the app's folder (`files::Listing`), its languages and frameworks by signature, what the manifest sets apart as not the app (ADR-031), and the names of a report folder so the walk leaves it out. |
 | `sv-check` | 97,700 | Every check: keys and passwords (`secrets`), configuration (`config`), rules that read code with tree-sitter (`ast`, `data/ast-rules.json`), the bill of materials (`sbom`) and advisories, outside tools through adapters, and the checks of a running app (`signed_in`, `probes`, `oidc`, `ai`, `mcp_server`, `fetch`, `live`) written against a trait `Http`, so each runs against a fake app in its unit tests. Also what a person's word is worth: `design`, `hand`, `notes`, `confirm`, `review`, and the seals (`seal`). Produces `Finding` and `Verified`, never a verdict. |
 | `sv-run` | 6,900 | Starts the app behind the fence: a Docker network with no gateway, a sidecar that sends every request from inside it, the helpers a run needs (a mail server, a test identity provider, a test model, a headless browser), every container read-only with every capability dropped (ADR-019, `prepared`), the install step for the app's packages (ADR-052), and the run's script (`run_after_cleanup`). Implements `Http` for the checks. Depends on `sv-check` today, the reverse of this layering (BACKLOG, 8 October, item 4). |
@@ -32,11 +32,11 @@ it saw; `sv-report` says what that is called; `sv-cli` says it to a person or a 
 
 ## A run of `sv report`, stage by stage
 
-1. **The manifest** is read once; its hash goes into the report, so a `securevibe.toml` that changes during the run is
+1. **The manifest** is read once; its hash goes into the report, so a `stackvet.toml` that changes during the run is
    reported (`report_lock::manifest_changed`).
 2. **The report folder is claimed** before anything slow happens: a lock file, the marker that keeps the next walk from
    reading the report as the app, and a refusal of any folder that holds somebody else's files (ADR-041,
-   `report_folder::write_report_folder`, the same sequence the MCP server's `securevibe_write_report` runs).
+   `report_folder::write_report_folder`, the same sequence the MCP server's `stackvet_write_report` runs).
 3. **The static stage** (`static_scan::StaticScan::read`): one walk of the folder, the languages and packages, the
    keys and passwords, the configuration, the code. `sv check` runs exactly this and stops; `sv report` goes on. Both
    settle their findings the same way (`static_scan::settle`), so they exit alike on the same folder (ADR-023, Later,
@@ -48,7 +48,7 @@ it saw; `sv-report` says what that is called; `sv-cli` says it to a person or a 
    and the running app (`--run`): the fence, the helpers, the anonymous questions, the signed-in suites as two users
    and an admin, sign-in through a test provider, the AI feature through a test model, the app's own tests inside its
    container (ADR-050), and whether the app was still up at the end (ADR-021).
-6. **A person's word**: the design answers in `securevibe.toml`, the checks made by hand, the security notes and the
+6. **A person's word**: the design answers in `stackvet.toml`, the checks made by hand, the security notes and the
    decisions file, and the confirmations and reviews `sv review` sealed (ADR-022, ADR-026). Each becomes a `Verified`
    that says which tier it rests on (`sv_check::Tier`).
 7. **Settled**: one weakness reported twice on a line merged, test code and bundled libraries marked, the decisions
@@ -109,8 +109,8 @@ it stops, so the bar is the person's to set.
 ## The MCP server (`crates/sv-cli/src/mcp/`)
 
 JSON-RPC over stdio, hand-written, one request at a time, each on a thread with a time limit. The tools are the
-commands (`securevibe_check`, `securevibe_write_report`, `securevibe_plan`, `securevibe_spec`, `securevibe_questions`,
-`securevibe_record_answer`, and the rest in `catalog.rs`), built on the same `assemble_report_saying` as `sv report`,
+commands (`stackvet_check`, `stackvet_write_report`, `stackvet_plan`, `stackvet_spec`, `stackvet_questions`,
+`stackvet_record_answer`, and the rest in `catalog.rs`), built on the same `assemble_report_saying` as `sv report`,
 so what the tool is told is what the report says. Three rules hold everywhere in it: every path stays below the folder
 the server was started for (`confine.rs`); the app's own text is fenced as data before it reaches the tool, since the
 app can write anything (`sv_report::fence`); and a report is offered as a resource only when its seal shows `sv` wrote

@@ -1,6 +1,6 @@
 # Rename the product to StackVet, the command staying `sv` (ADR-062)
 
-**Status:** claimed by securevibe-review, 8 October 2026
+**Status:** done, 9 October 2026
 
 Asked for by the owner on 8 October 2026, after a search found five other products named SecureVibe, SecureVibes,
 SecVibe, SecureVibing, or SecurVibe, all in the same space, and a brainstorm of names that keep the initials. The

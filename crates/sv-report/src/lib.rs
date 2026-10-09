@@ -696,7 +696,7 @@ pub struct Report {
     /// different files apart.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub run_record: Option<RunRecord>,
-    /// The manifest's file name as this run read it: `stackvet.toml`, or `securevibe.toml` while
+    /// The manifest's file name as this run read it: `stackvet.toml`, or `stackvet.toml` while
     /// an app still has it under that name (ADR-062). Older reports carry none, and are read as the
     /// new name.
     #[serde(default = "default_manifest_file")]
@@ -1272,7 +1272,7 @@ pub const FALSE_ALARM_TOOL_NOTE: &str = "A false alarm is usually a rule that wi
 
 /// Where a false alarm is reported against its rule: the issue form in `sv`'s repository.
 pub const FALSE_ALARM_FORM: &str =
-    "https://github.com/abbyshade111/SecureVibe/issues/new?template=false_alarm.yml";
+    "https://github.com/abbyshade111/StackVet/issues/new?template=false_alarm.yml";
 
 /// The issue form for a false alarm, with the rule's id and title filled in, the only two things
 /// about it that are `sv`'s own and already public. Never the file, the line, the code, or the
