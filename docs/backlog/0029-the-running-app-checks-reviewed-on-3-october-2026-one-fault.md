@@ -1,6 +1,6 @@
 # The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add
 
-**Status:** partly done: parts 3 (cookies a signed-in page sets, pages the run does not ask for), 9 (C9.1.1's per-tool quotas), 13 (a limit kept by a proxy in production), 14 (a run against a real app), and 15 (tar, 7z, and rar; archives whose stated sizes are false)
+**Status:** partly done: parts 9 (C9.1.1's per-tool quotas), 13 (a limit kept by a proxy in production), 14 (a run against a real app), and 15 (tar, 7z, and rar)
 
 By session
 securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
@@ -311,6 +311,9 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
     refused too. Tar, 7z, and rar stay open: tar compresses nothing of its own (a `.tar.gz` is the gzip already sent),
     and 7z and rar each need a writer of their own. **Record, `Status: proposed`: a "Later" entry on ADR-046.**
     Confirmed on `main` just before this claim: not done, and no other session had claimed it.
+    **Done the same day** (`docs/design/0316-a-zip-whose-stated-sizes-are-false-9-october.md`; ADR-046, later,
+    accepted): the zip is sent and judged as described, and V5.2.3's credit for zip needs it refused. Tar, 7z, and
+    rar are what remains of this part.
 16. **Old TLS versions on the live site (V12.1.1, level 1).** A handshake held to TLS 1.0 or 1.1 by `sv probe`.
     **The owner's decision first:** it raises `sv probe`'s limit of four requests, which `CLAUDE.md` states.
     **Done on 3 October 2026** (DESIGN, "Old TLS versions on the live site"): one handshake offering only TLS 1.0

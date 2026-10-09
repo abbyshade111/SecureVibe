@@ -442,6 +442,9 @@ pub(super) struct Flaws {
     pub(super) archive_size_unchecked: bool,
     /// Unpacks a zip without counting its files (V5.2.3).
     pub(super) archive_files_unchecked: bool,
+    /// Checks a compressed file's size by what its headers say, and unpacks it without counting
+    /// what really comes out (V5.2.3), so a zip that says it is small is let through.
+    pub(super) archive_trusts_stated_sizes: bool,
     /// Falls over on a compressed file past its limits, rather than refusing it.
     pub(super) archive_crashes: bool,
     /// Takes no compressed file at all, ordinary or not.
@@ -629,6 +632,42 @@ fn archive_says(name: &str, data: &[u8]) -> Option<(u64, u64)> {
         at += 46 + (u16_at(at + 28)? + u16_at(at + 30)? + u16_at(at + 32)?) as usize;
     }
     Some((total, count))
+}
+
+/// What a compressed file really unpacks to, counted as an app that counts while it unpacks would
+/// count it: each file's data read, not its headers. Only the streams `sv` itself writes can be
+/// read here (`archives::zeros_in`), and a stored file is its own size; `None` for anything else.
+fn archive_holds(name: &str, data: &[u8]) -> Option<u64> {
+    let u16_at = |i: usize| {
+        Some(usize::from(u16::from_le_bytes(
+            data.get(i..i + 2)?.try_into().ok()?,
+        )))
+    };
+    let u32_at =
+        |i: usize| usize::try_from(u32::from_le_bytes(data.get(i..i + 4)?.try_into().ok()?)).ok();
+    let read = |method: usize, bytes: &[u8]| match method {
+        0 => Some(bytes.len() as u64),
+        8 => super::archives::zeros_in(bytes),
+        _ => None,
+    };
+    if name.ends_with(".gz") {
+        // A stored gzip (the ordinary one) is not a stream of zeros, and says truly what it holds.
+        return super::archives::zeros_in(data.get(10..data.len().checked_sub(8)?)?);
+    }
+    if !name.ends_with(".zip") {
+        return None;
+    }
+    let end = data.len().checked_sub(22)?;
+    let count = u16_at(end + 10)?;
+    let mut at = u32_at(end + 16)?;
+    let mut total = 0;
+    for _ in 0..count {
+        let (method, size, local) = (u16_at(at + 10)?, u32_at(at + 20)?, u32_at(at + 42)?);
+        let start = local + 30 + u16_at(local + 26)? + u16_at(local + 28)?;
+        total += read(method, data.get(start..start + size)?)?;
+        at += 46 + u16_at(at + 28)? + u16_at(at + 30)? + u16_at(at + 32)?;
+    }
+    Some(total)
 }
 
 impl FakeApp {
@@ -1946,7 +1985,8 @@ impl FakeApp {
                 {
                     return Some(Self::respond(403, vec![], "your storage is full"));
                 }
-                // A compressed file, read as bytes: judged by what it says it unpacks to.
+                // A compressed file, read as bytes: judged by what it really unpacks to, or, under
+                // `archive_trusts_stated_sizes`, by what its headers say.
                 let raw = r.body.as_deref().unwrap_or_default();
                 let head = String::from_utf8_lossy(&raw[..raw.len().min(2048)]).into_owned();
                 let file_name = head
@@ -1969,8 +2009,14 @@ impl FakeApp {
                     if end - start > UPLOAD_LIMIT && !self.flaws.oversized_upload_ok {
                         return Some(Self::respond(413, vec![], "too large"));
                     }
+                    let counted = if self.flaws.archive_trusts_stated_sizes {
+                        unpacked
+                    } else {
+                        archive_holds(file_name, raw.get(start..end).unwrap_or_default())
+                            .map_or(unpacked, |held| held.max(unpacked))
+                    };
                     let too_big =
-                        unpacked > ARCHIVE_UNPACK_LIMIT && !self.flaws.archive_size_unchecked;
+                        counted > ARCHIVE_UNPACK_LIMIT && !self.flaws.archive_size_unchecked;
                     let too_many =
                         files > ARCHIVE_FILE_LIMIT && !self.flaws.archive_files_unchecked;
                     if too_big || too_many {
