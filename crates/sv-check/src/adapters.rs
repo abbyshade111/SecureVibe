@@ -28,6 +28,7 @@ use serde::Deserialize;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use sv_frameworks::paths::Canonical;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -875,14 +876,14 @@ enum Located {
 #[cfg(unix)]
 fn located(command: &str, app_dir: &Path, path: Option<&std::ffi::OsStr>) -> Located {
     let app = app_dir
-        .canonicalize()
+        .canonical()
         .unwrap_or_else(|_| app_dir.to_path_buf());
     let judge = |candidate: &Path| -> Option<Located> {
         if !runnable(candidate) {
             return None;
         }
         let real = candidate
-            .canonicalize()
+            .canonical()
             .unwrap_or_else(|_| candidate.to_path_buf());
         Some(if real.starts_with(&app) {
             Located::InsideApp(real)
@@ -2156,7 +2157,7 @@ fn relative_to(file: &str, app_dir: &Path) -> String {
     // path absolute until 29 September 2026, because Bandit wrote `…/app/backend/x.py`, which
     // `…/app/.` is not a prefix of, and the fingerprints then differed from a scan of `app`.
     let cleaned = clean_folder(app_dir);
-    let canonical = std::fs::canonicalize(app_dir).ok();
+    let canonical = sv_frameworks::paths::canonical(app_dir).ok();
     for prefix in [Some(app_dir.to_path_buf()), Some(cleaned), canonical]
         .into_iter()
         .flatten()

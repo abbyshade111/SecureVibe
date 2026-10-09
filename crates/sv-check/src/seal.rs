@@ -299,7 +299,7 @@ pub struct App {
 impl App {
     /// The app in `folder`, which must exist.
     pub fn of(folder: &Path) -> Result<App, String> {
-        let real = std::fs::canonicalize(folder).map_err(|e| {
+        let real = sv_frameworks::paths::canonical(folder).map_err(|e| {
             format!(
                 "the app's folder, {}, could not be found ({e})",
                 folder.display()

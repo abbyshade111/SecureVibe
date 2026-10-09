@@ -38,10 +38,8 @@ fn ctrl_c_during_report_run_writes_no_report_and_removes_the_run() {
 /// Starts `sv <command> <app>`, sends Ctrl-C once the run's containers are up, and checks what is
 /// left. `REPORT` in `command` is the report folder, which must not be written.
 fn interrupt(command: &[&str]) {
-    let docker_up = Command::new("docker")
-        .args(["info", "--format", "{{.ServerVersion}}"])
-        .output()
-        .is_ok_and(|o| o.status.success());
+    // Asked as `sv` asks it: Docker set to Windows containers is not a backend.
+    let docker_up = sv_run::detect().is_ok();
     if !docker_up {
         println!("no container backend here; there is no run to interrupt");
         return;
