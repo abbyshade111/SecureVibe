@@ -1140,6 +1140,12 @@ fn section() -> AiSection {
 }
 
 /// Every `SV-PRIVATE-` marker in a text, as the test model finds them.
+/// The tag a MARKUP reply carries: an image whose failure to load runs a line of script naming the
+/// message's tag. The test model writes it in `model-provider.mjs`; this is the fake's copy.
+pub(super) fn markup_tag(tag: &str) -> String {
+    format!("<img src=x onerror=\"document.title='SVMARKUP{tag}'\">")
+}
+
 /// A saved note as the fake app's screen leaves it: a textbook injection's words taken out.
 fn screened(text: &str) -> String {
     let lower = text.to_lowercase();

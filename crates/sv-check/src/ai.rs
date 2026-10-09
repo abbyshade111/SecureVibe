@@ -2571,13 +2571,6 @@ where
     }
 }
 
-/// The tag a MARKUP reply carries: an image whose failure to load runs a line of script naming the
-/// message's tag. The test model writes it in `model-provider.mjs`; this is the fake's copy.
-#[cfg(test)]
-fn markup_tag(tag: &str) -> String {
-    format!("<img src=x onerror=\"document.title='SVMARKUP{tag}'\">")
-}
-
 /// Whether `body` holds a tag opened with a raw `<img` that carries `SVMARKUP<tag>` before it closes:
 /// the reply written into the page as HTML. An escaped `&lt;img` is text, whatever its quotes.
 fn holds_raw_markup(body: &str, tag: &str) -> bool {

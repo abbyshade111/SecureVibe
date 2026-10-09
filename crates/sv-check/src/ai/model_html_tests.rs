@@ -2,7 +2,7 @@
 //! 13(b), the test model's half): found when the app's answer is a page holding the reply's tag as it
 //! was written, and never judged from an answer in JSON.
 
-use super::tests::{Flaws, ask, credited, found};
+use super::tests::{Flaws, ask, credited, found, markup_tag};
 use super::*;
 
 fn page(unescaped: bool) -> Flaws {
