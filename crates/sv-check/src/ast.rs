@@ -1886,10 +1886,26 @@ fn names_in(source: &str) -> impl Iterator<Item = &str> {
 /// name with its module (`hashlib.pbkdf2_hmac`), or a character class, may match text no word is,
 /// so the words in a file cannot rule it out.
 fn names_only(pattern: &str) -> bool {
-    pattern
-        .replace("\\$", "")
-        .chars()
-        .all(|c| c.is_ascii_alphanumeric() || "_|()^$?!*+".contains(c))
+    let words_only = |p: &str| {
+        p.replace("\\$", "")
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "_|()^$?!*+".contains(c))
+    };
+    // A chained call written as a trailing `|\.(?:a|b)$` (knex's `db('t').whereRaw(…)`, whose whole
+    // chain is the name matched) can be in a file only as one of its names, so it narrows no less
+    // than the names before it when every one of them is among those names.
+    if let Some((rest, chained)) = pattern.rsplit_once("|\\.(?:")
+        && let Some(names) = chained.strip_suffix(")$")
+        && words_only(rest)
+        && words_only(names)
+    {
+        let listed: Vec<&str> = rest
+            .split(|c: char| "|()^$".contains(c))
+            .filter(|w| !w.is_empty())
+            .collect();
+        return names.split('|').all(|n| listed.contains(&n));
+    }
+    words_only(pattern)
 }
 
 /// Records each rule-and-language whose query would not compile, once, however many files met it.
@@ -2017,6 +2033,11 @@ fn clean_rules(rules: &AstRules, scan: &AstScan) -> Vec<crate::Verified> {
 /// (`^(system|popen)$`), and whether it also stands for others that are not plain names, such as a
 /// shell named in quotes or a family of names. `None` when it names none plainly.
 fn calls_named(pattern: &str) -> Option<(Vec<String>, bool)> {
+    // A chained form after the names (`|\\.(?:whereRaw)$`) repeats names already among them.
+    let pattern = pattern
+        .rsplit_once("|\\.(?:")
+        .filter(|(_, chained)| chained.ends_with(")$"))
+        .map_or(pattern, |(names, _)| names);
     let body = pattern.strip_prefix('^')?.strip_suffix('$')?;
     let body = body
         .strip_prefix('(')
@@ -2162,3 +2183,6 @@ mod tests;
 
 #[cfg(test)]
 mod html_tests;
+
+#[cfg(test)]
+mod orm_raw_tests;
