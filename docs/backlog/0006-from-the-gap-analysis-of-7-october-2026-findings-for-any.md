@@ -530,6 +530,14 @@ listed apart, below this item.
    this claim: no other session had claimed (c).
    **(c) done the same day** (`docs/design/0332-a-notes-section-the-tool-wrote-confirmed-by-a-person-9.md`;
    ADR-022, Later, accepted): `notes.confirmed`, shown as "written by the AI coding tool, confirmed through sv review".
+   **(f) claimed 9 October 2026 by session securevibe-e9** ("please continue to work through and pick up new items
+   as you merge"), in branch `claude/stackvet-e9-feature-briefs`: four entries in `data/feature-briefs.json`, each
+   naming the conditions and requirements it brings, the design-time prompts, coding-rule topics, and `stackvet.toml`
+   settings that already exist for it: records each person owns or shares, API keys for other programs, background
+   jobs, and several customer organizations in one app. Only what `sv` already has is named, so no new requirement is
+   credited and nothing counts for more. (d), a record of the MCP calls made while building, is left for the owner:
+   the backlog marks it a decision, and recording them would add to what `sv` writes. Read on `main` and the open
+   pull requests just before this claim: no other session had claimed (f).
    **(a) claimed 9 October 2026 by session securevibe-e2** ("please continue to work through and pick up new items as
    you merge"), in branch `claude/securevibe-e2-passphrase`: when `sv review` makes the signing key, a passphrase is
    what pressing Enter chooses, and having none takes typing `none`; still offered, never required (ADR-043's third
