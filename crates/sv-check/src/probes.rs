@@ -1455,7 +1455,7 @@ fn jsonp(responses: &[ProbeResponse]) -> Option<Finding> {
 /// when it comes back past the part of a page it otherwise keeps (`sv_run`'s `parse_response`).
 pub const REFLECTION_MARK: &str = "svEcho4b7e";
 /// The end of that value, so what came back between the two can be read.
-const REFLECTION_END: &str = "e7b4ohcEvs";
+pub(crate) const REFLECTION_END: &str = "e7b4ohcEvs";
 
 /// The value, as it is written into an address: `<`, `"` and `'` percent-encoded, as a browser
 /// sends them. An app that decodes its address and writes it into a page unencoded writes them as
@@ -1530,7 +1530,7 @@ const REFLECTED_JSON: Rule = Rule {
 
 /// What came back of the value in one answer: the text between its start and its end, or up to 40
 /// characters when the end did not come back, for each time it appears.
-fn echoes(body: &str) -> Vec<&str> {
+pub(crate) fn echoes(body: &str) -> Vec<&str> {
     body.match_indices(REFLECTION_MARK)
         .map(|(at, _)| {
             let rest = &body[at + REFLECTION_MARK.len()..];

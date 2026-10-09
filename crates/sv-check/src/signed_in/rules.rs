@@ -106,6 +106,21 @@ pub(super) const OWNER_FIELD: Rule = Rule {
           owner field in the request; take only the fields the create action is meant to set.",
 };
 
+pub(super) const STORED_HTML: Rule = Rule {
+    rule_id: "probe.stored-unencoded",
+    // V1.2.1 is output encoding for HTML, which a saved value written back into a page as it is
+    // fails. Only ever a finding: one record on a few pages is not every place the app writes out
+    // what it was given, as with the reflected check.
+    requirement_ids: &["V1.2.1"],
+    cwe: &["CWE-79"],
+    impact: "What one person saves is written into the page as it is, so a record holding a script \
+             runs it in the browser of everybody who opens it, with their session: this is stored \
+             cross-site scripting, and it needs no link to be clicked.",
+    fix: "Write saved values into pages through the template engine's escaping (Jinja2, React, and \
+          most others do it unless told not to: look for `|safe`, `Markup`, `dangerouslySetInnerHTML`, \
+          `innerHTML`, `v-html`, or a page built by joining strings), and never into a page by hand.",
+};
+
 pub(super) const OTHER_USERS_DATA: Rule = Rule {
     rule_id: "probe.other-users-data",
     requirement_ids: &["V8.2.2"],
