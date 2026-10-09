@@ -4299,3 +4299,63 @@ fn token_use_tied_to_a_user_or_a_session_is_credited_in_part_and_nothing_else_is
         );
     }
 }
+
+#[test]
+fn a_caught_injection_logged_with_why_and_when_is_credited_in_part_and_nothing_else_is() {
+    // ADR-074, C12.1.2: the line recording the injection as caught, read for why and when.
+    let signed_in = LogMarkers {
+        who: Some("sv-b-4f2a91@example.test".into()),
+        ..call_markers()
+    };
+    for (markers, line, said) in [
+        (
+            call_markers(),
+            "{\"time\":\"2026-10-09T12:00:01Z\",\"level\":\"warn\",\"event\":\"prompt injection blocked\",\"reason\":\"instruction override\"}",
+            "but not whose",
+        ),
+        (
+            signed_in.clone(),
+            "{\"time\":\"2026-10-09T12:00:01Z\",\"event\":\"prompt injection blocked\",\"category\":\"jailbreak\",\"user\":\"sv-b-4f2a91@example.test\"}",
+            "and whose request it was",
+        ),
+        (
+            call_markers(),
+            "2026-10-09 12:00:01 WARN refused abc123 rule=override session_id=s-1",
+            "and whose request it was",
+        ),
+    ] {
+        let mut o = Outcome::default();
+        logged(&markers, line, &mut o);
+        let credit = o
+            .verified
+            .iter()
+            .find(|v| v.check_id == SAFETY_DETAIL.rule_id)
+            .unwrap_or_else(|| panic!("{line}: {:?}", o.not_assessed));
+        assert!(credit.in_part, "{credit:?}");
+        assert!(credit.scope.contains(said), "{}", credit.scope);
+        assert!(credited(&o).contains(&INJECTION_LOGGED), "the same line credits C12.2.1");
+    }
+    // Said, never found nor credited.
+    for (line, words) in [
+        (
+            "level=warn msg=\"prompt injection blocked\" category=override",
+            "does not say when (a timestamp)",
+        ),
+        (
+            "2026-10-09T12:00:01Z prompt injection blocked",
+            "does not say why (a reason",
+        ),
+        ("2026-10-09T12:00:01Z GET /api/chat 200", "no line of the app's output recorded"),
+        ("", "no line of the app's output recorded"),
+    ] {
+        let mut o = Outcome::default();
+        logged(&call_markers(), line, &mut o);
+        assert!(!credited(&o).contains(&SAFETY_DETAIL.rule_id), "{line}");
+        assert!(!found(&o).contains(&SAFETY_DETAIL.rule_id), "{line}");
+        assert!(
+            why(&o, "C12.1.2").iter().any(|w| w.contains(words)),
+            "{line}: {:?}",
+            o.not_assessed
+        );
+    }
+}

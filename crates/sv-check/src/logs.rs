@@ -496,6 +496,11 @@ fn timestamp(line: &str) -> Option<Timestamp> {
     })
 }
 
+/// Whether a line carries a timestamp, in the shapes `timestamp` reads.
+pub(crate) fn has_timestamp(line: &str) -> bool {
+    timestamp(line).is_some()
+}
+
 /// Whether a line says where a request came from or went to: an IP address, or a path.
 fn has_place(line: &str) -> bool {
     static IPV4: LazyLock<Regex> =
