@@ -249,3 +249,7 @@ only, with the reason beside it: the link test in `crates/sv-scan/src/files.rs`,
 `crates/sv-check/tests/codeql.rs`, and the whole of `crates/sv-check/tests/brakeman_links.rs` and
 `crates/sv-check/tests/gosec_fence.rs`. They still run on Mac and Linux, unchanged. What links mean for `sv` on
 Windows (whether it follows them, and whether that needs a test of its own there) is open.
+Third Windows finding, the same day: with everything compiling, the whole suite ran there for the first time, and
+2,517 tests passed and 158 failed. GitHub keeps ten error annotations per step, so only the first ten failing names
+came back (all in `notes`, `git`, and `confirm`); the workflow now reports every failing name, twenty to a line, and
+what the first failures said, so they can be grouped by cause and fixed or explained.
