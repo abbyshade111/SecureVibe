@@ -448,14 +448,14 @@ pub(super) fn tool_list() -> Value {
         {
             "name": "stackvet_before",
             "title": "Before building one feature",
-            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in stackvet.toml to test it, quoted from the spec. Built from the same report as stackvet_plan. Asked before stackvet.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
+            "description": "Before building one feature (sign-in, admin pages, uploads, payments, email, an AI feature, fetching a web address, records people own or share, API keys, background jobs, several customer organizations): the requirements it brings that apply to this app, the design-time prompts for the decisions to make first, the coding rules on the topics it touches and the coding prompts shown to work for its requirements, the tests to write named by requirement id, and the settings `sv run` needs in stackvet.toml to test it, quoted from the spec. Built from the same report as stackvet_plan. Asked before stackvet.toml exists, it gives everything the feature can bring, its decisions, prompts, rules, and settings, and says which requirements apply, and the tests, wait for the file (`waiting`). A brief credits nothing. Reads files only; never starts the app.",
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "path": path.clone(),
                     "feature": {
                         "type": "string",
-                        "enum": ["sign-in", "sign-in-elsewhere", "admin", "uploads", "payments", "email", "ai", "fetch"],
+                        "enum": ["sign-in", "sign-in-elsewhere", "admin", "uploads", "payments", "email", "ai", "fetch", "owned-records", "api-keys", "background-jobs", "organizations"],
                         "description": "The feature about to be built."
                     }
                 },

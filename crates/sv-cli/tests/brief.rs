@@ -26,7 +26,17 @@ fn with_no_feature_named_it_lists_the_features() {
     assert!(out.status.success(), "{}", text(&out));
     let said = text(&out);
     for feature in [
-        "sign-in", "admin", "uploads", "payments", "email", "ai", "fetch",
+        "sign-in",
+        "admin",
+        "uploads",
+        "payments",
+        "email",
+        "ai",
+        "fetch",
+        "owned-records",
+        "api-keys",
+        "background-jobs",
+        "organizations",
     ] {
         assert!(said.contains(&format!("  {feature} ")), "{feature}: {said}");
     }

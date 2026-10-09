@@ -665,6 +665,9 @@ pub fn markdown_with(brief: &Brief, fence: &sv_report::fence::Fence) -> String {
 }
 
 #[cfg(test)]
+mod four_features_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

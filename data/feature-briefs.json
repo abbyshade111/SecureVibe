@@ -231,6 +231,136 @@
           "key": "request"
         }
       ]
+    },
+    {
+      "id": "owned-records",
+      "name": "Records each person owns or shares (notes, orders, documents)",
+      "conditions": [],
+      "requirements": [
+        "V1.2.1",
+        "V2.4.1",
+        "V8.1.1",
+        "V8.2.2",
+        "V8.2.3",
+        "V8.3.1",
+        "V15.3.1",
+        "V15.3.3"
+      ],
+      "prompts": [
+        "design-who-may-do-what",
+        "design-limits",
+        "design-data-list"
+      ],
+      "guidance": [
+        "secrets",
+        "untrusted-content"
+      ],
+      "settings": [
+        {
+          "table": "stack.run.users",
+          "key": "seed"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "owned"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "creates"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "browser"
+        },
+        {
+          "table": "policy",
+          "key": "requests-per-minute"
+        }
+      ]
+    },
+    {
+      "id": "api-keys",
+      "name": "API keys other programs connect with",
+      "conditions": [],
+      "requirements": [
+        "V2.4.1",
+        "V8.2.1",
+        "V8.2.2",
+        "V8.3.1",
+        "V11.5.1"
+      ],
+      "prompts": [
+        "design-who-may-do-what",
+        "design-limits",
+        "design-logging"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "capabilities",
+          "key": "public-api"
+        }
+      ]
+    },
+    {
+      "id": "background-jobs",
+      "name": "Background or scheduled jobs",
+      "conditions": [
+        "scheduler"
+      ],
+      "requirements": [
+        "V2.3.3",
+        "V8.3.3",
+        "V15.2.2"
+      ],
+      "prompts": [
+        "design-actions-once",
+        "design-when-things-fail",
+        "design-logging"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "capabilities",
+          "key": "scheduler"
+        }
+      ]
+    },
+    {
+      "id": "organizations",
+      "name": "Several customer organizations sharing one app",
+      "conditions": [
+        "multi-tenant"
+      ],
+      "requirements": [
+        "V8.1.1",
+        "V8.2.2"
+      ],
+      "prompts": [
+        "design-who-may-do-what",
+        "design-data-list"
+      ],
+      "guidance": [
+        "secrets"
+      ],
+      "settings": [
+        {
+          "table": "capabilities",
+          "key": "multi-tenant"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "seed"
+        },
+        {
+          "table": "stack.run.users",
+          "key": "owned"
+        }
+      ]
     }
   ]
 }
