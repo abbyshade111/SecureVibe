@@ -5,7 +5,7 @@
 //! The fault this pins: an app whose only query was knex's `whereRaw("name = '" + name + "'")` had
 //! V1.2.4 *checked*, because `ast.sql-built-by-hand` had not been taught `whereRaw` and found
 //! nothing. Four apps: the package declared in a manifest with no lockfile (the bill of materials
-//! lists nothing then), the package only in a lockfile, a Python package written in another case (PyMongo),
+//! lists nothing then), the package only in a lockfile, a Python package written in another case (Supabase),
 //! and a control the rule does read, so a hold-back on everything would fail it.
 
 use std::path::{Path, PathBuf};
@@ -156,15 +156,16 @@ fn a_package_only_in_the_lockfile_holds_the_credit_back() {
 #[test]
 fn a_python_package_matches_whatever_its_case() {
     let dir = app(
-        "pymongo",
+        "supabase-py",
         "python",
         &[
-            // Django is read now (`ast/orm_django_laravel_tests.rs`); PyMongo's `$where` is not.
-            ("requirements.txt", "PyMongo==4.8.0\n"),
+            // Django and PyMongo are read now (`ast/orm_django_laravel_tests.rs`,
+            // `ast/orm_mongo_tests.rs`); Supabase's filter text is not.
+            ("requirements.txt", "Supabase==2.7.4\n"),
             (
                 "views.py",
-                "from pymongo import MongoClient\n\n\
-                 def users(request):\n    return MongoClient().app.users.find({\"$where\": \"this.name == '\" + request.GET['name'] + \"'\"})\n",
+                "from supabase import create_client\n\n\
+                 def users(request):\n    return create_client(URL, KEY).table('users').select('*').or_(f\"name.eq.{request.GET['name']}\").execute()\n",
             ),
         ],
     );
@@ -172,11 +173,11 @@ fn a_python_package_matches_whatever_its_case() {
     std::fs::remove_dir_all(&dir).ok();
     assert!(
         !credited(&checked_by),
-        "V1.2.4 was checked for a PyMongo app: {checked_by:?}"
+        "V1.2.4 was checked for a Supabase app: {checked_by:?}"
     );
     assert!(
-        gap_naming(&gaps, "pymongo").is_some(),
-        "no gap names pymongo: {gaps:?}"
+        gap_naming(&gaps, "supabase").is_some(),
+        "no gap names supabase: {gaps:?}"
     );
 }
 

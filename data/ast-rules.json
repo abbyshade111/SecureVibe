@@ -141,10 +141,10 @@
       "fix": "Send the query with placeholders and pass the values alongside it. Every database library supports this, and it is shorter than building the string.",
       "literalArgumentIsSafe": true,
       "queries": {
-        "python": "(call function: (attribute attribute: (identifier) @fn)\n            arguments: (argument_list . (_) @arg)) @hit\n(call function: (identifier) @fn\n      arguments: (argument_list . (_) @arg)) @hit",
-        "javascript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (call_expression)\n                                              property: (property_identifier)) @fn\n                 arguments: (arguments . (_) @arg)) @hit",
-        "typescript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression) (non_null_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (call_expression)\n                                              property: (property_identifier)) @fn\n                 arguments: (arguments . (_) @arg)) @hit",
-        "go": "(call_expression function: (selector_expression field: (field_identifier) @fn)\n                       arguments: (argument_list . (_) @arg)) @hit",
+        "python": "(call function: (attribute attribute: (identifier) @fn)\n            arguments: (argument_list . (_) @arg)) @hit\n(call function: (identifier) @fn\n      arguments: (argument_list . (_) @arg)) @hit\n(pair key: (string (string_content) @fn) value: (_) @arg) @hit",
+        "javascript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (call_expression)\n                                              property: (property_identifier)) @fn\n                 arguments: (arguments . (_) @arg)) @hit\n(pair key: [(property_identifier) @fn (string (string_fragment) @fn)] value: (_) @arg) @hit",
+        "typescript": "(call_expression function: (member_expression object: [(identifier) (member_expression) (this) (await_expression) (parenthesized_expression) (subscript_expression) (non_null_expression)]\n                                                   property: (property_identifier) @fn)\n                       arguments: (arguments . (_) @arg)) @hit\n(call_expression function: (member_expression object: (call_expression)\n                                              property: (property_identifier)) @fn\n                 arguments: (arguments . (_) @arg)) @hit\n(pair key: [(property_identifier) @fn (string (string_fragment) @fn)] value: (_) @arg) @hit",
+        "go": "[(call_expression function: (selector_expression field: (field_identifier) @fn)\n                       arguments: (argument_list . (_) @arg))\n (keyed_element key: (literal_element (interpreted_string_literal (interpreted_string_literal_content) @fn)) value: (literal_element (_) @arg))\n (literal_value . (literal_element (interpreted_string_literal (interpreted_string_literal_content) @fn)) . (literal_element (_) @arg) .)\n (literal_value (keyed_element value: (literal_element (interpreted_string_literal (interpreted_string_literal_content) @fn))) . (keyed_element value: (literal_element (_) @arg)))] @hit",
         "ruby": "(call method: (identifier) @fn\n            arguments: (argument_list . (_) @arg)) @hit",
         "php": "[(function_call_expression function: (name) @fn\n                            arguments: (arguments . (argument (_) @arg)))\n (member_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))\n (scoped_call_expression name: (name) @fn\n                         arguments: (arguments . (argument (_) @arg)))] @hit",
         "java": "(method_invocation name: (identifier) @fn\n                   arguments: (argument_list . (_) @arg)) @hit",
@@ -158,10 +158,10 @@
         "cpp": "(call_expression function: [(identifier) (qualified_identifier)] @fn\n                 arguments: (argument_list . (_) @arg)) @hit"
       },
       "functionPatterns": {
-        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query|extra|RawSQL)$",
-        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
-        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$",
-        "go": "^(Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Raw|Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$",
+        "python": "^(execute|executemany|executescript|raw|read_sql|read_sql_query|extra|RawSQL|\\$where)$",
+        "javascript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$",
+        "typescript": "^(query|execute|raw|unsafe|exec|prepare|all|get|run|each|\\$queryRawUnsafe|\\$executeRawUnsafe|whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$|\\.(?:whereRaw|orWhereRaw|andWhereRaw|whereNotRaw|orWhereNotRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|joinRaw|fromRaw|where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal|\\$where)$",
+        "go": "^(Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Raw|Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate|\\$where)$",
         "ruby": "^(execute|exec_query|find_by_sql|select_all|select_rows|select_values|where|rewhere|order|reorder|having|group|joins|from|pluck|count_by_sql)$",
         "php": "^(query|exec|multi_query|real_query|prepare|mysqli_query|mysqli_real_query|mysqli_multi_query|pg_query|pg_send_query|select|insert|update|delete|statement|unprepared|raw|whereRaw|orWhereRaw|havingRaw|orHavingRaw|orderByRaw|groupByRaw|selectRaw|fromRaw)$",
         "java": "^(executeQuery|executeUpdate|execute|executeLargeUpdate|createQuery|createNativeQuery|addBatch|prepareStatement|prepareCall|query|queryForObject|queryForList|queryForMap|queryForRowSet|queryForStream|update|batchUpdate)$",
@@ -204,11 +204,15 @@
       "argumentsForCommonNames": {
         "javascript": {
           "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
-          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
+          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
+          "^\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
+          "\\.\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
         },
         "typescript": {
           "^(exec|prepare|all|get|run|each)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$",
-          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
+          "(?:^|\\.)(?:where|andWhere|orWhere|having|andHaving|orHaving|orderBy|addOrderBy|groupBy|addGroupBy|literal)$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
+          "^\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{",
+          "\\.\\$where$": "[\"'`]\\s*\\+|\\+\\s*[\"'`]|^`[\\s\\S]*\\$\\{"
         },
         "java": {
           "^(query|queryFor\\w+|update|batchUpdate)$": "(?i)\\b(select\\s[\\s\\S]*\\bfrom\\b|insert\\s+into|update\\s+\\S+\\s+set\\b|delete\\s+from|replace\\s+into|merge\\s+into|create\\s+(table|index|view)|drop\\s+(table|index|view)|alter\\s+table|truncate\\s|pragma\\s)|^\\w*(sql|Sql|SQL)\\w*$"
@@ -220,10 +224,12 @@
           "^(where|rewhere|order|reorder|having|group|joins|from|pluck)$": "^(\"|'|%[qQ]?[^\\w\\s]|<<[~-]?)"
         },
         "go": {
-          "^(Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$": "^(\"|`|fmt\\.Sprintf\\()|\"\\s*\\+|\\+\\s*\""
+          "^(Where|Or|Not|Order|Group|Having|Joins|Select|Find|First|Last|Take|FirstOrInit|FirstOrCreate)$": "^(\"|`|fmt\\.Sprintf\\()|\"\\s*\\+|\\+\\s*\"",
+          "^\\$where$": "^fmt\\.Sprintf\\(|[\"`]\\s*\\+|\\+\\s*[\"`]"
         },
         "python": {
-          "^extra$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']"
+          "^extra$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']",
+          "^\\$where$": "[\"']\\s*%|\\+|\\.format\\(|(?:^|[\\s\\[{(,=:])[fFrRbB]{0,2}[fF][rR]?[\"']"
         },
         "php": {
           "^(select|insert|update|delete)$": "[\"']\\s*\\.|\\.\\s*[\"']|\"[^\"]*\\$|sprintf\\("
@@ -232,18 +238,12 @@
       "boundParametersLowerConfidence": true,
       "unreadPackages": {
         "npm": {
-          "mongoose": "a `$where` written into a query",
-          "mongodb": "a `$where` written into a query",
           "@supabase/supabase-js": "filter text such as `.or(...)` and `.filter(...)`"
         },
         "Python": {
-          "pymongo": "a `$where` written into a query",
           "supabase": "filter text such as `.or_(...)` and `.filter(...)`"
         },
-        "Go": {
-          "go.mongodb.org/mongo-driver": "a `$where` written into a query",
-          "go.mongodb.org/mongo-driver/v2": "a `$where` written into a query"
-        },
+        "Go": {},
         "PHP": {}
       }
     },

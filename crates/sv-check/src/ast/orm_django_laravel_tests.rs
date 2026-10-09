@@ -137,7 +137,7 @@ fn django_and_laravel_are_off_the_unread_list() {
             .is_some_and(|p| p.contains_key(package))
     };
     assert!(
-        listed("Python", "pymongo") && listed("npm", "mongoose"),
+        listed("Python", "supabase") && listed("npm", "@supabase/supabase-js"),
         "the rest stays"
     );
     for (ecosystem, package) in [
