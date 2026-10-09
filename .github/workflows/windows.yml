@@ -40,7 +40,7 @@ jobs:
           tail -80 build.txt
           if [ "$status" -ne 0 ]; then
             # Each compile error, with the lines after it that say where and why, as one annotation.
-            awk '/^error/{n++} n>0 && n<=20 {print}' build.txt | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
+            tr -d '\r' < build.txt | awk '/^error/{n++} n>0 && n<=20 {print}' | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
               echo "::error title=Did not build on Windows::${line:0:900}"
             done
           fi
@@ -62,7 +62,9 @@ jobs:
             echo "::error title=Failed on Windows::${name}"
           done
           if ! grep -q '^test result' suite.txt; then
-            echo "::error title=Did not compile::$(grep -m1 -E '^error' suite.txt)"
+            tr -d '\r' < suite.txt | awk '/^error/{n++} n>0 && n<=20 {print}' | awk 'BEGIN{RS="\nerror"} NR<=20 {gsub(/\n/," | "); print "error" $0}' | sed 's/^errorerror/error/' | while read -r line; do
+              echo "::error title=Tests did not build on Windows::${line:0:900}"
+            done
           fi
           tail -60 suite.txt
           exit "$status"
