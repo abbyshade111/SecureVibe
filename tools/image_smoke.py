@@ -44,19 +44,19 @@ HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 EXAMPLE = ROOT / "examples" / "tested-notes"
 TOOLS = [
+    "stackvet_spec",
+    "stackvet_prompts",
+    "stackvet_plan",
+    "stackvet_before",
+    "stackvet_guidance",
+    "stackvet_preflight",
     "stackvet_check",
-    "stackvet_write_report",
-    "stackvet_bundle",
-    "stackvet_explain",
     "stackvet_questions",
+    "stackvet_write_report",
     "stackvet_notes_file",
     "stackvet_record_answer",
-    "stackvet_guidance",
-    "stackvet_prompts",
-    "stackvet_spec",
-    "stackvet_plan",
-    "stackvet_preflight",
-    "stackvet_before",
+    "stackvet_explain",
+    "stackvet_bundle",
 ]
 FAILURES = []
 

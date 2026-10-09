@@ -2650,6 +2650,18 @@ fn wait_for_last_check(server: &Server) -> bool {
 #[test]
 fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_on() {
     let root = scratch_app("time-limit", "flask-booking");
+    // One real check, made once; every check below hands back a copy of its report, after waiting
+    // until the test lets it go. Until 9 October 2026 each tool checked the app twice for real.
+    let report = Server::new(&root)
+        .unwrap()
+        .report_for(
+            &root.join("app"),
+            &Progress {
+                token: None,
+                tell: &|_| {},
+            },
+        )
+        .unwrap();
     // Every tool that checks the app goes through the limit.
     for (tool, args) in [
         ("stackvet_check", json!({ "path": "app" })),
@@ -2662,11 +2674,27 @@ fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_o
             json!({ "path": "app", "feature": "uploads" }),
         ),
     ] {
+        // Held open until the second call has been made, so it cannot end between the two: the
+        // check waits for word on a channel, and dropping the other end lets it, and every later
+        // one, go at once.
+        let (let_go, wait) = std::sync::mpsc::channel::<()>();
+        let wait = std::sync::Mutex::new(wait);
+        let checked = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let check: std::sync::Arc<Check> = {
+            let report = report.clone();
+            let checked = std::sync::Arc::clone(&checked);
+            std::sync::Arc::new(
+                move |_: &Path, _: &crate::Loaded, _: &dyn Fn(usize, &'static str)| {
+                    let _ = wait.lock().unwrap().recv();
+                    checked.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    Ok(report.clone())
+                },
+            )
+        };
         let mut server = Server::new(&root)
             .unwrap()
-            .with_time_limit(std::time::Duration::from_nanos(1));
-        // Held open until the second call has been made, so it cannot end between the two.
-        server.hold.set(true);
+            .with_time_limit(std::time::Duration::from_nanos(1))
+            .with_check(check);
         let late = call(&server, tool, args.clone());
         let said = text(&late).to_owned();
         assert_eq!(late["isError"], true, "{tool}: {said}");
@@ -2709,7 +2737,7 @@ fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_o
             "{tool}: {}",
             text(&beside)
         );
-        server.hold.set(false);
+        drop(let_go);
 
         // Once it has ended, a check with time enough finishes as it always did.
         assert!(wait_for_last_check(&server), "{tool}");
@@ -2724,6 +2752,12 @@ fn a_check_that_runs_out_of_time_says_nothing_was_assessed_and_the_server_goes_o
         );
         let again = call(&server, tool, args);
         assert_eq!(again["isError"], false, "{tool}: {}", text(&again));
+        // Each call that was not refused made one check, the one that ran out of time included.
+        assert_eq!(
+            checked.load(std::sync::atomic::Ordering::SeqCst),
+            3,
+            "{tool}"
+        );
     }
 }
 
@@ -3268,19 +3302,19 @@ fn the_protocol_basics() {
     assert_eq!(
         names,
         [
+            "stackvet_spec",
+            "stackvet_prompts",
+            "stackvet_plan",
+            "stackvet_before",
+            "stackvet_guidance",
+            "stackvet_preflight",
             "stackvet_check",
-            "stackvet_write_report",
-            "stackvet_bundle",
-            "stackvet_explain",
             "stackvet_questions",
+            "stackvet_write_report",
             "stackvet_notes_file",
             "stackvet_record_answer",
-            "stackvet_guidance",
-            "stackvet_prompts",
-            "stackvet_spec",
-            "stackvet_plan",
-            "stackvet_preflight",
-            "stackvet_before"
+            "stackvet_explain",
+            "stackvet_bundle",
         ]
     );
     let unknown = server
