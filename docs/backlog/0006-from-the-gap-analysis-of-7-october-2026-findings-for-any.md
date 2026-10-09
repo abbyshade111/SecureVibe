@@ -466,6 +466,10 @@ listed apart, below this item.
    **`Status: proposed`: ADR-024, Later, 9 October 2026** (what the report says about the level). Sealing the scope
    through `sv review` stays open. Read on `main` and the open pull requests just before this claim: no other session
    had claimed this part.
+   **That part done the same day** (`docs/design/0334-what-the-code-says-about-the-level-9-october-2026.md`; ADR-024,
+   Later, accepted): at level 1, a question under the level line naming a sign-up route or a sensitive field name the
+   answers do not, with its file and line; `level_why.hints` in `report.json`. Still open of finding 17: sealing the
+   scope through `sv review`.
 18. **The AI tool's "when to bring in a person" text is shown as the owner's.** (`docs/GAP-ANALYSIS.md`, 4.2.) A
    `design-decisions.md` section the AI tool wrote saying no outside review is needed comes out as "Your
    design-decisions.md says …" in every report file (`main.rs`, near the escalation text). Name who wrote it, and
