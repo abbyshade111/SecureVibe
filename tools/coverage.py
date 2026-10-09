@@ -122,6 +122,7 @@ RUST_CHECKS = {
     "probe.ai-service-failure-handled": ("running", ["V16.5.2"]),
     "probe.ai-output-shape-unchecked": ("running", ["C7.1.1"]),
     "probe.ai-agent-unbounded": ("running", ["C9.1.2"]),
+    "probe.ai-tool-timeout": ("running", ["C9.1.1"]),
     "probe.ai-call-log-session": ("running", ["C12.1.1"]),
     "probe.ai-tool-reads-others-records": ("signed-in", ["C9.5.3"]),
     "probe.ai-retrieval-ignores-user": ("signed-in", ["C5.2.2", "C8.1.3"]),
@@ -359,7 +360,13 @@ RUST_FINDINGS_ONLY = {
 RUST_CREDITS_ONLY = {
     "probe.password-change-ends-sessions",
     "probe.password-change-notified",
+    "probe.ai-tool-timeout",
 }
+
+# Checks in RUST_CHECKS whose credit is only ever *in part* (ADR-053): they try one piece of what
+# their requirement asks, so a requirement they alone credit is *checked in part*, never *checked*.
+# C9.1.1 names five quotas, and a check from outside the app can time only one (ADR-064).
+RUST_IN_PART = {"probe.ai-tool-timeout"}
 
 # Ids written into the code as strings that are not evidence: examples in comments on how ids are
 # parsed, a requirement named only to say it is not assessed, and the three ids `sv init` prints as
@@ -1149,8 +1156,13 @@ def main():
                  and c not in sv_finding_only(q)]
         parts = []
         if names:
-            parts.append(f"settled by {', '.join(f'`{c}`' for c in names[:4])}"
-                         + (f" and {len(names) - 4} more" if len(names) > 4 else ""))
+            whole = [c for c in names if c not in RUST_IN_PART]
+            if whole:
+                parts.append(f"settled by {', '.join(f'`{c}`' for c in whole[:4])}"
+                             + (f" and {len(whole) - 4} more" if len(whole) > 4 else ""))
+            partial = [c for c in names if c in RUST_IN_PART]
+            if partial:
+                parts.append(f"checked in part only, by {', '.join(f'`{c}`' for c in partial)}")
         by_tool = defaultdict(list)
         for tool, r in rules:
             by_tool[tool].append(f"`{r}`")
@@ -1245,13 +1257,14 @@ def requirement_rows(asvs, aisvs, ev, tiers, settles, supports_only, manual_only
                             "words": "; ".join(what[:6])
                                      + (f"; and {len(what) - 6} more" if len(what) > 6 else ""),
                             "rules": len(TOOL_RULE_IDS[q][c]), "finding_only": finding_only,
-                            "credited_only": False,
+                            "credited_only": False, "in_part": False,
                         })
                     else:
                         label, text = words.get(c, ("Looks for", ""))
                         checks.append({"id": c, "kind": tier_name[t], "tool": False, "label": label,
                                        "words": text, "finding_only": c in only,
-                                       "credited_only": c in RUST_CREDITS_ONLY})
+                                       "credited_only": c in RUST_CREDITS_ONLY,
+                                       "in_part": c in RUST_IN_PART})
             rows.append({
                 "id": q, "framework": name, "level": v["level"],
                 "family": v["chapter"], "family_name": v["chapter_name"],
@@ -1286,6 +1299,8 @@ def requirements_markdown(rows):
     w("  not show it is, so a clean run credits nothing.")
     w("- *credited only*: that check can show the requirement is met, and never marks it *needs")
     w("  attention*, since the app may meet it in a way the check cannot see; it says so instead.")
+    w("- *only ever in part*: that check tries one piece of what the requirement asks, so what it credits")
+    w("  is marked *checked in part*, never *checked* (ADR-053).")
     w("- Each check says what kind it is and so what it needs to run:\n")
     w("| Kind | Needs |")
     w("|---|---|")
@@ -1323,8 +1338,12 @@ def requirements_markdown(rows):
                             desc += f", {ch['label'].lower()}: {ch['words']}"
                         if ch["finding_only"]:
                             desc += " (found failing only)"
-                        if ch["credited_only"]:
+                        if ch["credited_only"] and ch["in_part"]:
+                            desc += " (credited only, and only ever in part)"
+                        elif ch["credited_only"]:
                             desc += " (credited only)"
+                        elif ch["in_part"]:
+                            desc += " (only ever in part)"
                         parts.append(desc.replace("|", "\\|"))
                     text = r["text"].replace("|", "\\|").replace("\n", " ")
                     checks = "<br>".join(parts) if parts else "–"
