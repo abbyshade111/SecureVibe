@@ -512,6 +512,13 @@ pub(super) struct Flaws {
     pub(super) no_mail_sink: bool,
     /// A reset request answers but sends no email.
     pub(super) reset_sends_nothing: bool,
+    /// A reset asked for with a line break in the address finds the account by what comes before
+    /// it, and mails the address as it was typed, so a `Bcc:` line after it becomes a header
+    /// (V1.3.11).
+    pub(super) reset_mails_typed_address: bool,
+    /// A reset asked for with a line break in the address cuts the address there and mails the
+    /// account alone.
+    pub(super) reset_cuts_line_breaks: bool,
     /// Using a reset code answers as if it worked and changes nothing.
     pub(super) reset_does_nothing: bool,
     /// A reset code can be used again after it has been used.
@@ -1725,7 +1732,10 @@ impl FakeApp {
                 if !token_ok {
                     return Some(Self::respond(403, vec![], "refused"));
                 }
-                let email = form(r).get("email")?.clone();
+                let typed = form(r).get("email")?.clone();
+                let first_line = typed.split(['\r', '\n']).next().unwrap_or("").to_owned();
+                let loose = self.flaws.reset_mails_typed_address || self.flaws.reset_cuts_line_breaks;
+                let email = if loose { first_line } else { typed.clone() };
                 let known = self.users.contains_key(&email);
                 let mut issued = None;
                 let first_for_address = !self.reset_codes.values().any(|(who, _)| *who == email);
@@ -1747,6 +1757,14 @@ impl FakeApp {
                             "Hello,\r\nReset your password: http://app:8080/reset?token={code}\r\n"
                         )
                     };
+                    if self.flaws.reset_mails_typed_address {
+                        // The typed text as the message's headers: each `Bcc:` line a recipient.
+                        for line in typed.lines() {
+                            if let Some(to) = line.trim().strip_prefix("Bcc:") {
+                                self.outbox.push((to.trim().to_owned(), text.clone()));
+                            }
+                        }
+                    }
                     self.outbox.push((email.clone(), text));
                     issued = Some(code);
                 }

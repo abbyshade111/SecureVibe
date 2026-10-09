@@ -742,6 +742,19 @@ pub(super) const CHANGE_NOTIFIED: Rule = Rule {
           what to do if it was not them.",
 };
 
+/// V1.3.11 (ADR-069): a header written into the address a reset is mailed to reaches the mail.
+pub(super) const MAIL_HEADER_INJECTED: Rule = Rule {
+    rule_id: "probe.mail-header-injected",
+    requirement_ids: &["V1.3.11"],
+    cwe: &["CWE-93"],
+    impact: "A line break typed into the address field becomes a new header of the email the app \
+             sends, so anybody can add recipients and make the app's own mail account send its \
+             reset email, or spam and phishing in its name, wherever they like.",
+    fix: "Refuse an email address that holds a line break (or anything an address cannot hold) \
+          before it is used, and send mail with the library's own recipient field rather than \
+          writing headers from text the person typed.",
+};
+
 pub(super) const RESET_REUSABLE: Rule = Rule {
     rule_id: "probe.reset-reusable",
     requirement_ids: &["V6.4.3"],
