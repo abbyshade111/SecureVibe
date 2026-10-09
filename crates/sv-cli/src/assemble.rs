@@ -743,9 +743,12 @@ fn running_app(
                     .as_ref()
                     .map(|s| s.steps.clone())
                     .unwrap_or_default();
-                run_steps = signed_in_steps.clone();
-                run_steps.extend(oidc_steps.iter().cloned());
-                run_steps.extend(ai_steps.iter().cloned());
+                // Every suite's steps, from the one list `sv run` prints from too.
+                run_steps = outcome
+                    .asked()
+                    .into_iter()
+                    .flat_map(|(_, asked)| asked.steps.iter().cloned())
+                    .collect();
                 let signed_in_note = if signed_in_steps.is_empty() {
                     String::new()
                 } else {
