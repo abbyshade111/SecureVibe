@@ -418,3 +418,8 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     endoflife.date on 9 October 2026: AngularJS (every version, 31 December 2021), Vue 2 (31 December 2023),
     Bootstrap 3 (24 July 2019) and 4 (1 January 2023), jQuery 1 and 2. **Record, `Status: proposed`: ADR-070.**
     Checked just before this claim: not on `main`, in no open pull request, and in no recent branch.
+    **Done on 9 October 2026** (DESIGN, "Client-side technology that is no longer supported (9 October 2026)";
+    ADR-070, accepted). `config.client-tech-unsupported` finds the retired plug-ins in the app's pages and files, and
+    AngularJS, Vue 2, Bootstrap 3 and 4, and jQuery 1 and 2 in the lockfile, the `package.json`, or a CDN address,
+    each with the end of its support; it never credits. Not done: a library copied into the app's own files with no
+    version in its address.
