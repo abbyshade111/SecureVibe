@@ -168,7 +168,9 @@ http
       mode = wanted;
       return json(res, 200, { mode });
     }
-    if (req.method === 'GET' && path === '/_sv/health') return json(res, 200, { ok: true });
+    // The process id says which server answered: a test that started one on a port another test's
+    // server had already taken would otherwise go on talking to that one.
+    if (req.method === 'GET' && path === '/_sv/health') return json(res, 200, { ok: true, pid: process.pid });
     json(res, 404, { error: 'not_found' });
   })
   .listen(PORT, '0.0.0.0');

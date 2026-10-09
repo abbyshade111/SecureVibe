@@ -751,7 +751,9 @@ const PIXEL = Buffer.from(
 http
   .createServer(async (req, res) => {
     const path = new URL(req.url, 'http://x').pathname;
-    if (req.method === 'GET' && path === '/_sv/health') return json(res, 200, { ok: true });
+    // The process id says which server answered: a test that started one on a port another test's
+    // server had already taken would otherwise go on talking to that one.
+    if (req.method === 'GET' && path === '/_sv/health') return json(res, 200, { ok: true, pid: process.pid });
     const seenAt = /^\/_sv\/seen\/([0-9a-f]+)$/.exec(path);
     if (req.method === 'GET' && seenAt) {
       const what = seen.get(seenAt[1]);
