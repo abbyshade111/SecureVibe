@@ -1355,8 +1355,14 @@ fn the_ai_service_failing_is_credited_in_part_when_the_app_writes_it_down() {
     assert_eq!(credit.requirement_ids, vec!["V16.3.4"]);
     // Not written there, or nothing written at all: said, never found.
     for (logs, words) in [
-        (ask_and_read(Flaws::default(), Logs::Unrelated), "was not in what the app wrote"),
-        (ask_and_read(Flaws::default(), Logs::Nothing), "was not in what the app wrote"),
+        (
+            ask_and_read(Flaws::default(), Logs::Unrelated),
+            "was not in what the app wrote",
+        ),
+        (
+            ask_and_read(Flaws::default(), Logs::Nothing),
+            "was not in what the app wrote",
+        ),
     ] {
         assert!(!credited(&logs).contains(&FAILURE_LOGGED.rule_id));
         assert!(!found(&logs).contains(&FAILURE_LOGGED.rule_id));
@@ -1378,7 +1384,11 @@ fn the_ai_service_failing_is_credited_in_part_when_the_app_writes_it_down() {
     let (mut o, markers) = run(&mut app, &section(), &context(None, &NO_POLICY));
     let elsewhere = app.log.join("\n").replace("SVERR", "SVERR0");
     logged(&markers, &elsewhere, &mut o);
-    assert!(!credited(&o).contains(&FAILURE_LOGGED.rule_id), "{:?}", o.verified);
+    assert!(
+        !credited(&o).contains(&FAILURE_LOGGED.rule_id),
+        "{:?}",
+        o.verified
+    );
     // No failure caused (the model is never reached): said as not asked.
     let unreached = ask_and_read(
         Flaws {
@@ -1391,7 +1401,11 @@ fn the_ai_service_failing_is_credited_in_part_when_the_app_writes_it_down() {
     // The AI feature answered, and the failure never reached the test model: said so.
     let mut o = Outcome::default();
     logged(&call_markers(), "ERROR SVERRabc123", &mut o);
-    assert!(!credited(&o).contains(&FAILURE_LOGGED.rule_id), "{:?}", o.verified);
+    assert!(
+        !credited(&o).contains(&FAILURE_LOGGED.rule_id),
+        "{:?}",
+        o.verified
+    );
     assert!(
         why(&o, "V16.3.4")
             .iter()
