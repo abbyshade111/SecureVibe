@@ -51,6 +51,14 @@ import sys
 import tempfile
 from pathlib import Path
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 ROOT = Path(__file__).resolve().parent.parent
 FOLDER = ROOT / "docs" / "backlog"
 BACKLOG = ROOT / "docs" / "BACKLOG.md"
@@ -124,7 +132,7 @@ class Item:
 
     def set_status(self, text):
         self.text = STATUS.sub(lambda _: f"**Status:** {text}", self.text, count=1)
-        self.path.write_text(self.text, encoding="utf-8")
+        write_text(self.path, self.text)
         self.status_text, self.kind = text, ("partly done" if text.startswith("partly") else text.split(" ", 1)[0].rstrip(","))
 
 
@@ -150,7 +158,7 @@ def text_of(title, status, body):
 
 def write(folder, number, title, status, body):
     path = folder / f"{number:04d}-{slug(title)}.md"
-    path.write_text(text_of(title, status, body), encoding="utf-8")
+    write_text(path, text_of(title, status, body))
     return path
 
 
@@ -245,7 +253,7 @@ def move(source, folder):
                     differing.append((title, item.path))
                 else:
                     head = item.text[: len(item.text) - len(item.body)]
-                    item.path.write_text(head.rstrip("\n") + "\n\n" + merged.strip("\n") + "\n", encoding="utf-8")
+                    write_text(item.path, head.rstrip("\n") + "\n\n" + merged.strip("\n") + "\n")
                     carried_into.append(item.path)
             continue
         number += 1
@@ -306,7 +314,7 @@ def self_test():
         tmp = Path(tmp)
         folder, backlog = tmp / "backlog", tmp / "BACKLOG.md"
         old = tmp / "OLD.md"
-        old.write_text("""# x
+        write_text(old, """# x
 
 rules
 
@@ -335,7 +343,7 @@ rules
 - **A decided item.** **Done** on the day.
 
 - ~~**A struck item.**~~ **Done the same day.** It was.
-""", encoding="utf-8")
+""")
         written, carried_into, differing = move(old, folder)
         names = [p.name for p in written]
         assert names == ["0001-an-open-item.md", "0002-a-claimed-item.md", "0003-a-done-item.md", "0004-a-mixed-item.md",
@@ -356,10 +364,10 @@ rules
         # Moving again writes nothing; an item with lines added since has them carried in; one whose lines changed
         # is named, not overwritten.
         assert move(old, folder) == ([], [], [])
-        old.write_text(old.read_text(encoding="utf-8")
+        write_text(old, old.read_text(encoding="utf-8")
                        .replace("Nothing has happened.", "Nothing has happened.\n  **Claimed later by session delta.**")
                        .replace("A second line of it.", "A line that was rewritten.")
-                       + "\n- **A new item.** New.\n", encoding="utf-8")
+                       + "\n- **A new item.** New.\n")
         written, carried_into, differing = move(old, folder)
         assert [p.name for p in written] == ["0008-a-new-item.md"], written
         assert [p.name for p in carried_into] == ["0001-an-open-item.md"], carried_into
@@ -383,16 +391,16 @@ rules
         # new, and the checks.
         path = new(folder, "A brand new item")
         assert path.name == "0009-a-brand-new-item.md" and find(folder, "9").kind == "open"
-        backlog.write_text("# Backlog\n\nrules\n\n## Roadmap\n\n1. first\n", encoding="utf-8")
+        write_text(backlog, "# Backlog\n\nrules\n\n## Roadmap\n\n1. first\n")
         assert problems(backlog, folder) == [], problems(backlog, folder)
-        backlog.write_text("# Backlog\n\n- **An item left here.** text\n", encoding="utf-8")
+        write_text(backlog, "# Backlog\n\n- **An item left here.** text\n")
         assert any("line 3 is an item" in p for p in problems(backlog, folder))
-        backlog.write_text("# Backlog\n", encoding="utf-8")
-        (folder / "notes.md").write_text("# Notes\n\n**Status:** open\n", encoding="utf-8")
-        (folder / "0010-untitled.md").write_text("no heading\n", encoding="utf-8")
-        (folder / "0011-no-status.md").write_text("# No status\n\ntext\n", encoding="utf-8")
-        (folder / "0012-odd-status.md").write_text("# Odd status\n\n**Status:** finished\n", encoding="utf-8")
-        (folder / "0013-twin.md").write_text("# A done item\n\n**Status:** open\n", encoding="utf-8")
+        write_text(backlog, "# Backlog\n")
+        write_text((folder / "notes.md"), "# Notes\n\n**Status:** open\n")
+        write_text((folder / "0010-untitled.md"), "no heading\n")
+        write_text((folder / "0011-no-status.md"), "# No status\n\ntext\n")
+        write_text((folder / "0012-odd-status.md"), "# Odd status\n\n**Status:** finished\n")
+        write_text((folder / "0013-twin.md"), "# A done item\n\n**Status:** open\n")
         found = problems(backlog, folder)
         for want in ("notes.md is not named", "0010-untitled.md does not open", "has no `**Status:**` line",
                      "is in none of the four forms", "share the title"):

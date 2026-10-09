@@ -40,7 +40,7 @@ use sv_frameworks::{Condition, Frameworks, Source};
 use sv_manifest::{ClaimState, ResolvedClaim};
 
 /// What is known about one applicable requirement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Status {
     /// A check found something and named this requirement.
@@ -106,6 +106,20 @@ impl Status {
         Status::NotVerified,
     ];
 
+    /// The status as a person reads it: its label, or, when only the AI coding tool's word stands
+    /// behind it and a person confirmed it through `sv review` (`confirmed_only_by`), the label that
+    /// says so. Never the owner's own words for the tool's.
+    pub fn shown(self, confirmed_only: bool) -> &'static str {
+        match (self, confirmed_only) {
+            (Status::Attested, true) => "stated by the AI coding tool, confirmed through sv review",
+            (Status::ByHand, true) => "checked by the AI coding tool, confirmed through sv review",
+            (Status::Documented, true) => {
+                "written by the AI coding tool, confirmed through sv review"
+            }
+            (status, _) => status.label(),
+        }
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Status::NeedsAttention => "needs attention",
@@ -147,6 +161,30 @@ impl Status {
     }
 }
 
+/// Whether the only thing behind an *attested*, *checked by hand*, or *documented* status is somebody
+/// confirming what the AI coding tool said, read from the ids of the checks that credited it. The one
+/// rule for whose word a status rests on: the report's pages read it through
+/// `RequirementLine::confirmed_only`, and `sv explain` reads it from `report.json` with the same ids,
+/// so the two cannot tell a person different things (backlog 0226, part 1, item 2, where `sv explain`
+/// told the owner "answered by you" for the tool's answer they had only confirmed).
+pub fn confirmed_only_by(
+    status: Status,
+    attested_by: &[String],
+    by_hand: &[String],
+    documented_by: &[String],
+) -> bool {
+    match status {
+        Status::Attested => !attested_by.iter().any(|c| c == "design.attested"),
+        Status::ByHand => by_hand
+            .iter()
+            .all(|c| c == sv_check::confirm::HAND_CONFIRMED),
+        Status::Documented => documented_by
+            .iter()
+            .all(|c| c == sv_check::notes::CONFIRMED),
+        _ => false,
+    }
+}
+
 impl RequirementLine {
     /// True when the only thing behind an *attested* or *checked by hand* status is somebody
     /// confirming what the AI coding tool said, rather than the owner's own record.
@@ -154,33 +192,18 @@ impl RequirementLine {
     /// Same rank, at the owner's decision (27 September 2026), and never shown as the owner's own:
     /// the label says the tool said it first and a person confirmed it.
     pub fn confirmed_only(&self) -> bool {
-        match self.status {
-            Status::Attested => !self
-                .attested_by
-                .iter()
-                .any(|c| c.check_id == "design.attested"),
-            Status::ByHand => self
-                .by_hand
-                .iter()
-                .all(|c| c.check_id == sv_check::confirm::HAND_CONFIRMED),
-            Status::Documented => self
-                .documented_by
-                .iter()
-                .all(|c| c.check_id == sv_check::notes::CONFIRMED),
-            _ => false,
-        }
+        let ids = |by: &[CheckedBy]| by.iter().map(|c| c.check_id.clone()).collect::<Vec<_>>();
+        confirmed_only_by(
+            self.status,
+            &ids(&self.attested_by),
+            &ids(&self.by_hand),
+            &ids(&self.documented_by),
+        )
     }
 
     /// The status as a person reads it: the tier's label, or the confirmed version of it.
     pub fn shown_label(&self) -> &'static str {
-        match (self.status, self.confirmed_only()) {
-            (Status::Attested, true) => "stated by the AI coding tool, confirmed through sv review",
-            (Status::ByHand, true) => "checked by the AI coding tool, confirmed through sv review",
-            (Status::Documented, true) => {
-                "written by the AI coding tool, confirmed through sv review"
-            }
-            (status, _) => status.label(),
-        }
+        self.status.shown(self.confirmed_only())
     }
 
     /// The words shown after the status when an information-only finding names this requirement,
@@ -2306,6 +2329,9 @@ fn question_for(condition: Condition) -> &'static str {
 fn stake(level: u8) -> u8 {
     u8::from(level != 1)
 }
+
+#[cfg(test)]
+mod whose_word_tests;
 
 #[cfg(test)]
 mod status_of_tests {

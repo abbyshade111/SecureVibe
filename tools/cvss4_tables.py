@@ -23,6 +23,14 @@ import random
 import subprocess
 import sys
 
+
+def write_text(path, text):
+    """Writes `text` as UTF-8 with Unix line endings on every system. Path.write_text uses the
+    system's own encoding and, on Windows, CRLF, which would make a generated file differ from the
+    one committed (backlog 0120)."""
+    with open(path, "w", encoding="utf-8", newline="\n") as out:
+        out.write(text)
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 TABLES = ROOT / "crates/sv-check/src/cvss4_tables.rs"
 FIXTURE = ROOT / "crates/sv-check/tests/fixtures/cvss4-reference.txt"
@@ -73,7 +81,7 @@ console.log(JSON.stringify({lookup: ctx.cvssLookup_global, composed: ctx.maxComp
 
 
 def node(script, checkout, stdin=""):
-    out = subprocess.run(["node", "-e", script, str(checkout)], input=stdin, capture_output=True, text=True)
+    out = subprocess.run(["node", "-e", script, str(checkout)], input=stdin, capture_output=True, text=True, encoding="utf-8")
     if out.returncode != 0:
         sys.exit(out.stderr)
     return out.stdout
@@ -87,16 +95,16 @@ def every_base():
 def main():
     checkout = pathlib.Path(sys.argv[1])
     commit = subprocess.run(["git", "-C", str(checkout), "rev-parse", "HEAD"], capture_output=True,
-                            text=True).stdout.strip() or "unknown"
+                            text=True, encoding="utf-8").stdout.strip() or "unknown"
     if "--all" in sys.argv:
         out = pathlib.Path(sys.argv[sys.argv.index("--all") + 1])
         vectors = [v + t for v in every_base() for t in THREAT]
-        out.write_text(node(SCORER, checkout, "\n".join(vectors)))
+        write_text(out, node(SCORER, checkout, "\n".join(vectors)))
         print(f"{len(vectors)} vectors scored to {out}")
         return
 
     data = json.loads(node(TABLE_DUMP, checkout))
-    license_text = (checkout / "LICENSE").read_text().strip()
+    license_text = (checkout / "LICENSE").read_text(encoding="utf-8").strip()
     lines = [
         f"//! CVSS v4 tables, copied by tools/cvss4_tables.py from FIRST's reference calculator,",
         f"//! github.com/FIRSTdotorg/cvss-v4-calculator at commit {commit} (ADR-033). Do not edit by hand.",
@@ -136,7 +144,7 @@ def main():
         pair = data["severity"]["eq3eq6"][level]
         rows.append("[" + ", ".join(str(pair.get(six, 0)) for six in ["0", "1"]) + "]")
     lines.append(f"pub(crate) const DEPTH_EQ3_EQ6: &[[u32; 2]; 3] = &[{', '.join(rows)}];")
-    TABLES.write_text("\n".join(lines) + "\n")
+    write_text(TABLES, "\n".join(lines) + "\n")
 
     # The sample: every base value at least once, the corners, and a fixed random draw, each with every threat
     # value, so the test holds the scoring to the reference without carrying all 419,904 pairs.
@@ -148,7 +156,7 @@ def main():
     FIXTURE.parent.mkdir(parents=True, exist_ok=True)
     header = (f"# CVSS v4 vectors and their scores from FIRST's reference calculator, commit {commit}, "
               f"written by tools/cvss4_tables.py.\n")
-    FIXTURE.write_text(header + node(SCORER, checkout, "\n".join(vectors)))
+    write_text(FIXTURE, header + node(SCORER, checkout, "\n".join(vectors)))
     print(f"{TABLES.relative_to(ROOT)} and {len(vectors)} reference scores written")
 
 

@@ -14,7 +14,7 @@ sv-check = { path = "../sv-check" }
 # The install volume's name is a SHA-256 over the dependency files (ADR-052); already a dependency of sv-check.
 sha2 = "0.11"
 # The system's randomness for test passwords on every system (backlog 0120); already in Cargo.lock.
-getrandom = "0.2"
+getrandom = "0.4"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

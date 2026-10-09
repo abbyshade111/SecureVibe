@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** partly done: part 1 items 2, 4 to 6, and 8 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
+**Status:** partly done: part 1 items 4 to 6, and 8 to 11; part 2 (9); part 3 (A to K, the owner's decisions)
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -221,6 +221,17 @@ bytes and decoded a line at a time, a line that is not UTF-8 counted as unreadab
 sentence when the record stopped at its size limit (item 7), each with a test that fails without it. No open pull
 request or branch of the last few hours touches `crates/sv-cli/src/build_loop.rs`; item 2 is session paper-facts's,
 in #1300.
+
+**Part 1, item 2 claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead with item
+2"), in branch `claude/explain-whose-word`: `sv explain` reading whose word a status rests on as the report does, so
+an answer only the AI coding tool gave, confirmed through `sv review`, is never told to the owner as their own.
+Open pull requests and recent branches read first: none touches `crates/sv-cli/src/explain.rs`.
+
+**Part 1, item 2 done the same day:** `sv explain` reads whose word a status rests on by the report's own rule, now one
+function (`sv_report::confirmed_only_by`, with its labels in `Status::shown`), so the tool's answer somebody confirmed
+through `sv review` is given as the report gives it and never as the owner's. Breaks: `sv explain` ignoring the rule
+failed its new test; the rule broken failed that test and the new one in `crates/sv-report/src/whose_word_tests.rs`,
+where before nothing in the report crate had failed.
 
 **Part 1, items 3 and 7 done the same day** (`docs/design/0344-the-build-loop-record-read-a-line-at-a-time-and-said-when.md`):
 the record is read as bytes and decoded a line at a time, so a byte that is not UTF-8 costs its line, counted as
