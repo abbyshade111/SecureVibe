@@ -72,12 +72,12 @@ fn the_status_says_how_it_did_when_sv_gave_it() {
             .unwrap_or_else(|| panic!("{id} is in the library"))
             .status_sentence()
     };
-    let secrets = said("secrets-in-the-environment");
+    let env_prompt = said("secrets-in-the-environment");
     assert!(
-        secrets.contains("at the start of a build, shown to work with Sonnet")
-            && secrets
+        env_prompt.contains("at the start of a build, shown to work with Sonnet")
+            && env_prompt
                 .contains("in its briefs and guidance, not shown to work with Sonnet and Haiku"),
-        "{secrets}"
+        "{env_prompt}"
     );
     let guard = said("ai-feature-guard");
     assert!(
