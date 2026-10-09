@@ -331,6 +331,9 @@ listed apart, below this item.
    reflected check's is; only ever a finding, since one page escaping it says nothing of the others. A JSON answer is
    not judged. The test model's reply carrying HTML stays unclaimed. Read on `main` and the open pull requests just
    before this claim: no other session had claimed (b).
+   **(b), the stored record's half, done the same day**
+   (`docs/design/0328-saved-text-written-into-a-page-unencoded-9-october-2026.md`): `probe.stored-unencoded`. The
+   test model's half stays open.
 14. **Template and notebook files are skipped without saying so.** (`docs/GAP-ANALYSIS.md`, 3.6.) Name `.astro`,
    `.ejs`, `.erb`, `.hbs`, `.pug`, `.twig`, `.j2`, `.njk`, `.liquid`, `.cshtml`, `.razor`, `.jsp`, `.ipynb`, and
    `.sql` as unread code; read notebook code cells as Python and Astro's frontmatter as TypeScript.
