@@ -1,6 +1,6 @@
 # A deep review of sv for observability: what it can show of itself, and what it should
 
-**Status:** open
+**Status:** claimed by paper-facts, 9 October 2026
 
 Asked for by the owner on 9 October 2026, when choosing a record of the build loop for finding 22(d) of the gap
 analysis: "observability is really important, so let's go with the first option and also please add a review task
@@ -28,3 +28,6 @@ It ends in a write-up in this item with findings ranked by what each costs and b
 the owner's decisions called out. It writes nothing that leaves the person's computer and adds no network connection;
 anything it proposes that would is the owner's decision. Read the day's write-ups in the backlog first ("From the
 review of" and "From the architecture assessment of"), so it does not find again what they found.
+
+**Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead"), in branch
+`claude/observability-review`. A review: it reads `sv` and writes its findings here; it builds nothing.
