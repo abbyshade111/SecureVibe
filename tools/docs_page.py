@@ -124,6 +124,14 @@ def render(md, here):
             out.append("<pre><code>" + html.escape("\n".join(code), quote=False) + "</code></pre>")
             i += 1
             continue
+        if stripped.startswith("<picture>"):
+            # The README's logo, a light and a dark image for GitHub's own page. This reader shows no
+            # images, and would otherwise show the markup as text at the top of the page.
+            flush()
+            while i < len(lines) and "</picture>" not in lines[i]:
+                i += 1
+            i += 1
+            continue
         m = re.match(r"^(#{1,6})\s+(.*?)\s*#*\s*$", line)
         if m:
             flush()
@@ -406,6 +414,9 @@ def self_test():
         (link_target("adr/ADR-001.md", "docs/X.md") == "adr/ADR-001.html", "a relative link"),
         (link_target("../../README.md", "docs/adr/A.md") == "../../README.html", "a link up two folders"),
         (all(not d.startswith("docs/paper/") for d in documents()), "the paper's drafts are left out"),
+        ("picture" not in render('<picture>\n  <img alt="x" src="a.svg">\n</picture>\n\n# After\n', "README.md")[0]
+         and 'id="after"' in render('<picture>\n  <img alt="x" src="a.svg">\n</picture>\n\n# After\n', "README.md")[0],
+         "the README's logo block is left out, and what follows it is read"),
     ]
     failed = [what for ok, what in checks if not ok]
     for what in failed:

@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/brand/stackvet-logo-dark.svg">
+  <img alt="StackVet" src="docs/brand/stackvet-logo.svg" width="320">
+</picture>
+
 # StackVet (`sv`)
 
 StackVet checks an app against the OWASP standards and writes reports that say plainly what was verified and
