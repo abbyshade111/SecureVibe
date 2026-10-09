@@ -224,3 +224,12 @@ cost of fetching all of this one). What follows is the plan, each step claimed o
    the Docker route works wherever Docker Desktop does.
 3. **The guide** gains "Installing with Homebrew" for Mac and Linux once step 1 is green, and a Windows section once
    step 2 is.
+
+**Step 1 done 9 October 2026 by session securevibe-e2:** the formula is in `abbyshade111/homebrew-stackvet`
+(`Formula/sv.rb`, head-only until the first release), and its CI installs it from source, audits it, and runs its test
+on a Mac and on Linux; both passed that day, though one Linux run in four
+stopped with "Empty installation" for a reason not yet known (its rerun passed; the workflow now prints what was
+installed when a job fails). The guide offers it in "Installing StackVet on your computer" (ADR-036,
+Later). Not yet tried by hand on the owner's Mac. Step 2, Windows in CI, is next; a stable version and bottles wait for
+the signed releases (0191 part 4).
+
