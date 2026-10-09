@@ -1889,7 +1889,8 @@ fn run_checks(
         http,
         "private_page_checks",
         &[
-            "V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6", "V7.4.4", "V14.2.2", "V14.3.2"
+            "V3.3.2", "V3.3.4", "V3.4.3", "V3.4.4", "V3.4.5", "V3.4.6", "V7.4.4", "V14.2.2",
+            "V14.3.2"
         ],
         private_page_checks(http, users, &a, &mut out)
     );
@@ -2308,6 +2309,8 @@ mod asked_tests;
 mod check_guard_tests;
 #[cfg(test)]
 mod fake_app;
+#[cfg(test)]
+mod page_cookie_tests;
 #[cfg(test)]
 mod resignup_tests;
 #[cfg(test)]

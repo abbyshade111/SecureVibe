@@ -579,6 +579,10 @@ pub(super) struct Flaws {
     /// Signs its tokens with a placeholder secret, the one a tutorial's example used, rather than a
     /// key of its own (V9.1.1).
     pub(super) jwt_placeholder_key: bool,
+    /// A `Set-Cookie` the account page adds to its answer, with `{sid}` standing for the session
+    /// the request came with: an app that sets its session cookie again on a signed-in page, with
+    /// or without what protects it, or sets some other cookie there.
+    pub(super) account_set_cookie: Option<&'static str>,
 }
 
 pub(super) const CSRF: &str = "tok-123";
@@ -1877,6 +1881,10 @@ impl FakeApp {
                             ("X-Content-Type-Options", "nosniff".to_string()),
                             ("Referrer-Policy", "no-referrer".to_string()),
                         ]);
+                    }
+                    if let Some(template) = self.flaws.account_set_cookie {
+                        let sid = cookie_value(r, "sid").unwrap_or_default();
+                        headers.push(("Set-Cookie", template.replace("{sid}", &sid)));
                     }
                     let body = if self.flaws.no_sign_out_link {
                         "your account<script>const OUT = '/logout';</script>".to_string()

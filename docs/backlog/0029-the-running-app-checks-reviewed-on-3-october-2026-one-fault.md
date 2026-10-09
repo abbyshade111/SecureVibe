@@ -1,6 +1,6 @@
 # The running-app checks, reviewed on 3 October 2026: one fault in the counts, and what to add
 
-**Status:** partly done: parts 3 (cookies a signed-in page sets, pages the run does not ask for), 9 (C9.1.1's per-tool quotas), 13 (a limit kept by a proxy in production), 14 (a run against a real app), and 15 (tar, 7z, and rar; archives whose stated sizes are false)
+**Status:** partly done: parts 9 (C9.1.1's per-tool quotas), 13 (a limit kept by a proxy in production), 14 (a run against a real app), and 15 (tar, 7z, and rar; archives whose stated sizes are false); part 3's pages the run does not ask for are out of reach
 
 By session
 securevibe-e9, at the owner's asking ("review them and then propose additional checks that would provide strong
@@ -71,6 +71,10 @@ ASVS and AISVS requirement no running check speaks to. **Each numbered item can 
    kept beside that finding. A cookie of another name stays out of it: only the session's own carries the session.
    Pages the run does not ask for stay out of reach, as before. Confirmed on `main` just before this claim: not done,
    and no other session had claimed it.
+   **Done the same day** (`docs/design/0316-the-session-cookie-a-signed-in-page-sets-again-9-october.md`): each
+   private page's `Set-Cookie` lines are read, the session cookie set again is judged as sign-in's is, and a page
+   that drops HttpOnly or SameSite is a finding that withdraws sign-in's credit. A cookie of another name and a
+   deletion stay out of it. Pages the run does not ask for are the one thing in this part beyond reach.
 4. **Sign-in tokens the app issues itself (V9.1.1, V9.1.2, V9.2.1, V9.1.3; all level 1).** When the token the
    app hands the test user is a JWT, send it back altered with the same signature, with `alg: none`, past its
    expiry, and naming a key the probe controls (`jku`, `kid`). The real token opening the page is the control, so

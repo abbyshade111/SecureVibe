@@ -767,6 +767,28 @@ pub(super) fn clear_site_data_check(
 
 /// Whether signing out also happens on a plain page visit (V3.5.3).
 ///
+/// The session's own cookies, the ones sign-in set, that `response` sets again, other than to
+/// delete them: an empty value, `Max-Age` of zero or less, or an `Expires` in 1970 is a browser
+/// being told to forget the cookie, which carries no session to protect.
+fn session_cookies_set_again(response: &ProbeResponse, signed_in: &SignedIn) -> Vec<Cookie> {
+    response
+        .headers
+        .iter()
+        .filter(|(k, _)| k.eq_ignore_ascii_case("set-cookie"))
+        .filter(|(_, raw)| {
+            !raw.split(';').skip(1).any(|attribute| {
+                let (key, value) = attribute.split_once('=').unwrap_or((attribute, ""));
+                let (key, value) = (key.trim().to_lowercase(), value.trim());
+                (key == "max-age" && value.parse::<i64>().is_ok_and(|n| n <= 0))
+                    || (key == "expires" && value.contains("1970"))
+            })
+        })
+        .filter_map(|(_, raw)| parse_set_cookie(raw))
+        .filter(|c| !c.value.is_empty())
+        .filter(|c| signed_in.set_at_login.iter().any(|s| s.name == c.name))
+        .collect()
+}
+
 /// A fresh sign-in, shown to open the private page; a GET to the sign-out address; then the private
 /// page again. Only ever a finding: one address refusing a GET says nothing about the others.
 /// Two questions about the private pages themselves, asked with the session that opened them.
@@ -799,6 +821,8 @@ pub(super) fn private_page_checks(
     let mut with_link = Vec::new();
     let mut without_link = Vec::new();
     let mut without_headers = Vec::new();
+    let mut reset_bare = Vec::new();
+    let mut reset_on = Vec::new();
 
     for path in &users.private {
         let Some(response) = http.send(&get("private-page-headers", path, &signed_in.session))
@@ -809,6 +833,25 @@ pub(super) fn private_page_checks(
             continue;
         }
         opened.push(path.clone());
+        // The session cookie set again here is the session from now on, so it is judged as the
+        // one sign-in set (`session_checks`): a page that drops HttpOnly or SameSite undoes what
+        // sign-in did right. Another cookie does not carry the session and stays out of it.
+        for cookie in session_cookies_set_again(&response, signed_in) {
+            reset_on.push(path.clone());
+            if !cookie.http_only {
+                reset_bare.push(format!(
+                    "{path} sets `{}` again where any script on the page can read it (no HttpOnly)",
+                    cookie.name
+                ));
+            }
+            if cookie.same_site.is_none() {
+                reset_bare.push(format!(
+                    "{path} sets `{}` again without saying when it may travel to other sites \
+                     (no SameSite)",
+                    cookie.name
+                ));
+            }
+        }
         let missing = crate::probes::missing_headers(&response);
         if !missing.is_empty() {
             without_headers.push(format!(
@@ -854,6 +897,29 @@ pub(super) fn private_page_checks(
                 .to_owned(),
         ));
         return;
+    }
+
+    // ---- V3.3.2, V3.3.4: the session cookie, set again on a private page
+    if !reset_on.is_empty() {
+        reset_on.dedup();
+        out.steps.push(format!(
+            "{} private page{} set the session cookie again: {}",
+            reset_on.len(),
+            if reset_on.len() == 1 { "" } else { "s" },
+            reset_on.join(", ")
+        ));
+    }
+    if !reset_bare.is_empty() {
+        // `session_checks`, run before this, credits the cookie sign-in set; that credit does not
+        // stand once a page has set the same cookie again without what protects it.
+        out.verified
+            .retain(|v| v.check_id != SESSION_COOKIE.rule_id);
+        out.findings.push(finding(
+            &SESSION_COOKIE,
+            "A signed-in page sets the session cookie again without the attributes that protect it",
+            Severity::High,
+            reset_bare.join("; "),
+        ));
     }
 
     // ---- V14.3.2: Cache-Control: no-store
