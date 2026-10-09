@@ -475,3 +475,12 @@ any proposal in `docs/PARTIAL-CHECKS.md` can be added here as an item and claime
     ADR-074, accepted). `probe.ai-safety-decision-detailed` credits C12.1.2 in part when the line recording the caught
     injection says why and when, and says what was not seen otherwise; it never finds. Not done: other safety
     decisions, and the kill-switch log (C12.4.3).
+22. **C12.4.2: a tool action the AI took, written down with its argument, from the running app. Not verified.** From
+    `docs/PARTIAL-CHECKS.md`: the control question of the MCP checks makes the app call the test tool `sv_lookup`
+    with the message's tag as its argument, and the app's output is read for a line recording that call.
+    **Claimed on 9 October 2026 by session paper-facts**, at the owner's word ("please go ahead"), in branch
+    `claude/tool-action-logged`: `probe.ai-tool-action-logged`, credited in part when a line names the tool and
+    carries the tag as its argument (not only as part of the person's logged message), saying whether it also has a
+    time; the action is a read-only lookup, and approver and outcome are not seen. Never a finding. **Record,
+    `Status: proposed`: ADR-075.** Checked just before this claim: not on `main`, in no open pull request, and in no
+    recent branch.
