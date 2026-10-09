@@ -115,6 +115,7 @@ evidence-tier rule without its number), and ADR-012 is also cited by number in `
 | [ADR-069](ADR-069.md) | A line break and a Bcc header in the address a reset is mailed to (V1.3.11) |
 | [ADR-070](ADR-070.md) | Client-side technology that is no longer supported, found in the app's code (V3.7.1) |
 | [ADR-071](ADR-071.md) | The AI service's failure found in the app's own output (V16.3.4, in part) |
+| [ADR-072](ADR-072.md) | The app's log files served to anybody who asks (V16.4.2) (proposed) |
 
 ## Where v1's records disagree with what v1 built
 

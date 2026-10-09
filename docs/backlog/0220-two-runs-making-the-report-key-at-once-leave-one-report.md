@@ -1,6 +1,6 @@
 # Two runs making the report key at once leave one report unsealed
 
-**Status:** claimed by securevibe-e2, 9 October 2026
+**Status:** done, 9 October 2026
 
 Found 9 October 2026 by session securevibe-e2, while building the gap analysis's finding 22(b). On unchanged `main`,
 `cargo test -p sv-cli --lib resource` failed about one run in six: two tests sealed a report at the same moment before
@@ -13,3 +13,8 @@ likely the unexplained `test` failures on #1192 and #1195 the same morning, whos
 The fix: write the key whole to a file of its own, link it into place with a call that fails when the name is taken,
 and on losing, read and use the key that won. The key's format, folder, and permissions are unchanged, so no record
 is proposed (ADR-026, ADR-034, and ADR-043 govern the file; each gets an "unchanged" line).
+
+**Done the same day** (`docs/design/0328-two-runs-making-the-report-key-at-once-9-october-2026.md`): the key is written whole to a file of its own and linked into place, and a
+run that loses the race uses the key that won. Held by `crates/sv-check/tests/seal_key_race.rs` (sixteen runs at once,
+twenty rounds), which failed three runs of three on the old code; `cargo test -p sv-cli --lib resource` then passed ten
+runs of ten.
